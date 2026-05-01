@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T13:41:56Z
+last_update: 2026-05-01T14:24:08Z
 date_finished: null
 ---
 
@@ -41,13 +41,18 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
 - [x] **.107 (local-test) — skill installed** — `~/.claude/commands/agent-handoff.md` (4568 bytes, 2026-05-01T12:03Z). Binary 0.9.1656 already there. Full functionality
 - [x] **.122 (ring20-management) — skill installed** — pushed via `termlink remote exec` + base64 inline (file.send is T-1166 deprecated). Verified `wc -c ~/.claude/commands/agent-handoff.md` = 4568 on the remote. Binary 0.9.1630 — `agent contact` will return "unknown subcommand" until binary upgrade
 - [x] **.141 (laptop-141, WSL) — skill installed** — same path, `/home/dimitri/.claude/commands/agent-handoff.md`, 4568 bytes verified. Binary at `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` is older (T-1420 deployed 0.9.1591). Same stale-binary caveat as .122
-- [x] **.122 (ring20-management) — binary SWAPPED + VERIFIED 2026-05-01T14:00Z** — TWO swaps done:
-  - 12:42Z: 0.9.1630 → 0.9.1657 (had `agent contact`, lacked `--thread` — version label misleading; built pre-b4ed67c0)
-  - 14:00Z: 0.9.1657 → 0.9.1659 (now WITH `--thread`)
-  Secret + cert SHAs unchanged across both restarts (3dd9d01a / 2355a206) — TOFU pins held end-to-end. Probe (T-1423) → swap (`hub-binary-swap.sh`) → verify (remote ping + version + SHA canaries) is the proven pipeline for watchdog-less hosts. Hardened script (commit f8699007) now does 90s out-of-band post-call polling so transport-death false-alarms are gone
+- [x] **.122 (ring20-management) — binary SWAPPED + VERIFIED 2026-05-01T16:40Z** — THREE swaps total:
+  - 12:42Z: 0.9.1630 → 0.9.1657 (had `agent contact`, lacked `--thread`)
+  - 14:00Z: 0.9.1657 → 0.9.1659 (with `--thread`)
+  - 16:40Z: 0.9.1659 → 0.9.1674 (with `--target-fp` + profile-name resolution — Phase-2 complete on field)
+  Secret + cert SHAs unchanged across ALL THREE restarts (3dd9d01a / 2355a206) — TOFU pins held. Hardened swap script (f8699007) with 90s OOB polling. Bidirectional cross-host smoke verified — see "Smoke test (cross-host)" AC below
 - [x] **.141 (laptop-141) — binary STAGED + PROBED 2026-05-01T14:30Z** — `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink.new` = 0.9.1659 with `--thread`, probe OK on Ubuntu 24.04 / glibc 2.39 (musl-static fleet-safe). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
-- [x] **Smoke test (same-host on .122) — PASSED 2026-05-01T15:43Z** — Spawned `peer-122-b` (tl-ihpdivtn, fp=9219671e28054458) on .122, ran `termlink agent contact peer-122-b --thread T-1438 --message "..."`. Verified envelope at offset=1 on `dm:9219671e28054458:9219671e28054458` with `msg_type=chat`, `metadata._thread=T-1438`, signed `sender_id`. Topic auto-created at offset=0 with topic_metadata (T-1430 self-doc). Confirms `agent contact` + `--thread` + `dm:*` topic resolution all work end-to-end on the field binary. Cross-host (different identities) still gated by Phase-2 federation work (see learning above)
+- [x] **Smoke test (same-host on .122) — PASSED 2026-05-01T15:43Z** — Spawned `peer-122-b` (tl-ihpdivtn, fp=9219671e28054458) on .122, ran `termlink agent contact peer-122-b --thread T-1438`. Verified envelope at offset=1 on `dm:9219671e:9219671e` with `msg_type=chat`, `metadata._thread=T-1438`, signed `sender_id`. Topic auto-created with topic_metadata (T-1430 self-doc)
+- [x] **Smoke test (cross-host BIDIRECTIONAL) — PASSED 2026-05-01T16:40Z** — After shipping `--target-fp` (cdb8bbaf) and profile-name resolution (e3f2381f), verified both directions:
+  - .107 → .122: `termlink agent contact --target-fp 9219671e28054458 --hub ring20-management --thread T-1438 --message "..."` → delivered offset=1 then offset=2 on `dm:9219671e:d1993c2c` on .122's hub
+  - .122 → .107: `termlink agent contact --target-fp d1993c2c3ec44c94 --hub workstation-107 --thread T-1438` → delivered offset=2 on .107's hub
+  Each hub stores its own copy of the symmetric topic. Phase-2 federation operational
 - [x] **Field-rollout learning recorded** — multiple learnings captured in this rollout cycle: PL-099 (cross-host chat-arc verified working in earlier T-1420 cycle), PL-104 (transport-death detach), PL-105 (operator poll cadence ≥60s for hub relaunch), and same-host smoke PASS verifying the chain end-to-end. Pattern: "stage + probe + swap + 90s out-of-band poll + version+SHA canary verification" is the proven pipeline for watchdog-less hubs
 
 ### Human
