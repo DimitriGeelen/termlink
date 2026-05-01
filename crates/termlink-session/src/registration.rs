@@ -2,12 +2,35 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::agent_identity::Identity;
 use crate::identity::SessionId;
 use crate::lifecycle::SessionState;
 use termlink_protocol::TransportAddr;
 
 /// Registration entry format version.
 pub const REGISTRATION_VERSION: u8 = 1;
+
+/// T-1436: best-effort load of the agent identity fingerprint for inclusion
+/// in `SessionMetadata`. Resolves the identity base dir via `$HOME/.termlink`
+/// (matching `crates/termlink-cli/src/commands/channel.rs::identity_base_dir`)
+/// and returns `None` on any error: missing HOME, IO failure, or absent key
+/// file when we don't want to auto-create one inside registration. This
+/// keeps `Registration::new` infallible — pre-T-1436 callers and tests that
+/// run without an identity continue to work, the field just stays None.
+fn load_identity_fingerprint_best_effort() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
+    let base = PathBuf::from(home).join(".termlink");
+    // Only load if the identity already exists; do not auto-create from
+    // inside registration (creation is the channel.post path's
+    // responsibility — this is read-only).
+    let key_path = crate::agent_identity::identity_path(&base);
+    if !key_path.exists() {
+        return None;
+    }
+    Identity::load_or_create(&base)
+        .ok()
+        .map(|id| id.fingerprint().to_string())
+}
 
 /// Registration entry written as a JSON sidecar file alongside the session socket.
 ///
@@ -156,6 +179,13 @@ pub struct SessionMetadata {
     /// Data plane socket path (present when session supports binary streaming).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data_socket: Option<String>,
+    /// T-1436: hex sha-256 of the agent's ed25519 public key. Same identifier
+    /// used as `sender_id` on channel.post envelopes and as the `<a>`/`<b>`
+    /// halves of canonical `dm:<a>:<b>` topic names. Present when the session
+    /// could load/create an identity at registration time; absent for
+    /// pre-T-1436 registrations or when identity loading failed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity_fingerprint: Option<String>,
 }
 
 /// Configuration for creating a new session registration.
@@ -213,6 +243,10 @@ impl Registration {
                     .map(|p| p.to_string_lossy().into_owned()),
                 termlink_version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 data_socket: None,
+                // T-1436: best-effort identity fingerprint. Silently None on
+                // any failure (no HOME, IO error, etc.) so registration in
+                // unprivileged or sandboxed contexts doesn't fail.
+                identity_fingerprint: load_identity_fingerprint_best_effort(),
             },
             token_secret: None,
             allowed_commands: None,
@@ -442,6 +476,7 @@ mod tests {
             cwd: Some("/home/user".into()),
             termlink_version: Some("0.9.0".into()),
             data_socket: Some("/tmp/data.sock".into()),
+            identity_fingerprint: Some("a1b2c3d4e5f6".into()),
         };
         let json = serde_json::to_string(&meta).unwrap();
         let parsed: SessionMetadata = serde_json::from_str(&json).unwrap();
@@ -450,6 +485,7 @@ mod tests {
         assert_eq!(parsed.cwd.as_deref(), Some("/home/user"));
         assert_eq!(parsed.termlink_version.as_deref(), Some("0.9.0"));
         assert_eq!(parsed.data_socket.as_deref(), Some("/tmp/data.sock"));
+        assert_eq!(parsed.identity_fingerprint.as_deref(), Some("a1b2c3d4e5f6"));
     }
 
     #[test]
@@ -459,11 +495,46 @@ mod tests {
         assert!(!json.contains("shell"));
         assert!(!json.contains("term"));
         assert!(!json.contains("data_socket"));
+        assert!(!json.contains("identity_fingerprint"));
 
         // Deserialize from empty object
         let parsed: SessionMetadata = serde_json::from_str("{}").unwrap();
         assert!(parsed.shell.is_none());
         assert!(parsed.data_socket.is_none());
+        assert!(parsed.identity_fingerprint.is_none());
+    }
+
+    /// T-1436: pre-T-1436 registration JSON (no identity_fingerprint key) must
+    /// still deserialize cleanly with the field set to `None`. Backward-compat
+    /// guarantee.
+    #[test]
+    fn session_metadata_legacy_json_without_identity_fingerprint() {
+        let legacy_json = r#"{
+            "shell": "/bin/bash",
+            "term": "xterm",
+            "cwd": "/tmp",
+            "termlink_version": "0.9.1500",
+            "data_socket": "/tmp/data.sock"
+        }"#;
+        let parsed: SessionMetadata = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(parsed.shell.as_deref(), Some("/bin/bash"));
+        assert!(
+            parsed.identity_fingerprint.is_none(),
+            "legacy JSON without identity_fingerprint must deserialize as None"
+        );
+    }
+
+    /// T-1436: round-trip test for the new field — set explicitly, serialize,
+    /// deserialize, fingerprint preserved exactly.
+    #[test]
+    fn session_metadata_identity_fingerprint_round_trip() {
+        let fp = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let mut meta = SessionMetadata::default();
+        meta.identity_fingerprint = Some(fp.to_string());
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("identity_fingerprint"));
+        let parsed: SessionMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.identity_fingerprint.as_deref(), Some(fp));
     }
 
     #[test]
