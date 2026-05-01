@@ -623,6 +623,40 @@ pub(crate) async fn cmd_whoami(
     Ok(())
 }
 
+/// T-1440: build the JSON payload for `termlink whoami --json`. Extracted
+/// from `print_whoami_card` so tests can assert wire shape (notably the
+/// presence/absence of identity_fingerprint per T-1436 plumbing) without
+/// capturing stdout.
+fn whoami_card_json(
+    reg: &termlink_session::registration::Registration,
+    pid_walked_match: Option<u32>,
+) -> serde_json::Value {
+    let mut card = serde_json::json!({
+        "ok": true,
+        "session": {
+            "id": reg.id.as_str(),
+            "display_name": reg.display_name,
+            "state": reg.state.to_string(),
+            "pid": reg.pid,
+            "uid": reg.uid,
+            "roles": reg.roles,
+            "tags": reg.tags,
+            "capabilities": reg.capabilities,
+            "cwd": reg.metadata.cwd,
+        }
+    });
+    // T-1440: chat-arc identity_fingerprint (sender_id for signed envelopes).
+    // Only emit when present so pre-T-1436 registrations stay key-stable.
+    if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
+        card["session"]["identity_fingerprint"] = serde_json::json!(fp);
+    }
+    if let Some(p) = pid_walked_match {
+        card["resolved_via"] = serde_json::json!("pid_walk");
+        card["pid_walk_match"] = serde_json::json!(p);
+    }
+    card
+}
+
 /// Print a whoami identity card. When `pid_walked_match` is `Some(pid)`, annotate
 /// the output to show the lookup succeeded via PID-walk (T-1303).
 fn print_whoami_card(
@@ -631,30 +665,16 @@ fn print_whoami_card(
     pid_walked_match: Option<u32>,
 ) -> Result<()> {
     if json {
-        let mut card = serde_json::json!({
-            "ok": true,
-            "session": {
-                "id": reg.id.as_str(),
-                "display_name": reg.display_name,
-                "state": reg.state.to_string(),
-                "pid": reg.pid,
-                "uid": reg.uid,
-                "roles": reg.roles,
-                "tags": reg.tags,
-                "capabilities": reg.capabilities,
-                "cwd": reg.metadata.cwd,
-            }
-        });
-        if let Some(p) = pid_walked_match {
-            card["resolved_via"] = serde_json::json!("pid_walk");
-            card["pid_walk_match"] = serde_json::json!(p);
-        }
-        println!("{}", serde_json::to_string_pretty(&card)?);
+        println!("{}", serde_json::to_string_pretty(&whoami_card_json(reg, pid_walked_match))?);
     } else {
         println!("ID:           {}", reg.id.as_str());
         println!("Display name: {}", reg.display_name);
         println!("State:        {}", reg.state);
         println!("PID:          {}", reg.pid);
+        // T-1440: copy-pasteable into `agent contact --target-fp <hex>`.
+        if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
+            println!("Identity FP:  {fp}");
+        }
         println!("Roles:        {}", if reg.roles.is_empty() { "(none)".to_string() } else { reg.roles.join(", ") });
         println!("Tags:         {}", if reg.tags.is_empty() { "(none)".to_string() } else { reg.tags.join(", ") });
         println!("Capabilities: {}", if reg.capabilities.is_empty() { "(none)".to_string() } else { reg.capabilities.join(", ") });
@@ -758,5 +778,58 @@ mod tests {
         // PID very unlikely to exist
         let chain = walk_ancestor_pids(999_999_999);
         assert_eq!(chain, vec![999_999_999]);
+    }
+
+    // T-1440: whoami_card_json surfaces identity_fingerprint when populated
+    // (post-T-1436 registrations) and stays key-stable when absent (legacy /
+    // pre-T-1436 fleet hosts). Build the Registration via JSON deserialize
+    // so we don't have to track every private field — the wire shape is the
+    // stable contract.
+    fn make_reg(identity_fp: Option<&str>) -> termlink_session::registration::Registration {
+        let id_field = identity_fp
+            .map(|fp| format!(r#","identity_fingerprint":"{fp}""#))
+            .unwrap_or_default();
+        let json = format!(
+            r#"{{
+                "version": 1,
+                "id": "tl-test1234",
+                "display_name": "test-session",
+                "pid": 12345,
+                "uid": 0,
+                "addr": {{ "type": "unix", "path": "/tmp/test.sock" }},
+                "created_at": "2026-05-01T17:00:00Z",
+                "heartbeat_at": "2026-05-01T17:00:00Z",
+                "state": "ready",
+                "capabilities": [],
+                "roles": [],
+                "tags": [],
+                "metadata": {{ "cwd": "/tmp"{id_field} }}
+            }}"#
+        );
+        serde_json::from_str(&json).expect("Registration JSON shape valid in test")
+    }
+
+    #[test]
+    fn whoami_card_json_with_identity_fp_emits_field() {
+        let fp = "d1993c2c3ec44c94";
+        let reg = make_reg(Some(fp));
+        let card = whoami_card_json(&reg, None);
+        let session = card.get("session").and_then(|v| v.as_object()).expect("session present");
+        assert_eq!(
+            session.get("identity_fingerprint").and_then(|v| v.as_str()),
+            Some(fp),
+            "identity_fingerprint must appear in JSON when registration has it"
+        );
+    }
+
+    #[test]
+    fn whoami_card_json_without_identity_fp_omits_key() {
+        let reg = make_reg(None);
+        let card = whoami_card_json(&reg, None);
+        let session = card.get("session").and_then(|v| v.as_object()).expect("session present");
+        assert!(
+            !session.contains_key("identity_fingerprint"),
+            "identity_fingerprint key must be omitted on legacy registrations (pre-T-1436)"
+        );
     }
 }
