@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T14:24:08Z
+last_update: 2026-05-01T14:41:42Z
 date_finished: null
 ---
 
@@ -46,7 +46,7 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
   - 14:00Z: 0.9.1657 → 0.9.1659 (with `--thread`)
   - 16:40Z: 0.9.1659 → 0.9.1674 (with `--target-fp` + profile-name resolution — Phase-2 complete on field)
   Secret + cert SHAs unchanged across ALL THREE restarts (3dd9d01a / 2355a206) — TOFU pins held. Hardened swap script (f8699007) with 90s OOB polling. Bidirectional cross-host smoke verified — see "Smoke test (cross-host)" AC below
-- [x] **.141 (laptop-141) — binary STAGED + PROBED 2026-05-01T14:30Z** — `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink.new` = 0.9.1659 with `--thread`, probe OK on Ubuntu 24.04 / glibc 2.39 (musl-static fleet-safe). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
+- [x] **.141 (laptop-141) — binary RE-STAGED + RE-PROBED 2026-05-01T18:42Z** — `/tmp/termlink-staged-0.9.1674` = 0.9.1674 (matches .122 deployed binary, includes `--target-fp` + profile-name resolution). 453 chunks streamed cleanly, SHA `28266633c8b0e7b2f76255b3b1a37843adf5cf0f70add31cf03e100be5bf1018` verified on remote, probe OK: `termlink 0.9.1674`. Supersedes the earlier 0.9.1659 stage (now stale). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
 - [x] **Smoke test (same-host on .122) — PASSED 2026-05-01T15:43Z** — Spawned `peer-122-b` (tl-ihpdivtn, fp=9219671e28054458) on .122, ran `termlink agent contact peer-122-b --thread T-1438`. Verified envelope at offset=1 on `dm:9219671e:9219671e` with `msg_type=chat`, `metadata._thread=T-1438`, signed `sender_id`. Topic auto-created with topic_metadata (T-1430 self-doc)
 - [x] **Smoke test (cross-host BIDIRECTIONAL) — PASSED 2026-05-01T16:40Z** — After shipping `--target-fp` (cdb8bbaf) and profile-name resolution (e3f2381f), verified both directions:
@@ -176,6 +176,12 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Reads back via:** `termlink channel dm 9219671e28054458 --json` returns both envelopes correctly. `channel list --prefix dm: --stats` shows content=1, meta=1, senders=1
 - **Conclusive:** the `agent contact` + `--thread` + `dm:*` arc is functioning end-to-end on the field binary. Same identity both ends because caller + peer share `~/.termlink/identity.key` on the same machine
 - **Cleaned up:** killed peer-122-b after verification
+
+### 2026-05-01T18:42Z — .141 re-stage to 0.9.1674 [agent autonomous]
+- **Action:** `fleet-deploy-binary.sh laptop-141 --probe --dst /tmp/termlink-staged-0.9.1674` — re-staged to match what's live on .122
+- **Why:** Earlier stage was 0.9.1659; .122 now runs 0.9.1674 (with --target-fp + profile-name resolution). Bringing .141 stage up to parity so when operator swaps, the cross-host chat-arc works without further re-staging
+- **Result:** 453 chunks streamed (failures=0), SHA `28266633c8b0e7b2f76255b3b1a37843adf5cf0f70add31cf03e100be5bf1018` verified on remote; probe OK reports `termlink 0.9.1674`. Confirms musl-static loads cleanly on Ubuntu 24.04 / glibc 2.39 WSL — second host validates the foreign-binary mitigation pipeline (T-1423 --probe)
+- **Operator-gated swap:** WSL hub PID 26573 is the running termlink hub on `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink`. Swap requires `kill 26573` then NTFS-DrvFs-aware rm-then-cp + relaunch. Will disrupt agent-1 PID 4490 session. Operator needs to schedule the cutover at a clean moment
 
 ### 2026-05-01T15:45Z — true cross-host attempted via channel post [agent autonomous]
 - **Action:** Tried `channel post dm:9219671e28054458:d1993c2c3ec44c94 --hub ring20-management --metadata _thread=T-1438` from .107 to verify .107 → .122 federation
