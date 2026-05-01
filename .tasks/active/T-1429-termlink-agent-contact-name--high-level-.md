@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:26:39Z
-last_update: 2026-04-30T21:26:39Z
+last_update: 2026-04-30T21:27:46Z
 date_finished: null
 ---
 
@@ -35,6 +35,7 @@ date_finished: null
 - [ ] When `<target>` resolves via `discover`, the verb finds the session and extracts its `sender_id` (or equivalent stable identifier)
 - [ ] DM topic name is computed as `dm:<sorted_id_a>:<sorted_id_b>` where `sorted_id_a < sorted_id_b` lexicographically — same canonicalization as T-1319; reuse the existing helper rather than reimplement
 - [ ] If the topic doesn't exist on the local hub, the verb auto-creates it with `retention=forever` (T-1425 Q1=A, Q5=A)
+- [ ] **Self-describe on create (deferred from T-1430):** when auto-creating a `dm:<a>:<b>` topic, the verb also calls `cmd_channel_describe` once with: "Direct messages between sender_id `<a>` and `<b>`. Same protocol as `agent-chat-arc`. Created by `termlink agent contact` on first use." — applied idempotently (skip if topic already had a description; safe to re-apply on existing topic without description)
 - [ ] If the topic exists already, the verb posts to it without altering retention or description
 
 **Identity stamping:**

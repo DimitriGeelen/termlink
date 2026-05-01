@@ -41,6 +41,14 @@ total legacy attributable: 630 in 7d
   └─ 620 of those: inbox.status from peer_ip 192.168.10.143
 ```
 
+**Re-confirmed 2026-05-01T10:00Z** with `fleet doctor --legacy-usage` (T-1432)
++ raw `rpc-audit.jsonl` breakdown by peer_ip on the live .107 hub. Inter-arrival
+from .143: ~60s (range 56–69s) of the triplet `hub.auth → session.list →
+inbox.status`. Post-T-1235 hosts (.141, .122) show only `channel.*` traffic in
+the same window — confirming T-1235's SDK shim routes correctly when the
+client binary contains it. **.143 is the only outstanding host without T-1235.**
+See T-1435 for the diagnostic write-up that re-validated this on 2026-05-01.
+
 Every other source of legacy traffic in this fleet either ages out
 (pre-T-1409 unattributable backlog) or is local stale sessions covered by
 T-1417's bake. .143 is the one external client that needs an SDK upgrade
