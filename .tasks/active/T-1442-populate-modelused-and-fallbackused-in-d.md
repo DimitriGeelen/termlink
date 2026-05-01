@@ -36,16 +36,16 @@ the substrate's resolution decision.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract).
-- [ ] After cmd_spawn writes meta.json, `/tmp/tl-dispatch/<name>/meta.json` contains `task_type`, `model`, `model_used`, `fallback_used` keys (schema parity with the framework).
-- [ ] When `--model haiku` is passed, `model_used = "haiku"` and `fallback_used = false` (explicit choice — no fallback).
-- [ ] When `--model` is omitted but `DISPATCH_MODEL_FOR_<TYPE>` is set in the environment for the resolved task-type, `model_used` is that env value and `fallback_used` is `false`.
-- [ ] When `--model` is omitted, no per-type override exists, but `DISPATCH_MODEL_DEFAULT` is set, `model_used` is the default and `fallback_used` is `true` (no per-type specialist → fell back).
-- [ ] When no model is resolvable at all (no flag, no env), `model_used` and `fallback_used` are both JSON `null` (don't lie about state we don't know).
-- [ ] A regression test in `tests/test_tl_dispatch_meta.sh` pins the schema and the four resolution branches.
-- [ ] `cargo check --workspace` passes.
-- [ ] `bash -n scripts/tl-dispatch.sh` passes.
-- [ ] `tests/test_tl_dispatch_meta.sh` exits 0.
+- [x] `scripts/tl-dispatch.sh cmd_spawn` accepts `--model <m>` and `--task-type <t>` flags (matching the framework's `agents/termlink/termlink.sh` contract).
+- [x] After cmd_spawn writes meta.json, `/tmp/tl-dispatch/<name>/meta.json` contains `task_type`, `model`, `model_used`, `fallback_used` keys (schema parity with the framework).
+- [x] When `--model haiku` is passed, `model_used = "haiku"` and `fallback_used = false` (explicit choice — no fallback).
+- [x] When `--model` is omitted but `DISPATCH_MODEL_FOR_<TYPE>` is set in the environment for the resolved task-type, `model_used` is that env value and `fallback_used` is `false`.
+- [x] When `--model` is omitted, no per-type override exists, but `DISPATCH_MODEL_DEFAULT` is set, `model_used` is the default and `fallback_used` is `true` (no per-type specialist → fell back).
+- [x] When no model is resolvable at all (no flag, no env), `model_used` and `fallback_used` are both JSON `null` (don't lie about state we don't know).
+- [x] A regression test in `tests/test_tl_dispatch_meta.sh` pins the schema and the four resolution branches.
+- [x] `cargo check --workspace` passes.
+- [x] `bash -n scripts/tl-dispatch.sh` passes.
+- [x] `tests/test_tl_dispatch_meta.sh` exits 0.
 
 ### Human
 - [ ] [REVIEW] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, `task_type: "build"`.
