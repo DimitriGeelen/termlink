@@ -966,3 +966,10 @@ learnings:
   date: 2026-04-30
   context: fleet-doctor auto-registered
   application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-102
+  learning: "Tier-A audit-RPC pattern for fleet-wide telemetry without breaking hub-side legacy: when you need to surface per-hub state across the fleet (e.g. T-1432 cut-readiness), add a Tier-A read-only RPC like hub.legacy_usage that reads the local audit log and returns aggregate JSON, and let the CLI walk hubs via the existing connect_remote_hub path. CLI-side fallback for pre-RPC hubs (audit_unsupported sentinel + upgrade hint) means the doctor stays useful BEFORE every hub is upgraded — this matters because fleet upgrades land progressively. Pair this with extracting a pure helper (summarize_lines<I: Iterator>) from the path-driven entry point so unit tests can assert parser behavior without wrestling OnceLock-only-once on AUDIT_PATH. Do NOT shell out to remote-exec for telemetry like this — it requires fw to be installed everywhere, requires a session_id to target, and gives you bash-quoting pain. The hub already has the data; expose it via RPC."
+  source: T-1432
+  task: T-1432
+  date: 2026-05-01
+  context: "T-1432 fw fleet doctor --legacy-usage. Considered remote-exec on api-usage.sh script — rejected because fw isn't deployed on every host and remote-exec requires picking a session_id which the audit file doesn't need. The hub-side RPC keeps the trust boundary clean (no shell on any remote)."
+  application: "Future fleet telemetry tasks (e.g. fleet-wide rate-limiter state, channel queue depth across hubs, cert expiry windows) — start with a Tier-A read-RPC + CLI walker + audit_unsupported fallback. Extract helpers for testability."
