@@ -584,11 +584,14 @@ async fn cmd_remote_list_inner(
             }
 
             if !display.no_header {
+                // T-1441: surface identity_fingerprint between NAME and STATE
+                // so operators copy-paste it into `--target-fp` for chat-arc
+                // cross-host contact (T-1429 / T-1431).
                 println!(
-                    "{:<14} {:<16} {:<14} {:<8} TAGS",
-                    "ID", "NAME", "STATE", "PID"
+                    "{:<14} {:<16} {:<17} {:<14} {:<8} TAGS",
+                    "ID", "NAME", "FP", "STATE", "PID"
                 );
-                println!("{}", "-".repeat(64));
+                println!("{}", "-".repeat(80));
             }
 
             for s in sessions {
@@ -596,13 +599,15 @@ async fn cmd_remote_list_inner(
                 let display_name = s["display_name"].as_str().unwrap_or("?");
                 let state = s["state"].as_str().unwrap_or("?");
                 let pid = s["pid"].as_u64().unwrap_or(0);
+                let fp = s["identity_fingerprint"].as_str().unwrap_or("-");
                 let tags_arr = s["tags"].as_array()
                     .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(","))
                     .unwrap_or_default();
                 println!(
-                    "{:<14} {:<16} {:<14} {:<8} {}",
+                    "{:<14} {:<16} {:<17} {:<14} {:<8} {}",
                     truncate(id, 13),
                     truncate(display_name, 15),
+                    fp,
                     state,
                     pid,
                     tags_arr,
