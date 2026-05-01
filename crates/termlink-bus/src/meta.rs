@@ -20,7 +20,12 @@ impl Meta {
         })
     }
 
-    pub(crate) fn create_topic(&self, name: &str, retention: Retention) -> Result<()> {
+    /// Idempotent topic creation. Returns `Ok(true)` when the topic was
+    /// newly inserted by this call, `Ok(false)` when a row with the same
+    /// (name, retention) already existed. T-1429.5 added the bool so
+    /// clients can do "describe-on-first-create" without re-emitting
+    /// topic_metadata envelopes on every idempotent re-call.
+    pub(crate) fn create_topic(&self, name: &str, retention: Retention) -> Result<bool> {
         let conn = self.conn.lock().expect("meta mutex poisoned");
         let existing: Option<(String, i64)> = conn
             .query_row(
@@ -38,7 +43,7 @@ impl Meta {
                     requested: retention,
                 });
             }
-            return Ok(());
+            return Ok(false);
         }
         let now_ms = now_unix_ms();
         conn.execute(
@@ -50,7 +55,7 @@ impl Meta {
             "INSERT INTO offsets (topic, next_offset) VALUES (?1, 0)",
             params![name],
         )?;
-        Ok(())
+        Ok(true)
     }
 
     pub(crate) fn list_topics(&self) -> Result<Vec<String>> {

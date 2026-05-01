@@ -459,7 +459,12 @@ fn dm_topic(my_id: &str, peer: &str) -> String {
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
-async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<()> {
+///
+/// T-1429.5: returns `true` when the hub reports the topic was newly
+/// created by this call, `false` when it already existed. Hubs that
+/// predate T-1429.5 omit the `created` field; in that case we
+/// conservatively return `false` so clients don't double-describe.
+async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
     let resp = rpc_call_authed(
         sock,
         method::CHANNEL_CREATE,
@@ -468,7 +473,15 @@ async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<()> {
     .await
     .context("Hub rpc_call (channel.create) failed")?;
     match client::unwrap_result(resp) {
-        Ok(_) => Ok(()),
+        Ok(result) => {
+            // T-1429.5: read the `created` flag if present; default false
+            // so pre-T-1429.5 hubs are treated as "topic already existed"
+            // rather than risking a duplicate self-describe.
+            Ok(result
+                .get("created")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false))
+        }
         // T-1160 channel.create is idempotent on (name, retention) so
         // re-creating an existing topic shouldn't error. If the hub does
         // return an error here it's a real problem worth surfacing.
@@ -504,7 +517,32 @@ pub(crate) async fn cmd_channel_dm(
     }
     // Auto-create the topic on either path (idempotent forever-retention).
     let sock = hub_socket(hub)?;
-    ensure_topic(&sock, &topic).await?;
+    let created = ensure_topic(&sock, &topic).await?;
+    // T-1429.5 (T-1430 deferred AC): self-describe on first create only.
+    // The hub's `channel.create` returns `created=true` exactly once per
+    // topic; on every subsequent call it's `false`. Posting the description
+    // unconditionally would bloat the topic with redundant topic_metadata
+    // envelopes (~1 per dm-call). Pre-T-1429.5 hubs return `false`
+    // conservatively (see `ensure_topic` docs) so self-describe is
+    // skipped — those operators see the dm:* topics undescribed but the
+    // chat-arc is fully described already.
+    if created {
+        let desc = format!(
+            "Direct messages between sender_id `{a}` and `{b}`. \
+             Same protocol as `agent-chat-arc`. \
+             Created by `termlink agent contact` (or `channel dm`) on first use.",
+            a = if my_id.as_str() <= peer { my_id.as_str() } else { peer },
+            b = if my_id.as_str() <= peer { peer } else { my_id.as_str() },
+        );
+        // Best-effort: failure to describe must not block the actual post.
+        // Log and continue. The reader still gets a usable dm:* topic.
+        if let Err(e) = cmd_channel_describe(&topic, &desc, hub, false).await {
+            eprintln!(
+                "warning: dm self-describe failed for {topic}: {e} \
+                 (continuing — topic is usable, just not self-documenting)"
+            );
+        }
+    }
     match send {
         Some(msg) => {
             // T-1325: pack mentions into metadata if provided

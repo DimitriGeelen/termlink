@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:26:39Z
-last_update: 2026-05-01T10:43:09Z
+last_update: 2026-05-01T10:59:25Z
 date_finished: null
 ---
 
@@ -35,7 +35,7 @@ date_finished: null
 - [x] `<target>` resolves via `manager::find_session` (local-only). Peer's `sender_id` (`identity_fingerprint`) is read directly from `Registration.metadata` — exactly the field T-1436 plumbed in
 - [x] DM topic name is computed as `dm:<sorted_a>:<sorted_b>` — implementation delegates to existing `cmd_channel_dm` (commands/channel.rs:482) which uses the existing `dm_topic` helper, satisfying "reuse, do not reimplement"
 - [x] Idempotent topic creation (`retention=forever`) happens inside `cmd_channel_dm` via existing `ensure_topic` (channel.rs:462). T-1425 Q1=A, Q5=A satisfied through the delegation
-- [ ] **Self-describe on create (deferred from T-1430, deferred again to a Phase-1.5 follow-up):** the dm:* topic does not yet auto-emit a topic_metadata envelope. Implementation needs a "describe-if-no-description" peek that requires fetching messages first. Captured as a TODO in the cmd_agent_contact docstring; small but non-trivial, separable from this MVP. T-1430's deferred AC stays open
+- [x] **Self-describe on create (T-1429.5 shipped 2026-05-01T11:17Z):** dm:* topics now auto-emit a topic_metadata envelope on FIRST create only. Implementation: hub-side `channel.create` returns `created: bool`, CLI `ensure_topic` reads it, `cmd_channel_dm` posts via `cmd_channel_describe` iff `created=true`. Pre-existing topics correctly skip describe (no bloat); pre-T-1429.5 hubs return no `created` field — clients conservatively treat that as `false`, skipping describe so old fleets keep working. T-1430's deferred AC ✅ ticked there. Verified live: brand-new `dm:d1993c2c3ec44c94:ffff0000aaaa1111` shows description in `channel info`; pre-existing self-DM correctly stays undescribed
 - [x] Existing-topic posts go through unchanged via the same `cmd_channel_dm` path — no description rewrite
 
 **Identity stamping (Phase-1):**

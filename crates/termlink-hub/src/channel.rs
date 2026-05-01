@@ -320,9 +320,18 @@ pub(crate) async fn handle_channel_create_with(
         .and_then(retention_from_json)
         .unwrap_or(Retention::Forever);
     match bus.create_topic(name, retention) {
-        Ok(()) => Response::success(
+        Ok(created) => Response::success(
             id,
-            json!({"ok": true, "name": name, "retention": retention_to_json(retention)}),
+            json!({
+                "ok": true,
+                "name": name,
+                "retention": retention_to_json(retention),
+                // T-1429.5: true if this call inserted the topic, false if
+                // it already existed. Lets clients describe-on-first-create
+                // without re-emitting topic_metadata envelopes on every
+                // idempotent re-call. Old clients ignore the field.
+                "created": created,
+            }),
         )
         .into(),
         Err(e) => ErrorResponse::internal_error(id, &format!("channel.create: {e}")).into(),
