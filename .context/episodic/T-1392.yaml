@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1392: Cross-hub presence + ack + forward + DM flow — complete Matrix-primitive surface
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T21:37:31Z
+# ============================================================================
+
+task_id: T-1392
+task_name: "Cross-hub presence + ack + forward + DM flow — complete Matrix-primitive surface"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T21:34:26Z
+completed: 2026-04-28T21:37:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T23:37:22+02:00
+last_commit: 2026-04-28T23:37:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cross-hub presence/ack/forward primitive e2e
+
+# Key outcomes
+outcomes:
+  - "`tests/e2e/cross-hub-presence-flow.sh` exists, executable"
+  - "Topic created with 6 senders posting; topic gets a description via `channel describe`"
+  - "`channel ack` posted from .107 (caller-1) and from .122 cross-hub TCP (caller-2); `channel receipts` shows both senders"
+  - "`channel typing --emit` from .107 + cross-hub from .122; `channel typing` list shows at least one entry"
+  - "`channel pin <offset>` + `channel pinned` shows the pinned target"
+  - "`channel star <offset>` + `channel starred` shows the starred target"
+  - "`channel forward <src> <offset> <dst>` copies an envelope; dst topic exists with the forwarded envelope carrying `forwarded_from` provenance"
+  - "`channel ancestors <topic> <leaf>` returns a chain from root to leaf"
+  - "`channel quote <topic> <child>` returns `{child, parent}` JSON"
+  - "At least 3 of the above primitives are also read successfully via `--hub 192.168.10.122:9100` proving cross-hub read works for ack/typing/pin/star"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1392-cross-hub-presence--ack--forward--dm-flo.md"
+  - "tests/e2e/cross-hub-presence-flow.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T23:37:22"
+    action: "T-1392: cross-hub presence/ack/forward primitive e2e"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 327
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1392-cross-hub-presence--ack--forward--dm-flo.md
+generated_by: context-agent-hybrid

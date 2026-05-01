@@ -325,3 +325,17 @@ decisions:
     date: 2026-04-27
     task: T-1313
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-026
+    decision: "Emit both `last_seen_ts_ms` (int) and `last_seen_iso` (string)"
+    scope: project
+    date: 2026-04-30
+    task: T-1419
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-027
+    decision: "Add freshness only to `--json` path; human output unchanged"
+    scope: project
+    date: 2026-04-30
+    task: T-1419
+    rationale: "Auto-captured from task file on completion"

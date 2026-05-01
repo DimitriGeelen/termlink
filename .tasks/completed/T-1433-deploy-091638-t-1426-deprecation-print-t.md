@@ -4,7 +4,7 @@ name: "Deploy 0.9.1638 (T-1426 deprecation print) to laptop-141 (.141)"
 description: >
   Deploy 0.9.1638 (T-1426 deprecation print) to laptop-141 (.141)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T07:34:26Z
-last_update: 2026-05-01T07:34:26Z
-date_finished: null
+last_update: 2026-05-01T07:38:25Z
+date_finished: 2026-05-01T07:38:25Z
 ---
 
 # T-1433: Deploy 0.9.1638 (T-1426 deprecation print) to laptop-141 (.141)
@@ -55,3 +55,6 @@ target/release/termlink remote exec laptop-141 tl-hmfi6wpa "/mnt/c/ntb-acd-plugi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1433-deploy-091638-t-1426-deprecation-print-t.md
 - **Context:** Initial task creation
+
+### 2026-05-01T07:38:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

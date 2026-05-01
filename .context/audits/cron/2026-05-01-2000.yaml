@@ -1,36 +1,39 @@
-# Audit Results - 2026-04-23-2000
-timestamp: 2026-04-23T18:00:01Z
+# Audit Results - 2026-05-01-2000
+timestamp: 2026-05-01T18:00:01Z
 sections: "traceability,episodic,discovery-trends"
 summary:
   pass: 10
-  warn: 3
+  warn: 4
   fail: 0
 findings:
   - level: PASS
-    check: "Git traceability: 98% (1861/1896 commits reference tasks)"
+    check: "Git traceability: 98% (3176/3218 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
   - level: PASS
     check: "All commit task refs resolve to actual tasks"
   - level: WARN
-    check: "Completed task T-1189 has no episodic summary"
-    mitigation: "Run: ./agents/context/context.sh generate-episodic T-1189"
+    check: "OneDev → GitHub mirror drift (G-007): origin=10e3e971 github=e261275b"
+    mitigation: "Investigate handover.sh push loop; ensure only origin is pushed (T-1255)"
   - level: PASS
-    check: "All 876 episodic summaries have quality content"
+    check: "All completed tasks have episodic summaries"
+  - level: PASS
+    check: "All 1177 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - level: WARN
-    check: "D5: Task lifecycle — 12 anomaly(s): T-1021(3min,human) T-272(0min,human) T-980(3min,human) T-1010(4min,human) T-1011(3min,human) T-1028(10d-active) T-1029(10d-active) T-1064(8d-active) T-1027(10d-active) T-212(33d-active) (+2 more)"
+    check: "D5: Task lifecycle — 3 anomaly(s): T-212(41d-active) T-1137(12d-active) T-1166(11d-active)"
     mitigation: "Review flagged tasks for process issues"
   - level: PASS
     check: "D3: Commit velocity — insufficient data"
   - level: PASS
     check: "D7: Commit bunching — none (PASS no_recent_commits)"
-  - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=12.7 earlier=13.0)"
+  - level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=8.3 vs earlier_avg=36.9)"
+    mitigation: "Check for blockers or process issues slowing work"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

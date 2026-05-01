@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1433: Deploy 0.9.1638 (T-1426 deprecation print) to laptop-141 (.141)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-01T07:38:30Z
+# ============================================================================
+
+task_id: T-1433
+task_name: "Deploy 0.9.1638 (T-1426 deprecation print) to laptop-141 (.141)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T07:34:26Z
+completed: 2026-05-01T07:38:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-01T09:38:20+02:00
+last_commit: 2026-05-01T09:38:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  deploy 0.9.1638 (T-1426) to laptop-141 — agent-chat-arc field push
+
+# Key outcomes
+outcomes:
+  - "musl 0.9.1638 binary built locally with T-1426 deprecation print baked in (probe-verified `--version` against bogus push call shows `[DEPRECATED]` line)"
+  - "fleet-deploy-binary.sh streamed to .141 with `--probe` and `--swap-restart`. Probe ran post-stage and confirmed binary executes cleanly on the WSL host"
+  - "Hub on .141 came back UP within 90s of the swap (observed 10s in the deploy log)"
+  - "Post-deploy version probe on .141: `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink --version` reports `termlink 0.9.1638`"
+  - "Deprecation nudge fires on .141: `termlink remote push 192.168.10.999:9100 bogus --message x` emits the canonical `[DEPRECATED] termlink remote push — use 'termlink channel post' instead.` line on stderr"
+  - "No SSH used for the deploy — all transport via termlink remote exec (PL-015)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1433-deploy-091638-t-1426-deprecation-print-t.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-01T09:38:20"
+    action: "T-1433: deploy 0.9.1638 (T-1426) to laptop-141 — agent-chat-arc field push"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 1
+  lines_added: 57
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1433-deploy-091638-t-1426-deprecation-print-t.md
+generated_by: context-agent-hybrid

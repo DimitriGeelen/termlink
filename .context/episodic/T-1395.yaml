@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1395: Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-28T21:44:47Z
+# ============================================================================
+
+task_id: T-1395
+task_name: "Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-28T21:42:52Z
+completed: 2026-04-28T21:44:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-04-28T23:44:32+02:00
+last_commit: 2026-04-28T23:44:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  concurrent stress soak — 50 parallel posts, 0 loss, offsets linearized
+
+# Key outcomes
+outcomes:
+  - "`tests/e2e/cross-hub-stress-soak.sh` exists, executable"
+  - "Single-topic phase: 50 parallel posts (40 .107 local + 10 cross-hub from .122) — all land"
+  - "Verify: count of envelopes == 50 (zero loss)"
+  - "Verify: all 50 offsets are 0..49 contiguous (no gaps, no duplicates)"
+  - "Verify: each cross-hub post is attributed correctly"
+  - "Fanout phase: 5 topics × 10 senders/topic in parallel — all land"
+  - "Verify: each of the 5 topics has exactly 10 envelopes"
+  - "Soak completes in < 30s wall-clock (actual: 10s)"
+  - "After stress, the arc-suite (T-1393) re-runs green"
+  - "Script exits 0 with `STRESS-SOAK E2E PASSED` marker"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1395-concurrent-stress-soak--50-parallel-cros.md"
+  - "tests/e2e/cross-hub-stress-soak.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-28T23:44:32"
+    action: "T-1395: concurrent stress soak — 50 parallel posts, 0 loss, offsets linearized"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 239
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1395-concurrent-stress-soak--50-parallel-cros.md
+generated_by: context-agent-hybrid

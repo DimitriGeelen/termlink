@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1401: Rewrite termlink event broadcast as channel.post(broadcast:global) wrapper
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-04-29T08:43:28Z
+# ============================================================================
+
+task_id: T-1401
+task_name: "Rewrite termlink event broadcast as channel.post(broadcast:global) wrapper"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-29T08:11:33Z
+completed: 2026-04-29T08:42:37Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-04-29T10:17:14+02:00
+last_commit: 2026-04-29T10:42:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  spec-ready task file (impl deferred — budget gate). rewrite cmd_broadcast as channel.post(broadcast:global) wrapper
+
+# Key outcomes
+outcomes:
+  - "`cmd_broadcast` in `events.rs:173` routes to `channel.post(broadcast:global)` when `targets.is_empty()`; falls back to legacy `event.broadcast` on any failure"
+  - "When `!targets.is_empty()`, behavior is unchanged — still calls `event.broadcast` (preserves per-target fan-out)"
+  - "Channel post envelope mirrors hub-side T-1162 mirror shape: `topic=\"broadcast:global\"`, `msg_type=<original_topic>`, `payload_b64=<JSON-serialized payload>`, signed with local identity"
+  - "If `TERMLINK_SESSION_ID` is set, it goes into `metadata.from` so the hub's soft-lint can attribute the caller (replaces the previous `params.from` injection that only worked for event.broadcast)"
+  - "Human-mode display preserves the \"Broadcast '<topic>': 1/1 succeeded\" prefix (with new offset suffix) so existing operator habits aren't broken"
+  - "JSON-mode preserves the legacy keys (`topic`, `targeted`, `succeeded`, `failed`) PLUS adds new keys (`channel_topic`, `offset`) for callers that want richer telemetry"
+  - "On a hub with channel.post enabled (current fleet), running `termlink event broadcast smoke 'p:1'` produces ZERO new `event.broadcast` lines in `<runtime_dir>/rpc-audit.jsonl` and one new `channel.post` line"
+  - "cargo build / cargo test / cargo clippy clean for `termlink` and any other affected crates"
+  - "`termlink channel state broadcast:global` after a broadcast shows the new envelope with `msg_type=<original_topic>` (verifies the wire shape matches hub-side mirror behavior end-to-end) — confirmed via `channel subscribe --cursor 300` showing `msg_type:\"smoke\"`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/events.rs"
+  - ".tasks/active/T-1401-rewrite-termlink-event-broadcast-as-chan.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-29T10:17:14"
+    action: "T-1401: spec-ready task file (impl deferred — budget gate)"
+  - time: "2026-04-29T10:42:34"
+    action: "T-1401: rewrite cmd_broadcast as channel.post(broadcast:global) wrapper"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 31 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 31
+  commits: 2
+  files_changed: 2
+  lines_added: 204
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1401-rewrite-termlink-event-broadcast-as-chan.md
+generated_by: context-agent-hybrid

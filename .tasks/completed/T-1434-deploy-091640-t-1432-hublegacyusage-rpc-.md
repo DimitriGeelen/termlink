@@ -4,7 +4,7 @@ name: "Deploy 0.9.1640 (T-1432 hub.legacy_usage RPC) to laptop-141"
 description: >
   Deploy 0.9.1640 (T-1432 hub.legacy_usage RPC) to laptop-141
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T08:54:10Z
-last_update: 2026-05-01T08:54:10Z
-date_finished: null
+last_update: 2026-05-01T08:56:48Z
+date_finished: 2026-05-01T08:56:48Z
 ---
 
 # T-1434: Deploy 0.9.1640 (T-1432 hub.legacy_usage RPC) to laptop-141
@@ -55,3 +55,6 @@ target/release/termlink remote exec laptop-141 tl-hmfi6wpa "/mnt/c/ntb-acd-plugi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1434-deploy-091640-t-1432-hublegacyusage-rpc-.md
 - **Context:** Initial task creation
+
+### 2026-05-01T08:56:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
