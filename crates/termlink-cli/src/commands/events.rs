@@ -250,6 +250,8 @@ pub(crate) async fn cmd_emit(target: &str, topic: &str, payload_str: &str, json:
 }
 
 pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<String>, json: bool, timeout_secs: u64) -> Result<()> {
+    let replacement = if targets.is_empty() { "channel post" } else { "event emit_to" };
+    super::print_deprecation_warning("event broadcast", replacement);
     let payload: serde_json::Value = match serde_json::from_str(payload_str) {
         Ok(v) => v,
         Err(e) => {

@@ -20,6 +20,7 @@ pub(crate) async fn cmd_push(
     json: bool,
     timeout_secs: u64,
 ) -> Result<()> {
+    super::print_deprecation_warning("remote push", "channel post");
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
     match tokio::time::timeout(timeout_dur, cmd_push_inner(conn, session, file, message, json)).await {
         Ok(result) => result,

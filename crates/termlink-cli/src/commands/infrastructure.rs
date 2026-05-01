@@ -820,6 +820,7 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
 // === Inbox Commands (T-997) ===
 
 pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
+    super::print_deprecation_warning("inbox status", "channel info");
     let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
@@ -847,6 +848,7 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
 }
 
 pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output: bool) -> Result<()> {
+    super::print_deprecation_warning("inbox clear", "channel subscribe --cursor");
     if target.is_none() && !all {
         anyhow::bail!("Specify a target session name, or use --all to clear everything");
     }
@@ -880,6 +882,7 @@ pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output
 }
 
 pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()> {
+    super::print_deprecation_warning("inbox list", "channel subscribe");
     let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());

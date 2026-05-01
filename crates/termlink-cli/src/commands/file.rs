@@ -158,6 +158,7 @@ async fn try_send_via_artifact(
 }
 
 pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, json: bool, timeout_secs: u64) -> Result<()> {
+    super::print_deprecation_warning("file send", "channel post --file");
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
@@ -540,6 +541,7 @@ pub(crate) async fn cmd_file_receive(
     replay: bool,
     json: bool,
 ) -> Result<()> {
+    super::print_deprecation_warning("file receive", "channel subscribe");
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
