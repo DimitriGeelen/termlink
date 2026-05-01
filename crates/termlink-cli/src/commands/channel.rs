@@ -53,12 +53,33 @@ fn parse_retention(spec: &str) -> Result<Value> {
 /// T-1385: parse a `--hub` argument as either a TCP `host:port` or a Unix path.
 /// TCP if the string has no `/`, contains a `:`, and the trailing component
 /// parses as a u16 port. Otherwise, treat as a Unix socket path.
+///
+/// T-1429 follow-up: also recognize hubs.toml profile names. If the input
+/// doesn't look like host:port and doesn't contain a path separator, try
+/// looking it up as a profile in `~/.termlink/hubs.toml` and recurse on
+/// the profile's `address`. Falls back to unix-path interpretation if no
+/// profile matches. This lets `--hub ring20-management` work the same as
+/// `--hub 192.168.10.122:9100` for `channel post` / `agent contact`.
 fn parse_hub_addr(s: &str) -> TransportAddr {
     if !s.contains('/')
         && let Some((host, port_str)) = s.rsplit_once(':')
         && let Ok(port) = port_str.parse::<u16>()
     {
         return TransportAddr::tcp(host, port);
+    }
+    // Profile-name fallback: try to resolve via hubs.toml before treating
+    // the string as a unix-socket path. Profile names in practice never
+    // contain '/' or ':', so this only kicks in for the bare-name case.
+    if !s.contains('/') && !s.contains(':') {
+        let cfg = crate::config::load_hubs_config();
+        if let Some(entry) = cfg.hubs.get(s) {
+            // Recurse on the profile's address. Guard against accidental
+            // self-reference (profile.address == profile-name) by checking
+            // the address doesn't equal `s`.
+            if entry.address != s {
+                return parse_hub_addr(&entry.address);
+            }
+        }
     }
     TransportAddr::unix(PathBuf::from(s))
 }
