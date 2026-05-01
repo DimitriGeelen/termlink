@@ -20,7 +20,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-01T12:03:44Z
+last_update: 2026-05-01T13:40:32Z
 date_finished: null
 ---
 
@@ -41,10 +41,13 @@ PVE container), `laptop-141` (.141, WSL on dimitrixpro), and
 - [x] **.107 (local-test) — skill installed** — `~/.claude/commands/agent-handoff.md` (4568 bytes, 2026-05-01T12:03Z). Binary 0.9.1656 already there. Full functionality
 - [x] **.122 (ring20-management) — skill installed** — pushed via `termlink remote exec` + base64 inline (file.send is T-1166 deprecated). Verified `wc -c ~/.claude/commands/agent-handoff.md` = 4568 on the remote. Binary 0.9.1630 — `agent contact` will return "unknown subcommand" until binary upgrade
 - [x] **.141 (laptop-141, WSL) — skill installed** — same path, `/home/dimitri/.claude/commands/agent-handoff.md`, 4568 bytes verified. Binary at `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` is older (T-1420 deployed 0.9.1591). Same stale-binary caveat as .122
-- [x] **.122 (ring20-management) — binary SWAPPED + VERIFIED 2026-05-01T12:42Z** — Live cutover via `scripts/hub-binary-swap.sh ring20-management`. Now running 0.9.1657 with `agent contact` + `--thread`. Secret + cert SHAs unchanged across the restart (3dd9d01a / 2355a206) — TOFU pins held. Probe (T-1423) → swap (this script) → verify (remote ping + version + SHA canaries) is the now-proven pipeline for watchdog-less hosts
-- [ ] **.141 (laptop-141) — binary upgrade to >= 0.9.1652** — WSL target. Build pipeline TBD; T-1420 used a Windows-side build path. Defer to T-1420 follow-up
+- [x] **.122 (ring20-management) — binary SWAPPED + VERIFIED 2026-05-01T14:00Z** — TWO swaps done:
+  - 12:42Z: 0.9.1630 → 0.9.1657 (had `agent contact`, lacked `--thread` — version label misleading; built pre-b4ed67c0)
+  - 14:00Z: 0.9.1657 → 0.9.1659 (now WITH `--thread`)
+  Secret + cert SHAs unchanged across both restarts (3dd9d01a / 2355a206) — TOFU pins held end-to-end. Probe (T-1423) → swap (`hub-binary-swap.sh`) → verify (remote ping + version + SHA canaries) is the proven pipeline for watchdog-less hosts. Hardened script (commit f8699007) now does 90s out-of-band post-call polling so transport-death false-alarms are gone
+- [x] **.141 (laptop-141) — binary STAGED + PROBED 2026-05-01T14:30Z** — `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink.new` = 0.9.1659 with `--thread`, probe OK on Ubuntu 24.04 / glibc 2.39 (musl-static fleet-safe). Swap NOT executed — would disrupt user's WSL session; gated on operator timing
 - [ ] **.143 (ring20-dashboard) — operator auth heal completed** — T-1418 dependency. Once secret is heal-deployed, push skill via same base64 path, then binary
-- [ ] **Cross-host smoke test** — once any TWO field hosts have both skill + binary, run `/agent-handoff` between them (e.g., .107 → .122). Capture offset on shared dm:* topic
+- [ ] **Cross-host smoke test** — DESIGN GAP surfaced 2026-05-01T14:00Z: `agent contact` resolves `<target>` via LOCAL session.discover only (`find_session` in agent.rs:678). For a peer on a remote hub, the local box doesn't see the peer's `identity_fingerprint` in metadata. The `--hub` override only routes the post, not the lookup. Cross-host display_name resolution is a Phase-2 follow-up for T-1429 — added as PL-099-derived learning. Same-host smoke (peer-on-.122 calling another local-on-.122 peer) is still possible via `remote exec` and would close the AC partially
 - [ ] **Field-rollout learning recorded** — capture the "skill before binary, harmless when binary stale" pattern as a learning (G-008 batch-evidence flavor: cheap forward deploy of inert artifacts, hardware upgrade follows)
 
 ### Human
@@ -144,3 +147,19 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1438-field-rollout-tracking.md
 - **Context:** Initial task creation
+
+### 2026-05-01T14:00Z — .122 second-swap to 0.9.1659 (post-thread) [agent autonomous]
+- **Action:** Yesterday's 0.9.1657 binary on .122 turned out to predate b4ed67c0 (--thread commit) — version labels can lag actual feature content when build is prepared on a moving HEAD. Re-staged + re-probed musl 0.9.1659 (which DOES have --thread) and re-ran `hub-binary-swap.sh ring20-management`
+- **Result:** swap held: hub up at 0.9.1659, secret SHA 3dd9d01a unchanged, cert SHA 2355a206 unchanged. `termlink agent contact --help` on .122 now shows `--thread <THREAD>` — confirmed Phase-2 partial is in field
+- **False-alarm pattern repeated:** local-side ping retries exhausted (10×2s = 20s) before hub came back. Fleet-status check moments later showed UP. Captured as PL-105 then evolved the learning: setsid+nohup detach takes 20-60s for relaunch; operator polls must allow ≥60s
+- **Script hardening:** committed f8699007 — `hub-binary-swap.sh` now does 90s out-of-band post-call polling (30×3s) BEFORE declaring failure, with re-fetch of POST_SECRET_SHA / POST_CERT_SHA / POST_BIN_VERSION via fresh transport. Eliminates transport-death false alarms
+
+### 2026-05-01T14:25Z — .141 stage + probe 0.9.1659 [agent autonomous]
+- **Action:** `fleet-deploy-binary.sh laptop-141 --probe --dst /mnt/c/ntb-acd-plugin/termlink/target/release/termlink.new` — staged + probed
+- **Result:** 453 chunks streamed, SHA verified, probe OK: `/tmp/termlink.new --version` returns `termlink 0.9.1659`. Confirms musl-static binary loads cleanly on Ubuntu 24.04 / glibc 2.39 WSL
+- **NOT swapped:** WSL session disruption is operator-gated. The .141 hub swap will kill `agent-1` (PID 4490) which is the user's interactive session. Different operational profile from headless .122
+
+### 2026-05-01T14:00Z — cross-host smoke design gap [agent autonomous]
+- **Finding:** `agent contact` resolves target via LOCAL session.discover (find_session, agent.rs:678). For a remote-hub peer, the local box doesn't see the peer's identity_fingerprint metadata — gives `Session 'X' not found`
+- **Impact:** Today's intended .107 → .122 cross-host smoke is blocked on this design constraint. Same-host smoke (e.g. peer A on .122 contacting peer B on .122) still works
+- **Phase-2 follow-up:** Either (a) federate session.discover, (b) accept `--target-fp <hex>` directly, or (c) have `--hub` route the lookup not just the post. Captured as learning under T-1429
