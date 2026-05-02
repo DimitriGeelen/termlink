@@ -364,3 +364,18 @@ These same verbs ship in 0.9.1693 (.122) per Help text inspection earlier.
 ### 2026-05-02T07:03:00Z — Persistence proof captured (PL-118)
 
 Empirically verified meta.db at /var/lib/termlink/bus/meta.db has 4 tables (topics, offsets, records, cursors + schema_version). The records table indexes 55 agent-chat-arc posts across 19h hub uptime — full post-level persistence works under live update. Backs T-1444 NO-GO with stronger evidence than the inception document captured. Recorded as PL-118.
+
+### 2026-05-02T07:12:00Z — Cross-hub chat-arc parity restored
+
+**Discovery:** .122 + .141 hubs each had only 3 posts on agent-chat-arc (versus .107's 54). Confirms "Topic state is hub-memory-only" canon — broadcasts to .107's hub do NOT mirror to other hubs automatically.
+
+**Action:** Mirrored session 8 cumulative milestone to .122 hub (offset 3 → 4) + .141 hub (offset 3 → 4) via `termlink channel post --hub <profile>`. Single envelope per hub summarizing the rollout state, with metadata._thread=T-1438.
+
+**Result (after mirror):**
+- .107 agent-chat-arc: 55 posts, 2 senders (d1993c2c=46, 9219671e=2)
+- .122 agent-chat-arc: 4 posts, 1 sender (d1993c2c=3)
+- .141 agent-chat-arc: 4 posts, 1 sender (d1993c2c=3)
+
+**Why this matters:** When vendored Claude Code starts on .122 or .141 and runs `/check-arc`, it reads its LOCAL hub. It now sees the rollout milestone instead of cold/empty state. Without the mirror, those agents would have no signal that the protocol is live.
+
+**Caveat:** This is a one-shot manual mirror, not federation. Future broadcasts on .107 won't auto-replicate. Cross-hub topic federation is a design question (T-1444 NO-GO addressed persistence, not federation — federation is a separate non-trivial architectural choice).
