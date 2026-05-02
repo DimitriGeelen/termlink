@@ -4,7 +4,7 @@ name: "Date-triggered revisit mechanism for DEFER inceptions and sentinel audits
 description: >
   Inception: design how the framework structurally captures and surfaces 'when do we revisit this DEFER?' Currently sentinel tasks (T-1428 for T-1425) carry the date in description prose; nothing scans for it; if 2026-05-14 passes silently the deadline goes unnoticed. Five concrete deliverables on the table — need design choices before build: (1) revisit_at frontmatter field shape, (2) cron job that surfaces ripe revisits, (3) fw task revisit-due CLI, (4) backfill T-1428's ACs from prose recipe, (5) optional deferred-decisions.yaml register. Inception scope = decide the shape; build tasks land downstream.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [framework, governance, deferred-decisions, sentinel, G-053]
 components: []
 related_tasks: [T-1425, T-1428, T-1448]
 created: 2026-05-02T21:47:02Z
-last_update: 2026-05-02T21:56:43Z
-date_finished: null
+last_update: 2026-05-02T22:03:48Z
+date_finished: 2026-05-02T22:03:48Z
 ---
 
 # T-1449: Date-triggered revisit mechanism for DEFER inceptions and sentinel audits (G-053)
@@ -78,12 +78,12 @@ No fifth spike. The optional `deferred-decisions.yaml` register is deferred to a
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -160,7 +160,39 @@ Total Phase 1: ~120 LOC + 1 task-file edit. Single session per build task.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The gap is real and bounded. T-1425's DEFER decision named T-1428 as a sentinel firing 2026-05-14, but T-1428 has empty placeholder ACs and no surfacing mechanism — if the date passes silently, the verdict on T-1425 stays DEFER indefinitely. This is the framework's own structure failing to honor its own decision protocol. The fix is small (one frontmatter field, one cron, one CLI verb, ~50 LOC) and the alternative (manual calendar reminders) doesn't scale beyond a single instance.
+
+Evidence (pre-spike, refined post-Spike 1):
+
+- T-1428 created 2026-04-30, fires 2026-05-14, ACs empty (`[First criterion]`, `[Second criterion]`) — no operational recipe captured
+- T-1425's "amend window" (14d from 2026-04-30T21:18Z) ends 2026-05-14 — no surfacing mechanism
+- 11 active framework crons exist; none are date-triggered per-task. The infrastructure for cron-based surfacing is in place (`.context/cron/`)
+- Existing primitives (`horizon: now/next/later`) lack date semantics — adding `revisit_at` is additive, no migration burden
+
+Phasing:
+
+- Phase 1 (this inception's downstream builds): `revisit_at` field, daily cron, `fw task revisit-due`, T-1428 ACs backfilled. Target: operational before 2026-05-14 so T-1428 itself surfaces correctly.
+- Phase 2 (deferred): `deferred-decisions.yaml` register, multi-criterion expressions, event-driven triggers. Defer until Phase 1 reveals demand.
+
+Why GO not DEFER: the DEFER criterion ("T-1428 fires successfully first") creates a chicken-and-egg — the mechanism that needs to surface T-1428 has to land *before* T-1428 fires. Going Phase 1 now and using T-1428 as the soak test inverts that correctly.
+
+Why GO not NO-GO: Spike 1 is necessary to confirm ≥3 instances. Pre-spike inspection already turns up T-1425, T-1428, T-1448 (auto-finalize bug), G-052, G-053 itself (when fixed, when do we audit?), and the 14d amend windows on solo syntheses — that's already 5-6 instances. NO-GO is unlikely.
+
+Downstream build tasks (provisional, scope post-Spike completion):
+
+| # | Deliverable | Estimated size |
+|---|---|---|
+| 1 | `revisit_at` frontmatter field + template update | ~30 LOC |
+| 2 | Daily cron `revisit-due-scan.sh` + handover banner integration | ~50 LOC |
+| 3 | `fw task revisit-due` CLI verb | ~40 LOC |
+| 4 | T-1428 AC backfill (no code) | ~10 lines of YAML/markdown |
+| 5 | (deferred to Phase 2) `deferred-decisions.yaml` register | n/a this phase |
+
+Total Phase 1: ~120 LOC + 1 task-file edit. Single session per build task.
+
+**Date**: 2026-05-02T22:03:48Z
 
 ## Updates
 
@@ -169,3 +201,40 @@ Total Phase 1: ~120 LOC + 1 task-file edit. Single session per build task.
 
 ### 2026-05-02T21:56:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-02T22:03:48Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The gap is real and bounded. T-1425's DEFER decision named T-1428 as a sentinel firing 2026-05-14, but T-1428 has empty placeholder ACs and no surfacing mechanism — if the date passes silently, the verdict on T-1425 stays DEFER indefinitely. This is the framework's own structure failing to honor its own decision protocol. The fix is small (one frontmatter field, one cron, one CLI verb, ~50 LOC) and the alternative (manual calendar reminders) doesn't scale beyond a single instance.
+
+Evidence (pre-spike, refined post-Spike 1):
+
+- T-1428 created 2026-04-30, fires 2026-05-14, ACs empty (`[First criterion]`, `[Second criterion]`) — no operational recipe captured
+- T-1425's "amend window" (14d from 2026-04-30T21:18Z) ends 2026-05-14 — no surfacing mechanism
+- 11 active framework crons exist; none are date-triggered per-task. The infrastructure for cron-based surfacing is in place (`.context/cron/`)
+- Existing primitives (`horizon: now/next/later`) lack date semantics — adding `revisit_at` is additive, no migration burden
+
+Phasing:
+
+- Phase 1 (this inception's downstream builds): `revisit_at` field, daily cron, `fw task revisit-due`, T-1428 ACs backfilled. Target: operational before 2026-05-14 so T-1428 itself surfaces correctly.
+- Phase 2 (deferred): `deferred-decisions.yaml` register, multi-criterion expressions, event-driven triggers. Defer until Phase 1 reveals demand.
+
+Why GO not DEFER: the DEFER criterion ("T-1428 fires successfully first") creates a chicken-and-egg — the mechanism that needs to surface T-1428 has to land *before* T-1428 fires. Going Phase 1 now and using T-1428 as the soak test inverts that correctly.
+
+Why GO not NO-GO: Spike 1 is necessary to confirm ≥3 instances. Pre-spike inspection already turns up T-1425, T-1428, T-1448 (auto-finalize bug), G-052, G-053 itself (when fixed, when do we audit?), and the 14d amend windows on solo syntheses — that's already 5-6 instances. NO-GO is unlikely.
+
+Downstream build tasks (provisional, scope post-Spike completion):
+
+| # | Deliverable | Estimated size |
+|---|---|---|
+| 1 | `revisit_at` frontmatter field + template update | ~30 LOC |
+| 2 | Daily cron `revisit-due-scan.sh` + handover banner integration | ~50 LOC |
+| 3 | `fw task revisit-due` CLI verb | ~40 LOC |
+| 4 | T-1428 AC backfill (no code) | ~10 lines of YAML/markdown |
+| 5 | (deferred to Phase 2) `deferred-decisions.yaml` register | n/a this phase |
+
+Total Phase 1: ~120 LOC + 1 task-file edit. Single session per build task.
+
+### 2026-05-02T22:03:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
