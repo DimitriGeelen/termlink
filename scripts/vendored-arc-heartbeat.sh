@@ -49,4 +49,5 @@ fi
   --msg-type chat \
   --payload "$PAYLOAD" \
   --metadata "_from=$(hostname)-vendored" \
-  --metadata "_thread=T-1438"
+  --metadata "_thread=T-1438" \
+  --metadata "from_project=010-termlink"
