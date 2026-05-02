@@ -20,7 +20,7 @@ tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
 components: [target/release/termlink]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]
 created: 2026-04-30T08:11:23Z
-last_update: 2026-04-30T08:11:23Z
+last_update: 2026-05-02T22:44:16Z
 date_finished: null
 ---
 
@@ -404,13 +404,12 @@ Subsequently attempted to push chat-arc skills + mirror milestone to .121 hub. S
 
 **Launcher:** `/root/ring20-dashboard/scripts/watchdog.sh` line 15 (`HUB_START_CMD="nohup termlink hub start ..."`). Cron-driven every 1 min + `@reboot`. See T-1296 for full launcher analysis (same script gates BOTH binary swap and runtime_dir migration).
 
-**Bundled swap recipe (operator step, T-1418 + T-1296 in one cycle):**
+**Bundled swap recipe (operator step, T-1418 + T-1296 in one cycle) — STAGE COMPLETE:**
 
 ```
 # On .121 (operator session):
 cp /usr/local/bin/termlink /root/termlink.0.9.844.bak                    # safety
-# (stage 0.9.1702 binary at /root/staged-termlink-0.9.1702 via separate transfer)
-mv /root/staged-termlink-0.9.1702 /usr/local/bin/termlink
+mv /tmp/termlink.new /usr/local/bin/termlink                              # staged 22:51Z, see below
 chmod +x /usr/local/bin/termlink
 sed -i '/^set -u/a export TERMLINK_RUNTIME_DIR=/var/lib/termlink' /root/ring20-dashboard/scripts/watchdog.sh
 mkdir -p /var/lib/termlink && cp -a /tmp/termlink-0/. /var/lib/termlink/
@@ -418,8 +417,16 @@ rm -f /tmp/termlink-0/hub.sock /tmp/termlink-0/hub.pid
 kill 399  # current hub PID; watchdog respawns within 60s with new binary + new runtime_dir
 ```
 
-This bundles T-1418 + T-1296 into one reboot/respawn cycle. Saves a second heal pair vs sequential.
+5 paste-able lines. Bundles T-1418 + T-1296 into one watchdog-respawn cycle.
 
-**Stage step (autonomous-eligible but not done tonight):** `termlink remote send-file` writes to session inbox, not arbitrary path. For binary-to-`/root/`, use `termlink dispatch --workdir` OR base64-over-`remote exec`. Skipping the autonomous stage; the swap recipe is now operator-shippable when timing's right.
+### 2026-05-02T22:51Z — Stage step DONE (autonomous, fleet-deploy-binary.sh --probe)
 
-**T-1418 + T-1296 readiness:** Both unblocked at the discovery level. Binary swap + watchdog patch both have explicit file targets. Operator can land both as a single bundled change.
+Ran `bash scripts/fleet-deploy-binary.sh ring20-dashboard --probe` from .107:
+- Streamed `target/x86_64-unknown-linux-musl/release/termlink` (20872032 bytes, sha256 `2282f85c00350193bfe50e97acac2c4a35f5114a41c61e756743fa784a1e5ea6`) in 453 chunks
+- Assembled at `/tmp/termlink.new` on .121, sha verified
+- Probe `/tmp/termlink.new --version` → `termlink 0.9.1702` ✓
+- ABI confirmed compatible (musl static-pie, no glibc mismatch)
+
+**T-1418 + T-1296 readiness UPGRADED:** Stage done. Operator path is 5-line paste-and-confirm. No investigation, no transfer risk, no version drift. Watchdog respawn within 60s of `kill 399` lands BOTH fixes simultaneously.
+
+**Survivability of staged binary:** /tmp on .121 is volatile (T-1294 root cause). If .121 reboots before operator runs the swap, /tmp/termlink.new is wiped. Re-stage takes ~30s if needed (idempotency-checked: skips if already on disk with matching sha).
