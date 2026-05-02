@@ -299,6 +299,16 @@ grep -q "T-1235" crates/termlink-session/src/inbox_channel.rs
 
 ## Updates
 
+### 2026-05-02T11:50Z — IP observation: ring20-dashboard active at 192.168.10.121, hub down [agent autonomous pass]
+
+Renumber observed: post-T-1447 fleet probe shows `.143` is now silent (last call 2026-05-02T08:13Z, ~5h ago) while `.121` is the active client polling .107's hub right now (latest hub.auth/session.list/inbox.status at ts=1777722375, just minutes ago). However, **TCP :9100 on .121 is still refused** — `nc -zv 192.168.10.121 9100` → Connection refused. The host has the legacy poller running but no hub listener.
+
+Implication: this is a degenerate state — the dashboard agent's CLIENT works (auth + poll succeed AGAINST our .107 hub) but no hub is bound at .121:9100 for inbound. T-1418 auth heal can't even target it because there's nothing to auth-heal — the hub is structurally not running.
+
+The legacy traffic (.121: ~291 inbox.status/24h, .143: ~1109/24h before going silent) is still the T-1166 cut blocker. The dashboard's polling client needs T-1235 binary OR needs to be stopped. Since the hub is down, Method 0 (`fleet-deploy-binary.sh ring20-dashboard`) cannot deliver a binary either — it requires hub uplink.
+
+**Recommendation to operator:** the .121/.143 host needs direct (SSH/console) intervention before any of T-1418, T-1296, T-1296-runtime-migration, or T-1166 cut can advance. Captured here for handover continuity.
+
 ### 2026-04-30T19:25Z — runbook simplified to Method 0 [agent autonomous pass]
 
 After T-1421 codified PL-096 as `scripts/fleet-deploy-binary.sh`, updated
