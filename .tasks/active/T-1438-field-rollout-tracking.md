@@ -346,3 +346,21 @@ These same verbs ship in 0.9.1693 (.122) per Help text inspection earlier.
 - 54: User-home symmetric propagation complete
 
 **Field-rollout AC inventory:** All AGENT-actionable items in T-1438's AC list are checked. Remaining checkboxes are operator-gated (.143 ring20-dashboard auth heal — T-1418).
+
+### 2026-05-02T07:02:00Z — .107 user-home gap closed
+
+**Action:** Mirrored `/opt/termlink/.claude/commands/check-arc.md` to `/root/.claude/commands/check-arc.md` on .107 (md5 14705456 byte-identical). /agent-handoff was already in user-home; /check-arc was missing — local symmetry restored to match .122 + .141 deploy state.
+
+**Final cross-host parity (6 locations × 2 skills = 12 file slots, all byte-identical):**
+
+| Host | user-home | project-local |
+|------|-----------|----------------|
+| .107 | /agent-handoff + /check-arc ✓ | /agent-handoff + /check-arc ✓ |
+| .122 | /agent-handoff + /check-arc ✓ | /agent-handoff + /check-arc ✓ |
+| .141 | /agent-handoff + /check-arc ✓ | /agent-handoff + /check-arc ✓ |
+
+12/12 file slots filled, all byte-identical to .107 source-of-truth. The .107 user-home file (/root/.claude/commands/check-arc.md) is OUTSIDE the project — not git-tracked but mirrored manually.
+
+### 2026-05-02T07:03:00Z — Persistence proof captured (PL-118)
+
+Empirically verified meta.db at /var/lib/termlink/bus/meta.db has 4 tables (topics, offsets, records, cursors + schema_version). The records table indexes 55 agent-chat-arc posts across 19h hub uptime — full post-level persistence works under live update. Backs T-1444 NO-GO with stronger evidence than the inception document captured. Recorded as PL-118.
