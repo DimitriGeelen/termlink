@@ -1065,3 +1065,17 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-116
+  learning: "Cross-host agent skill pairs need symmetric SEND + RECEIVE deployment. Shipped /agent-handoff to vendored agents (T-1431); without a paired /check-arc, DMs sent via the canonical dm:<a>:<b> topic land silently in vendored agents' local hub state — no slash-command path to surface them. The receive-side gap was invisible until the audit: a vendored agent could SEND a handoff but the recipient had no documented way to discover incoming ones. Lesson: when shipping a SEND-side primitive (`/agent-handoff`, `inject`, `event.emit_to`), audit for the paired RECEIVE-side surface (`/check-arc`, `inbox.list`, `event.subscribe`) at the same time and ship both. Otherwise the protocol is half-deployed and the gap shows up months later as 'why is nothing being acted on.'"
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent — discovered during T-1438 chat-arc field rollout
+  application: TBD
+- id: PL-117
+  learning: "When propagating a small per-host edit (single row insertion in a 1000-line file with project-local drift), use a python idempotent script + grep guard, not sed. The CLAUDE.md inserts on .122 + .141 had to add 2 Quick Reference rows containing markdown-special chars (** _ ` < >) that sed escaping makes brittle. Python regex matches stable anchor + concatenates the new rows + writes; `if marker in content: skip` makes re-runs no-ops. Pattern: ship the python script + base64 it + remote-exec on target. Backup at <file>.pre-t<task>.bak before write. Three hosts patched in <2min with byte-identical resulting line counts (1014/1014/1014, 2 grep matches each)."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent — discovered during T-1438 CLAUDE.md doc-row propagation
+  application: TBD
