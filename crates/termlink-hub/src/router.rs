@@ -170,6 +170,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         }
         "hub.version" => handle_hub_version(id),
         "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
+        "hub.bus_state" => handle_hub_bus_state(id),
         control::method::HUB_CAPABILITIES => handle_hub_capabilities(id),
         _ => forward_to_target(req, id).await,
     };
@@ -909,6 +910,51 @@ fn handle_hub_legacy_usage(id: serde_json::Value, params: &serde_json::Value) ->
     Response::success(id, summary).into()
 }
 
+/// Handle `hub.bus_state` — return G-050 audit telemetry: runtime_dir
+/// path + bus/meta.db presence/size/mtime + a heuristic volatility flag
+/// (true iff runtime_dir starts with `/tmp/`).
+///
+/// Tier-A. No params, scope=Observe. T-1446 (G-050 audit-sweep follow-up
+/// to T-1444 NO-GO). Fleet doctor walks each reachable hub via
+/// `--topic-durability` and aggregates a fleet-wide verdict.
+fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
+    let runtime_dir = termlink_session::discovery::runtime_dir();
+    let meta_db = runtime_dir.join("bus").join("meta.db");
+    let runtime_dir_str = runtime_dir.to_string_lossy().to_string();
+
+    let (audit_present, size_bytes, mtime_unix) = match std::fs::metadata(&meta_db) {
+        Ok(m) => {
+            let mtime = m
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            (true, m.len(), mtime)
+        }
+        Err(_) => (false, 0u64, 0u64),
+    };
+
+    // Heuristic: any path under `/tmp/` is presumed volatile. This catches
+    // the legacy `/tmp/termlink-0` default plus any operator override that
+    // accidentally lands on /tmp. False positives possible (a deliberately
+    // /tmp-on-disk setup would be flagged, but that's vanishingly rare for
+    // production hubs and the operator can dismiss the warning).
+    let runtime_dir_volatile = runtime_dir_str.starts_with("/tmp/");
+
+    Response::success(
+        id,
+        json!({
+            "runtime_dir": runtime_dir_str,
+            "runtime_dir_volatile": runtime_dir_volatile,
+            "audit_present": audit_present,
+            "meta_db_size_bytes": size_bytes,
+            "meta_db_mtime_unix": mtime_unix,
+        }),
+    )
+    .into()
+}
+
 /// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub
 /// serves directly (T-1215 / T-1214 GO Option B). Enables federating clients
 /// to detect stranger-lineage peers that lack `channel.*` and fall back to
@@ -951,6 +997,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::ARTIFACT_GET,
         "hub.version",
         "hub.legacy_usage",
+        "hub.bus_state",
         control::method::HUB_CAPABILITIES,
     ];
     // T-1411: filter retired legacy method names out of the methods array
@@ -4127,5 +4174,77 @@ mod tests {
     #[test]
     fn validate_topic_name_rejects_empty() {
         assert!(validate_topic_name("").is_err());
+    }
+
+    /// T-1446: hub.bus_state reports audit_present=true and
+    /// runtime_dir_volatile=false for a /var/lib-style runtime_dir
+    /// containing a bus/meta.db file.
+    #[tokio::test]
+    async fn hub_bus_state_reports_durable_for_var_lib_path() {
+        let _lock = ENV_LOCK.lock().await;
+        // Use a CARGO_MANIFEST_DIR-rooted path so runtime_dir doesn't start
+        // with /tmp/ (which would trigger the volatile heuristic and defeat
+        // the test).
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target/test-tmp")
+            .join(format!("tl-hub-bs-durable-{}", std::process::id()));
+        let bus_dir = dir.join("bus");
+        std::fs::create_dir_all(&bus_dir).unwrap();
+        let meta_db = bus_dir.join("meta.db");
+        std::fs::write(&meta_db, b"PLACEHOLDER").unwrap();
+
+        // The handler reads runtime_dir from termlink_session::discovery::runtime_dir().
+        // Override via env var for this test.
+        let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+        // SAFETY: tests serialise on ENV_LOCK so this set_var is exclusive.
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir); }
+
+        let resp = handle_hub_bus_state(json!("test-bs-1"));
+        let RpcResponse::Success(r) = resp else {
+            panic!("expected success, got {resp:?}");
+        };
+        assert_eq!(r.result.get("audit_present").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(r.result.get("runtime_dir_volatile").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(r.result.get("meta_db_size_bytes").and_then(|v| v.as_u64()), Some(11));
+        assert!(r.result.get("meta_db_mtime_unix").and_then(|v| v.as_u64()).unwrap_or(0) > 0);
+        let rd = r.result.get("runtime_dir").and_then(|v| v.as_str()).unwrap();
+        assert!(rd.contains("tl-hub-bs-durable"), "runtime_dir was: {rd}");
+
+        // Restore env
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-1446: hub.bus_state reports runtime_dir_volatile=true when runtime_dir
+    /// starts with /tmp/.
+    #[tokio::test]
+    async fn hub_bus_state_reports_volatile_for_tmp_path() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = PathBuf::from(format!("/tmp/termlink-bs-vol-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir); }
+
+        let resp = handle_hub_bus_state(json!("test-bs-2"));
+        let RpcResponse::Success(r) = resp else {
+            panic!("expected success, got {resp:?}");
+        };
+        assert_eq!(r.result.get("runtime_dir_volatile").and_then(|v| v.as_bool()), Some(true));
+        // No bus/meta.db created in this test → audit_present=false
+        assert_eq!(r.result.get("audit_present").and_then(|v| v.as_bool()), Some(false));
+
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
