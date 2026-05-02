@@ -1086,3 +1086,17 @@ learnings:
   date: 2026-05-02
   context: Added via context agent — empirical follow-up to T-1444 NO-GO recommendation
   application: TBD
+- id: PL-119
+  learning: "When the agent attempts a Tier-2 hub auth heal via OOB SSH and finds the host fully unreachable (ping 100% loss + SSH 'No route to host' + termlink port timeout), the host is isolated and NO agent-driven heal path remains. .143 (ring20-dashboard) confirmed at 2026-05-02: ICMP no response, port 22 'No route to host', port 9100 timeout. ring20-dashboard renumbers frequently (per memory: was .121, observed at .143 on 2026-04-30, may have moved again). Auth heal becomes operator-console-only (PVE/proxmox console, physical access, or alternative bastion). Probe order to confirm before declaring 'genuinely unreachable': ping → SSH → termlink-port. If SSH responds but auth-heal-Tier-2 fails for other reasons (e.g. user wrong, fp doesn't validate), that's a different gate (R2 source-validation). The 'fully unreachable' verdict requires ALL THREE probes to fail. Implication: T-1418 cannot proceed via remote agent; needs operator at the proxmox console of the CT."
+  source: P-001
+  task: T-1418
+  date: 2026-05-02
+  context: Added via context agent — discovered while attempting agent-driven Tier-2 heal under explicit user authorization
+  application: TBD
+- id: PL-120
+  learning: "When .141 vendored Claude Code agents need bare `termlink` on PATH but `/usr/local/bin` is unreachable (no passwordless sudo), append to the user's `~/.bashrc` with idempotent guard: `grep -q 'TARGET_PATH' .bashrc && echo present || (cp .bashrc .bashrc.pre-t<task>.bak && cat >> .bashrc << EOF ... export PATH=\"...:\\$PATH\" EOF)`. User-writable, no privilege required, takes effect on next interactive shell. Verified on .141 via `termlink remote exec laptop-141 agent-1` 2026-05-02. Limitation: existing non-interactive shells (and the running agent-1 session itself) don't see the change — only NEW interactive shells (Claude Code launches typically) source .bashrc."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent — discovered while wiring .141 PATH under explicit user authorization
+  application: TBD

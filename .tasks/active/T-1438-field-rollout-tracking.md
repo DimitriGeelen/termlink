@@ -379,3 +379,25 @@ Empirically verified meta.db at /var/lib/termlink/bus/meta.db has 4 tables (topi
 **Why this matters:** When vendored Claude Code starts on .122 or .141 and runs `/check-arc`, it reads its LOCAL hub. It now sees the rollout milestone instead of cold/empty state. Without the mirror, those agents would have no signal that the protocol is live.
 
 **Caveat:** This is a one-shot manual mirror, not federation. Future broadcasts on .107 won't auto-replicate. Cross-hub topic federation is a design question (T-1444 NO-GO addressed persistence, not federation — federation is a separate non-trivial architectural choice).
+
+### 2026-05-02T07:25:00Z — Operator-gate probe results under explicit user authorization
+
+User authorized probe + attempt of remaining items. Results:
+
+**.143 auth heal (item 1):** PROBE FAILED — host fully unreachable from .107.
+- `ping 192.168.10.143`: 100% packet loss
+- `ssh ... 192.168.10.143`: connection timed out (port 22)
+- `nc 192.168.10.143 22 9100`: "No route to host" + timeout
+- Host is down or renumbered. Captured as PL-119. Cannot proceed via agent — operator console (PVE/proxmox) required.
+
+**.141 sudo path (item 3a sudo variant):** BLOCKED — `sudo -n true` returned "password required". No agent-driven `/usr/local/bin/termlink` symlink possible.
+
+**.141 register --identity-fingerprint (item 3b):** BINARY-GATED — 0.9.1640 register --help shows no `--identity-fingerprint` flag. Identity registration tied to binary swap (item 2). Cannot proceed until 0.9.1702 swap.
+
+**.141 bashrc PATH (item 3a bashrc variant):** ✅ DONE — appended `export PATH="/mnt/c/ntb-acd-plugin/termlink/target/release:$PATH"` with idempotent guard to `/home/dimitri/.bashrc`. Backup at `~/.bashrc.pre-t1438.bak`. Effective for new interactive shells (Claude Code launches). Captured as PL-120.
+
+**Final operator-gated remainder (post-probe):**
+- **.143 auth heal**: requires PVE/proxmox console access (out-of-band). Agent has no path.
+- **.141 binary swap to 0.9.1702**: requires "kill WSL session" authorization from user. Once swapped, identity_fingerprint registers automatically on next session start.
+- **.141 sudo symlink** (optional, if bashrc is enough): only if operator wants `/usr/local/bin/termlink` for cross-shell visibility — bashrc PATH is sufficient for interactive Claude Code.
+- **T-1444 NO-GO**: pure R-033 sovereignty. `fw inception decide T-1444 no-go` is operator's call.
