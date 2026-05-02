@@ -90,6 +90,20 @@ tail -10000 /var/lib/termlink/rpc-audit.jsonl | grep -c '"method":"inbox.status"
 # Fleet doctor --legacy-usage runs and reports a verdict (signal that T-1432 stack is operational)
 target/release/termlink fleet doctor --legacy-usage --legacy-window-days 1 2>&1 | grep -E "CUT-READY|WAIT|UNCERTAIN" | head -1
 
+## Recommendation
+
+**Recommendation:** GO (answer-only — migration deferred to T-1418)
+
+**Rationale:** T-1435 is structurally an *answer task*, not a migration task. All 6 Agent ACs PASS. The 4919 inbox.status callers are identified (single source: `peer_ip=192.168.10.143` running pre-T-1235 CLI). Migration of that caller is NOT in scope here — it's covered by T-1418 (binary swap on .143 → now .121 after renumbering). T-1418 has been substantially de-risked this session: launcher identified, binary 0.9.1702 staged + ABI-probed, 5-line bundled operator recipe ready.
+
+**Evidence:**
+- Verification: 3/3 PASS
+- 914 inbox.status hits in last 10000 audit lines from `.143` peer_ip alone vs 0 from .141/.122 — single-source attribution holds
+- Caller is structural pre-T-1235: triplet `hub.auth → session.list → inbox.status` every ~60s with new ephemeral source ports
+- T-1418 readiness UPGRADED this session (commit 81196bc0): binary staged on .121 ready for 5-line operator paste; once swap lands, .143/.121 hits drop to 0 within ~60s of restart per T-1235 SDK shim
+
+**Human AC remaining:** [REVIEW] Verification of CUT-READY happens under T-1418, not T-1435. Until T-1418 swap lands, the AC has no field to verify against. Once T-1418 ships and you run `target/release/termlink fleet doctor --legacy-usage --legacy-window-days 1`, expect `.121` to disappear from "WITH TRAFFIC" within ~60s. Hold for 7d → T-1166 cut safe.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

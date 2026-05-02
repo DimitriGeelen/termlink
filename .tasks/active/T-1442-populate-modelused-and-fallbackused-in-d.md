@@ -64,6 +64,27 @@ bash -n scripts/tl-dispatch.sh
 bash tests/test_tl_dispatch_meta.sh
 cargo check --workspace
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** All 10 Agent ACs PASS. All 3 verification commands PASS. Live spot-check executed 2026-05-02T22:55:11Z (mechanical Human AC steps run by agent per `feedback_validate_dont_punt`): cmd_spawn produced `meta.json` with exact expected keys + values.
+
+**Evidence:**
+- Verification: 3/3 PASS
+- Live spot-check (2026-05-02T22:55:11Z) — `bash scripts/tl-dispatch.sh --name spot --prompt 'echo hi' --model haiku --task-type build` produced:
+  ```json
+  {
+    "name": "spot", "project": "/opt/termlink", "timeout": 600, "backend": "auto",
+    "task_type": "build", "model": "haiku", "model_used": "haiku", "fallback_used": false,
+    "started": "2026-05-02T22:55:11Z", "status": "running"
+  }
+  ```
+- All 4 fields the Human AC asks for (`task_type`, `model`, `model_used`, `fallback_used`) present with correct values
+- Cleanup verified (`bash scripts/tl-dispatch.sh cleanup` removed the stale session cleanly)
+
+**Human AC remaining:** [REVIEW] Confirm the live spot-check evidence above matches what you observe when you re-run the steps yourself. The agent cannot tick the `### Human` checkbox — that's reserved for the human (framework rule). All four expected JSON fields verified by agent; human review is rubber-stamp unless the spot-check is repeated and produces different output.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
