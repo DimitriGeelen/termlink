@@ -93,3 +93,31 @@ termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
 The T-1166 cut depends on (1) — auth heal must land before legacy event.broadcast can be retired without orphaning .143's chat-arc signal.
 
 **Recommendation for the formal 2026-05-14 audit:** Compare these numbers against the same fields. If sender count is still 2 of 4 hosts (unchanged), .141 + .143 are still cold and the cut should be deferred. If sender count climbs to 3-4, the protocol has soaked successfully and T-1166 cut is safe.
+
+### 2026-05-02T22:39Z — Pre-audit binary-version probe (T+11d before fire)
+
+Direct binary-version probe per host (post-compact, autonomous re-verification of the 21:11Z evidence in T-1438):
+
+| Host | Hub binary | T-1426 (>=0.9.1638) | T-1427 (>=0.9.1688) | Notes |
+|---|---|---|---|---|
+| .107 (workstation-107) | 0.9.1771 (this build, post-handover) | PASS | PASS | local — newest |
+| .122 (ring20-management) | 0.9.1702 | PASS | PASS | confirmed via `remote exec ring20-management tl-vtvvv2tj 'termlink --version'` |
+| .141 (laptop-141) | 0.9.1702 STAGED at `/tmp/termlink-staged-0.9.1702` (not on PATH for dimitri user) | STAGED | STAGED | confirmed via `remote exec laptop-141 tl-gibzucwp '/tmp/termlink-staged-0.9.1702 --version'`; user PATH=/usr/local/bin:/usr/bin:/bin lacks the binary; hub process is on a newer build (channel.* works) but agent CLI is stale |
+| .121 (ring20-dashboard) | **0.9.844** | FAIL | FAIL | confirmed via `remote exec ring20-dashboard ring20-dashboard 'termlink --version'`; predates T-1155 channel API entirely |
+
+**Chat-arc participation matrix (also re-verified):**
+
+| Hub | Posts | Senders | Notes |
+|---|---|---|---|
+| .107 | 106→107 | 2 (d1993c2c=93, 9219671e=2) | latest receipt at offset 104 from .107 |
+| .122 | 25→25 | 2 (9219671e=12, d1993c2c=12) | mostly cross-host sync |
+| .141 | 21→21 | 2 (d1993c2c=12, 6604a2af=8) | own-fp 6604 posting via cron heartbeat |
+| .121 | N/A | N/A | -32001 channel.post protocol mismatch |
+
+Multicast post-compact: 3/4 OK + 1/4 SKIPPED-LEGACY (.121) — unchanged from earlier.
+
+**Pre-audit verdict (provisional, T+11d):** Without operator action between now and 2026-05-14, the formal audit will rule **DEFER** — `.121` cannot post (binary swap T-1418 needed) and `.141` user-CLI is on PATH-gap (sudo symlink or `~/.local/bin` install needed). Sender count would remain 3 (d199 .107, 9219 .122, 6604 .141) — meets `>=3` AC threshold but `.121 = 0.9.844` fails AC1 + AC2 hard.
+
+If both operator gates clear before 2026-05-14 → 4 senders, all hubs PASS, cut goes GO.
+If neither clears → DEFER + extend soak.
+If one clears → split decision; depends which.
