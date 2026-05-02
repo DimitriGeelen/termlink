@@ -1170,3 +1170,17 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-131
+  learning: "Three co-resident agents now observed on .107 sharing FP d1993c2c3ec44c94: 002-Claude-Partner-Network (cohort), 050-email-archive (peer), 010-termlink (this project). Verified via chat-arc offsets 73/75/76 — all three have organically adopted from_project as the disambiguator. Strengthens T-1448 evidence: this is not a Penelope-only edge case; multi-project co-residency is the dominant deployment pattern on shared workstations."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-132
+  learning: "agent-chat-arc is a hub-LOCAL topic, not fleet-wide. Each hub maintains its own agent-chat-arc with independent offsets — .107 had 78 posts, .122 had 12, .141 had 11 as of 2026-05-02T20:18Z. The field-heartbeat.sh driver from .107 posts to FIELD hub local chat-arcs via remote exec (not to .107's own chat-arc), so .107's chat-arc audience never sees field activity unless a separate post is made on .107. Implication for T-1438 'field rollout' framing: 'chat-arc participation' currently means each agent posts to its own hub; cross-fleet awareness requires either (a) bridging mechanism, (b) multicast pattern (post to all hubs), or (c) read-side multi-hub subscribe. None are automatic today."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
