@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:21:07Z
-last_update: 2026-04-30T21:21:07Z
+last_update: 2026-05-02T22:49:55Z
 date_finished: null
 ---
 
@@ -150,3 +150,39 @@ Per AC2 spot-check ("forged --sender-id imposter post → expect -32014 CHANNEL_
 **Pre-audit recommendation update:** Restarting .107 hub before 2026-05-14 is no-blast-radius for T-1427 enforcement (T-1294 persist-if-present means clients don't re-pin) but high-blast-radius for sessions (37 active). Operator decision. Without restart, .107 audit verdict is "binary at-disk PASSES, runtime FAILS" — a partial PASS at best.
 
 **.141 hub restart needed too** — same root cause likely (hub PID predates the staged 0.9.1702 binary swap that hasn't been performed). Confirms that .141 binary swap (T-1438 field-readiness item 2) is needed for both T-1426 deprecation print AND T-1427 strict-reject runtime activation.
+
+### 2026-05-02T22:58Z — Runtime-PID-start-time matrix (completes runtime-vs-disk audit)
+
+| Hub | PID | Start (local TZ) | Δ vs T-1427 commit (2026-05-01 21:39) | In-memory T-1427? | Hub binary on disk |
+|---|---|---|---|---|---|
+| .107 (workstation) | 103255 | 2026-05-01 13:17:25 | -8h22m (before) | NO ✗ | `/root/.cargo/bin/termlink` 0.9.1701 (post-T-1427 stamp but PID predates) |
+| .141 (laptop-141) | 221 | 2026-05-01 21:36:09 | -3m (before) | NO ✗ | `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` 0.9.1640 (predates BOTH at-disk AND at-runtime; needs swap to 0.9.1688+) |
+| .122 (ring20-management) | 1157690 | 2026-05-02 22:49 | +25h10m (after) | YES ✓ | `/usr/local/bin/termlink` 0.9.1702 |
+| .121 (ring20-dashboard) | 399 | 2026-05-02 06:05 | post-commit but binary is 0.9.844 (pre-T-1155) | N/A | `/usr/local/bin/termlink` 0.9.844 — channel.* unsupported entirely |
+
+**Pre-audit recommendation finalized for 2026-05-14:**
+
+Sender count is on track to climb from 2→3 (already there with 6604 .141 cron heartbeat) but the FORGED-SENDER-REJECTED axis of AC2 currently:
+- ✓ PASSES on .122 only
+- ✗ FAILS on .107 + .141 (both due to hub-PID-predates-feature, fixable via hub restart + binary swap respectively)
+- N/A on .121 (cut blocker is binary swap)
+
+**Operator gates that need to clear before 2026-05-14 for full PASS:**
+1. `.107` hub restart (no binary work; just restart the running PID 103255 to load the on-disk 0.9.1701)
+2. `.141` hub binary swap to 0.9.1702 (binary is staged at /tmp/termlink-staged-0.9.1702, but the running hub is at /mnt/c/ntb-acd-plugin/termlink/target/release/termlink 0.9.1640 — need both: replace that binary AND restart hub PID 221)
+3. `.121` binary swap to 0.9.1702 + watchdog patch + runtime_dir migration (T-1418 + T-1296 bundled; binary now staged at /tmp/termlink.new on .121)
+
+**Single-host audit closure recipe (per audit day):**
+
+```bash
+# For each hub
+ssh-or-remote-exec into <hub>
+HUB_PID=$(pgrep -f "termlink hub" | head -1)
+HUB_BIN=$(readlink /proc/$HUB_PID/exe)
+HUB_START=$(stat -c '%y' /proc/$HUB_PID)
+HUB_DISK_VER=$($HUB_BIN --version)
+echo "$hub PID=$HUB_PID start=$HUB_START bin=$HUB_BIN ver=$HUB_DISK_VER"
+# Spot-check T-1427 enforcement (creates ephemeral pollution; redact after)
+echo '{}' | termlink channel post --hub <hub> --sender-id 0000000000000000 --msg-type chat agent-chat-arc 2>&1
+```
+Expected: `-32014` if T-1427 in-memory; "Posted to ..." if not.
