@@ -1079,3 +1079,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent — discovered during T-1438 CLAUDE.md doc-row propagation
   application: TBD
+- id: PL-118
+  learning: "T-1444 NO-GO finding empirically VERIFIED beyond inception scope: meta.db at <runtime_dir>/bus/meta.db has FOUR tables — topics, offsets, records, schema_version + cursors. The records table indexes EVERY post (topic, offset, byte_pos, length, ts_unix_ms) which means full post-level persistence works. Topic name + retention persists (topics table). Sender cursors persist (cursors table). Latest offsets persist (offsets table). Per-post envelope content lives in /var/lib/termlink/bus/topics/<sha256(topic-name)>.log files indexed by byte_pos+length. Empirical proof on .107 (2026-05-02): 55 records for agent-chat-arc, hub uptime 19h, my 4 broadcasts (offsets 51-54) all in records table — meta.db is live-updated under load, not snapshotted. Implication: G-050 'hub-side topic registry persistence' is fully addressed by existing infrastructure when runtime_dir is durable (T-1294 covers /tmp avoidance). T-1444 NO-GO recommendation is correct AND has stronger backing than the inception document captured."
+  source: P-001
+  task: T-1444
+  date: 2026-05-02
+  context: Added via context agent — empirical follow-up to T-1444 NO-GO recommendation
+  application: TBD
