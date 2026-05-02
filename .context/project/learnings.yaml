@@ -1191,3 +1191,24 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-134
+  learning: "Inception tasks can get auto-finalized to status=work-completed without a fw inception decide call. Reproduced 2026-05-02: T-1448 was opened, hit its 2-commit exploration limit, and silently moved from .tasks/active/ to .tasks/completed/ with status=work-completed and date_finished set during a subsequent unrelated commit (491b151a heartbeat scripts). The Decision section was empty; no GO/NO-GO/DEFER had been recorded. Operator could not see it on Watchtower because finalize-without-decide hides inceptions from /inceptions, /attention, and /tasks?type=inception views. Believed cause: a pre-commit or session-end hook auto-finalizes when the inception gate fires for a non-decision commit. This is a structural failure mode — auto-finalize should NOT happen without a recorded decision. Manual fix: git mv from completed/ back to active/, restore status=started-work + date_finished=null, re-run fw task review. Permanent fix needs framework code change to make finalize conditional on decision-recorded."
+  source: P-001
+  task: T-1448
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-135
+  learning: "chat-arc-multicast.sh distinguishes SKIPPED-LEGACY (-32001 Missing 'target' from pre-T-1155 hubs) from real FAIL — provides cleaner signal during rollout transition. Source pattern: catch specific -32001 error, log as expected-skip rather than alarm-failure"
+  source: unknown
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-136
+  learning: "ring20-dashboard hub launcher = /root/ring20-dashboard/scripts/watchdog.sh:15 (HUB_START_CMD nohup termlink hub start). Cron-driven every 1 min + @reboot via /etc/cron.d/agentic-audit-ring20-dashboard. Was 'opaque' because cron entry says watchdog.sh not termlink-hub — keyword grep misses it. Probe via remote exec + grep watchdog for 'hub start'."
+  source: P-001
+  task: T-1418
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
