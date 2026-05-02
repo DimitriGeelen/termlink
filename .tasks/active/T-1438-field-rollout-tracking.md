@@ -321,3 +321,28 @@ test -f /root/.claude/commands/agent-handoff.md
 - `termlink whoami --name <display> --json` ✓
 
 These same verbs ship in 0.9.1693 (.122) per Help text inspection earlier.
+
+### 2026-05-02T06:55:00Z — Symmetric user-home + project-local deploy complete
+
+**Action:** Pushed `/check-arc` to user-home claude-commands dir on .122 + .141 (was previously only in project-local paths). Brings /check-arc into parity with /agent-handoff which already lived in BOTH.
+
+**Final propagation state (verified md5 byte-identical to .107 source):**
+
+| Host | Location | /agent-handoff | /check-arc |
+|------|----------|----------------|------------|
+| .107 | source-of-truth in opt-termlink | md5 94d3eae7 | md5 14705456 |
+| .122 | user-home root-dot-claude | md5 94d3eae7 | md5 14705456 (just pushed) |
+| .122 | project /root/termlink | md5 94d3eae7 | md5 14705456 |
+| .141 | user-home dimitri-dot-claude | md5 94d3eae7 | md5 14705456 (just pushed) |
+| .141 | project /mnt/c/ntb-acd-plugin/termlink | md5 94d3eae7 | md5 14705456 |
+| .143 | T-1418 auth-blocked | absent | absent |
+
+**Why both paths matter:** Claude Code discovers slash commands from BOTH user-level (available in any project) AND project-level (only when CWD = project root). Vendored agents on .122 + .141 may run from either project root or general workspace; symmetric deploy ensures discoverability regardless of CWD.
+
+**Cumulative session 8 chat-arc rollout milestones (broadcast offsets 51-54):**
+- 51: /agent-handoff propagated to .122 + .141 project-local
+- 52: /check-arc deployed on .107 + .122 + .141 project-local
+- 53: /check-arc primitive smoke (23/26 dm-with-self topics show unread)
+- 54: User-home symmetric propagation complete
+
+**Field-rollout AC inventory:** All AGENT-actionable items in T-1438's AC list are checked. Remaining checkboxes are operator-gated (.143 ring20-dashboard auth heal — T-1418).
