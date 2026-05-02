@@ -443,3 +443,20 @@ concerns:
   created: 2026-05-02
   last_reviewed: 2026-05-02
   related_tasks: [T-1448, T-1216]
+
+- id: G-053
+  type: gap
+  title: "DEFER inceptions and date-triggered follow-ups have no structural revisit mechanism — sentinel-task prose is the only reminder"
+  description: "Tasks can carry a horizon (now/next/later) but no machine-readable revisit date. When an inception decides DEFER and names a future audit date (T-1425 → 2026-05-14, T-1428 sentinel), that date lives only in description prose. There is no `revisit_at: <date>` frontmatter field, no cron job that scans for `revisit_at <= today` and surfaces hits, and no `deferred-decisions.yaml` register that ties each DEFER to (source-task, evidence-needed-to-resolve, revisit-date, sentinel-task-id) in a queryable form. Sentinel tasks themselves often have empty placeholder ACs because the audit recipe was never structurally captured at DEFER-time. Practical consequence: if the date passes and nobody opens Watchtower or runs `fw task list`, the deadline goes silently — the framework cannot proactively surface 'this DEFER is ripe for re-verdict.' The 'amend window' concept used in T-1425 (14d for late peer feedback to override Decisions) has the same shape and the same blind spot."
+  spec_reference: "Task frontmatter (.tasks/templates/zzz-default.md), cron registry (.context/cron), assumption tracker (.context/project/assumptions.yaml), CLAUDE.md inception discipline section. Closest existing primitives: horizon field (no date semantic), assumption validate/invalidate workflow (no date trigger), cron registry (no per-task hooks)."
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-02T21:30Z user prompt during T-1425 48h soak synthesis: 'are we wired to capture the date we need to make a sensible analysis to support a later decison?' — answered no. T-1425 picked DEFER with sentinel=T-1428 fires 2026-05-14 to close out, but T-1428's ACs are empty placeholders ([First criterion], [Second criterion]) and no cron will surface T-1428 on the trigger date."
+  detection_lag_days: "2 (T-1428 created 2026-04-30; gap noticed 2026-05-02)"
+  what_works_now: "Sentinel tasks DO get created at DEFER time (T-1428 was captured at the same time as T-1425). Watchtower /tasks shows them. `fw task list` shows them. assumptions.yaml exists for tracking inception assumptions like A-1. decisions.yaml records architectural decisions. Cron registry can run scheduled jobs."
+  what_remains: "1. Add `revisit_at: <ISO-date>` and optional `revisit_evidence_needed: <description>` frontmatter fields. 2. Cron job (daily, runs ~07:00) that scans active/ for `revisit_at <= today` and surfaces hits in Watchtower home + handover banner. 3. `fw task revisit-due` CLI to list ripe revisits on demand. 4. Backfill T-1428's ACs from the prose recipe so the audit is mechanically checkable. 5. Optional: `deferred-decisions.yaml` register linking each DEFER to (source-task, evidence-needed, revisit-date, sentinel-task-id) — but a per-task `revisit_at` may be sufficient. 6. Update inception templates so DEFER outcomes prompt for revisit_at + evidence_needed structurally."
+  mitigation_candidate: "Tactical (now): add a `revisit_at` frontmatter field manually to T-1428 + T-1425, plus a daily cron grepping for them. Structural (T-1449 inception): design the proper revisit/sentinel mechanism — choose between per-task field, separate register, or both. Foundation-soak audit: T-1428 itself becomes the test case once the mechanism is wired."
+  status: watching
+  created: 2026-05-02
+  last_reviewed: 2026-05-02
+  related_tasks: [T-1425, T-1428, T-1449]
