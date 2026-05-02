@@ -1156,3 +1156,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-129
+  learning: "Vendored-agent chat-arc participation works via 'termlink remote exec <hub> <session-id> termlink channel post agent-chat-arc ...'. The remote-exec lands ON the field host and uses its LOCAL termlink CLI + LOCAL hub + LOCAL identity file — sender_id is derived from the field host's keypair, not the originating .107. Confirmed live: .122 posted at offset=5 with sender_id=9219671e28054458, .141 posted at offset=4 with sender_id=6604a2af482f0cf7. Pre-T-1436 binaries (0.9.1640 on .141) lack 'Identity FP:' in whoami output but the identity file exists and posts derive sender_id from it. Pre-T-1427 hubs do not enforce strict-reject so even legacy clients can participate. Pattern unblocks 'multi-host vendored-agent chat-arc' without needing operator-gated binary swaps."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
