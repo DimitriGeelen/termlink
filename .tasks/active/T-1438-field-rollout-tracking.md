@@ -267,3 +267,34 @@ test -f /root/.claude/commands/agent-handoff.md
 |-----------|-------|--------|
 | SEND | `/agent-handoff <target> <task> "<msg>"` | ✓ deployed all 3 hosts |
 | RECEIVE | `/check-arc` | ✓ deployed all 3 hosts |
+
+### 2026-05-02T06:34:00Z — CLAUDE.md Quick-Reference rows propagated
+
+**Action:** Inserted 2 rows into Quick Reference table on .107 + .122 + .141 CLAUDE.md:
+
+```
+| **Cross-host handoff (SEND)** | **`/agent-handoff <target> <task-id> "<msg>"`** | Skill wrapping `termlink agent contact` ... |
+| **Pending DM inbox (RECEIVE)** | **`/check-arc`** | Surfaces unread `dm:<self>:<peer>` topics + agent-chat-arc broadcasts ... |
+```
+
+**Pattern:** Python idempotent in-place edit (`/tmp/insert-chatarc-rows.py`). Anchor regex matches the "Register component" row; `if "/agent-handoff" in content: skip`; backup saved as `.pre-t1438.bak`. Rejected sed-based approach because markdown `**bold**` + `<>` + backticks make sed escape brittle.
+
+**Verification (1012→1014 lines, 2 grep matches each):**
+- .122 CLAUDE.md: 1014 lines ✓
+- .141 CLAUDE.md: 1014 lines ✓
+- .107 CLAUDE.md: edited locally via Edit tool; will commit separately.
+
+**Why this matters:** Vendored Claude Code agents on .122 + .141 now show `/agent-handoff` and `/check-arc` in their slash command palette docs. Discoverability gap closed without clobbering project-local CLAUDE.md drift (md5 mismatch between hosts pre-edit confirmed each had their own customizations).
+
+**Cumulative chat-arc field rollout completion:**
+- ✓ Binary support: 0.9.1693+ on .107 + .122; .141 staged at 0.9.1702 (operator-gated swap)
+- ✓ Identity binding: T-1427 strict-reject in 0.9.1693+
+- ✓ Topic durability: T-1443 `--ensure-topic` + T-1445 framework scripts probe-then-flag
+- ✓ Hub bus_state RPC: T-1446 + `fleet doctor --topic-durability`
+- ✓ SEND skill: `/agent-handoff` on all 3 hosts
+- ✓ RECEIVE skill: `/check-arc` on all 3 hosts
+- ✓ Doc surface: CLAUDE.md Quick Reference rows on all 3 hosts
+- ✗ .143 (T-1418 auth-blocked, operator-gated)
+- ✗ .141 binary swap to 0.9.1702 (operator-gated; current 0.9.1640 lacks `agent contact`)
+- ✗ .141 PATH wiring for bare `termlink` (operator-gated)
+- ✗ .141 identity_fingerprint registration (operator-gated)
