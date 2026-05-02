@@ -1643,6 +1643,7 @@ pub(crate) async fn cmd_fleet_doctor(
     timeout_secs: u64,
     legacy_usage: bool,
     legacy_window_days: u64,
+    topic_durability: bool,
 ) -> Result<()> {
     // T-1432: clamp window to documented range. 1 day floor (avoid empty
     // windows from 0), 90 day ceiling (matches T-1166 audit-log retention
@@ -1750,6 +1751,29 @@ pub(crate) async fn cmd_fleet_doctor(
                     None
                 };
 
+                // T-1446: optional bus_state probe per hub. Pre-T-1446 hubs
+                // return method-not-found and the per-hub summary records
+                // `audit_unsupported` so the operator knows the hub needs an
+                // upgrade before its durability can be measured.
+                let bus_state_summary = if topic_durability {
+                    match client
+                        .call(
+                            "hub.bus_state",
+                            serde_json::json!("fleet-doctor-bus-state"),
+                            serde_json::json!({}),
+                        )
+                        .await
+                    {
+                        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Some(r.result),
+                        Ok(_) | Err(_) => Some(serde_json::json!({
+                            "audit_unsupported": true,
+                            "hint": "hub predates T-1446 (hub.bus_state) — upgrade to measure topic-durability on this host",
+                        })),
+                    }
+                } else {
+                    None
+                };
+
                 let mut hub_obj = serde_json::json!({
                     "hub": name,
                     "address": entry.address,
@@ -1763,9 +1787,31 @@ pub(crate) async fn cmd_fleet_doctor(
                 {
                     obj.insert("legacy_usage".to_string(), ls.clone());
                 }
+                if let Some(bs) = &bus_state_summary
+                    && let Some(obj) = hub_obj.as_object_mut()
+                {
+                    obj.insert("bus_state".to_string(), bs.clone());
+                }
                 hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
+                    // T-1446: render per-hub bus_state line when --topic-durability is set
+                    if let Some(bs) = &bus_state_summary {
+                        if bs.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
+                            eprintln!("    [bus_state] audit_unsupported (pre-T-1446 hub)");
+                        } else {
+                            let rd = bs.get("runtime_dir").and_then(|v| v.as_str()).unwrap_or("?");
+                            let vol = bs.get("runtime_dir_volatile").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let present = bs.get("audit_present").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let size = bs.get("meta_db_size_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let mtime = bs.get("meta_db_mtime_unix").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let verdict = if present && !vol { "DURABLE" } else if vol { "VOLATILE" } else { "MISSING" };
+                            eprintln!(
+                                "    [bus_state] {} runtime_dir={} meta_db={} bytes mtime={}",
+                                verdict, rd, size, mtime
+                            );
+                        }
+                    }
                 }
                 // T-1053: pass resets the auth-failure streak + re-arms concern gating.
                 let _ = maybe_track_fleet_failure(name, &entry.address, None);
@@ -1899,6 +1945,81 @@ pub(crate) async fn cmd_fleet_doctor(
         None
     };
 
+    // T-1446: aggregate G-050 audit-sweep verdict from per-hub bus_state payloads.
+    //   DURABLE   — every reachable hub reports audit_present=true AND runtime_dir_volatile=false
+    //   VOLATILE  — at least one hub has runtime_dir_volatile=true (e.g. /tmp/termlink-0)
+    //   UNCERTAIN — at least one hub returned audit_unsupported (pre-T-1446)
+    //               OR audit_present=false (fresh runtime_dir, no posts yet)
+    let bus_state_summary_obj = if topic_durability {
+        let mut hubs_durable: Vec<String> = Vec::new();
+        let mut hubs_volatile: Vec<(String, String)> = Vec::new(); // (hub, runtime_dir)
+        let mut hubs_missing: Vec<(String, String)> = Vec::new();  // (hub, runtime_dir)
+        let mut hubs_unsupported: Vec<String> = Vec::new();
+        for h in &hub_results {
+            let name = h.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            let Some(bs) = h.get("bus_state") else { continue };
+            if bs.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
+                hubs_unsupported.push(name);
+                continue;
+            }
+            let rd = bs.get("runtime_dir").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            let vol = bs.get("runtime_dir_volatile").and_then(|v| v.as_bool()).unwrap_or(false);
+            let present = bs.get("audit_present").and_then(|v| v.as_bool()).unwrap_or(false);
+            if vol {
+                hubs_volatile.push((name, rd));
+            } else if !present {
+                hubs_missing.push((name, rd));
+            } else {
+                hubs_durable.push(name);
+            }
+        }
+        let verdict = if !hubs_volatile.is_empty() {
+            "VOLATILE"
+        } else if !hubs_unsupported.is_empty() || !hubs_missing.is_empty() {
+            "UNCERTAIN"
+        } else if !hubs_durable.is_empty() {
+            "DURABLE"
+        } else {
+            "UNCERTAIN"
+        };
+        if !json {
+            eprintln!();
+            eprintln!("=== T-1446 G-050 audit-sweep ===");
+            eprintln!("Verdict: {}", verdict);
+            if !hubs_durable.is_empty() {
+                eprintln!("  DURABLE: {}", hubs_durable.join(", "));
+            }
+            if !hubs_volatile.is_empty() {
+                eprintln!("  VOLATILE (runtime_dir on /tmp/):");
+                for (name, rd) in &hubs_volatile {
+                    eprintln!("    {name}: runtime_dir={rd}");
+                }
+                eprintln!("    → migrate runtime_dir off /tmp (see T-1294 / T-1296)");
+            }
+            if !hubs_missing.is_empty() {
+                eprintln!("  NO meta.db (fresh runtime_dir or never posted):");
+                for (name, rd) in &hubs_missing {
+                    eprintln!("    {name}: runtime_dir={rd}");
+                }
+            }
+            if !hubs_unsupported.is_empty() {
+                eprintln!(
+                    "  UNSUPPORTED (pre-T-1446, upgrade to measure): {}",
+                    hubs_unsupported.join(", ")
+                );
+            }
+        }
+        Some(serde_json::json!({
+            "verdict": verdict,
+            "hubs_durable": hubs_durable,
+            "hubs_volatile": hubs_volatile.iter().map(|(n, r)| serde_json::json!({"hub": n, "runtime_dir": r})).collect::<Vec<_>>(),
+            "hubs_missing": hubs_missing.iter().map(|(n, r)| serde_json::json!({"hub": n, "runtime_dir": r})).collect::<Vec<_>>(),
+            "hubs_unsupported": hubs_unsupported,
+        }))
+    } else {
+        None
+    };
+
     if json {
         let mut top = serde_json::json!({
             "ok": total_fail == 0,
@@ -1910,6 +2031,11 @@ pub(crate) async fn cmd_fleet_doctor(
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("legacy_summary".to_string(), ls);
+        }
+        if let Some(bs) = bus_state_summary_obj
+            && let Some(obj) = top.as_object_mut()
+        {
+            obj.insert("bus_state_summary".to_string(), bs);
         }
         println!("{}", serde_json::to_string_pretty(&top)?);
     } else {

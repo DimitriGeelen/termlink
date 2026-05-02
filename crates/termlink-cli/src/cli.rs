@@ -3064,6 +3064,16 @@ pub(crate) enum FleetAction {
         /// The bake window the operator cares about pre-T-1166 cut.
         #[arg(long, default_value = "7")]
         legacy_window_days: u64,
+
+        /// T-1446: append G-050 audit-sweep telemetry. For each reachable
+        /// hub, query `hub.bus_state` and report runtime_dir + bus/meta.db
+        /// presence/size/mtime. Fleet verdict is DURABLE iff every hub
+        /// reports audit_present=true and runtime_dir_volatile=false (heuristic:
+        /// runtime_dir does not start with /tmp/). VOLATILE if any hub on
+        /// /tmp/. UNCERTAIN if any hub is unsupported (pre-T-1446) or
+        /// audit_present=false. Closes G-050.what_remains audit-sweep ask.
+        #[arg(long)]
+        topic_durability: bool,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

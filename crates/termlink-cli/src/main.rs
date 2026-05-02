@@ -343,8 +343,8 @@ async fn main() -> Result<()> {
             FleetAction::Status { json, timeout, verbose } => {
                 commands::remote::cmd_fleet_status(json, timeout, verbose).await
             }
-            FleetAction::Doctor { json, timeout, legacy_usage, legacy_window_days } => {
-                commands::remote::cmd_fleet_doctor(json, timeout, legacy_usage, legacy_window_days).await
+            FleetAction::Doctor { json, timeout, legacy_usage, legacy_window_days, topic_durability } => {
+                commands::remote::cmd_fleet_doctor(json, timeout, legacy_usage, legacy_window_days, topic_durability).await
             }
             FleetAction::Reauth { profile, bootstrap_from } => {
                 commands::remote::cmd_fleet_reauth(&profile, bootstrap_from.as_deref())
