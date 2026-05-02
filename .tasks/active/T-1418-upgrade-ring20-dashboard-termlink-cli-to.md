@@ -347,3 +347,43 @@ termlink fleet reauth ring20-dashboard
 - **Human ACs:** three drafted — deploy/restart/confirm.
 - **Owner flipped to human:** agent ACs done; remaining work is operator-side (binary transfer + restart on the dashboard host).
 - **Context:** Task created in response to user request "draft a one-shot upgrade procedure for .143". The cut blocker is now staged with a copy-pasteable runbook.
+
+### 2026-05-02T08:18:00Z — Auth healed at .121 (renumbered from .143); hub crashed during chat-arc skill push
+
+**Operator confirmation 2026-05-02:** ring20-dashboard renumbered back from .143 to **192.168.10.121**. Operator (or peer agent on .121) supplied the freshly-minted hub.secret hex via OOB channel.
+
+**Heal sequence executed on .107 under user authorization:**
+
+1. ✅ Updated `~/.termlink/hubs.toml`: `ring20-dashboard.address` `.143:9100 → .121:9100` via sed.
+2. ✅ Probed reachability: ping 0% loss, port 9100 open.
+3. ✅ File-based reauth via Tier-2: `termlink fleet reauth ring20-dashboard --bootstrap-from file:/tmp/ring20-dashboard.hex` → `[OK] heal complete` (new secret prefix `08e61c486d28…`).
+4. ✅ Backed-up secret: `/root/.termlink/secrets/ring20-dashboard.hex` (chmod 600). Bootstrap file shredded.
+5. ⚠️ First fleet doctor: TOFU VIOLATION (cert rotated alongside secret per PL-021 — volatile /tmp on .121).
+6. ✅ `termlink tofu clear 192.168.10.121:9100` → re-pinned new fp `1389a831016c4bf150587879af620b227df9bdb27dfabc66d2673827cecd7c5b`.
+7. ✅ Re-verify: `fleet doctor ring20-dashboard` PASS in 43ms.
+
+**Auth heal status: COMPLETE.** G-049 mitigated for the immediate incident.
+
+**Post-heal hub crash (PL-122):**
+
+Subsequently attempted to push chat-arc skills + mirror milestone to .121 hub. Sequence:
+- ✅ `termlink remote exec ring20-dashboard ring20-dashboard 'pwd; ls; termlink --version'` → returned `0.9.844`, cwd `/root/ring20-dashboard`
+- ❌ `termlink channel post --hub ring20-dashboard agent-chat-arc` → `cross-hub channel.post failed: Connection refused`
+- ❌ Subsequent `remote exec` → "Cannot connect to 192.168.10.121:9100"
+- ⚠️ Hub process appears to have crashed when receiving the modern (post-T-1155) channel.post envelope. Binary 0.9.844 predates the channel/bus API entirely.
+
+**.121 binary 0.9.844 cannot participate in chat-arc.** The whole reason for T-1418 itself: upgrade to a T-1235-bearing build. This crash makes the upgrade urgency more acute — even harmless modern envelopes from the rest of the fleet may panic the hub.
+
+**Recovery path (operator):**
+- Restart the hub process on .121 (`pct exec 101 -- systemctl restart termlink-hub` if it's systemd-launched, else manually).
+- After restart, push the T-1235 (or later) binary using the staged-deploy pattern from T-1424. Cannot be done autonomously — .121 is a fresh hub state with no probe path until restart.
+
+**Volatile runtime_dir flagged (T-1296 elevation needed):**
+- `/var/lib/termlink/` does not exist on .121.
+- `runtime_dir = /tmp/termlink-0/` per peer agent's report.
+- Next `pct reboot` of CT-101 mints a new secret AND cert → G-049 fires again within hours.
+- T-1296 (already in active backlog) must run after binary upgrade lands. Without it, the heal is one reboot away from breaking again.
+
+**Captured learnings:** PL-122 (modern envelope crashes pre-T-1155 hub).
+
+**T-1418 status:** Auth heal complete (Agent-actionable portion done). Binary upgrade still operator-gated (T-1235 deploy + hub restart on .121 + T-1296 runtime_dir migration as immediate follow-up).

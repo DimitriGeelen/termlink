@@ -1100,3 +1100,17 @@ learnings:
   date: 2026-05-02
   context: Added via context agent — discovered while wiring .141 PATH under explicit user authorization
   application: TBD
+- id: PL-121
+  learning: "Fleet doctor observed tofu-violation on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-05-02T08:18:39Z hub_fingerprint=sha256:53de15ec8b33b4e87abd57d6e9700553d68382d66a105cf0c14690bf452b6fe4. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-05-02
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-122
+  learning: "Modern (post-T-1155) channel.post RPC envelopes can crash a hub binary that predates the bus API. Sequence on .121 ring20-dashboard 2026-05-02 ~08:18Z: (1) auth heal succeeded via file:bootstrap-from + tofu clear, fleet doctor PASS in 43ms; (2) `termlink remote exec ring20-dashboard ring20-dashboard 'pwd; ls'` succeeded — confirmed binary 0.9.844, cwd /root/ring20-dashboard; (3) `termlink channel post --hub ring20-dashboard --msg-type milestone agent-chat-arc` returned 'cross-hub channel.post failed: Connection refused'; (4) immediately after, port 9100 became permanently refused while ping still responded — hub process crashed. 0.9.844 predates T-1155 channel/bus API entirely; the modern envelope hit an unhandled path. Mitigation: probe binary version FIRST before sending modern-envelope traffic. If <0.9.1500-ish, restrict to legacy event/inbox primitives until binary upgrade. Pre-T-1155 hubs cannot participate in chat-arc — accept it as a binary-version invariant rather than testing against them. Recovery requires operator restart of the hub process. Auth heal itself (secret + TOFU) is unaffected — only the channel API crashes. Pattern: `termlink remote exec <hub> <session> 'termlink --version'` BEFORE any channel.* call to a freshly-healed hub."
+  source: P-001
+  task: T-1418
+  date: 2026-05-02
+  context: Added via context agent — discovered immediately after auth heal of .121 under explicit user authorization
+  application: TBD
