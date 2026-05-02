@@ -197,3 +197,44 @@ test -f /root/.claude/commands/agent-handoff.md
 - **Result:** Post got QUEUED to local outbound.sqlite, not delivered direct via TCP. Inspection of `pending_posts` shows the queued envelope has topic + metadata + signature but NO `hub_addr` — so the queue can't flush to the intended remote. Stuck behind id=1 (xhub-real-1777398973, 299 retries) and 3x live-agents-2000 entries
 - **Gap:** T-1385 documents that TCP cross-hub posts SHOULD bypass the queue, but the actual fall-back path queues them without preserving the destination. Either (a) the bypass logic is gated on something we're missing, or (b) the bypass failed and the fallback drops the destination. Captured as a learning under T-1429
 - **Workaround:** for true cross-host, could use `termlink remote exec` to run `agent contact` ON the destination — that's effectively what we did for the same-host smoke, just routing the verb through `remote exec` to .122
+
+### 2026-05-02T06:18:00Z — /agent-handoff skill propagated to .122 + .141
+
+**Action:** Pushed `.claude/commands/agent-handoff.md` (135 lines, 3 verb refs) to vendored Claude Code agents on .122 and .141 via base64-over-remote-exec (PL-116).
+
+**Targets (verified post-deploy):**
+- `.122` `/root/termlink/.claude/commands/agent-handoff.md` — 135 lines, 3 matches
+- `.141` `/mnt/c/ntb-acd-plugin/termlink/.claude/commands/agent-handoff.md` — 135 lines, 3 matches
+- Backups: `.pre-t1438.bak` (none existed pre-push, so backup is no-op on first deploy)
+
+**Why this matters:** The protocol/binary/script layers were already in place from prior session work (T-1443/T-1445 + T-1446 + 0.9.1702 staged). The *skill file* — which is what makes `/agent-handoff` discoverable by Claude Code's slash-command palette on those hosts — was missing. Vendored agents could not invoke the cross-host handoff verb until now.
+
+**Broadcast:** `agent-chat-arc` offset=51, _thread=T-1438.
+
+**Gap remaining:** CLAUDE.md on .122 + .141 does not mention `/agent-handoff`. Operator-discovered via slash palette only. Documentation-level gap, not functional.
+
+### 2026-05-02T06:21:00Z — Field-readiness matrix + dm-arc smoke
+
+**Field-readiness matrix (.107 → .122 → .141):**
+
+| Host | Binary | `agent contact` | `whoami` | identity_fingerprint | Skill file | PATH for `termlink` |
+|------|--------|-----------------|----------|---------------------|------------|---------------------|
+| .107 | 0.9.1701 (LIVE) | ✓ | ✓ | d1993c2c3ec44c94 | ✓ | ✓ |
+| .122 | 0.9.1693 (live) | ✓ | ✓ | 9219671e28054458 | ✓ (just deployed) | ✓ |
+| .141 | 0.9.1640 (live; 0.9.1702 staged) | ✗ | ✓ | (none registered) | ✓ (just deployed) | ✗ (not in agent-1 PATH; user shell unverified) |
+| .143 | unreachable (T-1418) | ? | ? | ? | ✗ | ? |
+
+**.141 blockers (operator-gated):**
+1. Binary swap to 0.9.1702 to gain `agent contact` subcommand.
+2. Identity registration: session needs `--identity-fingerprint` at register time so chat-arc sender_id resolves. Verify via `termlink remote list laptop-141` post-swap — FP column should populate.
+3. PATH wiring: `/usr/local/bin/termlink` symlink (or PATH addition in user shell) so vendored Claude Code agents can invoke bare `termlink`. Without this, `/agent-handoff` skill calls fail at exec.
+
+**dm-arc smoke (.107 → .122):**
+- `termlink agent contact --target-fp 9219671e28054458 --thread T-1438 --hub ring20-management` → delivered offset=5 on the canonical dm topic (sorted .107-fp + .122-fp on .122's hub).
+- Confirms full canonical path works post-skill-deploy on the host that has all prerequisites.
+
+**agent-chat-arc soak snapshot (T-1428 input):**
+- Posts: 52, Senders: 2 (d1993c2c..=44 posts from .107, 9219671e..=2 posts from .122).
+- Last receipt: .107 acked through offset=37; offsets 38-51 unread by .107.
+- topic_metadata description is fully populated with the 5 protocol invariants (T-1429.5/T-1430).
+- .141 has zero arc activity (binary lacks the verb + no identity fingerprint).
