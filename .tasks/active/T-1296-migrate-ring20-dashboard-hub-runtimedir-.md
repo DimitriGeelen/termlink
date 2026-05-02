@@ -99,3 +99,32 @@ termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'
 - **Hub launch mechanism:** OPAQUE. PID 399 has PPID=1 (init) but `/etc/systemd/system/` has no `termlink-hub.service`. A template exists at `/root/termlink/.context/systemd/termlink-hub.service` (with the right `Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink` line) but is NOT installed. No `/etc/rc.local`, no `/etc/init.d/termlink*`, no cron entry, no user-systemd unit. Process is daemonized somehow at boot. Operator must trace the launcher (probably custom ssh-on-boot, screen detach, or analogous) before T-1296 can target the right edit point.
 - **Sequencing:** T-1296 migration MUST land before any .121 binary swap — otherwise the next reboot rotates the new state too, defeating the purpose.
 - **Fix path (per CLAUDE.md):** find the launcher, prepend `export TERMLINK_RUNTIME_DIR=/var/lib/termlink`, pre-seed /var/lib/termlink with the current secret/cert (`cp -a /tmp/termlink-0/. /var/lib/termlink/`), remove stale `hub.sock`/`hub.pid` from /tmp/, restart once, all clients re-pin once. Next reboot must NOT trigger rotation — that's the persistence ground-truth.
+
+### 2026-05-02T22:46Z — LAUNCHER IDENTIFIED (was: "OPAQUE") — autonomous probe via termlink remote exec
+
+**The launcher is `/root/ring20-dashboard/scripts/watchdog.sh`** invoked by `/etc/cron.d/agentic-audit-ring20-dashboard`:
+
+```
+* * * * * root cd "/root/ring20-dashboard" && cd /root/ring20-dashboard && scripts/watchdog.sh cron 2>/dev/null
+@reboot root cd "/root/ring20-dashboard" && cd /root/ring20-dashboard && scripts/watchdog.sh reboot 2>/dev/null
+```
+
+**The hub start command is on watchdog.sh line 15:**
+
+```bash
+HUB_START_CMD="nohup termlink hub start --tcp 0.0.0.0:9100 > /tmp/termlink-hub.log 2>&1 &"
+```
+
+This is the canonical "watchdog-launched hub" pattern from CLAUDE.md (T-1294 docs explicitly call this out). The watchdog does NOT export `TERMLINK_RUNTIME_DIR`, so the hub uses the legacy default `/tmp/termlink-0` — confirming the volatile-runtime root cause.
+
+**Patch recipe (operator step):**
+1. Edit `/root/ring20-dashboard/scripts/watchdog.sh`, add `export TERMLINK_RUNTIME_DIR=/var/lib/termlink` immediately after the `set -u` line near the top
+2. `mkdir -p /var/lib/termlink && cp -a /tmp/termlink-0/. /var/lib/termlink/` (pre-seed; lets persist-if-present preserve current secret/cert)
+3. `rm -f /tmp/termlink-0/hub.sock /tmp/termlink-0/hub.pid` (free the TCP bind)
+4. `kill <hub-pid>` (currently PID 399); watchdog restarts within 60s with new env
+5. Verify next reboot does NOT regenerate `hub.secret` (`stat /var/lib/termlink/hub.secret` mtime should NOT be the boot time) — that's the persistence ground-truth
+6. Clients re-pin once
+
+**Why this was previously "opaque":** ring20-dashboard's watchdog.sh is part of a sister project's cron registry, not termlink's. The standard searches (`/etc/systemd/system/`, `crontab -l` for root, `/etc/cron.d/*` looking for `termlink|hub` keywords) miss it because the cron entry says `watchdog.sh` not `termlink-hub`. Identification required reading the watchdog script itself for `hub start`.
+
+**Sequencing relationship to T-1418:** Same watchdog also gates the binary swap. Once `/usr/local/bin/termlink` is replaced AND the env-export prepend lands, a single hub kill cycles BOTH fixes in one watchdog reactivation. Recommend bundling — see T-1418 for matching launcher-discovery entry.
