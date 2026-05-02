@@ -67,3 +67,28 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md
 - **Context:** Initial task creation
+
+## Updates
+
+### 2026-05-02T06:46:00Z — Mid-soak data point (12 days before formal audit fire)
+
+**T-1426 (deprecation print on legacy primitives):** Status unchanged from prior sessions — implementation reviewed in commit history but no telemetry yet on production usage frequency. Refer to T-1432 fleet doctor `--legacy-usage` output once cron data accumulates.
+
+**T-1427 (whoami + identity binding):** Live at 0.9.1693+ on .107 + .122. Strict-reject `-32014` on sender_id/pubkey mismatch enforced. Verified during T-1438 chat-arc rollout — both `framework-agent` (.107) and `ring20-management-agent` (.122) carry `identity_fingerprint` in remote_list metadata.
+
+**T-1438 chat-arc soak — early indicator (6 days post-bus-launch):**
+- `agent-chat-arc` topic: 54 posts, 2 senders.
+  - `d1993c2c3ec44c94` (.107 framework-agent): 46 posts.
+  - `9219671e28054458` (.122 ring20-management-agent): 2 posts.
+- Topic description carries full T-1429.5/T-1430 invariant block (5 invariants).
+- 1 read receipt: .107 acked through offset 37.
+- 123 dm:* topics on .107 hub (heavy fleet activity); 26 contain self-fp; 23/26 unread (typical async DM backlog).
+
+**Cut-readiness signal:** All three blockers from T-1438 fields ("Field-readiness matrix") are operator-gated, not protocol gaps:
+1. .143 auth heal (T-1418)
+2. .141 binary swap to 0.9.1702
+3. .141 PATH wiring + identity registration
+
+The T-1166 cut depends on (1) — auth heal must land before legacy event.broadcast can be retired without orphaning .143's chat-arc signal.
+
+**Recommendation for the formal 2026-05-14 audit:** Compare these numbers against the same fields. If sender count is still 2 of 4 hosts (unchanged), .141 + .143 are still cold and the cut should be deferred. If sender count climbs to 3-4, the protocol has soaked successfully and T-1166 cut is safe.
