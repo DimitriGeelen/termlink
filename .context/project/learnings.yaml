@@ -1044,3 +1044,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-113
+  learning: "T-1445: probe-first --ensure-topic now in vendored framework scripts (publish-learning-to-bus.sh + pickup-channel-bridge.sh)"
+  source: P-009
+  task: T-1445
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD

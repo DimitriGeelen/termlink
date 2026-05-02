@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1445: Channel-1 upstream PR — adopt --ensure-topic in framework lib/publish-learning-to-bus.sh + lib/pickup-channel-bridge.sh (G-051 long-term)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-02T05:32:08Z
+# ============================================================================
+
+task_id: T-1445
+task_name: "Channel-1 upstream PR — adopt --ensure-topic in framework lib/publish-learning-to-bus.sh + lib/pickup-channel-bridge.sh (G-051 long-term)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-02T05:03:31Z
+completed: 2026-05-02T05:32:07Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-05-02T07:04:23+02:00
+last_commit: 2026-05-02T07:04:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture Channel-1 upstream PR for G-051 long-term fix
+
+# Key outcomes
+outcomes:
+  - "Probe-first pattern in `lib/publish-learning-to-bus.sh`: probe via `termlink channel post --help | grep -q -- '--ensure-topic'`, gate the flag conditionally. Old binaries get the no-flag path; new binaries get the heal-on-restart path."
+  - "Same probe pattern applied in `lib/pickup-channel-bridge.sh` for `framework:pickup` post."
+  - "Upstream commit on `/opt/999-Agentic-Engineering-Framework` master with T-1445 message; pushed to onedev — NOT github."
+  - "Vendored copy in `/opt/termlink/.agentic-framework/lib/publish-learning-to-bus.sh` reflects the patch (vendored is a manual copy per PL-022, not auto-mirror — applied directly via Edit)."
+  - "Verification on local hub: `fw context add-learning` exercised Tier-A path successfully."
+  - "No-flag fallback verified mechanically via simulated old binary."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "capture Channel-1 upstream PR for G-051 long-term fix"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-05-02.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - ".tasks/active/T-1445-channel-1-upstream-pr--adopt---ensure-to.md"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-02T07:04:23"
+    action: "T-1445: capture Channel-1 upstream PR for G-051 long-term fix"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 28 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 28
+  commits: 1
+  files_changed: 9
+  lines_added: 134
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1445-channel-1-upstream-pr--adopt---ensure-to.md
+generated_by: context-agent-hybrid
