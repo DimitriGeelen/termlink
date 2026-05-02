@@ -59,7 +59,8 @@ if [ ${#HUBS[@]} -eq 0 ]; then
 fi
 
 POSTED=0
-SKIPPED=0
+SKIPPED_LEGACY=0
+FAILED=0
 for HUB in "${HUBS[@]}"; do
   RESULT=$(timeout 30 termlink channel post agent-chat-arc \
     --hub "$HUB" \
@@ -72,12 +73,15 @@ for HUB in "${HUBS[@]}"; do
     OFFSET=$(echo "$RESULT" | grep -oE 'offset=[0-9]+' | head -1)
     log "$HUB: OK ($OFFSET)"
     POSTED=$((POSTED+1))
+  elif echo "$RESULT" | grep -qE "JSON-RPC error -32001.*Missing 'target'"; then
+    log "$HUB: SKIPPED-LEGACY — hub is pre-T-1155 (channel.post protocol mismatch, expects legacy 'target' field). Binary swap to 0.9.1155+ unblocks."
+    SKIPPED_LEGACY=$((SKIPPED_LEGACY+1))
   else
     log "$HUB: FAIL — $(echo "$RESULT" | head -1)"
-    SKIPPED=$((SKIPPED+1))
+    FAILED=$((FAILED+1))
   fi
 done
 
-log "summary: posted=$POSTED skipped=$SKIPPED total=${#HUBS[@]}"
+log "summary: posted=$POSTED skipped-legacy=$SKIPPED_LEGACY failed=$FAILED total=${#HUBS[@]}"
 [ $POSTED -gt 0 ] || exit 1
 exit 0
