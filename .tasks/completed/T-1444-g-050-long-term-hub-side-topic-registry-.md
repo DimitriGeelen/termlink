@@ -4,16 +4,16 @@ name: "G-050 long-term: hub-side topic registry persistence (option-1 follow-up 
 description: >
   Inception: G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 created: 2026-05-01T21:28:03Z
-last_update: 2026-05-02T05:39:07Z
-date_finished: null
+last_update: 2026-05-02T07:02:34Z
+date_finished: 2026-05-02T07:02:34Z
 ---
 
 # T-1444: G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)
@@ -105,7 +105,7 @@ hole, freeing room to design the long-term fix without a fire under it.
   **Evidence:** **NO-GO** — premise refuted. Re-trigger conditions documented (topic-loss on durable runtime_dir = different bug class; new state beyond SQLite coverage = separate inception). See artifact §"Recommendation".
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -187,7 +187,51 @@ See full research artifact: `docs/reports/T-1444-g-050-long-term.md`.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO
+
+Rationale: The premise (in-memory-only topic registry needing
+hand-rolled persistence) is wrong. Topics are already persisted in
+SQLite at `<runtime_dir>/bus/meta.db` via `termlink_bus::meta::Meta`.
+The observed "topic loss after restart" incidents trace to
+runtime_dir volatility (T-1294 territory), not to a missing
+persistence layer. Hand-rolling JSON/RON would duplicate SQLite's
+existing ACID-backed registry.
+
+Evidence:
+- `crates/termlink-bus/src/lib.rs:38-92` — `Bus { meta: meta::Meta, ... }`
+  delegates create/list/exists/retention/append to SQLite. The
+  `RwLock<HashMap<...>>` referenced in this task's premise is
+  `appenders` + `notifiers` runtime caches (log-handle pool + tokio
+  Notify primitives), not the registry.
+- `/var/lib/termlink/bus/meta.db` exists on .107, is 1.3 MB, contains
+  all 4 canon topics (`agent-chat-arc`, `broadcast:global`,
+  `channel:learnings`, `framework:pickup`) per
+  `sqlite3 ... 'SELECT name FROM topics'`. Live-modified (mtime 07:31
+  current). Survives every hub restart on durable runtime_dir.
+- T-1443's `--ensure-topic` flag remains useful as an idempotent
+  client-side shortcut (callers don't track which canon topics need
+  pre-creation). T-1445 deployed it in framework scripts. Keep it.
+
+Long-term G-050 fix is subsumed by T-1294-class work:
+- T-1294 already migrated .122 ring20-management.
+- T-1296 (captured/next) covers .121/.143 ring20-dashboard.
+- Periodic sweep should audit any other hub still on `/tmp/termlink-0`
+  (likely none on current fleet).
+
+Re-trigger conditions for re-opening this inception:
+1. A topic appears lost on a hub where `<runtime_dir>/bus/meta.db`
+   exists, is durable, and contains the topic in SQLite, but
+   `termlink topics` does not return it. That would mean the
+   cache→SQLite reload path has a bug — different scope.
+2. A future requirement to persist state beyond SQLite's coverage
+   (e.g., subscriber cursors currently client-side per T-1318) —
+   that's a separate inception.
+
+See full research artifact: `docs/reports/T-1444-g-050-long-term.md`.
+
+**Date**: 2026-05-02T07:02:34Z
 
 ## Updates
 
@@ -200,3 +244,52 @@ See full research artifact: `docs/reports/T-1444-g-050-long-term.md`.
 ### 2026-05-02T05:35:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-05-02T07:02:34Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO
+
+Rationale: The premise (in-memory-only topic registry needing
+hand-rolled persistence) is wrong. Topics are already persisted in
+SQLite at `<runtime_dir>/bus/meta.db` via `termlink_bus::meta::Meta`.
+The observed "topic loss after restart" incidents trace to
+runtime_dir volatility (T-1294 territory), not to a missing
+persistence layer. Hand-rolling JSON/RON would duplicate SQLite's
+existing ACID-backed registry.
+
+Evidence:
+- `crates/termlink-bus/src/lib.rs:38-92` — `Bus { meta: meta::Meta, ... }`
+  delegates create/list/exists/retention/append to SQLite. The
+  `RwLock<HashMap<...>>` referenced in this task's premise is
+  `appenders` + `notifiers` runtime caches (log-handle pool + tokio
+  Notify primitives), not the registry.
+- `/var/lib/termlink/bus/meta.db` exists on .107, is 1.3 MB, contains
+  all 4 canon topics (`agent-chat-arc`, `broadcast:global`,
+  `channel:learnings`, `framework:pickup`) per
+  `sqlite3 ... 'SELECT name FROM topics'`. Live-modified (mtime 07:31
+  current). Survives every hub restart on durable runtime_dir.
+- T-1443's `--ensure-topic` flag remains useful as an idempotent
+  client-side shortcut (callers don't track which canon topics need
+  pre-creation). T-1445 deployed it in framework scripts. Keep it.
+
+Long-term G-050 fix is subsumed by T-1294-class work:
+- T-1294 already migrated .122 ring20-management.
+- T-1296 (captured/next) covers .121/.143 ring20-dashboard.
+- Periodic sweep should audit any other hub still on `/tmp/termlink-0`
+  (likely none on current fleet).
+
+Re-trigger conditions for re-opening this inception:
+1. A topic appears lost on a hub where `<runtime_dir>/bus/meta.db`
+   exists, is durable, and contains the topic in SQLite, but
+   `termlink topics` does not return it. That would mean the
+   cache→SQLite reload path has a bug — different scope.
+2. A future requirement to persist state beyond SQLite's coverage
+   (e.g., subscriber cursors currently client-side per T-1318) —
+   that's a separate inception.
+
+See full research artifact: `docs/reports/T-1444-g-050-long-term.md`.
+
+### 2026-05-02T07:02:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
