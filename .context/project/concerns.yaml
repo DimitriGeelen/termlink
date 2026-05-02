@@ -408,3 +408,21 @@ concerns:
   created: 2026-05-01
   last_reviewed: 2026-05-01
   related_tasks: [T-1294, T-1429, T-1438, T-1441, T-1443]
+
+- id: G-051
+  type: gap
+  title: "Framework's own publish-learning-to-bus.sh silently fell back to deprecated event.broadcast for ≥36h because `channel:learnings` topic was never created on .107 hub"
+  description: "Every `fw context add-learning` since 2026-04-30 (PL-096 onwards, ≥13 publications observed in .publish-learning-bus.log) attempted Tier-A `termlink channel post channel:learnings ...` which returned -32013 unknown topic. Script silently fell back to T-1166-deprecated `termlink event broadcast`. Same pattern applies to `framework:pickup` topic via lib/pickup-channel-bridge.sh. Cross-project peers running subscribe-learnings-from-bus.sh / pickup observers received NOTHING via the supposed Tier-A path — they would only see learnings via the legacy event.broadcast fallback, which itself is scheduled for retirement under T-1166. Once T-1166 cuts event.broadcast, framework learning federation breaks silently."
+  spec_reference: ".agentic-framework/lib/publish-learning-to-bus.sh L86-114 (Tier-A → fallback pattern); T-1166 retirement plan; T-1217/T-1219 federation design"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-05-02T05:00Z (T-1438 follow-up grep): inspected publish-learning-bus.log, found 13 consecutive `channel.post-failed id=PL-XXX — falling back to event.broadcast` entries spanning 2026-04-30T18:25Z → 2026-05-01T13:46Z. Confirmed `termlink channel list --prefix channel:` showed no `channel:learnings` topic. Created topic on .107 + .122 + .141 with self-doc, verified PL-112 next-add went via Tier-A (no fallback)."
+  detection_lag_days: "1.5 (first failure 2026-04-30, found 2026-05-02)"
+  what_works_now: "Topics created on .107 + .122 + .141 with topic_metadata self-doc. Tier-A path operational. PL-112 published via channel.post confirmed in log. T-1443 --ensure-topic available for callers that want to be defensively idempotent post-restart, but framework scripts do not yet adopt it (would need Channel-1 upstream-mirror PR)."
+  what_remains: "1. Update lib/publish-learning-to-bus.sh + lib/pickup-channel-bridge.sh to use --ensure-topic so they self-heal across hub restart (Channel-1 upstream PR to /opt/999-AEF). 2. Until then, the topics will be lost on next hub restart on each host and need manual re-creation — same operational burden as G-050 chat-arc loss. 3. T-1166 cut readiness signal must check that channel:learnings + framework:pickup topics exist on all hubs before retiring event.broadcast — currently no such gate."
+  mitigation_candidate: "Tactical: framework hooks update — adopt --ensure-topic in publish-learning-to-bus.sh + pickup-channel-bridge.sh (Channel-1 PR). Structural: ship T-1444 (option-1 hub-side persistence) then framework topics survive restart by design. Cut readiness: add a fleet doctor check that inventories required topics per hub."
+  mitigation_progress: "2026-05-02T05:02Z (T-1438): Topics created + self-doc'd on all three hubs. Tier-A path verified operational via PL-112. Topic-loss-on-restart not yet structurally fixed (depends on T-1444). Framework code not yet updated to --ensure-topic (Channel-1 follow-up)."
+  status: watching
+  created: 2026-05-02
+  last_reviewed: 2026-05-02
+  related_tasks: [T-1166, T-1217, T-1219, T-1443, T-1444]

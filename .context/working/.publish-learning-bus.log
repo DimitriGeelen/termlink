@@ -79,3 +79,4 @@
 2026-05-01T13:46:02Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-099 id=PL-108 origin=termlink
 2026-05-01T13:46:05Z channel.post-failed id=PL-109 — falling back to event.broadcast
 2026-05-01T13:46:05Z posted via=event.broadcast topic=channel:learnings msg_type=learning-PL-099 id=PL-109 origin=termlink
+2026-05-02T05:01:46Z posted via=channel.post topic=channel:learnings msg_type=learning-PL-111 id=PL-112 origin=termlink
