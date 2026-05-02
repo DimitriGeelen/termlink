@@ -1037,3 +1037,10 @@ learnings:
   date: 2026-05-01
   context: G-050 mitigation cycle — chat-arc topic loss across .122 swap cycle (5 cycles in 24h, blind ~24h). Discovered post-/compact when soak-pinging .122 returned -32013 despite hub healthy on 0.9.1693.
   application: "Future hub feature work that registers per-hub state — channels, retention rules, ACLs, presence trackers — must answer the durability question explicitly. If state lives only in memory, document the restart-loss behaviour AND provide a self-heal path (T-1443 pattern) so callers can be defensively idempotent without operator action."
+- id: PL-112
+  learning: "channel:learnings + framework:pickup topics created on .107 hub — eliminates the silent event.broadcast fallback that's been firing on every PL-XXX add since 2026-04-30. Tier-A channel.post path now succeeds. Until G-050 option-1 lands (T-1444), these topics will be lost on next .107 hub restart and need re-creation."
+  source: PL-111
+  task: T-1443
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD

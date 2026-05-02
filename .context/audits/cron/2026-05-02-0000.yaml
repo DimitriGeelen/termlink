@@ -1,9 +1,9 @@
-# Audit Results - 2026-04-24-0530
-timestamp: 2026-04-24T03:30:01Z
+# Audit Results - 2026-05-02-0000
+timestamp: 2026-05-01T22:00:01Z
 sections: "structure,compliance,quality,discovery"
 summary:
-  pass: 18
-  warn: 0
+  pass: 17
+  warn: 1
   fail: 0
 findings:
   - level: PASS
@@ -19,21 +19,22 @@ findings:
   - level: PASS
     check: "No duplicate task IDs across active/ and completed/"
   - level: PASS
-    check: "All 8 project YAML files parse correctly"
+    check: "All 9 project YAML files parse correctly"
   - level: PASS
-    check: "Fabric: 106 registered, 0 unregistered"
+    check: "Fabric: 114 registered, 0 unregistered"
   - level: PASS
-    check: "Fabric edges: 100/106 cards enriched (6 without edges)"
+    check: "Fabric edges: 104/114 cards enriched (10 without edges)"
+  - level: WARN
+    check: "Fabric drift: 1 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
   - level: PASS
-    check: "Fabric drift: All watched source files registered (106 cards)"
-  - level: PASS
-    check: "All 15 active tasks are valid"
+    check: "All 28 active tasks are valid"
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (8/954)"
+    check: "D1: Episodic quality — 0% [TODO] (8/1179)"
   - level: PASS
-    check: "D2: Human review queue — no pending items"
+    check: "D2: Human review queue — 4 task(s) awaiting human action (normal)"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
   - level: PASS
