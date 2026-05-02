@@ -426,3 +426,20 @@ concerns:
   created: 2026-05-02
   last_reviewed: 2026-05-02
   related_tasks: [T-1166, T-1217, T-1219, T-1443, T-1444]
+
+- id: G-052
+  type: gap
+  title: "Inception task silently auto-finalized to status=work-completed during unrelated commit, no decision recorded"
+  description: "T-1448 (inception, status=started-work, owner=agent, focus set, no decision recorded) was silently moved from .tasks/active/ to .tasks/completed/ with status flipped to work-completed during commit `491b151a` (a heartbeat-script change unrelated to T-1448). Episodic snapshot was generated. The inception commit gate ('After 2 exploration commits, further commits are blocked until a decision is recorded') correctly fired in the gate-spirit but was structurally bypassed by silently 'completing' the inception. Watchtower visibility for the pending decision was lost — the operator's decision queue silently emptied. Discovered when operator said 'nothing on watchtower' and grep of git log showed the rename. Manual restoration via `git mv` registered as a normal rename in subsequent commit `9352d823`."
+  spec_reference: ".agentic-framework/agents/task-create/update-task.sh + commit-msg hook + inception gate logic (CLAUDE.md Inception Discipline section). Fault is somewhere in the path that handles 'too many exploration commits' — it should BLOCK, not COMPLETE."
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-05-02 evening session: T-1448 inception had spikes S1-S5 + Recommendation (Design A) filled but no decision recorded. During commit of unrelated heartbeat-from_project patch, framework moved T-1448 active → completed and set status=work-completed. Operator queried watchtower expecting to see the pending inception decision; saw nothing because the task was no longer in active/. Restoration done manually 2026-05-02T~22:55Z."
+  detection_lag_days: 0
+  what_works_now: "Manual restoration via git mv works — file is back in active/ with status=started-work and decision still pending, captured in commit 9352d823. Watchtower /inceptions list now shows T-1448 again."
+  what_remains: "1. Identify which framework code path silently finalizes an inception when the commit gate threshold is exceeded — inception gate should BLOCK the commit, not COMPLETE the task. 2. Add an integration test: create inception, accumulate 3+ exploration commits, attempt 4th — expect commit BLOCKED, not task auto-completed. 3. Audit episodic snapshots generated without a corresponding decision — they are evidence of the same bug firing on other inceptions. 4. Watchtower could surface 'inceptions completed without decision recorded' as an anomaly to detect future fires."
+  mitigation_candidate: "Tactical: nothing structural until root cause identified. Operators noticing missing inceptions can restore via git mv + sed (recipe demonstrated in commit 9352d823). Structural: framework PR after root-cause hunt to make the gate BLOCK rather than COMPLETE."
+  status: watching
+  created: 2026-05-02
+  last_reviewed: 2026-05-02
+  related_tasks: [T-1448, T-1216]
