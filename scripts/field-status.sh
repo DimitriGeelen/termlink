@@ -42,9 +42,19 @@ printf "%-22s %-7s %-10s %-18s %-7s %-7s %-9s %s\n" \
     [ -n "$FP" ] && [ "$FP" != "-" ] || FP="(pre-T-1436)"
     FP_SHORT=${FP:0:18}
 
-    # Probe binary + skill files in one round trip
+    # Probe binary + skill files in one round trip.
+    # PATH-discovery fallback list mirrors vendored-arc-heartbeat.sh — required
+    # for hosts where bare `termlink` is not on PATH (PL-120, e.g. .141 WSL).
     PROBE=$(timeout 12 "$LOCAL_BIN" remote exec "$HUB" "$SESSION" \
-      'V=$( (command -v termlink && termlink --version 2>/dev/null) | tail -1 | awk "{print \$2}" || echo "?"); \
+      'BIN=$(command -v termlink 2>/dev/null) || BIN=""; \
+       [ -n "$BIN" ] || for try in \
+         /usr/local/bin/termlink \
+         /opt/termlink/target/release/termlink \
+         /root/termlink/target/release/termlink \
+         /mnt/c/ntb-acd-plugin/termlink/target/release/termlink; do \
+         [ -x "$try" ] && { BIN="$try"; break; }; \
+       done; \
+       V=$( [ -n "$BIN" ] && "$BIN" --version 2>/dev/null | head -1 | awk "{print \$2}" || echo "?"); \
        AH=$( [ -f ~/.claude/commands/agent-handoff.md ] && echo Y || echo N); \
        CA=$( [ -f ~/.claude/commands/check-arc.md ] && echo Y || echo N); \
        VH=$( ls /root/scripts/vendored-arc-heartbeat.sh /root/termlink/scripts/vendored-arc-heartbeat.sh /mnt/c/ntb-acd-plugin/termlink/scripts/vendored-arc-heartbeat.sh 2>/dev/null | head -1); \
