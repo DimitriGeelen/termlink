@@ -20,35 +20,36 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Foundation-soak audit fires on 2026-05-14, 14 days after T-1425 RFC post (2026-04-30T21:13Z) and creation of T-1426 / T-1427 / this sentinel. Purpose: verify that the pre-T-1166-cut foundation actually got built (T-1426 deprecation print + T-1427 strict-reject identity binding) and gather the cut-readiness signal from real chat-arc soak telemetry. ACs backfilled by T-1450 (originally created with empty placeholders — would have fired silently on 2026-05-14).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+
+- [ ] **T-1426 (deprecation print) shipped to fleet** — fleet binaries report version >= 0.9.1638 (commit 81395ce4 introduced the deprecation print). Verify per host via `termlink fleet status` + remote `--version` probe; record version per host.
+- [ ] **T-1427 (whoami + identity binding) shipped to fleet** — fleet binaries report version >= 0.9.1688 (commit 0c0b3bfc introduced strict-reject). Verify per host. Spot-check at least one hub by attempting a forged `--sender-id imposter` post and confirming `-32014 CHANNEL_IDENTITY_MISMATCH` rejection.
+- [ ] **Chat-arc soak telemetry — post count climbed** — `termlink channel info agent-chat-arc` (per hub) shows posts > 54 (the 2026-05-02 mid-soak baseline). Record post count per hub.
+- [ ] **Chat-arc soak telemetry — sender count climbed** — at least 3 distinct sender_ids visible across all hubs combined. Pre-audit baseline was 2 (.107 d1993c2c, .122 9219671e). Adding .141 (6604a2af) was already observed pre-audit; 4 senders means .143 / .121 also active = full fleet participation.
+- [ ] **Cut-readiness signal collected** — `fw fleet doctor --legacy-usage` per hub. Record verdict per hub (CUT-READY / WAIT / UNCERTAIN). Aggregate across fleet: cut is safe iff all UP hubs report CUT-READY.
+- [ ] **Audit findings written to T-1428 Updates section** — single dated entry with: T-1426 ship status, T-1427 ship status, post count delta, sender count delta, per-hub legacy-usage verdict, aggregate cut-readiness recommendation.
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+
+- [ ] [REVIEW] Approve cut-readiness verdict for T-1166
+  **Steps:**
+  1. Read the audit-findings entry the agent appended to `## Updates` below
+  2. Verify the agent's per-host evidence matches your independent check (open Watchtower /fleet or run `termlink fleet status` from your operator session)
+  3. Decide: GO (retire legacy primitives now), DEFER (extend soak by N days, name new sentinel), or BLOCK (a foundation didn't actually ship, fix that first)
+  **Expected:** Decision recorded as a `## Decisions` entry on this task or on T-1166 directly
+  **If not:** Identify which AC's evidence is insufficient; ask agent to re-run with more detail
 
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+# Run these on audit day (2026-05-14) — they are the mechanical floor for AC1, AC3, AC5.
+termlink fleet status 2>&1 | grep -qE 'UP[[:space:]]+(workstation-107|local-test|laptop-141|ring20-management|ring20-dashboard)'
+termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
 
 ## Decisions
 

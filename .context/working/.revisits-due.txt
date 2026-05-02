@@ -1,0 +1,1 @@
+T-1428 fires 2026-05-14: foundation-soak audit (T-1426 + T-1427 ship status, T-1166 cut-readiness verdict). ACs backfilled by T-1450.
