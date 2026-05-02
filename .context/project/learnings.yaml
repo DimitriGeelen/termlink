@@ -1051,3 +1051,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-114
+  learning: "Heterogeneous runtime_dir choices across the fleet (.107 + .122 on /var/lib/termlink; .141 on /home/dimitri/.termlink/runtime; .143 unreachable) are all durable per T-1444 finding: all three audit-able hubs have <runtime_dir>/bus/meta.db present and current. The T-1294 invariant ('move runtime_dir off /tmp') doesn't require a specific path — any non-/tmp persistent mount works. Operationally important: when auditing G-050-class durability, check the actual TERMLINK_RUNTIME_DIR env var the hub was started with (ps eww), not just /var/lib/termlink. systemd-managed hubs typically use /var/lib/termlink; watchdog or user-launched hubs may use $HOME paths."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
