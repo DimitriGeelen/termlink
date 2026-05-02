@@ -92,3 +92,10 @@ termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
 - **Context:** Initial task creation
+
+### 2026-05-02T20:50Z — root-cause confirmed via .121 stability investigation
+- **Mechanism:** systemd-tmpfiles `D /tmp 1777 root root -` directive in `/usr/lib/tmpfiles.d/tmp.conf` wipes /tmp on every boot. `/etc/tmpfiles.d/` has no overrides. Mount table is innocent (no tmpfs); volatility comes from the systemd-tmpfiles --boot pass.
+- **Evidence:** `/tmp/termlink-0/hub.secret` mtime `2026-05-02 06:05:03` matches `/proc/1/stat` boot timestamp exactly. 3 reboots today per `last reboot`: 19:33→19:33 (insta-fail), 19:33→05:57, 05:57→06:02, 06:02→present. Each = full hub-identity rotation.
+- **Hub launch mechanism:** OPAQUE. PID 399 has PPID=1 (init) but `/etc/systemd/system/` has no `termlink-hub.service`. A template exists at `/root/termlink/.context/systemd/termlink-hub.service` (with the right `Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink` line) but is NOT installed. No `/etc/rc.local`, no `/etc/init.d/termlink*`, no cron entry, no user-systemd unit. Process is daemonized somehow at boot. Operator must trace the launcher (probably custom ssh-on-boot, screen detach, or analogous) before T-1296 can target the right edit point.
+- **Sequencing:** T-1296 migration MUST land before any .121 binary swap — otherwise the next reboot rotates the new state too, defeating the purpose.
+- **Fix path (per CLAUDE.md):** find the launcher, prepend `export TERMLINK_RUNTIME_DIR=/var/lib/termlink`, pre-seed /var/lib/termlink with the current secret/cert (`cp -a /tmp/termlink-0/. /var/lib/termlink/`), remove stale `hub.sock`/`hub.pid` from /tmp/, restart once, all clients re-pin once. Next reboot must NOT trigger rotation — that's the persistence ground-truth.
