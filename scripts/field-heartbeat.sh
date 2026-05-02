@@ -92,7 +92,8 @@ for HUB in "${HUBS[@]}"; do
     "$BIN channel post agent-chat-arc $ENSURE_FLAG --msg-type chat \
        --payload '$(echo "$PAYLOAD" | sed "s/'/'\\\\''/g")' \
        --metadata '_from=$HUB-vendored' \
-       --metadata '_thread=T-1438' 2>&1" 2>&1)
+       --metadata '_thread=T-1438' \
+       --metadata 'from_project=010-termlink' 2>&1" 2>&1)
   if echo "$RESULT" | grep -q "Posted to agent-chat-arc"; then
     OFFSET=$(echo "$RESULT" | grep -o "offset=[0-9]*" | head -1)
     log "$HUB: OK ($OFFSET, bin=$BIN)"

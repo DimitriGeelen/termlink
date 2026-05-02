@@ -199,6 +199,131 @@ Order: a → c → b. (a) unblocks (c); (b) builds on (a)'s catalog entry and is
 
 ---
 
+## Elaboration — what "identity" actually means in TermLink, and where the conflation lives
+
+### The two layers we've been sloppily collapsing
+
+A TermLink "identity" today is a **single ed25519 keypair stored on disk** at `/root/.termlink/identity.key`. From it the system derives one FP (e.g. `d1993c2c3ec44c94`) and uses that FP for several jobs that aren't actually the same job:
+
+| Job | What it really needs to identify |
+|---|---|
+| **TLS pinning / TOFU** (hub<->client trust) | A *host endpoint* — "is this the same hub I trusted yesterday?" |
+| **Channel post auth** (T-1427 strict-reject) | A *signing principal* — "did this envelope come from someone who holds a key I'm willing to trust?" |
+| **Chat-arc attribution** | An *agent* — "which Claude session said this?" |
+| **`agent contact <name>` routing** | An *addressable counterparty* — "deliver this to the right inbox" |
+
+The first two jobs need a (host, user) identity, which is what we have. The last two jobs need an *agent* identity, which is what we **don't** have but were pretending we did because every host had at most one agent.
+
+So the conflation isn't "identity is wrong." It's: **a single identity key is being asked to play two distinct roles, and one role just gained a multiplicity it can't represent.**
+
+### Why FPs collide on .107 (mechanically)
+
+`/root/.termlink/identity.key` is a 32-byte ed25519 seed file. When a TermLink CLI starts:
+1. It reads that file (root-readable; no agent isolation),
+2. derives the public key,
+3. computes `fingerprint_of(pubkey) = sha256(pubkey)[..16]` = `d1993c2c3ec44c94`,
+4. uses that as `sender_id` on every channel post.
+
+The cohort agent (this session, project `002-Claude-Partner-Network`) and the email-archive build agent (project `050-email-archive`) both run as root on .107, both read the same file, both produce the same FP. The hub cannot tell them apart at the cryptographic layer because **at the cryptographic layer they are not different** — they are two processes holding the same private key.
+
+### What "agent identity" needs to be
+
+The four properties we need from agent identity:
+
+1. **Stable across the agent's process lifecycle** — survives `/clear`, restart, compaction. Session-id (`tl-XXXX`) does not satisfy this. **Project directory does.**
+2. **Distinguishable from co-resident peers** — the disambiguator must vary across agents on the same (host, user).
+3. **Operator-meaningful** — when a human reads "post from X", X should mean something to them. `from_project=050-email-archive` is meaningful; `agent_uuid=8f3e2a1b...` is not.
+4. **Cheap to attach to every post** — if attachment is manual, it will drift; if it's a CLI default sourced from the project's own working memory, it's automatic.
+
+A project ID (`002-Claude-Partner-Network`, `050-email-archive`) satisfies all four. A session-id satisfies only (2) and (4). A per-agent UUID would satisfy (1) and (2) but fails (3).
+
+This is why the conversation has been gravitating to `from_project` — it isn't an arbitrary choice; it's the field that an operator-facing agent identity *must* look like.
+
+---
+
+## Mapping options against the four directives
+
+| Directive | Design A (CLI default + catalog) | Design B (signed metadata + sub-key) | Design C (per-project identity key) | Design D (do nothing — keep ad-hoc convention) |
+|---|---|---|---|---|
+| **Antifragility** — system strengthens under stress | ✅ Codifies a learning that emerged from a stress event. Future co-residency cases inherit the fix. | ✅ Same, but at higher fidelity. | ✅ Same, with cryptographic backing. | ⚠️ Convention exists but is invisible to new agents. Each new co-resident pair re-discovers the collision. The lesson does not propagate. |
+| **Reliability** — predictable, observable, auditable; no silent failures | ✅ Audit trail gains `from_project`; chat-arc misattribution becomes mechanically detectable (post without `from_project` from a colliding FP = warning). | ✅✅ Audit trail is **cryptographically** auditable — no honest-mistake risk. | ✅ Audit trail is cryptographic AND each agent has its own identity in the chain. Strongest auditability. | ❌ Silent ambiguity remains. An audit reading `[68] d1993c2c3ec44c94 wrote …` cannot determine which agent wrote it without reading metadata that may not be there. |
+| **Usability** — joy to use, sensible defaults, actionable errors | ✅✅ Operator default-injection from focus.yaml; T-1429 `agent contact <name>` works; `whoami` shows `FP a1b2 / project=050-email-archive`. Zero friction. | ⚠️ Operators see two FP-like blobs (host FP + sub-key FP) and must mentally map them to "host" and "agent." Cognitive cost. | ⚠️⚠️ Each project requires its own auth bootstrap (TOFU pin, secret_file, fleet doctor entries). Heal procedures multiply. The Hub Auth Rotation Protocol in CLAUDE.md becomes per-project. | ❌ Operators must memorize "this FP is two agents on .107; check `_thread` or `from_project` if present, or ask in-band." Footgun for newcomers. |
+| **Portability** — no provider/language/environment lock-in; standards | ✅✅ `metadata` is already a generic string→string map; `from_project` is a string. Any client in any language emits it the same way. T-1288 catalog is documentation. | ⚠️ Sub-key derivation requires implementation in every client language. Protocol break = every consumer must upgrade in lockstep. | ❌ Per-project key files multiply config surface; complicates Homebrew/MSI/binary distribution because key bootstrap is per-project, not per-install. | ✅ Convention is universal because it's invisible. (False win — same as silence.) |
+
+**Headline:** A scores ✅✅ on Usability and Portability, ✅ on Antifragility and Reliability. B and C score higher on Reliability but lose on Usability and Portability. D loses on Antifragility and Reliability outright.
+
+---
+
+## Steelman / Strawman each option
+
+### Design A — soft convention + CLI default + T-1288 catalog promotion
+
+**Steelman (strongest case FOR):**
+> "TermLink's protocol already says metadata is opaque routing-hint. The hub explicitly does not promise to authenticate it. The threat model trusts root. Two of our own agents have already invented `from_project` and used it productively without any framework support. The right move is to make that invention discoverable by the next pair of agents who hit this — by defaulting it at the CLI, documenting it in the T-1288 catalog, and surfacing it in `whoami` / `remote list`. We are *codifying success*, not *inventing a defense*. The cheapest fix that solves the actual problem (operator + agent disambiguation) is the right fix; cryptographic agent identity is a different problem with a different threat model."
+
+**Strawman (weakest case FOR — or the obvious objection):**
+> "It's just a string. Anyone can lie about `from_project` — the hub doesn't check it and the cohort agent could post `from_project=050-email-archive` and frame email-archive. We're solving a problem with a Post-it note labeled 'trust me.'"
+
+**Counter:** The threat model says we already trust the host's root user. A co-resident agent that wants to forge `from_project` already has the identity key — it can already forge anything by being root. Authenticating `from_project` adds a defensive layer for an attack we explicitly do not defend against (channel.rs:454: "trusted-mesh threat model"). The Post-it note is the right tool when the room is locked.
+
+---
+
+### Design B — signed metadata + sub-key per agent
+
+**Steelman (strongest case FOR):**
+> "Adding a field to the canonical signed bytes is a one-time protocol cost. After it's done, *every* future agent-identity question (audit trail forensics, cross-agent attribution disputes, agent-impersonation in compromised-but-not-fully-rooted scenarios, multi-tenant futures) is solved cryptographically. Soft conventions rot — operators forget to set them, scripts emit them inconsistently, audit-trail integrity becomes 'whatever the convention was that month.' Pay the protocol cost once; collect cryptographic guarantees forever. The threat model can shift — and when it does (e.g. when we add untrusted-tenant hosts), Design A is a brittle floor we'll have to rip out."
+
+**Strawman (the obvious objection):**
+> "Five build tasks, fleet-wide version gate, all consumers must upgrade. We've just spent T-1166 + T-1418 + T-1294 + T-1438 *removing* unsynchronized version-gate pain. Adding a new one immediately to defend against an attack the threat model says is out of scope is a self-inflicted wound."
+
+**Counter to the steelman:** The "threat model can shift" argument is real but speculative. Until it shifts, Design B over-engineers. And — crucially — Design A is **additive** to Design B if we ever go there. `from_project` becomes signed metadata; nothing about the catalog entry has to change. Choosing A doesn't preclude B; choosing B preempts A.
+
+---
+
+### Design C — per-project identity key files (NEW — wasn't in S5)
+
+**Steelman (strongest case FOR):**
+> "If a *project* is what we actually mean by 'agent', and if the operator-meaningful identity property is 'this project on this host', then the cleanest model is: each project has its own `~/.termlink/projects/<project-id>/identity.key`. The TLS pinning layer is unchanged (still keyed on the hub host). Channel post signing uses the project's key. Hub strict-reject works exactly as today, just on the project FP. No protocol change to envelope schema. No metadata convention. Disambiguation is cryptographic and operator-meaningful at the same time. T-1429 `agent contact <name>` resolves directly to a unique key without needing a metadata side-channel."
+
+**Strawman (the obvious objection):**
+> "Every project now needs its own auth bootstrap, its own TOFU pin entry, its own `secret_file` in the heal manifest. The Hub Auth Rotation Protocol in CLAUDE.md becomes per-project, not per-host. The operator burden goes UP, not down. And if the hub TLS layer remains host-keyed but channel posts are project-keyed, the operator now has TWO FPs per project to think about. Plus: the framework has *one* `.termlink/identity.key` because that's how it was originally designed; introducing per-project keys would require a default-derivation strategy (HKDF from host key + project ID? Random per project?) — neither option is obviously correct."
+
+**Counter to the steelman:** This is the most architecturally clean of the three, and worth keeping as a *future* option if we ever need cryptographic agent identity. But it solves more than we need today and at higher operator cost than A. It belongs on the deferred list, not the active list.
+
+---
+
+### Design D — do nothing (keep ad-hoc convention, do not codify)
+
+**Steelman (strongest case FOR):**
+> "The cohort and email-archive figured this out in-band in one chat-arc round-trip. The system worked. Codifying conventions before the second occurrence risks freezing the wrong shape. Wait for the second co-resident pair to discover the same problem, see if they reach for the same field, then codify when there's actual evidence of consensus. Premature codification is more expensive to undo than to defer."
+
+**Strawman (the obvious objection):**
+> "Inviting every new agent to re-derive the answer from scratch is exactly the antifragility anti-pattern: failures should produce structural learning, not be re-experienced as fresh pain by every new participant. The whole point of a framework is that lessons compound. Telling new agents 'figure it out in-band like we did' is the system getting weaker over time, not stronger."
+
+**Counter:** D is the option that fails the antifragility directive most loudly. It also leaks operator attention forever — every co-resident pair we add (and we will add them; multi-project hosts are the dominant deployment) gets one round-trip of confused chat-arc traffic. That's a small per-incident cost but an unbounded total cost.
+
+---
+
+## Revised directive-aligned recommendation
+
+The steelman/strawman exercise **confirms Design A** but sharpens *why*:
+
+- **A is the option that aligns with all four directives without trading off.** B and C trade Usability + Portability for Reliability gains we don't currently need. D trades Antifragility for "wait and see," which is the wrong trade for a system that is getting more multi-agent over time.
+- **A is additive to B and C.** Choosing A doesn't preempt promoting `from_project` to signed metadata later, nor introducing per-project keys later. Choosing B or C now would lock in a higher-cost path before we need it.
+- **A is reversible.** Each of its 3 build tasks is independently revertible. B and C are not — they introduce protocol/auth surface that becomes load-bearing.
+
+**One sharpening of A from this exercise:** make the CLI default-injection emit a **warning to the operator** if `from_project` is unresolvable (no focus.yaml, no .framework.yaml). That converts a silent failure into an actionable error (Reliability directive). This becomes an explicit acceptance criterion for build task (a).
+
+**Final recommendation: GO with Design A, with the warning-on-unresolvable-project AC added to task (a).**
+
+Defer Design C explicitly — record it as the natural next step if the threat model ever shifts to include co-resident-with-stolen-key forge.
+
+Reject Design B — over-engineers for the current threat model.
+
+Reject Design D — fails antifragility.
+
+---
+
 ## Dialogue Log
 
 Per C-001, conversations that shape this inception are logged here.

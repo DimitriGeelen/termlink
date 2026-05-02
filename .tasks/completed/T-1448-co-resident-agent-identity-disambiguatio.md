@@ -127,7 +127,26 @@ Time-boxed spikes — total ≤ 4h:
 
 ## Recommendation
 
-**Recommendation:** GO with **Design A** — soft convention + CLI default + T-1288 catalog promotion.
+**Recommendation:** GO with **Design A (sharpened)** — soft convention + CLI default + T-1288 catalog promotion + warning-on-unresolvable-project at the CLI.
+
+**Conceptual frame (elaboration):** Today's TermLink "identity" is a single ed25519 keypair on disk that is being asked to play two distinct roles: (i) host endpoint pinning + post signing (cryptographic, host-keyed — *correct as designed*) and (ii) chat-arc attribution + `agent contact` routing (operational — *needed an agent axis we never had*). The right move is not to redesign identity (that's C); it's to **add a second axis** at the application layer where it belongs. `from_project` is the natural fit because project directory is stable across `/clear`, restart, and compaction (session-id is not), and is operator-meaningful (UUIDs are not).
+
+**Directive scoring (full table in research artifact):**
+
+| Directive | A | B | C | D |
+|---|---|---|---|---|
+| Antifragility | ✅ | ✅ | ✅ | ⚠️ |
+| Reliability | ✅ | ✅✅ | ✅✅ | ❌ |
+| Usability | ✅✅ | ⚠️ | ⚠️⚠️ | ❌ |
+| Portability | ✅✅ | ⚠️ | ❌ | ✅ (false win) |
+
+A is the only option that aligns with all four directives without trading off. A is also **additive** to B and C — choosing A now does not preempt B or C later.
+
+**Steelman/strawman summary:**
+- **A:** "Codify a learning that emerged" vs. "It's just a string anyone can lie about." → Threat model trusts root; we already accept that anyone with the key can lie about anything. Authenticating `from_project` defends an attack we explicitly do not defend against.
+- **B:** "Pay protocol cost once, get cryptographic guarantees forever" vs. "Self-inflicted version-gate after T-1166/T-1418/T-1294/T-1438 just removed that pain." → A is additive to B; choosing A doesn't preempt B.
+- **C (per-project identity keys):** "Architecturally cleanest, no metadata convention needed" vs. "Per-project auth bootstrap multiplies the heal protocol." → Defer as future option if threat model ever shifts.
+- **D (do nothing):** "Don't codify before second occurrence" vs. "Antifragility anti-pattern — every new agent re-derives the same lesson." → Fails antifragility outright.
 
 **Rationale:** TermLink's identity is host+user-keyed by design (`/root/.termlink/identity.key` is shared by every process under that UID). Co-resident agents on .107 (cohort `002-Claude-Partner-Network` + email-archive `050-email-archive`) already produce identical FP `d1993c2c3ec44c94`, and they have ALREADY coordinated in-band on `from_project` metadata as the disambiguator (chat-arc offset 73, 12h ago). The fix is to codify this convention at the CLI layer and promote `from_project` to the T-1288 well-known-keys catalog. **No protocol change. No version gate. Unchanged threat model.** T-1427's strict-reject stays valid (it disambiguates host identities); T-1429/T-1436/T-1440/T-1441 augment-not-unwind to surface project alongside FP.
 
