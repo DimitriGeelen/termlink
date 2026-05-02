@@ -1212,3 +1212,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-137
+  learning: "Hub binary on disk vs in-memory divergence: replacing /path/to/termlink while hub PID is running does NOT activate new code. /proc/<pid>/exe shows the path but the kernel maps the OLD inode. Live spot-check: forged --sender-id post returns -32014 if T-1427 is in-memory; accepted if pre-T-1427 in-memory regardless of disk version. Audit must check hub PID start time against feature commit dates, not just disk version stamp."
+  source: P-001
+  task: T-1428
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD

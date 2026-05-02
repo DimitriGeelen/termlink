@@ -121,3 +121,32 @@ Multicast post-compact: 3/4 OK + 1/4 SKIPPED-LEGACY (.121) — unchanged from ea
 If both operator gates clear before 2026-05-14 → 4 senders, all hubs PASS, cut goes GO.
 If neither clears → DEFER + extend soak.
 If one clears → split decision; depends which.
+
+### 2026-05-02T22:55Z — T-1427 strict-reject spot-check + RUNNING-vs-DISK binary divergence
+
+Per AC2 spot-check ("forged --sender-id imposter post → expect -32014 CHANNEL_IDENTITY_MISMATCH"):
+
+| Hub | Forged-sender result | T-1427 enforced? |
+|---|---|---|
+| .122 (ring20-management, on-disk 0.9.1702) | `-32014: sender_id="0000..." does not match identity fingerprint d1993c2c… (T-1427)` | ✓ ENFORCED |
+| .141 (laptop-141) | accepted at offset 24 | ✗ NOT enforced — hub binary predates T-1427 (commit 0c0b3bfc on 2026-05-01T21:39Z) |
+| .107 (workstation, on-disk `/root/.cargo/bin/termlink` = 0.9.1701) | accepted at offset 110 | ✗ NOT enforced — see "running-vs-disk divergence" below |
+| .121 (ring20-dashboard) | -32001 channel.post unsupported | N/A (cut blocker is binary swap, not T-1427) |
+
+**Root cause for .107 NOT enforcing despite on-disk 0.9.1701:**
+- Hub PID 103255 started 2026-05-01 13:17:25 (running binary = whatever was on disk at that time)
+- T-1427 commit landed 2026-05-01 21:39 (8h after the hub started)
+- Disk binary `/root/.cargo/bin/termlink` rebuilt 2026-05-01 23:21:07 (post-T-1427, includes the strict-reject)
+- But the kernel keeps the in-memory binary loaded for the running PID — disk replacement does NOT propagate to a running process
+- **Result:** .107 hub runs PRE-T-1427 code in-memory until next process restart
+
+**Implication for the 2026-05-14 audit:**
+- Hub-binary check must compare RUNNING (`/proc/<pid>/status` start time + binary at that time) vs DISK
+- If disk has post-T-1427 build but hub PID predates the commit, AC2 fails at runtime regardless of disk state
+- A clean `termlink hub restart` on .107 would activate T-1427 enforcement immediately
+
+**Pollution cleanup:** Forged posts (offset 110 on .107, offset 24 on .141) redacted via `msg_type=redaction` (offsets 111 + 25). `channel info` Senders count still shows `0000000000000000  (1 posts)` because redaction is a signal record, not a hard delete — audit-day Sender filter must exclude redacted-target offsets when counting sender contributions.
+
+**Pre-audit recommendation update:** Restarting .107 hub before 2026-05-14 is no-blast-radius for T-1427 enforcement (T-1294 persist-if-present means clients don't re-pin) but high-blast-radius for sessions (37 active). Operator decision. Without restart, .107 audit verdict is "binary at-disk PASSES, runtime FAILS" — a partial PASS at best.
+
+**.141 hub restart needed too** — same root cause likely (hub PID predates the staged 0.9.1702 binary swap that hasn't been performed). Confirms that .141 binary swap (T-1438 field-readiness item 2) is needed for both T-1426 deprecation print AND T-1427 strict-reject runtime activation.
