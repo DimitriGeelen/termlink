@@ -79,8 +79,17 @@ for HUB in "${HUBS[@]}"; do
 
   PAYLOAD="${CUSTOM_MSG:-T-1438 heartbeat: ${HUB} vendored agent active. Posted via field-heartbeat.sh from .107 driver. ts=$(date -Is)}"
 
+  # T-1443 --ensure-topic for G-050 self-heal across hub restart, version-gated
+  # so pre-T-1443 binaries (0.9.1700-) get the empty-flag identical-behaviour path.
+  ENSURE_FLAG=""
+  if timeout 5 termlink remote exec "$HUB" "$SESSION" \
+       "$BIN channel post --help 2>&1 | grep -q ensure-topic && echo SUPPORTED" 2>/dev/null \
+     | grep -q SUPPORTED; then
+    ENSURE_FLAG="--ensure-topic"
+  fi
+
   RESULT=$(timeout 30 termlink remote exec "$HUB" "$SESSION" \
-    "$BIN channel post agent-chat-arc --msg-type chat \
+    "$BIN channel post agent-chat-arc $ENSURE_FLAG --msg-type chat \
        --payload '$(echo "$PAYLOAD" | sed "s/'/'\\\\''/g")' \
        --metadata '_from=$HUB-vendored' \
        --metadata '_thread=T-1438' 2>&1" 2>&1)
