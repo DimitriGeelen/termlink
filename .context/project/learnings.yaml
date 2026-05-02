@@ -1058,3 +1058,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-115
+  learning: "T-1445 vendored framework rollout to .122 + .141 done via base64-over-remote-exec (no binary swap needed): backup script → echo $B64 | base64 -d > target → chmod +x → grep -c T-1445 verifies. Scripts are forward-compatible: pre-T-1443 binaries (.122 0.9.1693, .141 0.9.1640) get empty-flag path identical to pre-T-1445; once binaries swap to 0.9.1701+, --ensure-topic kicks in automatically. Backups at *.pre-t1445.bak for rollback. Pattern: when patching a small shell script across N field hosts where send-file inbox extraction is overhead, base64-then-decode in a single remote-exec is a clean 1-shot."
+  source: P-001
+  task: T-1438
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
