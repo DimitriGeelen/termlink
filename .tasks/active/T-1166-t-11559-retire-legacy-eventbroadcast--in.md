@@ -70,6 +70,16 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-02T11:55Z — Cut-readiness snapshot post-T-1447 fw upgrade [agent autonomous]
+- **Last-1d window:** 1401 legacy calls / 17460 total = 8.02% (gate threshold 1.00% — FAIL)
+- **Breakdown (last-1d):**
+  - 1109 inbox.status from `192.168.10.143` (ring20-dashboard — T-1418 BLOCKED, hub down)
+  - 291 inbox.status from `192.168.10.121` (old ring20-dashboard IP — same physical host)
+  - 1 event.broadcast from `192.168.10.122` (single stray call at 2026-05-01T16:27Z, not recurring)
+- **.107 + .122 are essentially clean** — only 1 stray legacy call from .122 in 24h, not a recurring poller.
+- **Cut blocker:** ring20-dashboard at .143/.121 alone accounts for 1400/1401 legacy calls. T-1418 (auth heal) + binary upgrade + caller migration is the single remaining cut-readiness gate.
+- **Side-finding (F-7):** `fw metrics api-usage` trend mode (default invocation) crashes with `ValueError: too many values to unpack (expected 7)` in fw 1.6.124 — `agents/metrics/api-usage.sh` line ~382. Workaround: use `--cut-ready --last-Nd N` (single-window path is correct). Captured as F-7, emitted to framework-agent seq 124.
+
 ### 2026-04-30T07:45Z — T-1417 SHIPPED: event.broadcast --targets fanout migrated to parallel event.emit_to [agent autonomous pass]
 - **Final pre-cut migration landed.** Both `crates/termlink-cli/src/commands/events.rs::cmd_broadcast` and `crates/termlink-mcp/src/tools.rs::termlink_broadcast` now use a parallel `event.emit_to` fanout instead of legacy `event.broadcast`. Empty-targets stays on the already-migrated `channel.post(broadcast:global)` path; non-empty-targets fans out via the new `broadcast_via_emit_to_fanout` helper.
 - **Result shape preserved:** `{topic, targeted, succeeded, failed[, errors]}` — `errors` is additive, existing consumers unaffected.

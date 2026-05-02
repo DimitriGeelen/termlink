@@ -1163,3 +1163,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-130
+  learning: "fw 1.6.124 metrics api-usage trend mode (default invocation, no --last-Nd) crashes with 'ValueError: too many values to unpack (expected 7)' at agents/metrics/api-usage.sh line ~382. Root cause: 'stats_for_window()' returns 10 values (was extended for last_seen_callers/pids/ips), but the trend-mode loop unpacks into 7 vars. Other callers (lines 273, 303, 337, 452) were updated to 10-tuple; line 382 missed. Workaround: use --cut-ready flag with --last-Nd N (works correctly). Affects every consumer running the bare 'fw metrics api-usage' on fw >=1.6.124. Captured as F-7 finding for upstream report."
+  source: P-001
+  task: T-1166
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
