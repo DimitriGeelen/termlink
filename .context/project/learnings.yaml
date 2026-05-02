@@ -1149,3 +1149,10 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-128
+  learning: "F-6: tests/playwright/conftest.py reads os.environ['PROJECT_ROOT'] which the framework sets to the CONSUMER project root (/opt/termlink) when fw test runs. But the test fixture starts 'python3 -m web.app' from cwd=project_root and 'web/' lives in FRAMEWORK_ROOT (/opt/termlink/.agentic-framework). Result: ModuleNotFoundError: No module named 'web' → ALL 444 tests error in setup. Workaround: run pytest with PROJECT_ROOT override to FRAMEWORK_ROOT. Real fix: conftest should detect framework_root via __file__ resolution and not trust the env var (or define separate FRAMEWORK_ROOT semantics). T-1447 fw 1.6.124 playwright suite."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
