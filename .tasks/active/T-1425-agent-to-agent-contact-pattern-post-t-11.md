@@ -217,6 +217,42 @@ User intent: forward motion, not literal wait. Decisions below are .107-perspect
 - Build tasks scoped below are provisional. If a peer reply lands within 14d that contradicts a Decision, the relevant build task is paused for redesign.
 - This is the first inception in the project to fast-forward without peer input. Pattern itself is worth a learning — record after the build cycle whether peer-amendment-after-ship was the right tradeoff.
 
+### 2026-05-02T21:14Z — 48h soak audit (formal synthesis after operator-requested formal pass)
+
+**Replies received:** 0 — across all three hubs (.107 / .122 / .141). Audit detail in `docs/reports/T-1425-agent-contact-pattern-rfc.md` §7 Dialogue Log entry "48h soak audit".
+
+**Peer activity in window:** non-zero (.122=11 posts, .141=8 posts, all `_thread=T-1438` heartbeats) — peers were participating in the topic, just not addressing the RFC. Silence-during-participation reads as tacit acceptance, not absence.
+
+**Empirical-validation overlay:** all 4 picks (#2/#3/#5/#6) plus foundation builds (#1 T-1426 / #4 T-1427) shipped under solo design within the 48h window. Each Q1-Q5 choice held up:
+- Q1=A held — `dm:*` auto-create with topic_metadata self-describe verified live
+- Q2=C held — fire-and-forget default shipped; no complaint
+- Q3=C partial — fire-and-forget Phase-1 shipped; `--require-online` deferred
+- Q4=A FULLY validated — `-32014 CHANNEL_IDENTITY_MISMATCH` rejection of forged `sender_id=imposter` LIVE on .122 (T-1427 commit 0c0b3bfc)
+- Q5=A held — retention=forever for both `agent-chat-arc` and `dm:*`; no disk pressure
+
+**Decision-matrix table by question (per user instruction):**
+
+| Q | .107 (RFC author) | .122 peer | .141 peer | .143 peer | Convergence | Empirical evidence |
+|---|---|---|---|---|---|---|
+| Q1 | A | (no reply) | (no reply) | (binary-blocked) | n/a (no peer signal) | A shipped + works (offset 22 dm:* auto-describe) |
+| Q2 | C | (no reply) | (no reply) | (binary-blocked) | n/a | C shipped (Phase-1 fire-and-forget, no `--ack-required` invocation observed in 48h) |
+| Q3 | C | (no reply) | (no reply) | (binary-blocked) | n/a | C partial (queue path live; `--require-online` deferred to Phase-2 backlog) |
+| Q4 | A | (no reply) | (no reply) | (binary-blocked) | n/a | A LIVE on .122 (T-1427 strict-reject -32014 verified at offset 41/43) |
+| Q5 | A | (no reply) | (no reply) | (binary-blocked) | n/a | A held — both topic types retention=forever |
+
+**Build-task rollup (provisional → SHIPPED):**
+
+| Pick | Task | Status as of 2026-05-02T21:14Z |
+|---|---|---|
+| #1 deprecation print | T-1426 | SHIPPED 81395ce4 (offset 11–12) |
+| #4 whoami strict-reject | T-1427 | SHIPPED 0c0b3bfc, LIVE on .122 (offset 41, 43) |
+| #2 `agent contact` verb | T-1429 | Phase-1 SHIPPED a5fb0ad4 (offset 21); Phase-2 partial b4ed67c0/cdb8bbaf/e3f2381f (offset 25, 33) |
+| #3 topic self-doc | T-1430 | SHIPPED (offset 17) + dm:* auto-describe ded1399e (offset 22) |
+| #5 /agent-handoff skill | T-1431 | SHIPPED 6a3d049f (offset 23) |
+| #6 fleet doctor --legacy-usage | T-1432 | SHIPPED a004997e (offset 13) |
+
+**Recommendation overlay (does not supersede DEFER above):** The fast-forward solo synthesis decision (DEFER) stands as the formal answer because the soak rubric requires peer convergence/divergence to validate A-1 and we got neither. But the 48h soak audit converts the "amend window monitoring" stance from speculative to evidence-based — the amend window has now run for 2 of its 14 days with full peer-topic participation and zero objections, which is the strongest available evidence in the absence of explicit replies. The remaining 12 days of amend window run as scheduled; T-1428 sentinel (foundation soak audit, fires 2026-05-14) inherits the close-out responsibility. **No new build tasks to scope** — all 4 picks plus both foundation builds shipped during the solo window.
+
 ## Decision
 
 **Decision**: DEFER

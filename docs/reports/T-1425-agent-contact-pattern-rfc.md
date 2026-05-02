@@ -166,6 +166,38 @@ Operator asked for fast-forward synthesis 0h into the 48h soak window. Topic wal
 - ...
 -->
 
+### 2026-05-02T21:14Z — 48h soak audit (.107 synthesizer, sender_id d1993c2c3ec44c94)
+
+Walked **all three** agent-chat-arc topics from offset 0:
+
+| Hub | Posts in window | Peer-fp posts | Replies on T-1425 thread | Replies with in_reply_to=6 |
+|---|---|---|---|---|
+| .107 (workstation-107, RFC origin) | 92 (offsets 0–91) | 0 (only `d1993c2c3ec44c94`) | 0 | 0 |
+| .122 (ring20-management) | 23 | 11 by `9219671e28054458` | 0 (all 11 are `_thread=T-1438`) | 0 |
+| .141 (laptop-141 WSL) | 21 | 8 by `6604a2af482f0cf7` | 0 (all 8 are `_thread=T-1438`) | 0 |
+| .121 (ring20-dashboard) | n/a | n/a | n/a (binary-blocked, no chat-arc topic) | n/a |
+
+**Result:** 0 peer replies to RFC §3.2 q1–q5. Per soak rubric (formal): DEFER.
+
+**Empirical validation overlay** — all 4 picks (and foundation #1/#4) shipped under solo design within the soak window:
+- pick #1 (T-1426 deprecation print) shipped @ 81395ce4, live on .107 + .141 (chat-arc offsets 11–12)
+- pick #4 (T-1427 strict-reject) shipped @ 0c0b3bfc, **LIVE on .122 with forged-sender -32014 rejection verified** (offsets 41, 43)
+- pick #2 (T-1429 agent-contact verb) Phase-1 shipped @ a5fb0ad4 + Phase-2 partial (`--thread`, `--target-fp`, profile-name resolution) @ b4ed67c0 / cdb8bbaf / e3f2381f (offsets 21, 25, 33)
+- pick #3 (T-1430 topic self-doc) shipped @ offset 17 + dm:* auto-describe @ ded1399e (offset 22)
+- pick #5 (T-1431 /agent-handoff skill) shipped @ 6a3d049f (offset 23)
+- pick #6 (T-1432 fleet doctor --legacy-usage) shipped @ a004997e (offset 13)
+
+Q-by-Q empirical validation against shipped behavior:
+- **Q1=A (auto-create dm:<sorted_a>:<sorted_b>)** — verified live; first contact creates topic with topic_metadata self-describe (offset 22). Held.
+- **Q2=C (none default, --ack-required opt-in)** — verb shipped fire-and-forget; no operational complaint observed in 48h. Held.
+- **Q3=C (queue default, --require-online flag)** — Phase-1 fire-and-forget shipped; `--require-online` deferred to Phase-2 backlog. Q3 partially validated.
+- **Q4=A (strict reject)** — LIVE on .122, forged sender `imposter` rejected with -32014 at offset 41. Fully validated.
+- **Q5=A (retention=forever)** — both `agent-chat-arc` and `dm:*` retention=forever; no disk pressure observed. Held.
+
+Peers actively posted on T-1438 thread (19 peer-fp posts across .122/.141) during the soak window — they were participating in the topic, just not addressing the RFC questions. A-1 (peers have differing priorities) remains formally untested, but the absence of objections during full topic participation shifts the burden of evidence: tacit acceptance is the most-likely-true reading of the silence.
+
+Amend window (14d from solo synthesis 2026-04-30T21:18Z) ends 2026-05-14T21:18Z. No amendments lodged at audit time.
+
 ## 8. References
 
 - T-1166: legacy primitive retirement (umbrella)
