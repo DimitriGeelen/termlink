@@ -1114,3 +1114,38 @@ learnings:
   date: 2026-05-02
   context: Added via context agent — discovered immediately after auth heal of .121 under explicit user authorization
   application: TBD
+- id: PL-123
+  learning: "fw vendor includes list (bin/lib/agents/web/docs/.tasks/templates) excludes tests/ — so fw test all runs bats against non-existent FRAMEWORK_ROOT/tests/unit on consumer installs. Either vendor tests/ or have fw test all detect consumer mode and skip with same message doctor uses ('tests live in framework repo'). Source: T-1447 fw 1.6.124 upgrade run on /opt/termlink."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-124
+  learning: "fw upgrade governance-section refresh clobbers project-specific Quick Reference rows and inline rules. Restore from CLAUDE.md.bak post-upgrade and re-add. Upstream template overwrote 3 project-specific lines (consumer fw-path rule + /agent-handoff + /check-arc rows) on T-1447 1.5.307→1.6.124 upgrade. Fix needs section-aware merge logic that preserves project additions inside governance sections."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-125
+  learning: "fw test all web suite assumes framework-source project data context. 5/7 failures search for '001-Vision' doc, 'System Health' on dashboard, '/tasks/T-' on /patterns — these exist in the framework repo's own project files, not consumer projects. Tests should use fixtures or mocked PROJECT_ROOT consistently. Observed: T-1447 fw 1.6.124 web test against /opt/termlink."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-126
+  learning: "TestEmptyTaskFiles in web/test_app.py monkeypatches web.blueprints.tasks.PROJECT_ROOT but rendering still reads live project content (4MB response, T-997/T-998 leak through). Monkeypatch isn't propagating to all task-listing code paths. T-1447 fw 1.6.124."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
+- id: PL-127
+  learning: "fw test all does NOT run lint — lint is a separate target only. Operator expectation mismatch ('all' should mean all). Either include lint in 'all' or document the omission. T-1447 fw 1.6.124."
+  source: PL-007
+  task: T-1447
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
