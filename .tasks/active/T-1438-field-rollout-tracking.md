@@ -417,4 +417,14 @@ User authorized probe + attempt of remaining items. Results:
 - **.143 auth heal**: requires PVE/proxmox console access (out-of-band). Agent has no path.
 - **.141 binary swap to 0.9.1702**: requires "kill WSL session" authorization from user. Once swapped, identity_fingerprint registers automatically on next session start.
 - **.141 sudo symlink** (optional, if bashrc is enough): only if operator wants `/usr/local/bin/termlink` for cross-shell visibility — bashrc PATH is sufficient for interactive Claude Code.
-- **T-1444 NO-GO**: pure R-033 sovereignty. `fw inception decide T-1444 no-go` is operator's call.
+- **T-1444 NO-GO**: pure R-033 sovereignty. Inception-decide is operator's call.
+
+### 2026-05-02T21:11Z — post-/compact field-rollout state verified [agent autonomous]
+- **Field state probe (`scripts/field-status.sh`):**
+  - laptop-141: UP 0.9.1640 (pre-T-1436), all 4 skills+vendored, last-arc offset=17
+  - ring20-dashboard: UP 0.9.844, all 4 skills+vendored, **(no chat-arc topic)**
+  - ring20-management: UP 0.9.1702 / FP 9219671e28054458, all 4 skills+vendored, last-arc offset=19
+- **`.121` binary protocol-level confirmation:** `/usr/local/bin/termlink channel --help` on .121 returns `unrecognized subcommand 'channel'` — CLI lacks channel.* primitives entirely. Multicast channel.post via .121 hub returns `JSON-RPC error -32001: Missing 'target' in params` — the hub speaks an OLDER channel.post protocol (legacy `target` field requirement). Cut-blocker is BOTH CLI and hub-side; binary swap clears both in one shot since .121 hub is launched from same binary path.
+- **Cron health:** `crontab -l` confirms `17 * * * * vendored-arc-heartbeat.sh` installed on .141 (writes `/tmp/heartbeat.log`) and .122 (writes `/var/log/heartbeat.log`). Logs not yet present at probe time (21:10Z) — installed within the last cron-firing window. Manual fire on both succeeded: .141 offset=18, .122 offset=20. Path correctness verified end-to-end.
+- **Multicast announcement:** `scripts/chat-arc-multicast.sh --thread T-1438` posted to all UP hubs from .107 — 3/4 OK (laptop-141 offset=19, ring20-management offset=21, workstation-107-public offset=89), 1/4 SKIPPED (ring20-dashboard returned `-32001 Missing 'target' in params` — confirms cut-blocker at the hub-protocol level, not just CLI).
+- **Conclusion for chat-arc-to-vendored push:** field is **maximally rolled out within current binary constraints**. Two hubs (.141, .122) participating fully with cron self-fire + ad-hoc multicast. The remaining gap (.121) is structurally locked behind T-1296 → .121 binary swap, which is locked behind opaque-launcher identification (operator-side investigation, not autonomous-mode-eligible). Forward progress on chat-arc rollout requires either: (a) operator identifies .121 launcher, or (b) operator authorizes .141 binary swap to 0.9.1702 (already staged via --probe).

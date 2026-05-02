@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-02T17:26:31Z
-last_update: 2026-05-02T17:28:21Z
+last_update: 2026-05-02T20:09:45Z
 date_finished: null
 ---
 
@@ -90,12 +90,12 @@ Time-boxed spikes — total ≤ 4h:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Problem statement validated
-- [ ] Assumptions tested
-- [ ] Recommendation written with rationale
+- [x] Problem statement validated
+- [x] Assumptions tested
+- [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -182,7 +182,51 @@ Full report: `docs/reports/T-1448-co-resident-agent-identity-inception.md`
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO with Design A (sharpened) — soft convention + CLI default + T-1288 catalog promotion + warning-on-unresolvable-project at the CLI.
+
+Conceptual frame (elaboration): Today's TermLink "identity" is a single ed25519 keypair on disk that is being asked to play two distinct roles: (i) host endpoint pinning + post signing (cryptographic, host-keyed — correct as designed) and (ii) chat-arc attribution + `agent contact` routing (operational — needed an agent axis we never had). The right move is not to redesign identity (that's C); it's to add a second axis at the application layer where it belongs. `from_project` is the natural fit because project directory is stable across `/clear`, restart, and compaction (session-id is not), and is operator-meaningful (UUIDs are not).
+
+Directive scoring (full table in research artifact):
+
+| Directive | A | B | C | D |
+|---|---|---|---|---|
+| Antifragility | ✅ | ✅ | ✅ | ⚠️ |
+| Reliability | ✅ | ✅✅ | ✅✅ | ❌ |
+| Usability | ✅✅ | ⚠️ | ⚠️⚠️ | ❌ |
+| Portability | ✅✅ | ⚠️ | ❌ | ✅ (false win) |
+
+A is the only option that aligns with all four directives without trading off. A is also additive to B and C — choosing A now does not preempt B or C later.
+
+Steelman/strawman summary:
+- A: "Codify a learning that emerged" vs. "It's just a string anyone can lie about." → Threat model trusts root; we already accept that anyone with the key can lie about anything. Authenticating `from_project` defends an attack we explicitly do not defend against.
+- B: "Pay protocol cost once, get cryptographic guarantees forever" vs. "Self-inflicted version-gate after T-1166/T-1418/T-1294/T-1438 just removed that pain." → A is additive to B; choosing A doesn't preempt B.
+- C (per-project identity keys): "Architecturally cleanest, no metadata convention needed" vs. "Per-project auth bootstrap multiplies the heal protocol." → Defer as future option if threat model ever shifts.
+- D (do nothing): "Don't codify before second occurrence" vs. "Antifragility anti-pattern — every new agent re-derives the same lesson." → Fails antifragility outright.
+
+Rationale: TermLink's identity is host+user-keyed by design (`/root/.termlink/identity.key` is shared by every process under that UID). Co-resident agents on .107 (cohort `002-Claude-Partner-Network` + email-archive `050-email-archive`) already produce identical FP `d1993c2c3ec44c94`, and they have ALREADY coordinated in-band on `from_project` metadata as the disambiguator (chat-arc offset 73, 12h ago). The fix is to codify this convention at the CLI layer and promote `from_project` to the T-1288 well-known-keys catalog. No protocol change. No version gate. Unchanged threat model. T-1427's strict-reject stays valid (it disambiguates host identities); T-1429/T-1436/T-1440/T-1441 augment-not-unwind to surface project alongside FP.
+
+Evidence:
+- Code (S2): `crates/termlink-hub/src/channel.rs:436-451` — strict-reject is `sender_id == fingerprint_of(verifying_key)`, NOT cross-checked against any agent metadata. Lines 453-464 — metadata is opaque routing-hint map, "NOT included in canonical signed bytes — trusted-mesh threat model treats it as routing only." Verbatim.
+- Field (S3): 73 chat-arc entries, 2 unique FPs (1 of which collapses 2 co-resident agents). `_thread`=36% (T-1438 era convention), `_from`=16%, `from_project`=7% (brand new, only on the pen-contract thread). Convention will be mandated via cheap CLI default, not promoted from organic majority.
+- Threat model (S4): TermLink trusts root. Co-resident-forge is out of scope. Design B (signed metadata + sub-keys) over-engineers for an attack we don't defend against.
+- Migration: 5 affected tasks (T-1427, T-1429, T-1436, T-1440, T-1441) all augment-not-unwind. T-1427 strict-reject still correctly identifies the host; project is a separate axis.
+
+Cost: 3 build tasks, ~1 session each:
+1. (a) termlink-cli: default `from_project` injection from `.context/working/focus.yaml` / `.framework.yaml`; add to T-1288 catalog
+2. (b) T-1429 extension: `agent contact <name>[:project]` resolution; auto-attach `to_project`
+3. (c) scripts + skills sync: `field-heartbeat.sh`, `vendored-arc-heartbeat.sh`, `/agent-handoff`, `/check-arc` — emit + read `from_project`
+
+Order: a → c → b. (a) unblocks (c); (b) is the operator-visible payoff.
+
+Reversibility: High. Each task is independent and reversible; metadata field stays in place even if catalog entry is rolled back.
+
+Out of scope: sub-key cryptography (Design B); hub-side schema enforcement; renaming `_from`/`_thread`; cross-host project-namespace conflicts (e.g. two `050-email-archive` directories on different hosts) — flagged for follow-up.
+
+Full report: `docs/reports/T-1448-co-resident-agent-identity-inception.md`
+
+**Date**: 2026-05-02T20:09:45Z
 
 ## Updates
 
@@ -191,3 +235,52 @@ Full report: `docs/reports/T-1448-co-resident-agent-identity-inception.md`
 
 ### 2026-05-02T17:28:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-02T20:09:45Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO with Design A (sharpened) — soft convention + CLI default + T-1288 catalog promotion + warning-on-unresolvable-project at the CLI.
+
+Conceptual frame (elaboration): Today's TermLink "identity" is a single ed25519 keypair on disk that is being asked to play two distinct roles: (i) host endpoint pinning + post signing (cryptographic, host-keyed — correct as designed) and (ii) chat-arc attribution + `agent contact` routing (operational — needed an agent axis we never had). The right move is not to redesign identity (that's C); it's to add a second axis at the application layer where it belongs. `from_project` is the natural fit because project directory is stable across `/clear`, restart, and compaction (session-id is not), and is operator-meaningful (UUIDs are not).
+
+Directive scoring (full table in research artifact):
+
+| Directive | A | B | C | D |
+|---|---|---|---|---|
+| Antifragility | ✅ | ✅ | ✅ | ⚠️ |
+| Reliability | ✅ | ✅✅ | ✅✅ | ❌ |
+| Usability | ✅✅ | ⚠️ | ⚠️⚠️ | ❌ |
+| Portability | ✅✅ | ⚠️ | ❌ | ✅ (false win) |
+
+A is the only option that aligns with all four directives without trading off. A is also additive to B and C — choosing A now does not preempt B or C later.
+
+Steelman/strawman summary:
+- A: "Codify a learning that emerged" vs. "It's just a string anyone can lie about." → Threat model trusts root; we already accept that anyone with the key can lie about anything. Authenticating `from_project` defends an attack we explicitly do not defend against.
+- B: "Pay protocol cost once, get cryptographic guarantees forever" vs. "Self-inflicted version-gate after T-1166/T-1418/T-1294/T-1438 just removed that pain." → A is additive to B; choosing A doesn't preempt B.
+- C (per-project identity keys): "Architecturally cleanest, no metadata convention needed" vs. "Per-project auth bootstrap multiplies the heal protocol." → Defer as future option if threat model ever shifts.
+- D (do nothing): "Don't codify before second occurrence" vs. "Antifragility anti-pattern — every new agent re-derives the same lesson." → Fails antifragility outright.
+
+Rationale: TermLink's identity is host+user-keyed by design (`/root/.termlink/identity.key` is shared by every process under that UID). Co-resident agents on .107 (cohort `002-Claude-Partner-Network` + email-archive `050-email-archive`) already produce identical FP `d1993c2c3ec44c94`, and they have ALREADY coordinated in-band on `from_project` metadata as the disambiguator (chat-arc offset 73, 12h ago). The fix is to codify this convention at the CLI layer and promote `from_project` to the T-1288 well-known-keys catalog. No protocol change. No version gate. Unchanged threat model. T-1427's strict-reject stays valid (it disambiguates host identities); T-1429/T-1436/T-1440/T-1441 augment-not-unwind to surface project alongside FP.
+
+Evidence:
+- Code (S2): `crates/termlink-hub/src/channel.rs:436-451` — strict-reject is `sender_id == fingerprint_of(verifying_key)`, NOT cross-checked against any agent metadata. Lines 453-464 — metadata is opaque routing-hint map, "NOT included in canonical signed bytes — trusted-mesh threat model treats it as routing only." Verbatim.
+- Field (S3): 73 chat-arc entries, 2 unique FPs (1 of which collapses 2 co-resident agents). `_thread`=36% (T-1438 era convention), `_from`=16%, `from_project`=7% (brand new, only on the pen-contract thread). Convention will be mandated via cheap CLI default, not promoted from organic majority.
+- Threat model (S4): TermLink trusts root. Co-resident-forge is out of scope. Design B (signed metadata + sub-keys) over-engineers for an attack we don't defend against.
+- Migration: 5 affected tasks (T-1427, T-1429, T-1436, T-1440, T-1441) all augment-not-unwind. T-1427 strict-reject still correctly identifies the host; project is a separate axis.
+
+Cost: 3 build tasks, ~1 session each:
+1. (a) termlink-cli: default `from_project` injection from `.context/working/focus.yaml` / `.framework.yaml`; add to T-1288 catalog
+2. (b) T-1429 extension: `agent contact <name>[:project]` resolution; auto-attach `to_project`
+3. (c) scripts + skills sync: `field-heartbeat.sh`, `vendored-arc-heartbeat.sh`, `/agent-handoff`, `/check-arc` — emit + read `from_project`
+
+Order: a → c → b. (a) unblocks (c); (b) is the operator-visible payoff.
+
+Reversibility: High. Each task is independent and reversible; metadata field stays in place even if catalog entry is rolled back.
+
+Out of scope: sub-key cryptography (Design B); hub-side schema enforcement; renaming `_from`/`_thread`; cross-host project-namespace conflicts (e.g. two `050-email-archive` directories on different hosts) — flagged for follow-up.
+
+Full report: `docs/reports/T-1448-co-resident-agent-identity-inception.md`
+
+### 2026-05-02T20:09:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
