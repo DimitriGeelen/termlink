@@ -8,12 +8,11 @@
 
 ---
 
-## TL;DR (filled at synthesis)
+## TL;DR
 
-_To be filled after spikes S1–S5. Format:_
-- **Recommendation:** GO / NO-GO / DEFER
-- **One-line rationale:**
-- **Build tasks proposed (if GO):** T-XXXX, T-XXXX, T-XXXX
+- **Recommendation:** **GO** with Design A (soft convention + CLI default + catalog promotion)
+- **One-line rationale:** `from_project` metadata is already operational between cohort and email-archive; promote it to a CLI default + T-1288 well-known-key catalog entry; protocol unchanged; threat model unchanged; 3 build tasks ≤1 session each; T-1427/T-1429/T-1436/T-1440/T-1441 augment-not-unwind.
+- **Build tasks proposed (if GO):** 3 — (a) cli default + catalog, (b) `agent contact <name>[:project]`, (c) scripts + skills sync
 
 ---
 
@@ -74,45 +73,129 @@ The locator-card portion of Penelope's message was cut off in the transcript rea
 - *How do we disambiguate two AGENTS that share an identity.key?*
 - The de-facto answer (`from_project` metadata) is already operational. The inception question becomes: **should the framework promote that convention to a first-class, enforced field, or leave it as a soft convention?**
 
-### S2: Code archaeology — _not started_
-**Goal:** Where does `sender_id` come from on the wire? What metadata fields are first-class?
-**Files to read:**
-- Hub strict-reject path — likely in `crates/termlink-hub/src/channel.rs` or similar
-- T-1436 registration code path
-- `channel post` metadata serialization
-**Output:** A sequence diagram (text) of how a `channel post` becomes a `sender_id` on the receiving end, and what's first-class vs. opaque.
+### S2: Code archaeology — _completed_
+**Files read:**
+- `crates/termlink-protocol/src/control.rs:234` — error code `-32014 CHANNEL_IDENTITY_MISMATCH`
+- `crates/termlink-hub/src/channel.rs:344-491` — `handle_channel_post` end-to-end
 
-_Findings:_
+**Sequence (channel.rs):**
+1. **Client supplies (line 383):** `sender_id`, `sender_pubkey_hex`, `signature`, `topic`, `msg_type`, `payload`, optional `metadata` map.
+2. **Hub computes canonical signed bytes (line 420):** `topic + msg_type + payload + artifact_ref + ts_unix_ms`. **`sender_id`, `sender_pubkey_hex`, and `metadata` are NOT in the signed bytes.**
+3. **Hub verifies signature (line 427):** Standard ed25519 against the canonical bytes using `sender_pubkey_hex`.
+4. **Hub strict-reject (T-1427, lines 436-451):** computes `expected_fp = fingerprint_of(verifying_key)`. Rejects with `CHANNEL_IDENTITY_MISMATCH` iff `sender_id != expected_fp`. **The check is pubkey-vs-FP only — there is NO cross-check against any agent-layer metadata claim.** A4 ✅ confirmed.
+5. **Metadata handling (line 453-464):** Comment is explicit:
+   > "T-1287: optional metadata routing-hint map. NOT included in canonical signed bytes — trusted-mesh threat model treats it as routing only. Well-known keys: conversation_id, event_type (per T-1288 catalog)."
+   Parsed as opaque `BTreeMap<String, String>`. No schema enforcement at hub level.
 
-### S3: Field measurement — _not started_
-**Goal:** What's already in chat-arc traffic?
-**Method:** Sample last 7d of `agent-chat-arc` on .107 + .122 + .141. Tabulate metadata field presence.
-**Output:** Table of `{_from, from_project, _thread}` coverage. Identify de-facto convention.
+**First-class metadata keys (used in code):**
+- `conversation_id` (line 480, T-1287/T-1286 presence tracking)
+- `in_reply_to` (line 608, filter)
+- `up_to` (line 677, receipts)
+- `event_type` (T-1288 catalog — referenced)
 
-_Findings:_
+**NOT first-class today:** `from_project`, `_from`, `_thread`, `to_project`, `from_agent_fingerprint`. All convention.
 
-### S4: Adversarial think — _not started_
-**Goal:** What attacks does host+user FP enable that per-agent identity would prevent?
-**Output:** Threat list, with explicit notes on which are in/out of TermLink's threat model.
+**Threat-model verbatim (in code):** "trusted-mesh threat model treats it as routing only." → metadata is application-layer, not auth-layer. A malicious co-resident agent with the host's identity key could forge any `from_project`. The framework explicitly does not defend against this.
 
-_Findings:_
+**Implication:** Promoting `from_project` to first-class is a *catalog* extension (T-1288 well-known keys), not a *protocol* extension. No signed-bytes change, no version gate. Default-injection at the CLI layer is the natural insertion point.
 
-### S5: Two designs sketch — _not started_
+### S3: Field measurement — _completed_
+**Method:** `termlink channel subscribe agent-chat-arc --cursor 0 --limit 200` (74 entries total, 73 with sender_id).
+**Counts (raw grep, full text saved at `/tmp/T-1448-chat-arc.txt`):**
 
-**Design A: Pure metadata convention + light schema validator.**
-- Mandate `from_project` (or chosen field) on every chat-arc post
-- Hub validates presence; co-resident posts without it logged as `unknown-agent`
-- Agents register their project at session start (analogous to T-1436 FP registration)
-- Migration: tweak heartbeat scripts, T-1431 skill, T-1429 verb to attach + read the field
+| Field | Count | % of 74 | Notes |
+|---|---|---|---|
+| `_thread` | 27 | 36% | Dominant existing convention; T-1438 work used `_thread=T-1438` heavily |
+| `_from` | 12 | 16% | Used by field-heartbeat.sh (`_from=$HUB-vendored`) |
+| `from_project` | 5 | 7% | NEW — only the pen-contract-cohort-forwarder thread (offsets 68/70/73 plus 2 others) |
+| `to_project` | 1 | 1% | Newer still |
 
-**Design B: Sub-key per agent derived from host key + agent UUID.**
-- Agent UUID derived from session-id (not stable across compaction — known issue)
-- Sub-key signs posts; hub verifies sub-key chain
-- Migration: protocol-level field, T-1427 strict-reject extends to sub-key check
+**Unique sender FPs:** 2 (`d1993c2c3ec44c94`=72 posts — collapses cohort + email-archive on .107; `9219671e28054458`=2 posts = .122 ring20-management).
 
-_Tradeoffs to fill at synthesis:_
+**Read:** `from_project` is below the GO threshold of "≥70% organic coverage" — we would be mandating a convention, not promoting an established one. But the convention is **cheap to mandate** (one CLI default + scripts) and **already used by the only co-resident pair that exists**. The 70% bar applies to "GO without mandating"; it does not apply to "GO with mandating" if the cost is small. Below in synthesis.
 
-### Synthesis — _not started_
+### S4: Adversarial think — _completed (5 min, condensed)_
+What attacks does host+user FP allow today that per-agent identity would prevent?
+
+| Attack | Today | Under Design A (metadata convention) | Under Design B (signed metadata) |
+|---|---|---|---|
+| Co-resident agent impersonates peer (forges `from_project`) | Possible | Still possible — metadata unsigned | Prevented |
+| External agent forges any sender_id | Blocked by T-1427 (✅ today) | Blocked | Blocked |
+| Attribution dispute in audit trail (which co-resident did it?) | Cannot resolve from logs | Resolvable from `from_project` (assuming honesty) | Resolvable cryptographically |
+
+**TermLink threat model (per channel.rs:454):** trusts root. Defending against co-resident-with-root-key attackers is **explicitly out of scope** (host owns its key; if root is compromised, the host is compromised). The audit-trail dispute case has no resolution today and Design A makes it socially resolvable but not cryptographically resolvable. **For the threat model we have, that's adequate.**
+
+### S5: Two designs sketch — _completed_
+
+**Design A — soft convention + CLI default + catalog promotion:**
+- `termlink channel post` auto-injects `from_project` from `.context/working/focus.yaml` or `.framework.yaml` if not explicitly provided
+- `from_project` added to T-1288 well-known-keys catalog (alongside `conversation_id`, `event_type`)
+- Hub remains protocol-neutral on the field — it's in the metadata map, opaque, just better documented
+- T-1429 `agent contact <name>` extended: name → (FP, project) tuple resolution; auto-attach `to_project`
+- Heartbeat scripts (`field-heartbeat.sh`, `vendored-arc-heartbeat.sh`) updated to set `from_project`
+- `/agent-handoff` and `/check-arc` skills updated to read+write the field
+- T-1427 strict-reject **unchanged** — it correctly identifies the host; project is application-layer
+- T-1440/T-1441 (`whoami`, `remote list`) — surface project alongside FP, so operators see "FP a1b2 / project=050-email-archive"
+
+**Cost:** 3 build tasks, ~1 session each:
+1. termlink-cli: default `from_project` injection + catalog entry
+2. termlink-cli: T-1429 `agent contact <name>[:project]` extension + auto-attach `to_project`
+3. Scripts + skills sync (field-heartbeat, vendored-arc-heartbeat, /agent-handoff, /check-arc)
+
+**Reversibility:** Trivial. Can revert any of the 3 in isolation; the field stays in metadata regardless.
+
+**Design B — signed metadata + sub-key per agent:**
+- Add `from_project` to canonical signed bytes (channel.rs:420 list)
+- Agent sub-key derived from host key + project ID
+- `channel.post` signs with sub-key; hub verifies sub-key chain
+- T-1427 strict-reject extends: sender_id = host FP AND from_project matches sub-key
+
+**Cost:** Protocol break. Version-gated rollout across fleet. ≥5 build tasks. All clients require update. Design and review of sub-key derivation (HKDF? per-project ECDH?). Existing pre-T-1448 hubs reject signed-metadata posts.
+
+**Tradeoff Design A vs Design B:**
+
+| Axis | A | B |
+|---|---|---|
+| Disambiguates co-resident agents | ✅ | ✅ |
+| Defends against co-resident forge | ❌ | ✅ |
+| Protocol-stable | ✅ | ❌ |
+| Cost | 3 tasks | 5+ tasks + fleet migration |
+| Reversibility | High | Low (version-gate trap) |
+| Aligned with threat model? | ✅ | Over-engineered for it |
+| Existing convention compatibility | Promotes already-emerging convention | Replaces it |
+
+### Synthesis — Recommendation
+
+**Recommendation: GO with Design A.**
+
+**Rationale:**
+1. **Threat model alignment.** TermLink trusts root. Co-resident-forge is explicitly out of scope (channel.rs:454 verbatim). Design B defends against an attack we don't claim to defend against; that's over-engineering.
+2. **De-facto convention exists and is operational.** Cohort and email-archive coordinated `from_project` in-band at chat-arc offset 73, 12h before this inception. We're not inventing — we're codifying.
+3. **Cost is bounded.** 3 build tasks, each ≤1 session. Hits the GO criterion exactly.
+4. **Migration story for the 5 affected tasks is augment-not-unwind.**
+   - T-1427 strict-reject: unchanged (host identity disambiguation is still valid; agent identity is a separate axis)
+   - T-1429 agent contact: extend resolution to `(name, project)` tuple
+   - T-1436 registration: add `from_project` to registration metadata
+   - T-1440/T-1441: surface project alongside FP
+5. **Reversible.** If Design B becomes needed later (threat model expands), it's additive on top of Design A — `from_project` is already first-class metadata, just unsigned.
+6. **Stable identity invariant.** `from_project` is anchored on the project directory path, which is stable across compaction, `/clear`, and restart — solving the "session-id is not stable" constraint identified in the technical-constraints section.
+
+**Why not DEFER:** Penelope-only? No. The cohort + email-archive co-residency is permanent (both projects live on .107 and won't move). The pattern will recur as more projects are added. Defer-and-record-only would mean every new project re-discovers FP collision at first chat-arc post.
+
+**Build tasks proposed (if GO):**
+1. **T-XXXX(a)** — termlink-cli: default `from_project` injection from focus.yaml + promote to T-1288 catalog
+2. **T-XXXX(b)** — termlink-cli + T-1429: `agent contact <name>[:project]` + auto-attach `to_project`
+3. **T-XXXX(c)** — scripts + skills: field-heartbeat.sh, vendored-arc-heartbeat.sh, /agent-handoff, /check-arc — emit + read `from_project`
+
+Order: a → c → b. (a) unblocks (c); (b) builds on (a)'s catalog entry and is the most operator-visible change.
+
+**Out of scope, explicitly:**
+- Sub-key cryptography (Design B)
+- Hub-side schema enforcement (would be a softer enforcement, but adds review/version-gate cost without proportional benefit)
+- Renaming existing `_from`/`_thread` conventions — keep them, document them in the catalog
+- Cross-host project-namespace conflicts (e.g. two `050-email-archive` directories on different hosts) — flag for follow-up but not in this inception
+
+**Recommendation:** GO.
 
 ---
 
