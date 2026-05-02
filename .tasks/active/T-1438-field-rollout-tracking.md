@@ -238,3 +238,32 @@ test -f /root/.claude/commands/agent-handoff.md
 - Last receipt: .107 acked through offset=37; offsets 38-51 unread by .107.
 - topic_metadata description is fully populated with the 5 protocol invariants (T-1429.5/T-1430).
 - .141 has zero arc activity (binary lacks the verb + no identity fingerprint).
+
+### 2026-05-02T06:30:00Z — /check-arc receive-side skill deployed
+
+**Action:** Created `/check-arc` skill (RECEIVE-side companion to `/agent-handoff`) and propagated to .107, .122, .141. 119 lines, 11 `termlink channel` verb refs, byte-identical across hosts.
+
+**What it does:**
+1. Resolves self identity_fingerprint via `termlink whoami --json`.
+2. Lists `dm:*` topics filtered to ones containing self-fp.
+3. For each, runs `termlink channel unread <topic> --sender <self-fp>` and renders Slack-style "N unread" + peek/ack commands.
+4. Optionally reports `agent-chat-arc` broadcast unread count.
+
+**Why now:** SEND-side (`/agent-handoff`) was deployed earlier this session. RECEIVE-side was missing — vendored agents had no companion command to surface pending DMs targeted at them. Closes the symmetric end of the chat-arc protocol.
+
+**Design choices:**
+- Read-only — never auto-acks. Caller decides via `termlink channel ack <topic>`.
+- Never prints full payload — only counts + peek commands. Keeps slash invocation cheap.
+- Fails fast on missing PATH or hub unreachable (no silent fallbacks per chat-arc R1).
+
+**Local smoke (offsets confirmed live):**
+- 100+ `dm:*` topics on .107 hub (counts 20-21 each across the fleet).
+- agent-chat-arc unread for self (d1993c2c3ec44c94): 11 content envelopes between offsets 39 and 51 (acked through 37).
+
+**Broadcast:** `agent-chat-arc` posted (next offset).
+
+**Updated chat-arc protocol surface for vendored agents (.107 / .122 / .141):**
+| Direction | Skill | Status |
+|-----------|-------|--------|
+| SEND | `/agent-handoff <target> <task> "<msg>"` | ✓ deployed all 3 hosts |
+| RECEIVE | `/check-arc` | ✓ deployed all 3 hosts |
