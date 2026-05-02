@@ -89,6 +89,20 @@ python3 -c 'import json,re; d=json.load(open("/tmp/api-usage-t1419.json")); [re.
 test -f /opt/999-Agentic-Engineering-Framework/agents/metrics/api-usage.sh
 diff -q .agentic-framework/agents/metrics/api-usage.sh /opt/999-Agentic-Engineering-Framework/agents/metrics/api-usage.sh
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** All 6 Agent ACs PASS (verified live 2026-05-02T22:59Z). The freshness signal (`last_seen_iso` + `last_seen_ts_ms`) ships in `--json` output across all three caller groups (`legacy_callers`, `legacy_callers_by_ip`, `legacy_callers_by_pid`). Implementation file synced between local and upstream framework copies. Two-field design (ts_ms + ISO) preserves both human-readability and arithmetic-safety per the recorded design Decision.
+
+**Evidence:**
+- Verification: 6/6 PASS (live re-run 2026-05-02T22:59Z post-/compact)
+- Live `--json` output contains `last_seen_iso` strings matching `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}` for every row in all three caller arrays
+- Channel-1 mirror to upstream confirmed (diff -q clean)
+- Used in production by T-1418 deploy verification flow (referenced in T-1418 Operator Runbook step "Preferred — freshness check")
+
+**Human AC remaining:** [REVIEW] Confirm freshness signal is actually useful in the post-T-1418 deploy verification flow — i.e. once .121 binary swap lands, does `last_seen_iso` for `192.168.10.121` advance to a post-deploy timestamp on schedule? Until that swap happens, the AC has no field to verify against; review can be deferred until then.
+
 ## Decisions
 
 ### 2026-04-30 — Why both ts_ms and ISO
