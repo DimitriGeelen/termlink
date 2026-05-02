@@ -298,3 +298,26 @@ test -f /root/.claude/commands/agent-handoff.md
 - ✗ .141 binary swap to 0.9.1702 (operator-gated; current 0.9.1640 lacks `agent contact`)
 - ✗ .141 PATH wiring for bare `termlink` (operator-gated)
 - ✗ .141 identity_fingerprint registration (operator-gated)
+
+### 2026-05-02T06:42:00Z — /check-arc primitive smoke (.107 local hub)
+
+**Action:** Walked /check-arc skill primitives in sequence on .107 hub.
+
+**Results:**
+- `termlink channel list --prefix "dm:" --json` returned 123 dm topics.
+- 26/123 contain self-fp `d1993c2c3ec44c94`.
+- For each of those 26: `termlink channel unread <topic> --sender <self-fp> --json` returns content unread count.
+- 23/26 had unread > 0.
+- Top unread: `dm:9219671e28054458:d1993c2c3ec44c94` (.122 agent, 4 unread including the smoke we just sent at offset 5 of the .122-side dm topic).
+- Many transient `dm:bob-122-<pid>:d1993c2c3ec44c94` topics (2 unread each) from past `bob` test sessions on .122.
+
+**Verdict:** /check-arc skill functions as designed. Vendored agents invoking it would see actionable summaries.
+
+**Caveat noticed:** The `bob-122-*` transient pattern produces many low-signal dm topics. A future refinement to /check-arc could filter session-bound peers (those whose name matches `<role>-<host>-<pid>` and whose pid is dead) — but that's out of scope here.
+
+**Local primitive smoke also confirms .107 binary 0.9.1701 supports:**
+- `termlink channel list --prefix "..." --json` ✓
+- `termlink channel unread <topic> --sender <fp> --json` ✓
+- `termlink whoami --name <display> --json` ✓
+
+These same verbs ship in 0.9.1693 (.122) per Help text inspection earlier.
