@@ -12,7 +12,7 @@ tags: [framework, governance, deferred-decisions, sentinel, G-053]
 components: []
 related_tasks: [T-1425, T-1428, T-1448]
 created: 2026-05-02T21:47:02Z
-last_update: 2026-05-02T21:56:30Z
+last_update: 2026-05-02T21:56:43Z
 date_finished: null
 ---
 
@@ -113,7 +113,7 @@ No fifth spike. The optional `deferred-decisions.yaml` register is deferred to a
 
 ## Recommendation
 
-**Recommendation: GO — Phase 1 (frontmatter + daily cron + CLI + T-1428 backfill); defer separate register.**
+**Recommendation:** GO — Phase 1 (frontmatter + daily cron + CLI + T-1428 backfill); defer separate register.
 
 **Rationale:**
 
