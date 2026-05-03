@@ -111,6 +111,19 @@ cargo clippy --no-deps -- -D warnings
 ! grep -q 'still uses .event.broadcast.' docs/migrations/T-1166-retire-legacy-primitives.md
 test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
+## Recommendation
+
+**Recommendation:** GO (day-1 bake clean, 7-day window in progress)
+
+**Rationale:** All 7 Agent ACs PASS. Code-level migration is mechanically complete: `event.broadcast` removed from CLI and MCP fan-out paths, replaced with parallel `event.emit_to` calls; result shape preserved. Migration doc updated. The bake window AC is structurally a soak signal, not a code-level gate — and the day-1 readout is already clean.
+
+**Evidence (day-1 of bake, 2026-05-03T10:11Z):**
+- `.agentic-framework/bin/fw metrics api-usage --last-Nd 1 --json` filtered to `method=event.broadcast`, grouped by `peer_ip` → **total=0, self-host=0**
+- .107 hub restarted 2026-05-03T09:53Z on binary 0.9.1701 (post-T-1417 commit), so all sessions on this host are now running the new fan-out path
+- T-1418 + .121 swap closed Gate-3 of T-1428: full fleet on T-1427-enforced binaries — no straggler hubs left running pre-T-1417 binaries that could still emit `event.broadcast`
+
+**Human AC remaining:** [REVIEW] The 7-day bake window is structurally not in the agent's hands — the AC requires the operator to confirm the audit count stays at 0 (or only reflects benign edge cases) at day-7. Day-1 evidence above suggests this will hold, but the soak gate is the test. Re-check on or after 2026-05-10 (7 days from .107 restart). If non-zero, identify the specific session via `peer_pid` breakdown — likely a stale long-running session pre-dating the restart.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
