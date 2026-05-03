@@ -419,13 +419,13 @@ concerns:
   trigger_event: "2026-05-02T05:00Z (T-1438 follow-up grep): inspected publish-learning-bus.log, found 13 consecutive `channel.post-failed id=PL-XXX — falling back to event.broadcast` entries spanning 2026-04-30T18:25Z → 2026-05-01T13:46Z. Confirmed `termlink channel list --prefix channel:` showed no `channel:learnings` topic. Created topic on .107 + .122 + .141 with self-doc, verified PL-112 next-add went via Tier-A (no fallback)."
   detection_lag_days: "1.5 (first failure 2026-04-30, found 2026-05-02)"
   what_works_now: "Topics created on .107 + .122 + .141 with topic_metadata self-doc. Tier-A path operational. PL-112 published via channel.post confirmed in log. T-1443 --ensure-topic available for callers that want to be defensively idempotent post-restart, but framework scripts do not yet adopt it (would need Channel-1 upstream-mirror PR)."
-  what_remains: "1. Update lib/publish-learning-to-bus.sh + lib/pickup-channel-bridge.sh to use --ensure-topic so they self-heal across hub restart (Channel-1 upstream PR to /opt/999-AEF). 2. Until then, the topics will be lost on next hub restart on each host and need manual re-creation — same operational burden as G-050 chat-arc loss. 3. T-1166 cut readiness signal must check that channel:learnings + framework:pickup topics exist on all hubs before retiring event.broadcast — currently no such gate."
-  mitigation_candidate: "Tactical: framework hooks update — adopt --ensure-topic in publish-learning-to-bus.sh + pickup-channel-bridge.sh (Channel-1 PR). Structural: ship T-1444 (option-1 hub-side persistence) then framework topics survive restart by design. Cut readiness: add a fleet doctor check that inventories required topics per hub."
-  mitigation_progress: "2026-05-02T05:02Z (T-1438): Topics created + self-doc'd on all three hubs. Tier-A path verified operational via PL-112. Topic-loss-on-restart not yet structurally fixed (depends on T-1444). Framework code not yet updated to --ensure-topic (Channel-1 follow-up)."
-  status: watching
+  what_remains: "All three items resolved: (1) --ensure-topic adopted in lib/publish-learning-to-bus.sh + lib/pickup-channel-bridge.sh per T-1445 Channel-1 mirror (2026-05-02T05:31Z); (2) topic-loss-on-restart resolved structurally via T-1294/T-1296 — all 4 hubs now run on persistent runtime_dir (/var/lib/termlink/) and bus state survives restart on disk (T-1444 NO-GO confirmed SQLite-backed); (3) topic-inventory now consistent across fleet — manual probe 2026-05-03T10:15Z confirmed channel:learnings + framework:pickup + agent-chat-arc on all 4 hubs (.107, .122, .141, .121 — created the missing two on .121 today)."
+  mitigation_candidate: "Tactical fix shipped (T-1445), structural fix shipped (T-1294/T-1296), inventory now clean. Side-finding: termlink fleet doctor --topic-durability still reports all 4 hubs as 'audit_unsupported (pre-T-1446 hub)' even though hub binaries are 0.9.1701/0.9.1702 with T-1446 in-tree — likely a hub.bus_state RPC dispatch bug worth a separate task if cut-readiness automation needs it."
+  mitigation_progress: "2026-05-03T10:15Z: Field rollout closed (T-1438 work-completed) and topic inventory verified consistent across all 4 hubs. G-051 mitigation complete in mechanism + state. Cut readiness for channel:learnings + framework:pickup federation now satisfied — T-1166 can retire event.broadcast without breaking framework learning federation."
+  status: mitigated
   created: 2026-05-02
-  last_reviewed: 2026-05-02
-  related_tasks: [T-1166, T-1217, T-1219, T-1443, T-1444]
+  last_reviewed: 2026-05-03
+  related_tasks: [T-1166, T-1217, T-1219, T-1443, T-1444, T-1445, T-1294, T-1296, T-1438]
 
 - id: G-052
   type: gap
