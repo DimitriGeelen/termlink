@@ -1219,3 +1219,24 @@ learnings:
   date: 2026-05-02
   context: Added via context agent
   application: TBD
+- id: PL-138
+  learning: "Fleet doctor observed tofu-violation on hub 'laptop-141' (192.168.10.141:9100). date_observed=2026-05-03T07:44:34Z hub_fingerprint=sha256:2bde8ad8f81a221cbe211dca722cededb32919bf97e840e54913ee2595aad2ba. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-05-03
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-139
+  learning: "Hub default runtime_dir on Linux: when TERMLINK_RUNTIME_DIR is unset, hub uses $XDG_RUNTIME_DIR/termlink/ (e.g. /run/user/1000/termlink/). NOT ~/.termlink/runtime/ as agents commonly assume. If hub is restarted without explicit env, persisted secret/cert at ~/.termlink/runtime/ is IGNORED — hub mints fresh ones in /run/user/<uid>/termlink/, causing cert+secret rotation cascade. Fix: always export TERMLINK_RUNTIME_DIR explicitly before 'hub start' to match what agents/clients expect."
+  source: P-001
+  task: T-1438
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
+- id: PL-140
+  learning: "Chat-arc topic state DOES persist across hub restart if runtime_dir is preserved — contradicts PL-132 / G-050 'hub-memory-only' claim. Verified 2026-05-03T09:46Z on .141: pre-restart 26 posts, post-restart 27 posts (one added by multicast). Bus state on disk in <runtime_dir>/bus/ survives process restart. The 'recreate on swap' guidance applies when runtime_dir CHANGES (e.g. /tmp/termlink-0 wiped on reboot), not when runtime_dir is preserved."
+  source: P-001
+  task: T-1438
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD

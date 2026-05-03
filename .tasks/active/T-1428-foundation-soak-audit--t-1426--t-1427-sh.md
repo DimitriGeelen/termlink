@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:21:07Z
-last_update: 2026-05-02T22:49:55Z
+last_update: 2026-05-02T22:51:48Z
 date_finished: null
 ---
 
@@ -168,9 +168,9 @@ Sender count is on track to climb from 2→3 (already there with 6604 .141 cron 
 - N/A on .121 (cut blocker is binary swap)
 
 **Operator gates that need to clear before 2026-05-14 for full PASS:**
-1. `.107` hub restart (no binary work; just restart the running PID 103255 to load the on-disk 0.9.1701)
-2. `.141` hub binary swap to 0.9.1702 (binary is staged at /tmp/termlink-staged-0.9.1702, but the running hub is at /mnt/c/ntb-acd-plugin/termlink/target/release/termlink 0.9.1640 — need both: replace that binary AND restart hub PID 221)
-3. `.121` binary swap to 0.9.1702 + watchdog patch + runtime_dir migration (T-1418 + T-1296 bundled; binary now staged at /tmp/termlink.new on .121)
+1. `.107` hub restart (no binary work; just restart the running PID 103255 to load the on-disk 0.9.1701) — STILL OPEN
+2. ~~`.141` hub binary swap to 0.9.1702~~ — **DONE 2026-05-03T09:46Z** (see "Gate-2 cleared" entry below)
+3. `.121` binary swap to 0.9.1702 + watchdog patch + runtime_dir migration (T-1418 + T-1296 bundled; binary now staged at /tmp/termlink.new on .121) — STILL OPEN
 
 **Single-host audit closure recipe (per audit day):**
 
@@ -186,3 +186,33 @@ echo "$hub PID=$HUB_PID start=$HUB_START bin=$HUB_BIN ver=$HUB_DISK_VER"
 echo '{}' | termlink channel post --hub <hub> --sender-id 0000000000000000 --msg-type chat agent-chat-arc 2>&1
 ```
 Expected: `-32014` if T-1427 in-memory; "Posted to ..." if not.
+
+### 2026-05-03T09:46Z — Gate-2 cleared: .141 hub swap to 0.9.1702 + T-1427 LIVE
+
+Authorized by operator (dimitri) via SSH to `dimit@192.168.10.141`. Path discovered: `/mnt/c/Users/dimit/.ssh/authorized_keys` had agent's `gpu-host-107` ed25519 pubkey already authorized (Windows-side username `dimit`, not WSL `dimitri` — that was the auth gate I missed first try).
+
+**Sequence (run via `ssh dimit@.141 wsl -e bash -c <base64-script>`):**
+
+1. Killed PID 221 (old hub on 0.9.1640, owned by dimitri uid=1000)
+2. PL-100 mitigation: `rm` then `cp /tmp/termlink-staged-0.9.1702 /mnt/c/ntb-acd-plugin/termlink/target/release/termlink` (NTFS DrvFs file-lock workaround — clean, no errors)
+3. First relaunch went wrong: started hub WITHOUT `TERMLINK_RUNTIME_DIR` exported → hub picked `$XDG_RUNTIME_DIR/termlink/` (= `/run/user/1000/termlink/`) NOT the persisted `/home/dimitri/.termlink/runtime/`. Result: fresh cert + secret minted, .107 saw mismatch.
+4. Killed that PID, relaunched WITH `export TERMLINK_RUNTIME_DIR=/home/dimitri/.termlink/runtime` first → persist-if-present picked up the Apr-22 cert/secret unchanged, .107 cache matches → no re-pin.
+
+**Final state on .141:**
+- Hub PID 21775, binary `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` 0.9.1702, runtime_dir `/home/dimitri/.termlink/runtime/`
+- Cert mtime preserved at Apr 22 13:12 (ground-truth that persist-if-present worked)
+- T-1427 enforcement LIVE: forged `--sender-id 0000000000000000` → `-32014 sender_id="0000000000000000" does not match identity fingerprint d1993c2c… derived from sender_pubkey_hex (T-1427)` ✓
+- chat-arc topic state SURVIVED restart: 26→27 posts (latest multicast accepted at offset 27)
+
+**Bonus learning captured (PL-???):**
+- Default runtime_dir is `$XDG_RUNTIME_DIR/termlink/`, not `~/.termlink/runtime/` (most agents/clients assume the latter)
+- chat-arc topic state DOES persist across hub restart if runtime_dir is preserved — contradicts the PL-132 / G-050 "hub-memory-only" claim. Bus state on disk in `<runtime_dir>/bus/` survives. The "recreate on swap" guidance applies when runtime_dir CHANGES (e.g. /tmp/termlink-0 wiped on reboot), NOT when runtime_dir is preserved.
+
+**Updated runtime-PID matrix:**
+
+| Hub | PID | T-1427 in-memory? | Binary version |
+|---|---|---|---|
+| .107 (workstation) | 103255 | NO ✗ (still — gate 1 OPEN) | 0.9.1701 on disk, pre-T-1427 in-memory |
+| .141 (laptop-141) | **21775 (was 221)** | **YES ✓** (gate 2 CLEARED) | **0.9.1702** |
+| .122 (ring20-management) | 1157690 | YES ✓ | 0.9.1702 |
+| .121 (ring20-dashboard) | 399 | N/A — pre-T-1155 (gate 3 OPEN) | 0.9.844 |
