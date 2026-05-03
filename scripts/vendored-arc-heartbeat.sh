@@ -37,6 +37,18 @@ if [ -z "$BIN" ]; then
   exit 2
 fi
 
+# PL-146: cron environments inherit no TERMLINK_RUNTIME_DIR. The CLI defaults
+# to /tmp/termlink-<uid>/hub.sock if unset, but vendored hubs commonly run
+# under $HOME/.termlink/runtime (.141 dimitri user) or a custom systemd path.
+# If the default socket is absent and a $HOME-rooted socket exists, point
+# TERMLINK_RUNTIME_DIR at the real one before posting.
+if [ -z "${TERMLINK_RUNTIME_DIR:-}" ]; then
+  default_sock="/tmp/termlink-$(id -u)/hub.sock"
+  if [ ! -S "$default_sock" ] && [ -S "${HOME:-/root}/.termlink/runtime/hub.sock" ]; then
+    export TERMLINK_RUNTIME_DIR="${HOME:-/root}/.termlink/runtime"
+  fi
+fi
+
 PAYLOAD="${1:-T-1438 vendored-arc heartbeat from $(hostname) ($(uname -m), $(uname -s)) at $(date -Is). Binary: $BIN ($($BIN --version 2>/dev/null | head -1)).}"
 
 # Probe for --ensure-topic support (T-1443, present in 0.9.1701+)
