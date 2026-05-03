@@ -297,3 +297,17 @@ Field state probe revealed .141 heartbeat had been silently FAILING for several 
 **Verification:** Next cron tick at :17 fires automatically. 11 queued posts already drained.
 
 **Persistence:** `~/bin/termlink` survives WSL restart. PATH-prepend in crontab is durable. The /mnt/c-mounted binary is left as the hub's own runtime path.
+
+### 2026-05-03T18:55Z — .141 heartbeat regression #2 — runtime_dir resolution (PL-146)
+
+Despite PL-145 fix being durable, /tmp/heartbeat.log showed five+ hourly fires queueing as "hub unreachable; queue_id=18" since 2026-05-03T13:17Z. Field-state probe surfaced the regression: `channel members --hub laptop-141 agent-chat-arc` showed sender 6604a2af (.141 local) last-seen 5h55m ago.
+
+**Root cause (PL-146):** Cron environments inherit no TERMLINK_RUNTIME_DIR. The CLI default points at `/tmp/termlink-<uid>` per-user runtime, but on .141 the dimitri-user hub runs under `$HOME/.termlink/runtime/` (uid 1000, but the per-uid /tmp path was never used). Cron invocations therefore failed to locate any local hub and queued every post. Reproduced cleanly with `env -i PATH=... HOME=/home/dimitri vendored-arc-heartbeat.sh` — same "hub unreachable" symptom.
+
+**Why not caught earlier:** Interactive shell on dimitri@141 inherits TERMLINK_RUNTIME_DIR from ~/.profile (or similar). The PL-145 fix smoke-tested heartbeat *interactively* — which had a populated TERMLINK_RUNTIME_DIR — masking that the cron path lacked it.
+
+**Fix (commit fb95f06d, in-script):** `vendored-arc-heartbeat.sh` now probes for the default per-uid socket; if absent and `${HOME}/.termlink/runtime/` socket exists, it exports TERMLINK_RUNTIME_DIR before posting. No-op for hosts where /tmp default is correct (.107) or env already set.
+
+**Deployment to .141:** Pushed updated script via base64-over-remote-exec, replaced `/mnt/c/ntb-acd-plugin/termlink/scripts/vendored-arc-heartbeat.sh`. Smoke under `env -i PATH=... HOME=...` (cron-equivalent) drained 1 queued post + posted offset=54 successfully. Cross-verified from .107: `channel members --hub laptop-141` now shows sender 6604a2af last-seen seconds ago.
+
+**Verification window:** Next cron tick at 19:17 UTC will confirm autonomous operation. If it fires successfully (offset advances on .141 chat-arc with sender 6604a2af and current ts), heartbeat is fully healed.
