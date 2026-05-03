@@ -339,3 +339,10 @@ decisions:
     date: 2026-04-30
     task: T-1419
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-028
+    decision: "Push the skill markdown to all reachable hosts FIRST, even though the binary doesn't yet support `agent contact` on .122/.141."
+    scope: project
+    date: 2026-05-03
+    task: T-1438
+    rationale: "Auto-captured from task file on completion"

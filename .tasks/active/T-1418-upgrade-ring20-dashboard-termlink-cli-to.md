@@ -20,7 +20,7 @@ tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
 components: [target/release/termlink]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]
 created: 2026-04-30T08:11:23Z
-last_update: 2026-05-03T08:08:27Z
+last_update: 2026-05-03T08:12:21Z
 date_finished: null
 ---
 
