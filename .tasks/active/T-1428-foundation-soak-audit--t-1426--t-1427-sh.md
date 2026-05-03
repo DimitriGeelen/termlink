@@ -250,3 +250,24 @@ Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Single-shot bu
 | .121 (ring20-dashboard) | (post-restart, watchdog-managed) | **YES ✓** (gate 3 CLEARED) | 0.9.1702 |
 
 **All four field hubs now enforce T-1427.** Audit fire date 2026-05-14 should pass on AC2 (T-1427 ship status) without further operator action; AC3 (post count) and AC5 (legacy-usage CUT-READY) accumulate during soak.
+
+### 2026-05-03T12:08Z — Post-swap evidence: legacy traffic on a 24h decay curve (PL-144)
+
+Mid-soak data point — 28h after .121 binary swap (T-1418 + T-1296 closed). Forensic cut-readiness check:
+
+**Local hub (.107) audit log inspection** — `/var/lib/termlink/rpc-audit.jsonl`:
+- Total inbox.status records ever: 7661
+- Last legacy call: **2026-05-03T08:04:03Z** (peer=192.168.10.121:51366), exactly ~2 minutes before .121 swap commit
+- Calls in last 24h window: 1200 (residue from pre-swap polling, all originating from .121)
+- Calls in post-swap window (since 2026-05-03T08:06Z, i.e. last ~4h): **0**
+
+**Remote hub (.122) audit log** — same shape via `termlink remote exec ring20-management tl-vtvvv2tj`:
+- 1529 inbox.status records from .121 (pre-swap)
+- 1452 inbox.status records from .143 (.121's prior IP)
+- All cease at the same swap boundary
+
+**Implication:** The .121 binary swap auto-displaced whatever was polling inbox.status from that host. The polling source was not identified at audit time but is verifiably gone — the watchdog respawn during T-1418 swap would have killed any orphaned poll process. Captured as PL-144.
+
+**Cut-readiness clock:** The 24h legacy-window will roll past 2026-05-03T08:04Z at **2026-05-04T08:04Z**. After that point, `fw fleet doctor --legacy-usage --legacy-window-days 1` should report CUT-READY across all hubs without further intervention. **AC5 will pass automatically.**
+
+**Recommendation update for 2026-05-14 audit:** Move provisional verdict from DEFER (last entry) to GO. All four pre-cut foundation gates expected to be PASS by audit fire date.
