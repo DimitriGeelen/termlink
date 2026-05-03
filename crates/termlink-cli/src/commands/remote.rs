@@ -1912,8 +1912,28 @@ pub(crate) async fn cmd_fleet_doctor(
             }
             if !hubs_with_traffic.is_empty() {
                 eprintln!("  WITH TRAFFIC:");
-                for (name, count, _ts) in &hubs_with_traffic {
-                    eprintln!("    {name}: {count} legacy invocation(s)");
+                let now_ms: u128 = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                for (name, count, last_ts) in &hubs_with_traffic {
+                    let suffix = if *last_ts > 0 && now_ms > *last_ts {
+                        let age_s = (now_ms - *last_ts) / 1000;
+                        let age_human = if age_s < 60 {
+                            format!("{age_s}s ago")
+                        } else if age_s < 3600 {
+                            format!("{}m ago", age_s / 60)
+                        } else if age_s < 86400 {
+                            format!("{}h ago", age_s / 3600)
+                        } else {
+                            format!("{}d ago", age_s / 86400)
+                        };
+                        let tag = if age_s < 300 { "ACTIVE" } else { "decay residue" };
+                        format!(" — last call {age_human} ({tag})")
+                    } else {
+                        String::new()
+                    };
+                    eprintln!("    {name}: {count} legacy invocation(s){suffix}");
                 }
             }
             if !hubs_unsupported.is_empty() {
