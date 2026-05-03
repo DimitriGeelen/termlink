@@ -57,7 +57,19 @@ for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]
     else age="$((age_s/86400))d"; fi
     if [ "$age_s" -gt 5400 ]; then
       age="$age STALE"
-      STALE_HUBS="${STALE_HUBS:+$STALE_HUBS }$profile"
+      # Don't alert on hubs that have no termlink session AND no
+      # local-host indicator — those are operator-gated (T-1455), so
+      # STALE is expected, not a regression. The probe still SHOWS
+      # them as STALE in the table (visibility), it just doesn't
+      # fire the chat-arc alert + exit 2 every 4h forever.
+      _has_session=$("$TL" remote list "$profile" 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)
+      _is_local=0
+      case "$profile" in local-test|workstation-107-public|"$(hostname)") _is_local=1;; esac
+      if [ -n "$_has_session" ] || [ "$_is_local" = "1" ]; then
+        STALE_HUBS="${STALE_HUBS:+$STALE_HUBS }$profile"
+      else
+        age="$age (operator-gated, T-1455)"
+      fi
     fi
   else
     age="?"
