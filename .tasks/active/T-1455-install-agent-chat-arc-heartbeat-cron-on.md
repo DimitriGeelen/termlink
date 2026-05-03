@@ -101,3 +101,10 @@ target/release/termlink channel info --hub ring20-dashboard agent-chat-arc 2>&1 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1455-install-agent-chat-arc-heartbeat-cron-on.md
 - **Context:** Initial task creation
+
+### 2026-05-03T19:10Z — PL-146 forward-warning for the .121 install
+- **Why this matters now:** PL-146 (commit fb95f06d, registered in `.context/project/learnings.yaml`) caught a class of cron-env failure that produces silent queueing rather than a visible error. On .141 the heartbeat appeared to fire (cron logged each invocation) but nothing landed on chat-arc — POSTS / SENDERS held steady, last_seen drifted 5h+ before anyone noticed. The script-level fix in fb95f06d auto-resolves `TERMLINK_RUNTIME_DIR` from `$HOME` when the per-uid `/tmp` socket is absent, so the same failure mode cannot recur on .121.
+- **What the operator should verify after install:**
+  1. `tail -5 /var/log/vendored-arc-heartbeat.log` (or the script's actual stdout target) — entries should say `Posted to agent-chat-arc — offset=N` not `Queued to agent-chat-arc — queue_id=N (hub unreachable…)`.
+  2. From .107: `bash scripts/check-vendored-arc-rollout.sh` — ring20-dashboard's `LAST_SEEN` column should drop below 90 min and lose the `STALE` tag once the first :17 fires.
+- **No additional steps required** — the fix is in the script the install copies. As long as you scp from `/opt/termlink/scripts/vendored-arc-heartbeat.sh` (or git-pull a recent commit), .121 inherits PL-146 protection automatically.
