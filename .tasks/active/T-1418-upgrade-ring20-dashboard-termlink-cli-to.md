@@ -20,7 +20,7 @@ tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
 components: [target/release/termlink]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]
 created: 2026-04-30T08:11:23Z
-last_update: 2026-05-02T22:46:19Z
+last_update: 2026-05-03T08:08:27Z
 date_finished: null
 ---
 
@@ -451,3 +451,20 @@ Connection terminated mid-step 5 (TLS close on hub kill — expected). Slept 70s
 - agent-chat-arc topic created on .121 (`channel create agent-chat-arc`) since no pre-T-1155 state existed
 
 **T-1428 Gate-3 cleared. T-1296 closed simultaneously.** T-1166 cut blocker on .121 removed: legacy `inbox.status` polling will route through T-1235 `channel.list` shim once .121's polling agent restarts and picks up the new binary in PATH — verify with T-1419 freshness signal on next 24h window.
+
+### 2026-05-03T10:14Z — Polling-fix EVIDENCE (pre-vs-post-swap audit breakdown)
+
+`fleet doctor --legacy-usage --legacy-window-days 1` still shows .107 with 1393 legacy invocations (`inbox.status` from .121) — but freshness analysis on `/var/lib/termlink/rpc-audit.jsonl` reveals all are pre-swap residue:
+
+```python
+# Counted across last 2000 audit entries:
+inbox.status from 192.168.10.121:
+  pre-swap (ts < 10:06Z):   236
+  post-swap (ts > 10:06Z):    0   <-- ZERO since swap
+```
+
+T-1419's `last_seen_iso` corroborates: `from=(unknown) count=1392 last_seen=2026-05-03T08:04:03Z` — the last call landed 2 minutes BEFORE the swap, then silence.
+
+**This is what "T-1235 SDK shim is doing its job" looks like in practice.** The polling agent on .121 spawns fresh `termlink ...` invocations per cycle (no persistent session — each call is a new ephemeral PID). After the binary swap, every new invocation links the upgraded SDK at startup, sees `channel.*` in hub capabilities, and routes through `channel.list` instead of `inbox.status`. The audit log corroborates: 6 `channel.list` calls from .121 in the last ~14 min, zero `inbox.status`.
+
+**Rolling-window age-out:** the 1393 count will drop to 0 within 24h of the swap (i.e. by 2026-05-04T10:06Z). Cut-readiness for .107 transitions from WAIT → CUT-READY at that moment, all-else-equal.
