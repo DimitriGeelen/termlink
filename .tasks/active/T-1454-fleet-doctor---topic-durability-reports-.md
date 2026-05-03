@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-03T08:17:28Z
-last_update: 2026-05-03T08:17:28Z
+last_update: 2026-05-03T08:17:36Z
 date_finished: null
 ---
 
@@ -20,14 +20,26 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Investigated 2026-05-03T10:18Z: **NOT A BUG.** Version math: T-1446 commit `204ad1d1` corresponds to derived version `0.9.1717` (count of commits from `v0.9.1` tag). Hub binaries running on the fleet are 0.9.1701 (.107) and 0.9.1702 (.122/.141/.121) — all 15-16 commits BEFORE T-1446 landed. The `audit_unsupported (pre-T-1446 hub)` message is the fleet-doctor's correct, accurate verdict.
+
+**Root cause of confusion:** the build.rs version-derivation tags binaries with their commit-count-since-v0.9.1, not with feature flags. So a binary built between 2026-04-30 (when the 0.9.17xx series began) and 2026-05-02 (T-1446 commit) has 0.9.17xx in its version string but lacks T-1446 features. This is correct by design — see `build.rs` for the derivation.
+
+**Resolution:** rebuild + redeploy hub binaries past 0.9.1717 to enable topic-durability. This is captured implicitly under T-1438's bake-cycle: next musl rebuild + fleet-deploy-binary.sh sweep would naturally pick up the new floor.
+
+**Side-finding for documentation/UX:** the fleet-doctor hint says "upgrade to measure" but doesn't tell the operator the minimum version. A `0.9.1717+` qualifier in the hint string would shave one diagnostic step. Captured as Agent AC below.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Hypothesis disproved — hub-side dispatch IS correct (router.rs:173 + capabilities list line 1000). Issue is purely binary version, not code.
+- [x] Version math confirmed: T-1446 = 0.9.1717; running hubs = 0.9.1701-0.9.1702.
+- [x] UX hint updated (remote.rs:1770) to specify ">=0.9.1717" minimum version. Same patch applied to T-1432's legacy_usage hint (">=0.9.1640") for symmetry. `cargo check --bin termlink` clean.
+
+## Verification
+
+cargo check --bin termlink
+grep -q ">=0.9.1717" crates/termlink-cli/src/commands/remote.rs
+grep -q ">=0.9.1640" crates/termlink-cli/src/commands/remote.rs
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

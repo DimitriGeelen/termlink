@@ -1744,7 +1744,7 @@ pub(crate) async fn cmd_fleet_doctor(
                         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Some(r.result),
                         Ok(_) | Err(_) => Some(serde_json::json!({
                             "audit_unsupported": true,
-                            "hint": "hub predates T-1432 (hub.legacy_usage) — upgrade to measure cut-readiness on this host",
+                            "hint": "hub predates T-1432 (hub.legacy_usage) — upgrade to >=0.9.1640 to measure cut-readiness on this host",
                         })),
                     }
                 } else {
@@ -1767,7 +1767,7 @@ pub(crate) async fn cmd_fleet_doctor(
                         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Some(r.result),
                         Ok(_) | Err(_) => Some(serde_json::json!({
                             "audit_unsupported": true,
-                            "hint": "hub predates T-1446 (hub.bus_state) — upgrade to measure topic-durability on this host",
+                            "hint": "hub predates T-1446 (hub.bus_state) — upgrade to >=0.9.1717 to measure topic-durability on this host",
                         })),
                     }
                 } else {
