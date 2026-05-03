@@ -1261,3 +1261,24 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-144
+  learning: "Hub binary swap auto-stops upstream legacy polling: when ring20-dashboard (.121) was swapped from 0.9.844 → 0.9.1702 at 2026-05-03T08:06Z, every prior inbox.status caller from .121 ceased within 2 minutes. The polling source was something the watchdog respawn displaced — not identified at audit time but verifiably gone (zero post-swap inbox.status from .121 across .107 + .122 audit logs). Implication for T-1166 cut: legacy traffic is on a 24h decay curve to ZERO with no further intervention; CUT-READY ETA ~2026-05-04T08:04Z (when the 24h legacy-window rolls past last legacy call)."
+  source: P-001
+  task: T-1166
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
+- id: PL-145
+  learning: "WSL /mnt/c filesystem mount produces non-deterministic segfaults on static-pie ELF binaries when concurrent execve happens against the same path. Symptom on .141 (laptop-141, WSL2): /mnt/c/ntb-acd-plugin/termlink/target/release/termlink segfaults on --version when invoked while the hub is also using the same binary. Identical md5sum of /tmp copy runs cleanly. Root cause: 9p mount text-file-busy semantics differ from native ext4. Fix: copy binary to a Linux-native path (~/bin/, /usr/local/bin/, /opt/) and PATH-prepend to override; do NOT rely on /mnt/c-mounted binaries for cron-driven invocations on WSL hosts. Also: /tmp wipes on WSL restart so symlinks targeting /tmp are not durable; use $HOME/bin for user-space durability without sudo."
+  source: P-001
+  task: T-1166
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
+- id: PL-146
+  learning: "PL-146: TermLink CLI cron-env runtime_dir resolution gotcha. Cron environments inherit no TERMLINK_RUNTIME_DIR. The CLI default is /tmp/termlink-<uid>/hub.sock — but vendored hubs commonly run elsewhere (/root/.termlink/runtime, /var/lib/termlink, watchdog-managed paths). When the per-uid /tmp socket is missing, channel post --hub <local-implicit> queues forever as 'hub unreachable' and the heartbeat appears to fire (cron logs each invocation) while no posts land. Diagnostic: 'env -i PATH=... HOME=... vendored-arc-heartbeat.sh' reproduces the cron-env failure, vs interactive shell which inherits TERMLINK_RUNTIME_DIR from .profile. Fix in scripts/vendored-arc-heartbeat.sh (commit fb95f06d): probe for default /tmp/termlink-<uid> socket; if absent and $HOME/.termlink/runtime/hub.sock exists, export TERMLINK_RUNTIME_DIR before posting. Forward-compat: any script that talks to the LOCAL hub from cron should either set TERMLINK_RUNTIME_DIR explicitly in the cron entry or apply the same probe-and-export pattern."
+  source: P-001
+  task: T-1420
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
