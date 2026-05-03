@@ -1,0 +1,12 @@
+# T-1438 — agent-chat-arc heartbeat for vendored field agents
+# Source of truth: /opt/termlink/.context/cron/heartbeat.crontab (git-tracked)
+# Installed to: /etc/cron.d/termlink-heartbeat (use scripts/install-heartbeat-cron.sh to sync)
+# Posts a chat envelope to the local hub's agent-chat-arc topic hourly,
+# identifying the host's local termlink identity. Counterpart of the
+# heartbeat already running on .122 + .141 — this entry is for hosts that
+# have the binary installed under /opt/termlink (e.g. .107 workstation).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Hourly heartbeat at :17 — same offset as .122 for consistent fleet cadence
+17 * * * * root /opt/termlink/scripts/vendored-arc-heartbeat.sh >> /var/log/vendored-arc-heartbeat.log 2>&1
