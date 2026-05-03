@@ -19,6 +19,28 @@ use super::ListDisplayOpts;
 /// so they cannot drift.
 const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
 
+/// T-1461: Pure aggregator for fleet-wide top_callers. Sums counts across
+/// every hub's top_callers list (already each sorted desc, but we re-sort
+/// the merged result). Returns Vec<(id, count)> sorted desc by count, ties
+/// broken by id (deterministic).
+///
+/// Empty input → empty output. The operator gets a single clear "this
+/// caller dominates fleet-wide residue" line instead of N repeated per-hub
+/// lines.
+fn aggregate_fleet_top_callers(
+    per_hub: &std::collections::BTreeMap<String, Vec<(String, u64)>>,
+) -> Vec<(String, u64)> {
+    let mut merged: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    for callers in per_hub.values() {
+        for (id, count) in callers {
+            *merged.entry(id.clone()).or_insert(0) += count;
+        }
+    }
+    let mut out: Vec<(String, u64)> = merged.into_iter().collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    out
+}
+
 /// T-1459: Pure verdict aggregator for `fleet doctor --legacy-usage`.
 ///
 /// Inputs are the per-hub buckets already classified by the calling code:
@@ -2027,6 +2049,15 @@ pub(crate) async fn cmd_fleet_doctor(
                     }
                 }
             }
+            // T-1461: fleet-wide top callers aggregate (single-line answer
+            // to "who's producing the residue?" instead of N repeated lines).
+            let fleet_top = aggregate_fleet_top_callers(&hub_top_callers);
+            if !fleet_top.is_empty() {
+                eprintln!("  Top callers (fleet-wide):");
+                for (id, c) in fleet_top.iter().take(3) {
+                    eprintln!("    {c}× {id}");
+                }
+            }
             if !hubs_unsupported.is_empty() {
                 eprintln!(
                     "  UNSUPPORTED (pre-T-1432, upgrade to measure): {}",
@@ -2053,6 +2084,8 @@ pub(crate) async fn cmd_fleet_doctor(
                 _ => {}
             }
         }
+        // T-1461: include fleet-wide top callers aggregate in JSON.
+        let fleet_top_callers_json = aggregate_fleet_top_callers(&hub_top_callers);
         Some(serde_json::json!({
             "window_days": legacy_window_days,
             "verdict": verdict,
@@ -2061,6 +2094,7 @@ pub(crate) async fn cmd_fleet_doctor(
             "hubs_with_traffic": hubs_with_traffic.iter().map(|(n, c, t)| serde_json::json!({"hub": n, "count": c, "last_ts_ms": *t as u64})).collect::<Vec<_>>(),
             "hubs_unsupported": hubs_unsupported,
             "hubs_no_audit": hubs_no_audit,
+            "top_callers_fleet": fleet_top_callers_json.iter().map(|(id, c)| serde_json::json!({"id": id, "count": c})).collect::<Vec<_>>(),
         }))
     } else {
         None
@@ -4389,6 +4423,70 @@ secret_file = "/tmp/other.hex"
             now_ms_for_test(),
         );
         assert_eq!(verdict, "CUT-READY-DECAYING");
+    }
+
+    // ---- T-1461: fleet-wide top_callers aggregate ----
+
+    fn build_hub_top_callers(
+        entries: &[(&str, &[(&str, u64)])],
+    ) -> std::collections::BTreeMap<String, Vec<(String, u64)>> {
+        let mut m = std::collections::BTreeMap::new();
+        for (hub, callers) in entries {
+            let v: Vec<(String, u64)> = callers.iter().map(|(id, c)| (id.to_string(), *c)).collect();
+            m.insert(hub.to_string(), v);
+        }
+        m
+    }
+
+    #[test]
+    fn fleet_top_callers_empty_input_returns_empty() {
+        let m = std::collections::BTreeMap::new();
+        let out = aggregate_fleet_top_callers(&m);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn fleet_top_callers_single_hub_passes_through_sorted() {
+        let m = build_hub_top_callers(&[("hub-a", &[("addr:1.1.1.1", 10), ("addr:2.2.2.2", 3)])]);
+        let out = aggregate_fleet_top_callers(&m);
+        assert_eq!(out, vec![("addr:1.1.1.1".to_string(), 10), ("addr:2.2.2.2".to_string(), 3)]);
+    }
+
+    #[test]
+    fn fleet_top_callers_same_caller_across_hubs_sums() {
+        // The headline case: ring20-dashboard polls 3 hubs, each shows 579 calls.
+        // Fleet-wide should be one entry with 1737.
+        let m = build_hub_top_callers(&[
+            ("local-test", &[("addr:192.168.10.121", 579)]),
+            ("ring20-management", &[("addr:192.168.10.121", 579)]),
+            ("workstation-107-public", &[("addr:192.168.10.121", 579)]),
+        ]);
+        let out = aggregate_fleet_top_callers(&m);
+        assert_eq!(out, vec![("addr:192.168.10.121".to_string(), 1737)]);
+    }
+
+    #[test]
+    fn fleet_top_callers_different_callers_sorted_by_count_desc() {
+        let m = build_hub_top_callers(&[
+            ("hub-a", &[("addr:A", 5), ("addr:B", 3)]),
+            ("hub-b", &[("addr:C", 10), ("addr:A", 2)]),
+        ]);
+        let out = aggregate_fleet_top_callers(&m);
+        // C: 10, A: 7, B: 3
+        assert_eq!(out[0], ("addr:C".to_string(), 10));
+        assert_eq!(out[1], ("addr:A".to_string(), 7));
+        assert_eq!(out[2], ("addr:B".to_string(), 3));
+    }
+
+    #[test]
+    fn fleet_top_callers_ties_broken_by_id_for_determinism() {
+        let m = build_hub_top_callers(&[
+            ("hub-a", &[("addr:zebra", 5), ("addr:alpha", 5)]),
+        ]);
+        let out = aggregate_fleet_top_callers(&m);
+        // Same count → alphabetical id order.
+        assert_eq!(out[0].0, "addr:alpha");
+        assert_eq!(out[1].0, "addr:zebra");
     }
 
     #[test]
