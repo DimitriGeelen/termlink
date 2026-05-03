@@ -1,16 +1,14 @@
-id: crates/termlink-session/src/artifact.rs
-name: artifact
+id: crates/termlink-session/src/ansi.rs
+name: ansi
 type: script
 subsystem: session
-location: crates/termlink-session/src/artifact.rs
+location: crates/termlink-session/src/ansi.rs
 tags: []
 purpose: 'TODO: describe what this component does'
-depends_on:
-- target: crates/termlink-protocol/src/lib.rs
-  type: calls
+depends_on: []
 depended_by:
 - target: crates/termlink-session/src/lib.rs
   type: called_by
-last_verified: 2026-04-25
+last_verified: 2026-05-03
 created_by: unknown
 last_enriched: '2026-05-03'

@@ -91,4 +91,14 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/src/hub_capabilities.rs
   type: called_by
-last_enriched: '2026-04-24'
+- target: crates/termlink-cli/src/commands/events.rs
+  type: called_by
+- target: crates/termlink-hub/src/artifact.rs
+  type: called_by
+- target: crates/termlink-session/src/artifact.rs
+  type: called_by
+- target: crates/termlink-session/src/inbox_channel.rs
+  type: called_by
+- target: crates/termlink-session/tests/bus_client_integration.rs
+  type: called_by
+last_enriched: '2026-05-03'

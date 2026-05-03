@@ -16,9 +16,13 @@ depends_on:
   type: calls
 - target: crates/termlink-bus/src/retention.rs
   type: calls
+- target: crates/termlink-bus/src/artifact_store.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/channel.rs
   type: called_by
+- target: crates/termlink-hub/src/artifact.rs
+  type: called_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-05-03'

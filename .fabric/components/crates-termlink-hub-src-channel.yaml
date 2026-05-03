@@ -10,9 +10,11 @@ depends_on:
   type: calls
 - target: crates/termlink-protocol/src/lib.rs
   type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-hub/src/lib.rs
   type: called_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-05-03'

@@ -4,17 +4,15 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/src/artifact.rs
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'TODO: describe what this component does'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-bus/src/lib.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-04-25
 created_by: unknown
+last_enriched: '2026-05-03'
