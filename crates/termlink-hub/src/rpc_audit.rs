@@ -192,6 +192,15 @@ pub(crate) fn build_audit_line(
 // the given time window. Returns a JSON value shaped for `hub.legacy_usage`
 // callers (fleet doctor cut-readiness telemetry).
 //
+// T-1460: schema additively extended with `top_callers` (cross-method
+// aggregate of effective caller identities). Resolves the operator's
+// "which client is producing the residue?" question that's left unanswered
+// by per-method `callers` when most callers are pre-T-1427 and have no
+// `from` field. Effective identity uses `from` if present, else the
+// IP-only portion of `peer_addr`, else `pid:<peer_pid>`, else "(unknown)".
+// IP normalization strips the ephemeral source port so 100 reconnects from
+// the same host don't show up as 100 distinct callers.
+//
 // Schema:
 //   {
 //     "window_seconds": <u64>,
@@ -202,7 +211,8 @@ pub(crate) fn build_audit_line(
 //     "by_method": {
 //       "<method>": { "count": <u64>, "last_ts_ms": <u128>, "callers": [{"from": "<label>", "count": <u64>}, ...] },
 //       ...
-//     }
+//     },
+//     "top_callers": [{"id": "<effective>", "count": <u64>}, ...]   // T-1460
 //   }
 //
 // "Legacy" = the set defined by `is_legacy_method` (event.broadcast,
@@ -245,6 +255,8 @@ pub(crate) fn summarize_lines(
     let mut total: u64 = 0;
     let mut last_ts: Option<u128> = None;
     let mut by_method: BTreeMap<String, (u64, u128, BTreeMap<String, u64>)> = BTreeMap::new();
+    // T-1460: cross-method aggregate of effective caller identity.
+    let mut top_callers: BTreeMap<String, u64> = BTreeMap::new();
 
     for line in lines {
         let v: serde_json::Value = match serde_json::from_str(&line) {
@@ -274,7 +286,10 @@ pub(crate) fn summarize_lines(
             .or_insert_with(|| (0, 0, BTreeMap::new()));
         entry.0 += 1;
         entry.1 = entry.1.max(ts);
-        *entry.2.entry(from).or_insert(0) += 1;
+        *entry.2.entry(from.clone()).or_insert(0) += 1;
+        // T-1460: aggregate by effective caller identity for top-level summary.
+        let effective = effective_caller(&v);
+        *top_callers.entry(effective).or_insert(0) += 1;
     }
 
     let by_method_json: serde_json::Map<String, serde_json::Value> = by_method
@@ -301,6 +316,14 @@ pub(crate) fn summarize_lines(
         })
         .collect();
 
+    // T-1460: top callers across all methods, sorted desc by count.
+    let mut top_callers_vec: Vec<(String, u64)> = top_callers.into_iter().collect();
+    top_callers_vec.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let top_callers_json: Vec<serde_json::Value> = top_callers_vec
+        .into_iter()
+        .map(|(id, count)| serde_json::json!({"id": id, "count": count}))
+        .collect();
+
     serde_json::json!({
         "window_seconds": window_seconds,
         "now_ms": now,
@@ -308,7 +331,34 @@ pub(crate) fn summarize_lines(
         "total_legacy": total,
         "last_legacy_ts_ms": last_ts,
         "by_method": serde_json::Value::Object(by_method_json),
+        "top_callers": top_callers_json,
     })
+}
+
+// T-1460: derive an effective caller identity from one audit-log line.
+// Priority: explicit `from` (non-empty, not "(unknown)"), else `addr:<ip>`
+// (IP-only — port is ephemeral and would explode cardinality), else
+// `pid:<n>` for Unix-socket callers, else `"(unknown)"`.
+fn effective_caller(v: &serde_json::Value) -> String {
+    if let Some(s) = v.get("from").and_then(|f| f.as_str())
+        && !s.is_empty()
+        && s != "(unknown)"
+    {
+        return s.to_string();
+    }
+    if let Some(addr) = v.get("peer_addr").and_then(|a| a.as_str())
+        && !addr.is_empty()
+    {
+        // Strip port: split on the last ':' so IPv6 brackets stay intact.
+        let ip = addr.rsplit_once(':').map(|(host, _port)| host).unwrap_or(addr);
+        return format!("addr:{ip}");
+    }
+    if let Some(pid) = v.get("peer_pid").and_then(|p| p.as_u64())
+        && pid != 0
+    {
+        return format!("pid:{pid}");
+    }
+    "(unknown)".to_string()
 }
 
 fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
@@ -670,5 +720,141 @@ mod tests {
         assert!(!SKIP_METHODS.contains(&"event.broadcast"));
         // Sanity: file doesn't exist without write
         assert!(!path.exists());
+    }
+
+    // ---- T-1460: top_callers / effective_caller ----
+
+    #[test]
+    fn effective_caller_prefers_explicit_from() {
+        let v = serde_json::json!({
+            "from": "alice",
+            "peer_addr": "10.0.0.1:54321",
+            "peer_pid": 4242,
+        });
+        assert_eq!(effective_caller(&v), "alice");
+    }
+
+    #[test]
+    fn effective_caller_falls_back_to_addr_when_from_is_unknown_sentinel() {
+        // "(unknown)" sentinel must NOT win over peer_addr — that's the
+        // common case for pre-T-1427 legacy callers.
+        let v = serde_json::json!({
+            "from": "(unknown)",
+            "peer_addr": "192.168.10.121:36164",
+        });
+        assert_eq!(effective_caller(&v), "addr:192.168.10.121");
+    }
+
+    #[test]
+    fn effective_caller_strips_ephemeral_port() {
+        let v = serde_json::json!({"peer_addr": "192.168.10.121:36164"});
+        assert_eq!(effective_caller(&v), "addr:192.168.10.121");
+    }
+
+    #[test]
+    fn effective_caller_falls_back_to_pid_for_unix_socket() {
+        let v = serde_json::json!({"peer_pid": 12345});
+        assert_eq!(effective_caller(&v), "pid:12345");
+    }
+
+    #[test]
+    fn effective_caller_returns_unknown_when_nothing_present() {
+        let v = serde_json::json!({"ts": 1, "method": "inbox.list"});
+        assert_eq!(effective_caller(&v), "(unknown)");
+    }
+
+    #[test]
+    fn summarize_lines_aggregates_top_callers_across_methods() {
+        // Three lines from .121 (different methods) collapse into one
+        // top_callers entry — that's the operator's "who's the source?" answer.
+        let now: u128 = 1_700_000_000_000;
+        let ts1 = now - 60_000;
+        let ts2 = now - 30_000;
+        let ts3 = now - 10_000;
+        let lines = vec![
+            format!(r#"{{"ts":{ts1},"method":"inbox.status","peer_addr":"192.168.10.121:36164"}}"#),
+            format!(r#"{{"ts":{ts2},"method":"inbox.list","peer_addr":"192.168.10.121:47082"}}"#),
+            format!(r#"{{"ts":{ts3},"method":"inbox.status","peer_addr":"192.168.10.122:55555"}}"#),
+        ];
+        let out = summarize_lines(lines.into_iter(), 3600, now, true);
+        let top = out.get("top_callers").and_then(|v| v.as_array()).expect("top_callers");
+        assert_eq!(top.len(), 2, "two distinct IPs after port strip");
+        // Sorted desc by count: .121 (2 calls) before .122 (1 call).
+        assert_eq!(top[0].get("id").and_then(|v| v.as_str()), Some("addr:192.168.10.121"));
+        assert_eq!(top[0].get("count").and_then(|v| v.as_u64()), Some(2));
+        assert_eq!(top[1].get("id").and_then(|v| v.as_str()), Some("addr:192.168.10.122"));
+        assert_eq!(top[1].get("count").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    #[test]
+    fn summarize_lines_top_callers_empty_when_no_legacy() {
+        let now: u128 = 1_700_000_000_000;
+        let lines = vec![
+            // hub.auth is not legacy — top_callers should ignore it.
+            format!(r#"{{"ts":{},"method":"hub.auth","peer_addr":"192.168.10.121:36164"}}"#, now - 1000),
+        ];
+        let out = summarize_lines(lines.into_iter(), 3600, now, true);
+        let top = out.get("top_callers").and_then(|v| v.as_array()).expect("top_callers");
+        assert!(top.is_empty(), "top_callers must be empty when total_legacy=0");
+    }
+
+    #[test]
+    fn summarize_lines_top_callers_mixes_from_and_addr() {
+        // Real-world shape: some callers carry `from` (post-T-1427), others
+        // only `peer_addr`. Both must aggregate independently into top_callers.
+        let now: u128 = 1_700_000_000_000;
+        let ts1 = now - 1000;
+        let ts2 = now - 500;
+        let ts3 = now - 100;
+        let lines = vec![
+            format!(r#"{{"ts":{ts1},"method":"inbox.status","from":"agent-a","peer_addr":"10.0.0.5:1234"}}"#),
+            format!(r#"{{"ts":{ts2},"method":"inbox.status","from":"agent-a","peer_addr":"10.0.0.5:9999"}}"#),
+            format!(r#"{{"ts":{ts3},"method":"inbox.list","peer_addr":"10.0.0.5:7777"}}"#),
+        ];
+        let out = summarize_lines(lines.into_iter(), 3600, now, true);
+        let top = out.get("top_callers").and_then(|v| v.as_array()).expect("top_callers");
+        // "agent-a" (2 calls via from) and "addr:10.0.0.5" (1 call via fallback)
+        // must both appear — they're different identity surfaces and operators
+        // need to see both during the migration window.
+        assert_eq!(top.len(), 2);
+        let ids: Vec<&str> = top.iter().filter_map(|v| v.get("id").and_then(|x| x.as_str())).collect();
+        assert!(ids.contains(&"agent-a"));
+        assert!(ids.contains(&"addr:10.0.0.5"));
+    }
+
+    /// T-1460 live verification — runs against the real production audit log
+    /// when present. Skipped when the file isn't there (CI / fresh checkouts).
+    /// Gated by env var to keep CI noise-free; run locally with:
+    ///   TERMLINK_T1460_LIVE=1 cargo test -p termlink-hub --lib live_audit_log
+    #[test]
+    fn live_audit_log_identifies_legacy_source() {
+        if std::env::var("TERMLINK_T1460_LIVE").is_err() {
+            return;
+        }
+        let path = std::path::Path::new("/var/lib/termlink/rpc-audit.jsonl");
+        if !path.exists() {
+            // No prod audit log on this machine — nothing to verify.
+            return;
+        }
+        let body = std::fs::read_to_string(path).expect("read prod audit");
+        let now = now_ms();
+        let out = summarize_lines(body.lines().map(|s| s.to_string()), 86400, now, true);
+        let total = out.get("total_legacy").and_then(|v| v.as_u64()).unwrap_or(0);
+        let top = out
+            .get("top_callers")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        eprintln!("[T-1460 LIVE] total_legacy={total} top_callers={top:?}");
+        // Only assert content if there IS legacy traffic — fresh hubs may have none.
+        if total > 0 {
+            assert!(
+                !top.is_empty(),
+                "top_callers must be non-empty when legacy traffic exists"
+            );
+            // Top entry should have a non-trivial count.
+            let top_count = top[0].get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            assert!(top_count > 0, "top caller count must be > 0");
+        }
     }
 }
