@@ -1,0 +1,65 @@
+#!/bin/bash
+# T-1438 — vendored-agent chat-arc rollout state probe.
+# Prints a one-screen summary: per-hub chat-arc post count, sender count,
+# heartbeat-cron presence, and cut-readiness signal. Reusable check that
+# replaces ad-hoc forensic queries for "where does field rollout stand?"
+#
+# Usage: scripts/check-vendored-arc-rollout.sh
+#
+# Reads:
+#   - hubs.toml (via `termlink fleet doctor`) for the hub set
+#   - per-hub agent-chat-arc topic state (via `termlink channel info --hub <profile>`)
+#   - per-hub legacy-usage telemetry (via `termlink fleet doctor --legacy-usage`)
+#
+# Exit code: 0 always (informational; gates belong in T-1428 audit + fw metrics api-usage).
+set -u
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TL="$PROJECT_ROOT/target/release/termlink"
+[ -x "$TL" ] || TL=$(command -v termlink) || { echo "ERROR: no termlink binary" >&2; exit 1; }
+
+echo "=== Vendored chat-arc rollout state ($(date -Is)) ==="
+echo
+
+# Per-hub chat-arc state
+echo "--- Per-hub agent-chat-arc topic ---"
+printf "%-30s %-8s %-8s %s\n" HUB POSTS SENDERS DESCRIPTION_SET
+for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]+).*/\1/' | grep -v "^testhub$"); do
+  info=$("$TL" channel info --hub "$profile" agent-chat-arc 2>/dev/null) || { printf "%-30s %s\n" "$profile" "(no chat-arc topic)"; continue; }
+  posts=$(echo "$info" | grep -E "^Posts: " | awk '{print $2}')
+  senders=$(echo "$info" | grep -E "^Senders: " | awk '{print $2}')
+  desc_set=$(echo "$info" | grep -qE "^Description: agent-chat-arc" && echo "YES" || echo "no")
+  printf "%-30s %-8s %-8s %s\n" "$profile" "${posts:-?}" "${senders:-?}" "$desc_set"
+done
+echo
+
+# Cut-readiness signal
+echo "--- T-1166 cut-readiness (1d window) ---"
+"$TL" fleet doctor --legacy-usage --legacy-window-days 1 2>&1 | sed -n '/T-1166 cut-readiness/,/Fleet summary/p' | head -20
+echo
+
+# Heartbeat cron presence (local hub only — remote hubs need explicit session)
+echo "--- Heartbeat cron presence (local + reachable via termlink remote exec) ---"
+if [ -f /etc/cron.d/termlink-heartbeat ] || crontab -l 2>/dev/null | grep -q heartbeat; then
+  printf "%-30s %s\n" "$(hostname) (local)" "INSTALLED"
+else
+  printf "%-30s %s\n" "$(hostname) (local)" "MISSING — run scripts/install-heartbeat-cron.sh"
+fi
+
+# Probe remote hosts where we have sessions
+for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]+).*/\1/' | grep -v "^testhub$"); do
+  case "$profile" in local-test|workstation-107-public) continue;; esac
+  sessions=$("$TL" remote list "$profile" 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)
+  if [ -z "$sessions" ]; then
+    printf "%-30s %s\n" "$profile" "(no session — operator-gated; see T-1455)"
+    continue
+  fi
+  out=$("$TL" remote exec "$profile" "$sessions" 'crontab -l 2>/dev/null | grep -i heartbeat; ls /etc/cron.d/ 2>/dev/null | grep -i heartbeat' 2>/dev/null | head -2)
+  if echo "$out" | grep -q heartbeat; then
+    printf "%-30s %s\n" "$profile" "INSTALLED"
+  else
+    printf "%-30s %s\n" "$profile" "MISSING"
+  fi
+done
+echo
+echo "=== End rollout state ==="
