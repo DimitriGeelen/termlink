@@ -181,11 +181,15 @@ termlink remote exec laptop-141 "$SID" \
 
 ## Verification
 
-# Confirms local staging is intact and contains the chat-arc commands.
+# Confirms .141 is running 0.9.1591+ (the chat-arc-capable build) and
+# all 53 channel subcommands are exposed. The original staging-side
+# checks (local binary sha pin) were retired — the local binary has
+# been rebuilt many times since the original 484fef88 staging snapshot
+# and the deploy is verifiable end-to-end against the field host.
 test -f target/release/termlink
-target/release/termlink --version | grep -q "termlink 0\.9\.15[0-9][0-9]"
-test "$(target/release/termlink channel --help 2>&1 | grep -cE '^  [a-z]')" = "53"
-sha256sum target/release/termlink | grep -q "484fef8801479163f80926cafe59577b5c65bf7ac849dea54ce6138d1a30be77"
+./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink --version' 2>&1 | grep -qE "termlink 0\.9\.(15[0-9]{2}|1[6-9][0-9]{2}|[2-9][0-9]{3})"
+./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink channel --help' 2>&1 | grep -cE '^  [a-z]' | grep -q "^53$"
+./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>/dev/null | grep -q "6604a2af482f0cf7"
 
 ## Decisions
 
@@ -311,3 +315,23 @@ Despite PL-145 fix being durable, /tmp/heartbeat.log showed five+ hourly fires q
 **Deployment to .141:** Pushed updated script via base64-over-remote-exec, replaced `/mnt/c/ntb-acd-plugin/termlink/scripts/vendored-arc-heartbeat.sh`. Smoke under `env -i PATH=... HOME=...` (cron-equivalent) drained 1 queued post + posted offset=54 successfully. Cross-verified from .107: `channel members --hub laptop-141` now shows sender 6604a2af last-seen seconds ago.
 
 **Verification window:** Next cron tick at 19:17 UTC will confirm autonomous operation. If it fires successfully (offset advances on .141 chat-arc with sender 6604a2af and current ts), heartbeat is fully healed.
+
+### 2026-05-03T19:19Z — PL-146 fix verified autonomous + Human AC evidence captured
+
+**Cron-fire verification:** At 19:17:01 UTC the cron tick on .141 fired without intervention. .141 chat-arc sender 6604a2af went from posts=31 (pre-tick) to posts=32 (post-tick), last_ts=1777835821901 (= 19:17:01 UTC, exact :17 schedule). PL-146 fix is autonomously stable; no further regressions expected from this class of failure.
+
+**Human AC evidence (gathered via `termlink remote exec laptop-141 tl-gibzucwp`):**
+
+1. `[RUBBER-STAMP] Binary deployed on .141`:
+   - `termlink --version` reports `termlink 0.9.1702` — exceeds the 0.9.1591 acceptance target.
+   - `which termlink` resolves to `/home/dimitri/bin/termlink` (PL-145 user-space install path).
+2. `[RUBBER-STAMP] .141 hub restarted on new binary`:
+   - `pgrep -af "termlink hub"` shows PID 21775 = `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink hub start --tcp 0.0.0.0:9100`.
+   - `ss -tlnp` confirms LISTEN on 0.0.0.0:9100 owned by PID 21775.
+3. `[REVIEW] Full chat arc parity confirmed`:
+   - `termlink channel --help | grep -cE '^  [a-z]'` reports **53** subcommands — full parity with .107.
+   - Operationally proven: cross-host `channel members --hub laptop-141 agent-chat-arc` from .107 returns members + receipts cleanly.
+
+**Verification section updated** to assert these end-to-end evidence points (was previously pinned to a stale local-binary sha). 4/4 PASS via `fw task verify T-1420`.
+
+**Suggested action for the human:** review the evidence above; if satisfied, tick the three [RUBBER-STAMP]/[REVIEW] boxes and run `fw task update T-1420 --status work-completed`. The verification gate will not block (already 4/4 PASS).
