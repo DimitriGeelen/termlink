@@ -386,9 +386,11 @@ concerns:
   what_works_now: "Fleet doctor correctly classifies the error and emits a hint. T-1052 has already recorded an isolated learning. This concern escalates the sustained pattern to Watchtower visibility."
   what_remains: "Operator must refresh the client's cached secret for this hub. Long-term fix: T-1054 (termlink fleet reauth) lands a one-command heal."
   mitigation_candidate: "Ship T-1054 (fleet reauth Tier-1) and T-1055 (fleet reauth --bootstrap-from, Tier-2)."
-  status: watching
+  status: resolved
   created: 2026-05-01
-  last_reviewed: 2026-05-01
+  last_reviewed: 2026-05-04
+  resolved: 2026-05-04
+  resolution: "Stale — the .143 IP it referenced no longer hosts the hub. ring20-dashboard renumbered back to 192.168.10.121 (the host's natural IP); current `fleet doctor` shows the hub at .121:9100 [PASS] connected in 42ms (version: 0.9.0). `.context/working/.fleet-failure-state.json` shows ring20-dashboard with consecutive_failures=0. Prevention remains via T-1053 (auto-register on persistent failure): if the hub regresses, a fresh G-NNN concern will auto-register with the current address. Heal paths (T-1054 fleet reauth Tier-1, T-1055 --bootstrap-from Tier-2, T-1291 declarative bootstrap_from) are shipped and operator-ready."
   related_tasks: [T-1051, T-1052, T-1053, T-1054, T-1055]
 
 - id: G-050
