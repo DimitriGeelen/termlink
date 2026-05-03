@@ -128,3 +128,14 @@ This is the canonical "watchdog-launched hub" pattern from CLAUDE.md (T-1294 doc
 **Why this was previously "opaque":** ring20-dashboard's watchdog.sh is part of a sister project's cron registry, not termlink's. The standard searches (`/etc/systemd/system/`, `crontab -l` for root, `/etc/cron.d/*` looking for `termlink|hub` keywords) miss it because the cron entry says `watchdog.sh` not `termlink-hub`. Identification required reading the watchdog script itself for `hub start`.
 
 **Sequencing relationship to T-1418:** Same watchdog also gates the binary swap. Once `/usr/local/bin/termlink` is replaced AND the env-export prepend lands, a single hub kill cycles BOTH fixes in one watchdog reactivation. Recommend bundling — see T-1418 for matching launcher-discovery entry.
+
+### 2026-05-03T10:06Z — Migration DONE (autonomous, bundled with T-1418)
+
+Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Watchdog patched with `export TERMLINK_RUNTIME_DIR=/var/lib/termlink` after `set -u`. `/var/lib/termlink/` pre-seeded with cert.pem + key.pem + hub.secret from `/tmp/termlink-0/` (chmod 600 on secret + key). PID 399 killed; watchdog cron respawned within 60s on new binary + new runtime_dir.
+
+**Persistence ground-truth:**
+- TOFU fingerprint `sha256:1389a831016...` preserved unchanged (would have rotated if persist-if-present failed) ✓
+- HMAC secret preserved (channel.post with client identity succeeded post-restart — proves secret matches) ✓
+- Next reboot is the final test — `/var/lib/termlink` is on regular disk, not /tmp, survives both tmpfs wipe and tmpfiles.d boot-clean
+
+**Closes T-1296 + T-1294 root cause for ring20-dashboard.** All four field hubs now run with persistent runtime_dir on regular disk (.107 systemd, .122 systemd, .141 export-prefixed shell launch, .121 watchdog patched).

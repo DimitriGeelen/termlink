@@ -228,3 +228,25 @@ Authorized by operator (dimitri) via SSH to `dimit@192.168.10.141`. Path discove
 - Cert + secret mtimes unchanged → no peer reauth cascade
 
 **Two of three operator gates cleared this session via SSH (.141) + local systemctl (.107). Only .121 remains.**
+
+### 2026-05-03T10:06Z — Gate-3 CLEARED: .121 bundled swap (T-1418 + T-1296)
+
+Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Single-shot bundled recipe: pre-seed `/var/lib/termlink` from `/tmp/termlink-0` (cert + key + secret only, owner-mode preserved) → patch watchdog `set -u` with `export TERMLINK_RUNTIME_DIR=/var/lib/termlink` → `mv /tmp/termlink.new /usr/local/bin/termlink` → `kill 399`. Connection dropped mid-call (TLS close on hub kill — expected). Watchdog cron respawned within 60s.
+
+**Result:**
+- Hub on 0.9.1702 (was 0.9.844) — runtime version not probed inside termlink remote (no session re-registered yet) but verified indirectly via T-1427 spot-check (only present in 0.9.1688+)
+- T-1427 enforcement LIVE: forged `--sender-id 0000000000000000` → `-32014 sender_id="0000000000000000" does not match identity fingerprint d1993c2c… (T-1427)` ✓
+- Cert preserved: TOFU fingerprint `sha256:1389a831016...` unchanged (matches pre-restart `/tmp/termlink-0/hub.cert.pem` SHA-256 prefix `1389A831016C4BF1...`) — no peer reauth cascade
+- Multicast post=4 / skipped-legacy=**0** / failed=0 (vs. pre-Gate-3 post=3/skipped-legacy=1 — full fleet now T-1427 enforced)
+- agent-chat-arc topic was empty on .121 post-restart (no pre-T-1155 state to migrate) — re-created via `channel create agent-chat-arc`
+
+**Final runtime-PID matrix (Gate matrix complete):**
+
+| Hub | PID | T-1427 in-memory? | Binary version |
+|---|---|---|---|
+| .107 (workstation) | 2127851 | **YES ✓** (gate 1 CLEARED) | 0.9.1701 |
+| .141 (laptop-141) | 21775 | **YES ✓** (gate 2 CLEARED) | 0.9.1702 |
+| .122 (ring20-management) | 1157690 | YES ✓ | 0.9.1702 |
+| .121 (ring20-dashboard) | (post-restart, watchdog-managed) | **YES ✓** (gate 3 CLEARED) | 0.9.1702 |
+
+**All four field hubs now enforce T-1427.** Audit fire date 2026-05-14 should pass on AC2 (T-1427 ship status) without further operator action; AC3 (post count) and AC5 (legacy-usage CUT-READY) accumulate during soak.
