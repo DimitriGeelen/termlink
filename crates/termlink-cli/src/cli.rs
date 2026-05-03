@@ -3055,8 +3055,13 @@ pub(crate) enum FleetAction {
 
         /// T-1432: append T-1166 cut-readiness telemetry. For each reachable
         /// hub, query `hub.legacy_usage` and tabulate legacy-primitive
-        /// invocations within `--legacy-window-days`. The fleet verdict is
-        /// CUT-READY iff every hub reports zero legacy traffic.
+        /// invocations within `--legacy-window-days`.
+        ///
+        /// T-1459: Verdict has four levels:
+        /// - CUT-READY          — every reachable hub reports zero legacy traffic
+        /// - CUT-READY-DECAYING — residue exists but no live caller in last 5 min
+        /// - WAIT               — at least one hub had a legacy call in last 5 min
+        /// - UNCERTAIN          — some hubs unsupported (pre-T-1432) or no audit yet
         #[arg(long)]
         legacy_usage: bool,
 

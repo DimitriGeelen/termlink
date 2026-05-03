@@ -12,6 +12,61 @@ use crate::util::{generate_request_id, truncate, DEFAULT_CHUNK_SIZE};
 
 use super::ListDisplayOpts;
 
+/// T-1459: Threshold (seconds) below which a legacy-primitive call counts
+/// as ACTIVE (live caller still polling). Beyond this, the call is "decay
+/// residue" — historical data within the audit window. Shared between the
+/// per-hub display tag and the top-level `compute_cut_readiness_verdict`
+/// so they cannot drift.
+const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
+
+/// T-1459: Pure verdict aggregator for `fleet doctor --legacy-usage`.
+///
+/// Inputs are the per-hub buckets already classified by the calling code:
+///   * `hubs_with_traffic`: (name, total_legacy_count, last_call_ts_ms)
+///   * `hubs_unsupported`:  hubs that returned audit_unsupported (pre-T-1432)
+///   * `hubs_no_audit`:     hubs with audit_present=false (fresh runtime_dir)
+///   * `hubs_clean`:        hubs with audit_present=true AND total_legacy=0
+///   * `now_ms`:            current Unix time in milliseconds
+///
+/// Returns one of: `CUT-READY`, `CUT-READY-DECAYING`, `WAIT`, `UNCERTAIN`.
+/// See the verdict-semantics block at the call site for the full rationale.
+fn compute_cut_readiness_verdict(
+    hubs_with_traffic: &[(String, u64, u128)],
+    hubs_unsupported: &[String],
+    hubs_no_audit: &[String],
+    hubs_clean: &[String],
+    now_ms: u128,
+) -> &'static str {
+    let any_active = hubs_with_traffic.iter().any(|(_, _, last_ts)| {
+        *last_ts > 0
+            && now_ms > *last_ts
+            && (now_ms - *last_ts) / 1000 < ACTIVE_TRAFFIC_THRESHOLD_SECS as u128
+    });
+    let any_traffic = !hubs_with_traffic.is_empty();
+    let any_uncertain = !hubs_unsupported.is_empty() || !hubs_no_audit.is_empty();
+    let any_clean = !hubs_clean.is_empty();
+
+    if any_active {
+        "WAIT"
+    } else if any_traffic {
+        // Residue exists but no live callers. If some hubs are unmeasurable
+        // (pre-T-1432 or audit_present=false) we cannot rule out hidden
+        // active traffic on those, so degrade to UNCERTAIN.
+        if any_uncertain {
+            "UNCERTAIN"
+        } else {
+            "CUT-READY-DECAYING"
+        }
+    } else if any_uncertain {
+        "UNCERTAIN"
+    } else if any_clean {
+        "CUT-READY"
+    } else {
+        // No reachable hubs at all — caller has nothing to act on.
+        "UNCERTAIN"
+    }
+}
+
 /// Options for remote inject command.
 pub(crate) struct RemoteInjectOpts<'a> {
     pub session: &'a str,
@@ -1857,12 +1912,20 @@ pub(crate) async fn cmd_fleet_doctor(
     }
 
     // T-1432: aggregate cut-readiness verdict from per-hub legacy_usage payloads.
+    // T-1459: split the binary CUT-READY/WAIT into three traffic states so the
+    // top-line answers the operator's actual question ("are there live callers?")
+    // rather than forcing them to read per-hub last_call_age tags.
     // Verdict semantics:
-    //   CUT-READY   — all reachable hubs reported audit_present=true AND total_legacy=0
-    //   WAIT        — at least one hub has total_legacy > 0
-    //   UNCERTAIN   — at least one hub returned audit_unsupported (pre-T-1432)
-    //                 OR audit_present=false (no traffic recorded yet — fresh runtime_dir)
-    //                 — operator must upgrade or wait for traffic before deciding.
+    //   CUT-READY          — all reachable hubs reported audit_present=true AND total_legacy=0
+    //   CUT-READY-DECAYING — total_legacy > 0 but no hub has had a call within
+    //                        ACTIVE_TRAFFIC_THRESHOLD_SECS (5 min). The audit window
+    //                        will clear naturally; operator may cut now (residue is
+    //                        historical) or wait for the window to age out.
+    //   WAIT               — at least one hub has had a legacy call in the last 5 min
+    //                        (live caller still polling; cut would break it).
+    //   UNCERTAIN          — at least one hub returned audit_unsupported (pre-T-1432)
+    //                        OR audit_present=false (no traffic recorded yet — fresh runtime_dir)
+    //                        — operator must upgrade or wait for traffic before deciding.
     let legacy_summary_obj = if legacy_usage {
         let mut total_legacy_fleet: u64 = 0;
         let mut hubs_unsupported: Vec<String> = Vec::new();
@@ -1893,15 +1956,17 @@ pub(crate) async fn cmd_fleet_doctor(
                 hubs_clean.push(name);
             }
         }
-        let verdict = if !hubs_with_traffic.is_empty() {
-            "WAIT"
-        } else if !hubs_unsupported.is_empty() || !hubs_no_audit.is_empty() {
-            "UNCERTAIN"
-        } else if !hubs_clean.is_empty() {
-            "CUT-READY"
-        } else {
-            "UNCERTAIN" // no reachable hubs at all
-        };
+        let now_ms_for_verdict: u128 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let verdict = compute_cut_readiness_verdict(
+            &hubs_with_traffic,
+            &hubs_unsupported,
+            &hubs_no_audit,
+            &hubs_clean,
+            now_ms_for_verdict,
+        );
         if !json {
             eprintln!();
             eprintln!("=== T-1166 cut-readiness ({}d window) ===", legacy_window_days);
@@ -1928,7 +1993,7 @@ pub(crate) async fn cmd_fleet_doctor(
                         } else {
                             format!("{}d ago", age_s / 86400)
                         };
-                        let tag = if age_s < 300 { "ACTIVE" } else { "decay residue" };
+                        let tag = if age_s < ACTIVE_TRAFFIC_THRESHOLD_SECS as u128 { "ACTIVE" } else { "decay residue" };
                         format!(" — last call {age_human} ({tag})")
                     } else {
                         String::new()
@@ -1948,8 +2013,18 @@ pub(crate) async fn cmd_fleet_doctor(
                     hubs_no_audit.join(", ")
                 );
             }
-            if verdict == "CUT-READY" {
-                eprintln!("  → safe to flip LEGACY_PRIMITIVES_ENABLED=false (T-1166)");
+            match verdict {
+                "CUT-READY" => {
+                    eprintln!("  → safe to flip LEGACY_PRIMITIVES_ENABLED=false (T-1166)");
+                }
+                "CUT-READY-DECAYING" => {
+                    eprintln!(
+                        "  → no live legacy callers (no traffic in last {}s); residue is historical.",
+                        ACTIVE_TRAFFIC_THRESHOLD_SECS
+                    );
+                    eprintln!("  → operator may cut now or wait for the audit window to clear naturally.");
+                }
+                _ => {}
             }
         }
         Some(serde_json::json!({
@@ -4136,6 +4211,173 @@ secret_file = "/tmp/other.hex"
         let _ = std::fs::remove_dir_all(&tmp);
 
         assert!(result.is_ok(), "must be best-effort outside framework projects: {result:?}");
+    }
+
+    // ---- T-1459: cut-readiness verdict ----
+    // Aim: every output of `compute_cut_readiness_verdict` is covered, plus the
+    // ACTIVE/decay boundary at ACTIVE_TRAFFIC_THRESHOLD_SECS so future tweaks
+    // can't silently flip a hub's classification.
+
+    fn now_ms_for_test() -> u128 {
+        // Frozen "now" so test data with fixed last_ts values has predictable age.
+        1_700_000_000_000
+    }
+
+    fn ts_seconds_ago(secs: u64) -> u128 {
+        now_ms_for_test() - (secs as u128) * 1000
+    }
+
+    #[test]
+    fn cut_readiness_verdict_all_clean_returns_cut_ready() {
+        let verdict = compute_cut_readiness_verdict(
+            &[],
+            &[],
+            &[],
+            &["hub-a".to_string(), "hub-b".to_string()],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "CUT-READY");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_residue_only_returns_decaying() {
+        // 10 minutes ago — well beyond the 5-min threshold.
+        let with_traffic = vec![("hub-a".to_string(), 5u64, ts_seconds_ago(600))];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &["hub-b".to_string()],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "CUT-READY-DECAYING");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_active_traffic_returns_wait() {
+        // 30 seconds ago — under the threshold, definitely live caller.
+        let with_traffic = vec![("hub-a".to_string(), 5u64, ts_seconds_ago(30))];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &["hub-b".to_string()],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "WAIT");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_mixed_active_and_residue_returns_wait() {
+        // One ACTIVE hub forces WAIT regardless of how clean the rest are.
+        let with_traffic = vec![
+            ("hub-a".to_string(), 5u64, ts_seconds_ago(60)),
+            ("hub-b".to_string(), 100u64, ts_seconds_ago(7200)),
+        ];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "WAIT");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_unsupported_hubs_return_uncertain() {
+        let verdict = compute_cut_readiness_verdict(
+            &[],
+            &["legacy-hub".to_string()],
+            &[],
+            &["hub-a".to_string()],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "UNCERTAIN");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_no_audit_hubs_return_uncertain() {
+        let verdict = compute_cut_readiness_verdict(
+            &[],
+            &[],
+            &["fresh-hub".to_string()],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "UNCERTAIN");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_decaying_with_unsupported_degrades_to_uncertain() {
+        // If we cannot measure some hubs, residue elsewhere does not let
+        // us assert there are no live callers anywhere.
+        let with_traffic = vec![("hub-a".to_string(), 1u64, ts_seconds_ago(7200))];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &["legacy-hub".to_string()],
+            &[],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "UNCERTAIN");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_no_hubs_at_all_returns_uncertain() {
+        let verdict = compute_cut_readiness_verdict(&[], &[], &[], &[], now_ms_for_test());
+        assert_eq!(verdict, "UNCERTAIN");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_threshold_boundary_just_under_is_active() {
+        // 1 second below threshold → ACTIVE → WAIT.
+        let with_traffic = vec![(
+            "hub-a".to_string(),
+            1u64,
+            ts_seconds_ago(ACTIVE_TRAFFIC_THRESHOLD_SECS - 1),
+        )];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "WAIT");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_threshold_boundary_at_threshold_is_decaying() {
+        // Exactly at threshold = NOT active (tag uses `<`, not `<=`).
+        let with_traffic = vec![(
+            "hub-a".to_string(),
+            1u64,
+            ts_seconds_ago(ACTIVE_TRAFFIC_THRESHOLD_SECS),
+        )];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "CUT-READY-DECAYING");
+    }
+
+    #[test]
+    fn cut_readiness_verdict_zero_last_ts_does_not_count_as_active() {
+        // last_ts=0 means "no timestamp recorded" — should be treated as residue,
+        // not active (otherwise hubs without ts metadata would always force WAIT).
+        let with_traffic = vec![("hub-a".to_string(), 5u64, 0u128)];
+        let verdict = compute_cut_readiness_verdict(
+            &with_traffic,
+            &[],
+            &[],
+            &[],
+            now_ms_for_test(),
+        );
+        assert_eq!(verdict, "CUT-READY-DECAYING");
     }
 }
 
