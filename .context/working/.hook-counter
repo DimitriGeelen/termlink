@@ -1,0 +1,10 @@
+audit-task-tools=13
+loop-detect=12
+checkpoint=12
+budget-gate=12
+check-project-boundary=12
+check-active-task=3
+commit-cadence=3
+check-tier0=9
+error-watchdog=8
+pl007-scanner=7

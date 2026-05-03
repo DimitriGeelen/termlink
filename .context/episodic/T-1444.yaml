@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1444: G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-02T07:02:35Z
+# ============================================================================
+
+task_id: T-1444
+task_name: "G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-01T21:28:03Z
+completed: 2026-05-02T07:02:34Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-05-01T23:29:21+02:00
+last_commit: 2026-05-02T07:39:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture inception for G-050 long-term hub-side topic persistence. inception NO-GO — topic registry already SQLite-persisted (G-050 premise refuted)
+
+# Key outcomes
+outcomes:
+  - "Spike S1-S5 conducted; findings recorded in `docs/reports/T-1444-g-050-long-term.md`"
+  - "Assumptions A1-A4 each marked validated/refined/refuted with evidence in the same artifact"
+  - "Recommendation written: GO with bounded plan (file format chosen, write path identified, reload path identified), or NO-GO with rationale, or DEFER with re-trigger condition"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/audits/2026-05-01.yaml"
+  - ".context/project/concerns.yaml"
+  - ".context/project/learnings.yaml"
+  - ".context/project/metrics-history.yaml"
+  - ".context/working/.budget-gate-counter"
+  - ".context/working/.budget-status"
+  - ".context/working/.prev-token-reading"
+  - ".context/working/.session-end-log"
+  - ".context/working/session-end.log"
+  - ".context/working/.session-metrics.yaml"
+  - ".context/working/.session-turn-offset"
+  - ".context/working/session.yaml"
+  - ".context/working/.tool-counter"
+  - "docs/reports/T-1444-g-050-long-term.md"
+  - ".tasks/active/T-1444-g-050-long-term-hub-side-topic-registry-.md"
+  - "VERSION"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-01T23:29:21"
+    action: "T-1444: capture inception for G-050 long-term hub-side topic persistence"
+  - time: "2026-05-02T07:39:07"
+    action: "T-1444: inception NO-GO — topic registry already SQLite-persisted (G-050 premise refuted)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 574 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 574
+  commits: 2
+  files_changed: 16
+  lines_added: 498
+  lines_removed: 59
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1444-g-050-long-term-hub-side-topic-registry-.md
+generated_by: context-agent-hybrid

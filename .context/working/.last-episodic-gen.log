@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-05-02T06:02:59Z ===
-task_id: T-1446
+=== episodic-gen invocation: 2026-05-03T08:20:06Z ===
+task_id: T-1454
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1446.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1454.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: fleet doctor: topic-durability check (T-1444 follow-up)
-  Duration: 0 days (15 min)
+  Task: fleet doctor --topic-durability reports audit_unsupported on T-1446-bearing hubs
+  Duration: 0 days (2 min)
   Updates: 3
   Commits: 1
-  Lines: +69 -0 across 1 files
-  Outcomes: 7 AC checked
-  Artifacts: 1 files tracked
+  Lines: +19 -7 across 2 files
+  Outcomes: 3 AC checked
+  Artifacts: 2 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1446-fleet-doctor-topic-durability-check-t-14.md
+Source: /opt/termlink/.tasks/completed/T-1454-fleet-doctor---topic-durability-reports-.md
 --- exit code: 0 ---
