@@ -168,7 +168,7 @@ Sender count is on track to climb from 2→3 (already there with 6604 .141 cron 
 - N/A on .121 (cut blocker is binary swap)
 
 **Operator gates that need to clear before 2026-05-14 for full PASS:**
-1. `.107` hub restart (no binary work; just restart the running PID 103255 to load the on-disk 0.9.1701) — STILL OPEN
+1. ~~`.107` hub restart~~ — **DONE 2026-05-03T09:53Z** (see "Gate-1 cleared" entry below)
 2. ~~`.141` hub binary swap to 0.9.1702~~ — **DONE 2026-05-03T09:46Z** (see "Gate-2 cleared" entry below)
 3. `.121` binary swap to 0.9.1702 + watchdog patch + runtime_dir migration (T-1418 + T-1296 bundled; binary now staged at /tmp/termlink.new on .121) — STILL OPEN
 
@@ -212,7 +212,19 @@ Authorized by operator (dimitri) via SSH to `dimit@192.168.10.141`. Path discove
 
 | Hub | PID | T-1427 in-memory? | Binary version |
 |---|---|---|---|
-| .107 (workstation) | 103255 | NO ✗ (still — gate 1 OPEN) | 0.9.1701 on disk, pre-T-1427 in-memory |
+| .107 (workstation) | **2127851 (was 103255)** | **YES ✓** (gate 1 CLEARED) | **0.9.1701** (post-T-1427) |
 | .141 (laptop-141) | **21775 (was 221)** | **YES ✓** (gate 2 CLEARED) | **0.9.1702** |
 | .122 (ring20-management) | 1157690 | YES ✓ | 0.9.1702 |
 | .121 (ring20-dashboard) | 399 | N/A — pre-T-1155 (gate 3 OPEN) | 0.9.844 |
+
+### 2026-05-03T09:53Z — Gate-1 cleared: .107 hub restart via systemd
+
+`systemctl restart termlink-hub.service`. Clean — systemd-managed hub with `Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink` already in the unit file. Persisted cert (Apr 13 15:57) + secret (Apr 12 00:55) preserved unchanged.
+
+**Result:**
+- Old PID 103255 → New PID 2127851 (started 09:53:23)
+- T-1427 enforcement now LIVE: forged `--sender-id 0000000000000000` → `-32014 sender_id="0000000000000000" does not match identity fingerprint d1993c2c… (T-1427)` ✓
+- All 37 sessions reconnected cleanly (no client-visible disruption — multicast to .141 + .122 worked immediately post-restart)
+- Cert + secret mtimes unchanged → no peer reauth cascade
+
+**Two of three operator gates cleared this session via SSH (.141) + local systemctl (.107). Only .121 remains.**
