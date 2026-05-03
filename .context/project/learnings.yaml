@@ -1289,3 +1289,10 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-148
+  learning: "Workspace crate version-derivation must be symmetric — when one crate has a build.rs setting cargo:rustc-env=CARGO_PKG_VERSION from git describe (T-648/T-1057 pattern in termlink-cli), peer crates that also call env!(CARGO_PKG_VERSION) need the SAME build.rs or they'll silently use the workspace Cargo.toml hardcode. Symptom in this case: hub.version RPC returned hardcoded '0.9.0' for every fleet hub regardless of binary freshness, breaking T-1166 cut-readiness verdict. Fix: copy build.rs to peer crate. Hidden-by-tautology risk: a unit test asserting hub_version == env!(CARGO_PKG_VERSION) passes whether env resolves to '0.9.0' or '0.9.1821' because both sides are evaluated at the same compile time — the test cannot detect this bug. Detection lever: if a fleet-wide version histogram shows uniform '0.9.0', or matches the workspace Cargo.toml literal exactly, suspect a missing build.rs."
+  source: P-002
+  task: T-1458
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
