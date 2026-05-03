@@ -4,7 +4,7 @@ name: "Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build v
 description: >
   Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build version
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-03T20:56:57Z
-last_update: 2026-05-03T20:57:43Z
+last_update: 2026-05-03T21:23:18Z
 date_finished: null
 ---
 
@@ -33,10 +33,10 @@ Operator impact: T-1166 cut-readiness depends on knowing what's deployed. Fleet-
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `hub.version` RPC returns a version string derived the same way as the CLI's `--version` (git-derived via build.rs or equivalent shared mechanism)
-- [ ] `fleet doctor --json` for a freshly-built hub shows `hub_version` matching `termlink --version` output (modulo `"termlink "` prefix)
-- [ ] Existing `hub_version_returns_binary_version_and_protocol_version` unit test in router.rs:3864 passes
-- [ ] No regression: pre-T-1132 hubs (which return method-not-found) still get classified as `"unknown"` by the CLI fallback (remote.rs:1727)
+- [x] `hub.version` RPC will return a git-derived version — added `crates/termlink-hub/build.rs` mirroring `crates/termlink-cli/build.rs`; sets `cargo:rustc-env=CARGO_PKG_VERSION={git-derived}` which overrides the workspace Cargo.toml hardcode at compile time
+- [x] Existing `hub_version_returns_binary_version_and_protocol_version` unit test in router.rs:3864 passes — `cargo test -p termlink-hub --lib hub_version_returns` → 1 passed
+- [x] No regression on CLI fallback path — only hub-crate compile env changed; remote.rs:1727 untouched
+- [ ] Live deploy verification: rebuild `target/release/termlink`, restart a hub against it, confirm `fleet doctor --json` shows non-`0.9.0` `hub_version` matching `termlink --version` (deferred — requires hub restart)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -103,3 +103,7 @@ cargo test -p termlink-hub --lib hub_version_returns 2>&1 | tail -5 | grep -qE "
 ### 2026-05-03T20:57:43Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Reason:** Captured with full reproducer + ACs; fix needs build.rs work on hub crate — defer to dedicated session, not autonomous touch right now (T-1166 has higher priority and budget tight)
+
+### 2026-05-03T21:23:18Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** user authorized continue on heavy fix

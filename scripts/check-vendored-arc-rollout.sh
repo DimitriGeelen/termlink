@@ -38,15 +38,28 @@ echo
 # without operator forensics. Stale = older than 90 minutes (cron is :17, so
 # any gap > one hour is suspicious; 90m absorbs cron jitter).
 echo "--- Per-hub agent-chat-arc topic ---"
-printf "%-30s %-8s %-8s %-8s %s\n" HUB POSTS SENDERS DESC_SET LAST_SEEN
+printf "%-30s %-8s %-8s %-6s %-8s %s\n" HUB POSTS SENDERS PEERS DESC_SET LAST_SEEN
 NOW_MS=$(date +%s)000
+
+# Derive the local "heartbeat driver" identity FP — the FP that posts via
+# cron heartbeats from this host, NOT a true peer. Senders matching this FP
+# are heartbeat-only contributors. Falls back to a hard-coded value if
+# whoami can't pick a single ambient identity (e.g. multi-session hosts).
+DRIVER_FP=$("$TL" whoami 2>/dev/null | grep -E "^Identity FP: " | awk '{print $3}' | head -1)
+[ -n "$DRIVER_FP" ] || DRIVER_FP="d1993c2c3ec44c94"  # .107 ambient identity
+
 for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]+).*/\1/' | grep -v "^testhub$"); do
   info=$("$TL" channel info --hub "$profile" agent-chat-arc 2>/dev/null) || { printf "%-30s %s\n" "$profile" "(no chat-arc topic)"; continue; }
   posts=$(echo "$info" | grep -E "^Posts: " | awk '{print $2}')
   senders=$(echo "$info" | grep -E "^Senders: " | awk '{print $2}')
   desc_set=$(echo "$info" | grep -qE "^Description: agent-chat-arc" && echo "YES" || echo "no")
+  members=$("$TL" channel members --hub "$profile" agent-chat-arc 2>/dev/null)
+  # PEERS = distinct sender FPs excluding the local heartbeat driver (DRIVER_FP)
+  # and anonymous (0000…). A peer agent is one that posts under its own identity
+  # — surfaces the T-1457 gap directly: 0 peers means the hub is heartbeat-only.
+  peers=$(echo "$members" | awk 'NF>0 {print $1}' | grep -vE "^0000000000000000$|^${DRIVER_FP}$" | sort -u | wc -l)
   # Newest last-seen across all senders (excludes anonymous 0000…)
-  last_ts=$("$TL" channel members --hub "$profile" agent-chat-arc 2>/dev/null \
+  last_ts=$(echo "$members" \
     | grep -v "^0000000000000000" \
     | grep -oE 'last=[0-9]+' | cut -d= -f2 | sort -nr | head -1)
   if [ -n "$last_ts" ] && [ "$last_ts" -gt 0 ]; then
@@ -74,7 +87,7 @@ for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]
   else
     age="?"
   fi
-  printf "%-30s %-8s %-8s %-8s %s\n" "$profile" "${posts:-?}" "${senders:-?}" "$desc_set" "$age"
+  printf "%-30s %-8s %-8s %-6s %-8s %s\n" "$profile" "${posts:-?}" "${senders:-?}" "${peers:-?}" "$desc_set" "$age"
 done
 echo
 
