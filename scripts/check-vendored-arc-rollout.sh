@@ -21,15 +21,33 @@ TL="$PROJECT_ROOT/target/release/termlink"
 echo "=== Vendored chat-arc rollout state ($(date -Is)) ==="
 echo
 
-# Per-hub chat-arc state
+# Per-hub chat-arc state — POSTS / SENDERS / DESC_SET / LAST_SEEN (newest sender)
+# LAST_SEEN surfaces PL-146-class regressions (heartbeat queueing silently)
+# without operator forensics. Stale = older than 90 minutes (cron is :17, so
+# any gap > one hour is suspicious; 90m absorbs cron jitter).
 echo "--- Per-hub agent-chat-arc topic ---"
-printf "%-30s %-8s %-8s %s\n" HUB POSTS SENDERS DESCRIPTION_SET
+printf "%-30s %-8s %-8s %-8s %s\n" HUB POSTS SENDERS DESC_SET LAST_SEEN
+NOW_MS=$(date +%s)000
 for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]+).*/\1/' | grep -v "^testhub$"); do
   info=$("$TL" channel info --hub "$profile" agent-chat-arc 2>/dev/null) || { printf "%-30s %s\n" "$profile" "(no chat-arc topic)"; continue; }
   posts=$(echo "$info" | grep -E "^Posts: " | awk '{print $2}')
   senders=$(echo "$info" | grep -E "^Senders: " | awk '{print $2}')
   desc_set=$(echo "$info" | grep -qE "^Description: agent-chat-arc" && echo "YES" || echo "no")
-  printf "%-30s %-8s %-8s %s\n" "$profile" "${posts:-?}" "${senders:-?}" "$desc_set"
+  # Newest last-seen across all senders (excludes anonymous 0000…)
+  last_ts=$("$TL" channel members --hub "$profile" agent-chat-arc 2>/dev/null \
+    | grep -v "^0000000000000000" \
+    | grep -oE 'last=[0-9]+' | cut -d= -f2 | sort -nr | head -1)
+  if [ -n "$last_ts" ] && [ "$last_ts" -gt 0 ]; then
+    age_s=$(( (NOW_MS - last_ts) / 1000 ))
+    if [ "$age_s" -lt 60 ]; then age="${age_s}s"
+    elif [ "$age_s" -lt 3600 ]; then age="$((age_s/60))m"
+    elif [ "$age_s" -lt 86400 ]; then age="$((age_s/3600))h"
+    else age="$((age_s/86400))d"; fi
+    [ "$age_s" -gt 5400 ] && age="$age STALE"
+  else
+    age="?"
+  fi
+  printf "%-30s %-8s %-8s %-8s %s\n" "$profile" "${posts:-?}" "${senders:-?}" "$desc_set" "$age"
 done
 echo
 
