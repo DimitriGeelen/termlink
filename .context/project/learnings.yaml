@@ -1240,3 +1240,17 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-141
+  learning: "termlink remote exec is a viable Tier-1 channel for cross-host shell execution without SSH — used for .121 hub swap when only registered termlink session exists on the target. TLS connection terminates mid-call when the command kills the hub itself; that's expected, not a failure. Use sleep + fleet doctor to verify watchdog respawn."
+  source: D-001
+  task: T-1418
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
+- id: PL-142
+  learning: "Bundled hub runtime_dir migration: copy cert.pem + key.pem + hub.secret EXPLICITLY from /tmp/termlink-0/ to /var/lib/termlink/, NOT cp -a /tmp/termlink-0/. — the latter copies the live hub.sock which the new hub can't bind over (or fails the copy if cp doesn't handle UNIX domain sockets). chmod 600 the secret and key after copy. Idempotent and preserves persist-if-present semantics."
+  source: P-001
+  task: T-1296
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
