@@ -1254,3 +1254,10 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-143
+  learning: "Field rollout to vendored agents COMPLETED 2026-05-03: agent-chat-arc + T-1235 + T-1427 enforcement live on all 4 hubs (.107 .122 .141 .121). The .121 swap was the last gate, closed via 'termlink remote exec' (no SSH needed) — bundled T-1418 binary swap + T-1296 runtime_dir migration into single watchdog-respawn cycle with full persist-if-present preservation (cert fingerprint sha256:1389a831016... unchanged). Polling-side proof: 0 inbox.status calls from .121 since swap, T-1235 SDK shim routes through channel.list — visible in audit log as 6 channel.list calls in first 14-min window. Rolling 24h window legacy count drops to 0 by 2026-05-04T10:06Z, transitioning fleet to CUT-READY for T-1166."
+  source: D-001
+  task: T-1438
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
