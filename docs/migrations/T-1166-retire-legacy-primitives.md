@@ -255,7 +255,46 @@ After the cut:
 
 ## Diagnostic — am I still calling legacy methods?
 
-On the hub host, the audit log records every method dispatch:
+The fastest answer (T-1459/T-1460/T-1461, since 2026-05-04 — needs a hub
+binary that includes T-1460) is one command:
+
+```bash
+termlink fleet doctor --legacy-usage --legacy-window-days 1
+```
+
+Read the verdict line:
+
+| Verdict              | Meaning                                                                  | Operator action |
+|----------------------|--------------------------------------------------------------------------|-----------------|
+| `CUT-READY`          | All hubs report zero legacy traffic.                                     | Safe to flip the cut flag. |
+| `CUT-READY-DECAYING` | Residue exists but no live caller in the last 5 minutes.                 | May cut now (residue is historical) or wait for the audit window to roll. |
+| `WAIT`               | At least one hub had a legacy call in the last 5 minutes.                | Live caller — DO NOT cut. Use top-callers below to identify it. |
+| `UNCERTAIN`          | Some hubs are pre-T-1432 or have no audit yet. Cut-readiness unknown.    | Upgrade or wait for traffic. |
+
+The same command shows top callers — both per-hub and a fleet-wide
+aggregate — so the operator sees who is producing the residue without
+SSHing each host:
+
+```
+WITH TRAFFIC:
+  local-test: 579 legacy invocation(s) — last call 1h ago (decay residue)
+    └─ 579× addr:192.168.10.121
+  ring20-management: 579 legacy invocation(s) — last call 1h ago (decay residue)
+    └─ 579× addr:192.168.10.121
+  workstation-107-public: 579 legacy invocation(s) — last call 1h ago (decay residue)
+    └─ 579× addr:192.168.10.121
+  Top callers (fleet-wide):
+    1737× addr:192.168.10.121
+```
+
+The `addr:<ip>` form means the audit log carried a `peer_addr` for that
+caller (post-T-1409 fleet); `<label>` would mean `from` was set
+(post-T-1427 caller); `pid:<n>` is a Unix-socket caller without a
+`from` field. The IP-only normalization strips ephemeral source ports
+so 100 reconnects from the same host do not show as 100 distinct
+callers.
+
+For older fleets (or to inspect the JSON shape):
 
 ```bash
 # Count legacy calls in the last 24h
@@ -299,6 +338,11 @@ Exclude protocol constants, deprecation shims, and test fixtures from
 your hit count.
 
 ### Identifying the caller behind a peer_addr
+
+If you ran the T-1460-aware `fleet doctor --legacy-usage` above, you
+already see `addr:<ip>` directly under each hub and at the fleet-wide
+top-callers line. Skip ahead to the TLS-fingerprint rollover note
+below if you need to identify the role behind a renumbered IP.
 
 The `legacy_callers_by_ip` rollup names the source IP. If the IP is also
 running termlink-hub, its TLS fingerprint is the most stable identifier
