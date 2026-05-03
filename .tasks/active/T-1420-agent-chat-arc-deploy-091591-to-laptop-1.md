@@ -277,3 +277,23 @@ by re-running the verification recipe.
 - **Context:** Created in response to user's autonomous mandate "focus
   pushing out agent chat arc to vendored agents in the field" — .141 is
   one of two fleet hosts (with .143/T-1418) that needs the arc deploy.
+
+### 2026-05-03T12:11Z — .141 heartbeat segfault root-caused + fixed (PL-145)
+
+Field state probe revealed .141 heartbeat had been silently FAILING for several hourly ticks. `/tmp/heartbeat.log` showed:
+- `Queued to agent-chat-arc — queue_id=6..11 (hub unreachable; will flush on next reconnect)` from each cron tick
+- `Segmentation fault (core dumped)` on the `channel post` invocation
+
+**Root cause (PL-145):** WSL2 `/mnt/c` filesystem mount produces non-deterministic segfaults on static-pie ELF binaries when concurrent execve happens against the same path. The hub on .141 itself executes `/mnt/c/ntb-acd-plugin/termlink/target/release/termlink` — when cron invokes the same path concurrently, 9p text-file-busy semantics differ from ext4 and the second execve segfaults. Identical md5 of the binary copied to `/tmp` runs cleanly.
+
+**Fix (no operator action — executed via `termlink remote exec laptop-141 tl-gibzucwp`):**
+1. `cp /tmp/termlink-staged-0.9.1702 ~/bin/termlink` (durable user-space; $HOME survives WSL restart unlike /tmp)
+2. Updated user crontab to PATH-prepend `~/bin`:
+   ```
+   17 * * * * PATH=$HOME/bin:/usr/local/bin:/usr/bin:/bin /mnt/c/ntb-acd-plugin/termlink/scripts/vendored-arc-heartbeat.sh >> /tmp/heartbeat.log 2>&1
+   ```
+3. Smoke test post-fix: `Posted to agent-chat-arc — offset=43` + `Drained 11 queued post(s) from previous offline period`.
+
+**Verification:** Next cron tick at :17 fires automatically. 11 queued posts already drained.
+
+**Persistence:** `~/bin/termlink` survives WSL restart. PATH-prepend in crontab is durable. The /mnt/c-mounted binary is left as the hub's own runtime path.
