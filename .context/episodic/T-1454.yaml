@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1454: fleet doctor --topic-durability reports audit_unsupported on T-1446-bearing hubs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-03T08:20:06Z
+# ============================================================================
+
+task_id: T-1454
+task_name: "fleet doctor --topic-durability reports audit_unsupported on T-1446-bearing hubs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-03T08:17:28Z
+completed: 2026-05-03T08:20:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-03T10:19:55+02:00
+last_commit: 2026-05-03T10:19:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor hints now specify minimum hub version (>=0.9.1717 / >=0.9.1640) — saves operator a diagnostic step
+
+# Key outcomes
+outcomes:
+  - "Hypothesis disproved — hub-side dispatch IS correct (router.rs:173 + capabilities list line 1000). Issue is purely binary version, not code."
+  - "Version math confirmed: T-1446 = 0.9.1717; running hubs = 0.9.1701-0.9.1702."
+  - "UX hint updated (remote.rs:1770) to specify \">=0.9.1717\" minimum version. Same patch applied to T-1432's legacy_usage hint (\">=0.9.1640\") for symmetry. `cargo check --bin termlink` clean."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1454-fleet-doctor---topic-durability-reports-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-03T10:19:55"
+    action: "T-1454: fleet doctor hints now specify minimum hub version (>=0.9.1717 / >=0.9.1640) — saves operator a diagnostic step"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 19
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1454-fleet-doctor---topic-durability-reports-.md
+generated_by: context-agent-hybrid

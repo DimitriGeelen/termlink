@@ -1,0 +1,8 @@
+id: R-003
+task_id: T-1438
+agent_type: subagent-
+timestamp: '2026-05-02T09:54:25Z'
+type: artifact
+summary: '[] ````markdown'
+size_bytes: 13695
+payload_ref: /tmp/tmpnhw0gmpn.txt

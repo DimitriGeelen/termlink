@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1450: T-1428 AC backfill — extract audit recipe from prose into checkable ACs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-02T22:22:07Z
+# ============================================================================
+
+task_id: T-1450
+task_name: "T-1428 AC backfill — extract audit recipe from prose into checkable ACs"
+workflow_type: build
+enrichment_status: git-derived  # Auto-filled from git; AC/decisions not in task file
+
+# Timeline
+created: 2026-05-02T22:20:35Z
+completed: 2026-05-02T22:22:06Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-03T00:21:59+02:00
+last_commit: 2026-05-03T00:21:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  backfill T-1428 audit ACs from prose recipe + scope T-1451/1452/1453 + manual revisit-due note
+
+# Key outcomes
+outcomes:
+  - "Task completed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.revisits-due.txt"
+  - ".tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md"
+  - ".tasks/active/T-1450-t-1428-ac-backfill--extract-audit-recipe.md"
+  - ".tasks/active/T-1451-revisitat-frontmatter-field--template-up.md"
+  - ".tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md"
+  - ".tasks/active/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md"
+  - ".tasks/completed/T-1449-date-triggered-revisit-mechanism-for-def.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-03T00:21:59"
+    action: "T-1450: backfill T-1428 audit ACs from prose recipe + scope T-1451/1452/1453 + manual revisit-due note"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, governance, T-1449, T-1428, phase-1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 7
+  lines_added: 296
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1450-t-1428-ac-backfill--extract-audit-recipe.md
+generated_by: context-agent-hybrid
