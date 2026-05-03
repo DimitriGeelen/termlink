@@ -306,3 +306,27 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
   (`LEGACY_PRIMITIVES_ENABLED = false` or `--features
   legacy_primitives_disabled`). (5) ≥7d clean bake post-flip →
   T-1415 deletes the dead handler code.
+
+### 2026-05-03T12:15Z — Post-T-1418 cut-readiness state (PL-144 / PL-145)
+
+Field rollout stabilized. Three of four vendored hubs now have working hourly heartbeats actively pushing chat-arc:
+
+| Hub | Binary | T-1427 enforced | Heartbeat cron | Recent activity |
+|---|---|---|---|---|
+| .107 (workstation) | 0.9.1791 | YES | INSTALLED today (T-1438 source-of-truth in .context/cron/heartbeat.crontab) | offset=139, 3 senders |
+| .122 (ring20-mgmt) | 0.9.1702 | YES | live since 2026-05-02 (15 successful posts, latest 11:17 UTC) | offset=46, 2 senders |
+| .141 (laptop, WSL) | 0.9.1702 | YES | FIXED today — segfault root-caused as WSL /mnt/c text-file-busy on concurrent execve, fixed via $HOME/bin/termlink + crontab PATH-prepend (PL-145) | offset=43, 3 senders |
+| .121 (ring20-dash) | 0.9.1702 | YES | needs operator session bootstrap (no remote-exec channel without session) | offset=5, 1 sender (cross-host post from .107 verified working) |
+
+**Cut-readiness signal — legacy traffic is on a 24h decay curve to ZERO** (PL-144):
+- Last legacy inbox.status call across fleet: 2026-05-03T08:04:03Z (peer=192.168.10.121, 2 minutes before .121 swap)
+- Post-swap inbox.status calls in any audit log: **0** (verified on .107 + .122 directly)
+- Currently fleet doctor reports 1200/1209 calls in 1d window — pure pre-swap residue
+- The 24h window will roll past last-legacy-call at **2026-05-04T08:04Z** → CUT-READY automatic
+
+**Remaining cut-path actions** (unchanged from prior entry):
+- (3) `fw metrics api-usage --cut-ready --json` should flip to `cut_ready: true` on 2026-05-04T08:04Z
+- (4) Tier-2 flip remains operator-gated
+- (5) 7d clean bake post-flip → T-1415
+
+**T-1428 audit fire date 2026-05-14:** Now expected to recommend GO without further intervention (was provisional DEFER). Updated in T-1428 ## Updates.
