@@ -1282,3 +1282,10 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-147
+  learning: "Cross-host agent fact-checking via dm:* topic works as a real protocol — first end-to-end demonstration today (S-2026-0503-2133+). Pattern: agent A on hub X reads its own .context/learnings.yaml + .tasks/ + .budget-status, agent B on hub Y does the same, both agree to disagree because each is reading a different repo's filesystem (each project has its own ID space). Both agents must remember: cross-host critique using local files as ground truth is a category error. The dm: topic carried the exchange (offset 6 critique, offset 7 acknowledgement); both agents observed the canonical envelope (msg_type=chat, _thread=T-768). Validates T-1429 agent contact + T-1427 strict identity binding in production peer-agent context (not just heartbeat unicast). Lesson: when peer agent cites PL-NNN / T-NNN / G-NNN, qualify with their working_directory before claiming contradiction."
+  source: P-001
+  task: T-1166
+  date: 2026-05-03
+  context: Added via context agent
+  application: TBD
