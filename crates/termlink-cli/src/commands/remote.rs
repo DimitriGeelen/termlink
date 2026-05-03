@@ -1932,6 +1932,12 @@ pub(crate) async fn cmd_fleet_doctor(
         let mut hubs_no_audit: Vec<String> = Vec::new();
         let mut hubs_with_traffic: Vec<(String, u64, u128)> = Vec::new();
         let mut hubs_clean: Vec<String> = Vec::new();
+        // T-1460: per-hub top-callers list, keyed by hub name. Populated from
+        // the hub's `top_callers` field when present (post-T-1460 hubs);
+        // older hubs leave this empty and the CLI falls back to the existing
+        // method/count line silently.
+        let mut hub_top_callers: std::collections::BTreeMap<String, Vec<(String, u64)>> =
+            std::collections::BTreeMap::new();
         for h in &hub_results {
             let name = h.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
             let Some(lu) = h.get("legacy_usage") else { continue };
@@ -1951,6 +1957,20 @@ pub(crate) async fn cmd_fleet_doctor(
                     .and_then(|v| v.as_u64())
                     .map(|t| t as u128)
                     .unwrap_or(0);
+                // T-1460: surface top callers if hub provides them.
+                if let Some(arr) = lu.get("top_callers").and_then(|v| v.as_array()) {
+                    let parsed: Vec<(String, u64)> = arr
+                        .iter()
+                        .filter_map(|c| {
+                            let id = c.get("id").and_then(|v| v.as_str())?.to_string();
+                            let cnt = c.get("count").and_then(|v| v.as_u64())?;
+                            Some((id, cnt))
+                        })
+                        .collect();
+                    if !parsed.is_empty() {
+                        hub_top_callers.insert(name.clone(), parsed);
+                    }
+                }
                 hubs_with_traffic.push((name, count, last_ts));
             } else {
                 hubs_clean.push(name);
@@ -1999,6 +2019,12 @@ pub(crate) async fn cmd_fleet_doctor(
                         String::new()
                     };
                     eprintln!("    {name}: {count} legacy invocation(s){suffix}");
+                    // T-1460: surface top-3 callers if hub returned them.
+                    if let Some(callers) = hub_top_callers.get(name) {
+                        for (id, c) in callers.iter().take(3) {
+                            eprintln!("      └─ {c}× {id}");
+                        }
+                    }
                 }
             }
             if !hubs_unsupported.is_empty() {
