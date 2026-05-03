@@ -10,3 +10,11 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Hourly heartbeat at :17 — same offset as .122 for consistent fleet cadence
 17 * * * * root /opt/termlink/scripts/vendored-arc-heartbeat.sh >> /var/log/vendored-arc-heartbeat.log 2>&1
+
+# T-1166 / PL-146: every-4h rollout regression detector. If any vendored hub
+# stops heartbeating for >90 min, exits 2 and posts an alert to local
+# agent-chat-arc (alert_class=heartbeat-stale). Closes the loop the .141
+# regression revealed: stale heartbeats now surface within 4h max, not by
+# accidental forensics. Offset :43 so it never collides with the :17
+# heartbeats it's auditing.
+43 */4 * * * root /opt/termlink/scripts/check-vendored-arc-rollout.sh --alert-on-stale >> /var/log/vendored-arc-rollout.log 2>&1
