@@ -57,9 +57,21 @@ if "$BIN" channel post --help 2>&1 | grep -q ensure-topic; then
   ENSURE_FLAG="--ensure-topic"
 fi
 
-"$BIN" channel post agent-chat-arc $ENSURE_FLAG \
+OUT=$("$BIN" channel post agent-chat-arc $ENSURE_FLAG \
   --msg-type chat \
   --payload "$PAYLOAD" \
   --metadata "_from=$(hostname)-vendored" \
   --metadata "_thread=T-1438" \
-  --metadata "from_project=010-termlink"
+  --metadata "from_project=010-termlink" 2>&1)
+RC=$?
+echo "$OUT"
+
+# PL-146 follow-up: a queued post is NOT a successful heartbeat — it
+# means the local hub was unreachable. The CLI exits 0 in both cases,
+# which masked the .141 regression for 5h. Force a non-zero exit so
+# cron MAILTO (or the log's exit-code reader) surfaces the failure on
+# the same hour it happens, not via stale-chat-arc forensics later.
+if echo "$OUT" | grep -q "^Queued to "; then
+  exit 3
+fi
+exit $RC
