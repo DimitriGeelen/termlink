@@ -4,19 +4,31 @@
 # heartbeat-cron presence, and cut-readiness signal. Reusable check that
 # replaces ad-hoc forensic queries for "where does field rollout stand?"
 #
-# Usage: scripts/check-vendored-arc-rollout.sh
+# Usage:
+#   scripts/check-vendored-arc-rollout.sh                    # informational
+#   scripts/check-vendored-arc-rollout.sh --alert-on-stale   # fail + post alert
+#                                                            # to local chat-arc
+#                                                            # if any hub STALE.
+#                                                            # Suitable for cron.
 #
 # Reads:
 #   - hubs.toml (via `termlink fleet doctor`) for the hub set
 #   - per-hub agent-chat-arc topic state (via `termlink channel info --hub <profile>`)
 #   - per-hub legacy-usage telemetry (via `termlink fleet doctor --legacy-usage`)
 #
-# Exit code: 0 always (informational; gates belong in T-1428 audit + fw metrics api-usage).
+# Exit codes:
+#   0 = healthy (or default mode, always 0 — informational)
+#   2 = at least one hub STALE in --alert-on-stale mode (post sent to chat-arc)
 set -u
+
+ALERT_MODE=0
+[ "${1:-}" = "--alert-on-stale" ] && ALERT_MODE=1
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TL="$PROJECT_ROOT/target/release/termlink"
 [ -x "$TL" ] || TL=$(command -v termlink) || { echo "ERROR: no termlink binary" >&2; exit 1; }
+
+STALE_HUBS=""
 
 echo "=== Vendored chat-arc rollout state ($(date -Is)) ==="
 echo
@@ -43,7 +55,10 @@ for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]
     elif [ "$age_s" -lt 3600 ]; then age="$((age_s/60))m"
     elif [ "$age_s" -lt 86400 ]; then age="$((age_s/3600))h"
     else age="$((age_s/86400))d"; fi
-    [ "$age_s" -gt 5400 ] && age="$age STALE"
+    if [ "$age_s" -gt 5400 ]; then
+      age="$age STALE"
+      STALE_HUBS="${STALE_HUBS:+$STALE_HUBS }$profile"
+    fi
   else
     age="?"
   fi
@@ -81,3 +96,24 @@ for profile in $("$TL" fleet doctor 2>&1 | grep -E "^--- " | sed -E 's/--- ([^ ]
 done
 echo
 echo "=== End rollout state ==="
+
+# --alert-on-stale: post a chat-arc alert and exit non-zero if any
+# hub fell into STALE territory (>90 min since last sender post). Cron
+# usage: a single hourly invocation surfaces PL-146-class regressions
+# automatically — the alert lands on the local agent-chat-arc topic
+# itself, so the same channel that's silent IS the one that gets the
+# heads-up (deliberate: any operator already watching chat-arc sees it).
+if [ "$ALERT_MODE" = "1" ] && [ -n "$STALE_HUBS" ]; then
+  payload="ALERT: vendored chat-arc rollout — $(echo "$STALE_HUBS" | wc -w) hub(s) STALE: $STALE_HUBS at $(date -Is). PL-146-class regression suspected — investigate /var/log/vendored-arc-heartbeat.log on each STALE host. Detector: $(hostname):$(realpath "$0")."
+  "$TL" channel post agent-chat-arc \
+    --msg-type chat \
+    --payload "$payload" \
+    --metadata "_from=$(hostname)-rollout-detector" \
+    --metadata "_thread=T-1438" \
+    --metadata "alert_class=heartbeat-stale" \
+    --metadata "stale_hubs=$STALE_HUBS" \
+    >/dev/null 2>&1 || true
+  echo "ALERT posted to agent-chat-arc — STALE hubs: $STALE_HUBS" >&2
+  exit 2
+fi
+exit 0
