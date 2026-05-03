@@ -4,16 +4,16 @@ name: "Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build v
 description: >
   Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build version
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/build.rs, scripts/check-vendored-arc-rollout.sh]
 related_tasks: []
 created: 2026-05-03T20:56:57Z
-last_update: 2026-05-03T21:23:18Z
-date_finished: null
+last_update: 2026-05-03T22:01:30Z
+date_finished: 2026-05-03T22:01:30Z
 ---
 
 # T-1458: Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build version
@@ -36,7 +36,7 @@ Operator impact: T-1166 cut-readiness depends on knowing what's deployed. Fleet-
 - [x] `hub.version` RPC will return a git-derived version — added `crates/termlink-hub/build.rs` mirroring `crates/termlink-cli/build.rs`; sets `cargo:rustc-env=CARGO_PKG_VERSION={git-derived}` which overrides the workspace Cargo.toml hardcode at compile time
 - [x] Existing `hub_version_returns_binary_version_and_protocol_version` unit test in router.rs:3864 passes — `cargo test -p termlink-hub --lib hub_version_returns` → 1 passed
 - [x] No regression on CLI fallback path — only hub-crate compile env changed; remote.rs:1727 untouched
-- [ ] Live deploy verification: rebuild `target/release/termlink`, restart a hub against it, confirm `fleet doctor --json` shows non-`0.9.0` `hub_version` matching `termlink --version` (deferred — requires hub restart)
+- [x] Live deploy verification — rebuilt `target/release/termlink` (cargo build --release -p termlink, 3m32s, finished 2026-05-04T00:00Z), launched isolated test hub on `/tmp/test-hub-t1458b`, queried `hub.version` RPC via direct JSON-RPC over the local Unix socket. Response: `{"hub_version":"0.9.1821","protocol_version":1}` — matches `./target/release/termlink --version` (`termlink 0.9.1821`). The TLS-pinned TCP path against the test hub on :9101 hit a separate BadSignature TOFU issue unrelated to T-1458, so verification went via Unix socket, which is identical end-to-end RPC dispatch. Production-hub verification deferred to next operator-driven hub restart cycle (no agent-side risk to running prod hubs)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -68,19 +68,13 @@ cargo test -p termlink-hub --lib hub_version_returns 2>&1 | tail -5 | grep -qE "
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `fleet doctor` reports `Versions in fleet: 0.9.0 (5 hubs)` for every hub regardless of actual binary version. T-1166 cut-readiness verdict cannot trust the version histogram. Found 2026-05-03T20:55Z while investigating heartbeat-driver identity on .141.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `crates/termlink-hub/Cargo.toml` declares `version.workspace = true`, which inherits the workspace's hardcoded `version = "0.9.0"`. `handle_hub_version()` in `router.rs:884` calls `env!("CARGO_PKG_VERSION")` which resolves at compile time to that literal "0.9.0". The CLI side already had `crates/termlink-cli/build.rs` (T-648 / T-1057) that sets `cargo:rustc-env=CARGO_PKG_VERSION` from `git describe --tags`, overriding the Cargo.toml default — but the hub crate had no equivalent build.rs, so the override never reached its compilation unit.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Two contributing structural gaps. (1) Asymmetric build.rs presence — the framework had a documented version-derivation pattern in CLI but never propagated it to the hub crate when hub.version RPC was added (T-1132). (2) The unit test `hub_version_returns_binary_version_and_protocol_version` only asserts `hub_version == env!("CARGO_PKG_VERSION")` — a tautology that passes whether the env resolves to "0.9.0" or "0.9.1821". The test cannot detect the bug because both sides of `==` resolve identically at compile time.
+
+**Prevention:** (1) Code fix shipped in this task — symmetric build.rs in `crates/termlink-hub/` mirroring CLI's. (2) Future `cargo:rustc-env=CARGO_PKG_VERSION` pattern is now codified in two places, raising the chance an audit notices missing build.rs on a new crate. (3) Recommended follow-up (separate task, not this one): fleet-doctor ad-hoc verification — when `hub_version` returns a value matching the workspace static `0.9.0`, log a warning. This would have caught the issue from the operator side.
 
 ## Decisions
 
@@ -107,3 +101,6 @@ cargo test -p termlink-hub --lib hub_version_returns 2>&1 | tail -5 | grep -qE "
 ### 2026-05-03T21:23:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Reason:** user authorized continue on heavy fix
+
+### 2026-05-03T22:01:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
