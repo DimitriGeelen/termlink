@@ -12,16 +12,16 @@ description: >
   (T-1423 --probe pre-swap dry-run), and (3) operator auth heal for .143
   (T-1418).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, scripts/chat-arc-multicast.sh]
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-03T07:54:19Z
-date_finished: null
+last_update: 2026-05-03T08:14:04Z
+date_finished: 2026-05-03T08:14:04Z
 ---
 
 # T-1438: field-rollout-tracking
@@ -428,3 +428,6 @@ User authorized probe + attempt of remaining items. Results:
 - **Cron health:** `crontab -l` confirms `17 * * * * vendored-arc-heartbeat.sh` installed on .141 (writes `/tmp/heartbeat.log`) and .122 (writes `/var/log/heartbeat.log`). Logs not yet present at probe time (21:10Z) — installed within the last cron-firing window. Manual fire on both succeeded: .141 offset=18, .122 offset=20. Path correctness verified end-to-end.
 - **Multicast announcement:** `scripts/chat-arc-multicast.sh --thread T-1438` posted to all UP hubs from .107 — 3/4 OK (laptop-141 offset=19, ring20-management offset=21, workstation-107-public offset=89), 1/4 SKIPPED (ring20-dashboard returned `-32001 Missing 'target' in params` — confirms cut-blocker at the hub-protocol level, not just CLI).
 - **Conclusion for chat-arc-to-vendored push:** field is **maximally rolled out within current binary constraints**. Two hubs (.141, .122) participating fully with cron self-fire + ad-hoc multicast. The remaining gap (.121) is structurally locked behind T-1296 → .121 binary swap, which is locked behind opaque-launcher identification (operator-side investigation, not autonomous-mode-eligible). Forward progress on chat-arc rollout requires either: (a) operator identifies .121 launcher, or (b) operator authorizes .141 binary swap to 0.9.1702 (already staged via --probe).
+
+### 2026-05-03T08:14:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
