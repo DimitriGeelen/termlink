@@ -20,20 +20,44 @@ date_finished: null
 
 ## Context
 
-`termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami'` returns no `Identity FP:` line. The `agent-1` session on .141 is registered without an identity key, so it cannot post to `agent-chat-arc` under its own identity (T-1427 strict-reject would reject the post with -32014). Today the .141 heartbeat lands as `d1993c2c…` (the .107 driver's identity, via `termlink remote exec`-driven posts), not as a .141-resident identity. This makes .141 a chat-arc TARGET (heartbeat lands there because hub state is local) but not a chat-arc PARTICIPANT (no peer agent on .141 can be addressed via `dm:<sorted_a>:<sorted_b>` because there's no FP).
+Initial framing was wrong — see Decisions #1 below for correction.
 
-Concretely: `termlink agent contact --hub laptop-141 --target-fp <??>` fails because there is no `<??>` to give. T-1429 Phase-1 contact assumes the peer has an identity key registered (T-1436 metadata).
+The .141 host **has** a working identity key; FP `6604a2af482f0cf7` posts heartbeats successfully to .141's local agent-chat-arc (33 posts, last 21:37 UTC 2026-05-03). So the WRITE side works.
 
-Counterpart on .122 (`tl-vtvvv2tj` / `9219671e28054458`) demonstrates the working pattern — that session was today's interlocutor on the dm:9219671e:d1993c2c topic (offsets 6, 7 on ring20-management hub).
+The actual gap is on the inbound/READ side:
 
-**Why this matters for the rollout:** "vendored agents in the field" means peer Claudes that can read AND write chat-arc / dm:* — not just sessions that have heartbeat fired at them. .141 currently fails the WRITE side under T-1427 enforcement.
+1. `termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami'` returns no `Identity FP:` line — the session metadata lacks the T-1436 identity_fingerprint field.
+2. Posting to `dm:6604a2af482f0cf7:d1993c2c3ec44c94` on .141's hub succeeds (offset=1, smoke tested 2026-05-03T20:54Z). The message LANDS.
+3. But no subscriber reads it — there is no active Claude on .141 listening to its dm:* topic. The .122 counterpart works because a peer Claude IS attached and reading chat-arc + dm:*.
+
+**Why this matters for the rollout:** "vendored agents in the field" means peer Claudes that can read AND write. .141 has the write half (heartbeat-via-key) but not the read half (no listening agent). Address-ability via `dm:` requires (a) a peer Claude attached to a session on .141, AND (b) that session having T-1436 identity binding so dm topic subscription resolves automatically.
+
+Counterpart on .122 (`tl-vtvvv2tj` / `9219671e28054458`) demonstrates the working pattern — today's interlocutor on `dm:9219671e:d1993c2c` (offsets 6, 7 on ring20-management hub).
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami'` shows a non-empty `Identity FP:` line
-- [ ] A direct heartbeat-equivalent post from the .141 session (not driven from .107) lands on `agent-chat-arc` with that FP as `sender_id`
-- [ ] `termlink agent contact --hub laptop-141 --target-fp <new-fp> --message "ping"` succeeds (does not return -32014)
+- [x] FP confirmation: 6604a2af482f0cf7 posts as .141's chat-arc participant — verified 2026-05-03T20:54Z (33 posts, last 21:37 UTC)
+- [x] Direct dm: post smoke-tested — `agent contact --hub laptop-141 --target-fp 6604a2af482f0cf7` lands on offset=1 of dm:6604a2af482f0cf7:d1993c2c3ec44c94 — verified 2026-05-03T20:54Z
+- [ ] `termlink remote exec laptop-141 tl-gibzucwp 'termlink whoami'` shows non-empty `Identity FP: 6604a2af482f0cf7` (requires session re-registration with --identity)
+
+### Human
+- [ ] [REVIEW] Decide whether .141 needs a peer Claude attached at all, or whether heartbeat-only target is the desired end state for that host
+  **Steps:**
+  1. Read this task body + the .122 working pattern
+  2. Decide: is .141 a "vendored agent" (needs peer Claude) or a "vendored host" (heartbeat-only is fine)?
+  **Expected:** Clear scope decision. If "vendored agent", proceed with operator action below.
+  **If not (heartbeat-only target):** Close this task as out-of-scope — current state is the desired end state.
+
+- [ ] [RUBBER-STAMP] Operator action on .141 (only if peer Claude is required)
+  **Steps:**
+  1. Open SSH or WSL session on .141 as user dimitri
+  2. Stop the existing `tl-gibzucwp` agent-1 session (`pkill -f 'termlink register'` or wait for natural exit)
+  3. Re-register with explicit identity: `termlink register --name agent-1 --identity-key ~/.termlink/identity.key --tags 'role:agent,host:dimitrixpro'`
+  4. Verify: `termlink whoami` shows `Identity FP: 6604a2af482f0cf7`
+  5. Attach a Claude Code session that subscribes to chat-arc + dm:6604a2af:* topics
+  **Expected:** From .107, `termlink agent contact --hub laptop-141 --target-fp 6604a2af482f0cf7 --message "ping"` produces a reply within ~30s.
+  **If not:** Re-check identity key path; verify session metadata via `termlink remote list laptop-141` shows non-`-` FP column.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -81,14 +105,10 @@ out=$(./target/release/termlink channel members --hub laptop-141 agent-chat-arc 
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-05-03T20:54Z — Reframe: write-side works, read-side is the gap
+- **Chose:** Reframe the task from "register identity on .141" to "decide if peer Claude is needed on .141, and if so, register session metadata + attach Claude"
+- **Why:** Smoke test revealed FP 6604a2af482f0cf7 already posts to .141's chat-arc successfully — the write-side is fine. The actual missing piece is a Claude reading dm:* topics, which requires both a session-metadata identity binding (T-1436) AND an attached peer agent. Without the peer Claude, even a perfect identity binding gives nothing — messages would still land in dm: with no reader.
+- **Rejected:** Original framing (treat as pure session-registration task) — would have produced session metadata but no readability improvement.
 
 ## Updates
 
