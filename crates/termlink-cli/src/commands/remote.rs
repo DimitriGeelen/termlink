@@ -89,6 +89,279 @@ fn compute_cut_readiness_verdict(
     }
 }
 
+/// T-1462: Diff between two `legacy_summary` snapshots (prior vs current).
+/// All fields are signed deltas (current - prior) except the elapsed time and
+/// rate, which are computed only when both snapshots embedded `_snapshot_ts_ms`.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct LegacyDiff {
+    pub total_fleet_delta: i64,
+    /// Per-hub deltas. `None` for `prior_count` means the hub appeared after
+    /// the prior snapshot; `None` for `current_count` means it vanished.
+    pub per_hub: Vec<HubDelta>,
+    /// Per-caller deltas computed from `top_callers_fleet`. Same vanish/appear
+    /// semantics as per_hub.
+    pub per_caller: Vec<CallerDelta>,
+    /// Elapsed milliseconds between snapshots, when both timestamps were
+    /// embedded. None means the prior snapshot predated T-1462.
+    pub elapsed_ms: Option<u64>,
+    /// Average legacy calls per minute over the elapsed interval. None when
+    /// elapsed_ms is None or zero.
+    pub rate_per_min: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct HubDelta {
+    pub hub: String,
+    pub prior_count: Option<u64>,
+    pub current_count: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CallerDelta {
+    pub id: String,
+    pub prior_count: Option<u64>,
+    pub current_count: Option<u64>,
+}
+
+impl HubDelta {
+    pub fn delta(&self) -> i64 {
+        self.current_count.unwrap_or(0) as i64 - self.prior_count.unwrap_or(0) as i64
+    }
+}
+
+impl CallerDelta {
+    pub fn delta(&self) -> i64 {
+        self.current_count.unwrap_or(0) as i64 - self.prior_count.unwrap_or(0) as i64
+    }
+}
+
+/// T-1462: Compute diff between two legacy_summary objects (the JSON values
+/// produced by `cmd_fleet_doctor` under the `legacy_summary` key).
+///
+/// `prior_ts_ms` and `current_ts_ms` are the top-level `_snapshot_ts_ms`
+/// values; pre-T-1462 snapshots will not have one, so prior_ts_ms is Option.
+/// Pure function — no I/O, no clock — for testability.
+pub(crate) fn compute_legacy_diff(
+    prior: &serde_json::Value,
+    current: &serde_json::Value,
+    prior_ts_ms: Option<u64>,
+    current_ts_ms: u64,
+) -> LegacyDiff {
+    let prior_total = prior
+        .get("total_legacy_fleet")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let current_total = current
+        .get("total_legacy_fleet")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let total_fleet_delta = current_total as i64 - prior_total as i64;
+
+    // Per-hub: union of (clean ∪ with_traffic) sets in both snapshots.
+    let prior_hubs = collect_hub_counts(prior);
+    let current_hubs = collect_hub_counts(current);
+    let mut all_names: std::collections::BTreeSet<String> =
+        prior_hubs.keys().cloned().collect();
+    all_names.extend(current_hubs.keys().cloned());
+    let mut per_hub: Vec<HubDelta> = all_names
+        .into_iter()
+        .map(|name| HubDelta {
+            prior_count: prior_hubs.get(&name).copied(),
+            current_count: current_hubs.get(&name).copied(),
+            hub: name,
+        })
+        .collect();
+    // Sort by absolute delta descending, then by name for determinism.
+    per_hub.sort_by(|a, b| b.delta().abs().cmp(&a.delta().abs()).then_with(|| a.hub.cmp(&b.hub)));
+
+    // Per-caller: from top_callers_fleet array on each side.
+    let prior_callers = collect_caller_counts(prior);
+    let current_callers = collect_caller_counts(current);
+    let mut all_ids: std::collections::BTreeSet<String> =
+        prior_callers.keys().cloned().collect();
+    all_ids.extend(current_callers.keys().cloned());
+    let mut per_caller: Vec<CallerDelta> = all_ids
+        .into_iter()
+        .map(|id| CallerDelta {
+            prior_count: prior_callers.get(&id).copied(),
+            current_count: current_callers.get(&id).copied(),
+            id,
+        })
+        .collect();
+    per_caller.sort_by(|a, b| b.delta().abs().cmp(&a.delta().abs()).then_with(|| a.id.cmp(&b.id)));
+
+    let elapsed_ms = prior_ts_ms.and_then(|p| {
+        if current_ts_ms > p {
+            Some(current_ts_ms - p)
+        } else {
+            None
+        }
+    });
+    let rate_per_min = elapsed_ms.and_then(|e| {
+        if e == 0 {
+            None
+        } else {
+            // Rate uses the absolute delta of legacy traffic (calls added in
+            // the interval); negative deltas (decay) yield a negative rate
+            // which is also useful — operators read it as "calls/min disappearing".
+            Some((total_fleet_delta as f64) / (e as f64 / 60_000.0))
+        }
+    });
+
+    LegacyDiff {
+        total_fleet_delta,
+        per_hub,
+        per_caller,
+        elapsed_ms,
+        rate_per_min,
+    }
+}
+
+fn collect_hub_counts(
+    legacy_summary: &serde_json::Value,
+) -> std::collections::BTreeMap<String, u64> {
+    let mut out = std::collections::BTreeMap::new();
+    if let Some(arr) = legacy_summary.get("hubs_clean").and_then(|v| v.as_array()) {
+        for n in arr {
+            if let Some(s) = n.as_str() {
+                out.insert(s.to_string(), 0);
+            }
+        }
+    }
+    if let Some(arr) = legacy_summary.get("hubs_with_traffic").and_then(|v| v.as_array()) {
+        for h in arr {
+            if let (Some(name), Some(count)) = (
+                h.get("hub").and_then(|v| v.as_str()),
+                h.get("count").and_then(|v| v.as_u64()),
+            ) {
+                out.insert(name.to_string(), count);
+            }
+        }
+    }
+    out
+}
+
+fn collect_caller_counts(
+    legacy_summary: &serde_json::Value,
+) -> std::collections::BTreeMap<String, u64> {
+    let mut out = std::collections::BTreeMap::new();
+    if let Some(arr) = legacy_summary.get("top_callers_fleet").and_then(|v| v.as_array()) {
+        for c in arr {
+            if let (Some(id), Some(count)) = (
+                c.get("id").and_then(|v| v.as_str()),
+                c.get("count").and_then(|v| v.as_u64()),
+            ) {
+                out.insert(id.to_string(), count);
+            }
+        }
+    }
+    out
+}
+
+/// T-1462: Render diff to JSON for `--json` output. Mirrors LegacyDiff fields
+/// in a stable, schema-additive shape.
+pub(crate) fn legacy_diff_to_json(d: &LegacyDiff) -> serde_json::Value {
+    serde_json::json!({
+        "total_fleet_delta": d.total_fleet_delta,
+        "elapsed_ms": d.elapsed_ms,
+        "rate_per_min": d.rate_per_min,
+        "per_hub": d.per_hub.iter().map(|h| serde_json::json!({
+            "hub": h.hub,
+            "prior_count": h.prior_count,
+            "current_count": h.current_count,
+            "delta": h.delta(),
+        })).collect::<Vec<_>>(),
+        "per_caller": d.per_caller.iter().map(|c| serde_json::json!({
+            "id": c.id,
+            "prior_count": c.prior_count,
+            "current_count": c.current_count,
+            "delta": c.delta(),
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// T-1462: Print the human-readable diff block under cut-readiness output.
+pub(crate) fn print_legacy_diff_block(d: &LegacyDiff, snapshot_label: &str) {
+    eprintln!();
+    eprintln!("=== T-1166 cut-readiness DIFF vs {snapshot_label} ===");
+    let arrow = if d.total_fleet_delta > 0 {
+        "↑"
+    } else if d.total_fleet_delta < 0 {
+        "↓ (decay)"
+    } else {
+        "→ (no change)"
+    };
+    let elapsed_str = match d.elapsed_ms {
+        Some(ms) => {
+            let secs = ms / 1000;
+            if secs < 60 {
+                format!("{secs}s")
+            } else if secs < 3600 {
+                format!("{}m{}s", secs / 60, secs % 60)
+            } else if secs < 86400 {
+                format!("{}h{}m", secs / 3600, (secs % 3600) / 60)
+            } else {
+                format!("{}d{}h", secs / 86400, (secs % 86400) / 3600)
+            }
+        }
+        None => "(prior snapshot has no _snapshot_ts_ms; pre-T-1462)".to_string(),
+    };
+    eprintln!(
+        "  fleet total_legacy: {} {arrow}  (elapsed: {})",
+        d.total_fleet_delta, elapsed_str
+    );
+    if let Some(rate) = d.rate_per_min {
+        let tag = if rate > 0.0 {
+            "growing"
+        } else if rate < 0.0 {
+            "decaying"
+        } else {
+            "flat"
+        };
+        eprintln!("  rate: {:+.2} calls/min ({tag})", rate);
+    }
+    let mut hub_lines: Vec<String> = Vec::new();
+    for h in &d.per_hub {
+        // Suppress zero-information rows: delta=0 covers both stable hubs and
+        // clean→absent / absent→clean transitions (information-free).
+        if h.delta() == 0 {
+            continue;
+        }
+        let line = match (h.prior_count, h.current_count) {
+            (None, Some(c)) => format!("    {}: NEW → {} (+{})", h.hub, c, c),
+            (Some(p), None) => format!("    {}: {} → VANISHED (-{})", h.hub, p, p),
+            (Some(p), Some(c)) => format!("    {}: {} → {} ({:+})", h.hub, p, c, h.delta()),
+            (None, None) => continue,
+        };
+        hub_lines.push(line);
+    }
+    if !hub_lines.is_empty() {
+        eprintln!("  Per-hub change:");
+        for l in hub_lines {
+            eprintln!("{l}");
+        }
+    }
+    let mut caller_lines: Vec<String> = Vec::new();
+    for c in d.per_caller.iter().take(5) {
+        if c.delta() == 0 {
+            continue;
+        }
+        let line = match (c.prior_count, c.current_count) {
+            (None, Some(n)) => format!("    {}: NEW → {} (+{})", c.id, n, n),
+            (Some(p), None) => format!("    {}: {} → VANISHED (-{})", c.id, p, p),
+            (Some(p), Some(n)) => format!("    {}: {} → {} ({:+})", c.id, p, n, c.delta()),
+            (None, None) => continue,
+        };
+        caller_lines.push(line);
+    }
+    if !caller_lines.is_empty() {
+        eprintln!("  Top-caller change:");
+        for l in caller_lines {
+            eprintln!("{l}");
+        }
+    }
+}
+
 /// Options for remote inject command.
 pub(crate) struct RemoteInjectOpts<'a> {
     pub session: &'a str,
@@ -1721,7 +1994,32 @@ pub(crate) async fn cmd_fleet_doctor(
     legacy_usage: bool,
     legacy_window_days: u64,
     topic_durability: bool,
+    diff: Option<std::path::PathBuf>,
 ) -> Result<()> {
+    // T-1462: --diff requires --legacy-usage. Reject loudly so operators don't
+    // wonder why nothing happens.
+    if diff.is_some() && !legacy_usage {
+        anyhow::bail!("--diff requires --legacy-usage (the diff is computed against the legacy_summary block)");
+    }
+    // T-1462: read prior snapshot up-front so we fail fast on missing/unparseable
+    // file rather than after a full RPC sweep. Returns the *whole* prior fleet
+    // doctor JSON document; we'll extract `legacy_summary` and `_snapshot_ts_ms`
+    // when computing the diff.
+    let prior_snapshot: Option<serde_json::Value> = if let Some(path) = diff.as_deref() {
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("--diff: cannot read snapshot file {}", path.display()))?;
+        let v: serde_json::Value = serde_json::from_str(&text)
+            .with_context(|| format!("--diff: snapshot file {} is not valid JSON", path.display()))?;
+        if v.get("legacy_summary").is_none() {
+            anyhow::bail!(
+                "--diff: snapshot file {} has no `legacy_summary` field — was it produced by `fleet doctor --legacy-usage --json`?",
+                path.display()
+            );
+        }
+        Some(v)
+    } else {
+        None
+    };
     // T-1432: clamp window to documented range. 1 day floor (avoid empty
     // windows from 0), 90 day ceiling (matches T-1166 audit-log retention
     // assumption — older lines may have been pruned).
@@ -2175,12 +2473,42 @@ pub(crate) async fn cmd_fleet_doctor(
         None
     };
 
+    // T-1462: capture current snapshot timestamp once, used both for embedding
+    // in JSON output and for diff rate calculation.
+    let snapshot_ts_ms: u64 = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    // T-1462: if a prior snapshot was supplied, render the diff block. Render
+    // before JSON serialization so non-JSON output sees it as part of the
+    // human-readable summary. For JSON, attach as `legacy_diff` field.
+    let legacy_diff_obj: Option<LegacyDiff> = if let (Some(prior), Some(current_ls)) =
+        (prior_snapshot.as_ref(), legacy_summary_obj.as_ref())
+    {
+        let prior_ls = prior.get("legacy_summary").expect("validated up-front");
+        let prior_ts_ms = prior.get("_snapshot_ts_ms").and_then(|v| v.as_u64());
+        let d = compute_legacy_diff(prior_ls, current_ls, prior_ts_ms, snapshot_ts_ms);
+        if !json {
+            let label = diff
+                .as_deref()
+                .and_then(|p| p.file_name().and_then(|s| s.to_str()))
+                .unwrap_or("<snapshot>")
+                .to_string();
+            print_legacy_diff_block(&d, &label);
+        }
+        Some(d)
+    } else {
+        None
+    };
+
     if json {
         let mut top = serde_json::json!({
             "ok": total_fail == 0,
             "hubs": hub_results,
             "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail},
             "fleet_versions": fleet_versions,
+            "_snapshot_ts_ms": snapshot_ts_ms,
         });
         if let Some(ls) = legacy_summary_obj
             && let Some(obj) = top.as_object_mut()
@@ -2191,6 +2519,11 @@ pub(crate) async fn cmd_fleet_doctor(
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("bus_state_summary".to_string(), bs);
+        }
+        if let Some(d) = legacy_diff_obj.as_ref()
+            && let Some(obj) = top.as_object_mut()
+        {
+            obj.insert("legacy_diff".to_string(), legacy_diff_to_json(d));
         }
         println!("{}", serde_json::to_string_pretty(&top)?);
     } else {
@@ -4502,6 +4835,139 @@ secret_file = "/tmp/other.hex"
             now_ms_for_test(),
         );
         assert_eq!(verdict, "CUT-READY-DECAYING");
+    }
+
+    // ===== T-1462: legacy_diff tests =====
+
+    fn ls_clean(hubs: &[&str]) -> serde_json::Value {
+        serde_json::json!({
+            "verdict": "CUT-READY",
+            "total_legacy_fleet": 0,
+            "hubs_clean": hubs,
+            "hubs_with_traffic": [],
+            "hubs_unsupported": [],
+            "hubs_no_audit": [],
+            "top_callers_fleet": [],
+        })
+    }
+
+    fn ls_with(traffic: &[(&str, u64)], callers: &[(&str, u64)]) -> serde_json::Value {
+        let total: u64 = traffic.iter().map(|(_, c)| *c).sum();
+        let traf_arr: Vec<serde_json::Value> = traffic
+            .iter()
+            .map(|(n, c)| serde_json::json!({"hub": n, "count": c, "last_ts_ms": 0u64}))
+            .collect();
+        let cal_arr: Vec<serde_json::Value> = callers
+            .iter()
+            .map(|(id, c)| serde_json::json!({"id": id, "count": c}))
+            .collect();
+        serde_json::json!({
+            "verdict": "CUT-READY-DECAYING",
+            "total_legacy_fleet": total,
+            "hubs_clean": [],
+            "hubs_with_traffic": traf_arr,
+            "hubs_unsupported": [],
+            "hubs_no_audit": [],
+            "top_callers_fleet": cal_arr,
+        })
+    }
+
+    #[test]
+    fn legacy_diff_clean_to_clean_yields_zero() {
+        let prior = ls_clean(&["a", "b"]);
+        let cur = ls_clean(&["a", "b"]);
+        let d = compute_legacy_diff(&prior, &cur, Some(1000), 2000);
+        assert_eq!(d.total_fleet_delta, 0);
+        // Both hubs are present on both sides with delta 0 → filtered from
+        // human output (filtering is in the printer, not in the struct).
+        assert!(d.per_hub.iter().all(|h| h.delta() == 0));
+        assert_eq!(d.elapsed_ms, Some(1000));
+    }
+
+    #[test]
+    fn legacy_diff_decay_yields_negative_total() {
+        let prior = ls_with(&[("a", 100)], &[("addr:1.2.3.4", 100)]);
+        let cur = ls_with(&[("a", 60)], &[("addr:1.2.3.4", 60)]);
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 60_000);
+        assert_eq!(d.total_fleet_delta, -40);
+        assert_eq!(d.elapsed_ms, Some(60_000));
+        // -40 calls in 60s = -40 calls/min
+        let rate = d.rate_per_min.expect("rate computable");
+        assert!((rate - -40.0).abs() < 0.001, "rate was {}", rate);
+        assert_eq!(d.per_caller[0].id, "addr:1.2.3.4");
+        assert_eq!(d.per_caller[0].delta(), -40);
+    }
+
+    #[test]
+    fn legacy_diff_growth_yields_positive_total() {
+        let prior = ls_clean(&["a"]);
+        let cur = ls_with(&[("a", 12)], &[("pid:42", 12)]);
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 30_000);
+        assert_eq!(d.total_fleet_delta, 12);
+        let rate = d.rate_per_min.expect("rate computable");
+        assert!((rate - 24.0).abs() < 0.001, "rate was {}", rate); // 12 over 30s = 24/min
+    }
+
+    #[test]
+    fn legacy_diff_hub_vanished_appears_in_per_hub() {
+        let prior = ls_with(&[("dropped", 5), ("kept", 3)], &[]);
+        let cur = ls_with(&[("kept", 3)], &[]);
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 1000);
+        let dropped = d.per_hub.iter().find(|h| h.hub == "dropped").unwrap();
+        assert_eq!(dropped.prior_count, Some(5));
+        assert_eq!(dropped.current_count, None);
+        assert_eq!(dropped.delta(), -5);
+    }
+
+    #[test]
+    fn legacy_diff_hub_appeared_appears_in_per_hub() {
+        let prior = ls_with(&[("kept", 3)], &[]);
+        let cur = ls_with(&[("kept", 3), ("new", 7)], &[]);
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 1000);
+        let appeared = d.per_hub.iter().find(|h| h.hub == "new").unwrap();
+        assert_eq!(appeared.prior_count, None);
+        assert_eq!(appeared.current_count, Some(7));
+        assert_eq!(appeared.delta(), 7);
+    }
+
+    #[test]
+    fn legacy_diff_caller_dominance_shift() {
+        let prior = ls_with(
+            &[("a", 100)],
+            &[("addr:old", 80), ("addr:new", 20)],
+        );
+        let cur = ls_with(
+            &[("a", 100)],
+            &[("addr:old", 10), ("addr:new", 90)],
+        );
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 60_000);
+        // total delta is 0 (caller redistribution within same total)
+        assert_eq!(d.total_fleet_delta, 0);
+        // First entry has largest absolute delta — should be one of old/new (both = 70)
+        let top = &d.per_caller[0];
+        assert!(top.id == "addr:old" || top.id == "addr:new");
+        assert_eq!(top.delta().abs(), 70);
+    }
+
+    #[test]
+    fn legacy_diff_no_prior_ts_yields_no_rate() {
+        let prior = ls_clean(&[]);
+        let cur = ls_clean(&[]);
+        let d = compute_legacy_diff(&prior, &cur, None, 1000);
+        assert_eq!(d.elapsed_ms, None);
+        assert_eq!(d.rate_per_min, None);
+    }
+
+    #[test]
+    fn legacy_diff_to_json_round_trip_keys_present() {
+        let prior = ls_with(&[("a", 5)], &[("pid:9", 5)]);
+        let cur = ls_with(&[("a", 2)], &[("pid:9", 2)]);
+        let d = compute_legacy_diff(&prior, &cur, Some(0), 60_000);
+        let j = legacy_diff_to_json(&d);
+        for k in ["total_fleet_delta", "elapsed_ms", "rate_per_min", "per_hub", "per_caller"] {
+            assert!(j.get(k).is_some(), "missing key {k}: {j}");
+        }
+        assert_eq!(j["total_fleet_delta"].as_i64(), Some(-3));
     }
 }
 
