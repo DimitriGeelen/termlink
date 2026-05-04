@@ -269,8 +269,8 @@ async fn main() -> Result<()> {
             AgentAction::Who { target_fp, target, window_secs, hub, json, filter_thread } => {
                 commands::agent::cmd_agent_who(target_fp.as_deref(), target.as_deref(), window_secs, hub.as_deref(), json, filter_thread.as_deref()).await
             }
-            AgentAction::Presence { window_secs, hub, json, filter_project, filter_thread, watch, watch_interval, top } => {
-                commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json, filter_project.as_deref(), filter_thread.as_deref(), watch, watch_interval, top).await
+            AgentAction::Presence { window_secs, hub, json, filter_project, filter_thread, watch, watch_interval, top, by_project } => {
+                commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json, filter_project.as_deref(), filter_thread.as_deref(), watch, watch_interval, top, by_project).await
             }
             AgentAction::Ping { target, target_fp, window_secs, hub, json } => {
                 commands::agent::cmd_agent_ping(target.as_deref(), target_fp.as_deref(), window_secs, hub.as_deref(), json).await

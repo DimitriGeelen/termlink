@@ -1082,6 +1082,156 @@ pub(crate) fn summarize_fleet_presence(
     rows
 }
 
+/// T-1491: by-project aggregation. One row per project (`from_project`
+/// metadata), counting in-window posts, distinct peers, top peer (the
+/// peer who posted the most on this project), and last_seen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FleetProjectRow {
+    pub(crate) project: String,
+    pub(crate) posts: u64,
+    pub(crate) distinct_peers: u64,
+    pub(crate) top_peer_fp: Option<String>,
+    pub(crate) last_seen_ms: Option<i64>,
+}
+
+impl FleetProjectRow {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "project": self.project,
+            "posts": self.posts,
+            "distinct_peers": self.distinct_peers,
+            "top_peer_fp": self.top_peer_fp,
+            "last_seen_ms": self.last_seen_ms,
+        })
+    }
+}
+
+/// T-1491: pure helper — aggregate non-meta msgs by `from_project`
+/// within the window, returning one row per project. Sorted by posts
+/// desc, then project asc.
+///
+/// Untagged posts (no `from_project`) are excluded entirely. A project
+/// tag is required to be counted in the by-project view — analogous to
+/// how `summarize_fleet_presence` excludes untagged posts when filter
+/// is set, but here it's unconditional because the project IS the
+/// aggregation key.
+///
+/// `filter_project` / `filter_thread`: when set, only matching posts
+/// count (AND-composed). With `filter_project`, the by-project view
+/// collapses to a single row of that project — useful for `--watch`
+/// of a single project's fleet activity.
+pub(crate) fn summarize_fleet_by_project(
+    msgs: &[Value],
+    now_ms: i64,
+    window_ms: i64,
+    filter_project: Option<&str>,
+    filter_thread: Option<&str>,
+) -> Vec<FleetProjectRow> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    struct Acc {
+        posts: u64,
+        last_seen: Option<i64>,
+        peers: HashMap<String, u64>, // peer_fp -> posts on this project
+    }
+    let mut by_project: HashMap<String, Acc> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let from_project = match m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+        {
+            Some(p) if !p.is_empty() => p.to_string(),
+            // Untagged posts can never appear in by-project view.
+            _ => continue,
+        };
+        if let Some(want) = filter_project
+            && from_project != want
+        {
+            continue;
+        }
+        if let Some(want) = filter_thread {
+            let from_thread = m
+                .get("metadata")
+                .and_then(|md| md.get("_thread"))
+                .and_then(|v| v.as_str());
+            if from_thread != Some(want) {
+                continue;
+            }
+        }
+        if ts < cutoff {
+            continue;
+        }
+        let acc = by_project.entry(from_project).or_insert(Acc {
+            posts: 0,
+            last_seen: None,
+            peers: HashMap::new(),
+        });
+        acc.posts += 1;
+        acc.last_seen = Some(acc.last_seen.map_or(ts, |b| b.max(ts)));
+        *acc.peers.entry(sender).or_insert(0) += 1;
+    }
+    let mut rows: Vec<FleetProjectRow> = by_project
+        .into_iter()
+        .map(|(project, acc)| {
+            let top_peer_fp = if acc.peers.is_empty() {
+                None
+            } else {
+                let mut v: Vec<(String, u64)> = acc.peers.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                Some(v.into_iter().next().unwrap().0)
+            };
+            let distinct_peers = acc.peers.len() as u64;
+            FleetProjectRow {
+                project,
+                posts: acc.posts,
+                distinct_peers,
+                top_peer_fp,
+                last_seen_ms: acc.last_seen,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.posts.cmp(&a.posts).then_with(|| a.project.cmp(&b.project)));
+    rows
+}
+
+/// T-1491: fetch wrapper paralleling `fetch_fleet_presence_via_chat_arc`
+/// but returning the by-project aggregation. Same 2000-envelope walk.
+pub(crate) async fn fetch_fleet_by_project_via_chat_arc(
+    hub: Option<&str>,
+    window_secs: u64,
+    filter_project: Option<&str>,
+    filter_thread: Option<&str>,
+) -> Result<Vec<FleetProjectRow>> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    let msgs = fetch_recent_chat_arc_msgs(hub, 2000).await?;
+    Ok(summarize_fleet_by_project(
+        &msgs,
+        now_ms,
+        window_ms,
+        filter_project,
+        filter_thread,
+    ))
+}
+
 /// T-1482: probe fleet presence on `agent-chat-arc`. Walks the last 2000
 /// envelopes — wider than per-peer activity (1000) because we're aggregating
 /// across N peers and we want enough headroom for week-long windows.
@@ -8823,6 +8973,102 @@ mod tests {
         for r in &rows {
             assert_eq!(r.posts, 1, "each peer has exactly 1 matching post");
         }
+    }
+
+    // ---- T-1491 summarize_fleet_by_project tests ----------------------
+
+    #[test]
+    fn fleet_by_project_empty_msgs_returns_empty() {
+        let rows = summarize_fleet_by_project(&[], 1_700_000_000_000, 3_600_000, None, None);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn fleet_by_project_single_project_multi_peer_aggregates() {
+        let now = 1_700_000_000_000_i64;
+        // Project A: peer1×3, peer2×1. Project B: peer1×1.
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("A")),
+            activity_msg("peer1", now - 2, "post", Some("A")),
+            activity_msg("peer1", now - 3, "post", Some("A")),
+            activity_msg("peer2", now - 4, "post", Some("A")),
+            activity_msg("peer1", now - 5, "post", Some("B")),
+        ];
+        let rows = summarize_fleet_by_project(&msgs, now, 3_600_000, None, None);
+        assert_eq!(rows.len(), 2);
+        // A first (4 posts > 1)
+        assert_eq!(rows[0].project, "A");
+        assert_eq!(rows[0].posts, 4);
+        assert_eq!(rows[0].distinct_peers, 2);
+        assert_eq!(rows[0].top_peer_fp.as_deref(), Some("peer1"));
+        assert_eq!(rows[0].last_seen_ms, Some(now - 1));
+        assert_eq!(rows[1].project, "B");
+        assert_eq!(rows[1].posts, 1);
+        assert_eq!(rows[1].distinct_peers, 1);
+    }
+
+    #[test]
+    fn fleet_by_project_sorts_posts_desc_then_project_asc() {
+        let now = 1_700_000_000_000_i64;
+        // Three projects with same post count → tie-break alphabetic.
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("zebra")),
+            activity_msg("peer1", now - 2, "post", Some("alpha")),
+            activity_msg("peer1", now - 3, "post", Some("mango")),
+        ];
+        let rows = summarize_fleet_by_project(&msgs, now, 3_600_000, None, None);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].project, "alpha");
+        assert_eq!(rows[1].project, "mango");
+        assert_eq!(rows[2].project, "zebra");
+    }
+
+    #[test]
+    fn fleet_by_project_excludes_untagged_posts() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", None),
+            activity_msg("peer1", now - 2, "post", None),
+            activity_msg("peer2", now - 3, "post", Some("X")),
+        ];
+        let rows = summarize_fleet_by_project(&msgs, now, 3_600_000, None, None);
+        assert_eq!(rows.len(), 1, "only tagged posts produce rows");
+        assert_eq!(rows[0].project, "X");
+        assert_eq!(rows[0].posts, 1);
+    }
+
+    #[test]
+    fn fleet_by_project_filter_thread_applied() {
+        let now = 1_700_000_000_000_i64;
+        // Project A: 2 posts on T-1, 1 on T-2. Project B: 2 posts on T-1.
+        let msgs = vec![
+            activity_msg_with_thread("peer1", now - 1, "post", Some("A"), Some("T-1")),
+            activity_msg_with_thread("peer1", now - 2, "post", Some("A"), Some("T-1")),
+            activity_msg_with_thread("peer1", now - 3, "post", Some("A"), Some("T-2")),
+            activity_msg_with_thread("peer2", now - 4, "post", Some("B"), Some("T-1")),
+            activity_msg_with_thread("peer2", now - 5, "post", Some("B"), Some("T-1")),
+        ];
+        let rows = summarize_fleet_by_project(&msgs, now, 3_600_000, None, Some("T-1"));
+        assert_eq!(rows.len(), 2);
+        // A and B tied at 2 posts each; alphabetic → A first
+        assert_eq!(rows[0].project, "A");
+        assert_eq!(rows[0].posts, 2);
+        assert_eq!(rows[1].project, "B");
+        assert_eq!(rows[1].posts, 2);
+    }
+
+    #[test]
+    fn fleet_by_project_meta_msgs_skipped_outside_window_excluded() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "post", Some("A")),
+            activity_msg("peer1", now - 2_000, "reaction", Some("A")), // meta
+            activity_msg("peer1", now - 5_000_000, "post", Some("A")), // outside window
+        ];
+        let rows = summarize_fleet_by_project(&msgs, now, window_ms, None, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posts, 1, "1 in-window post only");
     }
 
     // ---- T-1485 detect_ack_in_msgs tests ------------------------------

@@ -3506,6 +3506,15 @@ pub(crate) enum AgentAction {
         /// operator knows what was clipped. Clamped to [1, 1000].
         #[arg(long = "top")]
         top: Option<usize>,
+
+        /// Aggregate by project instead of by peer (T-1491). Output is
+        /// one row per `from_project` (untagged posts excluded), with
+        /// posts/peers/top_peer/last_seen. Composes with `--filter-project`
+        /// (collapses to single row), `--thread`, `--top`, `--watch`,
+        /// `--json`. JSON envelope swaps `peers` → `projects` and adds
+        /// `view: "by-project"`.
+        #[arg(long = "by-project")]
+        by_project: bool,
     },
 
     /// Peer observability — summarize a peer's recent `agent-chat-arc`
