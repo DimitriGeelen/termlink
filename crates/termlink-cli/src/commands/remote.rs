@@ -41,6 +41,38 @@ fn aggregate_fleet_top_callers(
     out
 }
 
+/// T-1467: Derive a per-hub `top_callers` list from a hub's `by_method` block
+/// when the hub doesn't ship the native `top_callers` field (i.e. pre-T-1460
+/// hubs, which is the entire 0.9.0 fleet at the time of writing).
+///
+/// `by_method` shape (as produced by `hub.legacy_usage`):
+/// ```json
+/// { "<method>": { "callers": [ { "from": "<id>", "count": N }, ... ] } }
+/// ```
+///
+/// Sums counts per `from` across all methods, returns a vec sorted by count
+/// descending (ties broken alphabetically). Returns an empty vec if `by_method`
+/// is not an object, has no recognisable callers entries, or every entry is
+/// zero. Schema-additive: post-T-1460 hubs ship `top_callers` directly and the
+/// caller in `cmd_fleet_doctor` only invokes this fallback when that field is
+/// absent or empty.
+fn derive_top_callers_from_by_method(by_method: &serde_json::Value) -> Vec<(String, u64)> {
+    let Some(obj) = by_method.as_object() else { return Vec::new() };
+    let mut merged: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    for method_block in obj.values() {
+        let Some(callers) = method_block.get("callers").and_then(|v| v.as_array()) else { continue };
+        for c in callers {
+            let Some(id) = c.get("from").and_then(|v| v.as_str()) else { continue };
+            let Some(count) = c.get("count").and_then(|v| v.as_u64()) else { continue };
+            if count == 0 { continue }
+            *merged.entry(id.to_string()).or_insert(0) += count;
+        }
+    }
+    let mut out: Vec<(String, u64)> = merged.into_iter().collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    out
+}
+
 /// T-1459: Pure verdict aggregator for `fleet doctor --legacy-usage`.
 ///
 /// Inputs are the per-hub buckets already classified by the calling code:
@@ -2311,8 +2343,9 @@ pub(crate) async fn cmd_fleet_doctor(
                     .map(|t| t as u128)
                     .unwrap_or(0);
                 // T-1460: surface top callers if hub provides them.
+                let mut parsed: Vec<(String, u64)> = Vec::new();
                 if let Some(arr) = lu.get("top_callers").and_then(|v| v.as_array()) {
-                    let parsed: Vec<(String, u64)> = arr
+                    parsed = arr
                         .iter()
                         .filter_map(|c| {
                             let id = c.get("id").and_then(|v| v.as_str())?.to_string();
@@ -2320,9 +2353,18 @@ pub(crate) async fn cmd_fleet_doctor(
                             Some((id, cnt))
                         })
                         .collect();
-                    if !parsed.is_empty() {
-                        hub_top_callers.insert(name.clone(), parsed);
+                }
+                // T-1467: fallback for pre-T-1460 hubs (no native `top_callers`
+                // field). The same caller→count data lives inside `by_method`,
+                // just keyed by `from` instead of `id`. Derive it on the
+                // client side so the fleet aggregator sees something.
+                if parsed.is_empty() {
+                    if let Some(by_method) = lu.get("by_method") {
+                        parsed = derive_top_callers_from_by_method(by_method);
                     }
+                }
+                if !parsed.is_empty() {
+                    hub_top_callers.insert(name.clone(), parsed);
                 }
                 hubs_with_traffic.push((name, count, last_ts));
             } else {
@@ -4913,6 +4955,119 @@ secret_file = "/tmp/other.hex"
             now_ms_for_test(),
         );
         assert_eq!(verdict, "CUT-READY-DECAYING");
+    }
+
+    // ---- T-1467: derive_top_callers_from_by_method (pre-T-1460 hub fallback) ----
+
+    #[test]
+    fn derive_top_callers_empty_object_returns_empty() {
+        let bm = serde_json::json!({});
+        assert!(derive_top_callers_from_by_method(&bm).is_empty());
+    }
+
+    #[test]
+    fn derive_top_callers_non_object_returns_empty() {
+        // Defensive: hub returned `null` or an array — don't panic.
+        assert!(derive_top_callers_from_by_method(&serde_json::Value::Null).is_empty());
+        assert!(derive_top_callers_from_by_method(&serde_json::json!([])).is_empty());
+    }
+
+    #[test]
+    fn derive_top_callers_single_method_one_caller() {
+        let bm = serde_json::json!({
+            "inbox.status": {
+                "callers": [{"from": "tl-abc", "count": 42}],
+                "count": 42,
+                "last_ts_ms": 0,
+            }
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        assert_eq!(out, vec![("tl-abc".to_string(), 42)]);
+    }
+
+    #[test]
+    fn derive_top_callers_multiple_methods_overlapping_callers_sums() {
+        // The headline case: same caller hits both inbox.status and event.broadcast.
+        // Derived list should have one entry summing both counts.
+        let bm = serde_json::json!({
+            "inbox.status": {
+                "callers": [
+                    {"from": "tl-poller", "count": 100},
+                    {"from": "tl-other", "count": 5},
+                ],
+            },
+            "event.broadcast": {
+                "callers": [
+                    {"from": "tl-poller", "count": 7},
+                    {"from": "tl-third", "count": 50},
+                ],
+            },
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        // poller: 107, third: 50, other: 5 — sorted by count desc.
+        assert_eq!(out[0], ("tl-poller".to_string(), 107));
+        assert_eq!(out[1], ("tl-third".to_string(), 50));
+        assert_eq!(out[2], ("tl-other".to_string(), 5));
+    }
+
+    #[test]
+    fn derive_top_callers_skips_zero_counts() {
+        // Zero entries are noise — filter them out.
+        let bm = serde_json::json!({
+            "inbox.status": {
+                "callers": [
+                    {"from": "tl-zero", "count": 0},
+                    {"from": "tl-one", "count": 1},
+                ],
+            }
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        assert_eq!(out, vec![("tl-one".to_string(), 1)]);
+    }
+
+    #[test]
+    fn derive_top_callers_skips_malformed_entries() {
+        // Missing `from` or `count` field — skip silently rather than panic.
+        let bm = serde_json::json!({
+            "inbox.status": {
+                "callers": [
+                    {"from": "tl-good", "count": 5},
+                    {"count": 99},                 // no `from`
+                    {"from": "tl-no-count"},        // no `count`
+                    {"from": 42, "count": 1},       // wrong type
+                ],
+            }
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        assert_eq!(out, vec![("tl-good".to_string(), 5)]);
+    }
+
+    #[test]
+    fn derive_top_callers_method_without_callers_array_skipped() {
+        // Hub may include a method block with no `callers` field at all.
+        let bm = serde_json::json!({
+            "inbox.status": { "count": 99, "last_ts_ms": 0 },
+            "event.broadcast": {
+                "callers": [{"from": "tl-real", "count": 3}],
+            },
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        assert_eq!(out, vec![("tl-real".to_string(), 3)]);
+    }
+
+    #[test]
+    fn derive_top_callers_ties_broken_by_id_alphabetically() {
+        let bm = serde_json::json!({
+            "inbox.status": {
+                "callers": [
+                    {"from": "tl-zebra", "count": 5},
+                    {"from": "tl-alpha", "count": 5},
+                ],
+            }
+        });
+        let out = derive_top_callers_from_by_method(&bm);
+        assert_eq!(out[0].0, "tl-alpha");
+        assert_eq!(out[1].0, "tl-zebra");
     }
 
     // ===== T-1462: legacy_diff tests =====
