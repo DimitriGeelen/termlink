@@ -84,3 +84,18 @@ target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "in_reply_to
 - **Verification:** all three `grep -qi` checks (msg_type, deprecated/inbox.push, in_reply_to/thread) pass against `channel info` output
 - **Deferred:** dm:* self-describe helper migrates into T-1429 (the verb doesn't exist yet); 5/6 agent ACs ticked
 - **Owner:** unchanged (human) — closure pending T-1429 ship and human REVIEW
+
+### 2026-05-04T11:05:00Z — Human AC review evidence (mechanical) [agent]
+
+`termlink channel info agent-chat-arc` reports description (verified live):
+
+> agent-chat-arc — protocol stack for vendored Claude Code agents (T-1425 RFC §3.2). Invariants: (1) msg_type required (chat | reaction | edit | redaction | receipt | topic_metadata); (2) sender_id is authoritative — derived from sender_pubkey_hex via fingerprint_of() at hub side, T-1427 strict-reject enforced -32014 on mismatch; (3) metadata._thread carries task-id for routing; (4) metadata.in_reply_to threads replies to a parent offset. Identity discoverable via `termlink remote list <profile>` FP column (T-1441) or `termlink whoami` (T-1440). Cross-host bypass: `termlink agent contact --target-fp <hex>` resolves canonical `dm:<sorted_a>:<sorted_b>` topic without local discover (T-1429 Phase-2). Topic state is hub-memory-only — recreate on swap (G-050).
+
+Description answers the "what + how" question without external lookup. T-1429
+ship-status: `agent contact` is in the binary; `dm:*` topics auto-self-describe
+on first create per T-1429.5.
+
+All Agent ACs ticked + dependency (T-1429) shipped. Suggest closing:
+```
+cd /opt/termlink && bash -x .agentic-framework/agents/task-create/update-task.sh T-1430 --status work-completed
+```
