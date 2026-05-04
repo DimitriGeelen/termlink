@@ -2332,7 +2332,11 @@ pub(crate) async fn cmd_fleet_doctor(
     exit_code_on_verdict: bool,
     trend: Option<std::path::PathBuf>,
     trend_keep: u32,
+    top_callers: u32,
 ) -> Result<()> {
+    // T-1471: clamp top-callers count to 1..=50. 50 ceiling guards against
+    // pathological output (e.g. 10K-distinct-caller hub).
+    let top_callers = top_callers.clamp(1, 50) as usize;
     // T-1462: --diff requires --legacy-usage. Reject loudly so operators don't
     // wonder why nothing happens.
     if diff.is_some() && !legacy_usage {
@@ -2751,20 +2755,21 @@ pub(crate) async fn cmd_fleet_doctor(
                         String::new()
                     };
                     eprintln!("    {name}: {count} legacy invocation(s){suffix}");
-                    // T-1460: surface top-3 callers if hub returned them.
+                    // T-1460/T-1471: surface top-N callers if hub returned them.
                     if let Some(callers) = hub_top_callers.get(name) {
-                        for (id, c) in callers.iter().take(3) {
+                        for (id, c) in callers.iter().take(top_callers) {
                             eprintln!("      └─ {c}× {id}");
                         }
                     }
                 }
             }
-            // T-1461: fleet-wide top callers aggregate (single-line answer
-            // to "who's producing the residue?" instead of N repeated lines).
+            // T-1461/T-1471: fleet-wide top-N callers aggregate (single-line
+            // answer to "who's producing the residue?" instead of N repeated
+            // lines).
             let fleet_top = aggregate_fleet_top_callers(&hub_top_callers);
             if !fleet_top.is_empty() {
                 eprintln!("  Top callers (fleet-wide):");
-                for (id, c) in fleet_top.iter().take(3) {
+                for (id, c) in fleet_top.iter().take(top_callers) {
                     eprintln!("    {c}× {id}");
                 }
             }

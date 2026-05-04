@@ -3119,6 +3119,12 @@ pub(crate) enum FleetAction {
         /// Older snapshots are ignored. Default 7 = "show me the last week".
         #[arg(long, default_value = "7")]
         trend_keep: u32,
+
+        /// T-1471: how many top callers to show per hub AND fleet-wide.
+        /// Default 3 (preserves existing output shape). Clamped 1..=50 to
+        /// prevent runaway output on hubs with many distinct caller IDs.
+        #[arg(long, default_value = "3")]
+        top_callers: u32,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
