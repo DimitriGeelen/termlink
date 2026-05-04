@@ -3479,6 +3479,15 @@ pub(crate) enum AgentAction {
         #[arg(long = "filter-project")]
         filter_project: Option<String>,
 
+        /// Filter activity by thread/task id (T-1490). When set, only
+        /// posts whose `metadata._thread == <name>` count toward
+        /// presence; peers with zero matching posts are excluded.
+        /// Untagged posts also fail. AND-composes with `--filter-project`
+        /// — when both are set, a post must match BOTH to count. Use
+        /// this for fleet-wide thread triage — "who's working on T-1485?".
+        #[arg(long = "thread")]
+        filter_thread: Option<String>,
+
         /// Live dashboard mode (T-1486): re-render every
         /// `--watch-interval` seconds until Ctrl-C. Composes with
         /// `--filter-project`, `--window-secs`, `--hub`. Incompatible

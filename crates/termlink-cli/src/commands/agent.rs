@@ -1189,6 +1189,7 @@ pub(crate) async fn cmd_agent_presence(
     hub: Option<&str>,
     json: bool,
     filter_project: Option<&str>,
+    filter_thread: Option<&str>,
     watch: bool,
     watch_interval: u64,
     top: Option<usize>,
@@ -1232,10 +1233,17 @@ pub(crate) async fn cmd_agent_presence(
                 hub,
                 clamped_window_secs,
                 filter_project,
+                filter_thread,
             )
             .await
             {
-                Ok(rows) => render_presence_text(&rows, clamped_window_secs, filter_project, clamped_top),
+                Ok(rows) => render_presence_text(
+                    &rows,
+                    clamped_window_secs,
+                    filter_project,
+                    filter_thread,
+                    clamped_top,
+                ),
                 Err(e) => {
                     println!("# fetch error (will retry on next tick): {e}");
                 }
@@ -1248,6 +1256,7 @@ pub(crate) async fn cmd_agent_presence(
         hub,
         clamped_window_secs,
         filter_project,
+        filter_thread,
     )
     .await
     .context("agent presence: failed to fetch fleet presence")?;
@@ -1275,6 +1284,14 @@ pub(crate) async fn cmd_agent_presence(
                 serde_json::Value::String(f.to_string()),
             );
         }
+        // T-1490: echo filter_thread back so callers can confirm what was
+        // applied; omitted when unset (backward-compat).
+        if let Some(t) = filter_thread {
+            out_obj.insert(
+                "filter_thread".to_string(),
+                serde_json::Value::String(t.to_string()),
+            );
+        }
         // T-1489: echo top + total_peers when truncation flag is set so
         // callers can disambiguate "exactly N peers" from "N truncated".
         if let Some(n) = clamped_top {
@@ -1289,7 +1306,13 @@ pub(crate) async fn cmd_agent_presence(
         return Ok(());
     }
 
-    render_presence_text(&rows, clamped_window_secs, filter_project, clamped_top);
+    render_presence_text(
+        &rows,
+        clamped_window_secs,
+        filter_project,
+        filter_thread,
+        clamped_top,
+    );
     Ok(())
 }
 
@@ -1404,24 +1427,34 @@ fn render_presence_text(
     rows: &[super::channel::FleetPeerRow],
     window_secs: u64,
     filter_project: Option<&str>,
+    filter_thread: Option<&str>,
     top: Option<usize>,
 ) {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
+    // T-1490: build a human-readable filter suffix that names whichever
+    // filters are active. Used by the empty-rows branch and the footer.
+    let filter_suffix = match (filter_project, filter_thread) {
+        (None, None) => String::new(),
+        (Some(p), None) => format!(" matching project={}", p),
+        (None, Some(t)) => format!(" matching thread={}", t),
+        (Some(p), Some(t)) => format!(" matching project={} thread={}", p, t),
+    };
     if rows.is_empty() {
-        match filter_project {
-            None => println!("(no peers active in window={}s)", window_secs),
-            Some(f) => println!(
-                "(no peers active in window={}s matching project={})",
-                window_secs, f
-            ),
+        if filter_suffix.is_empty() {
+            println!("(no peers active in window={}s)", window_secs);
+        } else {
+            println!("(no peers active in window={}s{})", window_secs, filter_suffix);
         }
         return;
     }
     if let Some(f) = filter_project {
         println!("# filter_project={}", f);
+    }
+    if let Some(t) = filter_thread {
+        println!("# filter_thread={}", t);
     }
     println!(
         "{:<18} {:>14} {:>8}  {}",
@@ -1455,11 +1488,8 @@ fn render_presence_text(
         );
     }
     println!();
-    let suffix = match filter_project {
-        Some(f) => format!(" matching project={}", f),
-        None => String::new(),
-    };
     // T-1489: footer naming both shown and total when truncation applied.
+    // T-1490: filter_suffix already names project/thread filters.
     let footer_count = match top {
         Some(_) if display_rows.len() < total_peers => {
             format!("{} of {}", display_rows.len(), total_peers)
@@ -1470,7 +1500,7 @@ fn render_presence_text(
         "{} peer(s) active in window={}s{}",
         footer_count,
         window_secs,
-        suffix
+        filter_suffix
     );
 }
 
