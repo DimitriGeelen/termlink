@@ -1236,15 +1236,19 @@ impl RecentPost {
     }
 }
 
-/// T-1492 / T-1493: pure helper — extract last N non-meta posts from
-/// `msgs`, with optional peer/thread/project filters. Returns posts in
-/// chronological asc order (oldest first; natural reading flow). Caps
-/// content at 200 chars (suffix `…` if truncated).
+/// T-1492 / T-1493 / T-1499: pure helper — extract last N non-meta
+/// posts from `msgs`, with optional peer/thread/project/msg-type
+/// filters. Returns posts in chronological asc order (oldest first;
+/// natural reading flow). Caps content at 200 chars (suffix `…` if
+/// truncated).
 ///
-/// All three filters are independent and AND-composed when set:
+/// All four filters are independent and AND-composed when set:
 /// - `filter_peer_fp`: only posts where `sender_id == p`
 /// - `filter_thread`: only posts where `metadata._thread == t`
 /// - `filter_project`: only posts where `metadata.from_project == p`
+/// - `filter_msg_types` (T-1499): only posts whose `msg_type` is in
+///   the slice. Allowlist; applies AFTER meta exclusion so `edit`
+///   etc. cannot be re-introduced via the filter.
 ///
 /// Untagged posts fail any tag filter that's set. Used by `agent recent`
 /// (T-1492 — peer filter required) and `agent on-thread` (T-1493 —
@@ -1257,6 +1261,7 @@ pub(crate) fn extract_recent_posts(
     filter_peer_fp: Option<&str>,
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
+    filter_msg_types: Option<&[&str]>,
 ) -> Vec<RecentPost> {
     const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
     const CONTENT_CAP: usize = 200;
@@ -1266,6 +1271,12 @@ pub(crate) fn extract_recent_posts(
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
         if META.contains(&mt) {
             continue;
+        }
+        // T-1499: msg_type allowlist — applies after meta exclusion.
+        if let Some(allowed) = filter_msg_types {
+            if !allowed.contains(&mt) {
+                continue;
+            }
         }
         let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
         if sender.is_empty() {
@@ -13503,6 +13514,7 @@ mod tests {
             Some("peer1"),
             None,
             None,
+            None,
         );
         assert!(posts.is_empty());
     }
@@ -13521,6 +13533,7 @@ mod tests {
             3_600_000,
             now,
             Some("peer1"),
+            None,
             None,
             None,
         );
@@ -13549,6 +13562,7 @@ mod tests {
             Some("peer1"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 3);
         // Last 3 in chronological asc order — p2, p3, p4
@@ -13573,6 +13587,7 @@ mod tests {
             Some("peer1"),
             Some("T-A"),
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "thread-A");
@@ -13594,6 +13609,7 @@ mod tests {
             Some("peer1"),
             None,
             Some("A"),
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "proj-A");
@@ -13616,6 +13632,7 @@ mod tests {
             Some("peer1"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "in-window");
@@ -13633,6 +13650,7 @@ mod tests {
             3_600_000,
             now,
             Some("peer1"),
+            None,
             None,
             None,
         );
@@ -13660,6 +13678,7 @@ mod tests {
             None, // no peer filter
             Some("T-1"),
             None,
+            None,
         );
         assert_eq!(posts.len(), 2);
         // Chronological asc — alice (now-3) before bob (now-2)
@@ -13685,6 +13704,7 @@ mod tests {
             None,
             Some("T-X"),
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "match");
@@ -13707,6 +13727,7 @@ mod tests {
             None,
             Some("T-1"),
             Some("A"),
+            None,
         );
         assert_eq!(posts.len(), 2);
         // Chronological asc → p3(now-4) first, p1(now-1) last
@@ -13735,10 +13756,130 @@ mod tests {
             None,
             Some("T-1"),
             None,
+            None,
         );
         assert_eq!(posts.len(), 3);
         assert_eq!(posts[0].content, "p2");
         assert_eq!(posts[1].content, "p3");
         assert_eq!(posts[2].content, "p4");
+    }
+
+    // ---- T-1499 filter_msg_types tests --------------------------------
+
+    #[test]
+    fn recent_posts_filter_msg_types_keeps_only_listed() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "n1"),
+            recent_msg("peer1", now - 4_000, "status", None, None, "s1"),
+            recent_msg("peer1", now - 3_000, "note", None, None, "n2"),
+            recent_msg("peer1", now - 2_000, "star", None, None, "*1"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+            None,
+            Some(&["note"]),
+        );
+        assert_eq!(posts.len(), 2, "only msg_type=note kept");
+        assert_eq!(posts[0].msg_type, "note");
+        assert_eq!(posts[0].content, "n1");
+        assert_eq!(posts[1].msg_type, "note");
+        assert_eq!(posts[1].content, "n2");
+    }
+
+    #[test]
+    fn recent_posts_filter_msg_types_multi_value_or_match() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "n1"),
+            recent_msg("peer1", now - 4_000, "status", None, None, "s1"),
+            recent_msg("peer1", now - 3_000, "star", None, None, "*1"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+            None,
+            Some(&["note", "status"]),
+        );
+        assert_eq!(posts.len(), 2);
+        assert_eq!(posts[0].msg_type, "note");
+        assert_eq!(posts[1].msg_type, "status");
+    }
+
+    #[test]
+    fn recent_posts_filter_msg_types_none_keeps_all_non_meta() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "n1"),
+            recent_msg("peer1", now - 4_500, "edit", None, None, "e1"),  // meta — always excluded
+            recent_msg("peer1", now - 4_000, "status", None, None, "s1"),
+            recent_msg("peer1", now - 3_000, "star", None, None, "*1"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 3, "edit excluded as meta; rest kept");
+        assert!(posts.iter().all(|p| p.msg_type != "edit"));
+    }
+
+    #[test]
+    fn recent_posts_filter_msg_types_does_not_bypass_meta_exclusion() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "n1"),
+            recent_msg("peer1", now - 4_000, "edit", None, None, "e1"),
+            recent_msg("peer1", now - 3_000, "reaction", None, None, "r1"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+            None,
+            Some(&["edit", "reaction", "note"]),
+        );
+        assert_eq!(posts.len(), 1, "edit/reaction still excluded as meta");
+        assert_eq!(posts[0].msg_type, "note");
+    }
+
+    #[test]
+    fn recent_posts_filter_msg_types_and_composes_with_peer_filter() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "alice-note"),
+            recent_msg("peer1", now - 4_000, "status", None, None, "alice-status"),
+            recent_msg("peer2", now - 3_000, "note", None, None, "bob-note"),
+            recent_msg("peer2", now - 2_000, "status", None, None, "bob-status"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            Some("peer1"),
+            None,
+            None,
+            Some(&["note"]),
+        );
+        assert_eq!(posts.len(), 1, "only peer1's notes survive");
+        assert_eq!(posts[0].content, "alice-note");
     }
 }

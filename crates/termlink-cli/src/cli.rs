@@ -3669,6 +3669,16 @@ pub(crate) enum AgentAction {
         #[arg(long = "project")]
         filter_project: Option<String>,
 
+        /// T-1499: msg_type allowlist (comma-separated). When set,
+        /// only posts whose `msg_type` is in the list are returned.
+        /// Useful for signal-vs-noise filtering: `--msg-type note`
+        /// hides heartbeat-style status/star posts. Composes with
+        /// the other filters (AND-composed). Meta types
+        /// (reaction/edit/redaction/topic_metadata/receipt) are
+        /// always excluded — listing them here does not re-include them.
+        #[arg(long = "msg-type", value_delimiter = ',')]
+        filter_msg_types: Vec<String>,
+
         /// Override hub address (default: local hub)
         #[arg(long)]
         hub: Option<String>,
@@ -3717,6 +3727,13 @@ pub(crate) enum AgentAction {
         /// `metadata.from_project == <name>` are returned.
         #[arg(long = "project")]
         filter_project: Option<String>,
+
+        /// T-1499: msg_type allowlist (comma-separated). When set,
+        /// only posts whose `msg_type` is in the list are returned.
+        /// Same semantics as `agent recent --msg-type`: AND-composes
+        /// with peer/project filters; meta types always excluded.
+        #[arg(long = "msg-type", value_delimiter = ',')]
+        filter_msg_types: Vec<String>,
 
         /// Further narrow to a single peer's posts on this thread —
         /// resolves locally via `session.discover`. Mutually exclusive

@@ -1515,6 +1515,7 @@ pub(crate) async fn cmd_agent_recent(
     window_secs: u64,
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
+    filter_msg_types: Option<&[&str]>,
     hub: Option<&str>,
     json: bool,
     watch: bool,
@@ -1575,12 +1576,18 @@ pub(crate) async fn cmd_agent_recent(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let now_str = crate::manifest::secs_to_rfc3339(now_secs);
-            let filter_suffix = match (filter_project, filter_thread) {
-                (None, None) => String::new(),
-                (Some(p), None) => format!(" | project={}", p),
-                (None, Some(t)) => format!(" | thread={}", t),
-                (Some(p), Some(t)) => format!(" | project={} | thread={}", p, t),
-            };
+            let mut filter_suffix = String::new();
+            if let Some(p) = filter_project {
+                filter_suffix.push_str(&format!(" | project={p}"));
+            }
+            if let Some(t) = filter_thread {
+                filter_suffix.push_str(&format!(" | thread={t}"));
+            }
+            if let Some(types) = filter_msg_types {
+                if !types.is_empty() {
+                    filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
+                }
+            }
             println!(
                 "# agent recent {} --watch | peer_fp={} | interval={}s | window={}s | n={}{} | {}",
                 display_target, peer_fp, clamped_interval, clamped_window_secs,
@@ -1601,6 +1608,7 @@ pub(crate) async fn cmd_agent_recent(
                         Some(peer_fp),
                         filter_thread,
                         filter_project,
+                        filter_msg_types,
                     );
                     render_recent_body(&posts, now_ms);
                 }
@@ -1634,6 +1642,7 @@ pub(crate) async fn cmd_agent_recent(
         Some(peer_fp),
         filter_thread,
         filter_project,
+        filter_msg_types,
     );
 
     if json {
@@ -1663,6 +1672,16 @@ pub(crate) async fn cmd_agent_recent(
                 serde_json::Value::String(p.to_string()),
             );
         }
+        if let Some(types) = filter_msg_types {
+            if !types.is_empty() {
+                out_obj.insert(
+                    "filter_msg_types".to_string(),
+                    serde_json::Value::Array(
+                        types.iter().map(|t| serde_json::Value::String(t.to_string())).collect(),
+                    ),
+                );
+            }
+        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -1670,12 +1689,18 @@ pub(crate) async fn cmd_agent_recent(
     }
 
     // Text mode header
-    let filter_suffix = match (filter_project, filter_thread) {
-        (None, None) => String::new(),
-        (Some(p), None) => format!(" project={}", p),
-        (None, Some(t)) => format!(" thread={}", t),
-        (Some(p), Some(t)) => format!(" project={} thread={}", p, t),
-    };
+    let mut filter_suffix = String::new();
+    if let Some(p) = filter_project {
+        filter_suffix.push_str(&format!(" project={p}"));
+    }
+    if let Some(t) = filter_thread {
+        filter_suffix.push_str(&format!(" thread={t}"));
+    }
+    if let Some(types) = filter_msg_types {
+        if !types.is_empty() {
+            filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
+        }
+    }
     println!(
         "# agent recent {} (peer_fp={}) | window={}s | n={}{}",
         display_target, peer_fp, clamped_window_secs, clamped_n, filter_suffix
@@ -1733,6 +1758,7 @@ pub(crate) async fn cmd_agent_on_thread(
     n: usize,
     window_secs: u64,
     filter_project: Option<&str>,
+    filter_msg_types: Option<&[&str]>,
     peer: Option<&str>,
     peer_fp: Option<&str>,
     hub: Option<&str>,
@@ -1789,9 +1815,19 @@ pub(crate) async fn cmd_agent_on_thread(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            let mut filter_suffix = String::new();
+            if let Some(p) = filter_project {
+                filter_suffix.push_str(&format!(" | project={p}"));
+            }
+            if let Some(types) = filter_msg_types {
+                if !types.is_empty() {
+                    filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
+                }
+            }
             println!(
-                "# agent on-thread {} --watch | interval={}s | window={}s | n={} | {}",
-                thread, clamped_interval, clamped_window_secs, clamped_n, now_str
+                "# agent on-thread {} --watch | interval={}s | window={}s | n={}{} | {}",
+                thread, clamped_interval, clamped_window_secs, clamped_n,
+                filter_suffix, now_str
             );
             match super::channel::fetch_recent_chat_arc_msgs(hub, 2000).await {
                 Ok(msgs) => {
@@ -1808,6 +1844,7 @@ pub(crate) async fn cmd_agent_on_thread(
                         resolved_peer_fp.as_deref(),
                         Some(thread),
                         filter_project,
+                        filter_msg_types,
                     );
                     render_on_thread_text(
                         thread,
@@ -1847,6 +1884,7 @@ pub(crate) async fn cmd_agent_on_thread(
         resolved_peer_fp.as_deref(),
         Some(thread),
         filter_project,
+        filter_msg_types,
     );
 
     if json {
@@ -1872,6 +1910,16 @@ pub(crate) async fn cmd_agent_on_thread(
                 serde_json::Value::String(fp.clone()),
             );
         }
+        if let Some(types) = filter_msg_types {
+            if !types.is_empty() {
+                out_obj.insert(
+                    "filter_msg_types".to_string(),
+                    serde_json::Value::Array(
+                        types.iter().map(|t| serde_json::Value::String(t.to_string())).collect(),
+                    ),
+                );
+            }
+        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -1885,6 +1933,11 @@ pub(crate) async fn cmd_agent_on_thread(
     }
     if let Some(fp) = &resolved_peer_fp {
         suffix.push_str(&format!(" peer_fp={fp}"));
+    }
+    if let Some(types) = filter_msg_types {
+        if !types.is_empty() {
+            suffix.push_str(&format!(" msg_type={}", types.join(",")));
+        }
     }
     println!(
         "# agent on-thread {} | window={}s | n={}{}",
@@ -1984,6 +2037,7 @@ fn render_overview_body(msgs: &[serde_json::Value], window_secs: u64, top: usize
     );
     let recent = super::channel::extract_recent_posts(
         msgs, top, window_ms, now_ms, None, None, None,
+        None,
     );
     let display_peers: &[super::channel::FleetPeerRow] =
         &peer_rows[..peer_rows.len().min(top)];
@@ -2112,6 +2166,7 @@ fn compose_overview_json(
     );
     let recent = super::channel::extract_recent_posts(
         msgs, top, window_ms, now_ms, None, None, None,
+        None,
     );
     let display_peers: &[super::channel::FleetPeerRow] =
         &peer_rows[..peer_rows.len().min(top)];
