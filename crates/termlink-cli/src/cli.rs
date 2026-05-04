@@ -3455,6 +3455,14 @@ pub(crate) enum AgentAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Filter by project: only count posts whose `from_project`
+        /// metadata equals this value. Peers with zero matching posts in
+        /// the window are excluded. Untagged posts also fail the filter
+        /// (T-1484). Use this for project-scoped triage — "who's working
+        /// on 010-termlink right now?".
+        #[arg(long = "filter-project")]
+        filter_project: Option<String>,
     },
 
     /// Peer observability — summarize a peer's recent `agent-chat-arc`

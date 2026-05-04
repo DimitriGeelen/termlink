@@ -269,8 +269,8 @@ async fn main() -> Result<()> {
             AgentAction::Who { target_fp, target, window_secs, hub, json } => {
                 commands::agent::cmd_agent_who(target_fp.as_deref(), target.as_deref(), window_secs, hub.as_deref(), json).await
             }
-            AgentAction::Presence { window_secs, hub, json } => {
-                commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json).await
+            AgentAction::Presence { window_secs, hub, json, filter_project } => {
+                commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json, filter_project.as_deref()).await
             }
         },
         Command::File { action } => match action {

@@ -870,13 +870,18 @@ impl FleetPeerRow {
     }
 }
 
-/// T-1482: pure helper — aggregate non-meta msgs by sender_id within the
-/// window, returning one row per peer. Sorted by posts desc, then peer_fp
-/// asc. Used by `agent presence` for fleet-wide observability.
+/// T-1482 / T-1484: pure helper — aggregate non-meta msgs by sender_id
+/// within the window, returning one row per peer. Sorted by posts desc,
+/// then peer_fp asc. Used by `agent presence` for fleet-wide observability.
+///
+/// `filter_project`: when Some(p), only posts whose
+/// `metadata.from_project == p` count toward posts/last_seen; peers with
+/// zero matching in-window posts are excluded entirely (T-1484).
 pub(crate) fn summarize_fleet_presence(
     msgs: &[Value],
     now_ms: i64,
     window_ms: i64,
+    filter_project: Option<&str>,
 ) -> Vec<FleetPeerRow> {
     use std::collections::HashMap;
     const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
@@ -902,6 +907,18 @@ pub(crate) fn summarize_fleet_presence(
             .and_then(|v| v.as_i64())
             .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
             .unwrap_or(0);
+        let from_project = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str());
+        // T-1484: when filter is set, posts that don't match are excluded
+        // from BOTH last_seen and post-count. Untagged posts also fail the
+        // filter — "active on project X" means "tagged this post as X".
+        if let Some(want) = filter_project
+            && from_project != Some(want)
+        {
+            continue;
+        }
         let acc = by_peer.entry(sender).or_insert(Acc {
             last_seen: None,
             posts: 0,
@@ -910,11 +927,7 @@ pub(crate) fn summarize_fleet_presence(
         acc.last_seen = Some(acc.last_seen.map_or(ts, |b| b.max(ts)));
         if ts >= cutoff {
             acc.posts += 1;
-            if let Some(p) = m
-                .get("metadata")
-                .and_then(|md| md.get("from_project"))
-                .and_then(|v| v.as_str())
-            {
+            if let Some(p) = from_project {
                 *acc.projects.entry(p.to_string()).or_insert(0) += 1;
             }
         }
@@ -949,6 +962,7 @@ pub(crate) fn summarize_fleet_presence(
 pub(crate) async fn fetch_fleet_presence_via_chat_arc(
     hub: Option<&str>,
     window_secs: u64,
+    filter_project: Option<&str>,
 ) -> Result<Vec<FleetPeerRow>> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -956,7 +970,12 @@ pub(crate) async fn fetch_fleet_presence_via_chat_arc(
         .unwrap_or(0);
     let window_ms = (window_secs as i64).saturating_mul(1000);
     let msgs = fetch_recent_chat_arc_msgs(hub, 2000).await?;
-    Ok(summarize_fleet_presence(&msgs, now_ms, window_ms))
+    Ok(summarize_fleet_presence(
+        &msgs,
+        now_ms,
+        window_ms,
+        filter_project,
+    ))
 }
 
 /// T-1319: ensure a topic exists. Idempotent — if create returns
@@ -8352,7 +8371,7 @@ mod tests {
 
     #[test]
     fn fleet_presence_empty_msgs_returns_empty() {
-        let rows = summarize_fleet_presence(&[], 1_700_000_000_000, 3_600_000);
+        let rows = summarize_fleet_presence(&[], 1_700_000_000_000, 3_600_000, None);
         assert!(rows.is_empty());
     }
 
@@ -8360,7 +8379,7 @@ mod tests {
     fn fleet_presence_single_peer_one_row() {
         let now = 1_700_000_000_000_i64;
         let msgs = vec![activity_msg("peer1", now - 1000, "post", Some("p1"))];
-        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, None);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].peer_fp, "peer1");
         assert_eq!(rows[0].posts, 1);
@@ -8380,7 +8399,7 @@ mod tests {
             activity_msg("ccc", now - 6, "post", Some("p")),
             activity_msg("aaa", now - 7, "post", Some("p")), // tie aaa(2) vs bbb(2)
         ];
-        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, None);
         assert_eq!(rows.len(), 3);
         // ccc(3) > aaa(2)==bbb(2) → ccc first; tie-break on fp asc → aaa, bbb
         assert_eq!(rows[0].peer_fp, "ccc");
@@ -8401,7 +8420,7 @@ mod tests {
             activity_msg("peer1", now - 3_000, "topic_metadata", Some("p1")), // meta: skipped
             activity_msg("peer2", now - 5_000_000, "post", Some("old")),  // outside window
         ];
-        let rows = summarize_fleet_presence(&msgs, now, window_ms);
+        let rows = summarize_fleet_presence(&msgs, now, window_ms, None);
         assert_eq!(rows.len(), 1, "only peer1 in window");
         assert_eq!(rows[0].peer_fp, "peer1");
         assert_eq!(rows[0].posts, 1);
@@ -8417,7 +8436,7 @@ mod tests {
             activity_msg("peer1", now - 4, "post", Some("alpha")),
             // alpha tied with zebra at 2 → alphabetic wins
         ];
-        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, None);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].top_project.as_deref(), Some("alpha"));
     }
@@ -8429,7 +8448,7 @@ mod tests {
             activity_msg("peer1", now - 1_000, "post", None),
             activity_msg("peer1", now - 2_000, "post", None),
         ];
-        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, None);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].posts, 2);
         assert_eq!(rows[0].top_project, None);
@@ -8448,6 +8467,75 @@ mod tests {
         assert_eq!(v["last_seen_ms"], json!(1234567890_i64));
         assert_eq!(v["posts"], json!(5));
         assert_eq!(v["top_project"], json!("foo"));
+    }
+
+    // ---- T-1484 filter_project tests -----------------------------------
+
+    #[test]
+    fn fleet_presence_filter_project_keeps_only_matching_posts() {
+        let now = 1_700_000_000_000_i64;
+        // peer1 has 3 posts on project A and 2 on B; peer2 only on B.
+        // Filtering by A should yield only peer1 with posts=3.
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("A")),
+            activity_msg("peer1", now - 2, "post", Some("A")),
+            activity_msg("peer1", now - 3, "post", Some("A")),
+            activity_msg("peer1", now - 4, "post", Some("B")),
+            activity_msg("peer1", now - 5, "post", Some("B")),
+            activity_msg("peer2", now - 6, "post", Some("B")),
+            activity_msg("peer2", now - 7, "post", Some("B")),
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, Some("A"));
+        assert_eq!(rows.len(), 1, "only peer1 has project=A posts");
+        assert_eq!(rows[0].peer_fp, "peer1");
+        assert_eq!(rows[0].posts, 3, "only A-tagged posts counted");
+        assert_eq!(rows[0].top_project.as_deref(), Some("A"));
+    }
+
+    #[test]
+    fn fleet_presence_filter_project_excludes_peer_with_only_other_projects() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("foo")),
+            activity_msg("peer2", now - 2, "post", Some("bar")),
+        ];
+        // Filter by "baz" — neither peer matches.
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, Some("baz"));
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn fleet_presence_filter_project_excludes_untagged_posts() {
+        let now = 1_700_000_000_000_i64;
+        // peer1 has only untagged posts; peer2 has one matching tagged post.
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", None),
+            activity_msg("peer1", now - 2, "post", None),
+            activity_msg("peer2", now - 3, "post", Some("X")),
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, Some("X"));
+        assert_eq!(rows.len(), 1, "untagged posts fail filter");
+        assert_eq!(rows[0].peer_fp, "peer2");
+    }
+
+    #[test]
+    fn fleet_presence_filter_project_top_project_is_filter_not_overall_max() {
+        let now = 1_700_000_000_000_i64;
+        // peer1's overall top project is "B" (3 posts) but filter by "A".
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("A")),
+            activity_msg("peer1", now - 2, "post", Some("B")),
+            activity_msg("peer1", now - 3, "post", Some("B")),
+            activity_msg("peer1", now - 4, "post", Some("B")),
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000, Some("A"));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].top_project.as_deref(),
+            Some("A"),
+            "top_project under filter is the filter value, not overall max"
+        );
+        assert_eq!(rows[0].posts, 1);
     }
 
     #[test]
