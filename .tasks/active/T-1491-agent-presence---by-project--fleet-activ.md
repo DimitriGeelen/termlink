@@ -4,16 +4,16 @@ name: "agent presence --by-project — fleet activity aggregated by project"
 description: >
   agent presence --by-project — fleet activity aggregated by project
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:00:50Z
-last_update: 2026-05-04T17:00:50Z
-date_finished: null
+last_update: 2026-05-04T17:10:54Z
+date_finished: 2026-05-04T17:10:54Z
 ---
 
 # T-1491: agent presence --by-project — fleet activity aggregated by project
@@ -105,3 +105,7 @@ out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); e
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1491-agent-presence---by-project--fleet-activ.md
 - **Context:** Initial task creation
+
+### 2026-05-04T17:10:54Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
