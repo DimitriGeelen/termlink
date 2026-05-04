@@ -1930,6 +1930,110 @@ pub(crate) async fn cmd_agent_timeline(
     Ok(())
 }
 
+/// T-1503: read `current_task` from `.context/working/focus.yaml` if
+/// present. Pure file read — no error if missing/unreadable, returns
+/// None. Walks up from $PWD looking for `.context/working/focus.yaml`
+/// (max 4 levels). Tolerates ~/.context paths too.
+fn resolve_focus_task() -> Option<String> {
+    let mut cwd = std::env::current_dir().ok()?;
+    for _ in 0..4 {
+        let p = cwd.join(".context/working/focus.yaml");
+        if p.is_file() {
+            if let Ok(text) = std::fs::read_to_string(&p) {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if let Some(rest) = line.strip_prefix("current_task:") {
+                        let v = rest.trim().trim_matches('"').trim_matches('\'');
+                        if !v.is_empty() && v != "null" && v != "~" {
+                            return Some(v.to_string());
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+        if !cwd.pop() {
+            break;
+        }
+    }
+    None
+}
+
+/// T-1503: read `project_name` from `.framework.yaml` if present. Same
+/// walk-up search pattern as `resolve_focus_task`.
+fn resolve_framework_project() -> Option<String> {
+    let mut cwd = std::env::current_dir().ok()?;
+    for _ in 0..4 {
+        let p = cwd.join(".framework.yaml");
+        if p.is_file() {
+            if let Ok(text) = std::fs::read_to_string(&p) {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if let Some(rest) = line.strip_prefix("project_name:") {
+                        let v = rest.trim().trim_matches('"').trim_matches('\'');
+                        if !v.is_empty() {
+                            return Some(v.to_string());
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+        if !cwd.pop() {
+            break;
+        }
+    }
+    None
+}
+
+/// T-1503: focus-aware chat-arc post verb. Companion to the read verbs
+/// (recent/on-thread/timeline). Auto-resolves `--thread` from focus.yaml
+/// and `--project` from .framework.yaml. Defers to
+/// `super::channel::cmd_channel_post` for actual signing/posting.
+pub(crate) async fn cmd_agent_post(
+    text: &str,
+    thread_override: Option<&str>,
+    project_override: Option<&str>,
+    msg_type: &str,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if text.trim().is_empty() {
+        let msg = "agent post: text cannot be empty";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let resolved_thread: Option<String> = thread_override
+        .map(String::from)
+        .or_else(resolve_focus_task);
+    let resolved_project: Option<String> = project_override
+        .map(String::from)
+        .or_else(resolve_framework_project);
+
+    let mut metadata_kvs: Vec<String> = Vec::new();
+    if let Some(t) = &resolved_thread {
+        metadata_kvs.push(format!("thread={t}"));
+    }
+    if let Some(p) = &resolved_project {
+        metadata_kvs.push(format!("from_project={p}"));
+    }
+
+    super::channel::cmd_channel_post(
+        "agent-chat-arc",
+        msg_type,
+        Some(text),
+        None,
+        None,
+        None,
+        &metadata_kvs,
+        false,
+        hub,
+        json,
+    ).await
+}
+
 /// T-1500: timeline body renderer. Like `render_recent_body` but
 /// prefixes each post with peer-short (first 8 chars of peer_fp) so
 /// the operator can disambiguate posts across peers in the
