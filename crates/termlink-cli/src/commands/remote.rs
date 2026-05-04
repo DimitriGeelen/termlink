@@ -408,6 +408,160 @@ pub(crate) fn print_legacy_diff_block(d: &LegacyDiff, snapshot_label: &str) {
     }
 }
 
+/// T-1468: a single point in the legacy-traffic time-series — one snapshot's
+/// fleet total + the signed delta from the prior point in the series.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct TrendPoint {
+    pub label: String,
+    pub ts_ms: Option<u64>,
+    pub total: u64,
+    pub delta_from_prior: Option<i64>,
+}
+
+/// T-1468: aggregated trend trajectory across N snapshots. `Trajectory` is the
+/// caller-friendly verdict on the series:
+/// - `Decreasing` — net change is negative (residue is clearing)
+/// - `Increasing` — net change is positive (operator should investigate)
+/// - `Flat`       — series totals are constant (single point or stable plateau)
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Trajectory {
+    Decreasing,
+    Increasing,
+    Flat,
+}
+
+impl Trajectory {
+    pub(crate) fn label(&self) -> &'static str {
+        match self {
+            Trajectory::Decreasing => "decreasing",
+            Trajectory::Increasing => "increasing",
+            Trajectory::Flat => "flat",
+        }
+    }
+}
+
+/// T-1468: compute a decay trend across N legacy_summary snapshots.
+///
+/// Input: ordered slice of (label, &snapshot_json) pairs — caller is responsible
+/// for sorting (the cron convention is filename = `YYYY-MM-DD.json`, lex sort
+/// = chronological). The snapshot_json must be the FULL fleet doctor JSON
+/// document (top-level `legacy_summary` and `_snapshot_ts_ms` fields read
+/// from it). Snapshots without `legacy_summary.total_legacy_fleet` are skipped
+/// silently — pre-T-1459 outputs.
+///
+/// Returns a vec of TrendPoint with deltas computed pairwise. The first point
+/// has `delta_from_prior=None`. Trajectory is derived from net change between
+/// first and last total: positive=Increasing, negative=Decreasing, zero=Flat.
+pub(crate) fn compute_legacy_trend(
+    snapshots: &[(String, &serde_json::Value)],
+) -> (Vec<TrendPoint>, Trajectory) {
+    let mut points: Vec<TrendPoint> = Vec::new();
+    for (label, doc) in snapshots {
+        let Some(total) = doc
+            .get("legacy_summary")
+            .and_then(|ls| ls.get("total_legacy_fleet"))
+            .and_then(|v| v.as_u64())
+        else {
+            continue;
+        };
+        let ts_ms = doc.get("_snapshot_ts_ms").and_then(|v| v.as_u64());
+        points.push(TrendPoint {
+            label: label.clone(),
+            ts_ms,
+            total,
+            delta_from_prior: None,
+        });
+    }
+    // Compute deltas pairwise.
+    for i in 1..points.len() {
+        let prev = points[i - 1].total as i64;
+        let cur = points[i].total as i64;
+        points[i].delta_from_prior = Some(cur - prev);
+    }
+    let trajectory = match (points.first(), points.last()) {
+        (Some(first), Some(last)) if points.len() >= 2 => {
+            let net = last.total as i64 - first.total as i64;
+            if net < 0 {
+                Trajectory::Decreasing
+            } else if net > 0 {
+                Trajectory::Increasing
+            } else {
+                Trajectory::Flat
+            }
+        }
+        _ => Trajectory::Flat,
+    };
+    (points, trajectory)
+}
+
+/// T-1468: render a Unicode block sparkline (▁▂▃▄▅▆▇█) normalized to the max
+/// in the series. Returns empty string when input is empty or all-zero
+/// (zero-bucket sparklines are visually meaningless). Single-value input
+/// returns the lowest non-empty bucket so the operator sees a tick.
+pub(crate) fn render_sparkline(values: &[u64]) -> String {
+    if values.is_empty() {
+        return String::new();
+    }
+    const BLOCKS: &[char] = &['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+    let max = *values.iter().max().unwrap();
+    if max == 0 {
+        return String::new();
+    }
+    let mut out = String::new();
+    for &v in values {
+        // Map [0, max] → [0, BLOCKS.len()-1]. Use BLOCKS.len()-1 (= 7) as the
+        // top index so the maximum value always renders as the tallest block,
+        // and zero renders as the shortest. Saturating cast handles edge case
+        // where max overflows the index range (impossible here, defensive).
+        let idx = ((v as u128 * (BLOCKS.len() as u128 - 1)) / max as u128) as usize;
+        out.push(BLOCKS[idx.min(BLOCKS.len() - 1)]);
+    }
+    out
+}
+
+/// T-1468: render trend JSON for `--json` output.
+pub(crate) fn legacy_trend_to_json(points: &[TrendPoint], trajectory: &Trajectory) -> serde_json::Value {
+    serde_json::json!({
+        "trajectory": trajectory.label(),
+        "points": points.iter().map(|p| serde_json::json!({
+            "snapshot": p.label,
+            "ts_ms": p.ts_ms,
+            "total_legacy_fleet": p.total,
+            "delta_from_prior": p.delta_from_prior,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// T-1468: human-readable trend block printed under cut-readiness.
+pub(crate) fn print_legacy_trend_block(points: &[TrendPoint], trajectory: &Trajectory) {
+    if points.is_empty() {
+        eprintln!();
+        eprintln!("=== T-1166 cut-readiness TREND ===");
+        eprintln!("  no parseable legacy_summary snapshots found in --trend dir");
+        return;
+    }
+    eprintln!();
+    eprintln!("=== T-1166 cut-readiness TREND (last {} snapshot{}) ===",
+        points.len(),
+        if points.len() == 1 { "" } else { "s" },
+    );
+    for p in points {
+        let delta_s = match p.delta_from_prior {
+            Some(d) if d > 0 => format!(" ({:+})", d),
+            Some(d) if d < 0 => format!(" ({:+})", d),
+            Some(_) => "  (—)".to_string(),
+            None => String::new(),
+        };
+        eprintln!("  {:>20}  total={:>8}{}", p.label, p.total, delta_s);
+    }
+    let totals: Vec<u64> = points.iter().map(|p| p.total).collect();
+    let spark = render_sparkline(&totals);
+    if !spark.is_empty() {
+        eprintln!("  sparkline: {spark}");
+    }
+    eprintln!("  trajectory: {}", trajectory.label());
+}
+
 /// Options for remote inject command.
 pub(crate) struct RemoteInjectOpts<'a> {
     pub session: &'a str,
@@ -2043,6 +2197,8 @@ pub(crate) async fn cmd_fleet_doctor(
     diff: Option<std::path::PathBuf>,
     save_snapshot: Option<std::path::PathBuf>,
     exit_code_on_verdict: bool,
+    trend: Option<std::path::PathBuf>,
+    trend_keep: u32,
 ) -> Result<()> {
     // T-1462: --diff requires --legacy-usage. Reject loudly so operators don't
     // wonder why nothing happens.
@@ -2052,6 +2208,11 @@ pub(crate) async fn cmd_fleet_doctor(
     // T-1465: same precondition — verdict mapping requires the verdict.
     if exit_code_on_verdict && !legacy_usage {
         anyhow::bail!("--exit-code-on-verdict requires --legacy-usage (no verdict to map without it)");
+    }
+    // T-1468: --trend reads N snapshots and assembles a time-series of the
+    // legacy_summary.total_legacy_fleet field — no point without --legacy-usage.
+    if trend.is_some() && !legacy_usage {
+        anyhow::bail!("--trend requires --legacy-usage (the trend is built from legacy_summary blocks across snapshots)");
     }
     // T-1463: validate save-snapshot parent directory exists *before* doing
     // an entire fleet sweep. Failing fast saves operator time.
@@ -2084,6 +2245,49 @@ pub(crate) async fn cmd_fleet_doctor(
         Some(v)
     } else {
         None
+    };
+    // T-1468: read trend snapshots up-front. Sort by filename (chronological under
+    // the cron convention `YYYY-MM-DD.json`), keep the N most recent (default 7,
+    // capped at 30). Each must be a valid fleet-doctor JSON doc with a
+    // `legacy_summary` field; malformed files emit a warning to stderr but do
+    // not abort the run (the operator already has good current data — bailing
+    // on a stale file is anti-helpful).
+    let trend_snapshots: Vec<(String, serde_json::Value)> = if let Some(dir) = trend.as_deref() {
+        if !dir.is_dir() {
+            anyhow::bail!("--trend: {} is not a directory", dir.display());
+        }
+        let keep = trend_keep.clamp(1, 30) as usize;
+        let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
+            .with_context(|| format!("--trend: cannot read directory {}", dir.display()))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("json"))
+            .collect();
+        files.sort();
+        let files = files.into_iter().rev().take(keep).collect::<Vec<_>>();
+        // Reverse back to chronological (oldest → newest) for the time-series.
+        let mut files: Vec<std::path::PathBuf> = files.into_iter().collect();
+        files.reverse();
+        let mut out: Vec<(String, serde_json::Value)> = Vec::new();
+        for p in files {
+            let label = p.file_stem().and_then(|s| s.to_str()).unwrap_or("?").to_string();
+            let Ok(text) = std::fs::read_to_string(&p) else {
+                eprintln!("--trend: cannot read {} (skipped)", p.display());
+                continue;
+            };
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
+                eprintln!("--trend: {} is not valid JSON (skipped)", p.display());
+                continue;
+            };
+            if v.get("legacy_summary").is_none() {
+                eprintln!("--trend: {} has no legacy_summary block (skipped)", p.display());
+                continue;
+            }
+            out.push((label, v));
+        }
+        out
+    } else {
+        Vec::new()
     };
     // T-1432: clamp window to documented range. 1 day floor (avoid empty
     // windows from 0), 90 day ceiling (matches T-1166 audit-log retention
@@ -2577,6 +2781,42 @@ pub(crate) async fn cmd_fleet_doctor(
         None
     };
 
+    // T-1468: if --trend was supplied and we read snapshots, render the trend.
+    // Append the *current* snapshot to the time-series so the operator sees
+    // today's value alongside the prior days. Trend renders before JSON
+    // serialization (mirroring --diff's pattern) so the human-mode output
+    // shows the trend block under cut-readiness.
+    let legacy_trend_obj: Option<(Vec<TrendPoint>, Trajectory)> = if !trend_snapshots.is_empty() {
+        // Borrow refs into the snapshots vec, then append a synthesized
+        // "current" entry built from this run's legacy_summary + snapshot_ts_ms.
+        let mut series: Vec<(String, &serde_json::Value)> = trend_snapshots
+            .iter()
+            .map(|(label, doc)| (label.clone(), doc))
+            .collect();
+        let current_doc: serde_json::Value;
+        if let Some(ls) = legacy_summary_obj.as_ref() {
+            current_doc = serde_json::json!({
+                "_snapshot_ts_ms": snapshot_ts_ms,
+                "legacy_summary": ls,
+            });
+            series.push(("(current)".to_string(), &current_doc));
+        }
+        let (points, trajectory) = compute_legacy_trend(&series);
+        if !json {
+            print_legacy_trend_block(&points, &trajectory);
+        }
+        Some((points, trajectory))
+    } else if trend.is_some() {
+        // Caller asked for --trend but no parseable snapshots existed.
+        // Print an explanation in non-JSON mode; JSON gets an empty array.
+        if !json {
+            print_legacy_trend_block(&[], &Trajectory::Flat);
+        }
+        Some((Vec::new(), Trajectory::Flat))
+    } else {
+        None
+    };
+
     // T-1463: build the JSON document unconditionally when either --json
     // or --save-snapshot was requested, so both paths emit the same value.
     let need_json_doc = json || save_snapshot.is_some();
@@ -2602,6 +2842,26 @@ pub(crate) async fn cmd_fleet_doctor(
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("legacy_diff".to_string(), legacy_diff_to_json(d));
+        }
+        // T-1468: attach trend block under legacy_summary (when present) so
+        // dashboards consuming the same legacy_summary key get everything in
+        // one place. Falls back to top-level when legacy_summary is absent
+        // (defensive — should not happen given trend_snapshots requires
+        // legacy_usage).
+        if let Some((points, trajectory)) = legacy_trend_obj.as_ref() {
+            let trend_json = legacy_trend_to_json(points, trajectory);
+            if let Some(obj) = top.as_object_mut() {
+                let attached = obj
+                    .get_mut("legacy_summary")
+                    .and_then(|ls| ls.as_object_mut())
+                    .map(|ls_obj| {
+                        ls_obj.insert("trend".to_string(), trend_json.clone());
+                    })
+                    .is_some();
+                if !attached {
+                    obj.insert("legacy_trend".to_string(), trend_json);
+                }
+            }
         }
         Some(top)
     } else {
@@ -5068,6 +5328,137 @@ secret_file = "/tmp/other.hex"
         let out = derive_top_callers_from_by_method(&bm);
         assert_eq!(out[0].0, "tl-alpha");
         assert_eq!(out[1].0, "tl-zebra");
+    }
+
+    // ===== T-1468: legacy_trend + sparkline tests =====
+
+    fn snap(label: &str, total: u64, ts: Option<u64>) -> (String, serde_json::Value) {
+        let mut doc = serde_json::json!({
+            "legacy_summary": {"total_legacy_fleet": total},
+        });
+        if let Some(t) = ts {
+            doc["_snapshot_ts_ms"] = serde_json::json!(t);
+        }
+        (label.to_string(), doc)
+    }
+
+    fn refs(s: &[(String, serde_json::Value)]) -> Vec<(String, &serde_json::Value)> {
+        s.iter().map(|(l, v)| (l.clone(), v)).collect()
+    }
+
+    #[test]
+    fn legacy_trend_empty_input_yields_flat_no_points() {
+        let (points, traj) = compute_legacy_trend(&[]);
+        assert!(points.is_empty());
+        assert_eq!(traj, Trajectory::Flat);
+    }
+
+    #[test]
+    fn legacy_trend_single_snapshot_is_flat_no_delta() {
+        let s = vec![snap("2026-05-01", 100, Some(1_000_000))];
+        let (points, traj) = compute_legacy_trend(&refs(&s));
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].total, 100);
+        assert_eq!(points[0].delta_from_prior, None);
+        assert_eq!(traj, Trajectory::Flat);
+    }
+
+    #[test]
+    fn legacy_trend_monotonic_decrease_is_decreasing() {
+        let s = vec![
+            snap("2026-05-01", 1000, None),
+            snap("2026-05-02", 700, None),
+            snap("2026-05-03", 400, None),
+        ];
+        let (points, traj) = compute_legacy_trend(&refs(&s));
+        assert_eq!(points.len(), 3);
+        assert_eq!(points[0].delta_from_prior, None);
+        assert_eq!(points[1].delta_from_prior, Some(-300));
+        assert_eq!(points[2].delta_from_prior, Some(-300));
+        assert_eq!(traj, Trajectory::Decreasing);
+    }
+
+    #[test]
+    fn legacy_trend_monotonic_increase_is_increasing() {
+        let s = vec![
+            snap("a", 10, None),
+            snap("b", 20, None),
+            snap("c", 50, None),
+        ];
+        let (_, traj) = compute_legacy_trend(&refs(&s));
+        assert_eq!(traj, Trajectory::Increasing);
+    }
+
+    #[test]
+    fn legacy_trend_plateau_is_flat() {
+        // Same total in first and last → Flat even with bumps in between.
+        let s = vec![
+            snap("a", 100, None),
+            snap("b", 110, None),
+            snap("c", 100, None),
+        ];
+        let (_, traj) = compute_legacy_trend(&refs(&s));
+        assert_eq!(traj, Trajectory::Flat);
+    }
+
+    #[test]
+    fn legacy_trend_skips_snapshots_without_total() {
+        // Pre-T-1459 snapshot has no total_legacy_fleet — silently dropped.
+        let pre = (
+            "old".to_string(),
+            serde_json::json!({"legacy_summary": {"verdict": "CUT-READY"}}),
+        );
+        let post = snap("new", 5, None);
+        let s = vec![pre, post];
+        let (points, _) = compute_legacy_trend(&refs(&s));
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].label, "new");
+    }
+
+    #[test]
+    fn legacy_trend_carries_ts_ms_when_present() {
+        let s = vec![snap("a", 10, Some(1234567890))];
+        let (points, _) = compute_legacy_trend(&refs(&s));
+        assert_eq!(points[0].ts_ms, Some(1234567890));
+    }
+
+    #[test]
+    fn legacy_trend_sparkline_empty_returns_empty_string() {
+        assert_eq!(render_sparkline(&[]), "");
+    }
+
+    #[test]
+    fn legacy_trend_sparkline_all_zero_returns_empty_string() {
+        // All-zero series has no useful range to render — return empty so the
+        // print path can suppress the "sparkline:" line.
+        assert_eq!(render_sparkline(&[0, 0, 0]), "");
+    }
+
+    #[test]
+    fn legacy_trend_sparkline_single_value_renders_one_block() {
+        let s = render_sparkline(&[42]);
+        assert_eq!(s.chars().count(), 1);
+        assert_eq!(s, "█"); // single value normalizes to max → top block
+    }
+
+    #[test]
+    fn legacy_trend_sparkline_min_max_render_extremes() {
+        let s = render_sparkline(&[0, 100]);
+        let chars: Vec<char> = s.chars().collect();
+        assert_eq!(chars.len(), 2);
+        assert_eq!(chars[0], '▁'); // 0 → bottom block
+        assert_eq!(chars[1], '█'); // max → top block
+    }
+
+    #[test]
+    fn legacy_trend_sparkline_monotonic_decreasing_renders_visibly_descending() {
+        let s = render_sparkline(&[100, 50, 0]);
+        let chars: Vec<char> = s.chars().collect();
+        assert_eq!(chars.len(), 3);
+        // First should be tallest, last should be shortest.
+        assert_eq!(chars[0], '█');
+        assert!(chars[1] != '█');
+        assert_eq!(chars[2], '▁');
     }
 
     // ===== T-1462: legacy_diff tests =====
