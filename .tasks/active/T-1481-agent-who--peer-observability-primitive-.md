@@ -4,16 +4,16 @@ name: "agent who — peer observability primitive (presence + projects + dm topi
 description: >
   agent who — peer observability primitive (presence + projects + dm topics)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T12:51:38Z
-last_update: 2026-05-04T12:51:38Z
-date_finished: null
+last_update: 2026-05-04T13:05:10Z
+date_finished: 2026-05-04T13:05:10Z
 ---
 
 # T-1481: agent who — peer observability primitive (presence + projects + dm topics)
@@ -123,3 +123,6 @@ out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-se
   - `crates/termlink-cli/src/cli.rs` (+Who variant)
   - `crates/termlink-cli/src/main.rs` (+dispatch)
 - **Output:** target/release/termlink built clean. 6/6 peer_activity tests pass. Live smoke: own FP returns 70 posts/3 projects/last_seen=43min; fake FP returns posts=0/last_seen=null/from_projects=[].
+
+### 2026-05-04T13:05:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
