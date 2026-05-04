@@ -1768,6 +1768,25 @@ fn extract_mentions(m: &Value) -> Option<String> {
         .map(String::from)
 }
 
+/// T-1473: read `metadata.from_project` from an envelope. Mirrors
+/// `extract_mentions` shape; missing/non-string returns None.
+fn extract_from_project(m: &Value) -> Option<String> {
+    m.get("metadata")
+        .and_then(|md| md.get("from_project"))
+        .and_then(|v| v.as_str())
+        .map(String::from)
+}
+
+/// T-1473: render `(010-termlink)` style marker. Empty input → empty
+/// output (renderer drops the trailing space). Pure — for unit tests.
+fn render_from_project_marker(value: &str) -> String {
+    if value.is_empty() {
+        String::new()
+    } else {
+        format!(" ({value})")
+    }
+}
+
 /// T-1325: render `[@alice,bob]` style marker truncated to first 3 ids.
 fn render_mention_marker(csv: &str) -> String {
     let ids: Vec<&str> = csv.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
@@ -7004,6 +7023,12 @@ pub(crate) async fn cmd_channel_subscribe(
                 .as_deref()
                 .map(render_mention_marker)
                 .unwrap_or_default();
+            // T-1473: from_project marker — `(010-termlink)` between sender
+            // and msg_type. Empty when metadata.from_project is absent.
+            let from_project_marker = extract_from_project(m)
+                .as_deref()
+                .map(render_from_project_marker)
+                .unwrap_or_default();
             if let Some(target) = filter_mentions {
                 let csv = mentions_csv.as_deref().unwrap_or("");
                 if !mentions_match(csv, target) {
@@ -7045,12 +7070,12 @@ pub(crate) async fn cmd_channel_subscribe(
             if msg_type == "reaction" {
                 let _ = writeln!(
                     env_out,
-                    "[{offset}{reply_marker}{mention_marker} react] {sender} {payload_str}",
+                    "[{offset}{reply_marker}{mention_marker} react] {sender}{from_project_marker} {payload_str}",
                 );
             } else {
                 let _ = writeln!(
                     env_out,
-                    "[{offset}{reply_marker}{mention_marker}] {sender} {msg_type}: {payload_str}{edited_marker}",
+                    "[{offset}{reply_marker}{mention_marker}] {sender}{from_project_marker} {msg_type}: {payload_str}{edited_marker}",
                 );
                 if aggregate_reactions {
                     let summary = reactions_summary(&reactions_by_parent, offset, by_sender);
@@ -7798,6 +7823,51 @@ mod tests {
         let user_meta: BTreeMap<String, String> = BTreeMap::new();
         let action = plan_from_project_injection(&user_meta, Some(""), "agent-chat-arc");
         assert_eq!(action, FromProjectAction::WarnUnresolvable);
+    }
+
+    // ---- T-1473 from_project read-side tests ---------------------------
+
+    #[test]
+    fn extract_from_project_reads_metadata() {
+        let env = json!({
+            "offset": 1,
+            "metadata": {"from_project": "010-termlink"}
+        });
+        assert_eq!(extract_from_project(&env).as_deref(), Some("010-termlink"));
+    }
+
+    #[test]
+    fn extract_from_project_returns_none_when_absent() {
+        let env = json!({"offset": 1, "metadata": {"_thread": "T-1"}});
+        assert_eq!(extract_from_project(&env), None);
+    }
+
+    #[test]
+    fn extract_from_project_returns_none_when_metadata_missing() {
+        let env = json!({"offset": 1});
+        assert_eq!(extract_from_project(&env), None);
+    }
+
+    #[test]
+    fn extract_from_project_returns_none_when_non_string() {
+        let env = json!({"offset": 1, "metadata": {"from_project": 42}});
+        assert_eq!(extract_from_project(&env), None);
+    }
+
+    #[test]
+    fn from_project_marker_renders_typical_value() {
+        assert_eq!(render_from_project_marker("010-termlink"), " (010-termlink)");
+    }
+
+    #[test]
+    fn from_project_marker_renders_empty_for_empty_input() {
+        assert_eq!(render_from_project_marker(""), "");
+    }
+
+    #[test]
+    fn from_project_marker_preserves_whitespace_and_punct() {
+        assert_eq!(render_from_project_marker("foo bar"), " (foo bar)");
+        assert_eq!(render_from_project_marker("a/b:c"), " (a/b:c)");
     }
 
     // ---- existing tests --------------------------------------------------
