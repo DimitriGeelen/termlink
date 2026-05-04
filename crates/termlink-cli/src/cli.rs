@@ -3562,6 +3562,40 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Operator-facing presence check (T-1487). One-line "is X alive on
+    /// agent-chat-arc?" verb. Composes T-1483 name resolution + T-1480
+    /// presence probe — no posts, just heartbeat inspection. Exit 0 if
+    /// the peer has been seen on chat-arc within `--window-secs`, exit 1
+    /// otherwise. Use this for the simplest operator question; reach for
+    /// `agent who` when you want activity detail or `agent presence` for
+    /// the fleet view.
+    Ping {
+        /// Target session display_name (resolves locally via
+        /// `session.discover` mirror of `agent contact`). Mutually
+        /// exclusive with `--target-fp`; one is required.
+        target: Option<String>,
+
+        /// Target identity fingerprint (hex, ≥8 chars). Cross-host
+        /// path — no local session.discover required. Mutually
+        /// exclusive with the positional `<TARGET>`.
+        #[arg(long = "target-fp")]
+        target_fp: Option<String>,
+
+        /// Window (seconds) for the presence check. Default 300 (5min)
+        /// — covers a few missed heartbeats on a 1/min-cadence peer.
+        /// Clamped to [10, 86400].
+        #[arg(long = "window-secs", default_value_t = 300)]
+        window_secs: u64,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

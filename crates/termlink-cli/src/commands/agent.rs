@@ -1255,6 +1255,109 @@ pub(crate) async fn cmd_agent_presence(
     Ok(())
 }
 
+/// T-1487: operator-facing one-shot presence check. Single-line output
+/// + exit code semantics (0 online, 1 offline). Composes the existing
+/// chat-arc presence probe (T-1480) and local name resolution (T-1483)
+/// — pure UX wrapper, no new wire protocol.
+pub(crate) async fn cmd_agent_ping(
+    target: Option<&str>,
+    target_fp: Option<&str>,
+    window_secs: u64,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    // Mutual-exclusion + one-required, mirror agent who/contact.
+    if target.is_some() && target_fp.is_some() {
+        let msg = "specify either <TARGET> or --target-fp, not both";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    if target.is_none() && target_fp.is_none() {
+        let msg = "must specify either <TARGET> (display name) or --target-fp <hex>";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    let display_target = target
+        .map(String::from)
+        .unwrap_or_else(|| target_fp.unwrap().to_string());
+
+    let peer_fp_owned: String = if let Some(fp) = target_fp {
+        if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+            let msg = format!("--target-fp must be hex (got {fp:?})");
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            anyhow::bail!(msg);
+        }
+        fp.to_string()
+    } else {
+        resolve_target_name_to_fp(target.unwrap(), json)
+    };
+    let peer_fp = peer_fp_owned.as_str();
+
+    let clamped_window_secs = window_secs.clamp(10, 86_400);
+    let check = super::channel::check_peer_online_via_chat_arc(
+        peer_fp,
+        hub,
+        clamped_window_secs,
+    )
+    .await
+    .with_context(|| {
+        format!("agent ping: presence probe failed for peer fp={peer_fp}")
+    })?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let last_seen_phrase = match check.last_seen_ms {
+        None => "never".to_string(),
+        Some(ms) => {
+            let age_secs = ((now_ms - ms) / 1000).max(0);
+            if age_secs < 60 {
+                format!("{age_secs}s ago")
+            } else if age_secs < 3600 {
+                format!("{}m ago", age_secs / 60)
+            } else if age_secs < 86_400 {
+                format!("{}h ago", age_secs / 3600)
+            } else {
+                format!("{}d ago", age_secs / 86_400)
+            }
+        }
+    };
+
+    if json {
+        let envelope = serde_json::json!({
+            "target_or_fp": display_target,
+            "peer_fp": peer_fp,
+            "online": check.online,
+            "last_seen_ms": check.last_seen_ms,
+            "last_seen": last_seen_phrase,
+            "window_secs": clamped_window_secs,
+            "posts_in_window": check.posts_in_window,
+        });
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        let status = if check.online { "online" } else { "offline" };
+        println!(
+            "{display_target} ({peer_fp}): {status} — last seen {last_seen_phrase} (window={clamped_window_secs}s)"
+        );
+    }
+
+    if check.online {
+        Ok(())
+    } else {
+        // Use process::exit(1) to preserve the JSON envelope already
+        // printed (anyhow::bail! would prepend "Error: ..." to stderr).
+        std::process::exit(1);
+    }
+}
+
 /// T-1486: text-mode renderer extracted so the watch loop can reuse it
 /// per-iteration without duplicating layout. Same output as the one-shot
 /// path: header (+ filter line if set), aligned table, footer count.
