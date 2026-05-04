@@ -4,16 +4,16 @@ name: "channel post: default from_project metadata injection (T-1448 follow-up #
 description: >
   channel post: default from_project metadata injection (T-1448 follow-up #1)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 created: 2026-05-04T08:15:05Z
-last_update: 2026-05-04T08:15:05Z
-date_finished: null
+last_update: 2026-05-04T08:32:16Z
+date_finished: 2026-05-04T08:32:16Z
 ---
 
 # T-1472: channel post: default from_project metadata injection (T-1448 follow-up #1)
@@ -99,3 +99,6 @@ grep -q "from_project" docs/conventions/multi-turn-dialog.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1472-channel-post-default-fromproject-metadat.md
 - **Context:** Initial task creation
+
+### 2026-05-04T08:32:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
