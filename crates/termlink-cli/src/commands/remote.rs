@@ -519,9 +519,94 @@ pub(crate) fn render_sparkline(values: &[u64]) -> String {
     out
 }
 
-/// T-1468: render trend JSON for `--json` output.
-pub(crate) fn legacy_trend_to_json(points: &[TrendPoint], trajectory: &Trajectory) -> serde_json::Value {
-    serde_json::json!({
+/// T-1470: forecast for when total_legacy_fleet hits zero, derived from a
+/// least-squares linear fit on (ts_ms, total) trend points.
+///
+/// `slope_per_day` is in calls/day (negative for decay). `target_ms` is the
+/// forecast unix-ms when the fitted line crosses zero. `days_from_now` is
+/// `target_ms` relative to `now_ms` in days (can be fractional, never
+/// negative — the helper returns `None` when the line crosses zero in the
+/// past).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct EtaForecast {
+    pub slope_per_day: f64,
+    pub days_from_now: f64,
+    pub target_ms: u64,
+}
+
+/// T-1470: compute ETA-to-zero from a series of trend points.
+///
+/// Returns `None` (forecast not applicable) when ANY of:
+/// - fewer than 2 points carry a `ts_ms`
+/// - all points have the same total (zero slope, division by zero)
+/// - slope is non-negative (flat or increasing — no zero crossing in the future)
+/// - the current (last) total is already 0
+///
+/// Otherwise: ordinary least squares on the timestamped points (the synthesized
+/// `(current)` point's missing `ts_ms` is filled with `now_ms` so today's
+/// observation always anchors the line). The line `y = m*x + b` is solved for
+/// `y=0`: `target_ms = -b / m`. `days_from_now` is the gap from `now_ms` in days.
+pub(crate) fn compute_eta_to_zero(points: &[TrendPoint], now_ms: u64) -> Option<EtaForecast> {
+    // Build (x, y) pairs as f64; supply `now_ms` for any point whose ts_ms is
+    // missing (the trailing "(current)" point produced by cmd_fleet_doctor).
+    let xys: Vec<(f64, f64)> = points
+        .iter()
+        .map(|p| {
+            let x = p.ts_ms.unwrap_or(now_ms) as f64;
+            let y = p.total as f64;
+            (x, y)
+        })
+        .collect();
+    if xys.len() < 2 {
+        return None;
+    }
+    let n = xys.len() as f64;
+    let mean_x: f64 = xys.iter().map(|(x, _)| *x).sum::<f64>() / n;
+    let mean_y: f64 = xys.iter().map(|(_, y)| *y).sum::<f64>() / n;
+    let mut num = 0.0_f64; // Σ (xi - x̄)(yi - ȳ)
+    let mut den = 0.0_f64; // Σ (xi - x̄)²
+    for (x, y) in &xys {
+        let dx = x - mean_x;
+        num += dx * (y - mean_y);
+        den += dx * dx;
+    }
+    if den == 0.0 {
+        // All x values equal — degenerate, no fit possible.
+        return None;
+    }
+    let slope = num / den; // calls per ms
+    // Reject non-decay slopes — no zero crossing in the future.
+    if slope >= 0.0 {
+        return None;
+    }
+    let intercept = mean_y - slope * mean_x;
+    let target_ms_f = -intercept / slope;
+    if !target_ms_f.is_finite() || target_ms_f <= now_ms as f64 {
+        // Already crossed zero in the past — likely caused by a noisy fit
+        // when current total is already low; not actionable.
+        return None;
+    }
+    let days_from_now = (target_ms_f - now_ms as f64) / 86_400_000.0;
+    let slope_per_day = slope * 86_400_000.0; // ms → day scale
+    let last_total = points.last().map(|p| p.total).unwrap_or(0);
+    if last_total == 0 {
+        return None;
+    }
+    Some(EtaForecast {
+        slope_per_day,
+        days_from_now,
+        target_ms: target_ms_f as u64,
+    })
+}
+
+/// T-1468 + T-1470: render trend JSON for `--json` output. Includes the optional
+/// `eta_zero` block when the linear fit produces an actionable forecast.
+pub(crate) fn legacy_trend_to_json(
+    points: &[TrendPoint],
+    trajectory: &Trajectory,
+    eta: Option<&EtaForecast>,
+) -> serde_json::Value {
+    let mut out = serde_json::json!({
         "trajectory": trajectory.label(),
         "points": points.iter().map(|p| serde_json::json!({
             "snapshot": p.label,
@@ -529,11 +614,25 @@ pub(crate) fn legacy_trend_to_json(points: &[TrendPoint], trajectory: &Trajector
             "total_legacy_fleet": p.total,
             "delta_from_prior": p.delta_from_prior,
         })).collect::<Vec<_>>(),
-    })
+    });
+    if let Some(e) = eta {
+        out["eta_zero"] = serde_json::json!({
+            "target_ms": e.target_ms,
+            "days_from_now": e.days_from_now,
+            "slope_per_day": e.slope_per_day,
+        });
+    } else {
+        out["eta_zero"] = serde_json::Value::Null;
+    }
+    out
 }
 
-/// T-1468: human-readable trend block printed under cut-readiness.
-pub(crate) fn print_legacy_trend_block(points: &[TrendPoint], trajectory: &Trajectory) {
+/// T-1468 + T-1470: human-readable trend block printed under cut-readiness.
+pub(crate) fn print_legacy_trend_block(
+    points: &[TrendPoint],
+    trajectory: &Trajectory,
+    eta: Option<&EtaForecast>,
+) {
     if points.is_empty() {
         eprintln!();
         eprintln!("=== T-1166 cut-readiness TREND ===");
@@ -560,6 +659,40 @@ pub(crate) fn print_legacy_trend_block(points: &[TrendPoint], trajectory: &Traje
         eprintln!("  sparkline: {spark}");
     }
     eprintln!("  trajectory: {}", trajectory.label());
+    // T-1470: ETA line when the fit produces an actionable forecast. Format
+    // the date in ISO-8601 (YYYY-MM-DD) so it sorts and parses naturally.
+    if let Some(e) = eta {
+        let secs = (e.target_ms / 1000) as i64;
+        // Convert the unix timestamp to ISO date via NaiveDateTime arithmetic.
+        // Avoid pulling in chrono just for this — manual conversion using the
+        // standard library suffices for a YYYY-MM-DD render.
+        let date_iso = unix_secs_to_iso_date(secs);
+        eprintln!(
+            "  ETA to zero: {} ({:.1} days at {:.0}/day)",
+            date_iso, e.days_from_now, e.slope_per_day
+        );
+    }
+}
+
+/// T-1470: convert a unix epoch timestamp (seconds) to a YYYY-MM-DD string
+/// using Howard Hinnant's civil-from-days algorithm. Avoids a chrono
+/// dependency for what amounts to one date format. Years before 1970 not
+/// supported (returns "1970-01-01" as a degenerate fallback).
+pub(crate) fn unix_secs_to_iso_date(secs: i64) -> String {
+    if secs <= 0 {
+        return "1970-01-01".to_string();
+    }
+    let days = (secs / 86_400) + 719_468; // shift to 0000-03-01 epoch
+    let era = if days >= 0 { days / 146_097 } else { (days - 146_096) / 146_097 };
+    let doe = (days - era * 146_097) as u64; // [0, 146097)
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 400)
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp.wrapping_sub(9) }; // [1, 12]
+    let year = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", year, m, d)
 }
 
 /// Options for remote inject command.
@@ -2786,7 +2919,7 @@ pub(crate) async fn cmd_fleet_doctor(
     // today's value alongside the prior days. Trend renders before JSON
     // serialization (mirroring --diff's pattern) so the human-mode output
     // shows the trend block under cut-readiness.
-    let legacy_trend_obj: Option<(Vec<TrendPoint>, Trajectory)> = if !trend_snapshots.is_empty() {
+    let legacy_trend_obj: Option<(Vec<TrendPoint>, Trajectory, Option<EtaForecast>)> = if !trend_snapshots.is_empty() {
         // Borrow refs into the snapshots vec, then append a synthesized
         // "current" entry built from this run's legacy_summary + snapshot_ts_ms.
         let mut series: Vec<(String, &serde_json::Value)> = trend_snapshots
@@ -2802,17 +2935,20 @@ pub(crate) async fn cmd_fleet_doctor(
             series.push(("(current)".to_string(), &current_doc));
         }
         let (points, trajectory) = compute_legacy_trend(&series);
+        // T-1470: forecast ETA-to-zero from the trend points. Returns None
+        // when the fit isn't meaningful (flat, growing, single point, ...).
+        let eta = compute_eta_to_zero(&points, snapshot_ts_ms as u64);
         if !json {
-            print_legacy_trend_block(&points, &trajectory);
+            print_legacy_trend_block(&points, &trajectory, eta.as_ref());
         }
-        Some((points, trajectory))
+        Some((points, trajectory, eta))
     } else if trend.is_some() {
         // Caller asked for --trend but no parseable snapshots existed.
         // Print an explanation in non-JSON mode; JSON gets an empty array.
         if !json {
-            print_legacy_trend_block(&[], &Trajectory::Flat);
+            print_legacy_trend_block(&[], &Trajectory::Flat, None);
         }
-        Some((Vec::new(), Trajectory::Flat))
+        Some((Vec::new(), Trajectory::Flat, None))
     } else {
         None
     };
@@ -2848,8 +2984,8 @@ pub(crate) async fn cmd_fleet_doctor(
         // one place. Falls back to top-level when legacy_summary is absent
         // (defensive — should not happen given trend_snapshots requires
         // legacy_usage).
-        if let Some((points, trajectory)) = legacy_trend_obj.as_ref() {
-            let trend_json = legacy_trend_to_json(points, trajectory);
+        if let Some((points, trajectory, eta)) = legacy_trend_obj.as_ref() {
+            let trend_json = legacy_trend_to_json(points, trajectory, eta.as_ref());
             if let Some(obj) = top.as_object_mut() {
                 let attached = obj
                     .get_mut("legacy_summary")
@@ -5459,6 +5595,99 @@ secret_file = "/tmp/other.hex"
         assert_eq!(chars[0], '█');
         assert!(chars[1] != '█');
         assert_eq!(chars[2], '▁');
+    }
+
+    // ===== T-1470: eta_to_zero tests =====
+
+    fn tp(label: &str, ts_ms: Option<u64>, total: u64) -> TrendPoint {
+        TrendPoint { label: label.to_string(), ts_ms, total, delta_from_prior: None }
+    }
+
+    const ONE_DAY_MS: u64 = 86_400_000;
+
+    #[test]
+    fn eta_to_zero_fewer_than_two_points_returns_none() {
+        let pts = vec![tp("a", Some(0), 100)];
+        assert!(compute_eta_to_zero(&pts, 0).is_none());
+        assert!(compute_eta_to_zero(&[], 0).is_none());
+    }
+
+    #[test]
+    fn eta_to_zero_flat_series_returns_none() {
+        let pts = vec![
+            tp("a", Some(0), 100),
+            tp("b", Some(ONE_DAY_MS), 100),
+            tp("c", Some(2 * ONE_DAY_MS), 100),
+        ];
+        assert!(compute_eta_to_zero(&pts, 2 * ONE_DAY_MS).is_none());
+    }
+
+    #[test]
+    fn eta_to_zero_growing_series_returns_none() {
+        let pts = vec![
+            tp("a", Some(0), 100),
+            tp("b", Some(ONE_DAY_MS), 200),
+            tp("c", Some(2 * ONE_DAY_MS), 300),
+        ];
+        assert!(compute_eta_to_zero(&pts, 2 * ONE_DAY_MS).is_none());
+    }
+
+    #[test]
+    fn eta_to_zero_clean_linear_decay_predicts_correct_date() {
+        // 100 → 80 → 60 over two days: -10/day per snapshot, -20/day between.
+        // Wait — slope should be -10 per day if we have 3 points each 1 day apart.
+        // y = 100, 80, 60 at x = 0, 1, 2 days. Slope = -20/day. y=0 at x = 5d.
+        let pts = vec![
+            tp("a", Some(0), 100),
+            tp("b", Some(ONE_DAY_MS), 80),
+            tp("c", Some(2 * ONE_DAY_MS), 60),
+        ];
+        // now = the last observation time
+        let eta = compute_eta_to_zero(&pts, 2 * ONE_DAY_MS).expect("decay should forecast");
+        // From now, zero is 3 more days out (5d total - 2d elapsed).
+        assert!((eta.days_from_now - 3.0).abs() < 0.01,
+            "expected ~3.0 days from now, got {}", eta.days_from_now);
+        // Slope is -20 calls/day.
+        assert!((eta.slope_per_day - -20.0).abs() < 0.01,
+            "expected slope_per_day ~-20, got {}", eta.slope_per_day);
+    }
+
+    #[test]
+    fn eta_to_zero_noisy_decay_still_produces_forward_date() {
+        // Real-world signal: not perfectly linear but trending down.
+        // 1000, 950, 920, 800 at days 0,1,2,3. Net -200 over 3d.
+        let pts = vec![
+            tp("a", Some(0), 1000),
+            tp("b", Some(ONE_DAY_MS), 950),
+            tp("c", Some(2 * ONE_DAY_MS), 920),
+            tp("d", Some(3 * ONE_DAY_MS), 800),
+        ];
+        let eta = compute_eta_to_zero(&pts, 3 * ONE_DAY_MS).expect("noisy decay should forecast");
+        // ETA must be positive (in the future) and slope must be negative.
+        assert!(eta.days_from_now > 0.0);
+        assert!(eta.slope_per_day < 0.0);
+    }
+
+    #[test]
+    fn eta_to_zero_already_zero_total_returns_none() {
+        // Last point is zero — we're already at zero, no future ETA needed.
+        let pts = vec![
+            tp("a", Some(0), 50),
+            tp("b", Some(ONE_DAY_MS), 0),
+        ];
+        assert!(compute_eta_to_zero(&pts, ONE_DAY_MS).is_none());
+    }
+
+    #[test]
+    fn eta_to_zero_unix_secs_to_iso_date_known_dates() {
+        // 0 → epoch
+        assert_eq!(unix_secs_to_iso_date(0), "1970-01-01");
+        // 2026-05-04 00:00:00 UTC == 1777881600
+        assert_eq!(unix_secs_to_iso_date(1777881600), "2026-05-04");
+        // 2000-01-01 == 946684800
+        assert_eq!(unix_secs_to_iso_date(946684800), "2000-01-01");
+        // 2024-02-29 (leap year) == 1709164800
+        assert_eq!(unix_secs_to_iso_date(1709164800), "2024-02-29");
     }
 
     // ===== T-1462: legacy_diff tests =====
