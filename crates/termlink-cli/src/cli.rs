@@ -3490,6 +3490,13 @@ pub(crate) enum AgentAction {
         /// Clamped to [1, 300]. Ignored without `--watch`.
         #[arg(long = "watch-interval", default_value_t = 5)]
         watch_interval: u64,
+
+        /// Limit output to N busiest peers post-sort (T-1489). When set,
+        /// output is truncated to the first N rows after sorting; the
+        /// total count is preserved in the footer / JSON envelope so the
+        /// operator knows what was clipped. Clamped to [1, 1000].
+        #[arg(long = "top")]
+        top: Option<usize>,
     },
 
     /// Peer observability — summarize a peer's recent `agent-chat-arc`

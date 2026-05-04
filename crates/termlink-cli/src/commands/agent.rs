@@ -1191,8 +1191,12 @@ pub(crate) async fn cmd_agent_presence(
     filter_project: Option<&str>,
     watch: bool,
     watch_interval: u64,
+    top: Option<usize>,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+    // T-1489: clamp `--top` to [1, 1000]. clamp() requires both bounds —
+    // pass through Option::map.
+    let clamped_top: Option<usize> = top.map(|n| n.clamp(1, 1000));
 
     // T-1486: --watch is a streaming mode; --json is one-shot. Reject the
     // combo at the verb level so callers get a clear error instead of an
@@ -1231,7 +1235,7 @@ pub(crate) async fn cmd_agent_presence(
             )
             .await
             {
-                Ok(rows) => render_presence_text(&rows, clamped_window_secs, filter_project),
+                Ok(rows) => render_presence_text(&rows, clamped_window_secs, filter_project, clamped_top),
                 Err(e) => {
                     println!("# fetch error (will retry on next tick): {e}");
                 }
@@ -1249,7 +1253,14 @@ pub(crate) async fn cmd_agent_presence(
     .context("agent presence: failed to fetch fleet presence")?;
 
     if json {
-        let peers: Vec<serde_json::Value> = rows.iter().map(|r| r.to_json()).collect();
+        let total_peers = rows.len();
+        // T-1489: apply --top truncation post-sort. The helper's sort is
+        // already posts desc, so `take(N)` returns the N busiest.
+        let display_rows: &[super::channel::FleetPeerRow] = match clamped_top {
+            Some(n) => &rows[..rows.len().min(n)],
+            None => &rows,
+        };
+        let peers: Vec<serde_json::Value> = display_rows.iter().map(|r| r.to_json()).collect();
         let mut out_obj = serde_json::Map::new();
         out_obj.insert(
             "window_secs".to_string(),
@@ -1264,12 +1275,21 @@ pub(crate) async fn cmd_agent_presence(
                 serde_json::Value::String(f.to_string()),
             );
         }
+        // T-1489: echo top + total_peers when truncation flag is set so
+        // callers can disambiguate "exactly N peers" from "N truncated".
+        if let Some(n) = clamped_top {
+            out_obj.insert("top".to_string(), serde_json::Value::from(n));
+            out_obj.insert(
+                "total_peers".to_string(),
+                serde_json::Value::from(total_peers),
+            );
+        }
         out_obj.insert("peers".to_string(), serde_json::Value::Array(peers));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
         return Ok(());
     }
 
-    render_presence_text(&rows, clamped_window_secs, filter_project);
+    render_presence_text(&rows, clamped_window_secs, filter_project, clamped_top);
     Ok(())
 }
 
@@ -1377,12 +1397,14 @@ pub(crate) async fn cmd_agent_ping(
 }
 
 /// T-1486: text-mode renderer extracted so the watch loop can reuse it
-/// per-iteration without duplicating layout. Same output as the one-shot
-/// path: header (+ filter line if set), aligned table, footer count.
+/// per-iteration without duplicating layout. T-1489: optional `top` —
+/// truncate to N busiest peers post-sort, footer reports both displayed
+/// and total counts so the operator knows what was clipped.
 fn render_presence_text(
     rows: &[super::channel::FleetPeerRow],
     window_secs: u64,
     filter_project: Option<&str>,
+    top: Option<usize>,
 ) {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1405,7 +1427,12 @@ fn render_presence_text(
         "{:<18} {:>14} {:>8}  {}",
         "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
     );
-    for r in rows {
+    let total_peers = rows.len();
+    let display_rows: &[super::channel::FleetPeerRow] = match top {
+        Some(n) => &rows[..rows.len().min(n)],
+        None => rows,
+    };
+    for r in display_rows {
         let last_seen_str = match r.last_seen_ms {
             None => "never".to_string(),
             Some(ms) => {
@@ -1432,9 +1459,16 @@ fn render_presence_text(
         Some(f) => format!(" matching project={}", f),
         None => String::new(),
     };
+    // T-1489: footer naming both shown and total when truncation applied.
+    let footer_count = match top {
+        Some(_) if display_rows.len() < total_peers => {
+            format!("{} of {}", display_rows.len(), total_peers)
+        }
+        _ => total_peers.to_string(),
+    };
     println!(
         "{} peer(s) active in window={}s{}",
-        rows.len(),
+        footer_count,
         window_secs,
         suffix
     );
