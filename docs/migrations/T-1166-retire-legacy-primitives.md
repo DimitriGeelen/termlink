@@ -328,6 +328,26 @@ Read the rate as the cut-readiness yardstick:
 | Zero (flat) | Audit log is in a steady state — the rolling window is dropping calls at the same rate new ones arrive. Investigate top callers. |
 | Positive (growing) | Live caller still polling somewhere. `WAIT` verdict expected; do not cut. |
 
+**Rate interpretation caveat (audit-log window roll-off).** The rate is
+computed naïvely as `total_fleet_delta / elapsed_minutes`. The hub's
+audit log is a rolling window (currently 60–90d depending on hub
+retention config). When the elapsed interval between two snapshots
+crosses a meaningful fraction of that window, some of the apparent
+"decay" is just calls aging out of the window, not callers stopping.
+
+For migration tracking, prefer **short intervals** to keep this effect
+negligible:
+
+| Interval     | Rolloff contribution to rate | Recommended use |
+|--------------|------------------------------|-----------------|
+| ≤ 1 day      | < 2% of window — negligible. | Daily cron, primary cut-readiness signal. |
+| 1–7 days     | 2–10% — present but small.   | Trend confirmation; treat decay rate as a lower bound on real migration progress. |
+| > 7 days     | > 10% — material.            | For long-term context only; do not infer caller behaviour from a multi-week rate. Re-snapshot recently. |
+
+When in doubt, take a fresh snapshot today and diff against yesterday.
+The 1d interval keeps roll-off out of the picture and the rate becomes
+a clean signal of caller activity.
+
 For older fleets (or to inspect the JSON shape):
 
 ```bash

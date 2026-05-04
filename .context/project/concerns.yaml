@@ -14,9 +14,11 @@ concerns:
   what_works_now: "Successful pushes work fine (no leak on happy path). Cross-hub TCP auth still works for non-payload-bearing commands."
   what_remains: "Fix push.rs error sites to redact command body before surfacing. T-1388 created."
   mitigation_candidate: "Tier-1 (now): redact the write_cmd from all three error bail! sites in push.rs. Surface only stderr (which the shell may or may not have already leaked, but is at least narrower than embedding the original command). Tier-3 (later): consider replacing the inline-base64 transport with a dedicated `inbox.write` RPC that takes content as a binary param, never crossing through a shell command at all."
-  status: watching
+  status: resolved
   created: 2026-04-28
-  related_tasks: [T-1388, T-1296]
+  resolved: 2026-05-04
+  resolution: "T-1388 shipped redaction at all three error sites in push.rs (write/inject/exec_rpc) with a `redact_secrets` substring scrubber and 5 unit tests covering allowlist-rejection echo, heredoc body, and stderr-only paths (commit verified: grep redact_secrets in push.rs returns hits at lines 167/182/191/195, redact_strips_allowlist_rejection_echo test at line 229). Tier-1 prevention is in place; the Tier-3 inbox.write RPC remains optional defense-in-depth, deferred until needed (no current incident pressure). G-019 closure rule satisfied."
+  related_tasks: [T-1388, T-1296, T-1464]
 
 - id: G-047
   type: gap
