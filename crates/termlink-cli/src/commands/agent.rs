@@ -1504,6 +1504,160 @@ pub(crate) async fn cmd_agent_ping(
     }
 }
 
+/// T-1492: content-access verb — show recent chat-arc posts from a single
+/// peer. Companion to `agent who` (aggregates) / `agent presence` (fleet).
+/// Walks `agent-chat-arc`, filters by sender_id, optionally further by
+/// thread/project, prints last N chronologically.
+pub(crate) async fn cmd_agent_recent(
+    target: Option<&str>,
+    target_fp: Option<&str>,
+    n: usize,
+    window_secs: u64,
+    filter_thread: Option<&str>,
+    filter_project: Option<&str>,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if target.is_some() && target_fp.is_some() {
+        let msg = "specify either <TARGET> or --target-fp, not both";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    if target.is_none() && target_fp.is_none() {
+        let msg = "must specify either <TARGET> (display name) or --target-fp <hex>";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    let display_target = target
+        .map(String::from)
+        .unwrap_or_else(|| target_fp.unwrap().to_string());
+
+    let peer_fp_owned: String = if let Some(fp) = target_fp {
+        if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+            let msg = format!("--target-fp must be hex (got {fp:?})");
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            anyhow::bail!(msg);
+        }
+        fp.to_string()
+    } else {
+        resolve_target_name_to_fp(target.unwrap(), json)
+    };
+    let peer_fp = peer_fp_owned.as_str();
+
+    let clamped_n = n.clamp(1, 200);
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    // Walk a wider slice than n so filtering doesn't starve — 1000 envelopes
+    // covers ~16h on a 1/min-cadence chat-arc.
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 1000)
+        .await
+        .with_context(|| {
+            format!("agent recent: failed to fetch chat-arc for peer fp={peer_fp}")
+        })?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+
+    let posts = super::channel::extract_recent_posts_for_peer(
+        &msgs,
+        peer_fp,
+        clamped_n,
+        window_ms,
+        now_ms,
+        filter_thread,
+        filter_project,
+    );
+
+    if json {
+        let mut out_obj = serde_json::Map::new();
+        out_obj.insert(
+            "target".to_string(),
+            serde_json::Value::String(display_target.clone()),
+        );
+        out_obj.insert(
+            "peer_fp".to_string(),
+            serde_json::Value::String(peer_fp.to_string()),
+        );
+        out_obj.insert(
+            "window_secs".to_string(),
+            serde_json::Value::from(clamped_window_secs),
+        );
+        out_obj.insert("n".to_string(), serde_json::Value::from(clamped_n));
+        if let Some(t) = filter_thread {
+            out_obj.insert(
+                "filter_thread".to_string(),
+                serde_json::Value::String(t.to_string()),
+            );
+        }
+        if let Some(p) = filter_project {
+            out_obj.insert(
+                "filter_project".to_string(),
+                serde_json::Value::String(p.to_string()),
+            );
+        }
+        let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
+        out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
+        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
+        return Ok(());
+    }
+
+    // Text mode header
+    let filter_suffix = match (filter_project, filter_thread) {
+        (None, None) => String::new(),
+        (Some(p), None) => format!(" project={}", p),
+        (None, Some(t)) => format!(" thread={}", t),
+        (Some(p), Some(t)) => format!(" project={} thread={}", p, t),
+    };
+    println!(
+        "# agent recent {} (peer_fp={}) | window={}s | n={}{}",
+        display_target, peer_fp, clamped_window_secs, clamped_n, filter_suffix
+    );
+    if posts.is_empty() {
+        println!("(no posts found in window)");
+        return Ok(());
+    }
+    for p in &posts {
+        let age_secs = ((now_ms - p.ts_ms) / 1000).max(0);
+        let age_str = if age_secs < 60 {
+            format!("{age_secs}s ago")
+        } else if age_secs < 3600 {
+            format!("{}m ago", age_secs / 60)
+        } else if age_secs < 86_400 {
+            format!("{}h ago", age_secs / 3600)
+        } else {
+            format!("{}d ago", age_secs / 86_400)
+        };
+        let mut tags = format!("msg_type={}", p.msg_type);
+        if let Some(t) = &p.thread {
+            tags.push_str(&format!(" thread={t}"));
+        }
+        if let Some(pr) = &p.project {
+            tags.push_str(&format!(" project={pr}"));
+        }
+        println!("[{}] {}", age_str, tags);
+        // Indent content for visual block separation
+        for line in p.content.lines() {
+            println!("    {}", line);
+        }
+        if p.content.is_empty() {
+            println!("    (empty)");
+        }
+        println!();
+    }
+    println!("{} post(s) shown", posts.len());
+    Ok(())
+}
+
 /// T-1486: text-mode renderer extracted so the watch loop can reuse it
 /// per-iteration without duplicating layout. T-1489: optional `top` —
 /// truncate to N busiest peers post-sort, footer reports both displayed

@@ -3630,6 +3630,53 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Show recent chat-arc posts from a single peer (T-1492). Content-
+    /// access companion to `agent who` / `agent presence`: those tell
+    /// you who is active and what they're working on; this shows what
+    /// they've actually said. Walks `agent-chat-arc`, filters to a
+    /// single sender, optionally narrows by thread/project, prints the
+    /// last N posts in chronological order with content snippets.
+    Recent {
+        /// Target session display_name — resolves locally via
+        /// `session.discover`. Mutually exclusive with `--target-fp`;
+        /// one is required.
+        target: Option<String>,
+
+        /// Target identity fingerprint (hex, ≥8 chars). Cross-host
+        /// path — no local session.discover required. Mutually
+        /// exclusive with the positional `<TARGET>`.
+        #[arg(long = "target-fp")]
+        target_fp: Option<String>,
+
+        /// Number of posts to return. Default 10. Clamped to [1, 200].
+        #[arg(long = "n", default_value_t = 10)]
+        n: usize,
+
+        /// Window (seconds) for the activity slice. Default 86400 (1
+        /// day). Clamped to [60, 604800] (1 minute to 1 week). Posts
+        /// older than the window are excluded even if `--n` is large.
+        #[arg(long = "window-secs", default_value_t = 86400)]
+        window_secs: u64,
+
+        /// Filter by thread/task id — only posts whose
+        /// `metadata._thread == <name>` are returned.
+        #[arg(long = "thread")]
+        filter_thread: Option<String>,
+
+        /// Filter by project — only posts whose
+        /// `metadata.from_project == <name>` are returned.
+        #[arg(long = "project")]
+        filter_project: Option<String>,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
