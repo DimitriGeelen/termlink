@@ -1846,9 +1846,44 @@ pub(crate) async fn cmd_agent_overview(
     top: usize,
     hub: Option<&str>,
     json: bool,
+    watch: bool,
+    watch_interval: u64,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
     let clamped_top = top.clamp(1, 50);
+    // T-1496: --watch + --json incompatible.
+    if watch && json {
+        let msg = "--watch and --json are incompatible: --watch streams \
+                   re-rendered text frames; --json is one-shot. Pick one.";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    // T-1496: watch loop branches before the one-shot fetch.
+    if watch {
+        let clamped_interval = watch_interval.clamp(1, 300);
+        loop {
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            println!(
+                "# agent overview --watch | interval={}s | window={}s | top={} | {}",
+                clamped_interval, clamped_window_secs, clamped_top, now_str
+            );
+            match super::channel::fetch_recent_chat_arc_msgs(hub, 2000).await {
+                Ok(msgs) => render_overview_body(&msgs, clamped_window_secs, clamped_top),
+                Err(e) => {
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
+        }
+    }
 
     // Single round-trip — wider slice (2000) so all three summaries get
     // enough coverage on busy fleets.
@@ -1856,79 +1891,46 @@ pub(crate) async fn cmd_agent_overview(
         .await
         .context("agent overview: failed to fetch chat-arc")?;
 
+    if json {
+        let envelope = compose_overview_json(&msgs, clamped_window_secs, clamped_top);
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        return Ok(());
+    }
+
+    render_overview_body(&msgs, clamped_window_secs, clamped_top);
+    Ok(())
+}
+
+/// T-1496: pure helper — compute and render the 3-section overview
+/// from a chat-arc msgs slice. Used by both one-shot and `--watch`
+/// paths so layout stays in sync.
+fn render_overview_body(msgs: &[serde_json::Value], window_secs: u64, top: usize) {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
-    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
 
     let peer_rows = super::channel::summarize_fleet_presence(
-        &msgs,
-        now_ms,
-        window_ms,
-        None,
-        None,
+        msgs, now_ms, window_ms, None, None,
     );
     let project_rows = super::channel::summarize_fleet_by_project(
-        &msgs,
-        now_ms,
-        window_ms,
-        None,
-        None,
+        msgs, now_ms, window_ms, None, None,
     );
     let recent = super::channel::extract_recent_posts(
-        &msgs,
-        clamped_top,
-        window_ms,
-        now_ms,
-        None,
-        None,
-        None,
+        msgs, top, window_ms, now_ms, None, None, None,
     );
-
     let display_peers: &[super::channel::FleetPeerRow] =
-        &peer_rows[..peer_rows.len().min(clamped_top)];
+        &peer_rows[..peer_rows.len().min(top)];
     let display_projects: &[super::channel::FleetProjectRow] =
-        &project_rows[..project_rows.len().min(clamped_top)];
+        &project_rows[..project_rows.len().min(top)];
 
-    if json {
-        let mut out_obj = serde_json::Map::new();
-        out_obj.insert(
-            "window_secs".to_string(),
-            serde_json::Value::from(clamped_window_secs),
-        );
-        out_obj.insert("top".to_string(), serde_json::Value::from(clamped_top));
-        out_obj.insert(
-            "peers".to_string(),
-            serde_json::Value::Array(display_peers.iter().map(|r| r.to_json()).collect()),
-        );
-        out_obj.insert(
-            "projects".to_string(),
-            serde_json::Value::Array(display_projects.iter().map(|r| r.to_json()).collect()),
-        );
-        out_obj.insert(
-            "recent_posts".to_string(),
-            serde_json::Value::Array(recent.iter().map(|p| p.to_json()).collect()),
-        );
-        // Bonus summary fields — total counts so caller can disambiguate
-        // "exactly N peers" vs "N truncated".
-        out_obj.insert(
-            "total_peers".to_string(),
-            serde_json::Value::from(peer_rows.len()),
-        );
-        out_obj.insert(
-            "total_projects".to_string(),
-            serde_json::Value::from(project_rows.len()),
-        );
-        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
-        return Ok(());
-    }
-
-    // Text mode — early-out for empty fleet (signal-to-noise: single line).
     if peer_rows.is_empty() && project_rows.is_empty() && recent.is_empty() {
-        println!("(no fleet activity in window={}s)", clamped_window_secs);
-        return Ok(());
+        println!("(no fleet activity in window={}s)", window_secs);
+        return;
     }
+    let clamped_window_secs = window_secs;
+    let clamped_top = top;
 
     println!(
         "## Top Peers (window={}s, top={})",
@@ -2023,7 +2025,60 @@ pub(crate) async fn cmd_agent_overview(
         peer_rows.len(),
         project_rows.len()
     );
-    Ok(())
+}
+
+/// T-1496: pure helper — compose the overview JSON envelope from a
+/// chat-arc msgs slice. Same data shape as the inline T-1495 path.
+fn compose_overview_json(
+    msgs: &[serde_json::Value],
+    window_secs: u64,
+    top: usize,
+) -> serde_json::Value {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    let peer_rows = super::channel::summarize_fleet_presence(
+        msgs, now_ms, window_ms, None, None,
+    );
+    let project_rows = super::channel::summarize_fleet_by_project(
+        msgs, now_ms, window_ms, None, None,
+    );
+    let recent = super::channel::extract_recent_posts(
+        msgs, top, window_ms, now_ms, None, None, None,
+    );
+    let display_peers: &[super::channel::FleetPeerRow] =
+        &peer_rows[..peer_rows.len().min(top)];
+    let display_projects: &[super::channel::FleetProjectRow] =
+        &project_rows[..project_rows.len().min(top)];
+    let mut out_obj = serde_json::Map::new();
+    out_obj.insert(
+        "window_secs".to_string(),
+        serde_json::Value::from(window_secs),
+    );
+    out_obj.insert("top".to_string(), serde_json::Value::from(top));
+    out_obj.insert(
+        "peers".to_string(),
+        serde_json::Value::Array(display_peers.iter().map(|r| r.to_json()).collect()),
+    );
+    out_obj.insert(
+        "projects".to_string(),
+        serde_json::Value::Array(display_projects.iter().map(|r| r.to_json()).collect()),
+    );
+    out_obj.insert(
+        "recent_posts".to_string(),
+        serde_json::Value::Array(recent.iter().map(|p| p.to_json()).collect()),
+    );
+    out_obj.insert(
+        "total_peers".to_string(),
+        serde_json::Value::from(peer_rows.len()),
+    );
+    out_obj.insert(
+        "total_projects".to_string(),
+        serde_json::Value::from(project_rows.len()),
+    );
+    serde_json::Value::Object(out_obj)
 }
 
 /// Helper — render an "Xs/Ym/Zh/Wd ago" string from now_ms vs ts_ms.
