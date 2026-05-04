@@ -4,16 +4,16 @@ name: "fleet doctor --trend: linear-fit ETA-to-zero forecast"
 description: >
   fleet doctor --trend: linear-fit ETA-to-zero forecast
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-04T07:08:14Z
-last_update: 2026-05-04T07:08:14Z
-date_finished: null
+last_update: 2026-05-04T07:21:29Z
+date_finished: 2026-05-04T07:21:29Z
 ---
 
 # T-1470: fleet doctor --trend: linear-fit ETA-to-zero forecast
@@ -86,3 +86,6 @@ cargo test --release -p termlink --bins eta_to_zero 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1470-fleet-doctor---trend-linear-fit-eta-to-z.md
 - **Context:** Initial task creation
+
+### 2026-05-04T07:21:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
