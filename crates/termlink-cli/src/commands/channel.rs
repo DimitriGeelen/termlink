@@ -1209,6 +1209,124 @@ pub(crate) fn summarize_fleet_by_project(
     rows
 }
 
+/// T-1492: a single post returned by `extract_recent_posts_for_peer`.
+/// Lightweight envelope — content is pre-trimmed by the helper.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RecentPost {
+    pub(crate) ts_ms: i64,
+    pub(crate) msg_type: String,
+    pub(crate) content: String,
+    pub(crate) thread: Option<String>,
+    pub(crate) project: Option<String>,
+}
+
+impl RecentPost {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "ts_ms": self.ts_ms,
+            "msg_type": self.msg_type,
+            "content": self.content,
+            "thread": self.thread,
+            "project": self.project,
+        })
+    }
+}
+
+/// T-1492: pure helper — extract last N non-meta posts from `peer_fp`
+/// in `msgs`, optionally filtered by thread/project. Returns posts in
+/// chronological asc order (oldest first; natural reading flow). Caps
+/// content at 200 chars (suffix `…` if truncated).
+///
+/// `filter_thread` / `filter_project`: when set, only matching posts
+/// pass. Untagged posts fail when a filter is set.
+pub(crate) fn extract_recent_posts_for_peer(
+    msgs: &[Value],
+    peer_fp: &str,
+    n: usize,
+    window_ms: i64,
+    now_ms: i64,
+    filter_thread: Option<&str>,
+    filter_project: Option<&str>,
+) -> Vec<RecentPost> {
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    const CONTENT_CAP: usize = 200;
+    let cutoff = now_ms - window_ms;
+    let mut hits: Vec<RecentPost> = Vec::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff {
+            continue;
+        }
+        let project = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let thread = m
+            .get("metadata")
+            .and_then(|md| md.get("_thread"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        if let Some(want) = filter_thread {
+            if thread.as_deref() != Some(want) {
+                continue;
+            }
+        }
+        if let Some(want) = filter_project {
+            if project.as_deref() != Some(want) {
+                continue;
+            }
+        }
+        // Content extraction — payload shape varies (text vs json vs raw).
+        // Best-effort: prefer payload.text → payload (string) → empty.
+        let content_raw = m
+            .get("payload")
+            .and_then(|p| p.get("text"))
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or_else(|| {
+                m.get("payload").and_then(|p| p.as_str()).map(String::from)
+            })
+            .or_else(|| {
+                m.get("payload").map(|p| p.to_string())
+            })
+            .unwrap_or_default();
+        let content = if content_raw.chars().count() > CONTENT_CAP {
+            let truncated: String = content_raw.chars().take(CONTENT_CAP).collect();
+            format!("{truncated}…")
+        } else {
+            content_raw
+        };
+        hits.push(RecentPost {
+            ts_ms: ts,
+            msg_type: mt.to_string(),
+            content,
+            thread,
+            project,
+        });
+    }
+    // Chronological asc — oldest first, newest last (natural reading).
+    hits.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms));
+    // Cap at N taking the LAST N (most recent posts) post-sort.
+    if hits.len() > n {
+        let drop = hits.len() - n;
+        hits.drain(0..drop);
+    }
+    hits
+}
+
 /// T-1491: fetch wrapper paralleling `fetch_fleet_presence_via_chat_arc`
 /// but returning the by-project aggregation. Same 2000-envelope walk.
 pub(crate) async fn fetch_fleet_by_project_via_chat_arc(
@@ -13331,5 +13449,180 @@ mod tests {
         assert_eq!(rows[0].offset, 0);
         assert_eq!(rows[0].payload, "p0-edited");
         assert_eq!(rows[1].offset, 2);
+    }
+
+    // ---- T-1492 extract_recent_posts_for_peer tests ------------------
+
+    fn recent_msg(
+        sender: &str,
+        ts_ms: i64,
+        msg_type: &str,
+        project: Option<&str>,
+        thread: Option<&str>,
+        payload_text: &str,
+    ) -> Value {
+        let mut metadata = serde_json::Map::new();
+        if let Some(p) = project {
+            metadata.insert("from_project".to_string(), Value::String(p.to_string()));
+        }
+        if let Some(t) = thread {
+            metadata.insert("_thread".to_string(), Value::String(t.to_string()));
+        }
+        json!({
+            "sender_id": sender,
+            "ts_unix_ms": ts_ms,
+            "msg_type": msg_type,
+            "metadata": Value::Object(metadata),
+            "payload": {"text": payload_text},
+        })
+    }
+
+    #[test]
+    fn recent_posts_empty_msgs_returns_empty() {
+        let posts = extract_recent_posts_for_peer(
+            &[],
+            "peer1",
+            10,
+            3_600_000,
+            1_700_000_000_000,
+            None,
+            None,
+        );
+        assert!(posts.is_empty());
+    }
+
+    #[test]
+    fn recent_posts_filters_to_target_peer_only() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 1_000, "post", None, None, "alice 1"),
+            recent_msg("peer2", now - 2_000, "post", None, None, "bob 1"),
+            recent_msg("peer1", now - 3_000, "post", None, None, "alice 2"),
+        ];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 2);
+        // Chronological asc — older first
+        assert_eq!(posts[0].content, "alice 2");
+        assert_eq!(posts[1].content, "alice 1");
+    }
+
+    #[test]
+    fn recent_posts_caps_at_n_keeping_most_recent() {
+        let now = 1_700_000_000_000_i64;
+        // 5 posts on peer1, ts ascending. n=3 should keep last 3 (most recent).
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "post", None, None, "p0"),
+            recent_msg("peer1", now - 4_000, "post", None, None, "p1"),
+            recent_msg("peer1", now - 3_000, "post", None, None, "p2"),
+            recent_msg("peer1", now - 2_000, "post", None, None, "p3"),
+            recent_msg("peer1", now - 1_000, "post", None, None, "p4"),
+        ];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            3,
+            3_600_000,
+            now,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 3);
+        // Last 3 in chronological asc order — p2, p3, p4
+        assert_eq!(posts[0].content, "p2");
+        assert_eq!(posts[1].content, "p3");
+        assert_eq!(posts[2].content, "p4");
+    }
+
+    #[test]
+    fn recent_posts_filter_thread_keeps_only_matching() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 1, "post", Some("p"), Some("T-A"), "thread-A"),
+            recent_msg("peer1", now - 2, "post", Some("p"), Some("T-B"), "thread-B"),
+            recent_msg("peer1", now - 3, "post", Some("p"), None, "untagged"),
+        ];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            10,
+            3_600_000,
+            now,
+            Some("T-A"),
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "thread-A");
+    }
+
+    #[test]
+    fn recent_posts_filter_project_keeps_only_matching() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 1, "post", Some("A"), None, "proj-A"),
+            recent_msg("peer1", now - 2, "post", Some("B"), None, "proj-B"),
+            recent_msg("peer1", now - 3, "post", None, None, "untagged"),
+        ];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            10,
+            3_600_000,
+            now,
+            None,
+            Some("A"),
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "proj-A");
+    }
+
+    #[test]
+    fn recent_posts_meta_msgs_filtered_outside_window_dropped() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 1_000, "post", None, None, "in-window"),
+            recent_msg("peer1", now - 2_000, "reaction", None, None, "meta"), // skipped
+            recent_msg("peer1", now - 5_000_000, "post", None, None, "old"), // outside
+        ];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            10,
+            window_ms,
+            now,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "in-window");
+    }
+
+    #[test]
+    fn recent_posts_truncates_long_content_with_ellipsis() {
+        let now = 1_700_000_000_000_i64;
+        // 250-char content should truncate to 200 + ellipsis.
+        let big = "a".repeat(250);
+        let msgs = vec![recent_msg("peer1", now - 1, "post", None, None, &big)];
+        let posts = extract_recent_posts_for_peer(
+            &msgs,
+            "peer1",
+            10,
+            3_600_000,
+            now,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        // 200 chars + 1 ellipsis char = 201 char count.
+        assert_eq!(posts[0].content.chars().count(), 201);
+        assert!(posts[0].content.ends_with('…'));
     }
 }
