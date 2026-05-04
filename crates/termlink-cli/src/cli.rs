@@ -3416,6 +3416,23 @@ pub(crate) enum AgentAction {
         /// validation. Same target-resolution errors fire as the live path.
         #[arg(long = "dry-run")]
         dry_run: bool,
+
+        /// Fail-fast (exit 9) when the peer fingerprint hasn't appeared on
+        /// `agent-chat-arc` within `--online-window-secs` (T-1480, Q3
+        /// deferred from T-1425). Default behavior is queue-on-offline:
+        /// chat-arc is offset-durable so dm posts persist until the peer
+        /// catches up. Pass this flag for synchronous-contact semantics
+        /// where you want to know NOW whether the peer is reachable
+        /// (e.g. operator-driven incident chatter, CI gate). Combines with
+        /// `--dry-run` to preview the verdict without posting.
+        #[arg(long = "require-online")]
+        require_online: bool,
+
+        /// Window (seconds) for `--require-online` presence check. Default
+        /// 300 (5 min) — covers a few missed heartbeats on a 1/min-cadence
+        /// peer. Clamped to [10, 86400]. Ignored without `--require-online`.
+        #[arg(long = "online-window-secs", default_value_t = 300)]
+        online_window_secs: u64,
     },
 
     /// Run a 4-phase format negotiation with a specialist session

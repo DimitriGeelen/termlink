@@ -604,6 +604,137 @@ pub(crate) fn dm_topic(my_id: &str, peer: &str) -> String {
     format!("dm:{a}:{b}")
 }
 
+/// T-1480: result of probing `agent-chat-arc` to determine whether a peer
+/// FP has been "online" within a recent window. Used by
+/// `agent contact --require-online` to fail-fast before posting to a peer
+/// that won't read the message in any actionable timeframe.
+#[derive(Debug, Clone)]
+pub(crate) struct PresenceCheck {
+    pub(crate) online: bool,
+    pub(crate) last_seen_ms: Option<i64>,
+    pub(crate) posts_in_window: u64,
+    pub(crate) window_secs: u64,
+}
+
+impl PresenceCheck {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "online": self.online,
+            "last_seen_ms": self.last_seen_ms,
+            "posts_in_window": self.posts_in_window,
+            "window_secs": self.window_secs,
+        })
+    }
+}
+
+/// T-1480: pure helper — given a slice of agent-chat-arc envelopes, a peer
+/// FP, the current wall-clock in ms, and a window in ms, return the presence
+/// signal. Counts only non-meta messages (`reaction`, `edit`, `redaction`,
+/// `topic_metadata`, `receipt` skip — they don't carry liveness signal).
+/// `last_seen_ms` is the max ts across the slice for that peer regardless of
+/// window — useful for "X seen 4h ago" in the failure message even when the
+/// online-ness window is 5 min.
+pub(crate) fn evaluate_presence(
+    msgs: &[Value],
+    peer_fp: &str,
+    now_ms: i64,
+    window_ms: i64,
+) -> PresenceCheck {
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    let mut last_seen: Option<i64> = None;
+    let mut posts_in_window: u64 = 0;
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
+        if ts >= cutoff {
+            posts_in_window += 1;
+        }
+    }
+    PresenceCheck {
+        online: posts_in_window > 0,
+        last_seen_ms: last_seen,
+        posts_in_window,
+        window_secs: (window_ms / 1000).max(0) as u64,
+    }
+}
+
+/// T-1480: probe the canonical liveness topic for peer presence. Walks the
+/// last 500 envelopes of `agent-chat-arc` (cap chosen so even busy hubs see
+/// >>5min of slice — chat-arc heartbeats fire ~1/min/peer, so 500 ≈ 8h on a
+/// 4-peer fleet). Returns presence signal computed by `evaluate_presence`.
+///
+/// Tradeoff: with retention=forever and a long-lived hub, we don't walk the
+/// whole topic. False-negative risk is tiny because the failure mode would
+/// require: peer's last post is older than the 500-msg slice but newer than
+/// `now - window_secs`. Active peers post heartbeats; absent ones rightfully
+/// fail. Re-tune SLICE if observed false-negatives accumulate.
+pub(crate) async fn check_peer_online_via_chat_arc(
+    peer_fp: &str,
+    hub: Option<&str>,
+    window_secs: u64,
+) -> Result<PresenceCheck> {
+    let sock = hub_socket(hub)?;
+    // First: how many envelopes does the topic have? Skip the walk entirely
+    // if the topic is empty (peer literally has never posted).
+    let list_resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_LIST,
+        json!({"prefix": "agent-chat-arc"}),
+    )
+    .await
+    .context("Hub rpc_call (channel.list agent-chat-arc) failed")?;
+    let list_result = client::unwrap_result(list_resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics = list_result["topics"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let count = topics
+        .iter()
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some("agent-chat-arc"))
+        .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
+        .unwrap_or(0);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    if count == 0 {
+        return Ok(PresenceCheck {
+            online: false,
+            last_seen_ms: None,
+            posts_in_window: 0,
+            window_secs,
+        });
+    }
+    const SLICE: u64 = 500;
+    let cursor = count.saturating_sub(SLICE);
+    let resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_SUBSCRIBE,
+        json!({"topic": "agent-chat-arc", "cursor": cursor, "limit": SLICE}),
+    )
+    .await
+    .context("Hub rpc_call (channel.subscribe agent-chat-arc) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+    let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+    Ok(evaluate_presence(&msgs, peer_fp, now_ms, window_ms))
+}
+
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
@@ -7779,6 +7910,120 @@ mod tests {
         assert!(!is_chat_arc_topic("agent-chat"));
         assert!(!is_chat_arc_topic("random-topic"));
         assert!(!is_chat_arc_topic("DM:alice")); // case-sensitive
+    }
+
+    // ---- T-1480 evaluate_presence tests --------------------------------
+
+    fn presence_msg(sender: &str, ts_ms: i64, msg_type: &str) -> Value {
+        json!({
+            "sender_id": sender,
+            "ts_unix_ms": ts_ms,
+            "msg_type": msg_type,
+        })
+    }
+
+    #[test]
+    fn presence_peer_never_seen_returns_offline() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            presence_msg("aaaa", now - 30_000, "post"),
+            presence_msg("bbbb", now - 60_000, "post"),
+        ];
+        let p = evaluate_presence(&msgs, "deadbeef", now, 300_000);
+        assert!(!p.online);
+        assert_eq!(p.posts_in_window, 0);
+        assert_eq!(p.last_seen_ms, None);
+        assert_eq!(p.window_secs, 300);
+    }
+
+    #[test]
+    fn presence_peer_only_outside_window_returns_offline_with_last_seen() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64; // 60 sec
+        let msgs = vec![
+            // 5 minutes ago — outside window, but last_seen should still be set
+            presence_msg("peer1", now - 300_000, "post"),
+        ];
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(!p.online);
+        assert_eq!(p.posts_in_window, 0);
+        assert_eq!(p.last_seen_ms, Some(now - 300_000));
+    }
+
+    #[test]
+    fn presence_peer_inside_window_returns_online() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 300_000_i64; // 5 min
+        let msgs = vec![presence_msg("peer1", now - 30_000, "post")];
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(p.online);
+        assert_eq!(p.posts_in_window, 1);
+        assert_eq!(p.last_seen_ms, Some(now - 30_000));
+    }
+
+    #[test]
+    fn presence_mixed_inside_outside_counts_only_inside_but_last_seen_is_max() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64; // 60 sec
+        let msgs = vec![
+            presence_msg("peer1", now - 300_000, "post"), // outside
+            presence_msg("peer1", now - 30_000, "post"),  // inside
+            presence_msg("peer1", now - 10_000, "post"),  // inside
+            presence_msg("peer2", now - 5_000, "post"),   // wrong peer
+        ];
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(p.online);
+        assert_eq!(p.posts_in_window, 2);
+        assert_eq!(p.last_seen_ms, Some(now - 10_000));
+    }
+
+    #[test]
+    fn presence_meta_msg_types_are_filtered_out() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 300_000_i64;
+        // peer1 only has reaction + topic_metadata posts in-window — those
+        // shouldn't count as liveness.
+        let msgs = vec![
+            presence_msg("peer1", now - 10_000, "reaction"),
+            presence_msg("peer1", now - 20_000, "topic_metadata"),
+            presence_msg("peer1", now - 30_000, "edit"),
+            presence_msg("peer1", now - 40_000, "redaction"),
+            presence_msg("peer1", now - 50_000, "receipt"),
+        ];
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(!p.online, "meta-only activity should not count as online");
+        assert_eq!(p.posts_in_window, 0);
+        assert_eq!(p.last_seen_ms, None, "meta msgs don't update last_seen");
+    }
+
+    #[test]
+    fn presence_falls_back_to_ts_when_ts_unix_ms_missing() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64;
+        // Some hubs alias to `ts` instead of `ts_unix_ms` — must read either.
+        let msgs = vec![json!({
+            "sender_id": "peer1",
+            "ts": now - 30_000,
+            "msg_type": "post",
+        })];
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(p.online);
+        assert_eq!(p.last_seen_ms, Some(now - 30_000));
+    }
+
+    #[test]
+    fn presence_to_json_round_trips_fields() {
+        let p = PresenceCheck {
+            online: true,
+            last_seen_ms: Some(1234567890),
+            posts_in_window: 7,
+            window_secs: 300,
+        };
+        let v = p.to_json();
+        assert_eq!(v["online"], json!(true));
+        assert_eq!(v["last_seen_ms"], json!(1234567890_i64));
+        assert_eq!(v["posts_in_window"], json!(7));
+        assert_eq!(v["window_secs"], json!(300));
     }
 
     #[test]
