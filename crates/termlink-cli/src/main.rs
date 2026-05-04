@@ -293,6 +293,9 @@ async fn main() -> Result<()> {
                 let mt_opt = if mt.is_empty() { None } else { Some(mt.as_slice()) };
                 commands::agent::cmd_agent_timeline(n, window_secs, filter_thread.as_deref(), filter_project.as_deref(), mt_opt, filter_grep.as_deref(), hub.as_deref(), json, watch, watch_interval).await
             }
+            AgentAction::Post { text, thread, project, msg_type, hub, json } => {
+                commands::agent::cmd_agent_post(&text, thread.as_deref(), project.as_deref(), &msg_type, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

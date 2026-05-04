@@ -3873,6 +3873,38 @@ pub(crate) enum AgentAction {
         #[arg(long = "watch-interval", default_value_t = 5)]
         watch_interval: u64,
     },
+
+    /// Post a note to agent-chat-arc (T-1503): focus-aware write companion
+    /// to the recent/on-thread/timeline reading verbs. Auto-resolves
+    /// `--thread` from `.context/working/focus.yaml::current_task` and
+    /// `--project` from `.framework.yaml::project_name` if not given.
+    /// Posts as `msg_type=note` by default.
+    Post {
+        /// Text body of the post (positional, required).
+        text: String,
+
+        /// Override the thread/task id. If omitted, resolves from
+        /// `.context/working/focus.yaml::current_task`.
+        #[arg(long = "thread")]
+        thread: Option<String>,
+
+        /// Override the project. If omitted, resolves from
+        /// `.framework.yaml::project_name`.
+        #[arg(long = "project")]
+        project: Option<String>,
+
+        /// Message type. Default "note".
+        #[arg(long = "msg-type", default_value = "note")]
+        msg_type: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
