@@ -671,24 +671,15 @@ pub(crate) fn evaluate_presence(
     }
 }
 
-/// T-1480: probe the canonical liveness topic for peer presence. Walks the
-/// last 500 envelopes of `agent-chat-arc` (cap chosen so even busy hubs see
-/// >>5min of slice — chat-arc heartbeats fire ~1/min/peer, so 500 ≈ 8h on a
-/// 4-peer fleet). Returns presence signal computed by `evaluate_presence`.
-///
-/// Tradeoff: with retention=forever and a long-lived hub, we don't walk the
-/// whole topic. False-negative risk is tiny because the failure mode would
-/// require: peer's last post is older than the 500-msg slice but newer than
-/// `now - window_secs`. Active peers post heartbeats; absent ones rightfully
-/// fail. Re-tune SLICE if observed false-negatives accumulate.
-pub(crate) async fn check_peer_online_via_chat_arc(
-    peer_fp: &str,
+/// T-1480 / T-1481: fetch the last `slice_size` envelopes of
+/// `agent-chat-arc`. Returns an empty Vec when the topic is empty or doesn't
+/// exist. Single round-trip for `channel.list` + `channel.subscribe` — used
+/// by both presence (T-1480) and peer activity summary (T-1481).
+pub(crate) async fn fetch_recent_chat_arc_msgs(
     hub: Option<&str>,
-    window_secs: u64,
-) -> Result<PresenceCheck> {
+    slice_size: u64,
+) -> Result<Vec<Value>> {
     let sock = hub_socket(hub)?;
-    // First: how many envelopes does the topic have? Skip the walk entirely
-    // if the topic is empty (peer literally has never posted).
     let list_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_LIST,
@@ -707,12 +698,44 @@ pub(crate) async fn check_peer_online_via_chat_arc(
         .find(|t| t.get("name").and_then(|v| v.as_str()) == Some("agent-chat-arc"))
         .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
         .unwrap_or(0);
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    let cursor = count.saturating_sub(slice_size);
+    let resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_SUBSCRIBE,
+        json!({"topic": "agent-chat-arc", "cursor": cursor, "limit": slice_size}),
+    )
+    .await
+    .context("Hub rpc_call (channel.subscribe agent-chat-arc) failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+    Ok(result["messages"].as_array().cloned().unwrap_or_default())
+}
+
+/// T-1480: probe the canonical liveness topic for peer presence. Walks the
+/// last 500 envelopes of `agent-chat-arc` (cap chosen so even busy hubs see
+/// >>5min of slice — chat-arc heartbeats fire ~1/min/peer, so 500 ≈ 8h on a
+/// 4-peer fleet). Returns presence signal computed by `evaluate_presence`.
+///
+/// Tradeoff: with retention=forever and a long-lived hub, we don't walk the
+/// whole topic. False-negative risk is tiny because the failure mode would
+/// require: peer's last post is older than the 500-msg slice but newer than
+/// `now - window_secs`. Active peers post heartbeats; absent ones rightfully
+/// fail. Re-tune SLICE if observed false-negatives accumulate.
+pub(crate) async fn check_peer_online_via_chat_arc(
+    peer_fp: &str,
+    hub: Option<&str>,
+    window_secs: u64,
+) -> Result<PresenceCheck> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let window_ms = (window_secs as i64).saturating_mul(1000);
-    if count == 0 {
+    let msgs = fetch_recent_chat_arc_msgs(hub, 500).await?;
+    if msgs.is_empty() {
         return Ok(PresenceCheck {
             online: false,
             last_seen_ms: None,
@@ -720,19 +743,108 @@ pub(crate) async fn check_peer_online_via_chat_arc(
             window_secs,
         });
     }
-    const SLICE: u64 = 500;
-    let cursor = count.saturating_sub(SLICE);
-    let resp = rpc_call_authed(
-        &sock,
-        method::CHANNEL_SUBSCRIBE,
-        json!({"topic": "agent-chat-arc", "cursor": cursor, "limit": SLICE}),
-    )
-    .await
-    .context("Hub rpc_call (channel.subscribe agent-chat-arc) failed")?;
-    let result = client::unwrap_result(resp)
-        .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
-    let msgs = result["messages"].as_array().cloned().unwrap_or_default();
     Ok(evaluate_presence(&msgs, peer_fp, now_ms, window_ms))
+}
+
+/// T-1481: peer activity summary. `from_projects` is sorted: post count desc,
+/// then project name asc. `posts_in_window` counts non-meta msgs whose
+/// `ts >= now - window_ms`. `last_seen_ms` is the max ts across the slice
+/// regardless of window.
+#[derive(Debug, Clone)]
+pub(crate) struct PeerActivity {
+    pub(crate) peer_fp: String,
+    pub(crate) last_seen_ms: Option<i64>,
+    pub(crate) posts_in_window: u64,
+    pub(crate) window_secs: u64,
+    pub(crate) from_projects: Vec<(String, u64)>,
+}
+
+impl PeerActivity {
+    pub(crate) fn to_json(&self) -> Value {
+        let projects: Vec<Value> = self
+            .from_projects
+            .iter()
+            .map(|(p, n)| json!({"project": p, "posts": n}))
+            .collect();
+        json!({
+            "peer_fp": self.peer_fp,
+            "last_seen_ms": self.last_seen_ms,
+            "posts_in_window": self.posts_in_window,
+            "window_secs": self.window_secs,
+            "from_projects": projects,
+        })
+    }
+}
+
+/// T-1481: pure helper — given a slice of agent-chat-arc envelopes, peer FP,
+/// current wall-clock ms, and window ms, return the activity summary. Skips
+/// meta msg types (reaction / edit / redaction / topic_metadata / receipt).
+/// `from_project` is read from `metadata.from_project` (T-1472 auto-inject)
+/// when present.
+pub(crate) fn summarize_peer_activity(
+    msgs: &[Value],
+    peer_fp: &str,
+    now_ms: i64,
+    window_ms: i64,
+) -> PeerActivity {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    let mut last_seen: Option<i64> = None;
+    let mut posts_in_window: u64 = 0;
+    let mut project_counts: HashMap<String, u64> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
+        if ts >= cutoff {
+            posts_in_window += 1;
+            if let Some(p) = m
+                .get("metadata")
+                .and_then(|md| md.get("from_project"))
+                .and_then(|v| v.as_str())
+            {
+                *project_counts.entry(p.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut from_projects: Vec<(String, u64)> = project_counts.into_iter().collect();
+    from_projects.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    PeerActivity {
+        peer_fp: peer_fp.to_string(),
+        last_seen_ms: last_seen,
+        posts_in_window,
+        window_secs: (window_ms / 1000).max(0) as u64,
+        from_projects,
+    }
+}
+
+/// T-1481: probe peer activity on `agent-chat-arc`. Walks the last 1000
+/// envelopes (larger than presence's 500 because activity windows can be
+/// 1h–1w, vs presence's 5min default).
+pub(crate) async fn fetch_peer_activity_via_chat_arc(
+    peer_fp: &str,
+    hub: Option<&str>,
+    window_secs: u64,
+) -> Result<PeerActivity> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    let msgs = fetch_recent_chat_arc_msgs(hub, 1000).await?;
+    Ok(summarize_peer_activity(&msgs, peer_fp, now_ms, window_ms))
 }
 
 /// T-1319: ensure a topic exists. Idempotent — if create returns
@@ -8024,6 +8136,126 @@ mod tests {
         assert_eq!(v["last_seen_ms"], json!(1234567890_i64));
         assert_eq!(v["posts_in_window"], json!(7));
         assert_eq!(v["window_secs"], json!(300));
+    }
+
+    // ---- T-1481 summarize_peer_activity tests --------------------------
+
+    fn activity_msg(sender: &str, ts_ms: i64, msg_type: &str, project: Option<&str>) -> Value {
+        let mut metadata = serde_json::Map::new();
+        if let Some(p) = project {
+            metadata.insert("from_project".to_string(), Value::String(p.to_string()));
+        }
+        json!({
+            "sender_id": sender,
+            "ts_unix_ms": ts_ms,
+            "msg_type": msg_type,
+            "metadata": Value::Object(metadata),
+        })
+    }
+
+    #[test]
+    fn peer_activity_never_seen_returns_empty_summary() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("aaaa", now - 30_000, "post", Some("p1")),
+            activity_msg("bbbb", now - 60_000, "post", Some("p2")),
+        ];
+        let a = summarize_peer_activity(&msgs, "deadbeef", now, 3_600_000);
+        assert_eq!(a.peer_fp, "deadbeef");
+        assert_eq!(a.posts_in_window, 0);
+        assert_eq!(a.last_seen_ms, None);
+        assert!(a.from_projects.is_empty());
+        assert_eq!(a.window_secs, 3600);
+    }
+
+    #[test]
+    fn peer_activity_in_window_only_counts_in_window() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64; // 1h
+        let msgs = vec![
+            activity_msg("peer1", now - 30_000, "post", Some("project-a")),
+            activity_msg("peer1", now - 60_000, "post", Some("project-a")),
+            activity_msg("peer1", now - 7_200_000, "post", Some("project-old")), // outside
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        assert_eq!(a.posts_in_window, 2, "two posts within 1h window");
+        assert_eq!(a.last_seen_ms, Some(now - 30_000));
+        assert_eq!(a.from_projects.len(), 1, "only in-window projects counted");
+        assert_eq!(a.from_projects[0], ("project-a".to_string(), 2));
+    }
+
+    #[test]
+    fn peer_activity_multi_project_sorts_by_count_desc_then_alpha() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "post", Some("zebra")),
+            activity_msg("peer1", now - 2_000, "post", Some("alpha")),
+            activity_msg("peer1", now - 3_000, "post", Some("alpha")),
+            activity_msg("peer1", now - 4_000, "post", Some("beta")),
+            activity_msg("peer1", now - 5_000, "post", Some("alpha")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        // alpha(3) > beta(1) == zebra(1); ties break alphabetical
+        assert_eq!(a.from_projects[0], ("alpha".to_string(), 3));
+        assert_eq!(a.from_projects[1], ("beta".to_string(), 1));
+        assert_eq!(a.from_projects[2], ("zebra".to_string(), 1));
+    }
+
+    #[test]
+    fn peer_activity_meta_msg_types_excluded() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "reaction", Some("p1")),
+            activity_msg("peer1", now - 2_000, "topic_metadata", Some("p1")),
+            activity_msg("peer1", now - 3_000, "edit", Some("p1")),
+            activity_msg("peer1", now - 4_000, "redaction", Some("p1")),
+            activity_msg("peer1", now - 5_000, "receipt", Some("p1")),
+            activity_msg("peer1", now - 6_000, "post", Some("p1")), // only this counts
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        assert_eq!(a.posts_in_window, 1, "meta msgs filtered out");
+        assert_eq!(a.from_projects.len(), 1);
+        assert_eq!(a.from_projects[0], ("p1".to_string(), 1));
+    }
+
+    #[test]
+    fn peer_activity_post_without_from_project_counted_but_not_grouped() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        // Pre-T-1472 posts have no metadata.from_project — they should still
+        // count toward posts_in_window but not appear in from_projects.
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "post", None),
+            activity_msg("peer1", now - 2_000, "post", Some("p1")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        assert_eq!(a.posts_in_window, 2);
+        assert_eq!(a.from_projects.len(), 1, "only the post with from_project");
+        assert_eq!(a.from_projects[0], ("p1".to_string(), 1));
+    }
+
+    #[test]
+    fn peer_activity_to_json_shape_stable() {
+        let a = PeerActivity {
+            peer_fp: "deadbeef".to_string(),
+            last_seen_ms: Some(1234567890),
+            posts_in_window: 5,
+            window_secs: 3600,
+            from_projects: vec![("foo".to_string(), 3), ("bar".to_string(), 2)],
+        };
+        let v = a.to_json();
+        assert_eq!(v["peer_fp"], json!("deadbeef"));
+        assert_eq!(v["last_seen_ms"], json!(1234567890_i64));
+        assert_eq!(v["posts_in_window"], json!(5));
+        assert_eq!(v["window_secs"], json!(3600));
+        let projects = v["from_projects"].as_array().expect("array");
+        assert_eq!(projects.len(), 2);
+        assert_eq!(projects[0]["project"], json!("foo"));
+        assert_eq!(projects[0]["posts"], json!(3));
+        assert_eq!(projects[1]["project"], json!("bar"));
+        assert_eq!(projects[1]["posts"], json!(2));
     }
 
     #[test]

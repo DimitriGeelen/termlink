@@ -941,6 +941,68 @@ pub(crate) async fn cmd_agent_contact(
     .with_context(|| format!("agent contact: posting to dm topic for peer fp={peer_fp} failed"))
 }
 
+/// T-1481: peer observability primitive. Walks recent `agent-chat-arc`
+/// activity, returns a summary of last-seen, posts in window, and distinct
+/// `from_project` values associated with the peer FP. Disambiguation tool
+/// for cross-host operators investigating an unknown peer.
+pub(crate) async fn cmd_agent_who(
+    target_fp: &str,
+    window_secs: u64,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if target_fp.len() < 8 || !target_fp.chars().all(|c| c.is_ascii_hexdigit()) {
+        let msg = format!("--target-fp must be hex (got {target_fp:?})");
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+    let activity = super::channel::fetch_peer_activity_via_chat_arc(
+        target_fp,
+        hub,
+        clamped_window_secs,
+    )
+    .await
+    .with_context(|| format!("agent who: failed to fetch activity for fp={target_fp}"))?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&activity.to_json())?);
+        return Ok(());
+    }
+
+    // Text mode — sectioned output.
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    println!("peer_fp:           {}", activity.peer_fp);
+    match activity.last_seen_ms {
+        None => println!("last_seen:         never (no posts on agent-chat-arc)"),
+        Some(ms) => {
+            let age_secs = ((now_ms - ms) / 1000).max(0);
+            println!(
+                "last_seen:         {}s ago (ts_ms={})",
+                age_secs, ms,
+            );
+        }
+    }
+    println!(
+        "posts_in_window:   {} (window_secs={})",
+        activity.posts_in_window, activity.window_secs
+    );
+    if activity.from_projects.is_empty() {
+        println!("from_projects:     (none observed in window)");
+    } else {
+        println!("from_projects:");
+        for (project, count) in &activity.from_projects {
+            println!("  {project:30} {count:>6}");
+        }
+    }
+    Ok(())
+}
+
 /// T-1478: pure helper — build the dry-run preview JSON. Mirrors the
 /// metadata that `cmd_channel_dm` would stamp on the post (from_project
 /// auto-injected by `cmd_channel_post`, plus any extra_metadata supplied
