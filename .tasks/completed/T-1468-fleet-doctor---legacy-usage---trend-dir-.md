@@ -4,16 +4,16 @@ name: "fleet doctor --legacy-usage --trend <dir>: multi-snapshot decay sparkline
 description: >
   fleet doctor --legacy-usage --trend <dir>: multi-snapshot decay sparkline
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T06:49:43Z
-last_update: 2026-05-04T06:49:43Z
-date_finished: null
+last_update: 2026-05-04T06:59:49Z
+date_finished: 2026-05-04T06:59:49Z
 ---
 
 # T-1468: fleet doctor --legacy-usage --trend <dir>: multi-snapshot decay sparkline
@@ -85,3 +85,6 @@ cargo test --release -p termlink --bins legacy_trend 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1468-fleet-doctor---legacy-usage---trend-dir-.md
 - **Context:** Initial task creation
+
+### 2026-05-04T06:59:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
