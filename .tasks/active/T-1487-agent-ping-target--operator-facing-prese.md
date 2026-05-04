@@ -4,16 +4,16 @@ name: "agent ping <target> — operator-facing presence check verb"
 description: >
   agent ping <target> — operator-facing presence check verb
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T15:40:03Z
-last_update: 2026-05-04T15:40:03Z
-date_finished: null
+last_update: 2026-05-04T15:46:30Z
+date_finished: 2026-05-04T15:46:30Z
 ---
 
 # T-1487: agent ping <target> — operator-facing presence check verb
@@ -109,3 +109,6 @@ out=$(target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-s
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1487-agent-ping-target--operator-facing-prese.md
 - **Context:** Initial task creation
+
+### 2026-05-04T15:46:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
