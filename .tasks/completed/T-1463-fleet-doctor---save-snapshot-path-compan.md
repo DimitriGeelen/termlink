@@ -4,16 +4,16 @@ name: "fleet doctor --save-snapshot <path> companion to --diff for routine decay
 description: >
   fleet doctor --save-snapshot <path> companion to --diff for routine decay-rate sampling
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T05:37:31Z
-last_update: 2026-05-04T05:37:31Z
-date_finished: null
+last_update: 2026-05-04T05:43:31Z
+date_finished: 2026-05-04T05:43:31Z
 ---
 
 # T-1463: fleet doctor --save-snapshot <path> companion to --diff for routine decay-rate sampling
@@ -81,3 +81,6 @@ grep -q "save_snapshot" crates/termlink-cli/src/commands/remote.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1463-fleet-doctor---save-snapshot-path-compan.md
 - **Context:** Initial task creation
+
+### 2026-05-04T05:43:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

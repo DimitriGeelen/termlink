@@ -4,16 +4,16 @@ name: "fleet doctor --legacy-usage --diff <snapshot> for decay rate measurement"
 description: >
   fleet doctor --legacy-usage --diff <snapshot> for decay rate measurement
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T05:18:46Z
-last_update: 2026-05-04T05:18:46Z
-date_finished: null
+last_update: 2026-05-04T05:32:53Z
+date_finished: 2026-05-04T05:32:53Z
 ---
 
 # T-1462: fleet doctor --legacy-usage --diff <snapshot> for decay rate measurement
@@ -53,7 +53,7 @@ cargo test -p termlink --bin termlink legacy_diff
 cargo build --release -p termlink
 grep -q "compute_legacy_diff" crates/termlink-cli/src/commands/remote.rs
 grep -q "_snapshot_ts_ms" crates/termlink-cli/src/commands/remote.rs
-grep -q "diff: Option<PathBuf>" crates/termlink-cli/src/cli.rs || grep -q "fleet_doctor_diff" crates/termlink-cli/src/cli.rs
+grep -q "diff: Option<std::path::PathBuf>" crates/termlink-cli/src/cli.rs
 
 ## RCA
 
@@ -88,3 +88,6 @@ grep -q "diff: Option<PathBuf>" crates/termlink-cli/src/cli.rs || grep -q "fleet
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1462-fleet-doctor---legacy-usage---diff-snaps.md
 - **Context:** Initial task creation
+
+### 2026-05-04T05:32:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "fleet doctor — surface top callers under WAIT/DECAYING verdicts"
 description: >
   fleet doctor — surface top callers under WAIT/DECAYING verdicts
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/rpc_audit.rs]
 related_tasks: []
 created: 2026-05-03T22:24:32Z
-last_update: 2026-05-03T22:24:32Z
-date_finished: null
+last_update: 2026-05-03T22:35:02Z
+date_finished: 2026-05-03T22:35:02Z
 ---
 
 # T-1460: fleet doctor — surface top callers under WAIT/DECAYING verdicts
@@ -90,3 +90,6 @@ cargo test -p termlink-hub --lib top_callers 2>&1 | grep -E "test result: ok\. 3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1460-fleet-doctor--surface-top-callers-under-.md
 - **Context:** Initial task creation
+
+### 2026-05-03T22:35:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

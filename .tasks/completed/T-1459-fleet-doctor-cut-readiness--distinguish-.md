@@ -4,16 +4,16 @@ name: "fleet doctor cut-readiness — distinguish CUT-READY-DECAYING from WAIT"
 description: >
   fleet doctor cut-readiness — distinguish CUT-READY-DECAYING from WAIT
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-03T22:13:57Z
-last_update: 2026-05-03T22:13:57Z
-date_finished: null
+last_update: 2026-05-03T22:22:37Z
+date_finished: 2026-05-03T22:22:37Z
 ---
 
 # T-1459: fleet doctor cut-readiness — distinguish CUT-READY-DECAYING from WAIT
@@ -54,7 +54,7 @@ Refinement: introduce `CUT-READY-DECAYING` — fired when total_legacy > 0 but n
 ## Verification
 
 cargo test -p termlink --bin termlink cut_readiness 2>&1 | grep -E "test result: ok\. 11 passed" >/dev/null
-cargo check -p termlink 2>&1 | grep -E "^(warning:|error)" | grep -v "^warning:" | (! grep -q .)
+! cargo check -p termlink 2>&1 | grep -E "^(warning:|error)" | grep -v "^warning:" | grep -q .
 
 ## RCA
 
@@ -89,3 +89,6 @@ cargo check -p termlink 2>&1 | grep -E "^(warning:|error)" | grep -v "^warning:"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1459-fleet-doctor-cut-readiness--distinguish-.md
 - **Context:** Initial task creation
+
+### 2026-05-03T22:22:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
