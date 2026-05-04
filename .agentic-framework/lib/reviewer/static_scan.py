@@ -2,9 +2,9 @@
 
 Detects anti-patterns in completed task files. v1.0 scope:
 - 4 seed patterns: tautology, empty-body, swallowed-errors, output-spoofing
-- Verdict written to task body under `## Reviewer Verdict (v1.0)`
+- Verdict written to task body under `#{2,}Reviewer Verdict (v1.0)`
 - Append-only feedback stream at `.context/working/feedback-stream.yaml`
-- Sovereignty: NEVER modifies AC checkboxes (### Human or ### Agent)
+- Sovereignty: NEVER modifies AC checkboxes (##{2,}Human or ### Agent)
 
 Wired in v1.0:
 - `bin/fw reviewer T-XXX` (manual)
@@ -232,7 +232,11 @@ def detect_empty_body(ac_section: str) -> list[Finding]:
     current_subhead = "ACs"
     counter = 0
     for raw in ac_section.splitlines():
-        if raw.strip().startswith("### "):
+        # T-1579: subhead detection — was `startswith("##{2,}")` (literal string,
+        # never matches `### Agent` / `### Human`). The bug left current_subhead
+        # stuck at "ACs", so Findings reported `ac_subhead="ACs"` and the
+        # "skip Human ACs" branch in detect_ac_verify_mismatch never fired.
+        if re.match(r"^#{2,}\s+\S", raw.strip()):
             current_subhead = raw.strip().lstrip("# ").strip()
             counter = 0
             continue
@@ -497,6 +501,30 @@ def _path_transitively_covered(path: str, verif_text: str) -> bool:
     return False
 
 
+# T-1579: dotted Python imports (from a.b.c import X / import a.b.c) directly
+# exercise a/b/c.py (or a/b/c/__init__.py). Substring match in verif_text
+# misses these because slashes ≠ dots — eight FPs across the T-1576/77/78 arc.
+_PYTHON_IMPORT_RE = re.compile(
+    r"\b(?:from|import)\s+([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+)",
+    re.IGNORECASE,
+)
+
+
+def _path_python_import_covered(path: str, verif_text: str) -> bool:
+    """Return True if `path` corresponds to a Python module imported in verif_text.
+
+    Handles both module files (`a/b/c.py`) and package markers (`a/b/c/__init__.py`).
+    """
+    for m in _PYTHON_IMPORT_RE.finditer(verif_text):
+        dotted = m.group(1)
+        parts = dotted.split(".")
+        as_module = "/".join(parts) + ".py"
+        as_package = "/".join(parts) + "/__init__.py"
+        if path == as_module or path == as_package:
+            return True
+    return False
+
+
 def detect_ac_verify_mismatch(ac_section: str, verification_section: str) -> list[Finding]:
     """AC checked AND mentions a specific file path, but no verification line touches it.
 
@@ -516,7 +544,11 @@ def detect_ac_verify_mismatch(ac_section: str, verification_section: str) -> lis
     counter = 0
     current_subhead = "ACs"
     for raw in ac_section.splitlines():
-        if raw.strip().startswith("### "):
+        # T-1579: subhead detection — was `startswith("##{2,}")` (literal string,
+        # never matches `### Agent` / `### Human`). The bug left current_subhead
+        # stuck at "ACs", so Findings reported `ac_subhead="ACs"` and the
+        # "skip Human ACs" branch in detect_ac_verify_mismatch never fired.
+        if re.match(r"^#{2,}\s+\S", raw.strip()):
             current_subhead = raw.strip().lstrip("# ").strip()
             counter = 0
             continue
@@ -539,6 +571,10 @@ def detect_ac_verify_mismatch(ac_section: str, verification_section: str) -> lis
             if path not in verif_text:
                 # v1.2: transitive-coverage exemption per L-265
                 if _path_transitively_covered(path, verif_text):
+                    continue
+                # T-1579: Python-import exemption — `from a.b.c import X` directly
+                # exercises a/b/c.py (verbatim path doesn't appear in verif text).
+                if _path_python_import_covered(path, verif_text):
                     continue
                 findings.append(
                     Finding(
@@ -687,8 +723,11 @@ def scan_task(
 
 VERDICT_HEADER = f"## Reviewer Verdict ({VERSION})"
 # v1.3: match any v* header so prior-version verdicts are cleanly replaced.
+# T-1519: terminate at any heading level ≥ H2 (#{2,}or ### or deeper), not just
+# H2. update-task.sh appends `##{2,}timestamp` Updates entries at EOF after the
+# verdict was first written — re-scanning would otherwise nuke them.
 _VERDICT_SECTION_RE = re.compile(
-    r"^## Reviewer Verdict \(v[0-9.]+\)\s*\n(.*?)(?=^## |\Z)",
+    r"^## Reviewer Verdict \(v[0-9.]+\)\s*\n(.*?)(?=^#{2,} |\Z)",
     re.MULTILINE | re.DOTALL,
 )
 
@@ -762,7 +801,7 @@ def render_verdict_md(verdict: Verdict) -> str:
 
 
 def write_verdict_to_task(task_path: Path, verdict: Verdict) -> None:
-    """Replace existing `## Reviewer Verdict (v1.0)` section, or append.
+    """Replace existing `#{2,}Reviewer Verdict (v1.0)` section, or append.
 
     Sovereignty invariant: this function ONLY touches the verdict section.
     It must not modify AC checkboxes or any other section.

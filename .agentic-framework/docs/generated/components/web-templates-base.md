@@ -6,13 +6,16 @@
 
 ## What It Does
 
-## Used By (3)
+## Used By (6)
 
 | Component | Relationship |
 |-----------|-------------|
 | `web/templates/_wrapper.html` | extended_by |
 | `web/templates/config.html` | used-by |
 | `web/templates/config.html` | rendered_by |
+| `web/templates/reviewer_audit.html` | extended_by |
+| `web/templates/reviewer_overrides.html` | extended_by |
+| `web/templates/escalation_drift.html` | extended_by |
 
 ## Related
 

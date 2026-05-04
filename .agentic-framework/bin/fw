@@ -530,6 +530,7 @@ show_help() {
     echo -e "  ${GREEN}promote${NC} <cmd>         Graduation pipeline (suggest, status, L-XXX)"
     echo -e "  ${GREEN}tier0${NC} <cmd>          Tier 0 enforcement (approve, status)"
     echo -e "  ${GREEN}approvals${NC} <cmd>      Approval queue (pending, status, expire)"
+    echo -e "  ${GREEN}review-queue${NC}         List tasks awaiting human review (with verdicts)"
     echo -e "  ${GREEN}work-on${NC} <name|T-XXX> Create task + set focus + start (one-step gate)"
     echo -e "  ${GREEN}bus${NC} <cmd>            Result ledger for sub-agent dispatch (post, read, manifest, clear)"
     echo -e "  ${GREEN}dispatch${NC} <cmd>       SSH-based cross-machine communication (send, hosts)"
@@ -643,6 +644,20 @@ do_doctor() {
 
     local issues=0
     local warnings=0
+    local host_warnings=0
+
+    # T-1707: host-scope findings can't be fixed from this project session —
+    # they live at the machine level (system installs, ~/.gitconfig,
+    # ~/.local/bin shims, ~/.claude/settings.json). Tagging them makes the
+    # boundary unambiguous so an agent doesn't bundle them into project
+    # housekeeping. Project-scope is the default; only host findings carry
+    # the [host] prefix and explanatory suffix.
+    _doctor_warn_host() {
+        echo -e "  ${YELLOW}WARN${NC}  [host] $1"
+        echo -e "         (host-level — handle from a session at that root)"
+        warnings=$((warnings + 1))
+        host_warnings=$((host_warnings + 1))
+    }
 
     # Check 1: Framework directory
     if [ -d "$FRAMEWORK_ROOT/agents" ] && [ -f "$FRAMEWORK_ROOT/FRAMEWORK.md" ]; then
@@ -661,15 +676,13 @@ do_doctor() {
             ;;
         global)
             if [ -n "${PROJECT_ROOT:-}" ] && [ -d "$PROJECT_ROOT/.agentic-framework" ]; then
-                echo -e "  ${YELLOW}WARN${NC}  Active mode: global ($FRAMEWORK_ROOT) — vendored copy exists at $PROJECT_ROOT/.agentic-framework but was not selected"
-                warnings=$((warnings + 1))
+                _doctor_warn_host "Active mode: global ($FRAMEWORK_ROOT) — vendored copy exists at $PROJECT_ROOT/.agentic-framework but was not selected"
             else
                 echo -e "  ${CYAN}INFO${NC}  Active mode: global ($FRAMEWORK_ROOT)"
             fi
             ;;
         *)
-            echo -e "  ${YELLOW}WARN${NC}  Active mode: $_mode ($FRAMEWORK_ROOT)"
-            warnings=$((warnings + 1))
+            _doctor_warn_host "Active mode: $_mode ($FRAMEWORK_ROOT)"
             ;;
     esac
 
@@ -711,22 +724,25 @@ do_doctor() {
     if [ "$PROJECT_ROOT" = "$FRAMEWORK_ROOT" ] && [ -d "$FRAMEWORK_ROOT/.agentic-framework" ]; then
         local _vdrift=0
         local _vdrift_list=""
-        local _f
-        for _f in "$FRAMEWORK_ROOT"/bin/fw \
-                  "$FRAMEWORK_ROOT"/lib/*.sh \
-                  "$FRAMEWORK_ROOT"/agents/context/*.sh \
-                  "$FRAMEWORK_ROOT"/agents/task-create/*.sh; do
+        local _f _vf _rel
+        # T-1521: Walk the vendored tree itself, not a hand-curated source glob.
+        # T-1434's original glob list missed agents/handover, agents/audit,
+        # agents/git, lib/reviewer, web/blueprints — all synced by `fw vendor`.
+        # Walking the vendor tree guarantees coverage of whatever vendor put there.
+        while IFS= read -r _vf; do
+            _rel="${_vf#$FRAMEWORK_ROOT/.agentic-framework/}"
+            _f="$FRAMEWORK_ROOT/$_rel"
             [ -f "$_f" ] || continue
-            local _rel="${_f#$FRAMEWORK_ROOT/}"
-            local _v="$FRAMEWORK_ROOT/.agentic-framework/$_rel"
-            [ -f "$_v" ] || continue
-            if ! diff -q "$_f" "$_v" >/dev/null 2>&1; then
+            if ! diff -q "$_f" "$_vf" >/dev/null 2>&1; then
                 _vdrift=$((_vdrift + 1))
                 if [ "$_vdrift" -le 5 ]; then
                     _vdrift_list="$_vdrift_list\n           - $_rel"
                 fi
             fi
-        done
+        done < <(find "$FRAMEWORK_ROOT/.agentic-framework"/{bin,lib,agents,web} -type f \
+                    \( -name "*.sh" -o -name "*.py" -o -name "fw" -o -name "*.html" \) \
+                    -not -path "*/__pycache__/*" \
+                    2>/dev/null)
         if [ "$_vdrift" -eq 0 ]; then
             echo -e "  ${GREEN}OK${NC}  No vendored-source drift"
         else
@@ -774,9 +790,8 @@ do_doctor() {
     git_email=$(git -C "$PROJECT_ROOT" config user.email 2>/dev/null || true)
     git_name=$(git -C "$PROJECT_ROOT" config user.name 2>/dev/null || true)
     if [ -z "$git_email" ] || [ -z "$git_name" ]; then
-        echo -e "  ${YELLOW}WARN${NC}  Git user identity not configured (commits will fail)"
-        echo -e "         Run: git config user.email 'you@example.com' && git config user.name 'Your Name'"
-        warnings=$((warnings + 1))
+        _doctor_warn_host "Git user identity not configured (commits will fail)"
+        echo -e "         Run: git config --global user.email 'you@example.com' && git config --global user.name 'Your Name'"
     fi
 
     # Check 6: Claude Code hooks — validate paths resolve (G-021 path isolation)
@@ -843,9 +858,79 @@ print(f'{total},{broken},{stale_paths}')
             echo -e "  ${YELLOW}WARN${NC}  Only $hook_total hooks configured (expected 11+)"
             warnings=$((warnings + 1))
         fi
+
+        # T-1480: Duplicate framework hook scan (root cause of OBS-023).
+        # Mirrors T-1479's check from `fw upgrade` so users see it on every
+        # `fw doctor` run, not only when upgrading. Read-only — surfaces
+        # the overlap; remediation stays the user's call.
+        local user_settings_file="$HOME/.claude/settings.json"
+        if [ -f "$user_settings_file" ]; then
+            local dup_pairs
+            dup_pairs=$(USER_FILE="$user_settings_file" PROJ_FILE="$settings_file" python3 -c "
+import json, os
+def fw_hooks(path):
+    out = set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError, OSError):
+        return out
+    for event, entries in data.get('hooks', {}).items():
+        for entry in entries:
+            for hook in entry.get('hooks', []):
+                cmd = hook.get('command', '')
+                if 'fw hook' in cmd:
+                    name = cmd.split('fw hook ')[-1].strip().split()[0]
+                elif '.agentic-framework' in cmd:
+                    name = cmd.strip().split('/')[-1]
+                else:
+                    continue
+                out.add((event, name))
+    return out
+user = fw_hooks(os.environ['USER_FILE'])
+proj = fw_hooks(os.environ['PROJ_FILE'])
+overlap = sorted(user & proj)
+print('|'.join(f'{e}:{n}' for e, n in overlap))
+" 2>/dev/null || echo "")
+            if [ -n "$dup_pairs" ]; then
+                local dup_count
+                dup_count=$(echo "$dup_pairs" | tr '|' '\n' | wc -l)
+                _doctor_warn_host "Duplicate framework hook(s) in $user_settings_file: $dup_count overlap"
+                echo -e "         Pairs: $(echo "$dup_pairs" | tr '|' ' ')"
+                echo -e "         Both fire on every Claude Code event (cause of OBS-023). Recommend removing duplicates from $user_settings_file."
+            fi
+        fi
     else
         echo -e "  ${YELLOW}WARN${NC}  No .claude/settings.json found (run: fw init)"
         warnings=$((warnings + 1))
+    fi
+
+    # Check 6c: Hook exercise from /tmp (T-1629, B-3a of T-1626).
+    # Active probe — runs each configured hook from /tmp (foreign CWD that
+    # mimics agent cd-drift) and reports any whose path doesn't resolve.
+    # Closes the T-1626 witness scenario: bare-relative paths that "exist"
+    # relative to project root but break under cd. Check 6 above is static.
+    # L-332: helper lives in lib/doctor-hook-exercise.py, NOT inline heredoc
+    # — heredoc-in-$() inside bin/fw is unrecoverable on parse error.
+    local exercise_script="$FW_LIB_DIR/doctor-hook-exercise.py"
+    if [ -f "$settings_file" ] && [ -f "$exercise_script" ]; then
+        local hook_exercise
+        hook_exercise=$(SETTINGS_FILE="$settings_file" python3 "$exercise_script" 2>/dev/null)
+        if [ -n "$hook_exercise" ]; then
+            local hex_total hex_fail
+            hex_total=$(echo "$hook_exercise" | head -1 | cut -d'|' -f1)
+            hex_fail=$(echo "$hook_exercise" | head -1 | cut -d'|' -f2)
+            if [ "${hex_fail:-0}" -gt 0 ]; then
+                echo -e "  ${RED}FAIL${NC}  Hook exercise from /tmp: $hex_fail/$hex_total hook(s) failed to resolve"
+                echo "$hook_exercise" | tail -n +2 | while IFS='|' read -r _ event tag reason; do
+                    echo -e "        ${RED}x${NC} $event/$tag - $reason"
+                done
+                echo -e "        Run: fw upgrade (regenerates hook paths to absolute form)"
+                issues=$((issues + 1))
+            elif [ "${hex_total:-0}" -gt 0 ]; then
+                echo -e "  ${GREEN}OK${NC}  Hook exercise from /tmp: $hex_total hook(s) resolve from foreign CWD"
+            fi
+        fi
     fi
 
     # Check 7: Agent scripts executable
@@ -888,15 +973,13 @@ print(f'{total},{broken},{stale_paths}')
                 warnings=$((warnings + 1))
             fi
         else
-            echo -e "  ${YELLOW}WARN${NC}  bats not installed (run: git clone https://github.com/bats-core/bats-core && ./install.sh /usr/local)"
-            warnings=$((warnings + 1))
+            _doctor_warn_host "bats not installed (run: git clone https://github.com/bats-core/bats-core && ./install.sh /usr/local)"
         fi
 
         if command -v shellcheck >/dev/null 2>&1; then
             echo -e "  ${GREEN}OK${NC}  ShellCheck linter"
         else
-            echo -e "  ${YELLOW}WARN${NC}  shellcheck not installed"
-            warnings=$((warnings + 1))
+            _doctor_warn_host "shellcheck not installed (run: apt install shellcheck  # or brew install shellcheck)"
         fi
     else
         echo -e "  ${CYAN}SKIP${NC}  Test infrastructure (consumer project — tests live in framework repo)"
@@ -910,8 +993,7 @@ print(f'{total},{broken},{stale_paths}')
                    grep -cE "(npm exec.*(mcp|context7|playwright))|(node .*(mcp|context7))" || echo 0)
     orphan_count=$(echo "$orphan_count" | tr -d '[:space:]')
     if [ "$orphan_count" -gt 0 ]; then
-        echo -e "  ${YELLOW}WARN${NC}  $orphan_count orphaned MCP process(es) detected — run 'fw mcp reap'"
-        warnings=$((warnings + 1))
+        _doctor_warn_host "$orphan_count orphaned MCP process(es) detected — run 'fw mcp reap'"
     else
         echo -e "  ${GREEN}OK${NC}  No orphaned MCP processes"
     fi
@@ -960,9 +1042,8 @@ print(f'{total}|{\",\".join(missing)}')
             local link_target
             link_target=$(readlink -f "$local_fw" 2>/dev/null || echo "")
             if [[ "$link_target" == *".agentic-framework/bin/fw"* ]]; then
-                echo -e "  ${YELLOW}WARN${NC}  Global install: ~/.local/bin/fw symlinks to stale $global_dir"
-                echo -e "        Migrate: run install.sh or fw upgrade (installs project-detecting shim)"
-                warnings=$((warnings + 1))
+                _doctor_warn_host "Global install: ~/.local/bin/fw symlinks to stale $global_dir"
+                echo -e "         Migrate: run install.sh or fw upgrade (installs project-detecting shim)"
             else
                 echo -e "  ${GREEN}OK${NC}  fw shim installed (global install at $global_dir is unused)"
             fi
@@ -1199,8 +1280,54 @@ for e in d.get('errors',[])[:3]:
         tl_version=$(termlink --version 2>/dev/null | head -1)
         echo -e "  ${GREEN}OK${NC}  TermLink ($tl_version)"
     else
-        echo -e "  ${YELLOW}WARN${NC}  TermLink not installed (cargo install termlink)"
-        warnings=$((warnings + 1))
+        _doctor_warn_host "TermLink not installed (cargo install termlink)"
+    fi
+
+    # Check: pi (Pi mono coding-agent — optional, ADR-0003 worker_kind=pi)
+    # T-1694 (Q13): warn-only, no auto-install. Operator runs the install
+    # command consciously if any workflow declares worker_kind: pi.
+    if command -v pi >/dev/null 2>&1; then
+        local pi_version
+        pi_version=$(pi --version 2>/dev/null | head -1 || echo "(version unknown)")
+        echo -e "  ${GREEN}OK${NC}  pi ($pi_version)"
+    else
+        # Only warn if some workflow uses worker_kind: pi
+        if [ -d "$PROJECT_ROOT/.context/project/workflows" ] && \
+           grep -lE "^worker_kind:\s*pi\b" "$PROJECT_ROOT/.context/project/workflows/"*.yaml >/dev/null 2>&1; then
+            _doctor_warn_host "pi not installed; workflows declaring worker_kind: pi will fail"
+            echo -e "         Install: npm install -g @badlogic/pi-mono  (or see github.com/badlogic/pi-mono)"
+        else
+            echo -e "  ${CYAN}INFO${NC}  pi not installed (no workflows require it)"
+        fi
+    fi
+
+    # Check: litellm proxy reachable (T-1700 v1 ollama dispatch substrate).
+    # Skip-if-no-consumer: only fires when a workflow declares
+    # ANTHROPIC_BASE_URL: http://localhost:4000 (the litellm proxy port).
+    # Mirrors T-1694 pi pattern.
+    local _wf_dir="$PROJECT_ROOT/.context/project/workflows"
+    if [ -d "$_wf_dir" ] && \
+       grep -lE "ANTHROPIC_BASE_URL:\s*http://localhost:4000" "$_wf_dir"/*.yaml >/dev/null 2>&1; then
+        if curl -sf --max-time 2 http://localhost:4000/health >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  litellm-proxy reachable (http://localhost:4000)"
+        else
+            _doctor_warn_host "litellm-proxy not reachable on http://localhost:4000; workflow(s) declaring ANTHROPIC_BASE_URL will fail"
+            echo -e "         Start: pipx run litellm --config .context/litellm-config.yaml --port 4000  (or systemd unit)"
+        fi
+    fi
+
+    # Check: ollama reachable (T-1700 v1 ollama dispatch substrate).
+    # Skip-if-no-consumer: only fires when a workflow declares
+    # worker_kind: ollama-loop. Hard-codes the upstream URL the workflows
+    # currently target (192.168.10.107:11434). If a workflow points
+    # elsewhere, this check needs widening.
+    if [ -d "$_wf_dir" ] && \
+       grep -lE "^worker_kind:\s*ollama-loop\b" "$_wf_dir"/*.yaml >/dev/null 2>&1; then
+        if curl -sf --max-time 2 http://192.168.10.107:11434/api/tags >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  ollama reachable (http://192.168.10.107:11434)"
+        else
+            _doctor_warn_host "ollama not reachable on http://192.168.10.107:11434; ollama-loop workflows will fail"
+        fi
     fi
 
     # Check: TypeScript build health (optional)
@@ -1227,8 +1354,7 @@ for e in d.get('errors',[])[:3]:
                 echo -e "  ${GREEN}OK${NC}  TypeScript build (${#_ts_files[@]} source(s))"
             fi
         else
-            echo -e "  ${YELLOW}WARN${NC}  Node.js not found (TS hooks will use Python fallback)"
-            warnings=$((warnings + 1))
+            _doctor_warn_host "Node.js not found (TS hooks will use Python fallback)"
         fi
     fi
 
@@ -1421,9 +1547,8 @@ else:
         local _global_mb
         _global_mb=$(du -sm "$_global_dir" 2>/dev/null | cut -f1 || echo "0")
         if [ "${_global_mb:-0}" -gt 100 ]; then
-            echo -e "  ${YELLOW}WARN${NC}  Global install at $_global_dir is ${_global_mb}MB (expected <60MB)"
+            _doctor_warn_host "Global install at $_global_dir is ${_global_mb}MB (expected <60MB)"
             echo -e "         Consider: rm -rf $_global_dir (shim-based dispatch obsoletes it)"
-            warnings=$((warnings + 1))
         fi
     fi
 
@@ -1502,6 +1627,25 @@ else:
             echo -e "  ${YELLOW}WARN${NC}  Cron registry present but not generated — run: fw cron install"
             warnings=$((warnings + 1))
         fi
+
+        # T-1558: flock parity (T-1556 prevention #5). The file-diff above catches
+        # post-generate drift, but if the registry is regenerated WITHOUT flock
+        # wrappers (the T-1556 regression) and immediately deployed, the diff
+        # check stays green while orphan-prevention is silently disabled. Compare
+        # the count of `flock -n` directly between registry command fields and
+        # the deployed crontab; warn on parity violation.
+        if [ -f "$cron_target" ]; then
+            local _reg_flock_count _dep_flock_count
+            _reg_flock_count=$(grep -cE "command:.*flock -n " "$cron_registry" 2>/dev/null || true)
+            _dep_flock_count=$(grep -cE "flock -n " "$cron_target" 2>/dev/null || true)
+            _reg_flock_count="${_reg_flock_count:-0}"
+            _dep_flock_count="${_dep_flock_count:-0}"
+            if [ "$_reg_flock_count" -gt "$_dep_flock_count" ]; then
+                echo -e "  ${YELLOW}WARN${NC}  Cron flock parity: registry declares $_reg_flock_count wrapped jobs, deployed crontab has $_dep_flock_count"
+                echo -e "        T-1331 orphan-prevention may be partially disabled. Run: fw cron install"
+                warnings=$((warnings + 1))
+            fi
+        fi
     fi
 
     # Doc-drift check: fw subcommands vs CLAUDE.md Quick Reference (T-1147/T-1104/T-1421)
@@ -1556,14 +1700,172 @@ else:
         fi
     fi
 
-    # Summary
+    # T-1592: Mirror divergence check — compare refs between origin and other
+    # remotes. The cascade is: local → origin → github (mirror via OneDev
+    # buildspec). If a tag/head SHA on origin doesn't match the mirror, the
+    # mirror push is rejected as non-fast-forward and AEF stops reaching GitHub
+    # silently. T-1591 root cause was annotated-vs-lightweight tag mismatch
+    # going undetected for 50+ failed mirror builds (~22h).
+    set +e  # tolerate ls-remote / comm / wc pipe failures (network, empty refs)
+    local _all_remotes _has_origin
+    _all_remotes=$(git -C "$PROJECT_ROOT" remote 2>/dev/null)
+    _has_origin=$(echo "$_all_remotes" | grep -cx 'origin' 2>/dev/null)
+    if [ "${_has_origin:-0}" -ge 1 ]; then
+        local _other_remotes _origin_refs _origin_dump
+        _other_remotes=$(echo "$_all_remotes" | grep -vx 'origin' 2>/dev/null)
+        _origin_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-origin-refs.$$")
+        timeout 10 git -C "$PROJECT_ROOT" ls-remote origin 'refs/heads/*' 'refs/tags/*' 2>/dev/null | sort -k2 > "$_origin_dump" 2>/dev/null
+        _origin_refs=$(wc -l < "$_origin_dump" 2>/dev/null)
+        if [ -n "$_other_remotes" ] && [ "${_origin_refs:-0}" -gt 0 ]; then
+            local _other _other_dump _diverge _orig_only _mirr_only _orig_names _other_names
+            while IFS= read -r _other; do
+                [ -z "$_other" ] && continue
+                _other_dump=$(mktemp 2>/dev/null || echo "/tmp/fw-${_other}-refs.$$")
+                timeout 10 git -C "$PROJECT_ROOT" ls-remote "$_other" 'refs/heads/*' 'refs/tags/*' 2>/dev/null | sort -k2 > "$_other_dump" 2>/dev/null
+                if [ ! -s "$_other_dump" ]; then
+                    echo -e "  ${CYAN}SKIP${NC}  Mirror divergence ($_other unreachable)"
+                    rm -f "$_other_dump"
+                    continue
+                fi
+                _orig_names=$(awk '{print $2}' "$_origin_dump" | sort -u)
+                _other_names=$(awk '{print $2}' "$_other_dump"  | sort -u)
+                _diverge=0
+                while IFS= read -r _ref; do
+                    [ -z "$_ref" ] && continue
+                    local _o_sha _m_sha
+                    _o_sha=$(awk -v r="$_ref" '$2==r{print $1; exit}' "$_origin_dump")
+                    _m_sha=$(awk -v r="$_ref" '$2==r{print $1; exit}' "$_other_dump")
+                    if [ -n "$_o_sha" ] && [ -n "$_m_sha" ] && [ "$_o_sha" != "$_m_sha" ]; then
+                        _diverge=$((_diverge + 1))
+                    fi
+                done < <(comm -12 <(echo "$_orig_names") <(echo "$_other_names"))
+                _orig_only=$(comm -23 <(echo "$_orig_names") <(echo "$_other_names") | grep -c . 2>/dev/null)
+                _mirr_only=$(comm -13 <(echo "$_orig_names") <(echo "$_other_names") | grep -c . 2>/dev/null)
+                if [ "${_diverge:-0}" -gt 0 ]; then
+                    echo -e "  ${YELLOW}WARN${NC}  Mirror divergence: $_diverge ref(s) differ between origin and $_other (T-1591/T-1592)"
+                    echo -e "         Investigate: diff <(git ls-remote origin) <(git ls-remote $_other)"
+                    warnings=$((warnings + 1))
+                elif [ "${_orig_only:-0}" -gt 0 ] || [ "${_mirr_only:-0}" -gt 0 ]; then
+                    echo -e "  ${CYAN}INFO${NC}  Mirror asymmetry with $_other: origin-only=${_orig_only:-0}, $_other-only=${_mirr_only:-0} (no SHA conflicts)"
+                else
+                    echo -e "  ${GREEN}OK${NC}  Mirror parity with $_other (heads + tags aligned)"
+                fi
+                rm -f "$_other_dump"
+            done <<< "$_other_remotes"
+        fi
+        rm -f "$_origin_dump"
+    fi
+    set -e
+
+    # Check: Workflow file schema linter (T-1694 / Q14)
+    # Lints all .context/project/workflows/*.yaml against ADR-0003 schema:
+    #   - inline:true workflows must NOT carry dispatch fields
+    #   - non-inline workflows require: task_type, worker_kind, model, effort,
+    #     prompt_template, allowed_tools, cost_cap_usd, cwd
+    #   - worker_kind in {Task, TermLink, pi}
+    #   - prompt_template must resolve to an existing file
+    #   - meta_model required iff prompt_strategy == meta-prompted
+    #   - default.yaml missing → soft warning
+    if [ -d "$PROJECT_ROOT/.context/project/workflows" ]; then
+        local _wf_lint_out _wf_errors _wf_warnings _wf_count
+        _wf_lint_out=$(python3 - "$PROJECT_ROOT" <<'PYEOF' 2>&1
+import sys, os, glob
+try:
+    import yaml
+except ImportError:
+    print("FAIL|python3 yaml module missing")
+    sys.exit(0)
+
+project_root = sys.argv[1]
+wf_dir = os.path.join(project_root, ".context/project/workflows")
+files = sorted(glob.glob(os.path.join(wf_dir, "*.yaml")))
+
+INLINE_FORBIDDEN = {"worker_kind","model","effort","prompt_template","prompt_strategy","meta_model","meta_template","allowed_tools","cost_cap_usd","cwd","provider","variants","outcome_evaluator","env"}
+DISPATCH_REQUIRED = {"task_type","worker_kind","model","effort","prompt_template","allowed_tools","cost_cap_usd","cwd"}
+VALID_WORKER_KINDS = {"Task","TermLink","pi","ollama-loop"}
+VALID_STRATEGIES = {"static","assembled","meta-prompted"}
+
+errors = []
+count = 0
+has_default = False
+
+for f in files:
+    rel = os.path.relpath(f, project_root)
+    count += 1
+    if os.path.basename(f) == "default.yaml":
+        has_default = True
+    try:
+        with open(f) as fh:
+            data = yaml.safe_load(fh) or {}
+    except yaml.YAMLError as e:
+        errors.append(f"{rel}: YAML parse error: {e}")
+        continue
+    if not isinstance(data, dict):
+        errors.append(f"{rel}: root must be a mapping")
+        continue
+    if "task_type" not in data:
+        errors.append(f"{rel}: missing required key 'task_type'")
+    if data.get("inline") is True:
+        offenders = INLINE_FORBIDDEN & set(data.keys())
+        if offenders:
+            errors.append(f"{rel}: inline:true cannot co-exist with dispatch fields: {sorted(offenders)}")
+        continue
+    missing = DISPATCH_REQUIRED - set(data.keys())
+    if missing:
+        errors.append(f"{rel}: missing required key(s): {sorted(missing)}")
+        continue
+    wk = data.get("worker_kind")
+    if wk not in VALID_WORKER_KINDS:
+        errors.append(f"{rel}: worker_kind={wk!r} not in {sorted(VALID_WORKER_KINDS)}")
+    pt = data.get("prompt_template")
+    if pt and not os.path.isfile(os.path.join(project_root, pt)):
+        errors.append(f"{rel}: prompt_template={pt!r} does not resolve to an existing file")
+    ps = data.get("prompt_strategy", "assembled")
+    if ps not in VALID_STRATEGIES:
+        errors.append(f"{rel}: prompt_strategy={ps!r} not in {sorted(VALID_STRATEGIES)}")
+    if ps == "meta-prompted" and "meta_model" not in data:
+        errors.append(f"{rel}: prompt_strategy=meta-prompted requires meta_model")
+    if ps != "meta-prompted" and "meta_model" in data:
+        errors.append(f"{rel}: meta_model set but prompt_strategy={ps!r} (must be meta-prompted)")
+
+if errors:
+    for e in errors:
+        print(f"ERROR|{e}")
+if not has_default and count > 0:
+    print("WARN|default.yaml missing — Q12 fallback will hard-error if any task_type lacks a workflow")
+print(f"COUNT|{count}")
+PYEOF
+)
+        _wf_errors=$(echo "$_wf_lint_out" | grep -c '^ERROR|' || true)
+        _wf_warnings=$(echo "$_wf_lint_out" | grep -c '^WARN|' || true)
+        _wf_count=$(echo "$_wf_lint_out" | grep '^COUNT|' | head -1 | sed 's/^COUNT|//' || echo 0)
+        if [ "${_wf_errors:-0}" -gt 0 ]; then
+            echo -e "  ${RED}FAIL${NC}  Workflow schema: $_wf_errors error(s) across $_wf_count file(s)"
+            echo "$_wf_lint_out" | grep '^ERROR|' | sed 's/^ERROR|/         /'
+            issues=$((issues + _wf_errors))
+        elif [ "${_wf_warnings:-0}" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Workflow schema: $_wf_count file(s) clean, $_wf_warnings warning(s)"
+            echo "$_wf_lint_out" | grep '^WARN|' | sed 's/^WARN|/         /'
+            warnings=$((warnings + _wf_warnings))
+        else
+            echo -e "  ${GREEN}OK${NC}  Workflow schema: $_wf_count file(s) lint clean"
+        fi
+    else
+        echo -e "  ${CYAN}INFO${NC}  No .context/project/workflows/ — orchestrator v1 not yet provisioned"
+    fi
+
+    # Summary (T-1707: break out host_warnings count when > 0)
+    local _scope_breakdown=""
+    if [ "$host_warnings" -gt 0 ]; then
+        _scope_breakdown=" ($host_warnings host-level)"
+    fi
     echo ""
     if [ $issues -eq 0 ] && [ $warnings -eq 0 ]; then
         echo -e "${GREEN}All checks passed${NC}"
     elif [ $issues -eq 0 ]; then
-        echo -e "${YELLOW}$warnings warning(s), no failures${NC}"
+        echo -e "${YELLOW}$warnings warning(s)$_scope_breakdown, no failures${NC}"
     else
-        echo -e "${RED}$issues failure(s), $warnings warning(s)${NC}"
+        echo -e "${RED}$issues failure(s), $warnings warning(s)$_scope_breakdown${NC}"
         exit 2
     fi
 }
@@ -1885,13 +2187,15 @@ PYTASK_SHOW
                 fi
 
                 # Extract ## Verification block
+                # T-1541: collapsed 4 greps into one ERE + `|| true` to mirror
+                # update-task.sh:197 — the prior BRE pattern `^\`\`\`` is parsed
+                # by GNU grep 3.11 as start-of-line + three start-of-buffer
+                # assertions, matching every line; under `set -euo pipefail` the
+                # empty-result exit 1 aborted the script before the diagnostic
+                # branch could run. ERE has no special meaning for backtick.
                 local verification
-                # shellcheck disable=SC2016 # backtick pattern is literal
                 verification=$(sed -n '/^## Verification/,/^##/p' "$task_file" | \
-                              grep -v "^##" | \
-                              grep -v '^\`\`\`' | \
-                              grep -v "^#" | \
-                              grep -v "^$")
+                              grep -vE '^##|^\s*```|^\s*#|^\s*$' || true)
 
                 if [ -z "$verification" ]; then
                     echo -e "${YELLOW}No verification commands found in task $task_id${NC}"
@@ -2057,27 +2361,13 @@ PYTASK_VERIFY
                     sleep 5
                     elapsed=$((elapsed + 5))
                     # Count Human ACs from task file
-                    # G-047: track HTML comment state so example ACs inside <!-- ... -->
-                    # do not count as real unchecked Human ACs.
-                    local human_total=0 human_checked=0 in_human=false in_comment=false
+                    local human_total=0 human_checked=0 in_human=false
                     while IFS= read -r line; do
                         if echo "$line" | grep -q '### Human'; then
                             in_human=true; continue
                         fi
                         if $in_human && echo "$line" | grep -qE '^### |^## '; then
                             break
-                        fi
-                        # Track HTML comment open/close (handle single-line <!--...--> too)
-                        if echo "$line" | grep -q '<!--'; then
-                            in_comment=true
-                        fi
-                        local was_in_comment=$in_comment
-                        if echo "$line" | grep -q -- '-->'; then
-                            in_comment=false
-                        fi
-                        # Skip checkbox lines while inside (or on the boundary of) a comment
-                        if $was_in_comment; then
-                            continue
                         fi
                         if $in_human && echo "$line" | grep -qE '^\- \[[ xX]\]'; then
                             human_total=$((human_total + 1))
@@ -2346,14 +2636,28 @@ case "$cmd" in
         if [ "${1:-}" = "" ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
             echo "Usage:"
             echo "  fw reviewer T-XXX [--json] [--no-write]                      Scan one task"
-            echo "  fw reviewer audit                                            Layer 3 daily Pass-B re-scan"
+            echo "  fw reviewer audit [--pass-a [--baseline [--force]] | --pass-b]"
+            echo "                    [--limit N] [--quiet] [--timeout N]"
+            echo "                                                               Layer 3 daily corpus re-scan"
+            echo "                                                               (default: static-scan;"
+            echo "                                                                --pass-a: v1.5 drift signal;"
+            echo "                                                                --pass-b: v1.5 reverify)"
+            echo "  fw reviewer drift T-XXX                                      v1.5 Pass A — file-hash drift"
+            echo "  fw reviewer reverify T-XXX                                   v1.5 Pass B — worktree re-execution"
             echo "  fw reviewer override add T-XXX --pattern X [--ac N] --reason '...' [--ttl 90]"
             echo "  fw reviewer override list                                    Active overrides + days remaining"
             echo "  fw reviewer override prune                                   Drop expired entries"
             echo "  fw reviewer override remove OV-XXXX                          Remove specific override"
             echo ""
             echo "Scan: writes verdict to task body under '## Reviewer Verdict (vX.Y)'."
-            echo "Audit: re-scans every completed task; writes .context/audits/reviewer/YYYY-MM-DD.yaml"
+            echo "Audit (default): static-scan re-scan; writes .context/audits/reviewer/YYYY-MM-DD.yaml"
+            echo "Audit --pass-a: v1.5 drift signal corpus scan; writes YYYY-MM-DD-pass-a.yaml"
+            echo "  --baseline: one-shot init (write hashes); --force: overwrite existing baselines"
+            echo "Audit --pass-b: v1.5 worktree re-execution corpus mode; writes YYYY-MM-DD-pass-b.yaml"
+            echo "  --limit N caps tasks (cron budget); --quiet suppresses per-task lines; --timeout N (default 30s)"
+            echo "Drift (v1.5 Pass A): hashes files referenced in ## Verification, compares vs baseline."
+            echo "Reverify (v1.5 Pass B): re-executes verification commands inside a worktree at the"
+            echo "  task's completion SHA. Network-dependent lines are skipped."
             echo "Overrides: per-(task,pattern,ac?) TTL'd waivers stored in"
             echo "  .context/working/reviewer-overrides.yaml. Suppress known false positives"
             echo "  for a bounded window; suppressions are logged to feedback-stream.yaml."
@@ -2369,11 +2673,45 @@ case "$cmd" in
             exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
                 python3 -m lib.reviewer.override_cli "$@"
         fi
+        if [ "${1:-}" = "drift" ]; then
+            shift
+            exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+                python3 -m lib.reviewer.drift_cli "$@"
+        fi
+        if [ "${1:-}" = "reverify" ]; then
+            shift
+            exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+                python3 -m lib.reviewer.reverify_cli "$@"
+        fi
         exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
             python3 -m lib.reviewer.static_scan "$@"
         ;;
     self-audit)
         exec "$AGENTS_DIR/audit/self-audit.sh" "$@"
+        ;;
+    gpu)
+        # T-1182: GPU coordination — Layer 2 of T-1180 GO. Reactive cross-process kick.
+        gpu_subcmd="${1:-}"
+        shift || true
+        case "$gpu_subcmd" in
+            recover)
+                exec bash "$AGENTS_DIR/gpu-recover/recover.sh" "$@"
+                ;;
+            ""|-h|--help)
+                echo "Usage: fw gpu <subcommand> [options]"
+                echo ""
+                echo "Subcommands:"
+                echo "  recover    Free VRAM by killing heaviest non-ollama consumer"
+                echo ""
+                echo "Run 'fw gpu recover --help' for recover-specific options."
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Unknown gpu subcommand: $gpu_subcmd${NC}" >&2
+                echo "Run 'fw gpu' for usage." >&2
+                exit 1
+                ;;
+        esac
         ;;
     test-onboarding)
         exec "$AGENTS_DIR/onboarding-test/test-onboarding.sh" "$@"
@@ -2383,6 +2721,14 @@ case "$cmd" in
         ;;
     context)
         exec "$AGENTS_DIR/context/context.sh" "$@"
+        ;;
+    arc)
+        # T-1661: Arc system — first-class workspace grouping tasks by theme.
+        # Verbs: create / focus / list / show / tag / close / migrate / help
+        # shellcheck disable=SC1091
+        . "$FRAMEWORK_ROOT/lib/arc.sh"
+        arc_dispatch "$@"
+        exit $?
         ;;
     cron)
         # T-448: Cron registry management
@@ -2738,13 +3084,35 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
         exec "$AGENTS_DIR/git/git.sh" "$@"
         ;;
     push)
-        # T-1153: Push to all remotes with per-remote status
+        # T-1153: Push to all remotes with per-remote status.
+        # T-1513: align with handover hook's T-1255 logic — when `origin` exists
+        # and multiple remotes are configured, push only to origin (mirrors are
+        # OneDev's job via PushRepository). Also skip remotes whose push URL is
+        # the sentinel `no_push` (set via `git remote set-url --push X no_push`).
         echo -e "${BOLD}fw push${NC} — Push to all remotes"
         echo ""
         _push_ok=0
         _push_fail=0
+        _push_skipped=0
+        _remote_count=$(git -C "$PROJECT_ROOT" remote 2>/dev/null | wc -l)
+        if git -C "$PROJECT_ROOT" remote 2>/dev/null | grep -qx 'origin'; then
+            _has_origin=true
+        else
+            _has_origin=false
+        fi
         while IFS= read -r _remote; do
             [ -z "$_remote" ] && continue
+            if [ "$_has_origin" = true ] && [ "$_remote_count" -gt 1 ] && [ "$_remote" != "origin" ]; then
+                echo -e "  $_remote: ${CYAN}skipped (mirrored from origin)${NC}"
+                _push_skipped=$((_push_skipped + 1))
+                continue
+            fi
+            _push_url=$(git -C "$PROJECT_ROOT" remote get-url --push "$_remote" 2>/dev/null)
+            if [ "$_push_url" = "no_push" ]; then
+                echo -e "  $_remote: ${CYAN}skipped (push disabled)${NC}"
+                _push_skipped=$((_push_skipped + 1))
+                continue
+            fi
             echo -n "  $_remote: "
             if git -C "$PROJECT_ROOT" push "$_remote" HEAD "$@" 2>&1 | tail -1; then
                 _push_ok=$((_push_ok + 1))
@@ -2755,10 +3123,10 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
         done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
         echo ""
         if [ "$_push_fail" -gt 0 ]; then
-            echo -e "${YELLOW}$_push_ok pushed, $_push_fail failed${NC}"
+            echo -e "${YELLOW}$_push_ok pushed, $_push_skipped skipped, $_push_fail failed${NC}"
             exit 1
         else
-            echo -e "${GREEN}All $_push_ok remote(s) pushed ✓${NC}"
+            echo -e "${GREEN}$_push_ok pushed, $_push_skipped skipped ✓${NC}"
         fi
         ;;
     handover)
@@ -2774,6 +3142,193 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
         source "$FW_LIB_DIR/tasks.sh"
         source "$FW_LIB_DIR/inception.sh"
         do_inception "$@"
+        ;;
+    orchestrator)
+        # T-1695: namespace stub for v2 self-improvement (ADR-0003 v2-readiness).
+        # v1 captures dispatch telemetry; v2 will add a learner that mines the log
+        # and rewrites templates. Reserve the namespace now so it can't be
+        # claimed by an unrelated feature.
+        _orch_subcmd="${1:-}"
+        case "$_orch_subcmd" in
+            improve)
+                shift
+                cat <<EOF
+fw orchestrator improve — v2: not yet implemented
+
+This subcommand is reserved for the v2 self-improvement loop (ADR-0003).
+v1 only captures dispatch telemetry; the v2 learner is not built.
+
+Data is being captured at:
+  .context/dispatches.jsonl        (append-only per-dispatch log; T-1696)
+  .context/dispatch-outcomes.jsonl (append-only per-outcome log; T-1697)
+  .context/dispatch-blobs/         (per-dispatch prompt blobs)
+
+When v2 lands, this command will mine that data, propose template rewrites,
+and (with operator approval) update files in .context/project/workflows/
+and prompts/.
+
+Track via: T-1687 (orchestrator-rethink arc), ADR-0003.
+EOF
+                exit 0
+                ;;
+            status)
+                # T-1699: substrate observability — dispatch + outcome summary.
+                shift
+                _emit_json=0
+                for _arg in "$@"; do
+                    [ "$_arg" = "--json" ] && _emit_json=1
+                done
+                python3 - "$_emit_json" <<'PYEOF'
+import json
+import os
+import sys
+from collections import Counter
+from pathlib import Path
+
+emit_json = sys.argv[1] == "1"
+PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", os.getcwd()))
+DISPATCHES = PROJECT_ROOT / ".context" / "dispatches.jsonl"
+OUTCOMES = PROJECT_ROOT / ".context" / "dispatch-outcomes.jsonl"
+
+
+def _read_jsonl(p: Path):
+    if not p.exists():
+        return []
+    rows = []
+    with p.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows
+
+
+dispatches_all = _read_jsonl(DISPATCHES)
+outcomes = _read_jsonl(OUTCOMES)
+dispatch_ids_with_outcomes = {o.get("dispatch_id") for o in outcomes if o.get("dispatch_id")}
+
+
+# T-1712: split synthetic stress rows from real dispatches. Synthetic rows
+# (task_id ^T-stress-) inflate the enrichment denominator and pollute the
+# task_type / worker_kind breakdowns with "?" values. They have no outcome
+# telemetry possible (task_type/worker_kind null), so excluding them keeps
+# the headline metric tied to real arc-substrate signal.
+def _is_synthetic(row):
+    tid = row.get("task_id") or ""
+    return tid.startswith("T-stress-")
+
+
+dispatches = [d for d in dispatches_all if not _is_synthetic(d)]
+synthetic = [d for d in dispatches_all if _is_synthetic(d)]
+
+stats = {
+    "dispatch_total": len(dispatches),
+    "synthetic_total": len(synthetic),
+    "outcome_total": len(outcomes),
+    "enriched_dispatches": sum(1 for d in dispatches if d.get("dispatch_id") in dispatch_ids_with_outcomes),
+    "enrichment_ratio": 0.0,
+    "by_task_type": dict(Counter(d.get("task_type") or "?" for d in dispatches).most_common(5)),
+    "by_worker_kind": dict(Counter(d.get("worker_kind") or "?" for d in dispatches)),
+    "recent": [],
+}
+if stats["dispatch_total"]:
+    stats["enrichment_ratio"] = round(stats["enriched_dispatches"] / stats["dispatch_total"], 3)
+
+# Last 5 dispatches with outcome status (real only — synthetic rows have
+# no telemetry so they're dropped from "recent" too).
+for d in dispatches[-5:]:
+    did = d.get("dispatch_id", "?")
+    matched = [o for o in outcomes if o.get("dispatch_id") == did]
+    out = matched[-1].get("outcome", {}) if matched else None
+    stats["recent"].append({
+        "dispatch_id": did[:8] if did else "?",
+        "ts": d.get("ts", "?"),
+        "task_id": d.get("task_id"),
+        "task_type": d.get("task_type"),
+        "worker_kind": d.get("worker_kind"),
+        "verification_passed": out.get("verification_passed") if out else None,
+        "ac_satisfied": out.get("ac_satisfied") if out else None,
+    })
+
+if emit_json:
+    print(json.dumps(stats, indent=2))
+    sys.exit(0)
+
+if stats["dispatch_total"] == 0 and stats["outcome_total"] == 0 and stats["synthetic_total"] == 0:
+    print("no dispatches captured yet")
+    print(f"(write path: {DISPATCHES.relative_to(PROJECT_ROOT)})")
+    sys.exit(0)
+
+print(f"Dispatch substrate (T-1687 arc, v1)")
+print(f"  Dispatches:        {stats['dispatch_total']}")
+print(f"  Outcome events:    {stats['outcome_total']}")
+if stats["dispatch_total"]:
+    print(f"  Enriched:          {stats['enriched_dispatches']}/{stats['dispatch_total']} "
+          f"({stats['enrichment_ratio']*100:.0f}%)")
+else:
+    print(f"  Enriched:          0/0 (no real dispatches yet)")
+if stats["synthetic_total"]:
+    print(f"  Synthetic:         {stats['synthetic_total']} (T-stress-* — excluded from headline)")
+print()
+print("By task_type:")
+for k, v in stats["by_task_type"].items():
+    print(f"  {k:30s} {v}")
+print()
+print("By worker_kind:")
+for k, v in stats["by_worker_kind"].items():
+    print(f"  {k:30s} {v}")
+print()
+print("Recent dispatches:")
+for r in stats["recent"]:
+    flag = "·"
+    if r["verification_passed"] and r["ac_satisfied"]:
+        flag = "✓"
+    elif r["verification_passed"] is False or r["ac_satisfied"] is False:
+        flag = "✗"
+    print(f"  {flag} {r['ts']} [{r['dispatch_id']}] "
+          f"task={r['task_id']} type={r['task_type']} worker={r['worker_kind']}")
+PYEOF
+                exit $?
+                ;;
+            ""|-h|--help)
+                cat <<EOF
+fw orchestrator — v1 dispatch substrate (ADR-0001..0003)
+
+Usage:
+  fw orchestrator status     Show substrate state (dispatches + outcomes)
+  fw orchestrator status --json   Same as above, JSON output
+  fw orchestrator improve    Reserve namespace for v2 self-improvement (stub)
+
+v1 wires the data substrate (dispatches.jsonl + dispatch-outcomes.jsonl +
+blob storage + template SHAs + A/B variants); v2 self-improvement is
+deferred. See ADR-0003.
+EOF
+                exit 0
+                ;;
+            *)
+                echo "fw orchestrator: unknown subcommand '$_orch_subcmd'" >&2
+                echo "Try: fw orchestrator --help" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    resolver)
+        # T-1696: workflow lookup + prompt assembly + telemetry capture.
+        # Spawn-side primitive consumed by T-1697 (outcome enrichment),
+        # T-1698 (litellm proxy), T-1699 (pi backend). Routes to lib/resolver.py
+        # via the shell shim. See docs/reports/T-1689-resolver-inception.md.
+        exec "$FW_LIB_DIR/resolver.sh" "$@"
+        ;;
+    outcome)
+        # T-1697: default outcome evaluator + append-only back-prop.
+        # Hook fires from update-task.sh on --status work-completed.
+        # Reads dispatches.jsonl (append-only), writes dispatch-outcomes.jsonl
+        # (also append-only). v2 read-path joins by dispatch_id.
+        exec "$FW_LIB_DIR/outcome.sh" "$@"
         ;;
     promote)
         source "$FW_LIB_DIR/promote.sh"
@@ -3215,6 +3770,205 @@ print('0')
                 ;;
         esac
         ;;
+    review-queue)
+        # T-1536: terminal mirror of Watchtower /approvals "Awaiting Human ACs"
+        # Lists active tasks with unchecked Human ACs, prefixed by agent verdict.
+        rq_arg="${1:-}"
+        if [ "$rq_arg" = "--help" ] || [ "$rq_arg" = "-h" ] || [ "$rq_arg" = "help" ]; then
+            echo -e "${BOLD}fw review-queue${NC} — list tasks awaiting human review (T-1536)"
+            echo ""
+            echo "Shows two sections matching Watchtower /approvals:"
+            echo "  DECISIONS — pending inception GO/NO-GO/DEFER decisions (T-1571)"
+            echo "  VERDICT   — active tasks with unchecked Human ACs"
+            echo ""
+            echo "Each row is prefixed by the agent's recommendation verdict (GO/DEFER/"
+            echo "NO-GO/?). Companion to Watchtower /approvals."
+            echo ""
+            echo "Sort: GO first (rubber-stamp), then DEFER, then NO-GO, then unknown."
+            echo "Within each verdict: oldest first (stale > fresh)."
+            echo ""
+            echo "Usage:"
+            echo "  fw review-queue           Show queue"
+            echo "  fw review-queue --help    This message"
+            exit 0
+        fi
+        PROJECT_ROOT="$PROJECT_ROOT" python3 - <<'PYREVQ'
+import os, re, sys, time
+from pathlib import Path
+from datetime import datetime
+
+# T-1533: shared helper. Robust to running from /opt/999-... where web/ is on the path.
+sys.path.insert(0, os.environ.get("PROJECT_ROOT", "."))
+try:
+    from web.shared import extract_recommendation_state
+except ImportError:
+    # Inline fallback if web/ isn't importable (e.g. consumer project).
+    # T-1576: emit NO-REC when section is missing/empty so callers can
+    # distinguish 'agent owes a recommendation' from 'verdict unparseable'.
+    def extract_recommendation_state(body):
+        if not body:
+            return "NO-REC"
+        m = re.search(r"^## Recommendation\s*$(.*?)(?=^#{2,} |\Z)", body,
+                      re.MULTILINE | re.DOTALL)
+        if not m:
+            return "NO-REC"
+        body2 = re.sub(r"<!--.*?-->", "", m.group(1), flags=re.DOTALL).strip()
+        if not body2:
+            return "NO-REC"
+        v = re.search(r"\*\*Recommendation:\*\*\s*(NO-GO|GO|DEFER)\b", body2, re.IGNORECASE)
+        return v.group(1).upper() if v else "?"
+
+ROOT = Path(os.environ.get("PROJECT_ROOT", ".")).resolve()
+ACTIVE = ROOT / ".tasks" / "active"
+if not ACTIVE.is_dir():
+    print("No .tasks/active directory.", file=sys.stderr)
+    sys.exit(0)
+
+now = time.time()
+rows = []
+decision_rows = []
+# T-1571 / F5: precompute pending-inception scan once, reuse below for both passes
+# Pattern matches the canonical block emitted by lib/inception.sh do_inception_decide.
+DECISION_RE = re.compile(r"^\*\*Decision\*\*:\s*(GO|NO-GO|DEFER)\b", re.M)
+for f in sorted(ACTIVE.glob("*.md")):
+    text = f.read_text(errors="replace")
+    # Frontmatter (used by both passes)
+    fm_m = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
+    fm_text = fm_m.group(1) if fm_m else ""
+    wf_m = re.search(r"^workflow_type:\s*(\S+)", fm_text, re.MULTILINE)
+    workflow_type = wf_m.group(1).strip() if wf_m else ""
+    status_m = re.search(r"^status:\s*(\S+)", fm_text, re.MULTILINE)
+    status = status_m.group(1).strip() if status_m else ""
+    tid_m = re.search(r"^id:\s*(\S+)", fm_text, re.MULTILINE)
+    tid_v = tid_m.group(1).strip() if tid_m else ""
+    tname_m = re.search(r'^name:\s*"?(.+?)"?\s*$', fm_text, re.MULTILINE)
+    name = tname_m.group(1).strip() if tname_m else ""
+
+    # T-1571 / F5: DECISIONS pass — pending inception decisions
+    if workflow_type == "inception" and not DECISION_RE.search(text):
+        # F4 inclusion: drop captured/unexplored without Recommendation, keep
+        # started-work even when Recommendation is empty (visibility for stuck agent).
+        rec_m = re.search(r"^## Recommendation\s*$(.*?)(?=^#{2,} |\Z)",
+                          text, re.MULTILINE | re.DOTALL)
+        rec_section = rec_m.group(1) if rec_m else ""
+        rec_clean = re.sub(r"<!--.*?-->", "", rec_section, flags=re.DOTALL).strip()
+        rec_substantive = len(rec_clean) >= 20
+        if rec_substantive or status == "started-work":
+            d_age_days = 0
+            for field in ("last_update", "created"):
+                m = re.search(rf"^{field}:\s*(\S+)", fm_text, re.MULTILINE)
+                if m:
+                    try:
+                        dt = datetime.fromisoformat(m.group(1).replace("Z", "+00:00"))
+                        d_age_days = int((now - dt.timestamp()) / 86400)
+                        break
+                    except (ValueError, OSError):
+                        pass
+            d_verdict = extract_recommendation_state(text)
+            decision_rows.append((d_verdict, d_age_days, tid_v, name))
+
+    # VERDICT pass — find ### Human section with unchecked ACs
+    ac_m = re.search(r"^## Acceptance Criteria\s*\n(.*?)(?=\n## |\Z)", text,
+                     re.MULTILINE | re.DOTALL)
+    if not ac_m:
+        continue
+    human_m = re.search(r"### Human\s*\n(.*?)(?=\n### |\Z)", ac_m.group(1), re.DOTALL)
+    if not human_m:
+        continue
+    # T-1581: strip HTML comments before the unchecked-AC count, otherwise the
+    # template's example AC (`- [ ] [REVIEW] Dashboard renders correctly` inside
+    # the placeholder `<!-- -->`) is counted as a real unchecked AC, falsely
+    # admitting template-only Human sections (T-1274, T-1542) into the queue.
+    # Mirror of L-298 — same class as the cockpit fix, different surface.
+    human_text = re.sub(r"<!--.*?-->", "", human_m.group(1), flags=re.DOTALL)
+    unchecked = len(re.findall(r"^\s*-\s*\[ \]", human_text, re.MULTILINE))
+    if unchecked == 0:
+        continue
+    # T-1540 iter1 originally filtered to (owner=human OR status=work-completed) so
+    # tasks with template-only Human ACs (the placeholder example AC inside the
+    # `<!-- ... -->` block) wouldn't surface as spurious entries with verdict=?.
+    # T-1581 fixed the root cause by stripping HTML comments before the unchecked-AC
+    # count above. With the comment fix in place, the owner/status filter is both
+    # redundant (template-only sections now drop out at unchecked==0) AND harmful
+    # (it excludes started-work tasks with real Human ACs + agent recommendation,
+    # e.g. T-1574/T-1575 — agent has handed off, awaiting human verification).
+    # Removed; cockpit's `get_human_verify_tasks` uses the same canonical-parse
+    # behavior — surfaces stay aligned.
+    # Age
+    age_days = 0
+    for field in ("date_finished", "last_update", "created"):
+        m = re.search(rf"^{field}:\s*(\S+)", fm_text, re.MULTILINE)
+        if m:
+            try:
+                dt = datetime.fromisoformat(m.group(1).replace("Z", "+00:00"))
+                age_days = int((now - dt.timestamp()) / 86400)
+                break
+            except (ValueError, OSError):
+                pass
+    verdict = extract_recommendation_state(text)
+    rows.append((verdict, age_days, tid_v, name, unchecked))
+
+if not rows and not decision_rows:
+    print("No tasks awaiting human review.")
+    sys.exit(0)
+
+# Sort: verdict priority then age desc (oldest first)
+# T-1576: NO-REC sorts after ? (truly unactionable — agent owes a recommendation).
+order = {"GO": 0, "DEFER": 1, "NO-GO": 2, "?": 3, "NO-REC": 4}
+rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
+decision_rows.sort(key=lambda r: (order.get(r[0], 9), -r[1]))
+
+NAME_W = 60
+
+def _verdict_color(v):
+    # T-1576: NO-REC in cyan (call-to-action — agent should write a recommendation),
+    # distinct from grey '?' (deferred/unknown verdict in an existing block).
+    return {"GO": "\033[32m", "DEFER": "\033[33m", "NO-GO": "\033[31m",
+            "NO-REC": "\033[36m"}.get(v, "\033[90m")
+
+# T-1571 / F5: DECISIONS section — pending inception GO/NO-GO/DEFER decisions.
+# Mirrors /approvals' Decisions group; same urgency tier as Tier-0/Human-ACs.
+if decision_rows:
+    print(f"\033[1mDECISIONS — pending inception GO/NO-GO ({len(decision_rows)})\033[0m")
+    print(f"\033[1m{'VERDICT':<7}  {'AGE':>4}  {'ID':<8}  NAME\033[0m")
+    for verdict, age_days, tid_v, name in decision_rows:
+        truncated = (name[:NAME_W] + "...") if len(name) > NAME_W else name
+        col = _verdict_color(verdict)
+        print(f"{col}{verdict:<7}\033[0m  {str(age_days)+'d':>4}  {tid_v:<8}  {truncated}")
+    print()
+
+if rows:
+    print(f"\033[1mVERDICT — Human ACs awaiting verification ({len(rows)})\033[0m")
+    print(f"\033[1m{'VERDICT':<7}  {'AGE':>4}  {'ID':<8}  NAME\033[0m")
+    for verdict, age_days, tid_v, name, _unchecked in rows:
+        truncated = (name[:NAME_W] + "...") if len(name) > NAME_W else name
+        col = _verdict_color(verdict)
+        print(f"{col}{verdict:<7}\033[0m  {str(age_days)+'d':>4}  {tid_v:<8}  {truncated}")
+go = sum(1 for r in rows if r[0] == "GO")
+defer = sum(1 for r in rows if r[0] == "DEFER")
+nogo = sum(1 for r in rows if r[0] == "NO-GO")
+unk = sum(1 for r in rows if r[0] == "?")
+no_rec = sum(1 for r in rows if r[0] == "NO-REC")
+parts = []
+if go: parts.append(f"\033[32m{go} GO\033[0m")
+if defer: parts.append(f"\033[33m{defer} DEFER\033[0m")
+if nogo: parts.append(f"\033[31m{nogo} NO-GO\033[0m")
+if unk: parts.append(f"\033[90m{unk} ?\033[0m")
+if no_rec: parts.append(f"\033[36m{no_rec} NO-REC\033[0m")
+total = len(rows) + len(decision_rows)
+verif_only = f"{len(rows)} task(s) awaiting human review" if rows else ""
+dec_only = f"{len(decision_rows)} pending decision(s)" if decision_rows else ""
+summary = " · ".join(s for s in (dec_only, verif_only) if s)
+if parts:
+    print(f"\n\033[2m{summary}\033[0m  ({' / '.join(parts)})")
+elif summary:
+    print(f"\n\033[2m{summary}\033[0m")
+# T-1539 (blind-reviewer finding): never hardcode localhost — read triple-file → fw_config → 3000 fallback
+url_file = ROOT / ".context" / "working" / "watchtower.url"
+wt_url = url_file.read_text().strip() if url_file.exists() else f"http://localhost:{os.environ.get('FW_PORT', '3000')}"
+print(f"\033[2mOpen in Watchtower: {wt_url}/approvals\033[0m")
+PYREVQ
+        ;;
     work-on)
         # Single-step gate: create/resume task + set focus + start work
         wo_target="${1:-}"
@@ -3239,10 +3993,45 @@ print('0')
             # Build default args, then let explicit args override
             wo_has_desc=false
             wo_has_owner=false
-            for wo_arg in "$@"; do
-                [ "$wo_arg" = "--description" ] && wo_has_desc=true
-                [ "$wo_arg" = "--owner" ] && wo_has_owner=true
+            wo_is_inception=false
+            for wo_arg_idx in "$@"; do
+                [ "$wo_arg_idx" = "--description" ] && wo_has_desc=true
+                [ "$wo_arg_idx" = "--owner" ] && wo_has_owner=true
             done
+            # Detect --type inception and route through inception_start (T-1716):
+            # the filing-time --recommendation/--rationale gate fires there.
+            wo_prev=""
+            for wo_arg_idx in "$@"; do
+                if [ "$wo_prev" = "--type" ] && [ "$wo_arg_idx" = "inception" ]; then
+                    wo_is_inception=true
+                fi
+                wo_prev="$wo_arg_idx"
+            done
+            if [ "$wo_is_inception" = true ]; then
+                # Strip --type inception (and --description default) from args, then
+                # forward remaining flags (--owner, --recommendation, --rationale,
+                # --i-am-human) to inception start which enforces T-1716 gate.
+                wo_inc_args=()
+                wo_skip_next=false
+                for wo_arg_idx in "$@"; do
+                    if [ "$wo_skip_next" = true ]; then
+                        wo_skip_next=false
+                        continue
+                    fi
+                    if [ "$wo_arg_idx" = "--type" ]; then
+                        wo_skip_next=true
+                        continue
+                    fi
+                    if [ "$wo_arg_idx" = "--description" ]; then
+                        wo_skip_next=true
+                        continue
+                    fi
+                    wo_inc_args+=("$wo_arg_idx")
+                done
+                source "$FW_LIB_DIR/inception.sh"
+                do_inception_start "$wo_target" "${wo_inc_args[@]}"
+                exit $?
+            fi
             wo_defaults=()
             [ "$wo_has_desc" = false ] && wo_defaults+=(--description "$wo_target")
             [ "$wo_has_owner" = false ] && wo_defaults+=(--owner agent)
@@ -3322,9 +4111,9 @@ print('0')
                 for tf in "$PROJECT_ROOT"/.tasks/active/T-*.md; do
                     [ -f "$tf" ] || continue
                     if head -20 "$tf" | grep -q '^tags:.*onboarding' 2>/dev/null; then
-                        tf_id=$(grep "^id:" "$tf" | head -1 | sed 's/id:[[:space:]]*//')
-                        tf_name=$(grep "^name:" "$tf" | head -1 | sed 's/name:[[:space:]]*//' | tr -d '"')
-                        tf_status=$(grep "^status:" "$tf" | head -1 | sed 's/status:[[:space:]]*//')
+                        tf_id=$({ grep "^id:" "$tf" 2>/dev/null || true; } | head -1 | sed 's/id:[[:space:]]*//')
+                        tf_name=$({ grep "^name:" "$tf" 2>/dev/null || true; } | head -1 | sed 's/name:[[:space:]]*//' | tr -d '"')
+                        tf_status=$({ grep "^status:" "$tf" 2>/dev/null || true; } | head -1 | sed 's/status:[[:space:]]*//')
                         if [ "$tf_status" = "work-completed" ]; then
                             echo -e "  ${GREEN}✓${NC}  ${tf_id}: ${tf_name}"
                         else
@@ -3976,11 +4765,39 @@ PYSEARCH
                 _crash_log="$PROJECT_ROOT/.context/working/.hook-crashes.log"
                 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) missing-hook $_hook_name script=$_hook_script" >> "$_crash_log" 2>/dev/null || true
             fi
+            # T-1628 (B-2 of T-1626): record the missing-hook event as a failure
+            # so .hook-failure-counter surfaces it. This is the exact witness
+            # scenario from T-1626 (ring20-dashboard 2026-04-30): a path-broken
+            # hook that "succeeds" with exit 0 was invisible to every health
+            # surface. By marking it as a fire with synthetic exit 127 (sh
+            # convention for command-not-found), B-3's threshold scan + doctor
+            # check have a deterministic signal to alert on.
+            if [ -f "$FW_LIB_DIR/hook-telemetry.sh" ]; then
+                # shellcheck disable=SC1091
+                source "$FW_LIB_DIR/hook-telemetry.sh"
+                fw_record_hook_fire "$_hook_name" 127 2>/dev/null || true
+            fi
             exit 0
         fi
         export FRAMEWORK_ROOT PROJECT_ROOT
         # T-863: Use bash explicitly — don't require -x (core.filemode=false drops execute bits)
-        exec bash "$_hook_script" "$@"
+        # T-1628 (B-2 of T-1626): record per-hook fire + non-zero-exit telemetry to
+        # .context/working/.hook-counter / .hook-failure-counter. The original `exec`
+        # replaced this process; we now run-and-capture so post-exit telemetry can
+        # observe the exit code. Telemetry overhead is <0.2ms per fire (mapfile-based,
+        # no subprocess); the extra fork from non-exec is negligible vs. hook payload.
+        # Source is best-effort — if telemetry helper is missing, skip silently and
+        # fall back to plain exec (preserves behaviour on degraded installs).
+        if [ -f "$FW_LIB_DIR/hook-telemetry.sh" ]; then
+            # shellcheck disable=SC1091
+            source "$FW_LIB_DIR/hook-telemetry.sh"
+            bash "$_hook_script" "$@"
+            _hook_rc=$?
+            fw_record_hook_fire "$_hook_name" "$_hook_rc" 2>/dev/null || true
+            exit "$_hook_rc"
+        else
+            exec bash "$_hook_script" "$@"
+        fi
         ;;
     hook-enable)
         # fw hook-enable — register a framework hook in .claude/settings.json (T-1189)
@@ -4297,6 +5114,11 @@ PYPREDICT
         source "$FW_LIB_DIR/release.sh"
         release_main "$@"
         ;;
+    mirror)
+        # T-1594 (T-1591 Prevention #3): Mirror cascade auto-recovery
+        source "$FW_LIB_DIR/mirror.sh"
+        mirror_main "$@"
+        ;;
     test)
         _test_exit=0
 
@@ -4342,8 +5164,15 @@ PYPREDICT
                     echo -e "${RED}ERROR: bats is not installed${NC}" >&2
                     exit 1
                 fi
+                shift
+                [ "${1:-}" = "--" ] && shift
                 echo -e "${BOLD}=== Bats Unit Tests ===${NC}"
-                bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                # T-1588: extra args (file paths, glob patterns) are passed through.
+                if [ "$#" -gt 0 ]; then
+                    bats "$@" || _test_exit=1
+                else
+                    bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                fi
                 ;;
             --integration|integration)
                 # Bats integration tests only
@@ -4351,11 +5180,32 @@ PYPREDICT
                     echo -e "${RED}ERROR: bats is not installed${NC}" >&2
                     exit 1
                 fi
+                shift
+                [ "${1:-}" = "--" ] && shift
                 echo -e "${BOLD}=== Bats Integration Tests ===${NC}"
-                if [ -d "$FRAMEWORK_ROOT/tests/integration/" ] && ls "$FRAMEWORK_ROOT/tests/integration/"*.bats >/dev/null 2>&1; then
+                if [ "$#" -gt 0 ]; then
+                    bats "$@" || _test_exit=1
+                elif [ -d "$FRAMEWORK_ROOT/tests/integration/" ] && ls "$FRAMEWORK_ROOT/tests/integration/"*.bats >/dev/null 2>&1; then
                     bats "$FRAMEWORK_ROOT/tests/integration/" || _test_exit=1
                 else
                     echo "  No integration tests found."
+                fi
+                ;;
+            --governance|governance)
+                # Red-team governance harness (T-1601 arc: T-1606/T-1607/T-1608)
+                if ! command -v bats >/dev/null 2>&1; then
+                    echo -e "${RED}ERROR: bats is not installed${NC}" >&2
+                    exit 1
+                fi
+                shift
+                [ "${1:-}" = "--" ] && shift
+                echo -e "${BOLD}=== Bats Governance Tests (red-team harness) ===${NC}"
+                if [ "$#" -gt 0 ]; then
+                    bats "$@" || _test_exit=1
+                elif [ -d "$FRAMEWORK_ROOT/tests/governance/" ] && ls "$FRAMEWORK_ROOT/tests/governance/"*.bats >/dev/null 2>&1; then
+                    bats "$FRAMEWORK_ROOT/tests/governance/" || _test_exit=1
+                else
+                    echo "  No governance tests found."
                 fi
                 ;;
             --web|web)
@@ -4364,8 +5214,14 @@ PYPREDICT
                     echo -e "${RED}ERROR: pytest is not installed${NC}" >&2
                     exit 1
                 fi
+                shift
+                [ "${1:-}" = "--" ] && shift
                 echo -e "${BOLD}=== Web Tests (pytest) ===${NC}"
-                cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                if [ "$#" -gt 0 ]; then
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest "$@" -v || _test_exit=1
+                else
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                fi
                 ;;
             --playwright|playwright|ui)
                 # Playwright UI tests (T-969)
@@ -4382,8 +5238,14 @@ PYPREDICT
                     echo -e "${YELLOW}No Playwright tests found (tests/playwright/ missing)${NC}"
                     exit 0
                 fi
+                shift
+                [ "${1:-}" = "--" ] && shift
                 echo -e "${BOLD}=== Playwright UI Tests ===${NC}"
-                cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/playwright/ -v || _test_exit=1
+                if [ "$#" -gt 0 ]; then
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest "$@" -v || _test_exit=1
+                else
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/playwright/ -v || _test_exit=1
+                fi
                 ;;
             all)
                 # Run everything
@@ -4408,6 +5270,15 @@ PYPREDICT
                     fi
                 fi
 
+                # 2b. Bats governance tests (T-1601 red-team harness)
+                if command -v bats >/dev/null 2>&1; then
+                    if [ -d "$FRAMEWORK_ROOT/tests/governance/" ] && ls "$FRAMEWORK_ROOT/tests/governance/"*.bats >/dev/null 2>&1; then
+                        echo -e "${BOLD}--- Bats Governance Tests (red-team harness) ---${NC}"
+                        bats "$FRAMEWORK_ROOT/tests/governance/" || _test_exit=1
+                        echo ""
+                    fi
+                fi
+
                 # 3. Pytest web tests
                 if python3 -c "import pytest" 2>/dev/null; then
                     echo -e "${BOLD}--- Web Tests (pytest) ---${NC}"
@@ -4427,11 +5298,12 @@ PYPREDICT
                 fi
                 ;;
             *)
-                echo -e "${BOLD}Usage:${NC} fw test [all|unit|integration|web|playwright|lint]"
+                echo -e "${BOLD}Usage:${NC} fw test [all|unit|integration|governance|web|playwright|lint]"
                 echo ""
                 echo "  all           Run all tests (default)"
                 echo "  unit          Bats unit tests only"
                 echo "  integration   Bats integration tests only"
+                echo "  governance    Bats red-team governance harness (T-1601 arc)"
                 echo "  web           Pytest web tests only"
                 echo "  playwright    Playwright UI tests (alias: ui)"
                 echo "  lint          ShellCheck linting on all .sh files"

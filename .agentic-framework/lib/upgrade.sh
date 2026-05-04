@@ -5,27 +5,143 @@
 # framework, then updates governance sections, templates, hooks, and seeds.
 # Project-specific content is preserved.
 
+# T-1481: Opt-in remediation for OBS-023's structural cause. Removes
+# framework hooks from $HOME/.claude/settings.json that duplicate
+# project-level. Always creates a timestamped backup. Honors dry-run.
+# Args: 1=user-level path, 2=project-level path, 3=dry-run bool
+_do_dedupe_user_hooks() {
+    local user_settings="$1"
+    local proj_settings="$2"
+    local dry_run="$3"
+
+    local result rc
+    result=$(USER_FILE="$user_settings" PROJ_FILE="$proj_settings" python3 -c "
+import json, os, sys
+
+def fw_hook_set(path):
+    s = set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError, OSError):
+        return s
+    for event, entries in data.get('hooks', {}).items():
+        for entry in entries:
+            for hook in entry.get('hooks', []):
+                cmd = hook.get('command', '')
+                if 'fw hook' in cmd:
+                    name = cmd.split('fw hook ')[-1].strip().split()[0]
+                elif '.agentic-framework' in cmd:
+                    name = cmd.strip().split('/')[-1]
+                else:
+                    continue
+                s.add((event, name))
+    return s
+
+proj = fw_hook_set(os.environ['PROJ_FILE'])
+try:
+    with open(os.environ['USER_FILE']) as f:
+        data = json.load(f)
+except (json.JSONDecodeError, FileNotFoundError, OSError) as e:
+    print(f'ERROR|{e}')
+    sys.exit(0)
+
+removed = []
+new_hooks = {}
+for event, entries in data.get('hooks', {}).items():
+    new_entries = []
+    for entry in entries:
+        kept = []
+        for hook in entry.get('hooks', []):
+            cmd = hook.get('command', '')
+            tup = None
+            if 'fw hook' in cmd:
+                name = cmd.split('fw hook ')[-1].strip().split()[0]
+                tup = (event, name)
+            elif '.agentic-framework' in cmd:
+                name = cmd.strip().split('/')[-1]
+                tup = (event, name)
+            if tup is not None and tup in proj:
+                removed.append(f'{tup[0]}:{tup[1]}')
+            else:
+                kept.append(hook)
+        if kept:
+            ne = dict(entry)
+            ne['hooks'] = kept
+            new_entries.append(ne)
+    if new_entries:
+        new_hooks[event] = new_entries
+
+data['hooks'] = new_hooks
+print('REMOVED|' + ','.join(removed))
+print('JSON_START')
+print(json.dumps(data, indent=2))
+print('JSON_END')
+" 2>/dev/null) || true
+    rc=0
+
+    # Detect ERROR
+    if echo "$result" | grep -q '^ERROR|'; then
+        echo -e "  ${YELLOW}WARN${NC}  $user_settings: $(echo "$result" | grep '^ERROR|' | head -1 | sed 's/^ERROR|//')"
+        return 1
+    fi
+
+    local removed_list
+    # T-1560 / L-302: pipefail guard. If $result has no REMOVED| line, line 92's
+    # `[ -z "$removed_list" ]` branch is the intended path — without the guard,
+    # set -e -o pipefail kills the function before line 92 runs.
+    removed_list=$( { echo "$result" | grep '^REMOVED|' || true; } | head -1 | sed 's/^REMOVED|//')
+
+    if [ -z "$removed_list" ]; then
+        echo -e "  ${GREEN}OK${NC}  --dedupe-user-hooks: no duplicates in $user_settings"
+        return 0
+    fi
+
+    local removed_count
+    removed_count=$(echo "$removed_list" | tr ',' '\n' | wc -l)
+
+    if [ "$dry_run" = true ]; then
+        echo -e "  ${CYAN}WOULD REMOVE${NC}  $removed_count duplicate hook(s) from $user_settings"
+        echo -e "    Pairs: $(echo "$removed_list" | tr ',' ' ')"
+        return 0
+    fi
+
+    local backup="${user_settings}.bak-$(date +%s)"
+    cp "$user_settings" "$backup"
+    # Extract the JSON block between markers
+    echo "$result" | sed -n '/^JSON_START$/,/^JSON_END$/p' | sed '1d;$d' > "$user_settings"
+    echo -e "  ${GREEN}REMOVED${NC}  $removed_count duplicate hook(s) from $user_settings"
+    echo -e "    Pairs: $(echo "$removed_list" | tr ',' ' ')"
+    echo -e "    Backup: $backup"
+    return 0
+}
+
 do_upgrade() {
     local target_dir=""
     local dry_run=false
     local force=false
+    local dedupe_user_hooks=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --dry-run) dry_run=true; shift ;;
             --force) force=true; shift ;;
+            --dedupe-user-hooks) dedupe_user_hooks=true; shift ;;
             -h|--help)
                 echo -e "${BOLD}fw upgrade${NC} - Sync framework improvements to consumer project"
                 echo ""
                 echo "Usage: fw upgrade [target-dir] [options]"
                 echo ""
                 echo "Arguments:"
-                echo "  target-dir        Project to upgrade (default: current directory)"
+                echo "  target-dir              Project to upgrade (default: current directory)"
                 echo ""
                 echo "Options:"
-                echo "  --dry-run         Show what would change without modifying files"
-                echo "  --force           Overwrite even if project files are newer"
-                echo "  -h, --help        Show this help"
+                echo "  --dry-run               Show what would change without modifying files"
+                echo "  --force                 Overwrite even if project files are newer"
+                echo "  --dedupe-user-hooks     Remove framework hooks from \$HOME/.claude/settings.json"
+                echo "                          that duplicate project-level (T-1481, addresses OBS-023)."
+                echo "                          A timestamped backup is created before modification."
+                echo "  -h, --help              Show this help"
                 echo ""
                 echo "What gets upgraded:"
                 echo "  - CLAUDE.md governance sections (project-specific sections preserved)"
@@ -70,6 +186,47 @@ do_upgrade() {
     # Don't upgrade the framework itself
     if [ "$target_dir" = "$FRAMEWORK_ROOT" ]; then
         echo -e "${RED}ERROR: Cannot upgrade the framework project itself${NC}" >&2
+        return 1
+    fi
+
+    # T-1542: Detect bare-from-consumer invocation (FRAMEWORK_ROOT is the
+    # consumer's vendored copy). Source and target collapse — do_vendor's late
+    # guard at step 4b would fire AFTER steps 1-4a have mutated state. Fail
+    # fast BEFORE any mutation with a copy-pasteable corrected command.
+    local _consumer_vendor_canon=""
+    if [ -d "$target_dir/.agentic-framework" ]; then
+        _consumer_vendor_canon=$(cd "$target_dir/.agentic-framework" 2>/dev/null && pwd -P) || _consumer_vendor_canon=""
+    fi
+    local _fw_root_canon
+    _fw_root_canon=$(cd "$FRAMEWORK_ROOT" 2>/dev/null && pwd -P) || _fw_root_canon="$FRAMEWORK_ROOT"
+    if [ -n "$_consumer_vendor_canon" ] && [ "$_fw_root_canon" = "$_consumer_vendor_canon" ]; then
+        echo -e "${RED}ERROR: fw upgrade invoked from inside the consumer's vendored framework${NC}" >&2
+        echo "" >&2
+        echo "  FRAMEWORK_ROOT: $_fw_root_canon" >&2
+        echo "  target_dir:     $target_dir" >&2
+        echo "  Vendored copy:  $_consumer_vendor_canon" >&2
+        echo "" >&2
+        echo "  Source and target collapse — do_vendor would self-copy and corrupt state." >&2
+        echo "  No changes made." >&2
+        echo "" >&2
+        echo -e "${BOLD}Run from an upstream framework repo with explicit target:${NC}" >&2
+        echo "" >&2
+        # Best-effort upstream discovery: ~/.local/bin/fw symlink (legacy global install)
+        local _upstream=""
+        local _shim="$HOME/.local/bin/fw"
+        if [ -L "$_shim" ]; then
+            local _link_target
+            _link_target=$(readlink -f "$_shim" 2>/dev/null || echo "")
+            if [ -n "$_link_target" ] && [ -f "$(dirname "$_link_target")/../FRAMEWORK.md" ]; then
+                _upstream=$(cd "$(dirname "$_link_target")/.." 2>/dev/null && pwd -P) || _upstream=""
+            fi
+        fi
+        if [ -n "$_upstream" ] && [ "$_upstream" != "$_fw_root_canon" ]; then
+            echo "  cd $_upstream && bin/fw upgrade $target_dir" >&2
+        else
+            echo "  cd /path/to/agentic-engineering-framework && bin/fw upgrade $target_dir" >&2
+        fi
+        echo "" >&2
         return 1
     fi
 
@@ -530,6 +687,16 @@ def check_stale_paths(path):
                     cmd = hook.get('command', '')
                     if '/agents/context/' in cmd or 'PROJECT_ROOT=' in cmd:
                         stale += 1
+                    # T-1627 (B-1 of T-1626): bare-relative '.agentic-framework/'
+                    # paths break from any subdir of the consumer. Witness:
+                    # /root/ring20-dashboard 2026-04-30 — every tool call fired
+                    # 'PostToolUse:Edit hook error / .agentic-framework/bin/fw:
+                    # not found' because settings.json predated T-1364's
+                    # absolute-path baking AND the prior stale-detector below
+                    # only saw '.agentic-framework' in the cmd and assumed
+                    # framework-OK. Bare-relative is structurally broken — flag.
+                    elif cmd and cmd.lstrip().startswith('.agentic-framework/'):
+                        stale += 1
                     # T-679: Detect non-framework hooks (e.g., pre-existing project hooks)
                     # Framework hooks always contain 'fw hook' or '.agentic-framework'
                     elif cmd and 'fw hook' not in cmd and '.agentic-framework' not in cmd:
@@ -579,6 +746,59 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
             fi
         else
             echo -e "  ${GREEN}OK${NC}  $consumer_total/$fw_total hooks present (all types matched)"
+        fi
+
+        # T-1479: Duplicate framework hook detection.
+        # If $HOME/.claude/settings.json registers framework hooks for the same
+        # (event, hook_name) tuples as the project-level config, every Claude
+        # Code event fires both. Symptom: dual handover commits (OBS-023, fixed
+        # in-script by T-1478's time-window dedup). Surface the overlap so the
+        # consumer can choose which to keep — we don't auto-remove user state.
+        local user_settings="$HOME/.claude/settings.json"
+        if [ -f "$user_settings" ]; then
+            local dup_analysis
+            dup_analysis=$(USER_FILE="$user_settings" PROJ_FILE="$settings_file" python3 -c "
+import json, os
+
+def fw_hooks(path):
+    out = set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError, OSError):
+        return out
+    for event, entries in data.get('hooks', {}).items():
+        for entry in entries:
+            for hook in entry.get('hooks', []):
+                cmd = hook.get('command', '')
+                if 'fw hook' in cmd:
+                    name = cmd.split('fw hook ')[-1].strip().split()[0]
+                elif '.agentic-framework' in cmd:
+                    name = cmd.strip().split('/')[-1]
+                else:
+                    continue
+                out.add((event, name))
+    return out
+
+user = fw_hooks(os.environ['USER_FILE'])
+proj = fw_hooks(os.environ['PROJ_FILE'])
+overlap = sorted(user & proj)
+print('|'.join(f'{e}:{n}' for e, n in overlap))
+" 2>/dev/null || echo "")
+            if [ -n "$dup_analysis" ]; then
+                local dup_count
+                dup_count=$(echo "$dup_analysis" | tr '|' '\n' | wc -l)
+                echo -e "  ${YELLOW}WARN${NC}  Duplicate framework hooks in $user_settings: $dup_count overlap"
+                echo -e "    ${YELLOW}↳${NC}  Pairs: $(echo "$dup_analysis" | tr '|' ' ')"
+                echo -e "    ${YELLOW}↳${NC}  Both fire on every Claude Code event (cause of OBS-023). Recommend removing duplicates from $user_settings."
+                echo -e "    ${YELLOW}↳${NC}  To auto-remove (with backup): fw upgrade --dedupe-user-hooks"
+            fi
+
+            # T-1481: Opt-in remediation. Removes the duplicate framework hooks
+            # from the user-level settings. Always backs up first; honors --dry-run.
+            if [ "$dedupe_user_hooks" = true ]; then
+                _do_dedupe_user_hooks "$user_settings" "$settings_file" "$dry_run"
+            fi
         fi
     else
         local fw_hook_count=0
