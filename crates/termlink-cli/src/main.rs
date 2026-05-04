@@ -278,8 +278,8 @@ async fn main() -> Result<()> {
             AgentAction::Recent { target, target_fp, n, window_secs, filter_thread, filter_project, hub, json } => {
                 commands::agent::cmd_agent_recent(target.as_deref(), target_fp.as_deref(), n, window_secs, filter_thread.as_deref(), filter_project.as_deref(), hub.as_deref(), json).await
             }
-            AgentAction::OnThread { thread, n, window_secs, filter_project, peer, peer_fp, hub, json } => {
-                commands::agent::cmd_agent_on_thread(&thread, n, window_secs, filter_project.as_deref(), peer.as_deref(), peer_fp.as_deref(), hub.as_deref(), json).await
+            AgentAction::OnThread { thread, n, window_secs, filter_project, peer, peer_fp, hub, json, watch, watch_interval } => {
+                commands::agent::cmd_agent_on_thread(&thread, n, window_secs, filter_project.as_deref(), peer.as_deref(), peer_fp.as_deref(), hub.as_deref(), json, watch, watch_interval).await
             }
         },
         Command::File { action } => match action {
