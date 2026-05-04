@@ -464,3 +464,20 @@ concerns:
   created: 2026-05-02
   last_reviewed: 2026-05-02
   related_tasks: [T-1425, T-1428, T-1449]
+
+- id: G-054
+  type: gap
+  title: "fw task update self-recurses + deadlocks on flock — completion gate unreliable for any task"
+  description: "`update-task.sh T-XXX --status work-completed` reliably forks a SECOND `update-task.sh T-XXX --status work-completed` as its own child, deadlocking both on the per-task flock acquired at line 528 (`keylock_acquire $TASK_ID`). Symptom: parent + child both block in `flock -x`, neither makes progress, the task file never moves from `active/` to `completed/`. Workaround: run via `bash -x .agentic-framework/agents/task-create/update-task.sh T-XXX --status work-completed` — `set -x` somehow alters bash's fork/subshell behavior enough to suppress the recursive fork, and the script completes cleanly. Plain bash invocation (with or without the fw shim) reliably hits the bug. Reproduces 4+ times across 2+ Claude Code sessions on this project (T-1467, T-1470, T-1471 last session; T-1472, T-1473 this session — only T-1473 was directly observed to be unblocked by the bash -x workaround). Source of the recursive fork is unidentified — update-task.sh has no obvious self-call site; outcome.sh / context.sh generate-episodic / fabric backprop are all candidates but none are clearly the trigger. The keylock FD-leak fix (T-1493) addressed daemon-spawned children inheriting the FD, not script-spawned same-script-recursion."
+  spec_reference: ".agentic-framework/agents/task-create/update-task.sh:528 (keylock_acquire), .agentic-framework/lib/keylock.sh (FD-200+ allocation, no O_CLOEXEC). Per-task lock file at .context/locks/T-XXXX.lock. KEYLOCK_TIMEOUT default 300s — stale-lock cleanup happens but doesn't help the deadlock since both procs are alive."
+  severity: high
+  trigger_fired: true
+  trigger_event: "Multiple consecutive lock-deadlocks during T-1472 / T-1473 work-completed transitions, 2026-05-04. Pattern matches G-019 (post-fix root-cause-escalation): sustained framework blindness — completion gate has been intermittently unreliable for >1 week; ad-hoc kill+rm-lock+retry workaround masks the bug instead of exposing it."
+  detection_lag_days: "≥7 (first observed during T-1467 commit-cadence on prior session; not registered until 2026-05-04)"
+  what_works_now: "Workaround is reliable: `bash -x .agentic-framework/agents/task-create/update-task.sh T-XXX --status <status>`. Manual recovery: `kill -9 <stuck-pids>; rm -f .context/locks/T-XXXX.lock`. Episodic generation can be run manually after the move: `.agentic-framework/agents/context/context.sh generate-episodic T-XXX`. The task move itself is partially completed before the deadlock fires (status updated, file moved), so retrying after kill+lock-rm often appears to work but actually skips the deferred steps."
+  what_remains: "1. Identify the fork source — strace -f the deadlocked update-task.sh to find which line spawns the recursive child. 2. Audit all sub-process invocations in update-task.sh (FW_BIN outcome backprop, context.sh generate-episodic, fabric register, completion-ledger writers, arc.sh tag-add) for ones that re-enter update-task.sh directly or transitively. 3. Add a lock-acquisition guard: if the lock file's recorded PID is the same TASK_ID's parent process, abort with an explicit 'recursive update-task detected' error rather than blocking. 4. CI smoke test: `update-task.sh T-XXX --status work-completed` followed by `update-task.sh T-XXX --status started-work` should complete in <5s with a process-tree assertion that no second update-task.sh ever spawns. 5. Once root cause is fixed, remove the `bash -x` workaround and verify direct-call works."
+  mitigation_candidate: "Tactical: document `bash -x` workaround in CLAUDE.md operations section so operators know how to unblock. Structural: identify the recursive fork point (likely ~50 lines of strace + grep). Reversibility: high — fix is a single-script change with regression test."
+  status: watching
+  created: 2026-05-04
+  last_reviewed: 2026-05-04
+  related_tasks: [T-587, T-1493, T-1472, T-1473]
