@@ -1516,6 +1516,7 @@ pub(crate) async fn cmd_agent_recent(
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
     filter_msg_types: Option<&[&str]>,
+    filter_grep: Option<&str>,
     hub: Option<&str>,
     json: bool,
     watch: bool,
@@ -1588,6 +1589,9 @@ pub(crate) async fn cmd_agent_recent(
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
             }
+            if let Some(g) = filter_grep {
+                filter_suffix.push_str(&format!(" | grep={g}"));
+            }
             println!(
                 "# agent recent {} --watch | peer_fp={} | interval={}s | window={}s | n={}{} | {}",
                 display_target, peer_fp, clamped_interval, clamped_window_secs,
@@ -1609,6 +1613,7 @@ pub(crate) async fn cmd_agent_recent(
                         filter_thread,
                         filter_project,
                         filter_msg_types,
+                        filter_grep,
                     );
                     render_recent_body(&posts, now_ms);
                 }
@@ -1643,6 +1648,7 @@ pub(crate) async fn cmd_agent_recent(
         filter_thread,
         filter_project,
         filter_msg_types,
+        filter_grep,
     );
 
     if json {
@@ -1682,6 +1688,14 @@ pub(crate) async fn cmd_agent_recent(
                 );
             }
         }
+        if let Some(g) = filter_grep {
+            if !g.is_empty() {
+                out_obj.insert(
+                    "filter_grep".to_string(),
+                    serde_json::Value::String(g.to_string()),
+                );
+            }
+        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -1700,6 +1714,9 @@ pub(crate) async fn cmd_agent_recent(
         if !types.is_empty() {
             filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
+    }
+    if let Some(g) = filter_grep {
+        filter_suffix.push_str(&format!(" grep={g}"));
     }
     println!(
         "# agent recent {} (peer_fp={}) | window={}s | n={}{}",
@@ -1759,6 +1776,7 @@ pub(crate) async fn cmd_agent_timeline(
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
     filter_msg_types: Option<&[&str]>,
+    filter_grep: Option<&str>,
     hub: Option<&str>,
     json: bool,
     watch: bool,
@@ -1797,6 +1815,9 @@ pub(crate) async fn cmd_agent_timeline(
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
             }
+            if let Some(g) = filter_grep {
+                filter_suffix.push_str(&format!(" | grep={g}"));
+            }
             println!(
                 "# agent timeline --watch | interval={}s | window={}s | n={}{} | {}",
                 clamped_interval, clamped_window_secs, clamped_n, filter_suffix, now_str
@@ -1817,6 +1838,7 @@ pub(crate) async fn cmd_agent_timeline(
                         filter_thread,
                         filter_project,
                         filter_msg_types,
+                        filter_grep,
                     );
                     render_timeline_body(&posts, now_ms);
                 }
@@ -1847,6 +1869,7 @@ pub(crate) async fn cmd_agent_timeline(
         filter_thread,
         filter_project,
         filter_msg_types,
+        filter_grep,
     );
 
     if json {
@@ -1870,6 +1893,14 @@ pub(crate) async fn cmd_agent_timeline(
                 );
             }
         }
+        if let Some(g) = filter_grep {
+            if !g.is_empty() {
+                out_obj.insert(
+                    "filter_grep".to_string(),
+                    serde_json::Value::String(g.to_string()),
+                );
+            }
+        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -1887,6 +1918,9 @@ pub(crate) async fn cmd_agent_timeline(
         if !types.is_empty() {
             filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
+    }
+    if let Some(g) = filter_grep {
+        filter_suffix.push_str(&format!(" grep={g}"));
     }
     println!(
         "# agent timeline | window={}s | n={}{}",
@@ -1947,6 +1981,7 @@ pub(crate) async fn cmd_agent_on_thread(
     window_secs: u64,
     filter_project: Option<&str>,
     filter_msg_types: Option<&[&str]>,
+    filter_grep: Option<&str>,
     peer: Option<&str>,
     peer_fp: Option<&str>,
     hub: Option<&str>,
@@ -2012,6 +2047,9 @@ pub(crate) async fn cmd_agent_on_thread(
                     filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
                 }
             }
+            if let Some(g) = filter_grep {
+                filter_suffix.push_str(&format!(" | grep={g}"));
+            }
             println!(
                 "# agent on-thread {} --watch | interval={}s | window={}s | n={}{} | {}",
                 thread, clamped_interval, clamped_window_secs, clamped_n,
@@ -2033,6 +2071,7 @@ pub(crate) async fn cmd_agent_on_thread(
                         Some(thread),
                         filter_project,
                         filter_msg_types,
+                        filter_grep,
                     );
                     render_on_thread_text(
                         thread,
@@ -2073,6 +2112,7 @@ pub(crate) async fn cmd_agent_on_thread(
         Some(thread),
         filter_project,
         filter_msg_types,
+        filter_grep,
     );
 
     if json {
@@ -2108,6 +2148,14 @@ pub(crate) async fn cmd_agent_on_thread(
                 );
             }
         }
+        if let Some(g) = filter_grep {
+            if !g.is_empty() {
+                out_obj.insert(
+                    "filter_grep".to_string(),
+                    serde_json::Value::String(g.to_string()),
+                );
+            }
+        }
         let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
         out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
@@ -2126,6 +2174,9 @@ pub(crate) async fn cmd_agent_on_thread(
         if !types.is_empty() {
             suffix.push_str(&format!(" msg_type={}", types.join(",")));
         }
+    }
+    if let Some(g) = filter_grep {
+        suffix.push_str(&format!(" grep={g}"));
     }
     println!(
         "# agent on-thread {} | window={}s | n={}{}",
@@ -2225,6 +2276,7 @@ fn render_overview_body(msgs: &[serde_json::Value], window_secs: u64, top: usize
     );
     let recent = super::channel::extract_recent_posts(
         msgs, top, window_ms, now_ms, None, None, None,
+        None,
         None,
     );
     let display_peers: &[super::channel::FleetPeerRow] =
@@ -2354,6 +2406,7 @@ fn compose_overview_json(
     );
     let recent = super::channel::extract_recent_posts(
         msgs, top, window_ms, now_ms, None, None, None,
+        None,
         None,
     );
     let display_peers: &[super::channel::FleetPeerRow] =
