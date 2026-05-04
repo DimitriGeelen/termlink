@@ -4,16 +4,16 @@ name: "agent overview --watch — live fleet dashboard"
 description: >
   agent overview --watch — live fleet dashboard
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:53:27Z
-last_update: 2026-05-04T17:53:27Z
-date_finished: null
+last_update: 2026-05-04T18:00:08Z
+date_finished: 2026-05-04T18:00:08Z
 ---
 
 # T-1496: agent overview --watch — live fleet dashboard
@@ -110,6 +110,10 @@ out=$(timeout 7 target/release/termlink agent overview --watch --watch-interval 
 - **Rejected:** Single combined helper with `output_format: enum {Text, Json}` — leaks render concern into a data-shape helper.
 
 ## Updates
+
+### 2026-05-04T18:00:08Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
 
 ### 2026-05-04T17:53:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
