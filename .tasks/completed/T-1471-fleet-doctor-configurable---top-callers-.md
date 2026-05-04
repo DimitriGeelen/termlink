@@ -4,16 +4,16 @@ name: "fleet doctor: configurable --top-callers <N> (per-hub + fleet-wide)"
 description: >
   fleet doctor: configurable --top-callers <N> (per-hub + fleet-wide)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T07:22:47Z
-last_update: 2026-05-04T07:22:47Z
-date_finished: null
+last_update: 2026-05-04T07:30:28Z
+date_finished: 2026-05-04T07:30:28Z
 ---
 
 # T-1471: fleet doctor: configurable --top-callers <N> (per-hub + fleet-wide)
@@ -75,3 +75,9 @@ cargo build --release -p termlink 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1471-fleet-doctor-configurable---top-callers-.md
 - **Context:** Initial task creation
+
+### 2026-05-04T07:27:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-05-04T07:30:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
