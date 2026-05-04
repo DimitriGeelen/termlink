@@ -3676,6 +3676,19 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope
         #[arg(long)]
         json: bool,
+
+        /// Live single-peer streaming mode (T-1498): re-render the
+        /// last-N posts from this peer every `--watch-interval` seconds
+        /// until Ctrl-C. Composes with `--n`, `--window-secs`,
+        /// `--thread`, `--project`, `--hub`. Incompatible with `--json`
+        /// (streaming vs one-shot).
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval (seconds) for `--watch` mode. Default 5.
+        /// Clamped to [1, 300]. Ignored without `--watch`.
+        #[arg(long = "watch-interval", default_value_t = 5)]
+        watch_interval: u64,
     },
 
     /// Show all recent posts on a thread/task across the fleet (T-1493).
