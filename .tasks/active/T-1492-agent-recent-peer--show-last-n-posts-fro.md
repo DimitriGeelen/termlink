@@ -4,16 +4,16 @@ name: "agent recent <peer> — show last N posts from a peer on chat-arc"
 description: >
   agent recent <peer> — show last N posts from a peer on chat-arc
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:11:54Z
-last_update: 2026-05-04T17:11:54Z
-date_finished: null
+last_update: 2026-05-04T17:21:46Z
+date_finished: 2026-05-04T17:21:46Z
 ---
 
 # T-1492: agent recent <peer> — show last N posts from a peer on chat-arc
@@ -115,3 +115,7 @@ out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1492-agent-recent-peer--show-last-n-posts-fro.md
 - **Context:** Initial task creation
+
+### 2026-05-04T17:21:46Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
