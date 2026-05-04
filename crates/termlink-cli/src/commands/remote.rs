@@ -2774,10 +2774,23 @@ pub(crate) async fn cmd_fleet_doctor(
                     };
                     eprintln!("    {name}: {count} legacy invocation(s){suffix}");
                     // T-1460/T-1471: surface top-N callers if hub returned them.
+                    // T-1476: annotate (unknown) once per hub block as pre-T-1409 residue.
+                    let mut hub_seen_unknown = false;
                     if let Some(callers) = hub_top_callers.get(name) {
                         for (id, c) in callers.iter().take(top_callers) {
                             eprintln!("      └─ {c}× {id}");
+                            if id == "(unknown)" {
+                                hub_seen_unknown = true;
+                            }
                         }
+                    }
+                    if hub_seen_unknown {
+                        eprintln!(
+                            "      └─ note: (unknown) entries are pre-T-1409 attribution-gap \
+                             residue; the gap was closed 2026-04-29 (peer_addr/peer_pid threaded \
+                             into rpc_audit). These historical counts cannot be acted on \
+                             individually — track recent traffic via 'ACTIVE' tag instead."
+                        );
                     }
                 }
             }
@@ -2785,11 +2798,24 @@ pub(crate) async fn cmd_fleet_doctor(
             // answer to "who's producing the residue?" instead of N repeated
             // lines).
             let fleet_top = aggregate_fleet_top_callers(&hub_top_callers);
+            let mut fleet_seen_unknown = false;
             if !fleet_top.is_empty() {
                 eprintln!("  Top callers (fleet-wide):");
                 for (id, c) in fleet_top.iter().take(top_callers) {
                     eprintln!("    {c}× {id}");
+                    if id == "(unknown)" {
+                        fleet_seen_unknown = true;
+                    }
                 }
+            }
+            // T-1476: same annotation, once for the fleet-wide aggregate.
+            if fleet_seen_unknown {
+                eprintln!(
+                    "    note: (unknown) entries are pre-T-1409 attribution-gap residue; the gap \
+                     was closed 2026-04-29 (peer_addr/peer_pid threaded into rpc_audit). \
+                     These historical counts cannot be acted on individually — track recent \
+                     traffic via 'ACTIVE' tag instead."
+                );
             }
             if !hubs_unsupported.is_empty() {
                 eprintln!(
