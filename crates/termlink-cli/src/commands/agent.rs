@@ -1074,27 +1074,47 @@ pub(crate) async fn cmd_agent_who(
     Ok(())
 }
 
-/// T-1482: fleet-wide presence summary on `agent-chat-arc`. Aggregates by
-/// sender_id, returns one row per active peer with last_seen, posts in
-/// window, and top from_project (most-frequently-stamped). Companion to
-/// `agent who` — that's per-peer; this is fleet-wide.
+/// T-1482 / T-1484: fleet-wide presence summary on `agent-chat-arc`.
+/// Aggregates by sender_id, returns one row per active peer with last_seen,
+/// posts in window, and top from_project (most-frequently-stamped).
+/// Companion to `agent who` — that's per-peer; this is fleet-wide.
+///
+/// `filter_project`: when Some(p), only posts whose `from_project ==
+/// p` count toward presence; peers with zero matching posts are excluded
+/// (T-1484). Use for project-scoped triage.
 pub(crate) async fn cmd_agent_presence(
     window_secs: u64,
     hub: Option<&str>,
     json: bool,
+    filter_project: Option<&str>,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
-    let rows = super::channel::fetch_fleet_presence_via_chat_arc(hub, clamped_window_secs)
-        .await
-        .context("agent presence: failed to fetch fleet presence")?;
+    let rows = super::channel::fetch_fleet_presence_via_chat_arc(
+        hub,
+        clamped_window_secs,
+        filter_project,
+    )
+    .await
+    .context("agent presence: failed to fetch fleet presence")?;
 
     if json {
         let peers: Vec<serde_json::Value> = rows.iter().map(|r| r.to_json()).collect();
-        let out = serde_json::json!({
-            "window_secs": clamped_window_secs,
-            "peers": peers,
-        });
-        println!("{}", serde_json::to_string_pretty(&out)?);
+        let mut out_obj = serde_json::Map::new();
+        out_obj.insert(
+            "window_secs".to_string(),
+            serde_json::Value::from(clamped_window_secs),
+        );
+        // T-1484: echo filter back so callers can confirm what was applied
+        // (especially useful when result is empty — distinguishes "no fleet
+        // activity" from "filter matched nothing").
+        if let Some(f) = filter_project {
+            out_obj.insert(
+                "filter_project".to_string(),
+                serde_json::Value::String(f.to_string()),
+            );
+        }
+        out_obj.insert("peers".to_string(), serde_json::Value::Array(peers));
+        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
         return Ok(());
     }
 
@@ -1104,11 +1124,17 @@ pub(crate) async fn cmd_agent_presence(
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     if rows.is_empty() {
-        println!(
-            "(no peers active in window={}s)",
-            clamped_window_secs
-        );
+        match filter_project {
+            None => println!("(no peers active in window={}s)", clamped_window_secs),
+            Some(f) => println!(
+                "(no peers active in window={}s matching project={})",
+                clamped_window_secs, f
+            ),
+        }
         return Ok(());
+    }
+    if let Some(f) = filter_project {
+        println!("# filter_project={}", f);
     }
     println!(
         "{:<18} {:>14} {:>8}  {}",
@@ -1137,7 +1163,16 @@ pub(crate) async fn cmd_agent_presence(
         );
     }
     println!();
-    println!("{} peer(s) active in window={}s", rows.len(), clamped_window_secs);
+    let suffix = match filter_project {
+        Some(f) => format!(" matching project={}", f),
+        None => String::new(),
+    };
+    println!(
+        "{} peer(s) active in window={}s{}",
+        rows.len(),
+        clamped_window_secs,
+        suffix
+    );
     Ok(())
 }
 
