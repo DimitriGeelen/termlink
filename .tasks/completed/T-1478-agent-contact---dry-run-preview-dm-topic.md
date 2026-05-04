@@ -4,16 +4,16 @@ name: "agent contact --dry-run: preview dm topic + metadata without posting"
 description: >
   agent contact --dry-run: preview dm topic + metadata without posting
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T11:15:12Z
-last_update: 2026-05-04T11:15:12Z
-date_finished: null
+last_update: 2026-05-04T11:18:25Z
+date_finished: 2026-05-04T11:18:25Z
 ---
 
 # T-1478: agent contact --dry-run: preview dm topic + metadata without posting
@@ -110,3 +110,6 @@ target/debug/termlink agent contact termlink-agent:T-1478 --message preview --th
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1478-agent-contact---dry-run-preview-dm-topic.md
 - **Context:** Initial task creation
+
+### 2026-05-04T11:18:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

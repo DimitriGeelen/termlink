@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1478: agent contact --dry-run: preview dm topic + metadata without posting
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T11:18:40Z
+# ============================================================================
+
+task_id: T-1478
+task_name: "agent contact --dry-run: preview dm topic + metadata without posting"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T11:15:12Z
+completed: 2026-05-04T11:18:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T13:18:21+02:00
+last_commit: 2026-05-04T13:18:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent contact --dry-run — preview dm topic + metadata without posting
+
+# Key outcomes
+outcomes:
+  - "`termlink agent contact <target> --message <m> --dry-run` resolves the FP exactly as the live path and prints a JSON preview to stdout (verified)"
+  - "Preview shape: `{\"dry_run\": true, \"peer_fp\": \"<hex>\", \"topic\": \"dm:<a>:<b>\", \"metadata\": {<map>}, \"message\": \"<m>\", \"my_id\": \"<hex>\"}` (verified — added my_id for completeness)"
+  - "`--dry-run` is mutually exclusive with the live post — function returns Ok before reaching cmd_channel_dm (verified: dm topic offset unchanged after dry-run, still 8)"
+  - "Works with `--target-fp d1993c2c3ec44c94 --dry-run` — verified, peer_fp and topic computed correctly"
+  - "Works with `<name>:<project>` — verified, `to_project=T-1478` in metadata"
+  - "Works with `--thread <id>` — verified, `_thread=T-1478` in metadata"
+  - "Target-resolution errors fire BEFORE dry-run output — code path is the same `find_session` chain, errors short-circuit before the dry_run if-block"
+  - "CLI doc-comment for `--dry-run` explains use case (CI / ops verification before commit)"
+  - "Unit test for `render_dry_run_preview` in contact_tests (3 tests: basic_shape, no_extras_yields_empty_metadata_object, skips_malformed_extras_without_eq) — all pass"
+  - "`cargo build -p termlink` succeeds (9.16s); `cargo test -p termlink --bin termlink contact_tests` passes (11 passed; 0 failed)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1478-agent-contact---dry-run-preview-dm-topic.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T13:18:21"
+    action: "T-1478: agent contact --dry-run — preview dm topic + metadata without posting"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 5
+  lines_added: 241
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1478-agent-contact---dry-run-preview-dm-topic.md
+generated_by: context-agent-hybrid
