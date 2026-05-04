@@ -714,6 +714,8 @@ pub(crate) async fn cmd_agent_contact(
     hub: Option<&str>,
     json: bool,
     dry_run: bool,
+    require_online: bool,
+    online_window_secs: u64,
 ) -> Result<()> {
     // T-1429 Phase-2 (this build): support --target-fp <hex> as a cross-host
     // bypass for the local-only session.discover gap. Either positional
@@ -811,6 +813,11 @@ pub(crate) async fn cmd_agent_contact(
         extra_metadata.push(format!("to_project={p}"));
     }
 
+    // T-1480 (Q3 deferred): clamp the online window. Rationale: <10s is too
+    // tight for chat-arc heartbeat cadence (~1/min); >24h defeats the
+    // fail-fast intent and risks calling a peer that's been silent for days.
+    let clamped_window_secs = online_window_secs.clamp(10, 86_400);
+
     // T-1478: dry-run path — print preview JSON, do not contact the hub.
     // Builds the full metadata block including the auto-injected
     // `from_project` (T-1472), the `to_project` from the `name:project`
@@ -837,7 +844,7 @@ pub(crate) async fn cmd_agent_contact(
                     })
                     .count()
             });
-        let preview = render_dry_run_preview(
+        let mut preview = render_dry_run_preview(
             &my_id,
             peer_fp,
             &topic,
@@ -845,8 +852,79 @@ pub(crate) async fn cmd_agent_contact(
             message,
             local_session_count,
         );
+        // T-1480: when --require-online is also set in dry-run, run the
+        // presence check and surface its result. Dry-run never fails on
+        // offline; the operator just sees the would-be verdict.
+        if require_online {
+            match super::channel::check_peer_online_via_chat_arc(
+                peer_fp,
+                hub,
+                clamped_window_secs,
+            )
+            .await
+            {
+                Ok(check) => {
+                    preview["online_check"] = check.to_json();
+                }
+                Err(e) => {
+                    preview["online_check"] = serde_json::json!({
+                        "error": format!("presence probe failed: {e}"),
+                        "window_secs": clamped_window_secs,
+                    });
+                }
+            }
+        }
         println!("{}", serde_json::to_string_pretty(&preview)?);
         return Ok(());
+    }
+
+    // T-1480 (Q3 deferred): pre-flight presence check — fail-fast when peer
+    // hasn't been seen on agent-chat-arc within the configured window. The
+    // dm post itself would still queue (chat-arc is offset-durable), but
+    // operators who pass --require-online have explicitly opted into the
+    // synchronous-contact semantic.
+    if require_online {
+        let check = super::channel::check_peer_online_via_chat_arc(
+            peer_fp,
+            hub,
+            clamped_window_secs,
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "agent contact --require-online: presence probe failed for peer fp={peer_fp}"
+            )
+        })?;
+        if !check.online {
+            let last_seen_phrase = match check.last_seen_ms {
+                Some(ms) => {
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let age_secs = ((now_ms - ms) / 1000).max(0);
+                    format!("last seen {age_secs}s ago (ts_ms={ms})")
+                }
+                None => "last seen: never (no posts on agent-chat-arc)".to_string(),
+            };
+            let msg = format!(
+                "peer fp={peer_fp} not online — {last_seen_phrase}, \
+                 window={clamped_window_secs}s. Re-run without --require-online \
+                 to queue the post (chat-arc is offset-durable), or wait for the \
+                 peer's next heartbeat."
+            );
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "peer_fp": peer_fp,
+                    "online_check": check.to_json(),
+                    "error": msg,
+                    "exit_code": 9,
+                }));
+            }
+            eprintln!("error: {msg}");
+            std::process::exit(9);
+        }
     }
 
     super::channel::cmd_channel_dm(
