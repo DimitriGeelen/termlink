@@ -1305,9 +1305,11 @@ pub(crate) fn extract_recent_posts(
             .and_then(|md| md.get("from_project"))
             .and_then(|v| v.as_str())
             .map(String::from);
+        // T-1502: real wire envelopes use `metadata.thread`; some tests
+        // and historical envelopes use `metadata._thread`. Accept both.
         let thread = m
             .get("metadata")
-            .and_then(|md| md.get("_thread"))
+            .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
             .and_then(|v| v.as_str())
             .map(String::from);
         if let Some(want) = filter_thread {
@@ -1320,13 +1322,28 @@ pub(crate) fn extract_recent_posts(
                 continue;
             }
         }
-        // Content extraction — payload shape varies (text vs json vs raw).
-        // Best-effort: prefer payload.text → payload (string) → empty.
+        // Content extraction — payload shape varies. Real wire envelopes
+        // (T-1502) carry `payload_b64` (base64 UTF-8); historical/test
+        // shapes use `payload.text` / payload-as-string. Try in order:
+        //   1. payload_b64 (base64 → UTF-8) — REAL wire
+        //   2. payload.text — historical
+        //   3. payload as &str — historical
+        //   4. payload.to_string() — last-resort raw JSON
         let content_raw = m
-            .get("payload")
-            .and_then(|p| p.get("text"))
+            .get("payload_b64")
             .and_then(|v| v.as_str())
-            .map(String::from)
+            .and_then(|b64| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(b64)
+                    .ok()
+                    .and_then(|bytes| String::from_utf8(bytes).ok())
+            })
+            .or_else(|| {
+                m.get("payload")
+                    .and_then(|p| p.get("text"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            })
             .or_else(|| {
                 m.get("payload").and_then(|p| p.as_str()).map(String::from)
             })
@@ -13972,6 +13989,67 @@ mod tests {
             Some(""),
         );
         assert_eq!(posts.len(), 2, "empty pattern matches all (defensive)");
+    }
+
+    // T-1502: real-wire-shape regression tests
+    #[test]
+    fn recent_posts_payload_b64_decoded_to_content() {
+        use base64::Engine;
+        let now = 1_700_000_000_000_i64;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(b"hello from wire");
+        let m = json!({
+            "msg_type": "note",
+            "sender_id": "peer1",
+            "ts": now - 1_000,
+            "metadata": {"thread": "T-1500"},
+            "payload_b64": b64,
+        });
+        let posts = extract_recent_posts(
+            &[m], 10, 3_600_000, now,
+            None, None, None, None, None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "hello from wire");
+        assert_eq!(posts[0].thread.as_deref(), Some("T-1500"));
+    }
+
+    #[test]
+    fn recent_posts_payload_b64_invalid_falls_through() {
+        let now = 1_700_000_000_000_i64;
+        // Invalid base64 — should fall through to the .to_string() path
+        // which renders payload_b64 as JSON. The post is still extracted
+        // (no panic), just with degraded content.
+        let m = json!({
+            "msg_type": "note",
+            "sender_id": "peer1",
+            "ts": now - 1_000,
+            "payload_b64": "!!!not-base64!!!",
+            "payload": "fallback-text",
+        });
+        let posts = extract_recent_posts(
+            &[m], 10, 3_600_000, now,
+            None, None, None, None, None,
+        );
+        assert_eq!(posts.len(), 1);
+        // Falls through to payload (string) field
+        assert_eq!(posts[0].content, "fallback-text");
+    }
+
+    #[test]
+    fn recent_posts_metadata_thread_without_underscore_recognized() {
+        let now = 1_700_000_000_000_i64;
+        let m = json!({
+            "msg_type": "note",
+            "sender_id": "peer1",
+            "ts": now - 1_000,
+            "metadata": {"thread": "T-1500"},
+            "payload": "x",
+        });
+        let posts = extract_recent_posts(
+            &[m.clone()], 10, 3_600_000, now,
+            None, Some("T-1500"), None, None, None,
+        );
+        assert_eq!(posts.len(), 1, "metadata.thread (no underscore) recognized");
     }
 
     #[test]
