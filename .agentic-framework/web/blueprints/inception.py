@@ -25,56 +25,34 @@ def _md(text):
     return Markup(html)
 
 
+# T-1575: rationale/stance extraction consolidated into web.shared.extract_recommendation.
+# These shims accept the section body (already extracted by _extract_section) — the canonical
+# helper expects a full task body, so we wrap with a synthetic `## Recommendation` header.
+# Fallback (return body when no `**Rationale:**` marker) preserves T-1390 free-form behavior.
+
 def _extract_rationale_from_recommendation(rec_body):
-    """T-1390 (F4 fix): Extract only the rationale body from a structured
-    ## Recommendation block, not the whole section.
-
-    The structured format is:
-        **Recommendation:** GO / NO-GO / DEFER
-        **Rationale:** <text that may span paragraphs>
-        **Evidence:**
-        - bullet 1
-        - bullet 2
-
-    Without this filter, pre-filling the decision textarea with the whole
-    block produced rationale values like "Recommendation: GO\\n\\nRationale:
-    ... Evidence: - ..." — the human's recorded decision then contained the
-    self-referential prefix plus full evidence bullets (observed on T-1284
-    and 60 other decided inceptions, see T-1388 F4).
-
-    Fallback: when no `**Rationale:**` marker exists, return the full body
-    stripped of ** formatting (preserves behavior for free-form recommendations).
-    """
+    """T-1390 / T-1575: rationale body of a `## Recommendation` block. Falls
+    back to the **-stripped raw body when no structured `**Rationale:**` marker
+    exists (preserves free-form recommendation handling)."""
     if not rec_body:
         return ""
-    # Strip **bold** markers first so we work with plain text
-    plain = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_body).strip()
-    # Look for "Rationale:" marker and slice to next top-level marker
-    m = re_mod.search(r"(?m)^Rationale:\s*(.*?)(?=^(?:Evidence|Recommendation|Build|Reversibility|Alternative|See):|\Z)",
-                      plain, re_mod.DOTALL)
-    if m:
-        return m.group(1).strip()
-    # Fallback — no structured markers
-    return plain
+    from web.shared import extract_recommendation
+    rec = extract_recommendation(f"## Recommendation\n{rec_body}\n\n## End\n")
+    if rec["rationale"]:
+        return rec["rationale"]
+    return re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_body).strip()
 
 
 def _extract_recommendation_stance(rec_body):
-    """T-1391 (F3 fix): Extract the Recommendation stance (GO/NO-GO/DEFER) from
-    the `**Recommendation:**` header line of a structured ## Recommendation
-    section. Returns the stance lowercased ('go', 'no-go', 'defer') or None
-    when the section is unstructured/empty.
-
-    Enables the template to compare agent's recommendation vs human's decision
-    and collapse duplicate UI when the human adopted the recommendation as-is.
-    """
+    """T-1391 / T-1575: stance ('go'/'no-go'/'defer'/None) from `**Recommendation:**`
+    header line. None when section is unstructured/empty."""
     if not rec_body:
         return None
-    plain = re_mod.sub(r"\*\*([^*]+)\*\*", r"\1", rec_body)
-    m = re_mod.search(r"(?mi)^Recommendation:\s*(GO|NO-GO|NO_GO|DEFER)\b", plain)
-    if not m:
+    from web.shared import extract_recommendation
+    rec = extract_recommendation(f"## Recommendation\n{rec_body}\n\n## End\n")
+    if rec["verdict"] == "?":
         return None
-    stance = m.group(1).lower().replace("_", "-")
-    return stance
+    return rec["verdict"].lower()
 
 bp = Blueprint("inception", __name__)
 
@@ -354,7 +332,11 @@ def inception_detail(task_id):
         "Technical Constraints", "Scope Fence", "Go/No-Go Criteria",
         "Recommendation", "Structural Upgrade", "Decision", "Updates",
         "Acceptance Criteria", "Verification", "Decisions", "Context",
+        "RCA",
     }
+    # T-1585: also exclude versioned Reviewer Verdict headings (e.g.
+    # "Reviewer Verdict (v1.4)") from extra_sections — they're rendered
+    # structurally below via extract_reviewer_verdict, not as generic cards.
 
     # Build legacy sections dict for backward compatibility with template
     sections = {
@@ -371,9 +353,14 @@ def inception_detail(task_id):
     }
 
     # Extra sections not in the known set — rendered generically (G-036 fix)
+    # T-1585: also skip "Reviewer Verdict (vX.Y)" — surfaced structurally below.
     extra_sections = []
     for heading, content in all_raw_sections.items():
-        if heading not in KNOWN_SECTIONS and content:
+        if heading in KNOWN_SECTIONS:
+            continue
+        if heading.startswith("Reviewer Verdict"):
+            continue
+        if content:
             extra_sections.append({"heading": heading, "content": _md(content)})
 
     # T-679: Pre-populate rationale from ## Recommendation section
@@ -430,6 +417,11 @@ def inception_detail(task_id):
         except Exception as e:
             logger.warning("Failed to parse %s: %s", episodic_file, e)
 
+    # T-1585: surface reviewer's mechanical verdict structurally — cross-surface
+    # parity with /approvals (T-1569), /review (T-1583), /tasks (T-1584).
+    from web.shared import extract_reviewer_verdict
+    reviewer = extract_reviewer_verdict(task_body)
+
     return render_page(
         "inception_detail.html",
         page_title=f"Inception {task_id}",
@@ -443,6 +435,7 @@ def inception_detail(task_id):
         rationale_hint=rationale_hint,
         rec_stance=rec_stance,
         decision_matches_recommendation=decision_matches_recommendation,
+        reviewer=reviewer,
     )
 
 
@@ -499,23 +492,39 @@ def record_decision(task_id):
         timeout=30,
     )
 
-    # T-1223: log errors for debugging
+    # T-1470: distinguish "primary decision landed" from "side-effect failure".
+    # `fw inception decide` runs the primary decision FIRST (writes ## Decision
+    # block, ticks ACs, completes task), THEN side-effects (episodic gen,
+    # emit_review). A non-zero exit code from a side-effect was previously
+    # surfaced as 500 even though the decision was already recorded — the
+    # T-1455 GO incident (2026-04-25T07:22Z, T-1444 root cause).
+    primary_landed = _decision_recorded_in_task(task_id, decision)
+
     if not ok:
-        import logging
+        import logging  # T-1223: log errors for debugging
         logging.getLogger(__name__).error(
-            "inception decide %s failed: stdout=%r stderr=%r",
-            task_id, stdout[:500], stderr[:500]
+            "inception decide %s failed: primary_landed=%s stdout=%r stderr=%r",
+            task_id, primary_landed, stdout[:500], stderr[:500]
         )
 
     # If called via htmx (e.g., from /approvals page), return inline fragment (T-643)
     if request.headers.get("HX-Request"):
-        if ok:
+        if ok or primary_landed:
             color = "#10b981" if decision == "go" else "#ef4444" if decision == "no-go" else "#6b7280"
             label = decision.upper()
+            warning_html = ""
+            if not ok and primary_landed:
+                # T-1470: side-effect failure — show warning, not error
+                warning_html = (
+                    f'<div style="color:#f59e0b; font-size:0.85rem; margin-top:4px;">'
+                    f'⚠ Decision recorded; side-effect warning: {(stderr or stdout)[:150]}'
+                    f'</div>'
+                )
             return (
                 f'<div class="approval-card" style="border-color:{color}; opacity:0.7;">'
                 f'<strong>{task_id}</strong>: Decision recorded — '
                 f'<span style="color:{color}; font-weight:700;">{label}</span>'
+                f'{warning_html}'
                 f'</div>'
             )
         return f'<p style="color:var(--pico-del-color);">Error: {(stderr or stdout)[:200]}</p>', 500
@@ -524,10 +533,43 @@ def record_decision(task_id):
     # so the rendered inception_detail page can show a banner. Without this,
     # the user sees a silent redirect and clicks GO repeatedly.
     if not ok:
+        if primary_landed:
+            # T-1470: primary succeeded, surface as warning (not error)
+            warn = (stderr or stdout or "side-effect warning")[:300]
+            return redirect(url_for("inception.inception_detail", task_id=task_id, warning=warn))
         err = (stderr or stdout or "Unknown error from fw inception decide")[:300]
         return redirect(url_for("inception.inception_detail", task_id=task_id, error=err))
 
     return redirect(url_for("inception.inception_detail", task_id=task_id))
+
+
+def _decision_recorded_in_task(task_id: str, decision: str) -> bool:
+    """T-1470: Detect if `fw inception decide` recorded the decision in the
+    task body, regardless of exit code. Used to separate "primary landed"
+    (return 200 + warning) from "primary failed" (return 500/error)."""
+    import os
+    import re as _re
+    # Task may be in active/ (defer) or completed/ (go/no-go)
+    for loc in ("completed", "active"):
+        d = os.path.join(PROJECT_ROOT, ".tasks", loc)
+        if not os.path.isdir(d):
+            continue
+        for fn in os.listdir(d):
+            if not fn.startswith(f"{task_id}-") or not fn.endswith(".md"):
+                continue
+            try:
+                with open(os.path.join(d, fn)) as f:
+                    body = f.read()
+            except OSError:
+                continue
+            # Look for `## Decision` block + the chosen decision keyword.
+            # T-1527: terminate at any H2-or-deeper heading so `### timestamp`
+            # Updates entries appended below the Decision section don't get
+            # captured into the keyword check (sister bug to T-1519/T-1526).
+            m = _re.search(r"^## Decision\b.*?(?=^#{2,} |\Z)", body, _re.MULTILINE | _re.DOTALL)
+            if m and decision.upper() in m.group(0).upper():
+                return True
+    return False
 
 
 @bp.route("/assumptions")

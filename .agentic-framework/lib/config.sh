@@ -22,10 +22,12 @@ _fw_config_file_val() {
     # Skip if no config file
     [ -f "$config_file" ] || return 1
 
-    # For simple (non-dotted) keys, use grep for speed (no Python startup)
+    # For simple (non-dotted) keys, use grep for speed (no Python startup).
+    # T-1557 / L-302: guard the inner grep with `|| true` so a missing key does
+    # not silent-exit the calling shell under set -e -o pipefail.
     if [[ "$key" != *.* ]]; then
         local val
-        val=$(grep "^${key}:" "$config_file" 2>/dev/null | head -1 | sed "s/^${key}:[[:space:]]*//;s/[[:space:]]*$//;s/^[\"']//;s/[\"']$//")
+        val=$( { grep "^${key}:" "$config_file" 2>/dev/null || true; } | head -1 | sed "s/^${key}:[[:space:]]*//;s/[[:space:]]*$//;s/^[\"']//;s/[\"']$//")
         [ -n "$val" ] && echo "$val" && return 0
         return 1
     fi
@@ -162,6 +164,8 @@ FW_CONFIG_REGISTRY=(
     "HANDOVER_DEDUP_COOLDOWN|300|Seconds between duplicate handover detection"
     "INCEPTION_COMMIT_LIMIT|2|Max exploration commits before inception decision gate"
     "CONSUMER_SCAN_DIRS|/opt|Colon-separated directories to scan for consumer projects"
+    "DISPATCH_MODEL_DEFAULT||Default LLM model for fw termlink dispatch when --model omitted (e.g. sonnet, haiku, opus). T-1643/W3."
+    "ARC_COMPLETION_THRESHOLD|0.80|Ratio of completed children at which fw audit warns an in-progress arc (G-062 mechanism #2). T-1656."
 )
 
 # fw_config_registry — Print all known settings with current values

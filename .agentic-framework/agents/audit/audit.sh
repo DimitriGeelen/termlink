@@ -706,6 +706,26 @@ DRIFTEOF
     fi
 fi
 
+# T-1631 (B-3b of T-1626): Hook-failure threshold check.
+# Reads .hook-counter + .hook-failure-counter (T-1628 telemetry) and
+# warns if any hook is failing in production over threshold. Does NOT
+# auto-register here — that's --register. Audit surfaces the signal;
+# operator runs `fw concerns scan-hooks --register` (or cron job) to
+# materialize G-entries.
+HOOK_THRESHOLD_HELPER="$FRAMEWORK_ROOT/lib/hook-threshold.py"
+HOOK_COUNTER_FILE="$PROJECT_ROOT/.context/working/.hook-counter"
+if [ -f "$HOOK_THRESHOLD_HELPER" ] && [ -f "$HOOK_COUNTER_FILE" ]; then
+    hook_threshold_out=$(PROJECT_ROOT="$PROJECT_ROOT" python3 "$HOOK_THRESHOLD_HELPER" 2>/dev/null)
+    if [ -n "$hook_threshold_out" ]; then
+        hook_failing=$(echo "$hook_threshold_out" | grep -c "^FAIL|" || true)
+        warn "Hook threshold: $hook_failing hook(s) failing over threshold (T-1626)" \
+             "$hook_threshold_out" \
+             "Run: python3 $FRAMEWORK_ROOT/lib/hook-threshold.py --register (or fw upgrade if witness pattern)"
+    else
+        pass "Hook threshold: no hooks failing over threshold"
+    fi
+fi
+
 echo ""
 fi # end structure
 
@@ -912,6 +932,33 @@ else
     fi
 fi
 
+# T-1573 / F8: Surface .gate-bypass-log.yaml — auth-flag bypasses
+# (--skip-sovereignty, --skip-acceptance-criteria, --skip-rca, etc.) are
+# logged by update-task.sh:32-42 but nothing read the file before now.
+GATE_BYPASS_LOG="$PROJECT_ROOT/.context/working/.gate-bypass-log.yaml"
+if [ -f "$GATE_BYPASS_LOG" ]; then
+    gb_total=$(grep -c "^- timestamp:" "$GATE_BYPASS_LOG" 2>/dev/null || echo 0)
+    # Count entries with timestamp in last 7 days
+    cutoff=$(date -u -d "7 days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+             date -u -v-7d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "1970-01-01T00:00:00Z")
+    gb_recent=$(awk -v cutoff="$cutoff" '
+        /^- timestamp:/ {
+            ts=$0; gsub(/.*timestamp: ['"'"'"]?/, "", ts); gsub(/['"'"'"]?$/, "", ts);
+            if (ts >= cutoff) c++
+        }
+        END { print c+0 }
+    ' "$GATE_BYPASS_LOG" 2>/dev/null || echo 0)
+    if [ "$gb_recent" -gt 10 ]; then
+        warn "Gate-bypass log: $gb_recent bypasses in last 7 days" \
+             "$gb_total total entries; bypass-as-pattern signal" \
+             "Review .context/working/.gate-bypass-log.yaml — investigate caller distribution"
+    else
+        pass "Gate-bypass log: $gb_recent in last 7 days ($gb_total total)"
+    fi
+else
+    pass "Gate-bypass log: clean (no bypasses recorded)"
+fi
+
 # Check for commit-msg hook (validates task references)
 if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then
     pass "Commit-msg hook installed"
@@ -1042,10 +1089,10 @@ if [ -d "$TASKS_DIR/completed" ]; then
     # Find completed tasks matching bugfix patterns (T-1192: broadened from anchored match)
     while IFS= read -r task_file; do
         [ -z "$task_file" ] && continue
-        task_name=$(grep "^name:" "$task_file" 2>/dev/null | head -1 | sed 's/^name:[[:space:]]*"*//;s/"*$//')
+        task_name=$({ grep "^name:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/^name:[[:space:]]*"*//;s/"*$//')
         # Match: Fix/Bugfix/Hotfix anywhere, or RCA, or G-0XX gap reference
         echo "$task_name" | grep -qiE '\bfix\b|\bbugfix\b|\bhotfix\b|\bRCA\b|\bG-[0-9]' || continue
-        task_id=$(grep "^id:" "$task_file" 2>/dev/null | head -1 | sed 's/^id:[[:space:]]*//')
+        task_id=$({ grep "^id:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/^id:[[:space:]]*//')
         [ -z "$task_id" ] && continue
         bugfix_total=$((bugfix_total + 1))
         # Check if any learning references this task
@@ -1552,6 +1599,24 @@ if [ -f "$CHECKPOINT_LOG" ]; then
     echo "       C-003 checkpoint prompts today: $today_prompts"
 fi
 
+# C-006 OE (T-1716): Active inceptions with template-only Recommendation
+# Detective for the T-679 rule decay pattern (T-1715 meta-RCA). Catches
+# drift between filing-time gate sweeps. See lib/inception_recommendation.sh
+# for the extracted check function (testable in isolation).
+source "$FRAMEWORK_ROOT/lib/inception_recommendation.sh" 2>/dev/null || true
+c006_missing=0
+while IFS= read -r task_id; do
+    [ -z "$task_id" ] && continue
+    warn "C-006: Inception $task_id has template-only Recommendation block" \
+         "T-679 rule decay (T-1715 family); agent filed without recommendation" \
+         "Retrofit: fill in **Recommendation:** GO|NO-GO|DEFER + rationale + evidence; OR re-file via 'fw inception start --recommendation X --rationale ...' (T-1716 gate)"
+    c006_missing=$((c006_missing + 1))
+done < <(find_inceptions_without_recommendation "$PROJECT_ROOT/.tasks/active" 2>/dev/null)
+
+if [ "$c006_missing" -eq 0 ]; then
+    pass "C-006: All active inceptions have a real Recommendation block"
+fi
+
 echo ""
 fi # end oe-research
 
@@ -1565,7 +1630,7 @@ echo "=== OE-FAST: 30-MINUTE CONTROL CHECKS ==="
 # CTL-001 OE: Task-First Gate — focus file exists when source commits happen
 FOCUS_FILE="$CONTEXT_DIR/working/focus.yaml"
 if [ -f "$FOCUS_FILE" ]; then
-    focus_task=$(grep "^current_task:" "$FOCUS_FILE" 2>/dev/null | head -1 | sed 's/current_task: *//' | tr -d ' "')
+    focus_task=$({ grep "^current_task:" "$FOCUS_FILE" 2>/dev/null || true; } | head -1 | sed 's/current_task: *//' | tr -d ' "')
     if [ -n "$focus_task" ] && [ "$focus_task" != "null" ] && [ "$focus_task" != "~" ]; then
         pass "CTL-001: Focus file has active task ($focus_task)"
     else
@@ -1772,16 +1837,16 @@ fi
 shopt -s nullglob
 for task_file in "$TASKS_DIR/active"/*.md "$TASKS_DIR/completed"/*.md; do
     [ -f "$task_file" ] || continue
-    task_workflow=$(grep "^workflow_type:" "$task_file" | head -1 | cut -d: -f2 | tr -d ' ')
+    task_workflow=$({ grep "^workflow_type:" "$task_file" 2>/dev/null || true; } | head -1 | cut -d: -f2 | tr -d ' ')
     [ "$task_workflow" != "inception" ] && continue
-    task_id=$(grep "^id:" "$task_file" | head -1 | sed 's/id: //' | tr -d ' ')
+    task_id=$({ grep "^id:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/id: //' | tr -d ' ')
     [ -z "$task_id" ] && continue
 
     # Count commits for this task
     task_commits=$(git -C "$PROJECT_ROOT" log --oneline --all --grep="$task_id" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$task_commits" -gt 2 ]; then
         # Check for decision
-        has_decision=$(grep -c "inception-decision\|fw inception decide\|Decision:.*GO\|Decision:.*NO-GO\|Decision\*\*: DEFER\|Decision: DEFER" "$task_file" 2>/dev/null || true)
+        has_decision=$(grep -c "inception-decision\|fw inception decide\|Decision:.*GO\|Decision:.*NO-GO\|Decision\*\*: DEFER\|Decision: DEFER\|Decision\*\*: SUPERSEDED\|Decision: SUPERSEDED" "$task_file" 2>/dev/null || true)
         has_decision=$(echo "$has_decision" | tr -d '[:space:]')
         # Check for bypass log entries
         has_bypass=$(grep -c "$task_id" "$CONTEXT_DIR/bypass-log.yaml" 2>/dev/null || true)
@@ -1805,9 +1870,9 @@ shopt -u nullglob
 shopt -s nullglob
 for task_file in "$TASKS_DIR/active"/*.md; do
     [ -f "$task_file" ] || continue
-    task_workflow=$(grep "^workflow_type:" "$task_file" | head -1 | cut -d: -f2 | tr -d ' ')
+    task_workflow=$({ grep "^workflow_type:" "$task_file" 2>/dev/null || true; } | head -1 | cut -d: -f2 | tr -d ' ')
     [ "$task_workflow" != "inception" ] && continue
-    task_id=$(grep "^id:" "$task_file" | head -1 | sed 's/id: //' | tr -d ' ')
+    task_id=$({ grep "^id:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/id: //' | tr -d ' ')
     [ -z "$task_id" ] && continue
 
     _missing=""
@@ -1883,7 +1948,7 @@ shopt -s nullglob
 recent_completed=$(find "$TASKS_DIR/completed" -maxdepth 1 -name '*.md' -type f -print0 2>/dev/null | xargs -r -0 ls -t 2>/dev/null | head -3)
 for task_file in $recent_completed; do
     [ -f "$task_file" ] || continue
-    task_id=$(grep "^id:" "$task_file" | head -1 | sed 's/id: //' | tr -d ' ')
+    task_id=$({ grep "^id:" "$task_file" 2>/dev/null || true; } | head -1 | sed 's/id: //' | tr -d ' ')
 
     # Extract verification commands (skip HTML comment blocks)
     in_verify=false
@@ -1922,13 +1987,49 @@ for task_file in $recent_completed; do
         cmd_pass=0
         cmd_fail=0
         for cmd in "${verify_cmds[@]}"; do
-            if eval "$cmd" >/dev/null 2>&1; then
+            if [ -n "${FW_AUDIT_VERIFY_DEBUG:-}" ]; then
+                # T-1475: capture stderr/stdout so CTL-013 false positives can be
+                # diagnosed (OBS-022 — audit reports bats fails, isolated runs pass).
+                _aud_out=$(mktemp 2>/dev/null || echo "/tmp/fw-audit-verify-$$")
+                # FW_AUDIT_VERIFY_TRACE=1 adds bash xtrace for deepest visibility.
+                if [ -n "${FW_AUDIT_VERIFY_TRACE:-}" ]; then
+                    _eval_rc=0
+                    {
+                        echo "PWD=$PWD"
+                        echo "BASH_OPTS=$-"
+                        echo "PATH=$PATH"
+                        env | grep -E '^(BATS|TMPDIR|HOME|SHELL|TERM|TAP)' | sort
+                        set -x
+                        eval "$cmd"
+                        set +x
+                    } >"$_aud_out" 2>&1 || _eval_rc=$?
+                else
+                    # T-1475: brace-grouped redirection (NOT subshell). When the
+                    # eval'd command was bats, the prior subshell variant produced
+                    # rc=1 with no output (Heisenbug — observable failure with
+                    # `( eval "$cmd" ) >X 2>&1`, but a brace-group `{ eval ...; } >X 2>&1`
+                    # passes consistently). Root cause unconfirmed (likely bats
+                    # parent-shell coupling); brace-group sidesteps it.
+                    _eval_rc=0
+                    { eval "$cmd"; } >"$_aud_out" 2>&1 || _eval_rc=$?
+                fi
+                if [ "$_eval_rc" -eq 0 ]; then
+                    cmd_pass=$((cmd_pass + 1))
+                    rm -f "$_aud_out"
+                else
+                    cmd_fail=$((cmd_fail + 1))
+                    echo "DEBUG ($task_id) FAIL (rc=$_eval_rc): $cmd" >&2
+                    echo "DEBUG ($task_id) captured output (first 20 lines):" >&2
+                    head -20 "$_aud_out" >&2 || true
+                    echo "DEBUG ($task_id) ---" >&2
+                    rm -f "$_aud_out"
+                fi
+            elif eval "$cmd" >/dev/null 2>&1; then
                 cmd_pass=$((cmd_pass + 1))
             else
                 cmd_fail=$((cmd_fail + 1))
-                # FW_AUDIT_VERIFY_DEBUG=1 surfaces the failing command for diagnosis
-                # (T-1395: surface which CTL-013 verification step is failing).
-                [ -n "${FW_AUDIT_VERIFY_DEBUG:-}" ] && echo "DEBUG ($task_id) FAIL: $cmd" >&2
+                # T-1395: surface which CTL-013 verification step is failing.
+                # FW_AUDIT_VERIFY_DEBUG=1 also dumps captured output (T-1475).
             fi
         done
         if [ "$cmd_fail" -eq 0 ]; then
@@ -2478,6 +2579,87 @@ case "$d5_level" in
         ;;
 esac
 
+# D13: Inception Limbo (Score 15, T-1490 / OBS-025)
+# Inception tasks where the human decision is recorded but the workflow
+# never reached completed/. Two classes — both now sweep-eligible:
+#   A) status=work-completed + has Decision + Human AC unchecked
+#      (T-1423 sweep ticks AC + moves to completed/ when all ACs check out)
+#   B) status=started-work + has GO/NO-GO Decision + all ACs checked
+#      (T-1514 sweep promotes started-work→work-completed in place, then
+#       runs class A logic. Underlying root cause closed in T-1515:
+#       do_inception_decide now propagates update-task.sh exit codes.)
+d13_result=$(python3 << 'D13EOF'
+import os, glob, re
+
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", ".")
+ACTIVE = os.path.join(PROJECT_ROOT, ".tasks", "active")
+
+DECISION_RE = re.compile(r"^\*\*Decision\*\*:\s*(GO|NO-GO|DEFER)", re.MULTILINE)
+HUMAN_HEADER_RE = re.compile(r"^### Human\b", re.MULTILINE)
+NEXT_HEADER_RE = re.compile(r"^## ", re.MULTILINE)
+UNCHECKED_RE = re.compile(r"^\s*- \[ \]", re.MULTILINE)
+
+def fm_field(text, name):
+    m = re.search(rf"^{name}:\s*(\S.*?)\s*$", text, re.MULTILINE)
+    return m.group(1).strip() if m else ""
+
+def section(text, header_re):
+    m = header_re.search(text)
+    if not m:
+        return ""
+    rest = text[m.end():]
+    n = NEXT_HEADER_RE.search(rest)
+    return rest[: n.start()] if n else rest
+
+def count_unchecked(text, header_re):
+    sec = section(text, header_re)
+    return len(UNCHECKED_RE.findall(sec))
+
+class_a = []  # work-completed but Human AC unticked
+class_b = []  # started-work but all ACs ticked + decision recorded
+
+for f in sorted(glob.glob(os.path.join(ACTIVE, "T-*.md"))):
+    try:
+        text = open(f).read()
+    except OSError:
+        continue
+    if fm_field(text, "workflow_type") != "inception":
+        continue
+    status = fm_field(text, "status")
+    if not DECISION_RE.search(text):
+        continue
+    tid = fm_field(text, "id")
+    human_unchecked = count_unchecked(text, HUMAN_HEADER_RE)
+    if status == "work-completed" and human_unchecked > 0:
+        class_a.append(f"{tid}(A:{human_unchecked}hu)")
+    elif status == "started-work" and human_unchecked == 0:
+        class_b.append(f"{tid}(B)")
+
+total = len(class_a) + len(class_b)
+if total == 0:
+    print("PASS 0")
+else:
+    parts = class_a + class_b
+    shown = parts[:8]
+    extra = f" (+{total-8} more)" if total > 8 else ""
+    a_n, b_n = len(class_a), len(class_b)
+    print(f"WARN {total} A={a_n}/B={b_n} {' '.join(shown)}{extra}")
+D13EOF
+)
+d13_level=$(echo "$d13_result" | awk '{print $1}')
+d13_count=$(echo "$d13_result" | awk '{print $2}')
+d13_detail=$(echo "$d13_result" | cut -d' ' -f3-)
+case "$d13_level" in
+    WARN)
+        warn "D13: Inception limbo — $d13_count task(s): $d13_detail" \
+             "Decision recorded but workflow stuck in active/" \
+             "Recover both classes with: bin/fw inception sweep (T-1514)"
+        ;;
+    *)
+        pass "D13: Inception limbo — no stuck inceptions"
+        ;;
+esac
+
 # D3: Commit Velocity Anomalies (Score 16)
 # Compare daily commit count against 7-day moving average
 d3_result=$(python3 << 'D3EOF'
@@ -2784,6 +2966,152 @@ case "$d9_level" in
 esac
 
 echo ""
+
+# D14: Empty Recommendation in inception tasks (T-1497)
+# Pickup-created inceptions land in the "Awaiting Decision" queue with
+# HTML-comment-only Recommendation sections. The do_inception_decide gate
+# (lib/inception.sh + lib/task-audit.sh:audit_inception_recommendation)
+# now blocks decide-time, but capturing the pre-decide state in the audit
+# trail makes the regression visible BEFORE someone tries to decide.
+d14_result=$(python3 << 'D14EOF'
+import os, re, glob
+
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", ".")
+ACTIVE_DIR = os.path.join(PROJECT_ROOT, ".tasks", "active")
+
+def has_substantive_recommendation(text):
+    # Locate ## Recommendation section body (until next ## heading)
+    # T-1528: H2+ terminator (L-293) — prevents Updates entries with literal
+    # `**Recommendation:**` text from false-positiving the substantive check.
+    m = re.search(r'^## Recommendation\s*$(.*?)(?=^#{2,} |\Z)', text, re.MULTILINE | re.DOTALL)
+    if not m:
+        return True  # no section = different audit concern, not ours
+    body = m.group(1)
+    # Strip multi-line HTML comments
+    body = re.sub(r'<!--.*?-->', '', body, flags=re.DOTALL)
+    # T-1510: accept bulleted (`- **Recommendation:**` / `* **Recommendation:**`)
+    # AND plain (`**Recommendation:**`) forms. Original \s* pattern only
+    # allowed whitespace before the bold marker, so older inception tasks that
+    # authored the recommendation as a list item (T-844, T-705) were
+    # false-positived as empty.
+    return bool(re.search(r'^\s*[-*]?\s*\*\*Recommendation:\*\*\s*\S', body, re.MULTILINE))
+
+empty = []
+for f in glob.glob(os.path.join(ACTIVE_DIR, "T-*.md")):
+    try:
+        with open(f) as fh:
+            text = fh.read()
+    except Exception:
+        continue
+    if "workflow_type: inception" not in text:
+        continue
+    # Only flag tasks where someone could try to decide (started-work or captured)
+    fm = re.match(r'^---\n(.*?)\n---', text, re.DOTALL)
+    if fm:
+        status_m = re.search(r'^status:\s*(\S+)', fm.group(1), re.MULTILINE)
+        if status_m and status_m.group(1) not in ("started-work", "captured"):
+            continue
+    if not has_substantive_recommendation(text):
+        empty.append(os.path.basename(f).split("-")[0] + "-" + os.path.basename(f).split("-")[1])
+
+if empty:
+    # Cap output length so a long list doesn't blow up the audit yaml
+    sample = " ".join(empty[:5])
+    suffix = f" (+{len(empty)-5} more)" if len(empty) > 5 else ""
+    print(f"WARN {len(empty)}_empty: {sample}{suffix}")
+else:
+    print("PASS no_empty_recommendations")
+D14EOF
+)
+d14_level=$(echo "$d14_result" | awk '{print $1}')
+case "$d14_level" in
+    WARN)
+        d14_detail=$(echo "$d14_result" | cut -d' ' -f2-)
+        warn "D14: Empty inception Recommendation — $d14_detail" \
+             "Inception tasks await decision with HTML-comment-only Recommendation" \
+             "Fill ## Recommendation block with **Recommendation:** + rationale before decide"
+        ;;
+    *)
+        pass "D14: Empty inception Recommendation — none ($d14_result)"
+        ;;
+esac
+
+# D15: Inception limbo state (T-1511, OBS-025)
+# Inceptions with status=started-work, owner=human, all Human ACs ticked,
+# but no **Decision**: line in the body. Operator checked the AC boxes
+# intending to complete, then forgot to run `fw inception decide`. The
+# task stays in active/ as a ghost — D5 anomaly only fires on age, so
+# the bug is invisible until tasks rot. Excludes DEFER decisions
+# (intentional keep-active).
+d15_result=$(python3 << 'D15EOF'
+import os, re, glob
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", ".")
+ACTIVE_DIR = os.path.join(PROJECT_ROOT, ".tasks", "active")
+
+def is_limbo(text):
+    fm = re.match(r'^---\n(.*?)\n---', text, re.DOTALL)
+    if not fm:
+        return False
+    front = fm.group(1)
+    if "workflow_type: inception" not in front:
+        return False
+    status_m = re.search(r'^status:\s*(\S+)', front, re.MULTILINE)
+    owner_m = re.search(r'^owner:\s*(\S+)', front, re.MULTILINE)
+    if not status_m or status_m.group(1) != "started-work":
+        return False
+    if not owner_m or owner_m.group(1) != "human":
+        return False
+    # Decision check — any **Decision**: line means not in limbo
+    if re.search(r'^\*\*Decision\*\*:\s*\S', text, re.MULTILINE):
+        return False
+    # Human ACs — find ### Human section and check for unchecked items
+    human_m = re.search(r'^### Human\s*$(.*?)(?=^### |^## |\Z)', text, re.MULTILINE | re.DOTALL)
+    if not human_m:
+        return False  # no Human section = different shape, not our concern
+    human_body = human_m.group(1)
+    # Strip HTML comments so commented-out templates don't count
+    human_body = re.sub(r'<!--.*?-->', '', human_body, flags=re.DOTALL)
+    unchecked = len(re.findall(r'^- \[ \]', human_body, re.MULTILINE))
+    checked = len(re.findall(r'^- \[x\]', human_body, re.MULTILINE | re.IGNORECASE))
+    # Limbo only when there ARE Human ACs AND none are unchecked
+    return checked > 0 and unchecked == 0
+
+limbo = []
+for f in glob.glob(os.path.join(ACTIVE_DIR, "T-*.md")):
+    try:
+        with open(f) as fh:
+            text = fh.read()
+    except Exception:
+        continue
+    if is_limbo(text):
+        bn = os.path.basename(f)
+        # T-XXXX-slug.md → T-XXXX
+        m = re.match(r'^(T-\d+)', bn)
+        if m:
+            limbo.append(m.group(1))
+
+if limbo:
+    sample = " ".join(limbo[:5])
+    suffix = f" (+{len(limbo)-5} more)" if len(limbo) > 5 else ""
+    print(f"WARN {len(limbo)}_limbo: {sample}{suffix}")
+else:
+    print("PASS no_limbo")
+D15EOF
+)
+d15_level=$(echo "$d15_result" | awk '{print $1}')
+case "$d15_level" in
+    WARN)
+        d15_detail=$(echo "$d15_result" | cut -d' ' -f2-)
+        warn "D15: Inception limbo state — $d15_detail" \
+             "Inception with all Human ACs ticked but no decision recorded — operator forgot to run fw inception decide" \
+             "Run: fw inception decide T-XXX go|no-go|defer --rationale '...'"
+        ;;
+    *)
+        pass "D15: Inception limbo state — none ($d15_result)"
+        ;;
+esac
+
+echo ""
 fi # end discovery-trends
 
 # ============================================
@@ -2890,6 +3218,125 @@ fi
 
 echo ""
 fi # end deployment
+
+# ============================================
+# ORCHESTRATOR ARC CHECKS (T-1646 — drift defense for MCP-tool task_id enforcement)
+# Origin: T-1641 W10. Probes /opt/termlink, classifies MCP tools, surfaces drift.
+# ============================================
+if should_run_section "orchestrator"; then
+echo "=== ORCHESTRATOR ARC CHECKS ==="
+
+ORCH_SCRIPT="$FRAMEWORK_ROOT/agents/audit/orchestrator-mcp-scan.sh"
+ORCH_LATEST="$CONTEXT_DIR/audits/orchestrator-LATEST.yaml"
+
+if [ ! -x "$ORCH_SCRIPT" ]; then
+    warn "Orchestrator scan: $ORCH_SCRIPT not executable" \
+         "$ORCH_SCRIPT missing or not +x" \
+         "chmod +x $ORCH_SCRIPT"
+elif ! [ -d "${FW_TERMLINK_REPO:-/opt/termlink}/crates/termlink-mcp/src" ] && ! command -v termlink >/dev/null 2>&1; then
+    info "Orchestrator scan: skipped — TermLink repo unreachable on this host"
+else
+    if bash "$ORCH_SCRIPT" >/dev/null 2>&1; then
+        ORCH_STATUS=$(grep -oE '^status: [a-z]+' "$ORCH_LATEST" 2>/dev/null | awk '{print $2}')
+        ORCH_GATED=$(grep -oE '^gated_current: [0-9]+' "$ORCH_LATEST" 2>/dev/null | awk '{print $2}')
+        ORCH_TOTAL=$(grep -oE '^current_count: [0-9]+' "$ORCH_LATEST" 2>/dev/null | awk '{print $2}')
+        pass "Orchestrator-arc MCP scan: $ORCH_STATUS — $ORCH_GATED/$ORCH_TOTAL tools gated"
+    else
+        ORCH_EXIT=$?
+        if [ "$ORCH_EXIT" = "1" ]; then
+            ORCH_WARNS=$(awk '/^warnings:/{flag=1; next} /^errors:/{flag=0} flag' "$ORCH_LATEST" 2>/dev/null | head -1 | sed 's/^- //')
+            # T-1649: tag-format drift uses a different remediation path than baseline drift.
+            if echo "$ORCH_WARNS" | grep -q "TAG-FORMAT-DRIFT"; then
+                warn "Orchestrator-arc tag-format drift: live sessions carry non-canonical prefixes" \
+                     "${ORCH_WARNS:-see $ORCH_LATEST}" \
+                     "Fix at source: update spawn callers (see /orchestrator) or add validator (T-1649 cross-repo half)"
+            else
+                warn "Orchestrator-arc MCP scan: drift detected" \
+                     "${ORCH_WARNS:-see $ORCH_LATEST}" \
+                     "Update .context/audits/orchestrator-mcp-baseline.yaml or investigate ratchet/new-tool"
+            fi
+        elif [ "$ORCH_EXIT" = "2" ]; then
+            ORCH_ERRS=$(awk '/^errors:/{flag=1; next} /^[a-z]/{flag=0} flag' "$ORCH_LATEST" 2>/dev/null | head -1 | sed 's/^- //')
+            fail "Orchestrator-arc MCP scan: regression — gated tool lost its check_task_governance" \
+                 "${ORCH_ERRS:-see $ORCH_LATEST}" \
+                 "Restore the gate or update baseline if removal was intentional (commit body must explain)"
+        else
+            warn "Orchestrator-arc MCP scan: probe failed (exit $ORCH_EXIT)" \
+                 "Cannot reach /opt/termlink via direct read or termlink interact" \
+                 "Check FW_TERMLINK_REPO and TermLink session availability"
+        fi
+    fi
+fi
+
+echo ""
+fi # end orchestrator
+
+# ============================================
+# ARC-COMPLETION CHECK (T-1656 / G-062 mechanism #2)
+# Detect arcs whose constituent tasks are mostly completed but where the arc
+# itself was never explicitly closed. Catches the "shipped without three-question
+# check" failure mode codified in CLAUDE.md §Arc Completion Discipline.
+# ============================================
+if should_run_section "arc-completion" || should_run_section "oe-daily"; then
+echo "=== ARC-COMPLETION CHECKS ==="
+
+ARC_DIR="$CONTEXT_DIR/arcs"
+if [ ! -d "$ARC_DIR" ] || ! ls "$ARC_DIR"/*.yaml >/dev/null 2>&1; then
+    info "Arc registry empty — no arcs to evaluate"
+else
+    threshold="${FW_ARC_COMPLETION_THRESHOLD:-0.80}"
+    for arc_yaml in "$ARC_DIR"/*.yaml; do
+        # Parse arc fields (id, status, constituent_tasks).
+        # Use python to avoid yaml-library coupling — simple line scan suffices.
+        eval "$(python3 - "$arc_yaml" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+def grab(field, default=""):
+    m = re.search(rf'^{field}:\s*(.*?)$', text, re.MULTILINE)
+    return m.group(1).strip() if m else default
+arc_id = grab("id")
+status = grab("status")
+ct_line = grab("constituent_tasks", "[]")
+m = re.match(r'\[(.*?)\]', ct_line)
+items = []
+if m and m.group(1).strip():
+    items = [s.strip().strip('"').strip("'") for s in m.group(1).split(",") if s.strip()]
+print(f'ARC_ID={arc_id!r}')
+print(f'ARC_STATUS={status!r}')
+print(f'ARC_TASKS=({" ".join(items)})')
+PY
+)"
+        # Skip closed arcs and empty arcs.
+        if [ "$ARC_STATUS" != "in-progress" ]; then continue; fi
+        total="${#ARC_TASKS[@]}"
+        if [ "$total" -eq 0 ]; then continue; fi
+
+        # Count tasks at status work-completed across active+completed dirs.
+        completed=0
+        for tid in "${ARC_TASKS[@]}"; do
+            tf=$({ ls "$PROJECT_ROOT"/.tasks/{active,completed}/"$tid"-*.md 2>/dev/null || true; } | head -1)
+            if [ -n "$tf" ] && grep -qE "^status:[[:space:]]*work-completed" "$tf"; then
+                completed=$((completed+1))
+            fi
+        done
+
+        # Compute ratio in shell using awk (portable; no bc dependency).
+        ratio=$(awk -v c="$completed" -v t="$total" 'BEGIN { printf "%.4f", c/t }')
+        # Compare ratio >= threshold (awk again).
+        ge=$(awk -v r="$ratio" -v th="$threshold" 'BEGIN { print (r+0 >= th+0) ? "1" : "0" }')
+
+        if [ "$ge" = "1" ]; then
+            warn "Arc '${ARC_ID}': ${completed}/${total} tasks completed (${ratio}) but arc still in-progress" \
+                 "Threshold ${threshold} reached — code-complete without explicit closure (G-062 signature)" \
+                 "Capture wire-evidence of the arc's headline_mechanic firing, then: fw arc close ${ARC_ID} --demo <path|url> --decision \"...\""
+        else
+            pass "Arc '${ARC_ID}': ${completed}/${total} (${ratio}) — below threshold ${threshold}, no closure pressure"
+        fi
+    done
+fi
+
+echo ""
+fi # end arc-completion
 
 # ============================================
 # SUMMARY (always runs)
