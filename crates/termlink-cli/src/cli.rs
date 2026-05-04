@@ -3404,6 +3404,18 @@ pub(crate) enum AgentAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Preview the resolved dm topic and metadata without posting
+        /// (T-1478). Resolves target → FP, computes the canonical
+        /// `dm:<sorted_a>:<sorted_b>` topic, builds the metadata block
+        /// (from_project auto-injected, to_project from `<name>:<project>`
+        /// suffix, `_thread` from `--thread`), prints a JSON preview to
+        /// stdout, and exits 0 without contacting the hub for the post.
+        /// Use this to verify name resolution and metadata stamping before
+        /// committing to a real post — useful in CI or for ad-hoc ops
+        /// validation. Same target-resolution errors fire as the live path.
+        #[arg(long = "dry-run")]
+        dry_run: bool,
     },
 
     /// Run a 4-phase format negotiation with a specialist session
