@@ -1193,6 +1193,7 @@ pub(crate) async fn cmd_agent_presence(
     watch: bool,
     watch_interval: u64,
     top: Option<usize>,
+    by_project: bool,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
     // T-1489: clamp `--top` to [1, 1000]. clamp() requires both bounds —
@@ -1222,34 +1223,118 @@ pub(crate) async fn cmd_agent_presence(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            let view_label = if by_project { "by-project" } else { "by-peer" };
             println!(
-                "# agent presence --watch | interval={}s | window={}s | {}",
-                clamped_interval, clamped_window_secs, now_str
+                "# agent presence --watch | view={} | interval={}s | window={}s | {}",
+                view_label, clamped_interval, clamped_window_secs, now_str
             );
             // Per-iteration fetch + render. Errors are non-fatal — we
             // print them and keep watching, so a transient hub blip
             // doesn't kill the dashboard.
-            match super::channel::fetch_fleet_presence_via_chat_arc(
-                hub,
-                clamped_window_secs,
-                filter_project,
-                filter_thread,
-            )
-            .await
-            {
-                Ok(rows) => render_presence_text(
-                    &rows,
+            if by_project {
+                match super::channel::fetch_fleet_by_project_via_chat_arc(
+                    hub,
                     clamped_window_secs,
                     filter_project,
                     filter_thread,
-                    clamped_top,
-                ),
-                Err(e) => {
-                    println!("# fetch error (will retry on next tick): {e}");
+                )
+                .await
+                {
+                    Ok(rows) => render_by_project_text(
+                        &rows,
+                        clamped_window_secs,
+                        filter_project,
+                        filter_thread,
+                        clamped_top,
+                    ),
+                    Err(e) => {
+                        println!("# fetch error (will retry on next tick): {e}");
+                    }
+                }
+            } else {
+                match super::channel::fetch_fleet_presence_via_chat_arc(
+                    hub,
+                    clamped_window_secs,
+                    filter_project,
+                    filter_thread,
+                )
+                .await
+                {
+                    Ok(rows) => render_presence_text(
+                        &rows,
+                        clamped_window_secs,
+                        filter_project,
+                        filter_thread,
+                        clamped_top,
+                    ),
+                    Err(e) => {
+                        println!("# fetch error (will retry on next tick): {e}");
+                    }
                 }
             }
             tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
         }
+    }
+
+    // T-1491: by-project branch reuses helpers; JSON envelope shape differs.
+    if by_project {
+        let rows = super::channel::fetch_fleet_by_project_via_chat_arc(
+            hub,
+            clamped_window_secs,
+            filter_project,
+            filter_thread,
+        )
+        .await
+        .context("agent presence --by-project: failed to fetch fleet activity")?;
+
+        if json {
+            let total_projects = rows.len();
+            let display_rows: &[super::channel::FleetProjectRow] = match clamped_top {
+                Some(n) => &rows[..rows.len().min(n)],
+                None => &rows,
+            };
+            let projects: Vec<serde_json::Value> = display_rows.iter().map(|r| r.to_json()).collect();
+            let mut out_obj = serde_json::Map::new();
+            out_obj.insert(
+                "view".to_string(),
+                serde_json::Value::String("by-project".to_string()),
+            );
+            out_obj.insert(
+                "window_secs".to_string(),
+                serde_json::Value::from(clamped_window_secs),
+            );
+            if let Some(f) = filter_project {
+                out_obj.insert(
+                    "filter_project".to_string(),
+                    serde_json::Value::String(f.to_string()),
+                );
+            }
+            if let Some(t) = filter_thread {
+                out_obj.insert(
+                    "filter_thread".to_string(),
+                    serde_json::Value::String(t.to_string()),
+                );
+            }
+            if let Some(n) = clamped_top {
+                out_obj.insert("top".to_string(), serde_json::Value::from(n));
+                out_obj.insert(
+                    "total_projects".to_string(),
+                    serde_json::Value::from(total_projects),
+                );
+            }
+            out_obj.insert("projects".to_string(), serde_json::Value::Array(projects));
+            println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
+            return Ok(());
+        }
+
+        render_by_project_text(
+            &rows,
+            clamped_window_secs,
+            filter_project,
+            filter_thread,
+            clamped_top,
+        );
+        return Ok(());
     }
 
     let rows = super::channel::fetch_fleet_presence_via_chat_arc(
@@ -1501,6 +1586,90 @@ fn render_presence_text(
         footer_count,
         window_secs,
         filter_suffix
+    );
+}
+
+/// T-1491: text-mode renderer for the by-project view. Mirrors
+/// `render_presence_text` (filter-aware empty/footer phrasing, optional
+/// `--top` truncation) but with project-keyed rows.
+fn render_by_project_text(
+    rows: &[super::channel::FleetProjectRow],
+    window_secs: u64,
+    filter_project: Option<&str>,
+    filter_thread: Option<&str>,
+    top: Option<usize>,
+) {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let filter_suffix = match (filter_project, filter_thread) {
+        (None, None) => String::new(),
+        (Some(p), None) => format!(" matching project={}", p),
+        (None, Some(t)) => format!(" matching thread={}", t),
+        (Some(p), Some(t)) => format!(" matching project={} thread={}", p, t),
+    };
+    if rows.is_empty() {
+        if filter_suffix.is_empty() {
+            println!(
+                "(no projects active in window={}s — fleet has no tagged posts)",
+                window_secs
+            );
+        } else {
+            println!(
+                "(no projects active in window={}s{})",
+                window_secs, filter_suffix
+            );
+        }
+        return;
+    }
+    if let Some(f) = filter_project {
+        println!("# filter_project={}", f);
+    }
+    if let Some(t) = filter_thread {
+        println!("# filter_thread={}", t);
+    }
+    println!(
+        "{:<24} {:>8} {:>8} {:<18}  {}",
+        "PROJECT", "POSTS", "PEERS", "TOP_PEER", "LAST_SEEN"
+    );
+    let total_projects = rows.len();
+    let display_rows: &[super::channel::FleetProjectRow] = match top {
+        Some(n) => &rows[..rows.len().min(n)],
+        None => rows,
+    };
+    for r in display_rows {
+        let last_seen_str = match r.last_seen_ms {
+            None => "never".to_string(),
+            Some(ms) => {
+                let age_secs = ((now_ms - ms) / 1000).max(0);
+                if age_secs < 60 {
+                    format!("{age_secs}s ago")
+                } else if age_secs < 3600 {
+                    format!("{}m ago", age_secs / 60)
+                } else if age_secs < 86_400 {
+                    format!("{}h ago", age_secs / 3600)
+                } else {
+                    format!("{}d ago", age_secs / 86_400)
+                }
+            }
+        };
+        let top_peer = r.top_peer_fp.as_deref().unwrap_or("-");
+        println!(
+            "{:<24} {:>8} {:>8} {:<18}  {}",
+            r.project, r.posts, r.distinct_peers, top_peer, last_seen_str
+        );
+    }
+    println!();
+    let footer_count = match top {
+        Some(_) if display_rows.len() < total_projects => {
+            format!("{} of {}", display_rows.len(), total_projects)
+        }
+        _ => total_projects.to_string(),
+    };
+    println!(
+        "{} project(s) active in window={}s{}",
+        footer_count, window_secs, filter_suffix
     );
 }
 
