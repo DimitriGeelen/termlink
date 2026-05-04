@@ -4,16 +4,16 @@ name: "fleet doctor --exit-code-on-verdict for cron/CI cut-readiness probing"
 description: >
   fleet doctor --exit-code-on-verdict for cron/CI cut-readiness probing
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-04T05:50:53Z
-last_update: 2026-05-04T05:50:53Z
-date_finished: null
+last_update: 2026-05-04T06:01:34Z
+date_finished: 2026-05-04T06:01:34Z
 ---
 
 # T-1465: fleet doctor --exit-code-on-verdict for cron/CI cut-readiness probing
@@ -114,3 +114,6 @@ grep -q "Cron/CI integration" docs/migrations/T-1166-retire-legacy-primitives.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1465-fleet-doctor---exit-code-on-verdict-for-.md
 - **Context:** Initial task creation
+
+### 2026-05-04T06:01:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
