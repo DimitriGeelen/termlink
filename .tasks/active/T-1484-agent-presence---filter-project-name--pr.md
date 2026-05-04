@@ -4,16 +4,16 @@ name: "agent presence --filter-project <name> — project-scoped fleet view"
 description: >
   agent presence --filter-project <name> — project-scoped fleet view
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T14:51:25Z
-last_update: 2026-05-04T14:51:25Z
-date_finished: null
+last_update: 2026-05-04T15:00:35Z
+date_finished: 2026-05-04T15:00:35Z
 ---
 
 # T-1484: agent presence --filter-project <name> — project-scoped fleet view
@@ -106,3 +106,6 @@ out=$(target/release/termlink agent presence --filter-project nonexistent-xyz-no
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1484-agent-presence---filter-project-name--pr.md
 - **Context:** Initial task creation
+
+### 2026-05-04T15:00:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
