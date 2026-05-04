@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1470: fleet doctor --trend: linear-fit ETA-to-zero forecast
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T07:22:29Z
+# ============================================================================
+
+task_id: T-1470
+task_name: "fleet doctor --trend: linear-fit ETA-to-zero forecast"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T07:08:14Z
+completed: 2026-05-04T07:21:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T09:17:19+02:00
+last_commit: 2026-05-04T09:17:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --trend — ETA-to-zero linear-fit forecast
+
+# Key outcomes
+outcomes:
+  - "Pure helper `compute_eta_to_zero(points: &[TrendPoint], now_ms: u64) -> Option<EtaForecast>` in `commands/remote.rs` — returns `None` when forecast doesn't apply (see below)"
+  - "`EtaForecast` struct: `{slope_per_day: f64, days_from_now: f64, target_ms: u64}`"
+  - "Forecast returns `None` when: fewer than 2 points with `ts_ms`, all points have the same total (zero slope), slope ≥ 0 (flat or growing), or current total ≤ 0"
+  - "Linear fit uses least-squares regression on (ts_ms, total) pairs (operates on f64 internally)"
+  - "Human-mode trend block adds a line: `  ETA to zero: 2026-05-23 (19.4 days at -1037/day)` when forecast applies; suppressed otherwise"
+  - "JSON-mode `legacy_summary.trend` gains an `eta_zero` field (object or null)"
+  - "At least 5 unit tests: <2 points returns None; flat returns None; growing returns None; clean linear decay produces correct ETA; noisy decay (with one inflection point) produces a sensible forward date"
+  - "`cargo build --release -p termlink` succeeds"
+  - "`cargo test --release -p termlink --bins eta_to_zero` passes"
+  - "Live verification: against the T-1468 fixture (3 snapshots: 25k → 24.5k → 22k → 20.4k current), trend block prints both trajectory + ETA line"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "docs/migrations/T-1166-retire-legacy-primitives.md"
+  - ".tasks/active/T-1470-fleet-doctor---trend-linear-fit-eta-to-z.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T09:17:19"
+    action: "T-1470: fleet doctor --trend — ETA-to-zero linear-fit forecast"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 3
+  lines_added: 337
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1470-fleet-doctor---trend-linear-fit-eta-to-z.md
+generated_by: context-agent-hybrid
