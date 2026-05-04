@@ -4,16 +4,16 @@ name: "agent on-thread --watch — live thread-following view"
 description: >
   agent on-thread --watch — live thread-following view
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:34:05Z
-last_update: 2026-05-04T17:34:05Z
-date_finished: null
+last_update: 2026-05-04T17:45:17Z
+date_finished: 2026-05-04T17:45:17Z
 ---
 
 # T-1494: agent on-thread --watch — live thread-following view
@@ -112,6 +112,10 @@ out=$(timeout 7 target/release/termlink agent on-thread T-1438 --watch --watch-i
 - **Rejected:** Pass `print_header: bool` flag to renderer — leaks UI concern into a body renderer; per-mode headers belong in the per-mode caller.
 
 ## Updates
+
+### 2026-05-04T17:45:17Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
 
 ### 2026-05-04T17:34:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
