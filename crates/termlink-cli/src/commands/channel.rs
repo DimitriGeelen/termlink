@@ -671,11 +671,13 @@ pub(crate) fn evaluate_presence(
     }
 }
 
-/// T-1480 / T-1481: fetch the last `slice_size` envelopes of
-/// `agent-chat-arc`. Returns an empty Vec when the topic is empty or doesn't
-/// exist. Single round-trip for `channel.list` + `channel.subscribe` — used
-/// by both presence (T-1480) and peer activity summary (T-1481).
-pub(crate) async fn fetch_recent_chat_arc_msgs(
+/// T-1485: fetch the last `slice_size` envelopes of any topic. Returns an
+/// empty Vec when the topic is empty or doesn't exist. Single round-trip
+/// for `channel.list` + `channel.subscribe`. Generalizes the original
+/// chat-arc-only helper (T-1480/T-1481) so dm topics can use the same
+/// walk pattern (T-1485 ack-wait).
+pub(crate) async fn fetch_topic_msgs(
+    topic: &str,
     hub: Option<&str>,
     slice_size: u64,
 ) -> Result<Vec<Value>> {
@@ -683,10 +685,10 @@ pub(crate) async fn fetch_recent_chat_arc_msgs(
     let list_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_LIST,
-        json!({"prefix": "agent-chat-arc"}),
+        json!({"prefix": topic}),
     )
     .await
-    .context("Hub rpc_call (channel.list agent-chat-arc) failed")?;
+    .with_context(|| format!("Hub rpc_call (channel.list {topic}) failed"))?;
     let list_result = client::unwrap_result(list_resp)
         .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
     let topics = list_result["topics"]
@@ -695,7 +697,7 @@ pub(crate) async fn fetch_recent_chat_arc_msgs(
         .unwrap_or_default();
     let count = topics
         .iter()
-        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some("agent-chat-arc"))
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
         .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
         .unwrap_or(0);
     if count == 0 {
@@ -705,13 +707,90 @@ pub(crate) async fn fetch_recent_chat_arc_msgs(
     let resp = rpc_call_authed(
         &sock,
         method::CHANNEL_SUBSCRIBE,
-        json!({"topic": "agent-chat-arc", "cursor": cursor, "limit": slice_size}),
+        json!({"topic": topic, "cursor": cursor, "limit": slice_size}),
     )
     .await
-    .context("Hub rpc_call (channel.subscribe agent-chat-arc) failed")?;
+    .with_context(|| format!("Hub rpc_call (channel.subscribe {topic}) failed"))?;
     let result = client::unwrap_result(resp)
         .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
     Ok(result["messages"].as_array().cloned().unwrap_or_default())
+}
+
+/// T-1480 / T-1481: fetch the last `slice_size` envelopes of
+/// `agent-chat-arc`. Thin wrapper around `fetch_topic_msgs` (T-1485) for
+/// the presence/who/who-target probes.
+pub(crate) async fn fetch_recent_chat_arc_msgs(
+    hub: Option<&str>,
+    slice_size: u64,
+) -> Result<Vec<Value>> {
+    fetch_topic_msgs("agent-chat-arc", hub, slice_size).await
+}
+
+/// T-1485: pure helper — find the first non-meta message on a dm topic
+/// posted by `peer_fp` *strictly after* `send_ts_ms`. Used by the ack-wait
+/// poll loop. Returns the timestamp of the first matching message, or None
+/// if no ack found in the slice.
+///
+/// Match rules:
+/// - `sender_id` must equal `peer_fp` (case-sensitive — fingerprints are
+///   canonical hex)
+/// - `msg_type` must NOT be in the meta filter
+///   (`reaction`, `edit`, `redaction`, `topic_metadata`, `receipt`)
+/// - `ts_unix_ms` (or `ts` fallback) must be > `send_ts_ms` (strict — the
+///   sender's own post is excluded by the timestamp comparison even if
+///   peer_fp == self_fp by coincidence, because the slice walk picks up
+///   the just-posted message at exactly send_ts_ms)
+pub(crate) fn detect_ack_in_msgs(
+    msgs: &[Value],
+    peer_fp: &str,
+    send_ts_ms: i64,
+) -> Option<i64> {
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts > send_ts_ms {
+            return Some(ts);
+        }
+    }
+    None
+}
+
+/// T-1485: poll a dm topic for an ack from `peer_fp` posted after
+/// `send_ts_ms`. Polls at ~1s cadence using `fetch_topic_msgs(slice=200)`
+/// — chosen so we see ~3min of dm history per poll which is plenty for
+/// the conversational use case. Returns Ok(Some(ts_ms)) on ack,
+/// Ok(None) on timeout. Errors propagate (e.g. hub unreachable).
+pub(crate) async fn wait_for_peer_ack(
+    topic: &str,
+    peer_fp: &str,
+    send_ts_ms: i64,
+    hub: Option<&str>,
+    timeout_secs: u64,
+) -> Result<Option<i64>> {
+    use tokio::time::{sleep, Duration, Instant};
+    let start = Instant::now();
+    loop {
+        let msgs = fetch_topic_msgs(topic, hub, 200).await?;
+        if let Some(ts) = detect_ack_in_msgs(&msgs, peer_fp, send_ts_ms) {
+            return Ok(Some(ts));
+        }
+        if start.elapsed().as_secs() >= timeout_secs {
+            return Ok(None);
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
 }
 
 /// T-1480: probe the canonical liveness topic for peer presence. Walks the
@@ -8536,6 +8615,85 @@ mod tests {
             "top_project under filter is the filter value, not overall max"
         );
         assert_eq!(rows[0].posts, 1);
+    }
+
+    // ---- T-1485 detect_ack_in_msgs tests ------------------------------
+
+    #[test]
+    fn detect_ack_empty_msgs_returns_none() {
+        assert_eq!(detect_ack_in_msgs(&[], "peer1", 1_000_000), None);
+    }
+
+    #[test]
+    fn detect_ack_no_msgs_match_peer_fp() {
+        let send_ts = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("other1", send_ts + 100, "post", None),
+            activity_msg("other2", send_ts + 200, "post", None),
+        ];
+        assert_eq!(detect_ack_in_msgs(&msgs, "peer1", send_ts), None);
+    }
+
+    #[test]
+    fn detect_ack_msg_before_send_ignored() {
+        let send_ts = 1_700_000_000_000_i64;
+        // Peer's only post is BEFORE we sent — that's not an ack to our msg.
+        let msgs = vec![activity_msg("peer1", send_ts - 100, "post", None)];
+        assert_eq!(detect_ack_in_msgs(&msgs, "peer1", send_ts), None);
+    }
+
+    #[test]
+    fn detect_ack_at_exact_send_ts_ignored() {
+        let send_ts = 1_700_000_000_000_i64;
+        // Peer post AT send_ts is excluded by strict `>` — guards against
+        // self-ack when peer_fp coincides with own fp on co-resident nodes.
+        let msgs = vec![activity_msg("peer1", send_ts, "post", None)];
+        assert_eq!(detect_ack_in_msgs(&msgs, "peer1", send_ts), None);
+    }
+
+    #[test]
+    fn detect_ack_meta_msgs_skipped() {
+        let send_ts = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", send_ts + 100, "reaction", None),
+            activity_msg("peer1", send_ts + 200, "edit", None),
+            activity_msg("peer1", send_ts + 300, "topic_metadata", None),
+            activity_msg("peer1", send_ts + 400, "redaction", None),
+            activity_msg("peer1", send_ts + 500, "receipt", None),
+        ];
+        assert_eq!(
+            detect_ack_in_msgs(&msgs, "peer1", send_ts),
+            None,
+            "meta msg-types are not acks"
+        );
+    }
+
+    #[test]
+    fn detect_ack_first_match_wins() {
+        let send_ts = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", send_ts + 100, "post", None),
+            activity_msg("peer1", send_ts + 200, "post", None),
+            activity_msg("peer1", send_ts + 300, "post", None),
+        ];
+        assert_eq!(
+            detect_ack_in_msgs(&msgs, "peer1", send_ts),
+            Some(send_ts + 100),
+            "returns the first matching post (slice is in arrival order)"
+        );
+    }
+
+    #[test]
+    fn detect_ack_post_after_send_returns_ts() {
+        let send_ts = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("other", send_ts + 50, "post", None),
+            activity_msg("peer1", send_ts + 150, "post", Some("foo")),
+        ];
+        assert_eq!(
+            detect_ack_in_msgs(&msgs, "peer1", send_ts),
+            Some(send_ts + 150)
+        );
     }
 
     #[test]

@@ -3433,6 +3433,21 @@ pub(crate) enum AgentAction {
         /// peer. Clamped to [10, 86400]. Ignored without `--require-online`.
         #[arg(long = "online-window-secs", default_value_t = 300)]
         online_window_secs: u64,
+
+        /// Wait for the peer to post back on the dm topic before exiting
+        /// (T-1485, Q4 deferred from T-1425). Default behavior is fire-and-
+        /// forget. With this flag set: after the post, poll the dm topic
+        /// for any non-meta message from the peer's fp posted *after* our
+        /// send. On ack: exit 0. On `--ack-timeout-secs` exceeded: exit 10.
+        /// Pairs with `--require-online` (pre-flight) for full synchronous-
+        /// engagement semantic.
+        #[arg(long = "ack-required")]
+        ack_required: bool,
+
+        /// Timeout (seconds) for `--ack-required` poll. Default 60.
+        /// Clamped to [5, 600]. Ignored without `--ack-required`.
+        #[arg(long = "ack-timeout-secs", default_value_t = 60)]
+        ack_timeout_secs: u64,
     },
 
     /// Fleet-wide peer presence — companion to `agent who` (T-1482).
