@@ -272,6 +272,9 @@ async fn main() -> Result<()> {
             AgentAction::Presence { window_secs, hub, json, filter_project, watch, watch_interval } => {
                 commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json, filter_project.as_deref(), watch, watch_interval).await
             }
+            AgentAction::Ping { target, target_fp, window_secs, hub, json } => {
+                commands::agent::cmd_agent_ping(target.as_deref(), target_fp.as_deref(), window_secs, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
