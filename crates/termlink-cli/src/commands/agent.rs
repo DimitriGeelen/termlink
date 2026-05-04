@@ -713,6 +713,7 @@ pub(crate) async fn cmd_agent_contact(
     thread: Option<&str>,
     hub: Option<&str>,
     json: bool,
+    dry_run: bool,
 ) -> Result<()> {
     // T-1429 Phase-2 (this build): support --target-fp <hex> as a cross-host
     // bypass for the local-only session.discover gap. Either positional
@@ -810,6 +811,27 @@ pub(crate) async fn cmd_agent_contact(
         extra_metadata.push(format!("to_project={p}"));
     }
 
+    // T-1478: dry-run path — print preview JSON, do not contact the hub.
+    // Builds the full metadata block including the auto-injected
+    // `from_project` (T-1472), the `to_project` from the `name:project`
+    // qualifier (T-1474), and `_thread` from `--thread`. Always JSON
+    // output (the use case is scripting / CI verification).
+    if dry_run {
+        let identity = super::channel::load_identity_or_create()
+            .context("agent contact --dry-run: cannot load local identity")?;
+        let my_id = identity.fingerprint().to_string();
+        let topic = super::channel::dm_topic(&my_id, peer_fp);
+        let preview = render_dry_run_preview(
+            &my_id,
+            peer_fp,
+            &topic,
+            extra_metadata.iter().map(String::as_str),
+            message,
+        );
+        println!("{}", serde_json::to_string_pretty(&preview)?);
+        return Ok(());
+    }
+
     super::channel::cmd_channel_dm(
         peer_fp,
         Some(message),
@@ -822,6 +844,44 @@ pub(crate) async fn cmd_agent_contact(
     )
     .await
     .with_context(|| format!("agent contact: posting to dm topic for peer fp={peer_fp} failed"))
+}
+
+/// T-1478: pure helper — build the dry-run preview JSON. Mirrors the
+/// metadata that `cmd_channel_dm` would stamp on the post (from_project
+/// auto-injected by `cmd_channel_post`, plus any extra_metadata supplied
+/// here). Pure: no I/O, no globals; tested via contact_tests.
+pub(crate) fn render_dry_run_preview<'a, I>(
+    my_id: &str,
+    peer_fp: &str,
+    topic: &str,
+    extra_metadata: I,
+    message: &str,
+) -> serde_json::Value
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    let mut metadata = serde_json::Map::new();
+    // Mirror channel::cmd_channel_post's auto-inject for from_project so the
+    // operator sees what would actually land on the wire. Pure-function call.
+    if let Some(p) = std::env::current_dir()
+        .ok()
+        .and_then(|cwd| super::channel::resolve_project_name_from(&cwd))
+    {
+        metadata.insert("from_project".to_string(), serde_json::Value::String(p));
+    }
+    for kv in extra_metadata {
+        if let Some((k, v)) = kv.split_once('=') {
+            metadata.insert(k.to_string(), serde_json::Value::String(v.to_string()));
+        }
+    }
+    serde_json::json!({
+        "dry_run": true,
+        "my_id": my_id,
+        "peer_fp": peer_fp,
+        "topic": topic,
+        "metadata": metadata,
+        "message": message,
+    })
 }
 
 #[cfg(test)]
@@ -890,6 +950,56 @@ mod contact_tests {
         let err = parse_contact_target("penelope:foo:bar").unwrap_err();
         // Allow the message to phrase this as "at most one `:`" or similar.
         assert!(err.contains("at most one") || err.contains("colon"), "got: {err}");
+    }
+
+    // T-1478: dry-run preview shape.
+    use super::render_dry_run_preview;
+
+    #[test]
+    fn render_dry_run_preview_basic_shape() {
+        let v = render_dry_run_preview(
+            "aaaa",
+            "bbbb",
+            "dm:aaaa:bbbb",
+            ["_thread=T-1478", "to_project=050-email-archive"].iter().copied(),
+            "hello",
+        );
+        assert_eq!(v.get("dry_run").and_then(|x| x.as_bool()), Some(true));
+        assert_eq!(v.get("my_id").and_then(|x| x.as_str()), Some("aaaa"));
+        assert_eq!(v.get("peer_fp").and_then(|x| x.as_str()), Some("bbbb"));
+        assert_eq!(v.get("topic").and_then(|x| x.as_str()), Some("dm:aaaa:bbbb"));
+        assert_eq!(v.get("message").and_then(|x| x.as_str()), Some("hello"));
+        let md = v.get("metadata").and_then(|m| m.as_object()).expect("metadata is object");
+        assert_eq!(md.get("_thread").and_then(|x| x.as_str()), Some("T-1478"));
+        assert_eq!(
+            md.get("to_project").and_then(|x| x.as_str()),
+            Some("050-email-archive"),
+        );
+    }
+
+    #[test]
+    fn render_dry_run_preview_no_extras_yields_empty_metadata_object() {
+        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x");
+        let md = v.get("metadata").and_then(|m| m.as_object()).expect("metadata is object");
+        // from_project may or may not appear depending on cwd; what matters is
+        // _thread/to_project are absent when not supplied.
+        assert!(md.get("_thread").is_none());
+        assert!(md.get("to_project").is_none());
+    }
+
+    #[test]
+    fn render_dry_run_preview_skips_malformed_extras_without_eq() {
+        // Extras lacking `=` are silently skipped — they shouldn't crash.
+        let v = render_dry_run_preview(
+            "a",
+            "b",
+            "dm:a:b",
+            ["malformed-no-equals", "_thread=T-1"].iter().copied(),
+            "x",
+        );
+        let md = v.get("metadata").and_then(|m| m.as_object()).expect("metadata is object");
+        assert!(md.get("malformed-no-equals").is_none());
+        assert_eq!(md.get("_thread").and_then(|x| x.as_str()), Some("T-1"));
     }
 
     #[test]

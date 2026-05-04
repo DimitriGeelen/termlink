@@ -591,7 +591,11 @@ mod cursor_store {
 
 /// T-1319: derive the canonical DM topic name from `(my_id, peer_id)`.
 /// Sorted alphabetically and joined as `dm:<a>:<b>` so both ends agree.
-fn dm_topic(my_id: &str, peer: &str) -> String {
+///
+/// T-1478: pub(crate) so `commands::agent::cmd_agent_contact --dry-run` can
+/// reuse the canonical computation without spawning a hub round-trip via
+/// `cmd_channel_dm`.
+pub(crate) fn dm_topic(my_id: &str, peer: &str) -> String {
     let (a, b) = if my_id <= peer {
         (my_id, peer)
     } else {
