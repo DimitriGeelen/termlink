@@ -3677,6 +3677,54 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Show all recent posts on a thread/task across the fleet (T-1493).
+    /// Companion to `agent who --thread` (per-peer aggregate) and
+    /// `agent presence --thread` (fleet aggregate): those summarize
+    /// activity; this is the chronological reading view. Walks
+    /// `agent-chat-arc` filtered by `metadata._thread`, optionally
+    /// further by project/peer, and prints last N posts in time order
+    /// — natural for "let me read what happened on T-XXX".
+    OnThread {
+        /// Thread/task identifier (e.g. T-1485). Required positional.
+        thread: String,
+
+        /// Number of posts to return. Default 50 (denser than `recent`'s
+        /// 10 because thread logs typically have many posts). Clamped
+        /// to [1, 500].
+        #[arg(long = "n", default_value_t = 50)]
+        n: usize,
+
+        /// Window (seconds) for the activity slice. Default 86400 (1
+        /// day). Clamped to [60, 604800].
+        #[arg(long = "window-secs", default_value_t = 86400)]
+        window_secs: u64,
+
+        /// Further filter by project — only posts whose
+        /// `metadata.from_project == <name>` are returned.
+        #[arg(long = "project")]
+        filter_project: Option<String>,
+
+        /// Further narrow to a single peer's posts on this thread —
+        /// resolves locally via `session.discover`. Mutually exclusive
+        /// with `--peer-fp`.
+        #[arg(long = "peer")]
+        peer: Option<String>,
+
+        /// Further narrow to a single peer's posts on this thread —
+        /// hex fingerprint, no name resolution. Mutually exclusive
+        /// with `--peer`.
+        #[arg(long = "peer-fp")]
+        peer_fp: Option<String>,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

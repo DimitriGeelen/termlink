@@ -1209,11 +1209,14 @@ pub(crate) fn summarize_fleet_by_project(
     rows
 }
 
-/// T-1492: a single post returned by `extract_recent_posts_for_peer`.
+/// T-1492 / T-1493: a single post returned by `extract_recent_posts`.
 /// Lightweight envelope — content is pre-trimmed by the helper.
+/// `peer_fp` is included so cross-peer renderings (e.g. `agent on-thread`)
+/// can label each post; it's `sender_id` from the wire envelope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RecentPost {
     pub(crate) ts_ms: i64,
+    pub(crate) peer_fp: String,
     pub(crate) msg_type: String,
     pub(crate) content: String,
     pub(crate) thread: Option<String>,
@@ -1224,6 +1227,7 @@ impl RecentPost {
     pub(crate) fn to_json(&self) -> Value {
         json!({
             "ts_ms": self.ts_ms,
+            "peer_fp": self.peer_fp,
             "msg_type": self.msg_type,
             "content": self.content,
             "thread": self.thread,
@@ -1232,19 +1236,25 @@ impl RecentPost {
     }
 }
 
-/// T-1492: pure helper — extract last N non-meta posts from `peer_fp`
-/// in `msgs`, optionally filtered by thread/project. Returns posts in
+/// T-1492 / T-1493: pure helper — extract last N non-meta posts from
+/// `msgs`, with optional peer/thread/project filters. Returns posts in
 /// chronological asc order (oldest first; natural reading flow). Caps
 /// content at 200 chars (suffix `…` if truncated).
 ///
-/// `filter_thread` / `filter_project`: when set, only matching posts
-/// pass. Untagged posts fail when a filter is set.
-pub(crate) fn extract_recent_posts_for_peer(
+/// All three filters are independent and AND-composed when set:
+/// - `filter_peer_fp`: only posts where `sender_id == p`
+/// - `filter_thread`: only posts where `metadata._thread == t`
+/// - `filter_project`: only posts where `metadata.from_project == p`
+///
+/// Untagged posts fail any tag filter that's set. Used by `agent recent`
+/// (T-1492 — peer filter required) and `agent on-thread` (T-1493 —
+/// thread filter required, peer optional).
+pub(crate) fn extract_recent_posts(
     msgs: &[Value],
-    peer_fp: &str,
     n: usize,
     window_ms: i64,
     now_ms: i64,
+    filter_peer_fp: Option<&str>,
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
 ) -> Vec<RecentPost> {
@@ -1258,8 +1268,13 @@ pub(crate) fn extract_recent_posts_for_peer(
             continue;
         }
         let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
-        if sender != peer_fp {
+        if sender.is_empty() {
             continue;
+        }
+        if let Some(want) = filter_peer_fp {
+            if sender != want {
+                continue;
+            }
         }
         let ts = m
             .get("ts_unix_ms")
@@ -1311,6 +1326,7 @@ pub(crate) fn extract_recent_posts_for_peer(
         };
         hits.push(RecentPost {
             ts_ms: ts,
+            peer_fp: sender.to_string(),
             msg_type: mt.to_string(),
             content,
             thread,
@@ -13451,7 +13467,7 @@ mod tests {
         assert_eq!(rows[1].offset, 2);
     }
 
-    // ---- T-1492 extract_recent_posts_for_peer tests ------------------
+    // ---- T-1492 / T-1493 extract_recent_posts tests ------------------
 
     fn recent_msg(
         sender: &str,
@@ -13479,12 +13495,12 @@ mod tests {
 
     #[test]
     fn recent_posts_empty_msgs_returns_empty() {
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &[],
-            "peer1",
             10,
             3_600_000,
             1_700_000_000_000,
+            Some("peer1"),
             None,
             None,
         );
@@ -13499,12 +13515,12 @@ mod tests {
             recent_msg("peer2", now - 2_000, "post", None, None, "bob 1"),
             recent_msg("peer1", now - 3_000, "post", None, None, "alice 2"),
         ];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             10,
             3_600_000,
             now,
+            Some("peer1"),
             None,
             None,
         );
@@ -13525,12 +13541,12 @@ mod tests {
             recent_msg("peer1", now - 2_000, "post", None, None, "p3"),
             recent_msg("peer1", now - 1_000, "post", None, None, "p4"),
         ];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             3,
             3_600_000,
             now,
+            Some("peer1"),
             None,
             None,
         );
@@ -13549,12 +13565,12 @@ mod tests {
             recent_msg("peer1", now - 2, "post", Some("p"), Some("T-B"), "thread-B"),
             recent_msg("peer1", now - 3, "post", Some("p"), None, "untagged"),
         ];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             10,
             3_600_000,
             now,
+            Some("peer1"),
             Some("T-A"),
             None,
         );
@@ -13570,12 +13586,12 @@ mod tests {
             recent_msg("peer1", now - 2, "post", Some("B"), None, "proj-B"),
             recent_msg("peer1", now - 3, "post", None, None, "untagged"),
         ];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             10,
             3_600_000,
             now,
+            Some("peer1"),
             None,
             Some("A"),
         );
@@ -13592,12 +13608,12 @@ mod tests {
             recent_msg("peer1", now - 2_000, "reaction", None, None, "meta"), // skipped
             recent_msg("peer1", now - 5_000_000, "post", None, None, "old"), // outside
         ];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             10,
             window_ms,
             now,
+            Some("peer1"),
             None,
             None,
         );
@@ -13611,12 +13627,12 @@ mod tests {
         // 250-char content should truncate to 200 + ellipsis.
         let big = "a".repeat(250);
         let msgs = vec![recent_msg("peer1", now - 1, "post", None, None, &big)];
-        let posts = extract_recent_posts_for_peer(
+        let posts = extract_recent_posts(
             &msgs,
-            "peer1",
             10,
             3_600_000,
             now,
+            Some("peer1"),
             None,
             None,
         );
@@ -13624,5 +13640,105 @@ mod tests {
         // 200 chars + 1 ellipsis char = 201 char count.
         assert_eq!(posts[0].content.chars().count(), 201);
         assert!(posts[0].content.ends_with('…'));
+    }
+
+    // ---- T-1493 thread-only path (no peer filter) tests --------------
+
+    #[test]
+    fn recent_posts_thread_only_no_peer_filter_returns_all_matching_peers() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("alice", now - 3, "post", Some("p"), Some("T-1"), "alice on T-1"),
+            recent_msg("bob", now - 2, "post", Some("p"), Some("T-1"), "bob on T-1"),
+            recent_msg("carol", now - 1, "post", Some("p"), Some("T-2"), "carol on T-2"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None, // no peer filter
+            Some("T-1"),
+            None,
+        );
+        assert_eq!(posts.len(), 2);
+        // Chronological asc — alice (now-3) before bob (now-2)
+        assert_eq!(posts[0].peer_fp, "alice");
+        assert_eq!(posts[0].content, "alice on T-1");
+        assert_eq!(posts[1].peer_fp, "bob");
+        assert_eq!(posts[1].content, "bob on T-1");
+    }
+
+    #[test]
+    fn recent_posts_thread_filter_excludes_other_threads_and_untagged() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("p1", now - 1, "post", None, Some("T-X"), "match"),
+            recent_msg("p1", now - 2, "post", None, Some("T-Y"), "miss-thread"),
+            recent_msg("p1", now - 3, "post", None, None, "miss-untagged"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            Some("T-X"),
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "match");
+    }
+
+    #[test]
+    fn recent_posts_thread_and_project_compose_with_and() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("p1", now - 1, "post", Some("A"), Some("T-1"), "match"),
+            recent_msg("p1", now - 2, "post", Some("B"), Some("T-1"), "wrong-project"),
+            recent_msg("p2", now - 3, "post", Some("A"), Some("T-2"), "wrong-thread"),
+            recent_msg("p3", now - 4, "post", Some("A"), Some("T-1"), "another-match"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            10,
+            3_600_000,
+            now,
+            None,
+            Some("T-1"),
+            Some("A"),
+        );
+        assert_eq!(posts.len(), 2);
+        // Chronological asc → p3(now-4) first, p1(now-1) last
+        assert_eq!(posts[0].peer_fp, "p3");
+        assert_eq!(posts[0].content, "another-match");
+        assert_eq!(posts[1].peer_fp, "p1");
+        assert_eq!(posts[1].content, "match");
+    }
+
+    #[test]
+    fn recent_posts_thread_only_n_cap_keeps_most_recent_across_peers() {
+        let now = 1_700_000_000_000_i64;
+        // 5 posts on T-1 across 3 peers, want only last 3.
+        let msgs = vec![
+            recent_msg("alice", now - 5, "post", None, Some("T-1"), "p0"),
+            recent_msg("bob", now - 4, "post", None, Some("T-1"), "p1"),
+            recent_msg("alice", now - 3, "post", None, Some("T-1"), "p2"),
+            recent_msg("carol", now - 2, "post", None, Some("T-1"), "p3"),
+            recent_msg("bob", now - 1, "post", None, Some("T-1"), "p4"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs,
+            3,
+            3_600_000,
+            now,
+            None,
+            Some("T-1"),
+            None,
+        );
+        assert_eq!(posts.len(), 3);
+        assert_eq!(posts[0].content, "p2");
+        assert_eq!(posts[1].content, "p3");
+        assert_eq!(posts[2].content, "p4");
     }
 }

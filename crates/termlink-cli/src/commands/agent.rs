@@ -1568,12 +1568,12 @@ pub(crate) async fn cmd_agent_recent(
         .unwrap_or(0);
     let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
 
-    let posts = super::channel::extract_recent_posts_for_peer(
+    let posts = super::channel::extract_recent_posts(
         &msgs,
-        peer_fp,
         clamped_n,
         window_ms,
         now_ms,
+        Some(peer_fp),
         filter_thread,
         filter_project,
     );
@@ -1646,6 +1646,156 @@ pub(crate) async fn cmd_agent_recent(
         }
         println!("[{}] {}", age_str, tags);
         // Indent content for visual block separation
+        for line in p.content.lines() {
+            println!("    {}", line);
+        }
+        if p.content.is_empty() {
+            println!("    (empty)");
+        }
+        println!();
+    }
+    println!("{} post(s) shown", posts.len());
+    Ok(())
+}
+
+/// T-1493: chronological reading view of all posts on a thread across
+/// the fleet. Wraps the same `extract_recent_posts` helper as
+/// `cmd_agent_recent` but with `filter_thread` required and `peer`
+/// optional. Use when you want to read the discussion, not just the
+/// aggregates from `who --thread` / `presence --thread`.
+pub(crate) async fn cmd_agent_on_thread(
+    thread: &str,
+    n: usize,
+    window_secs: u64,
+    filter_project: Option<&str>,
+    peer: Option<&str>,
+    peer_fp: Option<&str>,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if peer.is_some() && peer_fp.is_some() {
+        let msg = "specify either --peer or --peer-fp, not both";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    if thread.trim().is_empty() {
+        let msg = "thread (positional argument) cannot be empty";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let resolved_peer_fp: Option<String> = if let Some(fp) = peer_fp {
+        if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+            let msg = format!("--peer-fp must be hex (got {fp:?})");
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            anyhow::bail!(msg);
+        }
+        Some(fp.to_string())
+    } else {
+        peer.map(|p| resolve_target_name_to_fp(p, json))
+    };
+
+    let clamped_n = n.clamp(1, 500);
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    // Wider walk than `recent` since thread logs are denser.
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 2000)
+        .await
+        .with_context(|| {
+            format!("agent on-thread: failed to fetch chat-arc for thread={thread}")
+        })?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+
+    let posts = super::channel::extract_recent_posts(
+        &msgs,
+        clamped_n,
+        window_ms,
+        now_ms,
+        resolved_peer_fp.as_deref(),
+        Some(thread),
+        filter_project,
+    );
+
+    if json {
+        let mut out_obj = serde_json::Map::new();
+        out_obj.insert(
+            "thread".to_string(),
+            serde_json::Value::String(thread.to_string()),
+        );
+        out_obj.insert(
+            "window_secs".to_string(),
+            serde_json::Value::from(clamped_window_secs),
+        );
+        out_obj.insert("n".to_string(), serde_json::Value::from(clamped_n));
+        if let Some(p) = filter_project {
+            out_obj.insert(
+                "filter_project".to_string(),
+                serde_json::Value::String(p.to_string()),
+            );
+        }
+        if let Some(fp) = &resolved_peer_fp {
+            out_obj.insert(
+                "peer_fp".to_string(),
+                serde_json::Value::String(fp.clone()),
+            );
+        }
+        let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
+        out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
+        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
+        return Ok(());
+    }
+
+    // Text mode header — name optional narrowing
+    let mut suffix = String::new();
+    if let Some(p) = filter_project {
+        suffix.push_str(&format!(" project={p}"));
+    }
+    if let Some(fp) = &resolved_peer_fp {
+        suffix.push_str(&format!(" peer_fp={fp}"));
+    }
+    println!(
+        "# agent on-thread {} | window={}s | n={}{}",
+        thread, clamped_window_secs, clamped_n, suffix
+    );
+    if posts.is_empty() {
+        println!(
+            "(no posts found on thread={} in window={}s{})",
+            thread, clamped_window_secs, suffix
+        );
+        return Ok(());
+    }
+    for p in &posts {
+        let age_secs = ((now_ms - p.ts_ms) / 1000).max(0);
+        let age_str = if age_secs < 60 {
+            format!("{age_secs}s ago")
+        } else if age_secs < 3600 {
+            format!("{}m ago", age_secs / 60)
+        } else if age_secs < 86_400 {
+            format!("{}h ago", age_secs / 3600)
+        } else {
+            format!("{}d ago", age_secs / 86_400)
+        };
+        // Short peer fp for readability — first 12 chars
+        let peer_short = if p.peer_fp.len() > 12 {
+            &p.peer_fp[..12]
+        } else {
+            &p.peer_fp[..]
+        };
+        let mut tags = format!("peer={} msg_type={}", peer_short, p.msg_type);
+        if let Some(pr) = &p.project {
+            tags.push_str(&format!(" project={pr}"));
+        }
+        println!("[{}] {}", age_str, tags);
         for line in p.content.lines() {
             println!("    {}", line);
         }
