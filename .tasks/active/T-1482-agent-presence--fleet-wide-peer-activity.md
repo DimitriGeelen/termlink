@@ -4,16 +4,16 @@ name: "agent presence — fleet-wide peer activity summary (companion to agent w
 description: >
   agent presence — fleet-wide peer activity summary (companion to agent who)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T13:07:24Z
-last_update: 2026-05-04T13:07:24Z
-date_finished: null
+last_update: 2026-05-04T13:19:46Z
+date_finished: 2026-05-04T13:19:46Z
 ---
 
 # T-1482: agent presence — fleet-wide peer activity summary (companion to agent who)
@@ -123,3 +123,6 @@ out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); e
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1482-agent-presence--fleet-wide-peer-activity.md
 - **Context:** Initial task creation
+
+### 2026-05-04T13:19:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
