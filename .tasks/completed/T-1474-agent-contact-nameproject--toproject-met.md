@@ -4,16 +4,16 @@ name: "agent contact <name>:<project> + to_project metadata"
 description: >
   agent contact <name>:<project> + to_project metadata
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 created: 2026-05-04T10:41:18Z
-last_update: 2026-05-04T10:41:18Z
-date_finished: null
+last_update: 2026-05-04T10:50:25Z
+date_finished: 2026-05-04T10:50:25Z
 ---
 
 # T-1474: agent contact <name>:<project> + to_project metadata
@@ -116,3 +116,6 @@ cargo test -p termlink --bin termlink contact_tests
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1474-agent-contact-nameproject--toproject-met.md
 - **Context:** Initial task creation
+
+### 2026-05-04T10:50:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
