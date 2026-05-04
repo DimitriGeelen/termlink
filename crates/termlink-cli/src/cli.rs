@@ -3468,8 +3468,16 @@ pub(crate) enum AgentAction {
     Who {
         /// Target identity fingerprint (hex, ≥8 chars). Cross-host
         /// disambiguation lookup — no local session.discover required.
+        /// Mutually exclusive with --target.
         #[arg(long = "target-fp")]
-        target_fp: String,
+        target_fp: Option<String>,
+
+        /// Target session display_name — resolves locally via
+        /// `session.discover`, mirror of `agent contact <target>`. Use this
+        /// for local-hub investigations where you already have the peer's
+        /// name. Mutually exclusive with --target-fp; one is required.
+        #[arg(long = "target")]
+        target: Option<String>,
 
         /// Window (seconds) for the activity slice. Default 3600 (1h).
         /// Clamped to [60, 604800] (1 minute to 1 week). Counts posts and
