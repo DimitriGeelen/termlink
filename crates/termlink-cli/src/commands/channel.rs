@@ -1,6 +1,7 @@
 //! CLI glue for the T-1160 channel bus.
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 use base64::Engine;
@@ -32,6 +33,90 @@ pub(crate) fn load_identity_or_create() -> Result<Identity> {
         Identity::init(&base, false).map_err(|e| anyhow!("Failed to init identity: {e}"))
     } else {
         Identity::load_or_create(&base).map_err(|e| anyhow!("Failed to load identity: {e}"))
+    }
+}
+
+/// T-1448 Design A: scan a `.framework.yaml`-style file for the top-level
+/// `project_name:` key. Pure on input — no env/CWD lookup, no IO except
+/// the path passed in. Lines starting with `#` or whitespace are skipped
+/// (comment / nested-key safety). Returns the unquoted value or None.
+fn parse_project_name_from_yaml(path: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    for line in text.lines() {
+        if line.starts_with('#') || line.starts_with(char::is_whitespace) {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("project_name:") {
+            let val = rest
+                .trim()
+                .trim_matches(|c: char| c == '"' || c == '\'')
+                .trim();
+            if !val.is_empty() {
+                return Some(val.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// T-1448 Design A: walk up from `start` looking for `.framework.yaml` and
+/// return its `project_name`. Pure — testable with tempdirs. Returns None
+/// when no marker file is reachable or the file lacks `project_name`.
+fn resolve_project_name_from(start: &Path) -> Option<String> {
+    let mut cur: Option<&Path> = Some(start);
+    while let Some(dir) = cur {
+        let candidate = dir.join(".framework.yaml");
+        if candidate.is_file() {
+            return parse_project_name_from_yaml(&candidate);
+        }
+        cur = dir.parent();
+    }
+    None
+}
+
+/// CWD-anchored convenience for `cmd_channel_post`. None when not in a
+/// framework-rooted directory tree, or marker exists but has no project_name.
+fn default_from_project() -> Option<String> {
+    std::env::current_dir()
+        .ok()
+        .and_then(|p| resolve_project_name_from(&p))
+}
+
+/// T-1448 Design A: chat-arc topics are the discrimination-sensitive ones.
+/// `agent-chat-arc` is the fleet-wide arc; `dm:*` are direct-message topics
+/// auto-created by `agent contact` (T-1429). For any other topic, missing
+/// `from_project` is silent — preserves backward compat for ad-hoc topics.
+fn is_chat_arc_topic(topic: &str) -> bool {
+    topic == "agent-chat-arc" || topic.starts_with("dm:")
+}
+
+/// T-1448 Design A: decision returned by the injection planner. Pure logic
+/// extracted from `cmd_channel_post` so it can be unit-tested without
+/// constructing a real PendingPost / hub connection.
+#[derive(Debug, PartialEq, Eq)]
+enum FromProjectAction {
+    /// User passed `--metadata from_project=...` — leave their value alone.
+    UserSupplied,
+    /// Inject `from_project=<value>` into metadata.
+    Inject(String),
+    /// Resolution failed AND topic is chat-arc-class — warn on stderr.
+    WarnUnresolvable,
+    /// Resolution failed but topic isn't chat-arc-class — silent skip.
+    Skip,
+}
+
+fn plan_from_project_injection(
+    user_metadata: &BTreeMap<String, String>,
+    resolved: Option<&str>,
+    topic: &str,
+) -> FromProjectAction {
+    if user_metadata.contains_key("from_project") {
+        return FromProjectAction::UserSupplied;
+    }
+    match resolved {
+        Some(p) if !p.is_empty() => FromProjectAction::Inject(p.to_string()),
+        _ if is_chat_arc_topic(topic) => FromProjectAction::WarnUnresolvable,
+        _ => FromProjectAction::Skip,
     }
 }
 
@@ -277,6 +362,22 @@ pub(crate) async fn cmd_channel_post(
     }
     if let Some(off) = reply_to {
         metadata.insert("in_reply_to".to_string(), off.to_string());
+    }
+    // T-1448 Design A: default `from_project` injection. User --metadata
+    // wins; chat-arc topics get a stderr warning when unresolvable; other
+    // topics stay silent (backward-compat for ad-hoc usage).
+    match plan_from_project_injection(&metadata, default_from_project().as_deref(), topic) {
+        FromProjectAction::Inject(p) => {
+            metadata.insert("from_project".to_string(), p);
+        }
+        FromProjectAction::WarnUnresolvable => {
+            eprintln!(
+                "warning: posting to {topic} without `from_project` — co-resident agents \
+                 may be indistinguishable. Pass --metadata from_project=<id> or run from \
+                 a `.framework.yaml`-rooted project directory."
+            );
+        }
+        FromProjectAction::UserSupplied | FromProjectAction::Skip => {}
     }
     let pending = PendingPost {
         topic: topic.to_string(),
@@ -7529,6 +7630,177 @@ pub(crate) async fn cmd_channel_search(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-1448 from_project tests --------------------------------------
+
+    fn write_yaml(dir: &Path, body: &str) {
+        std::fs::write(dir.join(".framework.yaml"), body).unwrap();
+    }
+
+    #[test]
+    fn from_project_finds_marker_at_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "project_name: 010-termlink\nversion: 1.0\n");
+        assert_eq!(
+            resolve_project_name_from(tmp.path()).as_deref(),
+            Some("010-termlink")
+        );
+    }
+
+    #[test]
+    fn from_project_walks_up_to_find_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "project_name: parent-proj\n");
+        let nested = tmp.path().join("a").join("b").join("c");
+        std::fs::create_dir_all(&nested).unwrap();
+        assert_eq!(
+            resolve_project_name_from(&nested).as_deref(),
+            Some("parent-proj")
+        );
+    }
+
+    #[test]
+    fn from_project_returns_none_when_no_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        // No .framework.yaml anywhere — but walk-up may hit /opt/termlink's
+        // own marker if tempdir is under it. Use an isolated subdir and
+        // confirm it returns None when neither tempdir nor any ancestor
+        // up to '/' has the marker — at minimum, NOT our project name.
+        let nested = tmp.path().join("isolated");
+        std::fs::create_dir_all(&nested).unwrap();
+        let resolved = resolve_project_name_from(&nested);
+        // Either None, or some ancestor's project_name — but NOT our own
+        // tempdir's (we wrote nothing there).
+        assert!(resolved.as_deref() != Some("010-termlink-fake-test-name"));
+    }
+
+    #[test]
+    fn from_project_returns_none_when_yaml_lacks_project_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "version: 1.0\nprovider: generic\n");
+        assert_eq!(parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")), None);
+    }
+
+    #[test]
+    fn from_project_ignores_commented_lines() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(
+            tmp.path(),
+            "# project_name: commented-out\nversion: 1.0\nproject_name: real-proj\n",
+        );
+        assert_eq!(
+            parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")).as_deref(),
+            Some("real-proj")
+        );
+    }
+
+    #[test]
+    fn from_project_ignores_indented_lines() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Nested key — indented project_name is part of some other map,
+        // not the top-level one we want.
+        write_yaml(tmp.path(), "nested:\n  project_name: nested-val\nproject_name: top\n");
+        assert_eq!(
+            parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")).as_deref(),
+            Some("top")
+        );
+    }
+
+    #[test]
+    fn from_project_strips_quotes() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "project_name: \"quoted-name\"\n");
+        assert_eq!(
+            parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")).as_deref(),
+            Some("quoted-name")
+        );
+    }
+
+    #[test]
+    fn from_project_strips_single_quotes() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "project_name: 'single-quoted'\n");
+        assert_eq!(
+            parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")).as_deref(),
+            Some("single-quoted")
+        );
+    }
+
+    #[test]
+    fn from_project_empty_value_returns_none() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_yaml(tmp.path(), "project_name: \nother: val\n");
+        assert_eq!(
+            parse_project_name_from_yaml(&tmp.path().join(".framework.yaml")),
+            None
+        );
+    }
+
+    #[test]
+    fn is_chat_arc_topic_recognizes_arc_and_dms() {
+        assert!(is_chat_arc_topic("agent-chat-arc"));
+        assert!(is_chat_arc_topic("dm:alice"));
+        assert!(is_chat_arc_topic("dm:alice:bob"));
+        assert!(is_chat_arc_topic("dm:"));
+        assert!(!is_chat_arc_topic("agent-chat-arc-other"));
+        assert!(!is_chat_arc_topic("agent-chat"));
+        assert!(!is_chat_arc_topic("random-topic"));
+        assert!(!is_chat_arc_topic("DM:alice")); // case-sensitive
+    }
+
+    #[test]
+    fn from_project_inject_user_supplied_wins() {
+        let mut user_meta: BTreeMap<String, String> = BTreeMap::new();
+        user_meta.insert("from_project".to_string(), "user-val".to_string());
+        let action = plan_from_project_injection(&user_meta, Some("resolved-val"), "agent-chat-arc");
+        assert_eq!(action, FromProjectAction::UserSupplied);
+    }
+
+    #[test]
+    fn from_project_inject_resolves_when_absent() {
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, Some("010-termlink"), "agent-chat-arc");
+        assert_eq!(action, FromProjectAction::Inject("010-termlink".to_string()));
+    }
+
+    #[test]
+    fn from_project_inject_warns_on_chat_arc_unresolvable() {
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, None, "agent-chat-arc");
+        assert_eq!(action, FromProjectAction::WarnUnresolvable);
+    }
+
+    #[test]
+    fn from_project_inject_warns_on_dm_unresolvable() {
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, None, "dm:alice:bob");
+        assert_eq!(action, FromProjectAction::WarnUnresolvable);
+    }
+
+    #[test]
+    fn from_project_inject_silent_on_other_topics_unresolvable() {
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, None, "random-topic");
+        assert_eq!(action, FromProjectAction::Skip);
+    }
+
+    #[test]
+    fn from_project_inject_resolves_for_random_topic_too() {
+        // Resolution succeeds even on non-chat-arc topics — we still inject;
+        // the warning is what's gated on chat-arc, not the injection itself.
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, Some("any-proj"), "topic-xyz");
+        assert_eq!(action, FromProjectAction::Inject("any-proj".to_string()));
+    }
+
+    #[test]
+    fn from_project_inject_treats_empty_resolved_as_unresolvable() {
+        let user_meta: BTreeMap<String, String> = BTreeMap::new();
+        let action = plan_from_project_injection(&user_meta, Some(""), "agent-chat-arc");
+        assert_eq!(action, FromProjectAction::WarnUnresolvable);
+    }
+
+    // ---- existing tests --------------------------------------------------
 
     #[test]
     fn parse_hub_addr_recognizes_tcp_host_port() {
