@@ -255,8 +255,10 @@ After the cut:
 
 ## Diagnostic — am I still calling legacy methods?
 
-The fastest answer (T-1459/T-1460/T-1461, since 2026-05-04 — needs a hub
-binary that includes T-1460) is one command:
+The fastest answer (T-1459/T-1460/T-1461/T-1467, since 2026-05-04) is one
+command. Per-hub top-callers come from the hub binary if it includes T-1460;
+otherwise (the entire 0.9.0 fleet) the CLI derives them from `by_method` on
+the client side (T-1467) — no hub upgrade needed for this view:
 
 ```bash
 termlink fleet doctor --legacy-usage --legacy-window-days 1
