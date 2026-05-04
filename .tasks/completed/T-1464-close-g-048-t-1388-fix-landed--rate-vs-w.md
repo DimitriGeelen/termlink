@@ -4,7 +4,7 @@ name: "Close G-048 (T-1388 fix landed) + rate-vs-window-rolloff caveat in T-1166
 description: >
   Close G-048 (T-1388 fix landed) + rate-vs-window-rolloff caveat in T-1166 doc
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T05:48:02Z
-last_update: 2026-05-04T05:48:02Z
-date_finished: null
+last_update: 2026-05-04T05:49:53Z
+date_finished: 2026-05-04T05:49:53Z
 ---
 
 # T-1464: Close G-048 (T-1388 fix landed) + rate-vs-window-rolloff caveat in T-1166 doc
@@ -61,7 +61,7 @@ Two small hygiene items bundled:
 
 ## Verification
 
-grep -A 3 "id: G-048" .context/project/concerns.yaml | grep -q "status: resolved"
+grep -A 20 "id: G-048" .context/project/concerns.yaml | grep -q "status: resolved"
 grep -q "Rate interpretation caveat" docs/migrations/T-1166-retire-legacy-primitives.md
 .agentic-framework/bin/fw gaps 2>&1 | grep -v "G-048" | grep -q "watching"
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
@@ -102,3 +102,6 @@ grep -q "Rate interpretation caveat" docs/migrations/T-1166-retire-legacy-primit
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1464-close-g-048-t-1388-fix-landed--rate-vs-w.md
 - **Context:** Initial task creation
+
+### 2026-05-04T05:49:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

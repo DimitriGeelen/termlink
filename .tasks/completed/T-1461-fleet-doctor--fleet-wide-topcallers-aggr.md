@@ -4,16 +4,16 @@ name: "fleet doctor — fleet-wide top_callers aggregate under verdict"
 description: >
   fleet doctor — fleet-wide top_callers aggregate under verdict
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-03T22:35:38Z
-last_update: 2026-05-03T22:35:38Z
-date_finished: null
+last_update: 2026-05-03T22:41:11Z
+date_finished: 2026-05-03T22:41:11Z
 ---
 
 # T-1461: fleet doctor — fleet-wide top_callers aggregate under verdict
@@ -89,3 +89,6 @@ cargo test -p termlink --bin termlink fleet_top_callers 2>&1 | grep -E "test res
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1461-fleet-doctor--fleet-wide-topcallers-aggr.md
 - **Context:** Initial task creation
+
+### 2026-05-03T22:41:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
