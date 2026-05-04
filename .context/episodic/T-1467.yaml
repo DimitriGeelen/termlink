@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1467: fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T06:49:01Z
+# ============================================================================
+
+task_id: T-1467
+task_name: "fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T06:35:58Z
+completed: 2026-05-04T06:43:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T08:43:47+02:00
+last_commit: 2026-05-04T08:43:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor — derive top_callers from by_method (pre-T-1460 hub fallback)
+
+# Key outcomes
+outcomes:
+  - "Pure helper `derive_top_callers_from_by_method(by_method: &serde_json::Value) -> Vec<(String, u64)>` added to `crates/termlink-cli/src/commands/remote.rs`, sums counts across methods per `from`, sorts descending by count"
+  - "`cmd_fleet_doctor` legacy_summary builder uses the helper as a fallback when `top_callers` is absent or empty"
+  - "At least 4 unit tests cover: empty by_method, single method one caller, multiple methods overlapping callers, post-T-1460 path (top_callers present → fallback NOT triggered)"
+  - "`cargo build --release -p termlink` succeeds"
+  - "`cargo test -p termlink derive_top_callers` passes"
+  - "Live verification: running `target/release/termlink fleet doctor --legacy-usage --json` against the live fleet returns a non-empty `top_callers_fleet` (currently empty)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "docs/migrations/T-1166-retire-legacy-primitives.md"
+  - ".tasks/active/T-1467-fleet-doctor-derive-topcallers-from-byme.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T08:43:47"
+    action: "T-1467: fleet doctor — derive top_callers from by_method (pre-T-1460 hub fallback)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 3
+  lines_added: 248
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1467-fleet-doctor-derive-topcallers-from-byme.md
+generated_by: context-agent-hybrid

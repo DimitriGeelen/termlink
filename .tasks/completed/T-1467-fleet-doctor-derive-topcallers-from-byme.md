@@ -4,16 +4,16 @@ name: "fleet doctor: derive top_callers from by_method fallback (works against p
 description: >
   fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-04T06:35:58Z
-last_update: 2026-05-04T06:35:58Z
-date_finished: null
+last_update: 2026-05-04T06:43:50Z
+date_finished: 2026-05-04T06:43:50Z
 ---
 
 # T-1467: fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)
@@ -84,3 +84,6 @@ cargo test --release -p termlink --bins derive_top_callers 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1467-fleet-doctor-derive-topcallers-from-byme.md
 - **Context:** Initial task creation
+
+### 2026-05-04T06:43:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
