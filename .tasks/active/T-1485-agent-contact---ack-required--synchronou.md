@@ -4,16 +4,16 @@ name: "agent contact --ack-required — synchronous engagement (T-1425 Phase-2 b
 description: >
   agent contact --ack-required — synchronous engagement (T-1425 Phase-2 backlog)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T15:06:54Z
-last_update: 2026-05-04T15:06:54Z
-date_finished: null
+last_update: 2026-05-04T15:21:48Z
+date_finished: 2026-05-04T15:21:48Z
 ---
 
 # T-1485: agent contact --ack-required — synchronous engagement (T-1425 Phase-2 backlog)
@@ -113,3 +113,6 @@ out=$(timeout 15 target/release/termlink agent contact --target-fp deadbeefdeadb
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1485-agent-contact---ack-required--synchronou.md
 - **Context:** Initial task creation
+
+### 2026-05-04T15:21:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
