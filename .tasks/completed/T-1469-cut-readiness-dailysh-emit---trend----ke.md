@@ -4,7 +4,7 @@ name: "cut-readiness-daily.sh: emit --trend + --keep-days rotation"
 description: >
   cut-readiness-daily.sh: emit --trend + --keep-days rotation
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T07:05:20Z
-last_update: 2026-05-04T07:05:20Z
-date_finished: null
+last_update: 2026-05-04T07:07:51Z
+date_finished: 2026-05-04T07:07:51Z
 ---
 
 # T-1469: cut-readiness-daily.sh: emit --trend + --keep-days rotation
@@ -85,3 +85,6 @@ bash /opt/termlink/scripts/cut-readiness-daily.sh --help 2>&1 | grep -q -- '--tr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1469-cut-readiness-dailysh-emit---trend----ke.md
 - **Context:** Initial task creation
+
+### 2026-05-04T07:07:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
