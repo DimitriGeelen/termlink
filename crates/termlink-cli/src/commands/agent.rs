@@ -716,6 +716,8 @@ pub(crate) async fn cmd_agent_contact(
     dry_run: bool,
     require_online: bool,
     online_window_secs: u64,
+    ack_required: bool,
+    ack_timeout_secs: u64,
 ) -> Result<()> {
     // T-1429 Phase-2 (this build): support --target-fp <hex> as a cross-host
     // bypass for the local-only session.discover gap. Either positional
@@ -927,6 +929,18 @@ pub(crate) async fn cmd_agent_contact(
         }
     }
 
+    // Capture send timestamp BEFORE posting so the ack-wait poll only
+    // matches messages strictly after our post (T-1485). Use ms precision
+    // because hub timestamps are ms.
+    let send_ts_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+
+    // T-1485: pass `json` through to the post path. With --ack-required +
+    // --json, callers get NDJSON: one envelope for the post, then a second
+    // envelope for the ack outcome (success or timeout). NDJSON-style is
+    // consistent with how other termlink commands compose multi-step output.
     super::channel::cmd_channel_dm(
         peer_fp,
         Some(message),
@@ -938,7 +952,77 @@ pub(crate) async fn cmd_agent_contact(
         json,
     )
     .await
-    .with_context(|| format!("agent contact: posting to dm topic for peer fp={peer_fp} failed"))
+    .with_context(|| format!("agent contact: posting to dm topic for peer fp={peer_fp} failed"))?;
+
+    // T-1485: synchronous engagement — wait for the peer to post back.
+    if ack_required {
+        let clamped_ack_timeout = ack_timeout_secs.clamp(5, 600);
+        let identity = super::channel::load_identity_or_create()
+            .context("agent contact --ack-required: cannot load local identity")?;
+        let my_id = identity.fingerprint().to_string();
+        let topic = super::channel::dm_topic(&my_id, peer_fp);
+        let wait_start = std::time::Instant::now();
+        let ack = super::channel::wait_for_peer_ack(
+            &topic,
+            peer_fp,
+            send_ts_ms,
+            hub,
+            clamped_ack_timeout,
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "agent contact --ack-required: ack-wait poll failed for peer fp={peer_fp} on topic={topic}"
+            )
+        })?;
+        let waited_secs = wait_start.elapsed().as_secs();
+        match ack {
+            Some(ts_ms) => {
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "ok": true,
+                            "peer_fp": peer_fp,
+                            "topic": topic,
+                            "ack": {
+                                "ts_ms": ts_ms,
+                                "wait_secs": waited_secs,
+                            },
+                        }))?
+                    );
+                } else {
+                    println!(
+                        "ack received from {peer_fp} after {waited_secs}s (ts_ms={ts_ms})"
+                    );
+                }
+                Ok(())
+            }
+            None => {
+                let msg = format!(
+                    "no ack from peer fp={peer_fp} within {clamped_ack_timeout}s on topic={topic}. \
+                     The post landed (chat-arc is offset-durable) — peer just hasn't responded \
+                     yet. Re-run without --ack-required for fire-and-forget, or increase \
+                     --ack-timeout-secs."
+                );
+                if json {
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false,
+                        "peer_fp": peer_fp,
+                        "topic": topic,
+                        "wait_secs": waited_secs,
+                        "ack_timeout_secs": clamped_ack_timeout,
+                        "error": msg,
+                        "exit_code": 10,
+                    }));
+                }
+                eprintln!("error: {msg}");
+                std::process::exit(10);
+            }
+        }
+    } else {
+        Ok(())
+    }
 }
 
 /// T-1483: resolve `--target <name>` → identity_fingerprint via local
