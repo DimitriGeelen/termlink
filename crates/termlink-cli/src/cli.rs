@@ -3105,6 +3105,20 @@ pub(crate) enum FleetAction {
         /// non-zero exit (precedence over verdict mapping).
         #[arg(long)]
         exit_code_on_verdict: bool,
+
+        /// T-1468: read up to N most-recent JSON snapshots from PATH (a
+        /// directory of `fleet doctor --legacy-usage --json` outputs, e.g.
+        /// the dir written by `scripts/cut-readiness-daily.sh`), and emit
+        /// a day-over-day decay table + sparkline. Files are sorted lexically
+        /// (matching the `YYYY-MM-DD.json` cron convention = chronological).
+        /// Requires `--legacy-usage`.
+        #[arg(long, value_name = "PATH")]
+        trend: Option<std::path::PathBuf>,
+
+        /// T-1468: cap on snapshots read by `--trend` (default 7, max 30).
+        /// Older snapshots are ignored. Default 7 = "show me the last week".
+        #[arg(long, default_value = "7")]
+        trend_keep: u32,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

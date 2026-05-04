@@ -350,6 +350,40 @@ When in doubt, take a fresh snapshot today and diff against yesterday.
 The 1d interval keeps roll-off out of the picture and the rate becomes
 a clean signal of caller activity.
 
+### Multi-day trend view (T-1468, since 2026-05-04)
+
+Once you have a directory of daily snapshots (e.g. from
+`scripts/cut-readiness-daily.sh`), `--trend` reads the N most-recent and
+prints a one-screen decay table + sparkline. Pairs every snapshot with its
+prior to compute deltas, then derives a trajectory verdict
+(`decreasing` / `increasing` / `flat`) from net first→last change.
+
+```bash
+termlink fleet doctor --legacy-usage \
+  --trend /var/lib/termlink/snapshots/ \
+  --trend-keep 7
+```
+
+```
+=== T-1166 cut-readiness TREND (last 4 snapshots) ===
+        2026-04-30  total=   25000
+        2026-05-01  total=   24500 (-500)
+        2026-05-02  total=   22000 (-2500)
+         (current)  total=   20381 (-1619)
+  sparkline: █▇▇▆
+  trajectory: decreasing
+```
+
+The trend includes the *current* fleet state as the trailing point so the
+operator sees today's delta against yesterday's snapshot in the same view
+that shows the prior week. JSON mode emits `legacy_summary.trend` so
+dashboards can plot the same time-series.
+
+`--trend-keep` defaults to 7 (one week) and is capped at 30. Files are
+sorted by filename; the cron convention of `YYYY-MM-DD.json` makes that
+chronological. Files that aren't valid fleet-doctor JSON are warned about
+and skipped, not fatal — partial data still produces a useful view.
+
 ### Cron/CI integration (T-1465, since 2026-05-04)
 
 For automated pipelines, parsing the JSON to gate on the verdict is
