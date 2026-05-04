@@ -1171,8 +1171,57 @@ pub(crate) async fn cmd_agent_presence(
     hub: Option<&str>,
     json: bool,
     filter_project: Option<&str>,
+    watch: bool,
+    watch_interval: u64,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    // T-1486: --watch is a streaming mode; --json is one-shot. Reject the
+    // combo at the verb level so callers get a clear error instead of an
+    // unparseable NDJSON-on-cleared-screen mess.
+    if watch && json {
+        let msg = "--watch and --json are incompatible: --watch streams \
+                   re-rendered text frames; --json is one-shot. Pick one.";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    if watch {
+        let clamped_interval = watch_interval.clamp(1, 300);
+        loop {
+            // ANSI: clear screen + cursor home. Avoids the flicker of a
+            // process-spawn in `watch -n N` and preserves alignment.
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            println!(
+                "# agent presence --watch | interval={}s | window={}s | {}",
+                clamped_interval, clamped_window_secs, now_str
+            );
+            // Per-iteration fetch + render. Errors are non-fatal — we
+            // print them and keep watching, so a transient hub blip
+            // doesn't kill the dashboard.
+            match super::channel::fetch_fleet_presence_via_chat_arc(
+                hub,
+                clamped_window_secs,
+                filter_project,
+            )
+            .await
+            {
+                Ok(rows) => render_presence_text(&rows, clamped_window_secs, filter_project),
+                Err(e) => {
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
+        }
+    }
+
     let rows = super::channel::fetch_fleet_presence_via_chat_arc(
         hub,
         clamped_window_secs,
@@ -1202,20 +1251,31 @@ pub(crate) async fn cmd_agent_presence(
         return Ok(());
     }
 
-    // Text mode — table.
+    render_presence_text(&rows, clamped_window_secs, filter_project);
+    Ok(())
+}
+
+/// T-1486: text-mode renderer extracted so the watch loop can reuse it
+/// per-iteration without duplicating layout. Same output as the one-shot
+/// path: header (+ filter line if set), aligned table, footer count.
+fn render_presence_text(
+    rows: &[super::channel::FleetPeerRow],
+    window_secs: u64,
+    filter_project: Option<&str>,
+) {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     if rows.is_empty() {
         match filter_project {
-            None => println!("(no peers active in window={}s)", clamped_window_secs),
+            None => println!("(no peers active in window={}s)", window_secs),
             Some(f) => println!(
                 "(no peers active in window={}s matching project={})",
-                clamped_window_secs, f
+                window_secs, f
             ),
         }
-        return Ok(());
+        return;
     }
     if let Some(f) = filter_project {
         println!("# filter_project={}", f);
@@ -1224,7 +1284,7 @@ pub(crate) async fn cmd_agent_presence(
         "{:<18} {:>14} {:>8}  {}",
         "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
     );
-    for r in &rows {
+    for r in rows {
         let last_seen_str = match r.last_seen_ms {
             None => "never".to_string(),
             Some(ms) => {
@@ -1254,10 +1314,9 @@ pub(crate) async fn cmd_agent_presence(
     println!(
         "{} peer(s) active in window={}s{}",
         rows.len(),
-        clamped_window_secs,
+        window_secs,
         suffix
     );
-    Ok(())
 }
 
 /// T-1478: pure helper — build the dry-run preview JSON. Mirrors the

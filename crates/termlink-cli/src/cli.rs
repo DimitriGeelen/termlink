@@ -3478,6 +3478,18 @@ pub(crate) enum AgentAction {
         /// on 010-termlink right now?".
         #[arg(long = "filter-project")]
         filter_project: Option<String>,
+
+        /// Live dashboard mode (T-1486): re-render every
+        /// `--watch-interval` seconds until Ctrl-C. Composes with
+        /// `--filter-project`, `--window-secs`, `--hub`. Incompatible
+        /// with `--json` (one-shot vs streaming mismatch).
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval (seconds) for `--watch` mode. Default 5.
+        /// Clamped to [1, 300]. Ignored without `--watch`.
+        #[arg(long = "watch-interval", default_value_t = 5)]
+        watch_interval: u64,
     },
 
     /// Peer observability — summarize a peer's recent `agent-chat-arc`
