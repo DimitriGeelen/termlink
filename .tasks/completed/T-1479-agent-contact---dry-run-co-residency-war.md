@@ -4,16 +4,16 @@ name: "agent contact --dry-run: co-residency warning for peer_fp"
 description: >
   agent contact --dry-run: co-residency warning for peer_fp
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 created: 2026-05-04T11:19:23Z
-last_update: 2026-05-04T11:19:23Z
-date_finished: null
+last_update: 2026-05-04T11:21:56Z
+date_finished: 2026-05-04T11:21:56Z
 ---
 
 # T-1479: agent contact --dry-run: co-residency warning for peer_fp
@@ -104,3 +104,6 @@ target/debug/termlink agent contact termlink-agent:test --message x --dry-run > 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1479-agent-contact---dry-run-co-residency-war.md
 - **Context:** Initial task creation
+
+### 2026-05-04T11:21:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
