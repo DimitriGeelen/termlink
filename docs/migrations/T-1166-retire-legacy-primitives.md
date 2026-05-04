@@ -294,6 +294,40 @@ caller (post-T-1409 fleet); `<label>` would mean `from` was set
 so 100 reconnects from the same host do not show as 100 distinct
 callers.
 
+### Decay-rate sampling (T-1462 / T-1463, since 2026-05-04)
+
+Point-in-time counts only answer "is there residue right now?" To answer
+"is the residue actually clearing?" capture a snapshot today and diff
+against a prior one. The CLI does this without any hub upgrade; the
+existing `legacy_summary` block carries everything `--diff` needs.
+
+```bash
+# Daily capture (cron-friendly: still prints human-readable verdict to
+# stderr while saving the JSON to disk for tomorrow's diff).
+mkdir -p /var/lib/termlink/snapshots
+termlink fleet doctor --legacy-usage \
+  --save-snapshot /var/lib/termlink/snapshots/$(date +%F).json
+
+# Tomorrow: compare against yesterday's snapshot.
+termlink fleet doctor --legacy-usage \
+  --diff /var/lib/termlink/snapshots/$(date -d yesterday +%F).json
+```
+
+The diff block surfaces: fleet `total_legacy` delta with arrow (↑/↓/→),
+average rate (calls/min) over the elapsed interval, per-hub deltas
+(NEW / VANISHED / explicit ±N), and per-caller deltas from
+`top_callers_fleet`. Zero-information rows are suppressed so a flat
+fleet shows nothing under the per-hub/caller subsections rather than a
+wall of noise.
+
+Read the rate as the cut-readiness yardstick:
+
+| Rate sign | Meaning |
+|-----------|---------|
+| Negative (decay) | Residue is clearing on its own. Cut may be safe even from `CUT-READY-DECAYING` if extrapolated time-to-zero is acceptable. |
+| Zero (flat) | Audit log is in a steady state — the rolling window is dropping calls at the same rate new ones arrive. Investigate top callers. |
+| Positive (growing) | Live caller still polling somewhere. `WAIT` verdict expected; do not cut. |
+
 For older fleets (or to inspect the JSON shape):
 
 ```bash
