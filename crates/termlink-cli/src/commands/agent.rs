@@ -652,6 +652,44 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
     Ok(())
 }
 
+/// T-1448 (b): parse the positional `<target>` argument of `agent contact`
+/// into `(name, Some(project))` when the operator typed `name:project`, or
+/// `(name, None)` for the bare form. Empty parts and multi-colon inputs are
+/// rejected. The project, when present, is stamped as `metadata.to_project`
+/// on the resulting dm post — mirror of the sender-side `from_project` that
+/// T-1472 auto-injects on `channel post`.
+///
+/// Pure helper — no I/O, no globals. Tested in `contact_tests::parse_*`.
+pub(crate) fn parse_contact_target(input: &str) -> Result<(String, Option<String>), String> {
+    if input.is_empty() {
+        return Err("target name cannot be empty".to_string());
+    }
+    let parts: Vec<&str> = input.split(':').collect();
+    match parts.len() {
+        1 => Ok((parts[0].to_string(), None)),
+        2 => {
+            let name = parts[0];
+            let project = parts[1];
+            if name.is_empty() {
+                return Err(format!(
+                    "target name cannot be empty in {input:?} \
+                     (expected `<name>` or `<name>:<project>`)"
+                ));
+            }
+            if project.is_empty() {
+                return Err(format!(
+                    "project qualifier cannot be empty after `:` in {input:?} \
+                     (use `<name>` for no project, or `<name>:<project>`)"
+                ));
+            }
+            Ok((name.to_string(), Some(project.to_string())))
+        }
+        _ => Err(format!(
+            "target may contain at most one `:` (form is `<name>[:<project>]`), got {input:?}"
+        )),
+    }
+}
+
 /// T-1429 Phase-1: contact a peer agent on the canonical `dm:<a>:<b>` topic.
 ///
 /// Resolves `<target>` to a local session via `manager::find_session`, reads
@@ -694,6 +732,28 @@ pub(crate) async fn cmd_agent_contact(
         anyhow::bail!(msg);
     }
 
+    // T-1448 (b): if positional <TARGET> was given, split off an optional
+    // `:project` suffix. The project, if present, becomes `to_project`
+    // metadata on the resulting dm post (mirror of T-1472's sender-side
+    // `from_project`). Operator can also pass `--metadata to_project=...`
+    // explicitly via the underlying `cmd_channel_dm` extra_metadata flow,
+    // and that path is preserved for `--target-fp` callers (the
+    // `name:project` syntax applies only to the positional target).
+    let (target_name_owned, to_project_opt): (Option<String>, Option<String>) =
+        if let Some(raw) = target {
+            match parse_contact_target(raw) {
+                Ok((name, project)) => (Some(name), project),
+                Err(msg) => {
+                    if json {
+                        super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+                    }
+                    anyhow::bail!(msg);
+                }
+            }
+        } else {
+            (None, None)
+        };
+
     let peer_fp_owned: String = if let Some(fp) = target_fp {
         // Trust the operator-supplied fingerprint. Light validation: must be
         // hex, at least 8 chars (canonical short fp is 16 chars).
@@ -706,7 +766,7 @@ pub(crate) async fn cmd_agent_contact(
         }
         fp.to_string()
     } else {
-        let target_name = target.expect("checked above");
+        let target_name = target_name_owned.as_deref().expect("checked above");
         let reg = manager::find_session(target_name).map_err(|e| {
             if json {
                 super::json_error_exit(serde_json::json!({
@@ -740,12 +800,15 @@ pub(crate) async fn cmd_agent_contact(
     let peer_fp = peer_fp_owned.as_str();
 
     // T-1429 Phase-2 partial: --thread routes via `metadata._thread`
-    // (agent-chat-arc protocol canon). Other extra metadata is reserved
-    // for future flags (--subject, --requires-ack); this slot stays empty
-    // for now.
-    let extra_metadata: Vec<String> = thread
-        .map(|t| vec![format!("_thread={t}")])
-        .unwrap_or_default();
+    // (agent-chat-arc protocol canon). T-1448 (b): also auto-attach
+    // `to_project=<project>` when the operator typed `name:project`.
+    let mut extra_metadata: Vec<String> = Vec::new();
+    if let Some(t) = thread {
+        extra_metadata.push(format!("_thread={t}"));
+    }
+    if let Some(p) = &to_project_opt {
+        extra_metadata.push(format!("to_project={p}"));
+    }
 
     super::channel::cmd_channel_dm(
         peer_fp,
@@ -779,5 +842,63 @@ mod contact_tests {
         assert!(canon.starts_with("dm:"));
         assert!(canon.contains(":"));
         assert_eq!(canon.matches(":").count(), 2);
+    }
+
+    // T-1448 (b): parser tests for the `<name>[:<project>]` target syntax.
+
+    use super::parse_contact_target;
+
+    #[test]
+    fn parse_contact_target_bare_name_returns_no_project() {
+        let (name, project) = parse_contact_target("penelope").expect("bare name parses");
+        assert_eq!(name, "penelope");
+        assert_eq!(project, None);
+    }
+
+    #[test]
+    fn parse_contact_target_name_colon_project_splits() {
+        let (name, project) =
+            parse_contact_target("penelope:050-email-archive").expect("name:project parses");
+        assert_eq!(name, "penelope");
+        assert_eq!(project.as_deref(), Some("050-email-archive"));
+    }
+
+    #[test]
+    fn parse_contact_target_empty_input_rejected() {
+        let err = parse_contact_target("").unwrap_err();
+        assert!(err.contains("empty"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_contact_target_empty_name_rejected() {
+        // `:project` — name part is empty
+        let err = parse_contact_target(":050-email-archive").unwrap_err();
+        assert!(err.contains("name"), "got: {err}");
+        assert!(err.contains("empty"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_contact_target_empty_project_rejected() {
+        // `name:` — project part is empty
+        let err = parse_contact_target("penelope:").unwrap_err();
+        assert!(err.contains("project"), "got: {err}");
+        assert!(err.contains("empty"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_contact_target_multi_colon_rejected() {
+        let err = parse_contact_target("penelope:foo:bar").unwrap_err();
+        // Allow the message to phrase this as "at most one `:`" or similar.
+        assert!(err.contains("at most one") || err.contains("colon"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_contact_target_preserves_project_special_chars() {
+        // Project names commonly contain hyphens and digits — make sure the
+        // parser doesn't over-validate the project string.
+        let (name, project) =
+            parse_contact_target("agent-1:002-Claude-Partner-Network").expect("hyphenated parses");
+        assert_eq!(name, "agent-1");
+        assert_eq!(project.as_deref(), Some("002-Claude-Partner-Network"));
     }
 }

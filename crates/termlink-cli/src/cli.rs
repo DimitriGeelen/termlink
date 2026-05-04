@@ -3358,8 +3358,20 @@ pub(crate) enum AgentAction {
     /// deferred — see T-1429 task. Phase-2 partial (this build): --thread
     /// for canonical task-id routing via `metadata._thread`.
     Contact {
-        /// Target session's display_name (resolved via local
-        /// session.discover). Optional iff `--target-fp` is given.
+        /// Target session's display_name, optionally qualified with a
+        /// project (T-1448 (b)): `<name>` or `<name>:<project>`.
+        ///
+        /// The bare `<name>` form resolves via local `session.discover` and
+        /// reaches whichever co-resident agent is sharing the host's
+        /// identity_fingerprint (T-1448: co-resident agents share a single
+        /// keypair). When you type `<name>:<project>`, the project suffix
+        /// is stamped as `metadata.to_project=<project>` on the dm post —
+        /// receivers can filter on `to_project == own from_project` to
+        /// disambiguate co-resident sessions.
+        ///
+        /// Optional iff `--target-fp` is given (the `:project` syntax
+        /// applies only to the positional target; with `--target-fp`, pass
+        /// `--metadata to_project=<project>` via the channel post path).
         target: Option<String>,
 
         /// Target identity fingerprint (hex). Use this when the peer is
