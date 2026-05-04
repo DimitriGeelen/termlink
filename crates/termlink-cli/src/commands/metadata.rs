@@ -650,6 +650,14 @@ fn whoami_card_json(
     if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
         card["session"]["identity_fingerprint"] = serde_json::json!(fp);
     }
+    // T-1477: surface the auto-resolved from_project so operators see what
+    // T-1472's CLI default-injection would stamp on a `channel post` from
+    // this session. Same resolver as channel.rs (single source of truth).
+    if let Some(cwd) = reg.metadata.cwd.as_deref()
+        && let Some(project) = super::channel::resolve_project_name_from(std::path::Path::new(cwd))
+    {
+        card["posts_as"] = serde_json::json!({ "from_project": project });
+    }
     if let Some(p) = pid_walked_match {
         card["resolved_via"] = serde_json::json!("pid_walk");
         card["pid_walk_match"] = serde_json::json!(p);
@@ -680,6 +688,14 @@ fn print_whoami_card(
         println!("Capabilities: {}", if reg.capabilities.is_empty() { "(none)".to_string() } else { reg.capabilities.join(", ") });
         if let Some(cwd) = reg.metadata.cwd.as_deref() {
             println!("Cwd:          {cwd}");
+            // T-1477: from_project that `channel post` auto-injection would
+            // stamp from this cwd (T-1472). Omitted when no `.framework.yaml`
+            // is reachable up the cwd path.
+            if let Some(project) =
+                super::channel::resolve_project_name_from(std::path::Path::new(cwd))
+            {
+                println!("Posts as:     from_project={project}");
+            }
         }
         if let Some(p) = pid_walked_match {
             println!();
