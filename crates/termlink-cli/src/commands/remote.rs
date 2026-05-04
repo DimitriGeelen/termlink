@@ -2573,9 +2573,27 @@ pub(crate) async fn cmd_fleet_doctor(
                 {
                     obj.insert("bus_state".to_string(), bs.clone());
                 }
+                // T-1475 (T-1458 follow-up): warn when the hub reports the
+                // workspace-static "0.9.0" — that means the running hub binary
+                // was built BEFORE T-1458's build.rs landed (2026-05-03), so
+                // its version string is the hardcoded workspace fallback rather
+                // than the git-derived freshness signal. Operator can't tell
+                // "I'm running latest" from "I haven't restarted in weeks".
+                let version_stale = hub_version == "0.9.0";
+                if version_stale && let Some(obj) = hub_obj.as_object_mut() {
+                    obj.insert("version_stale".to_string(), serde_json::Value::Bool(true));
+                }
                 hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
+                    if version_stale {
+                        eprintln!(
+                            "    [WARN] hub_version=0.9.0 — running binary predates T-1458 \
+                             (2026-05-03 build.rs fix). Restart with a newer binary for \
+                             accurate version reporting; this is a stale-build signal, \
+                             not a connectivity issue."
+                        );
+                    }
                     // T-1446: render per-hub bus_state line when --topic-durability is set
                     if let Some(bs) = &bus_state_summary {
                         if bs.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
