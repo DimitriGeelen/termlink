@@ -3435,6 +3435,28 @@ pub(crate) enum AgentAction {
         online_window_secs: u64,
     },
 
+    /// Fleet-wide peer presence — companion to `agent who` (T-1482).
+    /// Walks recent `agent-chat-arc` activity, aggregates non-meta posts
+    /// by sender_id, and renders one row per active peer with last_seen,
+    /// posts in window, and top from_project. Sorted by posts desc. Use
+    /// this for fleet situational awareness ("who's on the wire right
+    /// now and what are they working on?") — `agent who` is per-peer.
+    Presence {
+        /// Window (seconds) for the activity slice. Default 3600 (1h).
+        /// Clamped to [60, 604800] (1 minute to 1 week). Peers with zero
+        /// in-window posts are filtered out (not "present").
+        #[arg(long = "window-secs", default_value_t = 3600)]
+        window_secs: u64,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Peer observability — summarize a peer's recent `agent-chat-arc`
     /// activity (T-1481). Returns: identity fingerprint, last_seen on the
     /// canonical liveness arc, posts in the window, and distinct

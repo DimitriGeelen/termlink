@@ -269,6 +269,9 @@ async fn main() -> Result<()> {
             AgentAction::Who { target_fp, window_secs, hub, json } => {
                 commands::agent::cmd_agent_who(&target_fp, window_secs, hub.as_deref(), json).await
             }
+            AgentAction::Presence { window_secs, hub, json } => {
+                commands::agent::cmd_agent_presence(window_secs, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

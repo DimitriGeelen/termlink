@@ -847,6 +847,118 @@ pub(crate) async fn fetch_peer_activity_via_chat_arc(
     Ok(summarize_peer_activity(&msgs, peer_fp, now_ms, window_ms))
 }
 
+/// T-1482: one row in the fleet-presence summary. `top_project` is the
+/// most-frequently-stamped `from_project` value across this peer's
+/// in-window posts (None when the peer's posts had no `from_project` or
+/// the peer had no in-window posts). Tie-break: alphabetic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FleetPeerRow {
+    pub(crate) peer_fp: String,
+    pub(crate) last_seen_ms: Option<i64>,
+    pub(crate) posts: u64,
+    pub(crate) top_project: Option<String>,
+}
+
+impl FleetPeerRow {
+    pub(crate) fn to_json(&self) -> Value {
+        json!({
+            "peer_fp": self.peer_fp,
+            "last_seen_ms": self.last_seen_ms,
+            "posts": self.posts,
+            "top_project": self.top_project,
+        })
+    }
+}
+
+/// T-1482: pure helper — aggregate non-meta msgs by sender_id within the
+/// window, returning one row per peer. Sorted by posts desc, then peer_fp
+/// asc. Used by `agent presence` for fleet-wide observability.
+pub(crate) fn summarize_fleet_presence(
+    msgs: &[Value],
+    now_ms: i64,
+    window_ms: i64,
+) -> Vec<FleetPeerRow> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    // Per-peer: posts in window, last_seen across slice, project counts.
+    struct Acc {
+        last_seen: Option<i64>,
+        posts: u64,
+        projects: HashMap<String, u64>,
+    }
+    let mut by_peer: HashMap<String, Acc> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let acc = by_peer.entry(sender).or_insert(Acc {
+            last_seen: None,
+            posts: 0,
+            projects: HashMap::new(),
+        });
+        acc.last_seen = Some(acc.last_seen.map_or(ts, |b| b.max(ts)));
+        if ts >= cutoff {
+            acc.posts += 1;
+            if let Some(p) = m
+                .get("metadata")
+                .and_then(|md| md.get("from_project"))
+                .and_then(|v| v.as_str())
+            {
+                *acc.projects.entry(p.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+    // Drop peers with zero in-window posts — they're not "present".
+    let mut rows: Vec<FleetPeerRow> = by_peer
+        .into_iter()
+        .filter(|(_, acc)| acc.posts > 0)
+        .map(|(peer_fp, acc)| {
+            let top_project = if acc.projects.is_empty() {
+                None
+            } else {
+                let mut v: Vec<(String, u64)> = acc.projects.into_iter().collect();
+                v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                Some(v.into_iter().next().unwrap().0)
+            };
+            FleetPeerRow {
+                peer_fp,
+                last_seen_ms: acc.last_seen,
+                posts: acc.posts,
+                top_project,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.posts.cmp(&a.posts).then_with(|| a.peer_fp.cmp(&b.peer_fp)));
+    rows
+}
+
+/// T-1482: probe fleet presence on `agent-chat-arc`. Walks the last 2000
+/// envelopes — wider than per-peer activity (1000) because we're aggregating
+/// across N peers and we want enough headroom for week-long windows.
+pub(crate) async fn fetch_fleet_presence_via_chat_arc(
+    hub: Option<&str>,
+    window_secs: u64,
+) -> Result<Vec<FleetPeerRow>> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    let msgs = fetch_recent_chat_arc_msgs(hub, 2000).await?;
+    Ok(summarize_fleet_presence(&msgs, now_ms, window_ms))
+}
+
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
@@ -8234,6 +8346,108 @@ mod tests {
         assert_eq!(a.posts_in_window, 2);
         assert_eq!(a.from_projects.len(), 1, "only the post with from_project");
         assert_eq!(a.from_projects[0], ("p1".to_string(), 1));
+    }
+
+    // ---- T-1482 summarize_fleet_presence tests --------------------------
+
+    #[test]
+    fn fleet_presence_empty_msgs_returns_empty() {
+        let rows = summarize_fleet_presence(&[], 1_700_000_000_000, 3_600_000);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn fleet_presence_single_peer_one_row() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![activity_msg("peer1", now - 1000, "post", Some("p1"))];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].peer_fp, "peer1");
+        assert_eq!(rows[0].posts, 1);
+        assert_eq!(rows[0].last_seen_ms, Some(now - 1000));
+        assert_eq!(rows[0].top_project.as_deref(), Some("p1"));
+    }
+
+    #[test]
+    fn fleet_presence_multi_peer_sorted_by_posts_desc_then_fp_asc() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("aaa", now - 1, "post", Some("p")),
+            activity_msg("bbb", now - 2, "post", Some("p")),
+            activity_msg("bbb", now - 3, "post", Some("p")),
+            activity_msg("ccc", now - 4, "post", Some("p")),
+            activity_msg("ccc", now - 5, "post", Some("p")),
+            activity_msg("ccc", now - 6, "post", Some("p")),
+            activity_msg("aaa", now - 7, "post", Some("p")), // tie aaa(2) vs bbb(2)
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        assert_eq!(rows.len(), 3);
+        // ccc(3) > aaa(2)==bbb(2) → ccc first; tie-break on fp asc → aaa, bbb
+        assert_eq!(rows[0].peer_fp, "ccc");
+        assert_eq!(rows[0].posts, 3);
+        assert_eq!(rows[1].peer_fp, "aaa");
+        assert_eq!(rows[1].posts, 2);
+        assert_eq!(rows[2].peer_fp, "bbb");
+        assert_eq!(rows[2].posts, 2);
+    }
+
+    #[test]
+    fn fleet_presence_filters_meta_msgs_and_outside_window() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "post", Some("p1")),
+            activity_msg("peer1", now - 2_000, "reaction", Some("p1")),    // meta: skipped
+            activity_msg("peer1", now - 3_000, "topic_metadata", Some("p1")), // meta: skipped
+            activity_msg("peer2", now - 5_000_000, "post", Some("old")),  // outside window
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, window_ms);
+        assert_eq!(rows.len(), 1, "only peer1 in window");
+        assert_eq!(rows[0].peer_fp, "peer1");
+        assert_eq!(rows[0].posts, 1);
+    }
+
+    #[test]
+    fn fleet_presence_top_project_picks_most_frequent_then_alpha() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1, "post", Some("zebra")),
+            activity_msg("peer1", now - 2, "post", Some("zebra")),
+            activity_msg("peer1", now - 3, "post", Some("alpha")),
+            activity_msg("peer1", now - 4, "post", Some("alpha")),
+            // alpha tied with zebra at 2 → alphabetic wins
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].top_project.as_deref(), Some("alpha"));
+    }
+
+    #[test]
+    fn fleet_presence_peer_with_no_from_project_has_none_top() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            activity_msg("peer1", now - 1_000, "post", None),
+            activity_msg("peer1", now - 2_000, "post", None),
+        ];
+        let rows = summarize_fleet_presence(&msgs, now, 3_600_000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posts, 2);
+        assert_eq!(rows[0].top_project, None);
+    }
+
+    #[test]
+    fn fleet_presence_to_json_shape_stable() {
+        let row = FleetPeerRow {
+            peer_fp: "deadbeef".to_string(),
+            last_seen_ms: Some(1234567890),
+            posts: 5,
+            top_project: Some("foo".to_string()),
+        };
+        let v = row.to_json();
+        assert_eq!(v["peer_fp"], json!("deadbeef"));
+        assert_eq!(v["last_seen_ms"], json!(1234567890_i64));
+        assert_eq!(v["posts"], json!(5));
+        assert_eq!(v["top_project"], json!("foo"));
     }
 
     #[test]
