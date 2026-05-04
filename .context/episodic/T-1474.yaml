@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1474: agent contact <name>:<project> + to_project metadata
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T10:50:42Z
+# ============================================================================
+
+task_id: T-1474
+task_name: "agent contact <name>:<project> + to_project metadata"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T10:41:18Z
+completed: 2026-05-04T10:50:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T12:50:20+02:00
+last_commit: 2026-05-04T12:50:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent contact <name>:<project> — auto-attach to_project metadata (T-1448 (b))
+
+# Key outcomes
+outcomes:
+  - "`agent contact <target>` accepts a `<name>:<project>` form for the target argument; the colon-separated form is parsed at the CLI boundary into `(name, Some(project))` (parse_contact_target in agent.rs)"
+  - "When `:<project>` is present, the resulting `dm:` post carries `metadata.to_project=<project>` — verified end-to-end at offset=7 of `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` (`to_project=test-T-1474`)"
+  - "When the bare `<name>` form is used (no colon), no `to_project` metadata is added (back-compat preserved — `parse_contact_target(\"penelope\")` returns `(name, None)` and the metadata-push is gated on `Some(p)`)"
+  - "`--target-fp <hex>` path unchanged; doc-comment in cli.rs documents the `name:project` syntax applies only to the positional target"
+  - "Multi-colon target rejected with clear error — verified: `Error: target may contain at most one ':' (form is '<name>[:<project>]'), got \"name:foo:bar\"`"
+  - "Empty project rejected — verified: `Error: project qualifier cannot be empty after ':' in \"name:\"`"
+  - "Empty name (`\":proj\"`) rejected — verified: `Error: target name cannot be empty in \":proj\"`"
+  - "Pure helpers unit-tested: 7 new tests in `contact_tests` (bare/colon/empty-input/empty-name/empty-project/multi-colon/special-chars) — all pass"
+  - "`cargo build -p termlink` succeeds (debug build, finished in 22.38s)"
+  - "`cargo test -p termlink --bin termlink contact_tests` passes (8 passed; 0 failed)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - ".tasks/active/T-1474-agent-contact-nameproject--toproject-met.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T12:50:20"
+    action: "T-1474: agent contact <name>:<project> — auto-attach to_project metadata (T-1448 (b))"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 3
+  lines_added: 260
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1474-agent-contact-nameproject--toproject-met.md
+generated_by: context-agent-hybrid
