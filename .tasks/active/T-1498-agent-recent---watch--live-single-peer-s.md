@@ -4,16 +4,16 @@ name: "agent recent --watch — live single-peer streaming view"
 description: >
   Add --watch flag to agent recent (T-1492) — symmetric to T-1494 (on-thread --watch) and T-1496 (overview --watch). Closes the watch trio: presence/on-thread/overview/recent all stream live. Single-peer streaming is the missing primitive for an operator who wants a live feed of one peer (e.g. babysitting a long-running build). Pure UX extension; underlying extract_recent_posts pure helper already shipped.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T19:54:18Z
-last_update: 2026-05-04T19:54:18Z
-date_finished: null
+last_update: 2026-05-04T20:08:00Z
+date_finished: 2026-05-04T20:08:00Z
 ---
 
 # T-1498: agent recent --watch — live single-peer streaming view
@@ -125,3 +125,7 @@ out=$(timeout 7 target/release/termlink agent recent --target-fp d1993c2c3ec44c9
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1498-agent-recent---watch--live-single-peer-s.md
 - **Context:** Initial task creation
+
+### 2026-05-04T20:08:00Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
