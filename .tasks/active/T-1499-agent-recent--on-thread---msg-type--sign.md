@@ -4,16 +4,16 @@ name: "agent recent / on-thread --msg-type — signal vs noise filter"
 description: >
   Add --msg-type allowlist filter to agent recent + agent on-thread (composable with existing thread/project filters). Operator wants signal-vs-noise: see only note (real content) and skip status/star (heartbeats). Helper extract_recent_posts gains filter_msg_types: Option<&[&str]> param. Single comma-sep value at the CLI surface (e.g., --msg-type note,edit,status). Pure helper change with new unit tests.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:08:44Z
-last_update: 2026-05-04T20:08:44Z
-date_finished: null
+last_update: 2026-05-04T20:24:00Z
+date_finished: 2026-05-04T20:24:00Z
 ---
 
 # T-1499: agent recent / on-thread --msg-type — signal vs noise filter
@@ -134,3 +134,7 @@ out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1499-agent-recent--on-thread---msg-type--sign.md
 - **Context:** Initial task creation
+
+### 2026-05-04T20:24:00Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
