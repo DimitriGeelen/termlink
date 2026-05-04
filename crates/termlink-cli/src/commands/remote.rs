@@ -1995,11 +1995,25 @@ pub(crate) async fn cmd_fleet_doctor(
     legacy_window_days: u64,
     topic_durability: bool,
     diff: Option<std::path::PathBuf>,
+    save_snapshot: Option<std::path::PathBuf>,
 ) -> Result<()> {
     // T-1462: --diff requires --legacy-usage. Reject loudly so operators don't
     // wonder why nothing happens.
     if diff.is_some() && !legacy_usage {
         anyhow::bail!("--diff requires --legacy-usage (the diff is computed against the legacy_summary block)");
+    }
+    // T-1463: validate save-snapshot parent directory exists *before* doing
+    // an entire fleet sweep. Failing fast saves operator time.
+    if let Some(p) = save_snapshot.as_deref() {
+        let parent = p.parent().filter(|s| !s.as_os_str().is_empty());
+        if let Some(dir) = parent
+            && !dir.exists()
+        {
+            anyhow::bail!(
+                "--save-snapshot: parent directory {} does not exist (create it first)",
+                dir.display()
+            );
+        }
     }
     // T-1462: read prior snapshot up-front so we fail fast on missing/unparseable
     // file rather than after a full RPC sweep. Returns the *whole* prior fleet
@@ -2502,7 +2516,10 @@ pub(crate) async fn cmd_fleet_doctor(
         None
     };
 
-    if json {
+    // T-1463: build the JSON document unconditionally when either --json
+    // or --save-snapshot was requested, so both paths emit the same value.
+    let need_json_doc = json || save_snapshot.is_some();
+    let json_doc = if need_json_doc {
         let mut top = serde_json::json!({
             "ok": total_fail == 0,
             "hubs": hub_results,
@@ -2510,12 +2527,12 @@ pub(crate) async fn cmd_fleet_doctor(
             "fleet_versions": fleet_versions,
             "_snapshot_ts_ms": snapshot_ts_ms,
         });
-        if let Some(ls) = legacy_summary_obj
+        if let Some(ls) = legacy_summary_obj.clone()
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("legacy_summary".to_string(), ls);
         }
-        if let Some(bs) = bus_state_summary_obj
+        if let Some(bs) = bus_state_summary_obj.clone()
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("bus_state_summary".to_string(), bs);
@@ -2525,7 +2542,32 @@ pub(crate) async fn cmd_fleet_doctor(
         {
             obj.insert("legacy_diff".to_string(), legacy_diff_to_json(d));
         }
-        println!("{}", serde_json::to_string_pretty(&top)?);
+        Some(top)
+    } else {
+        None
+    };
+
+    // T-1463: persist snapshot to disk. Atomic via .tmp + rename so a future
+    // --diff never reads a half-written file.
+    if let (Some(path), Some(doc)) = (save_snapshot.as_deref(), json_doc.as_ref()) {
+        let body = serde_json::to_string_pretty(doc)?;
+        let tmp = path.with_extension({
+            let cur = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            if cur.is_empty() { "tmp".to_string() } else { format!("{cur}.tmp") }
+        });
+        std::fs::write(&tmp, &body)
+            .with_context(|| format!("--save-snapshot: failed to write {}", tmp.display()))?;
+        std::fs::rename(&tmp, path)
+            .with_context(|| format!("--save-snapshot: failed to rename {} -> {}", tmp.display(), path.display()))?;
+        if !json {
+            eprintln!();
+            eprintln!("snapshot saved: {}", path.display());
+        }
+    }
+
+    if json {
+        let doc = json_doc.expect("built when need_json_doc");
+        println!("{}", serde_json::to_string_pretty(&doc)?);
     } else {
         eprintln!("Fleet summary: {} hub(s), {} ok, {} warn, {} fail",
             hub_results.len(), total_pass, total_warn, total_fail);

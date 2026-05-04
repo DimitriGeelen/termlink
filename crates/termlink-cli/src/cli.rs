@@ -3089,6 +3089,14 @@ pub(crate) enum FleetAction {
         /// no hub upgrade required.
         #[arg(long, value_name = "PATH")]
         diff: Option<std::path::PathBuf>,
+
+        /// T-1463: write the JSON document of this run to PATH (in addition
+        /// to whatever stdout/stderr produce). Lets a single invocation both
+        /// show the human-readable verdict AND persist a snapshot for later
+        /// `--diff` calls. Atomic write (PATH.tmp → rename). Parent directory
+        /// must exist.
+        #[arg(long, value_name = "PATH")]
+        save_snapshot: Option<std::path::PathBuf>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
