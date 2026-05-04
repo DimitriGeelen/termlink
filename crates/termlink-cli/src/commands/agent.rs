@@ -821,12 +821,29 @@ pub(crate) async fn cmd_agent_contact(
             .context("agent contact --dry-run: cannot load local identity")?;
         let my_id = identity.fingerprint().to_string();
         let topic = super::channel::dm_topic(&my_id, peer_fp);
+        // T-1479: count local sessions sharing peer_fp as their
+        // identity_fingerprint — co-residency detection. Best-effort: if
+        // session enumeration fails, we pass None and the preview stays silent.
+        let local_session_count =
+            manager::list_sessions(false).ok().map(|sessions| {
+                sessions
+                    .iter()
+                    .filter(|s| {
+                        s.metadata
+                            .identity_fingerprint
+                            .as_deref()
+                            .map(|fp| fp == peer_fp)
+                            .unwrap_or(false)
+                    })
+                    .count()
+            });
         let preview = render_dry_run_preview(
             &my_id,
             peer_fp,
             &topic,
             extra_metadata.iter().map(String::as_str),
             message,
+            local_session_count,
         );
         println!("{}", serde_json::to_string_pretty(&preview)?);
         return Ok(());
@@ -850,12 +867,18 @@ pub(crate) async fn cmd_agent_contact(
 /// metadata that `cmd_channel_dm` would stamp on the post (from_project
 /// auto-injected by `cmd_channel_post`, plus any extra_metadata supplied
 /// here). Pure: no I/O, no globals; tested via contact_tests.
+///
+/// T-1479: takes optional `local_session_count` — when > 1, indicates
+/// co-residency on the peer FP and the preview emits a `co_residency`
+/// block with a context-aware warning. None means co-residency was not
+/// probed (e.g. session enumeration failed) — silent on that case.
 pub(crate) fn render_dry_run_preview<'a, I>(
     my_id: &str,
     peer_fp: &str,
     topic: &str,
     extra_metadata: I,
     message: &str,
+    local_session_count: Option<usize>,
 ) -> serde_json::Value
 where
     I: IntoIterator<Item = &'a str>,
@@ -874,14 +897,38 @@ where
             metadata.insert(k.to_string(), serde_json::Value::String(v.to_string()));
         }
     }
-    serde_json::json!({
+    let mut preview = serde_json::json!({
         "dry_run": true,
         "my_id": my_id,
         "peer_fp": peer_fp,
         "topic": topic,
-        "metadata": metadata,
+        "metadata": metadata.clone(),
         "message": message,
-    })
+    });
+    // T-1479: co-residency block (only when N > 1).
+    if let Some(n) = local_session_count
+        && n > 1
+    {
+        let to_project = metadata
+            .get("to_project")
+            .and_then(|v| v.as_str());
+        let warning = match to_project {
+            None => format!(
+                "co-resident peers detected ({n} sessions share this FP locally) \
+                 and no to_project qualifier — post will reach all of them; \
+                 pass <name>:<project> to target one"
+            ),
+            Some(value) => format!(
+                "co-resident peers detected ({n} sessions share this FP locally); \
+                 to_project={value} will let receivers self-filter"
+            ),
+        };
+        preview["co_residency"] = serde_json::json!({
+            "local_session_count": n,
+            "warning": warning,
+        });
+    }
+    preview
 }
 
 #[cfg(test)]
@@ -963,6 +1010,7 @@ mod contact_tests {
             "dm:aaaa:bbbb",
             ["_thread=T-1478", "to_project=050-email-archive"].iter().copied(),
             "hello",
+            None,
         );
         assert_eq!(v.get("dry_run").and_then(|x| x.as_bool()), Some(true));
         assert_eq!(v.get("my_id").and_then(|x| x.as_str()), Some("aaaa"));
@@ -979,7 +1027,7 @@ mod contact_tests {
 
     #[test]
     fn render_dry_run_preview_no_extras_yields_empty_metadata_object() {
-        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x");
+        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x", None);
         let md = v.get("metadata").and_then(|m| m.as_object()).expect("metadata is object");
         // from_project may or may not appear depending on cwd; what matters is
         // _thread/to_project are absent when not supplied.
@@ -996,10 +1044,53 @@ mod contact_tests {
             "dm:a:b",
             ["malformed-no-equals", "_thread=T-1"].iter().copied(),
             "x",
+            None,
         );
         let md = v.get("metadata").and_then(|m| m.as_object()).expect("metadata is object");
         assert!(md.get("malformed-no-equals").is_none());
         assert_eq!(md.get("_thread").and_then(|x| x.as_str()), Some("T-1"));
+    }
+
+    // T-1479: co-residency block.
+
+    #[test]
+    fn render_dry_run_preview_no_co_residency_block_when_count_one() {
+        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x", Some(1));
+        assert!(v.get("co_residency").is_none(), "should be silent at N=1");
+    }
+
+    #[test]
+    fn render_dry_run_preview_no_co_residency_block_when_count_zero() {
+        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x", Some(0));
+        assert!(v.get("co_residency").is_none(), "should be silent at N=0");
+    }
+
+    #[test]
+    fn render_dry_run_preview_co_residency_warns_no_to_project() {
+        let v = render_dry_run_preview("a", "b", "dm:a:b", std::iter::empty(), "x", Some(3));
+        let cr = v.get("co_residency").and_then(|x| x.as_object()).expect("co_residency present");
+        assert_eq!(cr.get("local_session_count").and_then(|x| x.as_u64()), Some(3));
+        let w = cr.get("warning").and_then(|x| x.as_str()).expect("warning string");
+        assert!(w.contains("3 sessions"), "got: {w}");
+        assert!(w.contains("no to_project"), "got: {w}");
+        assert!(w.contains("<name>:<project>"), "got: {w}");
+    }
+
+    #[test]
+    fn render_dry_run_preview_co_residency_softer_warning_with_to_project() {
+        let v = render_dry_run_preview(
+            "a",
+            "b",
+            "dm:a:b",
+            ["to_project=050-email-archive"].iter().copied(),
+            "x",
+            Some(2),
+        );
+        let cr = v.get("co_residency").and_then(|x| x.as_object()).expect("co_residency present");
+        let w = cr.get("warning").and_then(|x| x.as_str()).expect("warning string");
+        assert!(w.contains("2 sessions"), "got: {w}");
+        assert!(w.contains("self-filter"), "got: {w}");
+        assert!(w.contains("050-email-archive"), "got: {w}");
     }
 
     #[test]
