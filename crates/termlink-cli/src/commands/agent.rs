@@ -941,23 +941,94 @@ pub(crate) async fn cmd_agent_contact(
     .with_context(|| format!("agent contact: posting to dm topic for peer fp={peer_fp} failed"))
 }
 
+/// T-1483: resolve `--target <name>` → identity_fingerprint via local
+/// `session.discover` + `SessionMetadata.identity_fingerprint`. Mirrors the
+/// path used by `cmd_agent_contact`; extracted here so `agent who` can
+/// share the same error semantics. Returns exit codes via `process::exit`
+/// on miss so the caller doesn't have to plumb the JSON envelope:
+/// - session not found → exit 1 (caller already printed JSON if needed)
+/// - peer registered before T-1436 → exit 8
+fn resolve_target_name_to_fp(target_name: &str, json: bool) -> String {
+    let reg = match manager::find_session(target_name) {
+        Ok(r) => r,
+        Err(e) => {
+            let msg = format!("Session '{target_name}' not found: {e}");
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "target": target_name,
+                    "error": msg,
+                }));
+            }
+            eprintln!("error: {msg}");
+            std::process::exit(1);
+        }
+    };
+    match reg.metadata.identity_fingerprint.clone() {
+        Some(fp) => fp,
+        None => {
+            let msg = format!(
+                "Peer '{target_name}' has no identity_fingerprint in metadata — \
+                 likely registered before T-1436. Upgrade the peer's termlink \
+                 binary and restart the session, then retry. (Or use \
+                 --target-fp <hex> to bypass session.discover.)"
+            );
+            if json {
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "target": target_name,
+                    "error": msg,
+                    "exit_code": 8,
+                }));
+            }
+            eprintln!("error: {msg}");
+            std::process::exit(8);
+        }
+    }
+}
+
 /// T-1481: peer observability primitive. Walks recent `agent-chat-arc`
 /// activity, returns a summary of last-seen, posts in window, and distinct
 /// `from_project` values associated with the peer FP. Disambiguation tool
 /// for cross-host operators investigating an unknown peer.
+///
+/// T-1483: accepts either `--target-fp <hex>` (cross-host, no resolution)
+/// or `--target <name>` (local-hub via session.discover). Mutually
+/// exclusive; one is required.
 pub(crate) async fn cmd_agent_who(
-    target_fp: &str,
+    target_fp: Option<&str>,
+    target: Option<&str>,
     window_secs: u64,
     hub: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    if target_fp.len() < 8 || !target_fp.chars().all(|c| c.is_ascii_hexdigit()) {
-        let msg = format!("--target-fp must be hex (got {target_fp:?})");
+    if target.is_some() && target_fp.is_some() {
+        let msg = "specify either --target or --target-fp, not both";
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
         }
         anyhow::bail!(msg);
     }
+    if target.is_none() && target_fp.is_none() {
+        let msg = "must specify either --target <name> or --target-fp <hex>";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let resolved_fp_owned: String = if let Some(fp) = target_fp {
+        if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+            let msg = format!("--target-fp must be hex (got {fp:?})");
+            if json {
+                super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+            }
+            anyhow::bail!(msg);
+        }
+        fp.to_string()
+    } else {
+        resolve_target_name_to_fp(target.expect("checked above"), json)
+    };
+    let target_fp = resolved_fp_owned.as_str();
     let clamped_window_secs = window_secs.clamp(60, 604_800);
     let activity = super::channel::fetch_peer_activity_via_chat_arc(
         target_fp,
