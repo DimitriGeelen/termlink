@@ -4,16 +4,16 @@ name: "agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 back
 description: >
   agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T12:31:51Z
-last_update: 2026-05-04T12:31:51Z
-date_finished: null
+last_update: 2026-05-04T12:50:10Z
+date_finished: 2026-05-04T12:50:10Z
 ---
 
 # T-1480: agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog)
@@ -88,18 +88,16 @@ out=$(target/release/termlink agent contact --target-fp 00deadbeef00deadbeef --m
 
 ## Recommendation
 
-**GO** — close the Human [REVIEW] AC.
+**Recommendation:** GO
 
-The mechanical step from the AC ran live in this session. Captured output:
+**Rationale:** Mechanical step from the Human [REVIEW] AC ran live; output hits all three Expected criteria (exit 9, FP named, "last seen: never" + window). Wording also includes the operator's recovery path (queue alternative, peer-heartbeat hint), exceeding minimum-actionable.
 
-```
-$ target/release/termlink agent contact --target-fp 00deadbeef00deadbeef \
-    --message x --require-online --online-window-secs 60
-error: peer fp=00deadbeef00deadbeef not online — last seen: never (no posts on agent-chat-arc), window=60s. Re-run without --require-online to queue the post (chat-arc is offset-durable), or wait for the peer's next heartbeat.
-EXIT=9
-```
-
-Hits all three Expected criteria: exit 9, FP named, "last seen: never" + window=60s present. Wording also includes the operator's recovery path (queue alternative, peer heartbeat hint). Recommend GO without further iteration.
+**Evidence:**
+- Live invocation: `target/release/termlink agent contact --target-fp 00deadbeef00deadbeef --message x --require-online --online-window-secs 60`
+- Captured stderr: `error: peer fp=00deadbeef00deadbeef not online — last seen: never (no posts on agent-chat-arc), window=60s. Re-run without --require-online to queue the post (chat-arc is offset-durable), or wait for the peer's next heartbeat.`
+- Captured exit code: 9
+- Verification block: 5/5 PASS (this run)
+- Unit tests: 7/7 PASS (presence_*)
 
 ## Updates
 
@@ -116,3 +114,6 @@ Hits all three Expected criteria: exit 9, FP named, "last seen: never" + window=
   - `crates/termlink-cli/src/cli.rs` (+2 flags on Contact variant)
   - `crates/termlink-cli/src/main.rs` (+dispatch)
 - **Output:** target/release/termlink built clean. 7/7 presence tests pass. Live smoke: fake FP exits 9 with operator-actionable message; dry-run + fake FP shows online=false in preview.
+
+### 2026-05-04T12:50:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
