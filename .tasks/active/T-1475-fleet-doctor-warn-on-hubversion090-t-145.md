@@ -64,8 +64,8 @@ and add `version_stale: true` to the JSON shape.
 ## Verification
 
 cargo build -p termlink
-target/debug/termlink fleet doctor --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); assert any(h.get('version_stale') for h in d.get('hubs',[])), 'expected at least one stale hub against pre-T-1458 prod fleet'"
-target/debug/termlink fleet doctor 2>&1 | grep -q 'hub_version=0.9.0'
+target/debug/termlink fleet doctor --json 2>/dev/null > /tmp/t1475-fd.json && python3 -c "import json; d=json.load(open('/tmp/t1475-fd.json')); assert any(h.get('version_stale') for h in d.get('hubs',[])), 'expected at least one stale hub against pre-T-1458 prod fleet'"
+target/debug/termlink fleet doctor > /tmp/t1475-fd.txt 2>&1; grep -q 'hub_version=0.9.0' /tmp/t1475-fd.txt
 
 ## RCA
 
