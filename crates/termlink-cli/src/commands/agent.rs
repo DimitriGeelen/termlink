@@ -1748,6 +1748,194 @@ fn render_recent_body(posts: &[super::channel::RecentPost], now_ms: i64) {
     println!("{} post(s) shown", posts.len());
 }
 
+/// T-1500: fleet-wide chronological log — "tail -f for the fleet".
+/// All posts across all peers in a window, time-ordered, peer-short
+/// prefixed for multi-peer disambiguation. No peer or thread filter
+/// required — both optional. Pure wrapper around
+/// `extract_recent_posts(..., peer=None, ...)`.
+pub(crate) async fn cmd_agent_timeline(
+    n: usize,
+    window_secs: u64,
+    filter_thread: Option<&str>,
+    filter_project: Option<&str>,
+    filter_msg_types: Option<&[&str]>,
+    hub: Option<&str>,
+    json: bool,
+    watch: bool,
+    watch_interval: u64,
+) -> Result<()> {
+    if watch && json {
+        let msg = "--watch and --json are incompatible: --watch streams \
+                   re-rendered text frames; --json is one-shot. Pick one.";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+
+    let clamped_n = n.clamp(1, 500);
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    if watch {
+        let clamped_interval = watch_interval.clamp(1, 300);
+        loop {
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            let mut filter_suffix = String::new();
+            if let Some(t) = filter_thread {
+                filter_suffix.push_str(&format!(" | thread={t}"));
+            }
+            if let Some(p) = filter_project {
+                filter_suffix.push_str(&format!(" | project={p}"));
+            }
+            if let Some(types) = filter_msg_types {
+                if !types.is_empty() {
+                    filter_suffix.push_str(&format!(" | msg_type={}", types.join(",")));
+                }
+            }
+            println!(
+                "# agent timeline --watch | interval={}s | window={}s | n={}{} | {}",
+                clamped_interval, clamped_window_secs, clamped_n, filter_suffix, now_str
+            );
+            match super::channel::fetch_recent_chat_arc_msgs(hub, 1000).await {
+                Ok(msgs) => {
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+                    let posts = super::channel::extract_recent_posts(
+                        &msgs,
+                        clamped_n,
+                        window_ms,
+                        now_ms,
+                        None,
+                        filter_thread,
+                        filter_project,
+                        filter_msg_types,
+                    );
+                    render_timeline_body(&posts, now_ms);
+                }
+                Err(e) => {
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
+        }
+    }
+
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 1000)
+        .await
+        .with_context(|| "agent timeline: failed to fetch chat-arc".to_string())?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+
+    let posts = super::channel::extract_recent_posts(
+        &msgs,
+        clamped_n,
+        window_ms,
+        now_ms,
+        None,
+        filter_thread,
+        filter_project,
+        filter_msg_types,
+    );
+
+    if json {
+        let mut out_obj = serde_json::Map::new();
+        out_obj.insert("verb".to_string(), serde_json::Value::String("agent.timeline".to_string()));
+        out_obj.insert("window_secs".to_string(), serde_json::Value::from(clamped_window_secs));
+        out_obj.insert("n".to_string(), serde_json::Value::from(clamped_n));
+        if let Some(t) = filter_thread {
+            out_obj.insert("filter_thread".to_string(), serde_json::Value::String(t.to_string()));
+        }
+        if let Some(p) = filter_project {
+            out_obj.insert("filter_project".to_string(), serde_json::Value::String(p.to_string()));
+        }
+        if let Some(types) = filter_msg_types {
+            if !types.is_empty() {
+                out_obj.insert(
+                    "filter_msg_types".to_string(),
+                    serde_json::Value::Array(
+                        types.iter().map(|t| serde_json::Value::String(t.to_string())).collect(),
+                    ),
+                );
+            }
+        }
+        let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
+        out_obj.insert("posts".to_string(), serde_json::Value::Array(posts_json));
+        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
+        return Ok(());
+    }
+
+    let mut filter_suffix = String::new();
+    if let Some(t) = filter_thread {
+        filter_suffix.push_str(&format!(" thread={t}"));
+    }
+    if let Some(p) = filter_project {
+        filter_suffix.push_str(&format!(" project={p}"));
+    }
+    if let Some(types) = filter_msg_types {
+        if !types.is_empty() {
+            filter_suffix.push_str(&format!(" msg_type={}", types.join(",")));
+        }
+    }
+    println!(
+        "# agent timeline | window={}s | n={}{}",
+        clamped_window_secs, clamped_n, filter_suffix
+    );
+    render_timeline_body(&posts, now_ms);
+    Ok(())
+}
+
+/// T-1500: timeline body renderer. Like `render_recent_body` but
+/// prefixes each post with peer-short (first 8 chars of peer_fp) so
+/// the operator can disambiguate posts across peers in the
+/// chronological log.
+fn render_timeline_body(posts: &[super::channel::RecentPost], now_ms: i64) {
+    if posts.is_empty() {
+        println!("(no posts found in window)");
+        return;
+    }
+    for p in posts {
+        let age_secs = ((now_ms - p.ts_ms) / 1000).max(0);
+        let age_str = if age_secs < 60 {
+            format!("{age_secs}s ago")
+        } else if age_secs < 3600 {
+            format!("{}m ago", age_secs / 60)
+        } else if age_secs < 86_400 {
+            format!("{}h ago", age_secs / 3600)
+        } else {
+            format!("{}d ago", age_secs / 86_400)
+        };
+        let peer_short: String = p.peer_fp.chars().take(8).collect();
+        let mut tags = format!("msg_type={}", p.msg_type);
+        if let Some(t) = &p.thread {
+            tags.push_str(&format!(" thread={t}"));
+        }
+        if let Some(pr) = &p.project {
+            tags.push_str(&format!(" project={pr}"));
+        }
+        println!("[{}] [{}] {}", age_str, peer_short, tags);
+        for line in p.content.lines() {
+            println!("    {}", line);
+        }
+        if p.content.is_empty() {
+            println!("    (empty)");
+        }
+        println!();
+    }
+    println!("{} post(s) shown", posts.len());
+}
+
 /// T-1493: chronological reading view of all posts on a thread across
 /// the fleet. Wraps the same `extract_recent_posts` helper as
 /// `cmd_agent_recent` but with `filter_thread` required and `peer`

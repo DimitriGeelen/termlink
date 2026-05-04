@@ -3768,6 +3768,56 @@ pub(crate) enum AgentAction {
         watch_interval: u64,
     },
 
+    /// Fleet-wide chronological log (T-1500): all posts across all peers
+    /// in a window, time-ordered, peer-short prefixed. "tail -f for the
+    /// fleet" — companion to `recent <peer>` (one peer) and
+    /// `on-thread <T-XXX>` (one thread). No peer/thread filter required.
+    /// Pure wrapper around `extract_recent_posts(..., peer=None, ...)`;
+    /// composes with --thread, --project, --msg-type, --watch, --json.
+    Timeline {
+        /// Number of posts to return. Default 50. Clamped to [1, 500].
+        #[arg(long = "n", default_value_t = 50)]
+        n: usize,
+
+        /// Window (seconds) for the activity slice. Default 3600 (1h).
+        /// Clamped to [60, 604800].
+        #[arg(long = "window-secs", default_value_t = 3600)]
+        window_secs: u64,
+
+        /// Restrict to one thread (e.g. T-1485). Optional.
+        #[arg(long = "thread")]
+        filter_thread: Option<String>,
+
+        /// Restrict to one project — only posts whose
+        /// `metadata.from_project == <name>` are returned.
+        #[arg(long = "project")]
+        filter_project: Option<String>,
+
+        /// msg_type allowlist (comma-separated). Same semantics as
+        /// `agent recent --msg-type`: AND-composes with thread/project;
+        /// meta types always excluded.
+        #[arg(long = "msg-type", value_delimiter = ',')]
+        filter_msg_types: Vec<String>,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope
+        #[arg(long)]
+        json: bool,
+
+        /// Live tail-f mode: re-render every `--watch-interval` seconds
+        /// until Ctrl-C. Incompatible with `--json` (one-shot vs streaming).
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval (seconds) for `--watch` mode. Default 5.
+        /// Clamped to [1, 300]. Ignored without `--watch`.
+        #[arg(long = "watch-interval", default_value_t = 5)]
+        watch_interval: u64,
+    },
+
     /// Single-shot fleet digest (T-1495): top peers + top projects + last
     /// posts in one render. Designed as the first command of a session —
     /// "what's the fleet doing right now?". Composes existing pure
