@@ -4,16 +4,16 @@ name: "agent timeline — fleet-wide chronological log (tail -f for the fleet)"
 description: >
   Add 'agent timeline' verb — fleet-wide chronological log of posts across all peers in a window. Mirrors recent/on-thread shape but no peer or thread filter required (both optional). Compose with --thread, --project, --msg-type, --window-secs, --n, --watch. Operator gets a 'tail -f for the fleet' primitive: see all activity chronologically without first picking a peer or thread. Pure wrapper around extract_recent_posts (peer=None). New render_timeline_body helper that prefixes each post with peer_short for multi-peer disambiguation.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:29:04Z
-last_update: 2026-05-04T20:29:04Z
-date_finished: null
+last_update: 2026-05-04T21:44:28Z
+date_finished: 2026-05-04T21:44:28Z
 ---
 
 # T-1500: agent timeline — fleet-wide chronological log (tail -f for the fleet)
@@ -113,3 +113,7 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 5 --json 2>
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1500-agent-timeline--fleet-wide-chronological.md
 - **Context:** Initial task creation
+
+### 2026-05-04T21:44:28Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
