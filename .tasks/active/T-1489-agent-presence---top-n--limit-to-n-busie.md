@@ -4,16 +4,16 @@ name: "agent presence --top N — limit to N busiest peers"
 description: >
   agent presence --top N — limit to N busiest peers
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T16:06:40Z
-last_update: 2026-05-04T16:06:40Z
-date_finished: null
+last_update: 2026-05-04T16:12:54Z
+date_finished: 2026-05-04T16:12:54Z
 ---
 
 # T-1489: agent presence --top N — limit to N busiest peers
@@ -100,3 +100,6 @@ out=$(target/release/termlink agent presence --top 1 --window-secs 86400 2>&1); 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1489-agent-presence---top-n--limit-to-n-busie.md
 - **Context:** Initial task creation
+
+### 2026-05-04T16:12:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
