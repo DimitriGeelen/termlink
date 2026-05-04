@@ -1262,10 +1262,15 @@ pub(crate) fn extract_recent_posts(
     filter_thread: Option<&str>,
     filter_project: Option<&str>,
     filter_msg_types: Option<&[&str]>,
+    filter_grep: Option<&str>,
 ) -> Vec<RecentPost> {
     const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
     const CONTENT_CAP: usize = 200;
     let cutoff = now_ms - window_ms;
+    // T-1501: case-insensitive grep — empty pattern treated as None (defensive).
+    let grep_lower: Option<String> = filter_grep
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase());
     let mut hits: Vec<RecentPost> = Vec::new();
     for m in msgs {
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
@@ -1335,6 +1340,12 @@ pub(crate) fn extract_recent_posts(
         } else {
             content_raw
         };
+        // T-1501: case-insensitive substring grep — match against rendered content.
+        if let Some(needle) = grep_lower.as_deref() {
+            if !content.to_lowercase().contains(needle) {
+                continue;
+            }
+        }
         hits.push(RecentPost {
             ts_ms: ts,
             peer_fp: sender.to_string(),
@@ -13515,6 +13526,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
         assert!(posts.is_empty());
     }
@@ -13533,6 +13545,7 @@ mod tests {
             3_600_000,
             now,
             Some("peer1"),
+            None,
             None,
             None,
             None,
@@ -13563,6 +13576,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 3);
         // Last 3 in chronological asc order — p2, p3, p4
@@ -13588,6 +13602,7 @@ mod tests {
             Some("T-A"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "thread-A");
@@ -13609,6 +13624,7 @@ mod tests {
             Some("peer1"),
             None,
             Some("A"),
+            None,
             None,
         );
         assert_eq!(posts.len(), 1);
@@ -13633,6 +13649,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "in-window");
@@ -13650,6 +13667,7 @@ mod tests {
             3_600_000,
             now,
             Some("peer1"),
+            None,
             None,
             None,
             None,
@@ -13679,6 +13697,7 @@ mod tests {
             Some("T-1"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 2);
         // Chronological asc — alice (now-3) before bob (now-2)
@@ -13705,6 +13724,7 @@ mod tests {
             Some("T-X"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 1);
         assert_eq!(posts[0].content, "match");
@@ -13727,6 +13747,7 @@ mod tests {
             None,
             Some("T-1"),
             Some("A"),
+            None,
             None,
         );
         assert_eq!(posts.len(), 2);
@@ -13757,6 +13778,7 @@ mod tests {
             Some("T-1"),
             None,
             None,
+            None,
         );
         assert_eq!(posts.len(), 3);
         assert_eq!(posts[0].content, "p2");
@@ -13784,6 +13806,7 @@ mod tests {
             None,
             None,
             Some(&["note"]),
+            None,
         );
         assert_eq!(posts.len(), 2, "only msg_type=note kept");
         assert_eq!(posts[0].msg_type, "note");
@@ -13809,6 +13832,7 @@ mod tests {
             None,
             None,
             Some(&["note", "status"]),
+            None,
         );
         assert_eq!(posts.len(), 2);
         assert_eq!(posts[0].msg_type, "note");
@@ -13829,6 +13853,7 @@ mod tests {
             10,
             3_600_000,
             now,
+            None,
             None,
             None,
             None,
@@ -13855,6 +13880,7 @@ mod tests {
             None,
             None,
             Some(&["edit", "reaction", "note"]),
+            None,
         );
         assert_eq!(posts.len(), 1, "edit/reaction still excluded as meta");
         assert_eq!(posts[0].msg_type, "note");
@@ -13878,8 +13904,90 @@ mod tests {
             None,
             None,
             Some(&["note"]),
+            None,
         );
         assert_eq!(posts.len(), 1, "only peer1's notes survive");
         assert_eq!(posts[0].content, "alice-note");
+    }
+
+    // T-1501: filter_grep tests
+    #[test]
+    fn recent_posts_filter_grep_case_insensitive_substring_match() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "Hello world"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "goodbye"),
+            recent_msg("peer1", now - 3_000, "note", None, None, "say HELLO!"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs, 10, 3_600_000, now,
+            None, None, None, None,
+            Some("hello"),
+        );
+        assert_eq!(posts.len(), 2, "matches 'Hello world' and 'say HELLO!'");
+        assert!(posts.iter().any(|p| p.content == "Hello world"));
+        assert!(posts.iter().any(|p| p.content == "say HELLO!"));
+    }
+
+    #[test]
+    fn recent_posts_filter_grep_lowercase_pattern_matches_uppercase_content() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "T-1438 SHIPPED"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs, 10, 3_600_000, now,
+            None, None, None, None,
+            Some("shipped"),
+        );
+        assert_eq!(posts.len(), 1);
+    }
+
+    #[test]
+    fn recent_posts_filter_grep_none_keeps_all() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "alpha"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "beta"),
+            recent_msg("peer1", now - 3_000, "note", None, None, "gamma"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs, 10, 3_600_000, now,
+            None, None, None, None,
+            None,
+        );
+        assert_eq!(posts.len(), 3);
+    }
+
+    #[test]
+    fn recent_posts_filter_grep_empty_pattern_treated_as_none() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "alpha"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "beta"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs, 10, 3_600_000, now,
+            None, None, None, None,
+            Some(""),
+        );
+        assert_eq!(posts.len(), 2, "empty pattern matches all (defensive)");
+    }
+
+    #[test]
+    fn recent_posts_filter_grep_and_composes_with_peer_filter() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "alice mentioned T-1438"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "alice unrelated"),
+            recent_msg("peer2", now - 3_000, "note", None, None, "bob also said T-1438"),
+        ];
+        let posts = extract_recent_posts(
+            &msgs, 10, 3_600_000, now,
+            Some("peer1"), None, None, None,
+            Some("T-1438"),
+        );
+        assert_eq!(posts.len(), 1, "only peer1's T-1438-mentioning post");
+        assert_eq!(posts[0].content, "alice mentioned T-1438");
     }
 }

@@ -3679,6 +3679,12 @@ pub(crate) enum AgentAction {
         #[arg(long = "msg-type", value_delimiter = ',')]
         filter_msg_types: Vec<String>,
 
+        /// T-1501: case-insensitive substring filter against post
+        /// content. AND-composes with peer/thread/project/msg-type.
+        /// Empty pattern is treated as no filter.
+        #[arg(long = "grep")]
+        filter_grep: Option<String>,
+
         /// Override hub address (default: local hub)
         #[arg(long)]
         hub: Option<String>,
@@ -3734,6 +3740,12 @@ pub(crate) enum AgentAction {
         /// with peer/project filters; meta types always excluded.
         #[arg(long = "msg-type", value_delimiter = ',')]
         filter_msg_types: Vec<String>,
+
+        /// T-1501: case-insensitive substring filter against post
+        /// content. AND-composes with peer/project/msg-type. Empty
+        /// pattern treated as no filter.
+        #[arg(long = "grep")]
+        filter_grep: Option<String>,
 
         /// Further narrow to a single peer's posts on this thread —
         /// resolves locally via `session.discover`. Mutually exclusive
@@ -3798,6 +3810,12 @@ pub(crate) enum AgentAction {
         /// meta types always excluded.
         #[arg(long = "msg-type", value_delimiter = ',')]
         filter_msg_types: Vec<String>,
+
+        /// T-1501: case-insensitive substring filter against post
+        /// content. AND-composes with thread/project/msg-type. Empty
+        /// pattern treated as no filter.
+        #[arg(long = "grep")]
+        filter_grep: Option<String>,
 
         /// Override hub address (default: local hub)
         #[arg(long)]
