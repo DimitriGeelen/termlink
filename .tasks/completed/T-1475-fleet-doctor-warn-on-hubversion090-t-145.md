@@ -4,16 +4,16 @@ name: "fleet doctor: warn on hub_version=0.9.0 (T-1458 follow-up)"
 description: >
   fleet doctor: warn on hub_version=0.9.0 (T-1458 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-04T11:04:46Z
-last_update: 2026-05-04T11:04:46Z
-date_finished: null
+last_update: 2026-05-04T11:07:37Z
+date_finished: 2026-05-04T11:07:37Z
 ---
 
 # T-1475: fleet doctor: warn on hub_version=0.9.0 (T-1458 follow-up)
@@ -100,3 +100,6 @@ target/debug/termlink fleet doctor > /tmp/t1475-fd.txt 2>&1; grep -q 'hub_versio
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1475-fleet-doctor-warn-on-hubversion090-t-145.md
 - **Context:** Initial task creation
+
+### 2026-05-04T11:07:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
