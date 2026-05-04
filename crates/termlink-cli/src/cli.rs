@@ -3435,6 +3435,35 @@ pub(crate) enum AgentAction {
         online_window_secs: u64,
     },
 
+    /// Peer observability — summarize a peer's recent `agent-chat-arc`
+    /// activity (T-1481). Returns: identity fingerprint, last_seen on the
+    /// canonical liveness arc, posts in the window, and distinct
+    /// `from_project` values observed (with per-project post counts).
+    /// Cross-host disambiguation primitive: when you have an unknown FP
+    /// and need to know "who is this and what are they working on?" before
+    /// engaging with `agent contact`. Pairs with `agent contact --dry-run`
+    /// for end-to-end pre-flight verification.
+    Who {
+        /// Target identity fingerprint (hex, ≥8 chars). Cross-host
+        /// disambiguation lookup — no local session.discover required.
+        #[arg(long = "target-fp")]
+        target_fp: String,
+
+        /// Window (seconds) for the activity slice. Default 3600 (1h).
+        /// Clamped to [60, 604800] (1 minute to 1 week). Counts posts and
+        /// groups `from_project` values within the window.
+        #[arg(long = "window-secs", default_value_t = 3600)]
+        window_secs: u64,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Run a 4-phase format negotiation with a specialist session
     Negotiate {
         /// Specialist session ID or display name
