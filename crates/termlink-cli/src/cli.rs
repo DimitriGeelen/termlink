@@ -3724,6 +3724,18 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope
         #[arg(long)]
         json: bool,
+
+        /// Live thread-following mode (T-1494): re-render every
+        /// `--watch-interval` seconds until Ctrl-C. Composes with
+        /// `--n`, `--window-secs`, `--project`, `--peer`, `--peer-fp`,
+        /// `--hub`. Incompatible with `--json` (one-shot vs streaming).
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval (seconds) for `--watch` mode. Default 5.
+        /// Clamped to [1, 300]. Ignored without `--watch`.
+        #[arg(long = "watch-interval", default_value_t = 5)]
+        watch_interval: u64,
     },
 }
 

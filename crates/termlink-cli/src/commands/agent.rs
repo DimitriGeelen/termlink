@@ -1672,6 +1672,8 @@ pub(crate) async fn cmd_agent_on_thread(
     peer_fp: Option<&str>,
     hub: Option<&str>,
     json: bool,
+    watch: bool,
+    watch_interval: u64,
 ) -> Result<()> {
     if peer.is_some() && peer_fp.is_some() {
         let msg = "specify either --peer or --peer-fp, not both";
@@ -1682,6 +1684,15 @@ pub(crate) async fn cmd_agent_on_thread(
     }
     if thread.trim().is_empty() {
         let msg = "thread (positional argument) cannot be empty";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    // T-1494: --watch + --json incompatible (streaming vs one-shot).
+    if watch && json {
+        let msg = "--watch and --json are incompatible: --watch streams \
+                   re-rendered text frames; --json is one-shot. Pick one.";
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
         }
@@ -1702,6 +1713,53 @@ pub(crate) async fn cmd_agent_on_thread(
 
     let clamped_n = n.clamp(1, 500);
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    // T-1494: watch loop branches before the one-shot fetch path.
+    if watch {
+        let clamped_interval = watch_interval.clamp(1, 300);
+        loop {
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            println!(
+                "# agent on-thread {} --watch | interval={}s | window={}s | n={} | {}",
+                thread, clamped_interval, clamped_window_secs, clamped_n, now_str
+            );
+            match super::channel::fetch_recent_chat_arc_msgs(hub, 2000).await {
+                Ok(msgs) => {
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+                    let posts = super::channel::extract_recent_posts(
+                        &msgs,
+                        clamped_n,
+                        window_ms,
+                        now_ms,
+                        resolved_peer_fp.as_deref(),
+                        Some(thread),
+                        filter_project,
+                    );
+                    render_on_thread_text(
+                        thread,
+                        &posts,
+                        clamped_window_secs,
+                        filter_project,
+                        resolved_peer_fp.as_deref(),
+                        now_ms,
+                    );
+                }
+                Err(e) => {
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
+        }
+    }
 
     // Wider walk than `recent` since thread logs are denser.
     let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 2000)
@@ -1755,7 +1813,7 @@ pub(crate) async fn cmd_agent_on_thread(
         return Ok(());
     }
 
-    // Text mode header — name optional narrowing
+    // One-shot mode header — names what's being shown.
     let mut suffix = String::new();
     if let Some(p) = filter_project {
         suffix.push_str(&format!(" project={p}"));
@@ -1767,14 +1825,45 @@ pub(crate) async fn cmd_agent_on_thread(
         "# agent on-thread {} | window={}s | n={}{}",
         thread, clamped_window_secs, clamped_n, suffix
     );
+    render_on_thread_text(
+        thread,
+        &posts,
+        clamped_window_secs,
+        filter_project,
+        resolved_peer_fp.as_deref(),
+        now_ms,
+    );
+    Ok(())
+}
+
+/// T-1494: text-mode body renderer extracted from cmd_agent_on_thread
+/// so the watch loop can reuse the exact same layout per-iteration.
+/// Renders ONLY the data block (empty-state message OR posts + footer);
+/// callers print their own header line so watch mode and one-shot mode
+/// can each surface mode-specific header info.
+fn render_on_thread_text(
+    thread: &str,
+    posts: &[super::channel::RecentPost],
+    window_secs: u64,
+    filter_project: Option<&str>,
+    resolved_peer_fp: Option<&str>,
+    now_ms: i64,
+) {
+    let mut suffix = String::new();
+    if let Some(p) = filter_project {
+        suffix.push_str(&format!(" project={p}"));
+    }
+    if let Some(fp) = resolved_peer_fp {
+        suffix.push_str(&format!(" peer_fp={fp}"));
+    }
     if posts.is_empty() {
         println!(
             "(no posts found on thread={} in window={}s{})",
-            thread, clamped_window_secs, suffix
+            thread, window_secs, suffix
         );
-        return Ok(());
+        return;
     }
-    for p in &posts {
+    for p in posts {
         let age_secs = ((now_ms - p.ts_ms) / 1000).max(0);
         let age_str = if age_secs < 60 {
             format!("{age_secs}s ago")
@@ -1785,7 +1874,6 @@ pub(crate) async fn cmd_agent_on_thread(
         } else {
             format!("{}d ago", age_secs / 86_400)
         };
-        // Short peer fp for readability — first 12 chars
         let peer_short = if p.peer_fp.len() > 12 {
             &p.peer_fp[..12]
         } else {
@@ -1805,7 +1893,6 @@ pub(crate) async fn cmd_agent_on_thread(
         println!();
     }
     println!("{} post(s) shown", posts.len());
-    Ok(())
 }
 
 /// T-1486: text-mode renderer extracted so the watch loop can reuse it
