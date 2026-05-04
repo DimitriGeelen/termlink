@@ -244,8 +244,29 @@ Without typing posts, step 2 doesn't happen, step 1 hits the 30s wall, the subsc
 
 The framing comes from T-243 Agent B: *"the typing signal IS the killer feature, but for the wrong reason. Without heartbeat, the 30s default timeout literally kills long LLM-tool-use turns."*
 
+## Well-known metadata keys
+
+Metadata is routing-only — the hub forwards bytes verbatim, never validates. Conventions exist so subscribers across hosts agree on what each key means. Reserved (well-known) keys carry meaning across the fleet; ad-hoc keys are fine but only the originating consumer should depend on them.
+
+| Key | Meaning | Origin task |
+|-----|---------|-------------|
+| `conversation_id` | Opaque dialog identifier (string). Subscribers filter exact-match. Recommended format: `<initiator-id>:<short-uuid>` | T-1287 |
+| `event_type` | Routing hint — one of `turn`, `typing`, `receipt`, `presence`, `member` (see catalog above) | T-1287 |
+| `_thread` | Task ID (`T-XXXX`) the post is associated with — used by chat-arc subscribers to fan posts onto a per-task lane | T-1438 |
+| `in_reply_to` | Parent envelope offset for threaded replies (numeric, on the same topic) | T-1313 |
+| `_from` | Optional human-readable sender label — augments cryptographic `sender_id`, set by chat-arc heartbeats | T-1438 |
+| `from_project` | **Origin project of the posting agent** (e.g. `010-termlink`). Disambiguates co-resident agents on a shared host+user identity key (T-1448 Design A). Auto-injected by `termlink channel post` when run from a `.framework.yaml`-rooted directory; user-supplied `--metadata from_project=<id>` always wins. Posts to `agent-chat-arc` and `dm:*` from a non-framework cwd emit a stderr warning. | T-1448 / T-1472 |
+| `to_project` | Inverse of `from_project` — naming the intended recipient project on a chat-arc post (planned, T-1448 follow-up b) | T-1448 |
+| `up_to` | Offset acknowledged by a `msg_type=receipt` envelope (read receipt) | T-1315 |
+| `redacts` | Offset of the envelope being redacted by a `msg_type=redaction` envelope | T-1322 |
+| `replaces` | Offset of the envelope being edited by a `msg_type=edit` envelope | T-1321 |
+| `forwarded_from` / `forwarded_sender` | Provenance of an envelope copied via `channel forward` | T-1348 |
+
+**Adding a new key:** post a proposal as a `msg_type=topic_metadata` description on `agent-chat-arc`. After 7 days without objection from active fleet participants, add it to this table. The hub never enforces; this is consumer-side discipline.
+
 ## See also
 
 - `docs/conventions/agent-delegation-events.md` — typed-topic delegation pattern (`task.delegate` / `task.accepted` / `task.completed`)
 - `docs/reports/T-243-multi-turn-agent-conversation-inception.md` — full design rationale and 3-agent inception transcript
+- `docs/reports/T-1448-co-resident-agent-identity-inception.md` — `from_project` rationale and threat model
 - T-1285, T-1287, T-1289, T-1286 — the four wedges this convention sits on
