@@ -77,3 +77,26 @@ target/release/termlink file send bogus /tmp/nonexistent 2>&1 | grep -q DEPRECAT
 
 ### 2026-05-01T07:13:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-04T11:00:00Z — Human AC review evidence (mechanical) [agent]
+
+Build: `cargo build --release -p termlink` succeeds (3m 36s).
+
+Each legacy verb emits exactly one informative `[DEPRECATED]` line citing the
+right replacement, captured below from one invocation each (release binary):
+
+| Legacy verb | Deprecation line emitted |
+|---|---|
+| `remote push 192.168.10.999:9100 bogus --message x` | `[DEPRECATED] termlink remote push — use 'termlink channel post' instead. See T-1166.` |
+| `event broadcast topic-x` | `[DEPRECATED] termlink event broadcast — use 'termlink channel post' instead. See T-1166.` |
+| `file send target /tmp/nonexistent` | `[DEPRECATED] termlink file send — use 'termlink channel post --file' instead. See T-1166.` |
+| `inbox status` | `[DEPRECATED] termlink inbox status — use 'termlink channel info' instead. See T-1166.` |
+| `inbox list ring20-management-agent` | `[DEPRECATED] termlink inbox list — use 'termlink channel subscribe' instead. See T-1166.` |
+| `inbox clear ring20-management-agent` | `[DEPRECATED] termlink inbox clear — use 'termlink channel subscribe --cursor' instead. See T-1166.` |
+
+Suppression: `TERMLINK_NO_DEPRECATION_WARN=1 target/release/termlink remote push x --message x 2>&1 | grep -c DEPRECATED` → `0` ✓
+
+All Human AC sub-checks pass mechanically. Suggest closing:
+```
+cd /opt/termlink && bash -x .agentic-framework/agents/task-create/update-task.sh T-1426 --status work-completed
+```
