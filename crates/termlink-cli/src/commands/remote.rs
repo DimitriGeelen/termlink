@@ -89,6 +89,20 @@ fn compute_cut_readiness_verdict(
     }
 }
 
+/// T-1465: Map a cut-readiness verdict string to a process exit code so
+/// shell scripts and CI pipelines can gate on it without parsing JSON.
+/// Mapping picked to keep CUT-READY-DECAYING in the success bucket (it is
+/// safe to cut from there) while distinguishing WAIT (live caller, retry)
+/// from UNCERTAIN (operator action — upgrade or wait for traffic).
+/// Anything outside the four documented verdicts is treated as UNCERTAIN.
+pub(crate) fn verdict_to_exit_code(verdict: &str) -> i32 {
+    match verdict {
+        "CUT-READY" | "CUT-READY-DECAYING" => 0,
+        "WAIT" => 10,
+        _ => 11, // UNCERTAIN and any unknown future verdict
+    }
+}
+
 /// T-1462: Diff between two `legacy_summary` snapshots (prior vs current).
 /// All fields are signed deltas (current - prior) except the elapsed time and
 /// rate, which are computed only when both snapshots embedded `_snapshot_ts_ms`.
@@ -1996,11 +2010,16 @@ pub(crate) async fn cmd_fleet_doctor(
     topic_durability: bool,
     diff: Option<std::path::PathBuf>,
     save_snapshot: Option<std::path::PathBuf>,
+    exit_code_on_verdict: bool,
 ) -> Result<()> {
     // T-1462: --diff requires --legacy-usage. Reject loudly so operators don't
     // wonder why nothing happens.
     if diff.is_some() && !legacy_usage {
         anyhow::bail!("--diff requires --legacy-usage (the diff is computed against the legacy_summary block)");
+    }
+    // T-1465: same precondition — verdict mapping requires the verdict.
+    if exit_code_on_verdict && !legacy_usage {
+        anyhow::bail!("--exit-code-on-verdict requires --legacy-usage (no verdict to map without it)");
     }
     // T-1463: validate save-snapshot parent directory exists *before* doing
     // an entire fleet sweep. Failing fast saves operator time.
@@ -2592,6 +2611,23 @@ pub(crate) async fn cmd_fleet_doctor(
                     "  hint: fleet version skew detected — Tier-B RPCs may fail across the diversity; see docs on Tier-A vs Tier-B methods"
                 );
             }
+        }
+    }
+
+    // T-1465: verdict-mapped exit code, applied AFTER all output is produced
+    // so operators see the human/JSON summary before the shell decides.
+    // Connectivity failures keep precedence: a hub that did not connect
+    // means the verdict is built from incomplete data, so the existing
+    // non-zero `total_fail > 0` semantic stays authoritative — we only
+    // override exit when total_fail == 0 (clean fleet sweep).
+    if exit_code_on_verdict
+        && total_fail == 0
+        && let Some(ls) = legacy_summary_obj.as_ref()
+        && let Some(verdict) = ls.get("verdict").and_then(|v| v.as_str())
+    {
+        let code = verdict_to_exit_code(verdict);
+        if code != 0 {
+            std::process::exit(code);
         }
     }
 
@@ -4998,6 +5034,37 @@ secret_file = "/tmp/other.hex"
         let d = compute_legacy_diff(&prior, &cur, None, 1000);
         assert_eq!(d.elapsed_ms, None);
         assert_eq!(d.rate_per_min, None);
+    }
+
+    // ===== T-1465: verdict_to_exit_code tests =====
+
+    #[test]
+    fn verdict_to_exit_code_cut_ready_is_zero() {
+        assert_eq!(verdict_to_exit_code("CUT-READY"), 0);
+    }
+
+    #[test]
+    fn verdict_to_exit_code_decaying_is_zero() {
+        // Decay residue is acceptable — operator may cut.
+        assert_eq!(verdict_to_exit_code("CUT-READY-DECAYING"), 0);
+    }
+
+    #[test]
+    fn verdict_to_exit_code_wait_is_ten() {
+        assert_eq!(verdict_to_exit_code("WAIT"), 10);
+    }
+
+    #[test]
+    fn verdict_to_exit_code_uncertain_is_eleven() {
+        assert_eq!(verdict_to_exit_code("UNCERTAIN"), 11);
+    }
+
+    #[test]
+    fn verdict_to_exit_code_unknown_is_uncertain_eleven() {
+        // Forward-compatibility: any future verdict string gets the
+        // operator-actionable exit code rather than slipping through as 0.
+        assert_eq!(verdict_to_exit_code("FUTURE-VERDICT"), 11);
+        assert_eq!(verdict_to_exit_code(""), 11);
     }
 
     #[test]

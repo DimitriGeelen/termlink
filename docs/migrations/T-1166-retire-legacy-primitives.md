@@ -348,6 +348,37 @@ When in doubt, take a fresh snapshot today and diff against yesterday.
 The 1d interval keeps roll-off out of the picture and the rate becomes
 a clean signal of caller activity.
 
+### Cron/CI integration (T-1465, since 2026-05-04)
+
+For automated pipelines, parsing the JSON to gate on the verdict is
+overkill. `--exit-code-on-verdict` maps the verdict to a process exit
+code so a shell script (or CI step) can branch on it directly:
+
+| Verdict              | Exit code | Cron interpretation |
+|----------------------|-----------|---------------------|
+| `CUT-READY`          | 0         | Safe — proceed with cut. |
+| `CUT-READY-DECAYING` | 0         | Acceptable — residue is historical, no live callers. |
+| `WAIT`               | 10        | Live caller present — retry later. |
+| `UNCERTAIN`          | 11        | Hub upgrade or audit-window age-out needed. |
+
+Connectivity failures keep their existing non-zero exit (precedence over
+verdict mapping) — a hub that didn't connect means the verdict was built
+from incomplete data, so the script doesn't blindly gate on a partial
+view of the fleet.
+
+Canonical use:
+
+```bash
+# Daily cron — only proceed with downstream actions if cut-readiness ok.
+termlink fleet doctor --legacy-usage --exit-code-on-verdict
+case $? in
+  0)  echo "Cut-readiness OK — proceeding with downstream cut steps." ;;
+  10) echo "Live legacy caller present — sleeping until next run." ;;
+  11) echo "Verdict UNCERTAIN — operator action needed." ; exit 1 ;;
+  *)  echo "Connectivity failure — fleet sweep incomplete." ; exit 2 ;;
+esac
+```
+
 For older fleets (or to inspect the JSON shape):
 
 ```bash
