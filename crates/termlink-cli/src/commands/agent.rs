@@ -1517,6 +1517,8 @@ pub(crate) async fn cmd_agent_recent(
     filter_project: Option<&str>,
     hub: Option<&str>,
     json: bool,
+    watch: bool,
+    watch_interval: u64,
 ) -> Result<()> {
     if target.is_some() && target_fp.is_some() {
         let msg = "specify either <TARGET> or --target-fp, not both";
@@ -1527,6 +1529,15 @@ pub(crate) async fn cmd_agent_recent(
     }
     if target.is_none() && target_fp.is_none() {
         let msg = "must specify either <TARGET> (display name) or --target-fp <hex>";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    // T-1498: --watch + --json incompatible (streaming vs one-shot).
+    if watch && json {
+        let msg = "--watch and --json are incompatible: --watch streams \
+                   re-rendered text frames; --json is one-shot. Pick one.";
         if json {
             super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
         }
@@ -1553,6 +1564,53 @@ pub(crate) async fn cmd_agent_recent(
 
     let clamped_n = n.clamp(1, 200);
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+
+    // T-1498: watch loop branches before the one-shot fetch path.
+    if watch {
+        let clamped_interval = watch_interval.clamp(1, 300);
+        loop {
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            let filter_suffix = match (filter_project, filter_thread) {
+                (None, None) => String::new(),
+                (Some(p), None) => format!(" | project={}", p),
+                (None, Some(t)) => format!(" | thread={}", t),
+                (Some(p), Some(t)) => format!(" | project={} | thread={}", p, t),
+            };
+            println!(
+                "# agent recent {} --watch | peer_fp={} | interval={}s | window={}s | n={}{} | {}",
+                display_target, peer_fp, clamped_interval, clamped_window_secs,
+                clamped_n, filter_suffix, now_str
+            );
+            match super::channel::fetch_recent_chat_arc_msgs(hub, 1000).await {
+                Ok(msgs) => {
+                    let now_ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+                    let posts = super::channel::extract_recent_posts(
+                        &msgs,
+                        clamped_n,
+                        window_ms,
+                        now_ms,
+                        Some(peer_fp),
+                        filter_thread,
+                        filter_project,
+                    );
+                    render_recent_body(&posts, now_ms);
+                }
+                Err(e) => {
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(clamped_interval)).await;
+        }
+    }
 
     // Walk a wider slice than n so filtering doesn't starve — 1000 envelopes
     // covers ~16h on a 1/min-cadence chat-arc.
@@ -1622,11 +1680,20 @@ pub(crate) async fn cmd_agent_recent(
         "# agent recent {} (peer_fp={}) | window={}s | n={}{}",
         display_target, peer_fp, clamped_window_secs, clamped_n, filter_suffix
     );
+    render_recent_body(&posts, now_ms);
+    Ok(())
+}
+
+/// T-1498: text-mode body renderer extracted from cmd_agent_recent so
+/// the watch loop and one-shot path share rendering exactly. Pure
+/// (println-side-effect-only) — no fetch, no JSON, no header. Caller
+/// owns the header.
+fn render_recent_body(posts: &[super::channel::RecentPost], now_ms: i64) {
     if posts.is_empty() {
         println!("(no posts found in window)");
-        return Ok(());
+        return;
     }
-    for p in &posts {
+    for p in posts {
         let age_secs = ((now_ms - p.ts_ms) / 1000).max(0);
         let age_str = if age_secs < 60 {
             format!("{age_secs}s ago")
@@ -1645,7 +1712,6 @@ pub(crate) async fn cmd_agent_recent(
             tags.push_str(&format!(" project={pr}"));
         }
         println!("[{}] {}", age_str, tags);
-        // Indent content for visual block separation
         for line in p.content.lines() {
             println!("    {}", line);
         }
@@ -1655,7 +1721,6 @@ pub(crate) async fn cmd_agent_recent(
         println!();
     }
     println!("{} post(s) shown", posts.len());
-    Ok(())
 }
 
 /// T-1493: chronological reading view of all posts on a thread across
