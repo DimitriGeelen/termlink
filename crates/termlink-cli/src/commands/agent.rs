@@ -1085,6 +1085,7 @@ pub(crate) async fn cmd_agent_who(
     window_secs: u64,
     hub: Option<&str>,
     json: bool,
+    filter_thread: Option<&str>,
 ) -> Result<()> {
     if target.is_some() && target_fp.is_some() {
         let msg = "specify either --target or --target-fp, not both";
@@ -1118,12 +1119,26 @@ pub(crate) async fn cmd_agent_who(
         target_fp,
         hub,
         clamped_window_secs,
+        filter_thread,
     )
     .await
     .with_context(|| format!("agent who: failed to fetch activity for fp={target_fp}"))?;
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&activity.to_json())?);
+        // T-1488: when filter_thread is set, echo it on the JSON envelope
+        // so callers can disambiguate "no activity" from "no activity on
+        // this thread". Omitted entirely when unset to stay
+        // backward-compatible with T-1481 consumers.
+        let mut envelope = activity.to_json();
+        if let Some(t) = filter_thread
+            && let Some(obj) = envelope.as_object_mut()
+        {
+            obj.insert(
+                "filter_thread".to_string(),
+                serde_json::Value::String(t.to_string()),
+            );
+        }
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
         return Ok(());
     }
 
@@ -1132,6 +1147,9 @@ pub(crate) async fn cmd_agent_who(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
+    if let Some(t) = filter_thread {
+        println!("# filter_thread={}", t);
+    }
     println!("peer_fp:           {}", activity.peer_fp);
     match activity.last_seen_ms {
         None => println!("last_seen:         never (no posts on agent-chat-arc)"),

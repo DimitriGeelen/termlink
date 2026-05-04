@@ -855,16 +855,24 @@ impl PeerActivity {
     }
 }
 
-/// T-1481: pure helper — given a slice of agent-chat-arc envelopes, peer FP,
-/// current wall-clock ms, and window ms, return the activity summary. Skips
-/// meta msg types (reaction / edit / redaction / topic_metadata / receipt).
-/// `from_project` is read from `metadata.from_project` (T-1472 auto-inject)
-/// when present.
+/// T-1481 / T-1488: pure helper — given a slice of agent-chat-arc
+/// envelopes, peer FP, current wall-clock ms, and window ms, return the
+/// activity summary. Skips meta msg types (reaction / edit / redaction
+/// / topic_metadata / receipt). `from_project` is read from
+/// `metadata.from_project` (T-1472 auto-inject) when present.
+///
+/// `filter_thread`: when Some(t), only posts with `metadata._thread == t`
+/// count toward posts_in_window / from_projects (T-1488). Untagged
+/// posts also fail the filter — "active on thread X" means "tagged X".
+/// `last_seen` still walks the full peer history regardless of filter,
+/// because the "is this peer alive at all?" question is independent of
+/// the thread-scoped slice.
 pub(crate) fn summarize_peer_activity(
     msgs: &[Value],
     peer_fp: &str,
     now_ms: i64,
     window_ms: i64,
+    filter_thread: Option<&str>,
 ) -> PeerActivity {
     use std::collections::HashMap;
     const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
@@ -886,7 +894,21 @@ pub(crate) fn summarize_peer_activity(
             .and_then(|v| v.as_i64())
             .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
             .unwrap_or(0);
+        // last_seen always tracks ANY peer post — independent of filter.
         last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
+        // T-1488: if a thread filter is set, posts that don't carry the
+        // matching `_thread` are excluded from posts_in_window /
+        // from_projects. Untagged posts fail too (same logic as T-1484
+        // project filter).
+        if let Some(want) = filter_thread {
+            let thread = m
+                .get("metadata")
+                .and_then(|md| md.get("_thread"))
+                .and_then(|v| v.as_str());
+            if thread != Some(want) {
+                continue;
+            }
+        }
         if ts >= cutoff {
             posts_in_window += 1;
             if let Some(p) = m
@@ -916,6 +938,7 @@ pub(crate) async fn fetch_peer_activity_via_chat_arc(
     peer_fp: &str,
     hub: Option<&str>,
     window_secs: u64,
+    filter_thread: Option<&str>,
 ) -> Result<PeerActivity> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -923,7 +946,13 @@ pub(crate) async fn fetch_peer_activity_via_chat_arc(
         .unwrap_or(0);
     let window_ms = (window_secs as i64).saturating_mul(1000);
     let msgs = fetch_recent_chat_arc_msgs(hub, 1000).await?;
-    Ok(summarize_peer_activity(&msgs, peer_fp, now_ms, window_ms))
+    Ok(summarize_peer_activity(
+        &msgs,
+        peer_fp,
+        now_ms,
+        window_ms,
+        filter_thread,
+    ))
 }
 
 /// T-1482: one row in the fleet-presence summary. `top_project` is the
@@ -8370,7 +8399,7 @@ mod tests {
             activity_msg("aaaa", now - 30_000, "post", Some("p1")),
             activity_msg("bbbb", now - 60_000, "post", Some("p2")),
         ];
-        let a = summarize_peer_activity(&msgs, "deadbeef", now, 3_600_000);
+        let a = summarize_peer_activity(&msgs, "deadbeef", now, 3_600_000, None);
         assert_eq!(a.peer_fp, "deadbeef");
         assert_eq!(a.posts_in_window, 0);
         assert_eq!(a.last_seen_ms, None);
@@ -8387,7 +8416,7 @@ mod tests {
             activity_msg("peer1", now - 60_000, "post", Some("project-a")),
             activity_msg("peer1", now - 7_200_000, "post", Some("project-old")), // outside
         ];
-        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, None);
         assert_eq!(a.posts_in_window, 2, "two posts within 1h window");
         assert_eq!(a.last_seen_ms, Some(now - 30_000));
         assert_eq!(a.from_projects.len(), 1, "only in-window projects counted");
@@ -8405,7 +8434,7 @@ mod tests {
             activity_msg("peer1", now - 4_000, "post", Some("beta")),
             activity_msg("peer1", now - 5_000, "post", Some("alpha")),
         ];
-        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, None);
         // alpha(3) > beta(1) == zebra(1); ties break alphabetical
         assert_eq!(a.from_projects[0], ("alpha".to_string(), 3));
         assert_eq!(a.from_projects[1], ("beta".to_string(), 1));
@@ -8424,7 +8453,7 @@ mod tests {
             activity_msg("peer1", now - 5_000, "receipt", Some("p1")),
             activity_msg("peer1", now - 6_000, "post", Some("p1")), // only this counts
         ];
-        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, None);
         assert_eq!(a.posts_in_window, 1, "meta msgs filtered out");
         assert_eq!(a.from_projects.len(), 1);
         assert_eq!(a.from_projects[0], ("p1".to_string(), 1));
@@ -8440,10 +8469,93 @@ mod tests {
             activity_msg("peer1", now - 1_000, "post", None),
             activity_msg("peer1", now - 2_000, "post", Some("p1")),
         ];
-        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms);
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, None);
         assert_eq!(a.posts_in_window, 2);
         assert_eq!(a.from_projects.len(), 1, "only the post with from_project");
         assert_eq!(a.from_projects[0], ("p1".to_string(), 1));
+    }
+
+    // ---- T-1488 filter_thread tests ------------------------------------
+
+    fn activity_msg_with_thread(
+        sender: &str,
+        ts_ms: i64,
+        msg_type: &str,
+        project: Option<&str>,
+        thread: Option<&str>,
+    ) -> Value {
+        let mut metadata = serde_json::Map::new();
+        if let Some(p) = project {
+            metadata.insert("from_project".to_string(), Value::String(p.to_string()));
+        }
+        if let Some(t) = thread {
+            metadata.insert("_thread".to_string(), Value::String(t.to_string()));
+        }
+        json!({
+            "sender_id": sender,
+            "ts_unix_ms": ts_ms,
+            "msg_type": msg_type,
+            "metadata": Value::Object(metadata),
+        })
+    }
+
+    #[test]
+    fn peer_activity_filter_thread_keeps_only_matching_posts() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        let msgs = vec![
+            activity_msg_with_thread("peer1", now - 1_000, "post", Some("p1"), Some("T-1485")),
+            activity_msg_with_thread("peer1", now - 2_000, "post", Some("p1"), Some("T-1485")),
+            activity_msg_with_thread("peer1", now - 3_000, "post", Some("p1"), Some("T-1486")),
+            activity_msg_with_thread("peer1", now - 4_000, "post", Some("p2"), Some("T-1486")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, Some("T-1485"));
+        assert_eq!(a.posts_in_window, 2, "only T-1485-tagged posts counted");
+        assert_eq!(a.from_projects.len(), 1, "only p1 has T-1485 posts");
+        assert_eq!(a.from_projects[0], ("p1".to_string(), 2));
+    }
+
+    #[test]
+    fn peer_activity_filter_thread_excludes_untagged_posts() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        // peer1 has untagged posts AND tagged posts; filter must exclude untagged.
+        let msgs = vec![
+            activity_msg_with_thread("peer1", now - 1_000, "post", Some("p1"), None),
+            activity_msg_with_thread("peer1", now - 2_000, "post", Some("p1"), Some("T-1485")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, Some("T-1485"));
+        assert_eq!(a.posts_in_window, 1, "untagged posts fail the thread filter");
+    }
+
+    #[test]
+    fn peer_activity_filter_thread_no_match_returns_zero() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 3_600_000_i64;
+        let msgs = vec![
+            activity_msg_with_thread("peer1", now - 1_000, "post", Some("p1"), Some("T-OTHER")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, Some("T-1485"));
+        assert_eq!(a.posts_in_window, 0);
+        assert!(a.from_projects.is_empty());
+        // last_seen still reflects ANY post for "is the peer alive".
+        assert_eq!(a.last_seen_ms, Some(now - 1_000));
+    }
+
+    #[test]
+    fn peer_activity_filter_thread_last_seen_independent_of_filter() {
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 60_000_i64;
+        // Peer's only recent post is on a non-matching thread; filter
+        // makes posts_in_window=0 but last_seen still reflects the ts.
+        let msgs = vec![
+            activity_msg_with_thread("peer1", now - 1_000, "post", Some("p"), Some("T-OTHER")),
+            // older post on matching thread but outside window
+            activity_msg_with_thread("peer1", now - 3_600_000_000, "post", Some("p"), Some("T-1485")),
+        ];
+        let a = summarize_peer_activity(&msgs, "peer1", now, window_ms, Some("T-1485"));
+        assert_eq!(a.posts_in_window, 0, "no in-window matching posts");
+        assert_eq!(a.last_seen_ms, Some(now - 1_000), "last_seen ignores filter");
     }
 
     // ---- T-1482 summarize_fleet_presence tests --------------------------

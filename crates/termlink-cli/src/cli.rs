@@ -3527,6 +3527,15 @@ pub(crate) enum AgentAction {
         /// Output result as JSON
         #[arg(long)]
         json: bool,
+
+        /// Filter activity by thread/task id (T-1488). When set, only
+        /// posts whose `metadata._thread == <name>` count toward
+        /// posts_in_window / from_projects. Untagged posts also fail
+        /// the filter. `last_seen` is independent of filter (still
+        /// reflects ANY peer post). Use this to scope a peer's activity
+        /// to a specific task — "what's alice doing on T-1485?".
+        #[arg(long = "thread")]
+        filter_thread: Option<String>,
     },
 
     /// Run a 4-phase format negotiation with a specialist session
