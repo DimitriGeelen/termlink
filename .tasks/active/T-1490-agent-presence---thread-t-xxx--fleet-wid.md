@@ -4,16 +4,16 @@ name: "agent presence --thread T-XXX — fleet-wide thread activity filter"
 description: >
   agent presence --thread T-XXX — fleet-wide thread activity filter
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T16:46:14Z
-last_update: 2026-05-04T16:46:14Z
-date_finished: null
+last_update: 2026-05-04T16:59:07Z
+date_finished: 2026-05-04T16:59:07Z
 ---
 
 # T-1490: agent presence --thread T-XXX — fleet-wide thread activity filter
@@ -109,3 +109,7 @@ out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); e
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1490-agent-presence---thread-t-xxx--fleet-wid.md
 - **Context:** Initial task creation
+
+### 2026-05-04T16:59:07Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
