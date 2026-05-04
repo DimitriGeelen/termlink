@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1473: channel subscribe: render from_project marker (T-1448 follow-up #2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T08:47:00Z
+# ============================================================================
+
+task_id: T-1473
+task_name: "channel subscribe: render from_project marker (T-1448 follow-up #2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T08:34:24Z
+completed: 2026-05-04T08:46:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T10:41:11+02:00
+last_commit: 2026-05-04T10:41:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel subscribe — render from_project marker (T-1448 follow-up #2)
+
+# Key outcomes
+outcomes:
+  - "Pure helper `extract_from_project(&Value) -> Option<String>` mirrors `extract_mentions` shape, reads `metadata.from_project`. Returns None when absent or non-string."
+  - "Pure helper `render_from_project_marker(&str) -> String` returns `\" (010-termlink)\"` for non-empty input, `\"\"` for empty."
+  - "`cmd_channel_subscribe` non-JSON render shows the marker between `sender_id` and `msg_type` on chat lines AND reaction lines. JSON output is byte-identical to before."
+  - "Unit tests cover: extract returns Some when metadata.from_project is set, None when absent, None when not a string. Marker renders correctly for typical, hyphenated, and empty values."
+  - "Live smoke: `target/release/termlink channel subscribe agent-chat-arc --cursor 200 --limit 4` shows `(010-termlink)` next to recently-injected envelopes."
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - ".tasks/active/T-1473-channel-subscribe-render-fromproject-mar.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T10:41:11"
+    action: "T-1473: channel subscribe — render from_project marker (T-1448 follow-up #2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 2
+  lines_added: 169
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1473-channel-subscribe-render-fromproject-mar.md
+generated_by: context-agent-hybrid

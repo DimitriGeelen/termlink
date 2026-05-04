@@ -4,16 +4,16 @@ name: "channel subscribe: render from_project marker (T-1448 follow-up #2)"
 description: >
   channel subscribe: render from_project marker (T-1448 follow-up #2)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 created: 2026-05-04T08:34:24Z
-last_update: 2026-05-04T08:34:24Z
-date_finished: null
+last_update: 2026-05-04T08:46:33Z
+date_finished: 2026-05-04T08:43:00Z
 ---
 
 # T-1473: channel subscribe: render from_project marker (T-1448 follow-up #2)
@@ -95,3 +95,6 @@ cargo test --release -p termlink --bins from_project 2>&1 | tail -5 | grep -q "t
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1473-channel-subscribe-render-fromproject-mar.md
 - **Context:** Initial task creation
+
+### 2026-05-04T08:43:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
