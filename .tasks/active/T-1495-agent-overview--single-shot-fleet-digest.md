@@ -4,16 +4,16 @@ name: "agent overview — single-shot fleet digest combining presence + by-proje
 description: >
   agent overview — single-shot fleet digest combining presence + by-project + recent posts
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:46:11Z
-last_update: 2026-05-04T17:46:11Z
-date_finished: null
+last_update: 2026-05-04T17:52:36Z
+date_finished: 2026-05-04T17:52:36Z
 ---
 
 # T-1495: agent overview — single-shot fleet digest combining presence + by-project + recent posts
@@ -126,6 +126,10 @@ target/release/termlink agent overview --window-secs 86400 2>&1 | grep -qE "(Top
 - **Rejected:** Same 200-char cap as `recent` — wastes vertical space on a digest where each post should be 1-2 lines.
 
 ## Updates
+
+### 2026-05-04T17:52:36Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
 
 ### 2026-05-04T17:46:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
