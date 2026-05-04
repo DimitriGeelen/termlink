@@ -4,16 +4,16 @@ name: "agent presence --watch — live operator dashboard mode"
 description: >
   agent presence --watch — live operator dashboard mode
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T15:28:20Z
-last_update: 2026-05-04T15:28:20Z
-date_finished: null
+last_update: 2026-05-04T15:39:29Z
+date_finished: 2026-05-04T15:39:29Z
 ---
 
 # T-1486: agent presence --watch — live operator dashboard mode
@@ -53,7 +53,7 @@ watch (one-shot semantics).
 ## Verification
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent presence --help 2>&1 | grep -q -- "--watch "
+target/release/termlink agent presence --help 2>&1 | grep -qE -- "--watch( |$)"
 target/release/termlink agent presence --help 2>&1 | grep -q -- "--watch-interval"
 out=$(target/release/termlink agent presence --watch --json 2>&1 || true); echo "$out" | grep -qiE "watch.*json|json.*watch|incompat|cannot.*combine"
 out=$(timeout 5 target/release/termlink agent presence --watch --watch-interval 2 --window-secs 86400 2>&1 || true); echo "$out" | grep -cE "PEER_FP" | awk '{ exit !($1 >= 2) }'
@@ -103,3 +103,6 @@ out=$(timeout 5 target/release/termlink agent presence --watch --watch-interval 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1486-agent-presence---watch--live-operator-da.md
 - **Context:** Initial task creation
+
+### 2026-05-04T15:39:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
