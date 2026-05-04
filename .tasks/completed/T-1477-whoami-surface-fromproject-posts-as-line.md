@@ -4,16 +4,16 @@ name: "whoami: surface from_project posts-as line (T-1448 finishing touch)"
 description: >
   whoami: surface from_project posts-as line (T-1448 finishing touch)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: []
 created: 2026-05-04T11:11:43Z
-last_update: 2026-05-04T11:11:43Z
-date_finished: null
+last_update: 2026-05-04T11:14:25Z
+date_finished: 2026-05-04T11:14:25Z
 ---
 
 # T-1477: whoami: surface from_project posts-as line (T-1448 finishing touch)
@@ -102,3 +102,6 @@ target/debug/termlink whoami --session tl-7zlfowtz --json > /tmp/t1477-j.json 2>
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1477-whoami-surface-fromproject-posts-as-line.md
 - **Context:** Initial task creation
+
+### 2026-05-04T11:14:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
