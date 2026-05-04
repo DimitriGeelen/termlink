@@ -1382,6 +1382,98 @@ pub(crate) fn extract_recent_posts(
     hits
 }
 
+/// T-1504: fleet-wide aggregate counts. Single-pass walk of chat-arc
+/// envelopes, grouping into 4 buckets (msg_type, peer, project, thread).
+/// Meta-types are excluded (same convention as extract_recent_posts).
+/// Posts whose project/thread metadata is missing simply don't
+/// contribute to those buckets — they still count toward `total` and
+/// `by_msg_type`/`by_peer`. Each bucket is sorted desc by count, then
+/// alphabetically (stable for ties).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChatArcStats {
+    pub(crate) total: usize,
+    pub(crate) by_msg_type: Vec<(String, usize)>,
+    pub(crate) by_peer: Vec<(String, usize)>,
+    pub(crate) by_project: Vec<(String, usize)>,
+    pub(crate) by_thread: Vec<(String, usize)>,
+}
+
+pub(crate) fn summarize_chat_arc_stats(
+    msgs: &[Value],
+    now_ms: i64,
+    window_ms: i64,
+) -> ChatArcStats {
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    let mut total = 0usize;
+    let mut mt_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut peer_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut project_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut thread_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender.is_empty() {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff || ts > now_ms {
+            continue;
+        }
+        total += 1;
+        *mt_counts.entry(mt.to_string()).or_insert(0) += 1;
+        *peer_counts.entry(sender.to_string()).or_insert(0) += 1;
+        if let Some(p) = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+        {
+            *project_counts.entry(p.to_string()).or_insert(0) += 1;
+        }
+        if let Some(t) = m
+            .get("metadata")
+            .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
+            .and_then(|v| v.as_str())
+        {
+            *thread_counts.entry(t.to_string()).or_insert(0) += 1;
+        }
+    }
+    fn sort_buckets(map: std::collections::HashMap<String, usize>) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = map.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+    ChatArcStats {
+        total,
+        by_msg_type: sort_buckets(mt_counts),
+        by_peer: sort_buckets(peer_counts),
+        by_project: sort_buckets(project_counts),
+        by_thread: sort_buckets(thread_counts),
+    }
+}
+
+/// T-1504: fetch wrapper for `summarize_chat_arc_stats`. Walks the
+/// last 1000 envelopes — same slice as `extract_recent_posts`.
+pub(crate) async fn fetch_chat_arc_stats(
+    hub: Option<&str>,
+    window_secs: u64,
+) -> Result<ChatArcStats> {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (window_secs as i64).saturating_mul(1000);
+    let msgs = fetch_recent_chat_arc_msgs(hub, 1000).await?;
+    Ok(summarize_chat_arc_stats(&msgs, now_ms, window_ms))
+}
+
 /// T-1491: fetch wrapper paralleling `fetch_fleet_presence_via_chat_arc`
 /// but returning the by-project aggregation. Same 2000-envelope walk.
 pub(crate) async fn fetch_fleet_by_project_via_chat_arc(
@@ -14067,5 +14159,82 @@ mod tests {
         );
         assert_eq!(posts.len(), 1, "only peer1's T-1438-mentioning post");
         assert_eq!(posts[0].content, "alice mentioned T-1438");
+    }
+
+    // T-1504: chat-arc stats summary tests
+    #[test]
+    fn stats_by_msg_type_excludes_meta() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "x"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "y"),
+            recent_msg("peer1", now - 3_000, "status", None, None, ""),
+            recent_msg("peer1", now - 2_000, "reaction", None, None, ""),
+            recent_msg("peer1", now - 1_000, "edit", None, None, ""),
+        ];
+        let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
+        assert_eq!(stats.total, 3, "meta excluded");
+        let mt_map: std::collections::HashMap<_, _> = stats.by_msg_type.iter().cloned().collect();
+        assert_eq!(mt_map.get("note").copied(), Some(2));
+        assert_eq!(mt_map.get("status").copied(), Some(1));
+        assert!(mt_map.get("reaction").is_none(), "reaction is meta");
+    }
+
+    #[test]
+    fn stats_by_peer_counts_each_sender() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "x"),
+            recent_msg("peer1", now - 4_000, "note", None, None, "y"),
+            recent_msg("peer2", now - 3_000, "note", None, None, "z"),
+        ];
+        let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
+        let map: std::collections::HashMap<_, _> = stats.by_peer.iter().cloned().collect();
+        assert_eq!(map.get("peer1").copied(), Some(2));
+        assert_eq!(map.get("peer2").copied(), Some(1));
+    }
+
+    #[test]
+    fn stats_by_thread_excludes_untagged() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, Some("T-100"), "a"),
+            recent_msg("peer1", now - 4_000, "note", None, Some("T-100"), "b"),
+            recent_msg("peer1", now - 3_000, "note", None, None, "c"),
+        ];
+        let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
+        let map: std::collections::HashMap<_, _> = stats.by_thread.iter().cloned().collect();
+        assert_eq!(map.get("T-100").copied(), Some(2));
+        assert_eq!(stats.by_thread.iter().map(|(_,c)|c).sum::<usize>(), 2, "untagged excluded");
+        assert_eq!(stats.total, 3, "but they still count toward total");
+    }
+
+    #[test]
+    fn stats_buckets_sorted_desc_by_count() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer-a", now - 5_000, "note", None, None, "x"),
+            recent_msg("peer-b", now - 4_000, "note", None, None, "y"),
+            recent_msg("peer-b", now - 3_000, "note", None, None, "z"),
+            recent_msg("peer-c", now - 2_000, "note", None, None, "w"),
+            recent_msg("peer-c", now - 1_000, "note", None, None, "v"),
+            recent_msg("peer-c", now -   500, "note", None, None, "u"),
+        ];
+        let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
+        assert_eq!(stats.by_peer[0].0, "peer-c");
+        assert_eq!(stats.by_peer[0].1, 3);
+        assert_eq!(stats.by_peer[1].0, "peer-b");
+        assert_eq!(stats.by_peer[2].0, "peer-a");
+    }
+
+    #[test]
+    fn stats_window_cutoff_respected() {
+        let now = 1_700_000_000_000_i64;
+        let msgs = vec![
+            recent_msg("peer1", now - 5_000, "note", None, None, "in-window"),
+            recent_msg("peer1", now - 7_200_000, "note", None, None, "outside-window"),
+        ];
+        let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
+        assert_eq!(stats.total, 1, "only in-window post counts");
     }
 }

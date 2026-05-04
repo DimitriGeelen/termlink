@@ -1986,6 +1986,69 @@ fn resolve_framework_project() -> Option<String> {
     None
 }
 
+/// T-1504: fleet-wide aggregate counts. Single-fetch summary of chat-arc
+/// activity in a window, grouped by msg_type / peer / project / thread.
+pub(crate) async fn cmd_agent_stats(
+    window_secs: u64,
+    top: usize,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+    let clamped_top = top.clamp(1, 100);
+    let stats = super::channel::fetch_chat_arc_stats(hub, clamped_window_secs)
+        .await
+        .with_context(|| "agent stats: failed to fetch chat-arc")?;
+
+    if json {
+        let mk_pairs = |v: &[(String, usize)]| -> serde_json::Value {
+            serde_json::Value::Array(
+                v.iter()
+                    .map(|(k, c)| serde_json::json!({"key": k, "count": c}))
+                    .collect(),
+            )
+        };
+        let out = serde_json::json!({
+            "verb": "agent.stats",
+            "window_secs": clamped_window_secs,
+            "top": clamped_top,
+            "total": stats.total,
+            "by_msg_type": mk_pairs(&stats.by_msg_type),
+            "by_peer": mk_pairs(&stats.by_peer),
+            "by_project": mk_pairs(&stats.by_project),
+            "by_thread": mk_pairs(&stats.by_thread),
+        });
+        println!("{}", serde_json::to_string_pretty(&out)?);
+        return Ok(());
+    }
+
+    println!(
+        "# agent stats | window={}s | total={} | top={}",
+        clamped_window_secs, stats.total, clamped_top
+    );
+    fn render_section(title: &str, rows: &[(String, usize)], top: usize) {
+        println!();
+        println!("## {} ({} unique)", title, rows.len());
+        if rows.is_empty() {
+            println!("  (none)");
+            return;
+        }
+        let take = rows.len().min(top);
+        for (k, c) in &rows[..take] {
+            let key_disp = if k.len() > 50 { format!("{}…", &k[..49]) } else { k.clone() };
+            println!("  {:>5}  {}", c, key_disp);
+        }
+        if rows.len() > top {
+            println!("  …and {} more", rows.len() - top);
+        }
+    }
+    render_section("by msg_type", &stats.by_msg_type, clamped_top);
+    render_section("by peer", &stats.by_peer, clamped_top);
+    render_section("by project", &stats.by_project, clamped_top);
+    render_section("by thread", &stats.by_thread, clamped_top);
+    Ok(())
+}
+
 /// T-1503: focus-aware chat-arc post verb. Companion to the read verbs
 /// (recent/on-thread/timeline). Auto-resolves `--thread` from focus.yaml
 /// and `--project` from .framework.yaml. Defers to

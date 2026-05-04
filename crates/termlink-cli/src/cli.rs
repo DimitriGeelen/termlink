@@ -3874,6 +3874,30 @@ pub(crate) enum AgentAction {
         watch_interval: u64,
     },
 
+    /// Fleet-wide aggregate counts (T-1504): single-fetch summary of
+    /// chat-arc activity in a window, grouped by msg_type / peer /
+    /// project / thread. Operator's "what has the fleet been doing?"
+    /// view. Companion to presence (per-peer) / who (single-peer detail)
+    /// / timeline (chronological log).
+    Stats {
+        /// Window (seconds) for the activity slice. Default 86400 (1d).
+        /// Clamped to [60, 604800].
+        #[arg(long = "window-secs", default_value_t = 86400)]
+        window_secs: u64,
+
+        /// Top-N rows per section. Default 10. Clamped to [1, 100].
+        #[arg(long = "top", default_value_t = 10)]
+        top: usize,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Post a note to agent-chat-arc (T-1503): focus-aware write companion
     /// to the recent/on-thread/timeline reading verbs. Auto-resolves
     /// `--thread` from `.context/working/focus.yaml::current_task` and

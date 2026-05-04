@@ -296,6 +296,9 @@ async fn main() -> Result<()> {
             AgentAction::Post { text, thread, project, msg_type, hub, json } => {
                 commands::agent::cmd_agent_post(&text, thread.as_deref(), project.as_deref(), &msg_type, hub.as_deref(), json).await
             }
+            AgentAction::Stats { window_secs, top, hub, json } => {
+                commands::agent::cmd_agent_stats(window_secs, top, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
