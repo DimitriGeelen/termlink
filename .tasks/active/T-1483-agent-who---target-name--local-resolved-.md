@@ -4,16 +4,16 @@ name: "agent who --target <name> — local-resolved alternative to --target-fp"
 description: >
   agent who --target <name> — local-resolved alternative to --target-fp
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T13:21:59Z
-last_update: 2026-05-04T13:21:59Z
-date_finished: null
+last_update: 2026-05-04T13:31:15Z
+date_finished: 2026-05-04T13:31:15Z
 ---
 
 # T-1483: agent who --target <name> — local-resolved alternative to --target-fp
@@ -67,8 +67,8 @@ activity-summary code path. Mutually exclusive with `--target-fp`.
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
 target/release/termlink agent who --help 2>&1 | grep -q -- "--target "
-target/release/termlink agent who --target some-x --target-fp dead 2>&1 | grep -qE "mutually exclusive|specify either"
-target/release/termlink agent who 2>&1 | grep -qE "must specify either|required"
+out=$(target/release/termlink agent who --target some-x --target-fp dead 2>&1 || true); echo "$out" | grep -qE "mutually exclusive|specify either"
+out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "must specify either|required"
 
 ## RCA
 
@@ -116,3 +116,6 @@ target/release/termlink agent who 2>&1 | grep -qE "must specify either|required"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1483-agent-who---target-name--local-resolved-.md
 - **Context:** Initial task creation
+
+### 2026-05-04T13:31:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
