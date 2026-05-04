@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1471: fleet doctor: configurable --top-callers <N> (per-hub + fleet-wide)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T07:31:30Z
+# ============================================================================
+
+task_id: T-1471
+task_name: "fleet doctor: configurable --top-callers <N> (per-hub + fleet-wide)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T07:22:47Z
+completed: 2026-05-04T07:30:28Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-04T09:27:55+02:00
+last_commit: 2026-05-04T09:27:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --top-callers <N> — configurable list size
+
+# Key outcomes
+outcomes:
+  - "New flag `--top-callers <N>` added to `FleetAction::Doctor` with default 3, clamped at runtime to `1..=50`"
+  - "Both per-hub display loop and fleet-wide aggregator respect the configured count"
+  - "cmd_fleet_doctor signature threads the new arg through; main.rs dispatch updated"
+  - "`cargo build --release -p termlink` succeeds"
+  - "Live verification: `target/release/termlink fleet doctor --legacy-usage --top-callers 10` shows >3 callers per hub (where the data exists) AND a longer fleet-wide list"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1471-fleet-doctor-configurable---top-callers-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T09:27:55"
+    action: "T-1471: fleet doctor --top-callers <N> — configurable list size"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 95
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1471-fleet-doctor-configurable---top-callers-.md
+generated_by: context-agent-hybrid
