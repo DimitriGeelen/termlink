@@ -4,16 +4,16 @@ name: "agent who --thread <T-XXX> — thread-scoped peer activity filter"
 description: >
   agent who --thread <T-XXX> — thread-scoped peer activity filter
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T15:50:55Z
-last_update: 2026-05-04T15:50:55Z
-date_finished: null
+last_update: 2026-05-04T16:00:12Z
+date_finished: 2026-05-04T16:00:12Z
 ---
 
 # T-1488: agent who --thread <T-XXX> — thread-scoped peer activity filter
@@ -109,3 +109,6 @@ out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-se
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1488-agent-who---thread-t-xxx--thread-scoped-.md
 - **Context:** Initial task creation
+
+### 2026-05-04T16:00:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
