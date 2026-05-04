@@ -3737,6 +3737,32 @@ pub(crate) enum AgentAction {
         #[arg(long = "watch-interval", default_value_t = 5)]
         watch_interval: u64,
     },
+
+    /// Single-shot fleet digest (T-1495): top peers + top projects + last
+    /// posts in one render. Designed as the first command of a session —
+    /// "what's the fleet doing right now?". Composes existing pure
+    /// helpers (`summarize_fleet_presence`, `summarize_fleet_by_project`,
+    /// `extract_recent_posts`) on a single chat-arc fetch, so a digest
+    /// is one RPC round-trip.
+    Overview {
+        /// Window (seconds) for the activity slice. Default 3600 (1h).
+        /// Clamped to [60, 604800].
+        #[arg(long = "window-secs", default_value_t = 3600)]
+        window_secs: u64,
+
+        /// Number of rows per section. Default 5. Clamped to [1, 50].
+        /// Applies symmetrically to peers / projects / recent posts.
+        #[arg(long = "top", default_value_t = 5)]
+        top: usize,
+
+        /// Override hub address (default: local hub)
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

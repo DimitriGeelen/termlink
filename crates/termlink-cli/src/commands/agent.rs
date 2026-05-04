@@ -1836,6 +1836,210 @@ pub(crate) async fn cmd_agent_on_thread(
     Ok(())
 }
 
+/// T-1495: single-shot fleet digest. Fetches `agent-chat-arc` ONCE
+/// and computes three summaries from the same msgs slice — top peers,
+/// top projects, last posts. Designed as the first command of a
+/// session: tells the operator "what's happening on this fleet right
+/// now?" without requiring three separate verb invocations.
+pub(crate) async fn cmd_agent_overview(
+    window_secs: u64,
+    top: usize,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+    let clamped_top = top.clamp(1, 50);
+
+    // Single round-trip — wider slice (2000) so all three summaries get
+    // enough coverage on busy fleets.
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 2000)
+        .await
+        .context("agent overview: failed to fetch chat-arc")?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+
+    let peer_rows = super::channel::summarize_fleet_presence(
+        &msgs,
+        now_ms,
+        window_ms,
+        None,
+        None,
+    );
+    let project_rows = super::channel::summarize_fleet_by_project(
+        &msgs,
+        now_ms,
+        window_ms,
+        None,
+        None,
+    );
+    let recent = super::channel::extract_recent_posts(
+        &msgs,
+        clamped_top,
+        window_ms,
+        now_ms,
+        None,
+        None,
+        None,
+    );
+
+    let display_peers: &[super::channel::FleetPeerRow] =
+        &peer_rows[..peer_rows.len().min(clamped_top)];
+    let display_projects: &[super::channel::FleetProjectRow] =
+        &project_rows[..project_rows.len().min(clamped_top)];
+
+    if json {
+        let mut out_obj = serde_json::Map::new();
+        out_obj.insert(
+            "window_secs".to_string(),
+            serde_json::Value::from(clamped_window_secs),
+        );
+        out_obj.insert("top".to_string(), serde_json::Value::from(clamped_top));
+        out_obj.insert(
+            "peers".to_string(),
+            serde_json::Value::Array(display_peers.iter().map(|r| r.to_json()).collect()),
+        );
+        out_obj.insert(
+            "projects".to_string(),
+            serde_json::Value::Array(display_projects.iter().map(|r| r.to_json()).collect()),
+        );
+        out_obj.insert(
+            "recent_posts".to_string(),
+            serde_json::Value::Array(recent.iter().map(|p| p.to_json()).collect()),
+        );
+        // Bonus summary fields — total counts so caller can disambiguate
+        // "exactly N peers" vs "N truncated".
+        out_obj.insert(
+            "total_peers".to_string(),
+            serde_json::Value::from(peer_rows.len()),
+        );
+        out_obj.insert(
+            "total_projects".to_string(),
+            serde_json::Value::from(project_rows.len()),
+        );
+        println!("{}", serde_json::to_string_pretty(&serde_json::Value::Object(out_obj))?);
+        return Ok(());
+    }
+
+    // Text mode — early-out for empty fleet (signal-to-noise: single line).
+    if peer_rows.is_empty() && project_rows.is_empty() && recent.is_empty() {
+        println!("(no fleet activity in window={}s)", clamped_window_secs);
+        return Ok(());
+    }
+
+    println!(
+        "## Top Peers (window={}s, top={})",
+        clamped_window_secs, clamped_top
+    );
+    if display_peers.is_empty() {
+        println!("(no peers active)");
+    } else {
+        println!(
+            "{:<18} {:>14} {:>8}  {}",
+            "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
+        );
+        for r in display_peers {
+            let last_seen_str = match r.last_seen_ms {
+                None => "never".to_string(),
+                Some(ms) => fmt_age(now_ms, ms),
+            };
+            let project_str = r.top_project.as_deref().unwrap_or("-");
+            println!(
+                "{:<18} {:>14} {:>8}  {}",
+                r.peer_fp, last_seen_str, r.posts, project_str
+            );
+        }
+    }
+    println!();
+    println!(
+        "## Top Projects (window={}s, top={})",
+        clamped_window_secs, clamped_top
+    );
+    if display_projects.is_empty() {
+        println!("(no projects active — no tagged posts in window)");
+    } else {
+        println!(
+            "{:<24} {:>8} {:>8} {:<18}  {}",
+            "PROJECT", "POSTS", "PEERS", "TOP_PEER", "LAST_SEEN"
+        );
+        for r in display_projects {
+            let last_seen_str = match r.last_seen_ms {
+                None => "never".to_string(),
+                Some(ms) => fmt_age(now_ms, ms),
+            };
+            let top_peer = r.top_peer_fp.as_deref().unwrap_or("-");
+            println!(
+                "{:<24} {:>8} {:>8} {:<18}  {}",
+                r.project, r.posts, r.distinct_peers, top_peer, last_seen_str
+            );
+        }
+    }
+    println!();
+    println!(
+        "## Recent Posts (window={}s, top={})",
+        clamped_window_secs, clamped_top
+    );
+    if recent.is_empty() {
+        println!("(no posts in window)");
+    } else {
+        for p in &recent {
+            let age_str = fmt_age(now_ms, p.ts_ms);
+            let peer_short = if p.peer_fp.len() > 12 {
+                &p.peer_fp[..12]
+            } else {
+                &p.peer_fp[..]
+            };
+            let mut tags = format!("peer={} msg_type={}", peer_short, p.msg_type);
+            if let Some(t) = &p.thread {
+                tags.push_str(&format!(" thread={t}"));
+            }
+            if let Some(pr) = &p.project {
+                tags.push_str(&format!(" project={pr}"));
+            }
+            println!("[{}] {}", age_str, tags);
+            if !p.content.is_empty() {
+                // Single-line preview: first line, capped at 100 chars
+                // (overview is a digest — the operator drills in via
+                // `agent recent` / `agent on-thread` for full content).
+                let first_line = p.content.lines().next().unwrap_or("");
+                let preview: String = first_line.chars().take(100).collect();
+                let suffix = if first_line.chars().count() > 100 || p.content.lines().count() > 1 {
+                    "…"
+                } else {
+                    ""
+                };
+                println!("    {}{}", preview, suffix);
+            }
+        }
+    }
+    println!();
+    println!(
+        "# overview: window={}s, top={}, total_peers={}, total_projects={}",
+        clamped_window_secs,
+        clamped_top,
+        peer_rows.len(),
+        project_rows.len()
+    );
+    Ok(())
+}
+
+/// Helper — render an "Xs/Ym/Zh/Wd ago" string from now_ms vs ts_ms.
+fn fmt_age(now_ms: i64, ts_ms: i64) -> String {
+    let age_secs = ((now_ms - ts_ms) / 1000).max(0);
+    if age_secs < 60 {
+        format!("{age_secs}s ago")
+    } else if age_secs < 3600 {
+        format!("{}m ago", age_secs / 60)
+    } else if age_secs < 86_400 {
+        format!("{}h ago", age_secs / 3600)
+    } else {
+        format!("{}d ago", age_secs / 86_400)
+    }
+}
+
 /// T-1494: text-mode body renderer extracted from cmd_agent_on_thread
 /// so the watch loop can reuse the exact same layout per-iteration.
 /// Renders ONLY the data block (empty-state message OR posts + footer);
