@@ -62,7 +62,11 @@ fn parse_project_name_from_yaml(path: &Path) -> Option<String> {
 /// T-1448 Design A: walk up from `start` looking for `.framework.yaml` and
 /// return its `project_name`. Pure — testable with tempdirs. Returns None
 /// when no marker file is reachable or the file lacks `project_name`.
-fn resolve_project_name_from(start: &Path) -> Option<String> {
+///
+/// T-1477: `pub(crate)` so `commands::metadata::print_whoami_card` can reuse
+/// the same resolver — single source of truth for "what from_project would
+/// this cwd produce?".
+pub(crate) fn resolve_project_name_from(start: &Path) -> Option<String> {
     let mut cur: Option<&Path> = Some(start);
     while let Some(dir) = cur {
         let candidate = dir.join(".framework.yaml");
