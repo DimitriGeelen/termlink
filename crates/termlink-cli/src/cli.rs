@@ -3079,6 +3079,16 @@ pub(crate) enum FleetAction {
         /// audit_present=false. Closes G-050.what_remains audit-sweep ask.
         #[arg(long)]
         topic_durability: bool,
+
+        /// T-1462: compare cut-readiness against a previously-saved snapshot.
+        /// Reads the file at PATH (must be JSON output of an earlier
+        /// `fleet doctor --legacy-usage --json` run), computes per-hub +
+        /// per-caller + fleet `total_legacy` deltas, and (when both snapshots
+        /// have an embedded `_snapshot_ts_ms`) an average rate (calls/min).
+        /// Only meaningful when combined with `--legacy-usage`. CLI-only —
+        /// no hub upgrade required.
+        #[arg(long, value_name = "PATH")]
+        diff: Option<std::path::PathBuf>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
