@@ -372,12 +372,19 @@ termlink fleet doctor --legacy-usage \
          (current)  total=   20381 (-1619)
   sparkline: █▇▇▆
   trajectory: decreasing
+  ETA to zero: 2026-05-26 (22.6 days at -888/day)
 ```
 
 The trend includes the *current* fleet state as the trailing point so the
 operator sees today's delta against yesterday's snapshot in the same view
 that shows the prior week. JSON mode emits `legacy_summary.trend` so
 dashboards can plot the same time-series.
+
+The ETA line (T-1470) fits a least-squares line through the trend points
+and projects when total_legacy_fleet hits zero. Suppressed when the fit
+isn't actionable: <2 timestamped points, flat or growing slope, or current
+total already at zero. JSON mode adds `legacy_summary.trend.eta_zero =
+{target_ms, days_from_now, slope_per_day}` (or null) for dashboards.
 
 `--trend-keep` defaults to 7 (one week) and is capped at 30. Files are
 sorted by filename; the cron convention of `YYYY-MM-DD.json` makes that
