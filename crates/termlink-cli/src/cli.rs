@@ -3097,6 +3097,14 @@ pub(crate) enum FleetAction {
         /// must exist.
         #[arg(long, value_name = "PATH")]
         save_snapshot: Option<std::path::PathBuf>,
+
+        /// T-1465: map cut-readiness verdict to a process exit code so
+        /// cron / CI can gate on it without parsing JSON. Requires
+        /// `--legacy-usage`. Mapping: CUT-READY=0, CUT-READY-DECAYING=0,
+        /// WAIT=10, UNCERTAIN=11. Connectivity failures keep their existing
+        /// non-zero exit (precedence over verdict mapping).
+        #[arg(long)]
+        exit_code_on_verdict: bool,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
