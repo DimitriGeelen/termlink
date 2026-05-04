@@ -281,8 +281,8 @@ async fn main() -> Result<()> {
             AgentAction::OnThread { thread, n, window_secs, filter_project, peer, peer_fp, hub, json, watch, watch_interval } => {
                 commands::agent::cmd_agent_on_thread(&thread, n, window_secs, filter_project.as_deref(), peer.as_deref(), peer_fp.as_deref(), hub.as_deref(), json, watch, watch_interval).await
             }
-            AgentAction::Overview { window_secs, top, hub, json } => {
-                commands::agent::cmd_agent_overview(window_secs, top, hub.as_deref(), json).await
+            AgentAction::Overview { window_secs, top, hub, json, watch, watch_interval } => {
+                commands::agent::cmd_agent_overview(window_secs, top, hub.as_deref(), json, watch, watch_interval).await
             }
         },
         Command::File { action } => match action {

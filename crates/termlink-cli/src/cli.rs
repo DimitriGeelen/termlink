@@ -3762,6 +3762,18 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope
         #[arg(long)]
         json: bool,
+
+        /// Live fleet dashboard mode (T-1496): re-render the 3-section
+        /// overview every `--watch-interval` seconds until Ctrl-C.
+        /// Composes with `--window-secs`, `--top`, `--hub`. Incompatible
+        /// with `--json` (streaming vs one-shot).
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval (seconds) for `--watch` mode. Default 5.
+        /// Clamped to [1, 300]. Ignored without `--watch`.
+        #[arg(long = "watch-interval", default_value_t = 5)]
+        watch_interval: u64,
     },
 }
 
