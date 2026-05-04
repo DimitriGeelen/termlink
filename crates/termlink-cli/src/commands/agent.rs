@@ -1003,6 +1003,73 @@ pub(crate) async fn cmd_agent_who(
     Ok(())
 }
 
+/// T-1482: fleet-wide presence summary on `agent-chat-arc`. Aggregates by
+/// sender_id, returns one row per active peer with last_seen, posts in
+/// window, and top from_project (most-frequently-stamped). Companion to
+/// `agent who` — that's per-peer; this is fleet-wide.
+pub(crate) async fn cmd_agent_presence(
+    window_secs: u64,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    let clamped_window_secs = window_secs.clamp(60, 604_800);
+    let rows = super::channel::fetch_fleet_presence_via_chat_arc(hub, clamped_window_secs)
+        .await
+        .context("agent presence: failed to fetch fleet presence")?;
+
+    if json {
+        let peers: Vec<serde_json::Value> = rows.iter().map(|r| r.to_json()).collect();
+        let out = serde_json::json!({
+            "window_secs": clamped_window_secs,
+            "peers": peers,
+        });
+        println!("{}", serde_json::to_string_pretty(&out)?);
+        return Ok(());
+    }
+
+    // Text mode — table.
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    if rows.is_empty() {
+        println!(
+            "(no peers active in window={}s)",
+            clamped_window_secs
+        );
+        return Ok(());
+    }
+    println!(
+        "{:<18} {:>14} {:>8}  {}",
+        "PEER_FP", "LAST_SEEN", "POSTS", "TOP_PROJECT"
+    );
+    for r in &rows {
+        let last_seen_str = match r.last_seen_ms {
+            None => "never".to_string(),
+            Some(ms) => {
+                let age_secs = ((now_ms - ms) / 1000).max(0);
+                if age_secs < 60 {
+                    format!("{age_secs}s ago")
+                } else if age_secs < 3600 {
+                    format!("{}m ago", age_secs / 60)
+                } else if age_secs < 86_400 {
+                    format!("{}h ago", age_secs / 3600)
+                } else {
+                    format!("{}d ago", age_secs / 86_400)
+                }
+            }
+        };
+        let project_str = r.top_project.as_deref().unwrap_or("-");
+        println!(
+            "{:<18} {:>14} {:>8}  {}",
+            r.peer_fp, last_seen_str, r.posts, project_str
+        );
+    }
+    println!();
+    println!("{} peer(s) active in window={}s", rows.len(), clamped_window_secs);
+    Ok(())
+}
+
 /// T-1478: pure helper — build the dry-run preview JSON. Mirrors the
 /// metadata that `cmd_channel_dm` would stamp on the post (from_project
 /// auto-injected by `cmd_channel_post`, plus any extra_metadata supplied
