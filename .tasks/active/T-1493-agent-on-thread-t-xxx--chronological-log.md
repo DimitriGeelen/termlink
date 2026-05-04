@@ -4,16 +4,16 @@ name: "agent on-thread <T-XXX> — chronological log of all posts on a thread ac
 description: >
   agent on-thread <T-XXX> — chronological log of all posts on a thread across all peers
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T17:22:46Z
-last_update: 2026-05-04T17:22:46Z
-date_finished: null
+last_update: 2026-05-04T17:33:01Z
+date_finished: 2026-05-04T17:33:01Z
 ---
 
 # T-1493: agent on-thread <T-XXX> — chronological log of all posts on a thread across all peers
@@ -129,3 +129,7 @@ out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1493-agent-on-thread-t-xxx--chronological-log.md
 - **Context:** Initial task creation
+
+### 2026-05-04T17:33:01Z — status-update [manual]
+- **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
+- **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
