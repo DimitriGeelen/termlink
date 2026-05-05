@@ -771,6 +771,18 @@ pub struct AgentReactionsByParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentPinnedByParams {
+    /// Sender fingerprint whose pinning activity to reduce. Defaults to caller's local Identity.
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentStarredByParams {
+    /// Sender fingerprint whose starring activity to reduce. Defaults to caller's local Identity.
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -8763,6 +8775,180 @@ impl TermLinkTools {
         serde_json::to_string_pretty(&serde_json::json!({
             "sender_id": sender_id,
             "reactions": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_pinned_by",
+        description = "List targets currently pinned BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per pin_target (an unpin event from the same sender supersedes their earlier pin), and returns `[{pin_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_pinned` (topic-wide). Useful for \"what has X curated?\" or \"what have I pinned?\" (default sender_id = me)."
+    )]
+    async fn termlink_agent_pinned_by(
+        &self,
+        Parameters(p): Parameters<AgentPinnedByParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        all.sort_by_key(|env| {
+            env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0)
+        });
+        let mut state: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") { continue; }
+            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+            let target = match env.get("metadata").and_then(|m| m.get("pin_target")).and_then(|v| v.as_str()) {
+                Some(t) => t.to_string(),
+                None => continue,
+            };
+            let action = env.get("metadata").and_then(|m| m.get("action")).and_then(|v| v.as_str()).unwrap_or("pin").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            state.insert(target, (action, ts));
+        }
+        let mut results: Vec<serde_json::Value> = state.into_iter()
+            .filter(|(_, (action, _))| action == "pin")
+            .map(|(target, (_, ts))| serde_json::json!({"pin_target": target, "ts_unix_ms": ts}))
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": sender_id,
+            "pinned": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_starred_by",
+        description = "List targets currently starred BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per star_target (a `star=false` event from the same sender supersedes their earlier `star=true`), and returns `[{star_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_starred` (topic-wide). Useful for \"what has X bookmarked?\" or \"what have I starred?\" (default sender_id = me)."
+    )]
+    async fn termlink_agent_starred_by(
+        &self,
+        Parameters(p): Parameters<AgentStarredByParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        all.sort_by_key(|env| {
+            env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0)
+        });
+        let mut state: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("star") { continue; }
+            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+            let target = match env.get("metadata").and_then(|m| m.get("star_target")).and_then(|v| v.as_str()) {
+                Some(t) => t.to_string(),
+                None => continue,
+            };
+            let star_val = env.get("metadata").and_then(|m| m.get("star")).and_then(|v| v.as_str()).unwrap_or("true").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            state.insert(target, (star_val, ts));
+        }
+        let mut results: Vec<serde_json::Value> = state.into_iter()
+            .filter(|(_, (val, _))| val == "true")
+            .map(|(target, (_, ts))| serde_json::json!({"star_target": target, "ts_unix_ms": ts}))
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": sender_id,
+            "starred": results,
         })).unwrap_or_else(json_err)
     }
 
