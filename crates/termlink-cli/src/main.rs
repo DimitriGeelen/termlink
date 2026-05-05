@@ -320,6 +320,9 @@ async fn main() -> Result<()> {
             AgentAction::Unread { sender, hub, json } => {
                 commands::channel::cmd_channel_unread("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
             }
+            AgentAction::Mentions { user, hub, json } => {
+                commands::channel::cmd_channel_mentions_of("agent-chat-arc", &user, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

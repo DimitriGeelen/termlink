@@ -4042,6 +4042,26 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// List every chat-arc envelope whose `metadata.mentions` CSV matches
+    /// <USER> (T-1513): thin wrapper over `channel mentions-of agent-chat-arc <user>`.
+    /// Distinct from `agent search` (free-text substring across payload):
+    /// this verb filters on the structured `metadata.mentions` array — so
+    /// you find rows that explicitly tagged the user, regardless of body
+    /// content. Glob `*` matches any non-empty mentions CSV.
+    Mentions {
+        /// User identity, peer name, or thread tag to match against
+        /// `metadata.mentions`. Use `"*"` to match any non-empty CSV.
+        user: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Count new posts on agent-chat-arc since the caller's last channel.ack
     /// receipt (T-1512): thin wrapper over `channel unread agent-chat-arc`.
     /// Queries hub-side receipts for the local identity (or override via
