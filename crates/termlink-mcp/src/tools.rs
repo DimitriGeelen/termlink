@@ -639,6 +639,20 @@ pub struct AgentRecentParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentSearchParams {
+    /// Substring query — matched against base64-decoded payload.
+    pub query: String,
+    /// Max matches to return. Default 100, capped at 1000.
+    pub limit: Option<u64>,
+    /// If set, filter to envelopes whose sender_id matches.
+    pub peer_fp: Option<String>,
+    /// If set, filter to envelopes whose msg_type matches.
+    pub msg_type_filter: Option<String>,
+    /// If true, case-sensitive substring match. Default: false.
+    pub case_sensitive: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -7188,6 +7202,86 @@ impl TermLinkTools {
             .collect();
         // Sort by ts descending (newest first).
         let mut sorted = filtered;
+        sorted.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| a.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| b.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        sorted.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_search",
+        description = "Search agent-chat-arc for envelopes whose payload contains a substring. Walks the topic via channel.subscribe, base64-decodes payloads (utf8 lossy), and returns matches newest-first. Optional filters: `peer_fp`, `msg_type_filter`, `case_sensitive` (default false). `limit` defaults to 100, max 1000. MCP-side equivalent of `agent search <query>` (CLI T-1508). Builds on the topic-walk pattern established by T-1571."
+    )]
+    async fn termlink_agent_search(
+        &self,
+        Parameters(p): Parameters<AgentSearchParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(100).min(1000);
+        let case_sensitive = p.case_sensitive.unwrap_or(false);
+        let needle: String = if case_sensitive { p.query.clone() } else { p.query.to_lowercase() };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let peer = p.peer_fp.as_deref();
+        let mt_filter = p.msg_type_filter.as_deref();
+        let matches: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| {
+                if let Some(want) = peer {
+                    let got = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if got != want { return false; }
+                }
+                if let Some(want) = mt_filter {
+                    let got = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+                    if got != want { return false; }
+                }
+                let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+                let bytes = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                    Ok(b) => b,
+                    Err(_) => return false,
+                };
+                let text = String::from_utf8_lossy(&bytes);
+                let hay: String = if case_sensitive { text.into_owned() } else { text.to_lowercase() };
+                hay.contains(&needle)
+            })
+            .collect();
+        let mut sorted = matches;
         sorted.sort_by(|a, b| {
             let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| a.get("ts").and_then(|v| v.as_i64()))
