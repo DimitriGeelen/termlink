@@ -565,6 +565,26 @@ pub struct AgentStarParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentRedactParams {
+    /// Offset of the chat-arc post being retracted.
+    pub offset: u64,
+    /// Optional reason string. Stored as `metadata.reason`.
+    pub reason: Option<String>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentEditParams {
+    /// Offset of the chat-arc post being edited.
+    pub offset: u64,
+    /// New post content. Replaces the original at render time.
+    pub text: String,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -6544,6 +6564,149 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("agent.star error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_redact",
+        description = "Retract an agent-chat-arc post by offset. Posts a `msg_type=redaction` envelope (longer form, matching CLI T-1531) with empty payload and `metadata.redacts=<offset>` + optional `metadata.reason`. Append-only — the original envelope stays in the topic; reader-side aggregators (e.g. `agent redactions`) decide whether to filter or render struck-through. MCP-side equivalent of `agent redact <offset> [--reason <text>]`."
+    )]
+    async fn termlink_agent_redact(
+        &self,
+        Parameters(p): Parameters<AgentRedactParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let msg_type = "redaction";
+        let payload_bytes: Vec<u8> = Vec::new();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("redacts".to_string(), serde_json::Value::String(p.offset.to_string()));
+        if let Some(reason) = p.reason {
+            metadata.insert("reason".to_string(), serde_json::Value::String(reason));
+        }
+        let params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.redact error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_edit",
+        description = "Edit an agent-chat-arc post by offset. Posts a `msg_type=edit` envelope with the new text as payload and `metadata.replaces=<offset>` (matching CLI T-1530). Append-only — the original envelope stays; reader-side decides whether to render the collapsed view. MCP-side equivalent of `agent edit <offset> <text>`. Closes the post-mutation triad with redact + edit; together with the curation pair (pin/star) gives MCP-aware agents the full chat-arc lifecycle write surface."
+    )]
+    async fn termlink_agent_edit(
+        &self,
+        Parameters(p): Parameters<AgentEditParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let msg_type = "edit";
+        let payload_bytes = p.text.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("replaces".to_string(), serde_json::Value::String(p.offset.to_string()));
+        let params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.edit error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
