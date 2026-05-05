@@ -431,6 +431,12 @@ async fn main() -> Result<()> {
             AgentAction::SnapshotDiff { from, to, include_redacted, include_unchanged, hub, json } => {
                 commands::channel::cmd_channel_snapshot_diff("agent-chat-arc", from, to, include_redacted, include_unchanged, hub.as_deref(), json).await
             }
+            AgentAction::Typing { ttl_ms, hub, json } => {
+                commands::channel::cmd_channel_typing_emit("agent-chat-arc", ttl_ms, hub.as_deref(), json).await
+            }
+            AgentAction::Typers { hub, json } => {
+                commands::channel::cmd_channel_typing_list("agent-chat-arc", hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

@@ -4823,6 +4823,40 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Emit a typing indicator on chat-arc (T-1550): thin wrapper over
+    /// `channel typing-emit agent-chat-arc`. Posts a `msg_type=typing`
+    /// envelope with `metadata.expires_at_ms=now+ttl`. Operator workflow:
+    /// signal "I'm composing right now" so peers reading `agent typers`
+    /// see live composition activity. Read companion: T-1551 `agent typers`.
+    Typing {
+        /// TTL in milliseconds (how long the typing indicator stays active).
+        #[arg(long = "ttl-ms", default_value = "5000")]
+        ttl_ms: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List active typers on chat-arc (T-1551): thin wrapper over
+    /// `channel typing-list agent-chat-arc`. Walks the topic, applies
+    /// `compute_active_typers` (latest typing envelope per sender, filtered
+    /// by `expires_at_ms > now`), and returns one row per active typer.
+    /// Write companion: T-1550 `agent typing`.
+    Typers {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
