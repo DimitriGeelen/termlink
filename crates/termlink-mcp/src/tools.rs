@@ -653,6 +653,20 @@ pub struct AgentSearchParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentAncestorsParams {
+    /// Offset whose ancestor chain to compute.
+    pub offset: u64,
+    /// Max chain depth (safety cap). Default 100.
+    pub max_depth: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentPinHistoryParams {
+    /// Max events to return. Default 200, capped at 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentUnreadParams {
     /// sender_id whose unread count to compute. Defaults to local identity fingerprint.
     pub sender_id: Option<String>,
@@ -7365,6 +7379,153 @@ impl TermLinkTools {
         });
         sorted.truncate(limit as usize);
         serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_ancestors",
+        description = "Walk up the reply chain from an offset on agent-chat-arc. Builds an offset→envelope map, then chains via `metadata.in_reply_to` until reaching a post with no parent. Returns the chain root-first → leaf-last as a JSON array of envelopes. Companion to `termlink_agent_on_thread` (which descends). MCP-side equivalent of `agent ancestors <offset>` (CLI T-1510). `max_depth` defaults to 100 (safety cap)."
+    )]
+    async fn termlink_agent_ancestors(
+        &self,
+        Parameters(p): Parameters<AgentAncestorsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let max_depth = p.max_depth.unwrap_or(100);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut by_offset: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
+        for env in &all {
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|u| u.to_string()).unwrap_or_default();
+            if !off.is_empty() {
+                by_offset.insert(off, env.clone());
+            }
+        }
+        let mut chain: Vec<serde_json::Value> = Vec::new();
+        let mut current = p.offset.to_string();
+        let mut depth: u64 = 0;
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        while depth < max_depth {
+            if seen.contains(&current) { break; }
+            seen.insert(current.clone());
+            let env = match by_offset.get(&current) {
+                Some(e) => e.clone(),
+                None => break,
+            };
+            chain.push(env.clone());
+            let parent = env.get("metadata")
+                .and_then(|m| m.get("in_reply_to"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if parent.is_empty() { break; }
+            current = parent;
+            depth += 1;
+        }
+        chain.reverse(); // root-first
+        serde_json::to_string_pretty(&serde_json::Value::Array(chain)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_pin_history",
+        description = "Full pin/unpin event log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes, and returns `[{pin_target, sender_id, action, ts_unix_ms}, ...]` sorted newest-first. Different from `termlink_agent_pinned` (current state) — this is the timeline of curation events including unpins. MCP-side equivalent of `agent pin-history` (CLI T-1535). `limit` defaults to 200, capped at 1000."
+    )]
+    async fn termlink_agent_pin_history(
+        &self,
+        Parameters(p): Parameters<AgentPinHistoryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(200).min(1000);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| env.get("msg_type").and_then(|v| v.as_str()) == Some("pin"))
+            .map(|env| {
+                let target = env.get("metadata")
+                    .and_then(|m| m.get("pin_target"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let action = env.get("metadata")
+                    .and_then(|m| m.get("action"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("pin")
+                    .to_string();
+                let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                serde_json::json!({
+                    "pin_target": target,
+                    "sender_id": sender,
+                    "action": action,
+                    "ts_unix_ms": ts,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        results.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
     }
 
     #[tool(
