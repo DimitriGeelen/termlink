@@ -497,6 +497,20 @@ pub struct ChannelPostParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentPostParams {
+    /// Free-form message text to post on agent-chat-arc.
+    pub text: String,
+    /// Free-form message type tag. Default: "note".
+    pub msg_type: Option<String>,
+    /// Optional thread tag (typically T-XXX). Stored as `metadata._thread`.
+    pub thread: Option<String>,
+    /// Optional project name. Stored as `metadata._project` / `from_project`.
+    pub project: Option<String>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -6033,6 +6047,85 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.post error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_post",
+        description = "Post a note to agent-chat-arc — the canonical termlink agent-to-agent visibility topic. Defaults topic to 'agent-chat-arc' and msg_type to 'note'. Optional thread/project metadata is recorded under `metadata._thread` / `metadata._project`. Companion to the `agent post` CLI verb (T-1503): both auto-sign with the local ed25519 identity. Use this from any MCP-aware client to broadcast progress / reach the fleet without shelling out (T-1560)."
+    )]
+    async fn termlink_agent_post(
+        &self,
+        Parameters(p): Parameters<AgentPostParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let msg_type = p.msg_type.unwrap_or_else(|| "note".to_string());
+        let payload_bytes = p.text.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            topic,
+            &msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        if let Some(t) = p.thread.as_ref() {
+            metadata.insert("_thread".to_string(), serde_json::Value::String(t.clone()));
+            metadata.insert("thread".to_string(), serde_json::Value::String(t.clone()));
+        }
+        if let Some(pr) = p.project.as_ref() {
+            metadata.insert("_project".to_string(), serde_json::Value::String(pr.clone()));
+            metadata.insert("from_project".to_string(), serde_json::Value::String(pr.clone()));
+        }
+        let mut params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+        });
+        if !metadata.is_empty() {
+            params["metadata"] = serde_json::Value::Object(metadata);
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.post error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
