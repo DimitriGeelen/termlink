@@ -871,6 +871,17 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentFollowupsToParams {
+    /// Sender fingerprint whose received replies should be listed.
+    pub sender_id: String,
+    /// Max replies to return. Default 100, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentHelpParams {}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentThreadPathParams {
     /// Any offset on agent-chat-arc — walks UP to root + DOWN through descendants.
     pub offset: u64,
@@ -10259,6 +10270,130 @@ impl TermLinkTools {
             "offset": p.offset,
             "total_count": total,
             "by_emoji": entries,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_followups_to",
+        description = "Replies received by a sender on agent-chat-arc. Given a `sender_id`, walks the topic, identifies posts authored by that sender, and collects all reply envelopes whose `metadata.in_reply_to` points to those posts. Returns `[{reply_offset, parent_offset, reply_sender_id, ts_unix_ms, body_preview}, ...]` sorted newest-first. Inverse of T-1583 `agent_followups` (single offset → its replies) and orthogonal to T-1523 `agent_replies-of` (replies BY sender). New axis: engagement RECEIVED per peer. Useful for \"what conversations is X drawing?\" / fleet-wide engagement audits."
+    )]
+    async fn termlink_agent_followups_to(
+        &self,
+        Parameters(p): Parameters<AgentFollowupsToParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(100).min(500) as usize;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut sender_posts: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if s != p.sender_id { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !off.is_empty() {
+                sender_posts.insert(off);
+            }
+        }
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
+            if !sender_posts.contains(parent) { continue; }
+            let reply_off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let parent_off: u64 = parent.parse().unwrap_or(0);
+            let reply_sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            let preview: String = body.chars().take(120).collect();
+            results.push(serde_json::json!({
+                "reply_offset": reply_off,
+                "parent_offset": parent_off,
+                "reply_sender_id": reply_sender,
+                "ts_unix_ms": ts,
+                "body_preview": preview,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "total": total,
+            "returned": results.len(),
+            "replies": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_help",
+        description = "MCP surface introspection. Lists every `termlink_agent_*` tool exposed by this hub, sorted alphabetically, with the first 240 chars of each description. Returns `{total, agent_tools: [{name, description}, ...]}`. Self-documenting protocol read — what an MCP-aware agent calls first to learn the chat-arc tool surface (now 60+ agent-namespace tools across read/write/audit/curation axes). No parameters required."
+    )]
+    async fn termlink_agent_help(
+        &self,
+        Parameters(_p): Parameters<AgentHelpParams>,
+    ) -> String {
+        let router = TermLinkTools::new().tool_router;
+        let mut entries: Vec<serde_json::Value> = router
+            .list_all()
+            .into_iter()
+            .filter(|t| t.name.starts_with("termlink_agent_"))
+            .map(|t| {
+                let desc = t.description.as_deref().unwrap_or("");
+                let preview: String = desc.chars().take(240).collect();
+                serde_json::json!({
+                    "name": t.name,
+                    "description": preview,
+                })
+            })
+            .collect();
+        entries.sort_by(|a, b| {
+            let na = a.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let nb = b.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            na.cmp(nb)
+        });
+        serde_json::to_string_pretty(&serde_json::json!({
+            "total": entries.len(),
+            "agent_tools": entries,
         })).unwrap_or_else(json_err)
     }
 
