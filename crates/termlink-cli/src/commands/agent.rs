@@ -2098,6 +2098,57 @@ pub(crate) async fn cmd_agent_post(
     ).await
 }
 
+/// T-1507: focus-aware threaded reply on agent-chat-arc. Mirror of
+/// `cmd_agent_post` but threads `reply_to: Some(offset)` through to
+/// `cmd_channel_post`, which writes `metadata.in_reply_to=<offset>`. The
+/// new envelope is then visible as a child via `agent quote <new-offset>`
+/// (parent line rendered) and via Matrix-style traversal in
+/// `cmd_channel_thread` / `cmd_channel_replies`.
+pub(crate) async fn cmd_agent_reply(
+    offset: u64,
+    text: &str,
+    thread_override: Option<&str>,
+    project_override: Option<&str>,
+    msg_type: &str,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if text.trim().is_empty() {
+        let msg = "agent reply: text cannot be empty";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let resolved_thread: Option<String> = thread_override
+        .map(String::from)
+        .or_else(resolve_focus_task);
+    let resolved_project: Option<String> = project_override
+        .map(String::from)
+        .or_else(resolve_framework_project);
+
+    let mut metadata_kvs: Vec<String> = Vec::new();
+    if let Some(t) = &resolved_thread {
+        metadata_kvs.push(format!("thread={t}"));
+    }
+    if let Some(p) = &resolved_project {
+        metadata_kvs.push(format!("from_project={p}"));
+    }
+
+    super::channel::cmd_channel_post(
+        "agent-chat-arc",
+        msg_type,
+        Some(text),
+        None,
+        None,
+        Some(offset),
+        &metadata_kvs,
+        false,
+        hub,
+        json,
+    ).await
+}
+
 /// T-1500: timeline body renderer. Like `render_recent_body` but
 /// prefixes each post with peer-short (first 8 chars of peer_fp) so
 /// the operator can disambiguate posts across peers in the

@@ -3930,6 +3930,42 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Reply to a chat-arc post (T-1507): write counterpart to `agent quote`.
+    /// Posts `<text>` with `metadata.in_reply_to=<offset>` so the new envelope
+    /// shows the parent chain in subsequent `agent quote <new-offset>` and
+    /// fits Matrix-style reply traversal. Inherits focus-aware metadata
+    /// resolution from `agent post` (thread from focus.yaml, project from
+    /// .framework.yaml) — overridable per call.
+    Reply {
+        /// Arc offset of the post being replied to (positional, required).
+        offset: u64,
+
+        /// Text body of the reply (positional, required).
+        text: String,
+
+        /// Override the thread/task id. If omitted, resolves from
+        /// `.context/working/focus.yaml::current_task`.
+        #[arg(long = "thread")]
+        thread: Option<String>,
+
+        /// Override the project. If omitted, resolves from
+        /// `.framework.yaml::project_name`.
+        #[arg(long = "project")]
+        project: Option<String>,
+
+        /// Message type. Default "note".
+        #[arg(long = "msg-type", default_value = "note")]
+        msg_type: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Quote a single agent-chat-arc post by offset (T-1505): thin wrapper
     /// over `channel quote agent-chat-arc <offset>`. Renders the post and
     /// its parent (when the post is a reply via `metadata.in_reply_to`).
