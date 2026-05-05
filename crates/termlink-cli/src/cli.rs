@@ -4041,6 +4041,31 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Period summary of agent-chat-arc activity (T-1511): thin wrapper over
+    /// `channel digest agent-chat-arc`. Counts posts, distinct senders,
+    /// top senders by volume, top reactions, pin/forward activity, and
+    /// surfaces a recent_chats sample. Pairs with `agent timeline` (raw
+    /// stream) and `agent stats` (lifetime counts) — `agent digest` is
+    /// the compressed view of a recent slice. Default window: last 60 min.
+    Digest {
+        /// Window size in minutes (default 60). Mutually exclusive with --since.
+        #[arg(long = "since-mins")]
+        since_mins: Option<i64>,
+
+        /// Absolute lower-bound ts_ms (epoch milliseconds). Mutually
+        /// exclusive with --since-mins.
+        #[arg(long = "since")]
+        since: Option<i64>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

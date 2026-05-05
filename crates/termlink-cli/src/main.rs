@@ -314,6 +314,9 @@ async fn main() -> Result<()> {
             AgentAction::Ancestors { offset, hub, json } => {
                 commands::channel::cmd_channel_ancestors("agent-chat-arc", offset, hub.as_deref(), json).await
             }
+            AgentAction::Digest { since_mins, since, hub, json } => {
+                commands::channel::cmd_channel_digest("agent-chat-arc", since_mins, since, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
