@@ -511,6 +511,16 @@ pub struct AgentPostParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentTypingParams {
+    /// TTL in milliseconds for the typing indicator. Default: 5000ms.
+    /// `metadata.expires_at_ms` is set to `now + ttl_ms`. Peers reading
+    /// `agent typers` filter expired indicators out automatically.
+    pub ttl_ms: Option<u64>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -6126,6 +6136,78 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("agent.post error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_typing",
+        description = "Emit a typing indicator on agent-chat-arc — signals 'I'm composing' to peers reading `agent typers` (T-1551) or `agent typers --watch` (T-1557). Posts a `msg_type=typing` envelope with `metadata.expires_at_ms = now + ttl_ms` (default ttl: 5000ms). Companion to `termlink_agent_post` (typed text). MCP-side equivalent of the `agent typing` CLI verb (T-1550)."
+    )]
+    async fn termlink_agent_typing(
+        &self,
+        Parameters(p): Parameters<AgentTypingParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let msg_type = "typing";
+        let ttl_ms = p.ttl_ms.unwrap_or(5000);
+        let payload_bytes: Vec<u8> = Vec::new();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let expires_at_ms = ts_unix_ms + (ttl_ms as i64);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("expires_at_ms".to_string(), serde_json::Value::from(expires_at_ms));
+        let params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.typing error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
