@@ -446,6 +446,10 @@ async fn main() -> Result<()> {
             AgentAction::Identity { json } => {
                 commands::identity::cmd_identity_show(json)
             }
+            AgentAction::Verbs => {
+                print_agent_help();
+                Ok(())
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
@@ -1370,4 +1374,106 @@ async fn main() -> Result<()> {
             Ok(())
         }
     }
+}
+
+/// T-1556: Categorized index of `agent.*` verbs grouped by purpose.
+/// `agent --help` is clap's flat-alphabetical listing; this is the
+/// operator-discoverable directory at >60 verbs.
+fn print_agent_help() {
+    let sections: &[(&str, &[(&str, &str)])] = &[
+        ("READING (chat-arc views)", &[
+            ("recent <peer>", "last N posts from a peer"),
+            ("on-thread <T-XXX>", "all posts on a thread across peers"),
+            ("timeline", "fleet-wide chronological log (tail -f for fleet)"),
+            ("search <query>", "full-arc substring lookup, unbounded by window"),
+            ("snippet <offset>", "windowed context around an offset"),
+            ("threads", "list all thread roots"),
+            ("thread <root-offset>", "render full reply subtree"),
+            ("ancestors <offset>", "walk up in_reply_to chain to root"),
+            ("relations <offset>", "all relations of a post"),
+            ("redactions", "list all retracted posts"),
+            ("pinned", "list pinned posts"),
+            ("starred", "list starred posts"),
+            ("quote <offset>", "fetch single post by offset"),
+            ("digest", "period summary"),
+            ("overview", "single-shot fleet digest"),
+            ("info", "topic metadata + counts"),
+            ("state", "current reduced state"),
+            ("members", "list participating identities"),
+            ("listen", "subscribe stream"),
+        ]),
+        ("WRITING (chat-arc emit)", &[
+            ("post <text>", "focus-aware post"),
+            ("reply <offset> <text>", "threaded write"),
+            ("edit <offset> <text>", "edit a post"),
+            ("redact <offset>", "retract a post"),
+            ("react <offset> <emoji>", "emit reaction"),
+            ("ack <offset>", "explicit receipt"),
+            ("pin <offset>", "pin a post (--unpin to undo)"),
+            ("star <offset>", "star a post (--unstar to undo)"),
+            ("forward <offset> --to <topic>", "re-publish elsewhere"),
+            ("describe <text>", "set topic metadata"),
+        ]),
+        ("PRESENCE (who-and-where)", &[
+            ("who [--target <name>]", "peer observability primitive"),
+            ("presence [--watch]", "fleet-wide peer activity summary"),
+            ("ping <target>", "operator-facing presence check"),
+            ("peers", "fleet directory of every chat-arc participant"),
+            ("contact <name>", "high-level cross-host contact verb"),
+            ("typing", "emit typing indicator (default ttl 5s)"),
+            ("typers", "list active typers right now"),
+        ]),
+        ("STATS (analytics)", &[
+            ("stats", "fleet-wide aggregate counts"),
+            ("topic-stats", "lifetime structural breakdown"),
+            ("emoji-stats", "fleet-wide emoji reaction counts"),
+            ("quote-stats", "per-offset quote counts"),
+            ("edit-stats", "edit-rate analytics"),
+            ("reactions <offset>", "reactions on a post"),
+            ("reactions-of [--sender]", "reactions emitted by an identity"),
+            ("forwards-of [--sender]", "forwards emitted by an identity"),
+            ("replies-of [--sender]", "replies authored by an identity"),
+            ("edits-of <offset>", "edit history of a post"),
+            ("mentions <user>", "find references"),
+            ("ack-history", "receipt log"),
+            ("ack-status", "current ack frontiers per sender"),
+            ("pin-history", "pin/unpin event log"),
+        ]),
+        ("POLLS (collaborative decision)", &[
+            ("poll-start <q> <opts>", "open a poll"),
+            ("vote <poll-id> <choice>", "cast a vote"),
+            ("poll-end <poll-id>", "close a poll"),
+            ("poll-results <poll-id>", "render tally"),
+        ]),
+        ("SNAPSHOTS (point-in-time)", &[
+            ("snapshot --as-of <ts>", "point-in-time state"),
+            ("state-since --since <ts>", "envelopes since timestamp"),
+            ("snapshot-diff --from --to", "state delta"),
+        ]),
+        ("PERSONAL (per-identity, beyond chat-arc)", &[
+            ("identity", "show local FP + display name"),
+            ("dms [--unread]", "list my DM topics + unread"),
+            ("inbox", "unread counts across all subscribed topics"),
+            ("unread", "count new posts on chat-arc since my last ack"),
+        ]),
+        ("META", &[
+            ("help", "this categorized index"),
+            ("ask <question>", "RPC ask peer"),
+            ("negotiate", "capability negotiation"),
+        ]),
+    ];
+
+    println!("agent.* — categorized verb index");
+    println!("Use `agent <verb> --help` for full flag listing on any verb.");
+    println!();
+    for (heading, rows) in sections {
+        println!("{heading}");
+        for (verb, blurb) in rows.iter() {
+            println!("  {verb:<32}  {blurb}");
+        }
+        println!();
+    }
+    println!("Surface: {} verbs across {} categories.",
+        sections.iter().map(|(_, r)| r.len()).sum::<usize>(),
+        sections.len());
 }

@@ -4905,6 +4905,14 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Categorized verb index for the agent.* namespace (T-1556).
+    /// `agent --help` lists verbs flat-alphabetical (clap default), which
+    /// scales poorly past ~30 verbs. `agent verbs` groups the 60+ verbs by
+    /// purpose: READING / WRITING / PRESENCE / STATS / POLLS / SNAPSHOTS /
+    /// PERSONAL / META — operator's directory of the chat-arc surface.
+    /// (`help` is reserved by clap as the built-in help command.)
+    Verbs,
 }
 
 /// File transfer actions
