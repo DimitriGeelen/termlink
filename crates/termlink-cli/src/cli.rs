@@ -4749,6 +4749,80 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Point-in-time chat-arc state (T-1547): thin wrapper over
+    /// `channel snapshot agent-chat-arc`. Returns the reduced visible
+    /// state AS OF a specific timestamp (edits + redactions applied
+    /// through that point). Companion to T-1540 `agent state` (current).
+    Snapshot {
+        /// Snapshot timestamp in epoch milliseconds.
+        #[arg(long = "as-of")]
+        as_of: i64,
+
+        /// Include redacted envelopes (rendered as redaction markers).
+        #[arg(long = "include-redacted")]
+        include_redacted: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Chat-arc envelopes since a timestamp (T-1548): thin wrapper
+    /// over `channel state-since agent-chat-arc`. Returns visible
+    /// envelopes posted at-or-after `<MS>`. Operator workflow:
+    /// "what's new since I last looked?".
+    StateSince {
+        /// Lower-bound timestamp in epoch milliseconds.
+        #[arg(long = "since")]
+        since: i64,
+
+        /// Include redacted envelopes (rendered as redaction markers).
+        #[arg(long = "include-redacted")]
+        include_redacted: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Chat-arc state delta between two timestamps (T-1549): thin
+    /// wrapper over `channel snapshot-diff agent-chat-arc`. Returns
+    /// envelopes ADDED, EDITED, REDACTED between `--from` and `--to`.
+    /// Pairs with T-1547 `agent snapshot`.
+    SnapshotDiff {
+        /// Earlier timestamp in epoch milliseconds.
+        #[arg(long = "from")]
+        from: i64,
+
+        /// Later timestamp in epoch milliseconds.
+        #[arg(long = "to")]
+        to: i64,
+
+        /// Include redacted envelopes (rendered as redaction markers).
+        #[arg(long = "include-redacted")]
+        include_redacted: bool,
+
+        /// Include unchanged envelopes (full state instead of just diff).
+        #[arg(long = "include-unchanged")]
+        include_unchanged: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

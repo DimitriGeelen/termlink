@@ -422,6 +422,15 @@ async fn main() -> Result<()> {
             AgentAction::PollResults { poll_id, hub, json } => {
                 commands::channel::cmd_channel_poll_results("agent-chat-arc", poll_id, hub.as_deref(), json).await
             }
+            AgentAction::Snapshot { as_of, include_redacted, hub, json } => {
+                commands::channel::cmd_channel_snapshot("agent-chat-arc", as_of, include_redacted, hub.as_deref(), json).await
+            }
+            AgentAction::StateSince { since, include_redacted, hub, json } => {
+                commands::channel::cmd_channel_state_since("agent-chat-arc", since, include_redacted, hub.as_deref(), json).await
+            }
+            AgentAction::SnapshotDiff { from, to, include_redacted, include_unchanged, hub, json } => {
+                commands::channel::cmd_channel_snapshot_diff("agent-chat-arc", from, to, include_redacted, include_unchanged, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
