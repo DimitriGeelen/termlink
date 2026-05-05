@@ -829,6 +829,22 @@ pub struct AgentSilentSendersParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentBusiestThreadsParams {
+    /// Window in days — only thread roots created within window are ranked. Default 7.
+    pub window_days: Option<u64>,
+    /// Max threads to return. Default 20, capped at 100.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentRecentDecisionsParams {
+    /// Window in days for decision-marker scan. Default 14.
+    pub window_days: Option<u64>,
+    /// Max decision-bearing posts to return. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -9485,6 +9501,205 @@ impl TermLinkTools {
             "window_days": window_days,
             "silent_senders": silent,
             "count": silent.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_busiest_threads",
+        description = "Top-N threads by descendant count on agent-chat-arc within a configurable window. Walks the topic, identifies thread roots (post envelopes with no `metadata.in_reply_to`) created within window, counts each root's descendants by recursive in_reply_to chain, and returns `[{root_offset, body_preview, sender_id, ts_unix_ms, descendant_count}, ...]` sorted by descendant_count descending. Companion to `termlink_agent_threads` (T-1574, lists all roots) and `termlink_agent_topic_stats` (T-1581). Useful for \"what's the hottest discussion right now?\"."
+    )]
+    async fn termlink_agent_busiest_threads(
+        &self,
+        Parameters(p): Parameters<AgentBusiestThreadsParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(7);
+        let limit = p.limit.unwrap_or(20).min(100) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff_ms = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+                if !child_off.is_empty() {
+                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                }
+            }
+        }
+        fn count_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>) -> u64 {
+            let mut total: u64 = 0;
+            if let Some(children) = map.get(off) {
+                for c in children {
+                    total += 1 + count_descendants(c, map);
+                }
+            }
+            total
+        }
+        let mut roots: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff_ms { continue; }
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let off_str = offset.to_string();
+            let descendant_count = count_descendants(&off_str, &parent_to_children);
+            if descendant_count == 0 { continue; }
+            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+            let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
+                .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
+            let preview: String = body.chars().take(120).collect();
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            roots.push(serde_json::json!({
+                "root_offset": offset,
+                "body_preview": preview,
+                "sender_id": sender,
+                "ts_unix_ms": ts,
+                "descendant_count": descendant_count,
+            }));
+        }
+        roots.sort_by(|a, b| {
+            let ca = a.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        if roots.len() > limit { roots.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "threads": roots,
+            "count": roots.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_recent_decisions",
+        description = "Heuristic search for decision-bearing posts on agent-chat-arc. Walks the topic in window (default 14 days), filters `msg_type=post`, base64-decodes payload, and matches against decision markers (case-insensitive substring): \"GO:\", \"NO-GO:\", \"DECISION:\", \"DECIDED:\", \"RECOMMEND:\", \"RECOMMENDATION:\", \"VERDICT:\". Returns `[{offset, sender_id, body_preview, marker, ts_unix_ms}, ...]` sorted newest-first. Useful for chat-arc forensics — \"what decisions were made this week?\" — and for agents joining mid-stream to catch up on outcomes."
+    )]
+    async fn termlink_agent_recent_decisions(
+        &self,
+        Parameters(p): Parameters<AgentRecentDecisionsParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff_ms = now_ms - (window_days as i64) * 86_400_000;
+        let markers = ["GO:", "NO-GO:", "DECISION:", "DECIDED:", "RECOMMEND:", "RECOMMENDATION:", "VERDICT:"];
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut hits: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff_ms { continue; }
+            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
+                Ok(b) => match String::from_utf8(b) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            };
+            let body_upper = body.to_uppercase();
+            let mut matched: Option<&str> = None;
+            for m in &markers {
+                if body_upper.contains(m) { matched = Some(m); break; }
+            }
+            let marker = match matched {
+                Some(m) => m.to_string(),
+                None => continue,
+            };
+            let preview: String = body.chars().take(200).collect();
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            hits.push(serde_json::json!({
+                "offset": offset,
+                "sender_id": sender,
+                "body_preview": preview,
+                "marker": marker,
+                "ts_unix_ms": ts,
+            }));
+        }
+        hits.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        if hits.len() > limit { hits.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "decisions": hits,
+            "count": hits.len(),
         })).unwrap_or_else(json_err)
     }
 
