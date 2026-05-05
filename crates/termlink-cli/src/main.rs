@@ -437,6 +437,12 @@ async fn main() -> Result<()> {
             AgentAction::Typers { hub, json } => {
                 commands::channel::cmd_channel_typing_list("agent-chat-arc", hub.as_deref(), json).await
             }
+            AgentAction::Dms { unread, hub, json } => {
+                commands::channel::cmd_channel_dm_list(unread, hub.as_deref(), json).await
+            }
+            AgentAction::Inbox { hub, json } => {
+                commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

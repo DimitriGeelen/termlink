@@ -4857,6 +4857,43 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// List my DM topics with peer + optional unread counts (T-1552):
+    /// thin wrapper over `channel dm-list`. Filters all hub topics through
+    /// `dm_list_filter` (matching `dm:<a>:<b>` where my fingerprint is
+    /// either side) and surfaces peer FP per topic. Pass `--unread` to
+    /// add unread deltas. Personal-DM directory companion to `agent
+    /// contact` (write side). NOT chat-arc-pinned: this surface is
+    /// per-identity, not topic-fixed.
+    Dms {
+        /// Include unread counts per DM topic.
+        #[arg(long)]
+        unread: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Cross-topic unread digest for the local identity (T-1553): thin
+    /// wrapper over `channel inbox`. Walks the local cursor store
+    /// (`subscribe --resume` recorded), joins with hub-side topic counts,
+    /// and reports unread per tracked topic. Operator's first command for
+    /// "what needs my attention now". Companion to T-1512 `agent unread`
+    /// (chat-arc only) and T-1552 `agent dms` (DM directory).
+    Inbox {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
