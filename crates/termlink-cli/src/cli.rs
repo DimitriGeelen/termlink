@@ -4042,6 +4042,33 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Lifetime fleet directory of agent-chat-arc (T-1520): thin wrapper
+    /// over `channel members agent-chat-arc`. Lists every distinct
+    /// `sender_id` who has posted, with `posts` count, `first_ts`, `last_ts`.
+    /// Distinct from `agent presence` (windowed activity) and `agent who`
+    /// (single-peer detail): peers is the lifetime "who has ever participated"
+    /// view. `--include-meta` counts meta-type envelopes (reactions/edits);
+    /// `--as-of` snapshots membership at a given timestamp.
+    Peers {
+        /// Count meta-type envelopes (reaction/edit/redaction) toward
+        /// posts/first/last. Default off — content envelopes only.
+        #[arg(long = "include-meta")]
+        include_meta: bool,
+
+        /// Snapshot membership as-of this epoch-ms timestamp. Default:
+        /// current time (full lifetime view).
+        #[arg(long = "as-of")]
+        as_of: Option<i64>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Show a windowed context view around a chat-arc offset (T-1519):
     /// thin wrapper over `channel snippet agent-chat-arc <offset>`. Picks
     /// up to N content envelopes on each side (msg_type filtered to
