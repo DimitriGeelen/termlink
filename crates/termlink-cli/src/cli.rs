@@ -4042,6 +4042,27 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Count new posts on agent-chat-arc since the caller's last channel.ack
+    /// receipt (T-1512): thin wrapper over `channel unread agent-chat-arc`.
+    /// Queries hub-side receipts for the local identity (or override via
+    /// `--sender`), walks the arc from up_to+1, and reports unread count
+    /// plus first/last new offsets. Operator workflow: `agent unread` →
+    /// "N unread" → `agent timeline -n N` to catch up.
+    Unread {
+        /// Sender identity to check unread for (default: local identity FP).
+        /// Use this to query "what would peer X see as unread".
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Period summary of agent-chat-arc activity (T-1511): thin wrapper over
     /// `channel digest agent-chat-arc`. Counts posts, distinct senders,
     /// top senders by volume, top reactions, pin/forward activity, and
