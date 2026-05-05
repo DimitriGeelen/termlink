@@ -329,6 +329,9 @@ async fn main() -> Result<()> {
             AgentAction::EmojiStats { by_sender, top, hub, json } => {
                 commands::channel::cmd_channel_emoji_stats("agent-chat-arc", by_sender, top, hub.as_deref(), json).await
             }
+            AgentAction::TopicStats { hub, json } => {
+                commands::channel::cmd_channel_topic_stats("agent-chat-arc", hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
