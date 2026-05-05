@@ -3930,6 +3930,25 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Render the full reply subtree rooted at <ROOT> on agent-chat-arc
+    /// (T-1509): thin wrapper over `channel thread agent-chat-arc <root>`.
+    /// Renders the root post and every descendant linked by
+    /// `metadata.in_reply_to`. Compose with `agent reply` (T-1507) to
+    /// build threads, `agent quote` (T-1505) to walk parents up, and
+    /// `agent thread` to render the whole subtree from any root.
+    Thread {
+        /// Arc offset of the thread root (positional, required).
+        root: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Search the full chat-arc for a substring (T-1508): unbounded by window.
     /// `agent recent --grep` and `agent timeline --grep` are window-capped at
     /// 7 days; `agent search` walks the entire arc and runs the same
