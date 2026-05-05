@@ -653,6 +653,15 @@ pub struct AgentSearchParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentRedactionsParams {
+    /// Max redactions to return. Default 200, capped at 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentAckStatusParams {}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -7342,6 +7351,158 @@ impl TermLinkTools {
         });
         sorted.truncate(limit as usize);
         serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_redactions",
+        description = "List all redaction events on agent-chat-arc. Walks the topic, filters `msg_type=redaction` envelopes, and returns `[{redacts_offset, sender_id, reason, ts_unix_ms}, ...]` sorted newest-first. The original posts stay in the topic (append-only); this view gives MCP-aware agents the curation log — what's been retracted and why. MCP-side equivalent of `agent redactions` (CLI T-1534). Companion read tool to `termlink_agent_redact` (T-1566). `limit` defaults to 200, capped at 1000."
+    )]
+    async fn termlink_agent_redactions(
+        &self,
+        Parameters(p): Parameters<AgentRedactionsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(200).min(1000);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| env.get("msg_type").and_then(|v| v.as_str()) == Some("redaction"))
+            .map(|env| {
+                let redacts = env.get("metadata")
+                    .and_then(|m| m.get("redacts"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let reason = env.get("metadata")
+                    .and_then(|m| m.get("reason"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                serde_json::json!({
+                    "redacts_offset": redacts,
+                    "sender_id": sender,
+                    "reason": reason,
+                    "ts_unix_ms": ts,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        results.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_ack_status",
+        description = "Current receipt frontier per sender on agent-chat-arc. Walks the topic, filters `msg_type=receipt` envelopes, groups by `sender_id`, and keeps `max(up_to)` per sender. Returns `[{sender_id, ack_up_to, last_ack_ts}, ...]` sorted by ack_up_to desc. Lets MCP-aware agents see who's caught up (and who's stale) without dumping the full receipt log. MCP-side equivalent of `agent ack-status` (CLI T-1539). Companion read tool to `termlink_agent_ack` (T-1568)."
+    )]
+    async fn termlink_agent_ack_status(
+        &self,
+        Parameters(_p): Parameters<AgentAckStatusParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut frontiers: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if sender.is_empty() { continue; }
+            let up_to = env.get("metadata")
+                .and_then(|m| m.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .or_else(|| env.get("metadata").and_then(|m| m.get("up_to")).and_then(|v| v.as_u64()))
+                .unwrap_or(0);
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = frontiers.entry(sender).or_insert((0, 0));
+            if up_to > entry.0 {
+                entry.0 = up_to;
+                entry.1 = ts;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = frontiers
+            .into_iter()
+            .map(|(sender, (up_to, ts))| serde_json::json!({
+                "sender_id": sender,
+                "ack_up_to": up_to,
+                "last_ack_ts": ts,
+            }))
+            .collect();
+        results.sort_by(|a, b| {
+            let ua = a.get("ack_up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+            let ub = b.get("ack_up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+            ub.cmp(&ua)
+        });
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
     }
 
     #[tool(
