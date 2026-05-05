@@ -4593,6 +4593,88 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Receipt log on chat-arc (T-1538): thin wrapper over
+    /// `channel ack-history agent-chat-arc`. Returns every receipt
+    /// envelope chronologically (sender + up_to). Companion to
+    /// T-1526 `agent ack`.
+    AckHistory {
+        /// Filter to a specific user (sender_id fingerprint).
+        #[arg(long)]
+        user: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Current ack frontiers per sender (T-1539): thin wrapper over
+    /// `channel ack-status agent-chat-arc`. Returns each sender's
+    /// latest receipt up_to + pending count. Snapshot companion to
+    /// T-1538 (history).
+    AckStatus {
+        /// Show only senders with non-zero pending count.
+        #[arg(long = "pending-only")]
+        pending_only: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Reduced visible state on chat-arc (T-1540): thin wrapper over
+    /// `channel state agent-chat-arc`. Returns every chat post that
+    /// hasn't been redacted, with edit overlays applied. Pairs with
+    /// T-1524 `agent info` (topic shape vs rendered conversation).
+    State {
+        /// Include redacted envelopes (rendered as redaction markers).
+        #[arg(long = "include-redacted")]
+        include_redacted: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Quote citation counts on chat-arc (T-1541): thin wrapper over
+    /// `channel quote-stats agent-chat-arc`. Returns per-offset count
+    /// of how often it's been quoted. Companion to T-1505
+    /// `agent quote`.
+    QuoteStats {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Edit-rate analytics on chat-arc (T-1542): thin wrapper over
+    /// `channel edit-stats agent-chat-arc`. Per-sender edit ratio
+    /// analytics. Companions: T-1530 `agent edit` (write),
+    /// T-1536 `agent edits-of` (per-offset chain).
+    EditStats {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
