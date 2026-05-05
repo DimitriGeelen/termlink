@@ -395,6 +395,21 @@ async fn main() -> Result<()> {
             AgentAction::Relations { offset, hub, json } => {
                 commands::channel::cmd_channel_relations("agent-chat-arc", offset, hub.as_deref(), json).await
             }
+            AgentAction::AckHistory { user, hub, json } => {
+                commands::channel::cmd_channel_ack_history("agent-chat-arc", user.as_deref(), hub.as_deref(), json).await
+            }
+            AgentAction::AckStatus { pending_only, hub, json } => {
+                commands::channel::cmd_channel_ack_status("agent-chat-arc", pending_only, hub.as_deref(), json).await
+            }
+            AgentAction::State { include_redacted, hub, json } => {
+                commands::channel::cmd_channel_state("agent-chat-arc", include_redacted, hub.as_deref(), json).await
+            }
+            AgentAction::QuoteStats { hub, json } => {
+                commands::channel::cmd_channel_quote_stats("agent-chat-arc", hub.as_deref(), json).await
+            }
+            AgentAction::EditStats { hub, json } => {
+                commands::channel::cmd_channel_edit_stats("agent-chat-arc", hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
