@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:02:14Z
-last_update: 2026-05-04T22:02:14Z
+last_update: 2026-05-04T22:10:39Z
 date_finished: 2026-05-04T22:25:00Z
 ---
 
@@ -81,19 +81,19 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** All chat-arc reading verbs (`agent timeline`, `agent recent`, `agent on-thread`, `agent overview`) returned posts with empty `content` field. `--grep` matched 0 posts despite known-existing content. `agent on-thread T-XXXX` returned empty despite real thread activity.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Two distinct bugs in `extract_recent_posts` reducer:
+1. Content extraction looked at `payload.text` / `payload as &str` / `payload.to_string()` — but real envelopes carry content under `payload_b64` (base64-encoded UTF-8). The decode path was never tried.
+2. Thread filter looked for `metadata._thread` (synthetic test-shape) — but the real chat-arc wire uses `metadata.thread` (no underscore). The two got out of sync.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Unit tests for `extract_recent_posts` constructed synthetic envelopes that matched the assumed shape (with `payload.text` and `metadata._thread`), so the test suite ALWAYS passed. There was no live-wire smoke test asserting non-empty content. The bug surfaced only when T-1501 `--grep` returned 0 matches against known content during smoke testing — at which point both bugs were diagnosed together.
+
+**Prevention:**
+- 3 new unit tests added asserting payload_b64 decode + thread metadata key recognition.
+- Verification gate now includes a live-wire assertion: `agent timeline --json` parsed via Python, asserts at least one post has non-empty content. This catches regression of the same class.
+- Lesson logged: when reducer signatures are tested with synthetic shapes only, require at least one live-wire smoke per render path.
+
 
 ## Evolution
 
@@ -118,6 +118,16 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Bug fix to `extract_recent_posts` content extractor. Two latent issues prevented chat-arc content from rendering through the reader chain: (1) payload_b64 base64-encoded UTF-8 was never decoded; (2) thread filter looked for `_thread` but real wire uses `thread`. Both fixed with additive, defensive logic that preserves existing test paths.
+**Evidence:**
+- Build clean; all existing tests still pass
+- 3 new unit tests added (payload_b64 decode, invalid-base64 fallback, thread metadata key)
+- Live smoke: timeline shows real decoded content; --grep matches existing posts; on-thread filter returns posts
+- Verification gate 4/4 passed
 
 ## Decisions
 

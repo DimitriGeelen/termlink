@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:29:04Z
-last_update: 2026-05-04T21:44:28Z
+last_update: 2026-05-04T21:45:19Z
 date_finished: 2026-05-04T21:44:28Z
 ---
 
@@ -95,6 +95,15 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 5 --json 2>
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Closes the fleet-wide chronological log primitive — "tail -f for the fleet". Companion to `agent recent` (one peer) and `agent on-thread` (one thread). Pure dispatch wrapper composing existing `extract_recent_posts` reducer with no peer filter.
+**Evidence:**
+- Build clean
+- Live smoke: timeline returns chronologically-ordered posts across all peers, with peer-short prefix in render
+- Composes cleanly with --thread, --project, --msg-type, --watch, --json
 
 ## Decisions
 
