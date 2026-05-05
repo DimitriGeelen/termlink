@@ -653,6 +653,20 @@ pub struct AgentSearchParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentOnThreadParams {
+    /// Root offset on agent-chat-arc — descendants are collected via in_reply_to chain.
+    pub root_offset: u64,
+    /// Max envelopes to return. Default 200, capped at 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentReactionsParams {
+    /// Offset of the chat-arc envelope whose reactions should be listed.
+    pub offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentQuoteParams {
     /// Offset of the chat-arc envelope to fetch.
     pub offset: u64,
@@ -7319,6 +7333,171 @@ impl TermLinkTools {
         });
         sorted.truncate(limit as usize);
         serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_on_thread",
+        description = "Return the full thread tree rooted at an offset on agent-chat-arc. Walks the topic, builds a parent→children index from `metadata.in_reply_to`, BFS-collects all descendants from the root, and returns the envelopes (root + descendants) sorted chronologically (ts ascending). MCP-side equivalent of `agent on-thread <root>` (CLI T-1493). `limit` defaults to 200, capped at 1000."
+    )]
+    async fn termlink_agent_on_thread(
+        &self,
+        Parameters(p): Parameters<AgentOnThreadParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let root = p.root_offset.to_string();
+        let limit = p.limit.unwrap_or(200).min(1000);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // Build parent_offset -> Vec<envelope>
+        let mut by_parent: std::collections::HashMap<String, Vec<serde_json::Value>> = std::collections::HashMap::new();
+        let mut by_offset: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
+        for env in &all {
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|u| u.to_string()).unwrap_or_default();
+            if !off.is_empty() {
+                by_offset.insert(off.clone(), env.clone());
+            }
+            let parent = env.get("metadata")
+                .and_then(|m| m.get("in_reply_to"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if !parent.is_empty() {
+                by_parent.entry(parent.to_string()).or_default().push(env.clone());
+            }
+        }
+        // BFS from root.
+        let mut collected: Vec<serde_json::Value> = Vec::new();
+        if let Some(root_env) = by_offset.get(&root) {
+            collected.push(root_env.clone());
+        }
+        let mut queue: std::collections::VecDeque<String> = std::collections::VecDeque::new();
+        queue.push_back(root.clone());
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        seen.insert(root.clone());
+        while let Some(parent) = queue.pop_front() {
+            if let Some(children) = by_parent.get(&parent) {
+                for child in children {
+                    let coff = child.get("offset").and_then(|v| v.as_u64()).map(|u| u.to_string()).unwrap_or_default();
+                    if coff.is_empty() || seen.contains(&coff) { continue; }
+                    seen.insert(coff.clone());
+                    collected.push(child.clone());
+                    queue.push_back(coff);
+                }
+            }
+        }
+        // Sort chronologically.
+        collected.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| a.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| b.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ta.cmp(&tb)
+        });
+        collected.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(collected)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_reactions",
+        description = "List all reaction envelopes for a single chat-arc offset. Walks the topic, filters `msg_type=reaction` with `metadata.in_reply_to=<offset>`, base64-decodes payload (emoji) and returns `[{emoji, sender_id, ts_unix_ms}, ...]` sorted newest-first. MCP-side equivalent of `agent reactions <offset>` (CLI T-1514). Companion read tool to `termlink_agent_react` (T-1562)."
+    )]
+    async fn termlink_agent_reactions(
+        &self,
+        Parameters(p): Parameters<AgentReactionsParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target = p.offset.to_string();
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| env.get("msg_type").and_then(|v| v.as_str()) == Some("reaction"))
+            .filter(|env| {
+                env.get("metadata")
+                    .and_then(|m| m.get("in_reply_to"))
+                    .and_then(|v| v.as_str()) == Some(target.as_str())
+            })
+            .map(|env| {
+                let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+                let emoji = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                    Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                    Err(_) => String::new(),
+                };
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                serde_json::json!({
+                    "emoji": emoji,
+                    "sender_id": sender,
+                    "ts_unix_ms": ts,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
     }
 
     #[tool(
