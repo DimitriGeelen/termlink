@@ -783,6 +783,18 @@ pub struct AgentStarredByParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentPinnedHistoryParams {
+    /// Offset of the pin target on agent-chat-arc. Returns full chronological log of pin/unpin events affecting that target.
+    pub pin_target: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentStarredHistoryParams {
+    /// Offset of the star target on agent-chat-arc. Returns full chronological log of star events affecting that target.
+    pub star_target: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -8949,6 +8961,140 @@ impl TermLinkTools {
         serde_json::to_string_pretty(&serde_json::json!({
             "sender_id": sender_id,
             "starred": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_pinned_history",
+        description = "Per-target pin/unpin audit log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `metadata.pin_target == <given offset>`, and returns the full chronological log `[{action, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `action` is `pin` or `unpin`. Per-target companion to `termlink_agent_pinned` (current-state) and `termlink_agent_pinned_by` (per-curator). Useful for debugging contested pins or pin/unpin flapping — answers \"how has this target's pin state evolved?\"."
+    )]
+    async fn termlink_agent_pinned_history(
+        &self,
+        Parameters(p): Parameters<AgentPinnedHistoryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target_str = p.pin_target.to_string();
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut events: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") { continue; }
+            let pt = match env.get("metadata").and_then(|m| m.get("pin_target")).and_then(|v| v.as_str()) {
+                Some(t) => t.to_string(),
+                None => continue,
+            };
+            if pt != target_str { continue; }
+            let action = env.get("metadata").and_then(|m| m.get("action")).and_then(|v| v.as_str()).unwrap_or("pin").to_string();
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            events.push(serde_json::json!({
+                "action": action,
+                "sender_id": sender,
+                "ts_unix_ms": ts,
+            }));
+        }
+        events.sort_by_key(|e| e.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0));
+        serde_json::to_string_pretty(&serde_json::json!({
+            "pin_target": p.pin_target,
+            "events": events,
+            "count": events.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_starred_history",
+        description = "Per-target star/unstar audit log on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `metadata.star_target == <given offset>`, and returns the full chronological log `[{star_value, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `star_value` is the `star` payload field — `true` for star, `false` for unstar. Per-target companion to `termlink_agent_starred` (current-state) and `termlink_agent_starred_by` (per-curator). Answers \"how has this target's star state evolved across all curators?\"."
+    )]
+    async fn termlink_agent_starred_history(
+        &self,
+        Parameters(p): Parameters<AgentStarredHistoryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target_str = p.star_target.to_string();
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut events: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("star") { continue; }
+            let st = match env.get("metadata").and_then(|m| m.get("star_target")).and_then(|v| v.as_str()) {
+                Some(t) => t.to_string(),
+                None => continue,
+            };
+            if st != target_str { continue; }
+            let star_val = env.get("metadata").and_then(|m| m.get("star")).and_then(|v| v.as_str()).unwrap_or("true").to_string();
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            events.push(serde_json::json!({
+                "star_value": star_val,
+                "sender_id": sender,
+                "ts_unix_ms": ts,
+            }));
+        }
+        events.sort_by_key(|e| e.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0));
+        serde_json::to_string_pretty(&serde_json::json!({
+            "star_target": p.star_target,
+            "events": events,
+            "count": events.len(),
         })).unwrap_or_else(json_err)
     }
 
