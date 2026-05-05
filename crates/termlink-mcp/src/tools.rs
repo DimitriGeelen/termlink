@@ -871,6 +871,15 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentResponseLatencyParams {
+    /// Window in days to consider. Default 14.
+    pub window_days: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentMsgGrowthRateParams {}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentThreadHealthParams {
     /// Thread root offset on agent-chat-arc.
     pub root_offset: u64,
@@ -10981,6 +10990,179 @@ impl TermLinkTools {
             "posts_authored": posts_authored,
             "posts_with_replies": posts_with_replies,
             "engagement_rate": engagement_rate,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_response_latency",
+        description = "Reply-velocity distribution on agent-chat-arc. Walks topic in window, for each post that received at least one reply, computes `min(reply_ts) - parent_ts` in seconds, then sorts and returns `{posts_with_replies, p50_seconds, p90_seconds, mean_seconds}`. Returns -1 medians when no posts received replies. Useful for \"how fast does chat-arc respond?\" / responsiveness audits / SLA-style measurements."
+    )]
+    async fn termlink_agent_response_latency(
+        &self,
+        Parameters(p): Parameters<AgentResponseLatencyParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut parent_ts: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if off.is_empty() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            parent_ts.insert(off, ts);
+        }
+        let mut min_reply: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
+            if !parent_ts.contains_key(parent) { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = min_reply.entry(parent.to_string()).or_insert(i64::MAX);
+            if ts < *entry { *entry = ts; }
+        }
+        let mut latencies_sec: Vec<i64> = Vec::new();
+        for (off, parent_t) in &parent_ts {
+            if let Some(reply_t) = min_reply.get(off) {
+                if *reply_t >= *parent_t {
+                    latencies_sec.push((reply_t - parent_t) / 1000);
+                }
+            }
+        }
+        latencies_sec.sort();
+        let n = latencies_sec.len();
+        let (p50, p90, mean) = if n == 0 {
+            (-1, -1, -1)
+        } else {
+            let p50 = latencies_sec[n / 2];
+            let p90 = latencies_sec[(n * 9 / 10).min(n - 1)];
+            let sum: i64 = latencies_sec.iter().sum();
+            let mean = sum / (n as i64);
+            (p50, p90, mean)
+        };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "posts_with_replies": n,
+            "p50_seconds": p50,
+            "p90_seconds": p90,
+            "mean_seconds": mean,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_msg_growth_rate",
+        description = "Week-over-week posting trend on agent-chat-arc. Walks topic, counts `msg_type=post` envelopes in last 7 days vs prior 7 days, returns `{last_week_posts, prior_week_posts, growth_rate, trend}` where growth_rate=(last-prior)/prior (or null if prior=0) and trend is one of \"growing\"|\"steady\"|\"shrinking\" (>10%, ±10%, <-10%). New axis: trend metric. Useful for \"is chat-arc heating up or cooling down?\" / activity health checks."
+    )]
+    async fn termlink_agent_msg_growth_rate(
+        &self,
+        Parameters(_p): Parameters<AgentMsgGrowthRateParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let week_ms: i64 = 7 * 86_400_000;
+        let last_cutoff = now_ms - week_ms;
+        let prior_cutoff = now_ms - 2 * week_ms;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut last_count: u64 = 0;
+        let mut prior_count: u64 = 0;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts >= last_cutoff && ts <= now_ms {
+                last_count += 1;
+            } else if ts >= prior_cutoff && ts < last_cutoff {
+                prior_count += 1;
+            }
+        }
+        let (growth_rate, trend) = if prior_count == 0 {
+            if last_count > 0 {
+                (serde_json::Value::Null, "growing")
+            } else {
+                (serde_json::Value::Null, "steady")
+            }
+        } else {
+            let r = (last_count as f64 - prior_count as f64) / (prior_count as f64);
+            let t = if r > 0.10 { "growing" } else if r < -0.10 { "shrinking" } else { "steady" };
+            (serde_json::Value::from(r), t)
+        };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "last_week_posts": last_count,
+            "prior_week_posts": prior_count,
+            "growth_rate": growth_rate,
+            "trend": trend,
         })).unwrap_or_else(json_err)
     }
 
