@@ -4332,6 +4332,99 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Emit a reaction on a chat-arc post (T-1525): thin wrapper over
+    /// `channel react agent-chat-arc`. Posts a `msg_type=reaction` envelope
+    /// with `metadata.target=<offset>` and `metadata.emoji=<reaction>`.
+    /// Closes the engagement-emit primitive — read-side already shipped as
+    /// `agent reactions <offset>` (T-1514), `agent reactions-of` (T-1521),
+    /// `agent emoji-stats` (T-1515).
+    React {
+        /// Parent post offset to react to.
+        offset: u64,
+
+        /// Reaction emoji or short token (e.g. 👍, ✅, "+1").
+        emoji: String,
+
+        /// Remove a previously-emitted reaction instead of adding one.
+        #[arg(long)]
+        remove: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Advance the local read frontier on chat-arc (T-1526): thin wrapper
+    /// over `channel ack agent-chat-arc`. Posts a `msg_type=receipt`
+    /// envelope with `metadata.up_to=<offset>` so peers see "this sender
+    /// has read everything up to N". Companion to T-1512 `agent unread`.
+    Ack {
+        /// Offset to ack up to (inclusive). Mutually exclusive with --since-ms.
+        #[arg(long = "up-to")]
+        up_to: Option<u64>,
+
+        /// Ack everything posted at or after this epoch-ms (helper resolves
+        /// to a concrete up_to). Mutually exclusive with --up-to.
+        #[arg(long = "since-ms")]
+        since_ms: Option<i64>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Pin a chat-arc post (T-1527): thin wrapper over
+    /// `channel pin agent-chat-arc`. Posts a `msg_type=pin` envelope (or
+    /// `unpin` with `--unpin`). Topic-wide curation visible to all peers
+    /// — distinct from `agent star` (per-sender bookmark). Read-side
+    /// shipped as T-1517 `agent pinned`.
+    Pin {
+        /// Offset to pin (or unpin with --unpin).
+        offset: u64,
+
+        /// Remove an existing pin instead of adding one.
+        #[arg(long)]
+        unpin: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Star a chat-arc post (T-1528): thin wrapper over
+    /// `channel star agent-chat-arc`. Posts a `msg_type=star` envelope
+    /// with `metadata.star_target=<offset>` for personal bookmarking.
+    /// Distinct from `agent pin` (topic-wide curation). Read-side
+    /// shipped as T-1518 `agent starred`.
+    Star {
+        /// Offset to star (or unstar with --unstar).
+        offset: u64,
+
+        /// Remove an existing star instead of adding one.
+        #[arg(long)]
+        unstar: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
