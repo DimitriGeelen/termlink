@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:11:38Z
-last_update: 2026-05-04T22:11:38Z
+last_update: 2026-05-04T22:18:05Z
 date_finished: 2026-05-04T22:42:00Z
 ---
 
@@ -108,6 +108,15 @@ target/release/termlink agent timeline --window-secs 60 --grep "T-1503 verificat
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Focus-aware chat-arc post verb. Auto-resolves `--thread` from `.context/working/focus.yaml::current_task` and `--project` from `.framework.yaml::project_name` when not provided. Operator-fluent improvement over `channel post agent-chat-arc ...` — every flag is auto-filled from the current session context.
+**Evidence:**
+- Build clean
+- Live smoke: post emits envelope with thread/project metadata correctly resolved from focus
+- Override paths (--thread, --project explicit) confirmed working
 
 ## Decisions
 

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:18:53Z
-last_update: 2026-05-04T22:18:53Z
+last_update: 2026-05-04T22:31:16Z
 date_finished: 2026-05-04T22:55:00Z
 ---
 
@@ -94,6 +94,15 @@ out=$(target/release/termlink agent stats --window-secs 86400 --json 2>&1); echo
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Single-fetch fleet-wide aggregate counts on chat-arc — operator's "what has the fleet been doing?" view. Groups by msg_type / peer / project / thread in one window. Companion to `agent presence` (per-peer) / `agent who` (single-peer detail) / `agent timeline` (chronological log) — `stats` is the windowed bucket-count view.
+**Evidence:**
+- Build clean
+- Live smoke: stats returns histogram across all 4 grouping dimensions
+- Single chat-arc walk for all four buckets — performance bound by arc size only
 
 ## Decisions
 

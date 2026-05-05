@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T21:46:00Z
-last_update: 2026-05-04T22:08:00Z
+last_update: 2026-05-04T22:01:55Z
 date_finished: 2026-05-04T22:08:00Z
 ---
 
@@ -98,6 +98,15 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+**Rationale:** Adds `--grep` content-substring filter to recent / on-thread / timeline reading verbs. High-value signal-extraction primitive — operator can answer "did anyone say X?" without `agent search` (which is unbounded and slower).
+**Evidence:**
+- Build clean
+- Live smoke: --grep filters correctly across all three readers
+- Window-bounded by design (use `agent search` for full-arc lookup)
 
 ## Decisions
 
