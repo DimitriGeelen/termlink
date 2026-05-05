@@ -1753,7 +1753,8 @@ fn render_recent_body(posts: &[super::channel::RecentPost], now_ms: i64) {
         if let Some(pr) = &p.project {
             tags.push_str(&format!(" project={pr}"));
         }
-        println!("[{}] {}", age_str, tags);
+        // T-1506: show @<offset> so operator can pick for `agent quote <offset>`.
+        println!("[{}] @{} {}", age_str, p.offset, tags);
         for line in p.content.lines() {
             println!("    {}", line);
         }
@@ -2125,7 +2126,8 @@ fn render_timeline_body(posts: &[super::channel::RecentPost], now_ms: i64) {
         if let Some(pr) = &p.project {
             tags.push_str(&format!(" project={pr}"));
         }
-        println!("[{}] [{}] {}", age_str, peer_short, tags);
+        // T-1506: show @<offset> so operator can pick for `agent quote <offset>`.
+        println!("[{}] [{}] @{} {}", age_str, peer_short, p.offset, tags);
         for line in p.content.lines() {
             println!("    {}", line);
         }
@@ -2670,7 +2672,8 @@ fn render_on_thread_text(
         if let Some(pr) = &p.project {
             tags.push_str(&format!(" project={pr}"));
         }
-        println!("[{}] {}", age_str, tags);
+        // T-1506: show @<offset> so operator can pick for `agent quote <offset>`.
+        println!("[{}] @{} {}", age_str, p.offset, tags);
         for line in p.content.lines() {
             println!("    {}", line);
         }
