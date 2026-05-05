@@ -4042,6 +4042,22 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Lifetime structural breakdown of agent-chat-arc (T-1516): thin wrapper
+    /// over `channel topic-stats agent-chat-arc`. Total envelopes, distinct
+    /// senders, by_msg_type histogram, top senders, top emojis, thread roots,
+    /// active pins, forwards_in, edits, redactions, time span. Distinct from
+    /// `agent stats` (windowed) and `agent digest` (period-summary): this
+    /// answers "what's the shape of the arc?".
+    TopicStats {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Lifetime emoji-reaction aggregates for agent-chat-arc (T-1515): thin
     /// wrapper over `channel emoji-stats agent-chat-arc`. Walks the full
     /// arc, groups `msg_type=reaction` envelopes by emoji, sorts by count
