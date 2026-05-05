@@ -4292,7 +4292,8 @@ pub(crate) enum AgentAction {
     /// Queries hub-side receipts for the local identity (or override via
     /// `--sender`), walks the arc from up_to+1, and reports unread count
     /// plus first/last new offsets. Operator workflow: `agent unread` →
-    /// "N unread" → `agent timeline -n N` to catch up.
+    /// "N unread" → `agent timeline -n N` to catch up. T-1559: `--watch`
+    /// flips on a live monitor refreshing every `--watch-interval` seconds.
     Unread {
         /// Sender identity to check unread for (default: local identity FP).
         /// Use this to query "what would peer X see as unread".
@@ -4306,6 +4307,17 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// Live monitor mode: re-fetch and re-render every
+        /// `--watch-interval` seconds. Incompatible with `--json`.
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval in seconds when `--watch` is set. Clamped to
+        /// [1, 300]. Default 3s — chat-arc-only unread is more time-
+        /// sensitive than full inbox (T-1558 uses 5s).
+        #[arg(long, default_value = "3")]
+        watch_interval: u64,
     },
 
     /// Period summary of agent-chat-arc activity (T-1511): thin wrapper over
@@ -4878,7 +4890,9 @@ pub(crate) enum AgentAction {
     /// either side) and surfaces peer FP per topic. Pass `--unread` to
     /// add unread deltas. Personal-DM directory companion to `agent
     /// contact` (write side). NOT chat-arc-pinned: this surface is
-    /// per-identity, not topic-fixed.
+    /// per-identity, not topic-fixed. T-1559: `--watch` flips on a live
+    /// DM-only monitor (companion to `agent inbox --watch` which spans all
+    /// topics).
     Dms {
         /// Include unread counts per DM topic.
         #[arg(long)]
@@ -4891,6 +4905,16 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// Live monitor mode: re-fetch and re-render every
+        /// `--watch-interval` seconds. Incompatible with `--json`.
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval in seconds when `--watch` is set. Clamped to
+        /// [1, 300]. Default 5s (matches `agent inbox --watch`).
+        #[arg(long, default_value = "5")]
+        watch_interval: u64,
     },
 
     /// Cross-topic unread digest for the local identity (T-1553): thin
