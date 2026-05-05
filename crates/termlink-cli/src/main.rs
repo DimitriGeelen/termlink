@@ -344,6 +344,15 @@ async fn main() -> Result<()> {
             AgentAction::Peers { include_meta, as_of, hub, json } => {
                 commands::channel::cmd_channel_members("agent-chat-arc", include_meta, as_of, hub.as_deref(), json).await
             }
+            AgentAction::ReactionsOf { sender, hub, json } => {
+                commands::channel::cmd_channel_reactions_of("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
+            }
+            AgentAction::ForwardsOf { sender, hub, json } => {
+                commands::channel::cmd_channel_forwards_of("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
+            }
+            AgentAction::RepliesOf { sender, hub, json } => {
+                commands::channel::cmd_channel_replies_of("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

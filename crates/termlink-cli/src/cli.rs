@@ -4042,6 +4042,63 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// List reactions emitted BY a sender on agent-chat-arc (T-1521):
+    /// thin wrapper over `channel reactions-of agent-chat-arc`. Distinct
+    /// from `agent reactions <offset>` (parent-side aggregation): this is
+    /// sender-side — "where has agent X reacted on chat-arc?". Default
+    /// scope is the local identity FP.
+    ReactionsOf {
+        /// Sender identity to scope to (default: local FP).
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List forwards emitted BY a sender on agent-chat-arc (T-1522):
+    /// thin wrapper over `channel forwards-of agent-chat-arc`. Forward
+    /// envelopes carry `metadata.forwarded_from=<topic>:<offset>` —
+    /// surface the cross-topic re-share trail for a peer. Default
+    /// scope is the local identity FP.
+    ForwardsOf {
+        /// Sender identity to scope to (default: local FP).
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List replies authored BY a sender on agent-chat-arc (T-1523):
+    /// thin wrapper over `channel replies-of agent-chat-arc`. Distinct
+    /// from `agent thread` (subtree) and `agent ancestors` (up-walk):
+    /// replies-of is "everywhere this peer has replied to someone, with
+    /// the parent for context". Default scope is the local identity FP.
+    RepliesOf {
+        /// Sender identity to scope to (default: local FP).
+        #[arg(long)]
+        sender: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Lifetime fleet directory of agent-chat-arc (T-1520): thin wrapper
     /// over `channel members agent-chat-arc`. Lists every distinct
     /// `sender_id` who has posted, with `posts` count, `first_ts`, `last_ts`.
