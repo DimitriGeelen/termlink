@@ -521,6 +521,16 @@ pub struct AgentTypingParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentReactParams {
+    /// Offset of the parent chat-arc post being reacted to.
+    pub offset: u64,
+    /// Reaction emoji or short string (e.g. "👍", "👀", "ack").
+    pub emoji: String,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -6208,6 +6218,76 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("agent.typing error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_react",
+        description = "Emit a reaction envelope on agent-chat-arc tied to a parent post offset. Posts a `msg_type=reaction` envelope with payload=emoji and `metadata.in_reply_to=<offset>`. MCP-side equivalent of the `agent react <offset> <emoji>` CLI verb (T-1525). Completes the MCP engagement triad: post (T-1560) + typing (T-1561) + react (T-1562)."
+    )]
+    async fn termlink_agent_react(
+        &self,
+        Parameters(p): Parameters<AgentReactParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let msg_type = "reaction";
+        let payload_bytes = p.emoji.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("in_reply_to".to_string(), serde_json::Value::String(p.offset.to_string()));
+        let params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.react error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
