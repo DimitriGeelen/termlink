@@ -871,6 +871,22 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentTopReactedParams {
+    /// Window in days. Default 14.
+    pub window_days: Option<u64>,
+    /// Max results. Default 20, capped at 200.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTopRepliedParams {
+    /// Window in days. Default 14.
+    pub window_days: Option<u64>,
+    /// Max results. Default 20, capped at 200.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentResponseLatencyParams {
     /// Window in days to consider. Default 14.
     pub window_days: Option<u64>,
@@ -11163,6 +11179,192 @@ impl TermLinkTools {
             "prior_week_posts": prior_count,
             "growth_rate": growth_rate,
             "trend": trend,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_top_reacted",
+        description = "Most-reacted-to posts on agent-chat-arc. Walks topic in window, tallies `msg_type=reaction` envelopes per `metadata.in_reply_to` parent, and returns `[{offset, sender_id, body_preview, ts_unix_ms, reaction_count}, ...]` sorted by reaction_count desc. Window cutoff is applied to PARENT post ts so attention is judged relative to recently-posted content. Companion to T-1580 `emoji_stats` (topic aggregate) and T-1592 `reaction_summary` (single-offset breakdown) — fills \"which posts attracted the most reactions?\" gap."
+    )]
+    async fn termlink_agent_top_reacted(
+        &self,
+        Parameters(p): Parameters<AgentTopReactedParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let limit = p.limit.unwrap_or(20).min(200) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") { continue; }
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                *counts.entry(parent.to_string()).or_insert(0) += 1;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            let cnt = match counts.get(&off) { Some(c) => *c, None => continue };
+            if cnt == 0 { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            let off_num: u64 = off.parse().unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            let preview: String = body.chars().take(160).collect();
+            results.push(serde_json::json!({
+                "offset": off_num,
+                "sender_id": sender,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+                "reaction_count": cnt,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ca = a.get("reaction_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("reaction_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "count": results.len(),
+            "top_reacted": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_top_replied",
+        description = "Most-replied-to posts on agent-chat-arc (per-post leaderboard). Walks topic in window, tallies direct replies (`msg_type=post` with `metadata.in_reply_to` matching) per parent, and returns `[{offset, sender_id, body_preview, ts_unix_ms, reply_count}, ...]` sorted by reply_count desc. Per-post counterpart to T-1589 `busiest_threads` (which counts ALL descendants per ROOT, not just direct replies). Window cutoff applied to parent post ts. Fills \"which single posts drew the most direct replies?\" gap."
+    )]
+    async fn termlink_agent_top_replied(
+        &self,
+        Parameters(p): Parameters<AgentTopRepliedParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let limit = p.limit.unwrap_or(20).min(200) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                *counts.entry(parent.to_string()).or_insert(0) += 1;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            let cnt = match counts.get(&off) { Some(c) => *c, None => continue };
+            if cnt == 0 { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            let off_num: u64 = off.parse().unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            let preview: String = body.chars().take(160).collect();
+            results.push(serde_json::json!({
+                "offset": off_num,
+                "sender_id": sender,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+                "reply_count": cnt,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ca = a.get("reply_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("reply_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "count": results.len(),
+            "top_replied": results,
         })).unwrap_or_else(json_err)
     }
 
