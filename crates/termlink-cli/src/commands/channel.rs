@@ -1213,8 +1213,13 @@ pub(crate) fn summarize_fleet_by_project(
 /// Lightweight envelope — content is pre-trimmed by the helper.
 /// `peer_fp` is included so cross-peer renderings (e.g. `agent on-thread`)
 /// can label each post; it's `sender_id` from the wire envelope.
+/// T-1506: `offset` is the chat-arc sequence position; surfaced in
+/// renders so operators can pick a value for `agent quote <offset>`.
+/// Defaults to 0 when the envelope lacks an `offset` field (test
+/// envelopes built before T-1506; real wire envelopes always carry one).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RecentPost {
+    pub(crate) offset: u64,
     pub(crate) ts_ms: i64,
     pub(crate) peer_fp: String,
     pub(crate) msg_type: String,
@@ -1226,6 +1231,7 @@ pub(crate) struct RecentPost {
 impl RecentPost {
     pub(crate) fn to_json(&self) -> Value {
         json!({
+            "offset": self.offset,
             "ts_ms": self.ts_ms,
             "peer_fp": self.peer_fp,
             "msg_type": self.msg_type,
@@ -1363,7 +1369,12 @@ pub(crate) fn extract_recent_posts(
                 continue;
             }
         }
+        let offset = m
+            .get("offset")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
         hits.push(RecentPost {
+            offset,
             ts_ms: ts,
             peer_fp: sender.to_string(),
             msg_type: mt.to_string(),
@@ -13638,6 +13649,30 @@ mod tests {
             None,
         );
         assert!(posts.is_empty());
+    }
+
+    #[test]
+    fn recent_posts_offset_populated_from_envelope() {
+        // T-1506: offset surfaced in struct + JSON for operator quote workflow.
+        let now = 1_700_000_000_000_i64;
+        let mut env = recent_msg("peer1", now - 1_000, "post", None, None, "p");
+        env.as_object_mut().unwrap().insert("offset".to_string(), json!(316));
+        let posts = extract_recent_posts(&[env], 10, 3_600_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].offset, 316);
+        let j = posts[0].to_json();
+        assert_eq!(j["offset"].as_u64(), Some(316));
+    }
+
+    #[test]
+    fn recent_posts_offset_defaults_zero_when_missing() {
+        // T-1506: synthetic envelopes built before T-1506 have no `offset`
+        // field — must default to 0 (no panic, no skip).
+        let now = 1_700_000_000_000_i64;
+        let env = recent_msg("peer1", now - 1_000, "post", None, None, "p");
+        let posts = extract_recent_posts(&[env], 10, 3_600_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].offset, 0);
     }
 
     #[test]
