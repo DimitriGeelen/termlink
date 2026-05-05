@@ -690,6 +690,20 @@ pub struct AgentRedactionsParams {
 pub struct AgentAckStatusParams {}
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentEmojiStatsParams {
+    /// Max emojis to return. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentAckHistoryParams {
+    /// Sender fingerprint whose ack timeline to fetch. Defaults to caller's local Identity.
+    pub sender_id: Option<String>,
+    /// Max receipts to return. Default 200, capped at 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -7850,6 +7864,166 @@ impl TermLinkTools {
             ub.cmp(&ua)
         });
         serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_emoji_stats",
+        description = "Topic-wide reaction aggregator on agent-chat-arc. Walks the topic, filters `msg_type=reaction` envelopes, groups by emoji (the reaction payload), and counts uses + tracks `last_used_ts`. Returns `[{emoji, count, last_used_ts}, ...]` sorted by count desc. Zooms OUT from `termlink_agent_reactions` (per-offset) — answers \"what's resonating across the whole topic?\". MCP-side equivalent of `agent emoji-stats` (CLI T-1538). `limit` defaults to 50, capped at 500."
+    )]
+    async fn termlink_agent_emoji_stats(
+        &self,
+        Parameters(p): Parameters<AgentEmojiStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(50).min(500);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut stats: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+                continue;
+            }
+            let emoji = env.get("payload")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if emoji.is_empty() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = stats.entry(emoji).or_insert((0, 0));
+            entry.0 += 1;
+            if ts > entry.1 { entry.1 = ts; }
+        }
+        let mut results: Vec<serde_json::Value> = stats
+            .into_iter()
+            .map(|(emoji, (count, last_ts))| serde_json::json!({
+                "emoji": emoji,
+                "count": count,
+                "last_used_ts": last_ts,
+            }))
+            .collect();
+        results.sort_by(|a, b| {
+            let ca = a.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        results.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_ack_history",
+        description = "Per-sender receipt timeline on agent-chat-arc. Walks the topic, filters `msg_type=receipt` envelopes by `sender_id` (defaults to caller's local Identity), and returns `[{up_to, ts_unix_ms}, ...]` sorted newest-first. Zooms IN from `termlink_agent_ack_status` (current frontier per sender across whole topic) — answers \"show me one sender's full ack timeline\". MCP-side equivalent of `agent ack-history` (CLI T-1539 family). `limit` defaults to 200, capped at 1000."
+    )]
+    async fn termlink_agent_ack_history(
+        &self,
+        Parameters(p): Parameters<AgentAckHistoryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(200).min(1000);
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| env.get("msg_type").and_then(|v| v.as_str()) == Some("receipt"))
+            .filter(|env| env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") == sender_id)
+            .map(|env| {
+                let up_to = env.get("metadata")
+                    .and_then(|m| m.get("up_to"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .or_else(|| env.get("metadata").and_then(|m| m.get("up_to")).and_then(|v| v.as_u64()))
+                    .unwrap_or(0);
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                serde_json::json!({
+                    "up_to": up_to,
+                    "ts_unix_ms": ts,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        results.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": sender_id,
+            "history": results,
+        })).unwrap_or_else(json_err)
     }
 
     #[tool(
