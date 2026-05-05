@@ -653,6 +653,20 @@ pub struct AgentSearchParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentUnreadParams {
+    /// sender_id whose unread count to compute. Defaults to local identity fingerprint.
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentDigestParams {
+    /// Absolute since timestamp (unix ms). Takes precedence over window_hours.
+    pub since_ts: Option<i64>,
+    /// Period window in hours, relative to now. Default 24, capped at 720 (30 days).
+    pub window_hours: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentRedactionsParams {
     /// Max redactions to return. Default 200, capped at 1000.
     pub limit: Option<u64>,
@@ -7351,6 +7365,178 @@ impl TermLinkTools {
         });
         sorted.truncate(limit as usize);
         serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_unread",
+        description = "Count of envelopes on agent-chat-arc with offset > the given sender's last ack frontier. If `sender_id` is omitted, defaults to the caller's local identity fingerprint (`~/.termlink/identity.json`). Returns `{sender_id, ack_up_to, total, unread_count}`. MCP-aware agents call this to detect 'new mail' without scanning the full topic. MCP-side equivalent of `agent unread` (CLI T-1512). Pairs with `termlink_agent_ack` (mark caught up) and `termlink_agent_ack_status` (cross-fleet view)."
+    )]
+    async fn termlink_agent_unread(
+        &self,
+        Parameters(p): Parameters<AgentUnreadParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target_sender = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut ack_up_to: u64 = 0;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") { continue; }
+            if env.get("sender_id").and_then(|v| v.as_str()) != Some(target_sender.as_str()) { continue; }
+            let up_to = env.get("metadata")
+                .and_then(|m| m.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .or_else(|| env.get("metadata").and_then(|m| m.get("up_to")).and_then(|v| v.as_u64()))
+                .unwrap_or(0);
+            if up_to > ack_up_to { ack_up_to = up_to; }
+        }
+        let total = all.len() as u64;
+        let unread = all.iter()
+            .filter(|env| env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) > ack_up_to)
+            .count() as u64;
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": target_sender,
+            "ack_up_to": ack_up_to,
+            "total": total,
+            "unread_count": unread,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_digest",
+        description = "Period summary on agent-chat-arc. Walks the topic, filters envelopes whose `ts_unix_ms >= since_ts` (or now - window_hours*3600*1000), and returns `{since_ts, total_in_window, by_msg_type, top_senders, latest_5_offsets}`. `since_ts` takes precedence over `window_hours`. `window_hours` defaults to 24 (last day), capped at 720 (30 days). MCP-side equivalent of `agent digest` (CLI T-1511). Single-call period awareness — what happened recently."
+    )]
+    async fn termlink_agent_digest(
+        &self,
+        Parameters(p): Parameters<AgentDigestParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let since_ts: i64 = match p.since_ts {
+            Some(t) => t,
+            None => {
+                let hours = p.window_hours.unwrap_or(24).min(720) as i64;
+                now_ms - hours * 3600 * 1000
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let in_window: Vec<&serde_json::Value> = all.iter()
+            .filter(|env| {
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                ts >= since_ts
+            })
+            .collect();
+        let mut by_msg_type: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        let mut by_sender: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        for env in &in_window {
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            *by_msg_type.entry(mt).or_insert(0) += 1;
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if !sender.is_empty() {
+                *by_sender.entry(sender).or_insert(0) += 1;
+            }
+        }
+        let mut top_senders: Vec<(String, u64)> = by_sender.into_iter().collect();
+        top_senders.sort_by(|a, b| b.1.cmp(&a.1));
+        top_senders.truncate(5);
+        let top_senders_json: Vec<serde_json::Value> = top_senders
+            .into_iter()
+            .map(|(s, c)| serde_json::json!({"sender_id": s, "post_count": c}))
+            .collect();
+        let mut latest_offsets: Vec<u64> = in_window
+            .iter()
+            .filter_map(|env| env.get("offset").and_then(|v| v.as_u64()))
+            .collect();
+        latest_offsets.sort_by(|a, b| b.cmp(a));
+        latest_offsets.truncate(5);
+        let by_msg_type_json: serde_json::Map<String, serde_json::Value> = by_msg_type
+            .into_iter()
+            .map(|(k, v)| (k, serde_json::Value::from(v)))
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "since_ts": since_ts,
+            "now_ts": now_ms,
+            "total_in_window": in_window.len(),
+            "by_msg_type": by_msg_type_json,
+            "top_senders": top_senders_json,
+            "latest_5_offsets": latest_offsets,
+        })).unwrap_or_else(json_err)
     }
 
     #[tool(
