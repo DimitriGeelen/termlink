@@ -3930,6 +3930,23 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Walk UP the in_reply_to chain from <OFFSET> to root on agent-chat-arc
+    /// (T-1510): thin wrapper over `channel ancestors agent-chat-arc <offset>`.
+    /// Companion to `agent thread` (down-walk) — together they let an
+    /// operator reconstruct any conversation from any offset.
+    Ancestors {
+        /// Arc offset to start walking up from (positional, required).
+        offset: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Render the full reply subtree rooted at <ROOT> on agent-chat-arc
     /// (T-1509): thin wrapper over `channel thread agent-chat-arc <root>`.
     /// Renders the root post and every descendant linked by
