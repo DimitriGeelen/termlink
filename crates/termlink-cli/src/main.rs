@@ -434,8 +434,40 @@ async fn main() -> Result<()> {
             AgentAction::Typing { ttl_ms, hub, json } => {
                 commands::channel::cmd_channel_typing_emit("agent-chat-arc", ttl_ms, hub.as_deref(), json).await
             }
-            AgentAction::Typers { hub, json } => {
-                commands::channel::cmd_channel_typing_list("agent-chat-arc", hub.as_deref(), json).await
+            AgentAction::Typers { hub, json, watch, watch_interval } => {
+                if watch && json {
+                    anyhow::bail!(
+                        "--watch and --json are incompatible: --watch streams \
+                         re-rendered text frames; --json is one-shot. Pick one."
+                    );
+                }
+                if watch {
+                    let clamped = watch_interval.clamp(1, 60);
+                    loop {
+                        // ANSI: clear screen + cursor home, matching the
+                        // existing presence/recent --watch UX (T-1486/T-1498).
+                        print!("\x1b[2J\x1b[H");
+                        let now_secs = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
+                        let now_str = manifest::secs_to_rfc3339(now_secs);
+                        println!(
+                            "# agent typers --watch | interval={}s | {}",
+                            clamped, now_str
+                        );
+                        // Per-iteration fetch + render. Errors are non-fatal:
+                        // a transient hub blip should not kill the dashboard.
+                        if let Err(e) = commands::channel::cmd_channel_typing_list(
+                            "agent-chat-arc", hub.as_deref(), false,
+                        ).await {
+                            println!("# fetch error (will retry next tick): {e}");
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(clamped)).await;
+                    }
+                } else {
+                    commands::channel::cmd_channel_typing_list("agent-chat-arc", hub.as_deref(), json).await
+                }
             }
             AgentAction::Dms { unread, hub, json } => {
                 commands::channel::cmd_channel_dm_list(unread, hub.as_deref(), json).await

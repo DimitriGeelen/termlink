@@ -4847,7 +4847,10 @@ pub(crate) enum AgentAction {
     /// `channel typing-list agent-chat-arc`. Walks the topic, applies
     /// `compute_active_typers` (latest typing envelope per sender, filtered
     /// by `expires_at_ms > now`), and returns one row per active typer.
-    /// Write companion: T-1550 `agent typing`.
+    /// Write companion: T-1550 `agent typing`. T-1557: `--watch` flips on
+    /// a live dashboard refreshing every `--watch-interval` seconds (TTL
+    /// is 5s by default, so watching gives a moving picture of who's
+    /// composing right now).
     Typers {
         /// Override hub address (default: local hub).
         #[arg(long)]
@@ -4856,6 +4859,17 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// Live dashboard mode: re-fetch and re-render every
+        /// `--watch-interval` seconds. Incompatible with `--json`.
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval in seconds when `--watch` is set. Clamped to
+        /// [1, 60]. Default 1s — typing TTL is 5s by default, so a
+        /// 1-second tick gives a smooth-enough view of who's composing.
+        #[arg(long, default_value = "1")]
+        watch_interval: u64,
     },
 
     /// List my DM topics with peer + optional unread counts (T-1552):
