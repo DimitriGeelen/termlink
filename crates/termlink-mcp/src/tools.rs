@@ -49,6 +49,22 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Helper: convert days-since-Unix-epoch to UTC YYYY-MM-DD string.
+/// No chrono dep — uses civil-from-days algorithm (Howard Hinnant, public domain).
+fn epoch_days_to_ymd(days: i64) -> String {
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", year, m, d)
+}
+
 /// Helper: connect to a remote hub via TOFU TLS and authenticate.
 ///
 /// Returns an authenticated [`client::Client`] on success, or a pre-formatted
@@ -701,6 +717,18 @@ pub struct AgentAckHistoryParams {
     pub sender_id: Option<String>,
     /// Max receipts to return. Default 200, capped at 1000.
     pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentEditsOfParams {
+    /// Offset of the chat-arc envelope whose edit history should be listed.
+    pub offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTopicStatsParams {
+    /// Optional max days back to include (truncates older buckets). No default — full history if unset.
+    pub window_days: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -8024,6 +8052,161 @@ impl TermLinkTools {
             "sender_id": sender_id,
             "history": results,
         })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_edits_of",
+        description = "List the full edit history of a chat-arc envelope. Walks the topic, filters `msg_type=edit` envelopes whose `metadata.replaces` matches the given offset, and returns `[{edit_offset, sender_id, payload_b64, ts_unix_ms}, ...]` sorted oldest-first (chronological revision history). Lets MCP-aware agents see every revision a post went through — useful for audit and conversation provenance. MCP-side equivalent of `agent edits-of <offset>` (CLI T-1517). Companion read tool to `termlink_agent_edit` (T-1567)."
+    )]
+    async fn termlink_agent_edits_of(
+        &self,
+        Parameters(p): Parameters<AgentEditsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target_offset = p.offset;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut results: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| env.get("msg_type").and_then(|v| v.as_str()) == Some("edit"))
+            .filter(|env| {
+                let replaces = env.get("metadata")
+                    .and_then(|m| m.get("replaces"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .or_else(|| env.get("metadata").and_then(|m| m.get("replaces")).and_then(|v| v.as_u64()));
+                replaces == Some(target_offset)
+            })
+            .map(|env| {
+                let edit_offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let payload_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                serde_json::json!({
+                    "edit_offset": edit_offset,
+                    "sender_id": sender,
+                    "payload_b64": payload_b64,
+                    "ts_unix_ms": ts,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            ta.cmp(&tb)
+        });
+        serde_json::to_string_pretty(&serde_json::json!({
+            "target_offset": target_offset,
+            "edits": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_topic_stats",
+        description = "Daily activity buckets on agent-chat-arc. Walks the topic, groups envelopes by date (UTC YYYY-MM-DD from ts_unix_ms), and aggregates total + by_msg_type per day. Returns `[{date, total, by_msg_type}, ...]` sorted by date ascending. Activity heatmap — answers \"when is this topic most active?\". MCP-side equivalent of `agent topic-stats` (CLI T-1531). Optional `window_days` truncates older buckets."
+    )]
+    async fn termlink_agent_topic_stats(
+        &self,
+        Parameters(p): Parameters<AgentTopicStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // YYYY-MM-DD bucket → (total, HashMap<msg_type, count>)
+        let mut buckets: std::collections::BTreeMap<String, (u64, std::collections::HashMap<String, u64>)> = std::collections::BTreeMap::new();
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff_ms: Option<i64> = p.window_days.map(|d| now_ms - (d as i64) * 86_400_000);
+        for env in &all {
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts <= 0 { continue; }
+            if let Some(cutoff) = cutoff_ms { if ts < cutoff { continue; } }
+            let day_secs = ts / 1000;
+            // Compute UTC date from epoch seconds (no chrono dep — simple integer math)
+            let days_since_epoch = day_secs / 86_400;
+            let date_str = epoch_days_to_ymd(days_since_epoch);
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("post").to_string();
+            let entry = buckets.entry(date_str).or_insert((0, std::collections::HashMap::new()));
+            entry.0 += 1;
+            *entry.1.entry(mt).or_insert(0) += 1;
+        }
+        let results: Vec<serde_json::Value> = buckets
+            .into_iter()
+            .map(|(date, (total, by_type))| {
+                let mut by_type_json = serde_json::Map::new();
+                for (k, v) in by_type {
+                    by_type_json.insert(k, serde_json::Value::Number(v.into()));
+                }
+                serde_json::json!({
+                    "date": date,
+                    "total": total,
+                    "by_msg_type": by_type_json,
+                })
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
     }
 
     #[tool(
