@@ -653,6 +653,18 @@ pub struct AgentSearchParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentQuoteParams {
+    /// Offset of the chat-arc envelope to fetch.
+    pub offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentThreadsParams {
+    /// Max thread roots to return. Default 100, capped at 1000.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentPinnedParams {
     /// Max pinned entries to return. Default 100, capped at 1000.
     pub limit: Option<u64>,
@@ -7307,6 +7319,125 @@ impl TermLinkTools {
         });
         sorted.truncate(limit as usize);
         serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_quote",
+        description = "Fetch a single agent-chat-arc envelope by its offset. Walks the topic via channel.subscribe and returns the raw envelope (offset, ts, sender_id, msg_type, payload_b64, metadata, signature). Returns `{\"error\":\"...\"}` if no envelope matches. MCP-side equivalent of `agent quote <offset>` (CLI T-1505). Useful when an agent has an offset reference (from a reaction, reply, or pin) and needs to resolve the original post."
+    )]
+    async fn termlink_agent_quote(
+        &self,
+        Parameters(p): Parameters<AgentQuoteParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target_offset = p.offset;
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            for env in &msgs {
+                let off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+                if off == target_offset {
+                    return serde_json::to_string_pretty(env).unwrap_or_else(json_err);
+                }
+            }
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        json_err(format!("offset {target_offset} not found on agent-chat-arc"))
+    }
+
+    #[tool(
+        name = "termlink_agent_threads",
+        description = "List thread roots on agent-chat-arc — i.e. offsets that have been replied to. Walks the topic, scans every envelope's `metadata.in_reply_to`, aggregates by parent offset, and returns `[{root_offset, reply_count, last_reply_ts}, ...]` sorted by last_reply_ts desc. Surfaces conversation hot-spots so MCP-aware agents can see what's being discussed without dumping the full topic. MCP-side equivalent of `agent threads` (CLI T-1533). `limit` defaults to 100, max 1000."
+    )]
+    async fn termlink_agent_threads(
+        &self,
+        Parameters(p): Parameters<AgentThreadsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(100).min(1000);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // Aggregate parents-by-reply-count
+        let mut parents: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            let parent = env.get("metadata")
+                .and_then(|m| m.get("in_reply_to"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if parent.is_empty() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = parents.entry(parent.to_string()).or_insert((0, 0));
+            entry.0 += 1;
+            if ts > entry.1 { entry.1 = ts; }
+        }
+        let mut results: Vec<serde_json::Value> = parents
+            .into_iter()
+            .map(|(root, (count, last_ts))| serde_json::json!({
+                "root_offset": root,
+                "reply_count": count,
+                "last_reply_ts": last_ts,
+            }))
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("last_reply_ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("last_reply_ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        results.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
     }
 
     #[tool(
