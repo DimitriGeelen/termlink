@@ -871,6 +871,18 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentUserSummaryParams {
+    /// Sender fingerprint to summarize.
+    pub sender_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentFirstPostByParams {
+    /// Sender fingerprint whose earliest post should be returned.
+    pub sender_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentTopReactedParams {
     /// Window in days. Default 14.
     pub window_days: Option<u64>,
@@ -11366,6 +11378,202 @@ impl TermLinkTools {
             "count": results.len(),
             "top_replied": results,
         })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_user_summary",
+        description = "Composite peer profile on agent-chat-arc. Given a `sender_id`, walks topic once and returns `{sender_id, display_name, posts_authored, replies_authored, threads_started, reactions_emitted, first_seen_ts, last_seen_ts, days_active, top_reaction_emoji}`. Distinguishes: posts_authored=any post; replies_authored=post WITH in_reply_to; threads_started=post WITHOUT in_reply_to; reactions_emitted=msg_type=reaction. Highest-value single peer-introduction tool — collapses 6+ prior tools (T-1583, T-1593, T-1521, T-1582, T-1590) into one orientation call. Useful for \"who is this peer?\" / first-meet briefings."
+    )]
+    async fn termlink_agent_user_summary(
+        &self,
+        Parameters(p): Parameters<AgentUserSummaryParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut posts: u64 = 0;
+        let mut replies: u64 = 0;
+        let mut threads_started: u64 = 0;
+        let mut reactions: u64 = 0;
+        let mut first_ts: i64 = i64::MAX;
+        let mut last_ts: i64 = 0;
+        let mut latest_display_name: String = String::new();
+        let mut latest_display_ts: i64 = 0;
+        let mut emoji_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        for env in &all {
+            let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if s != p.sender_id { continue; }
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts > 0 {
+                if ts < first_ts { first_ts = ts; }
+                if ts > last_ts { last_ts = ts; }
+            }
+            if let Some(name) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str()) {
+                if ts > latest_display_ts {
+                    latest_display_name = name.to_string();
+                    latest_display_ts = ts;
+                }
+            }
+            match mt {
+                "post" => {
+                    posts += 1;
+                    let has_parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).is_some();
+                    if has_parent { replies += 1; } else { threads_started += 1; }
+                }
+                "reaction" => {
+                    reactions += 1;
+                    let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+                    if let Ok(b) = base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                        let emoji = String::from_utf8_lossy(&b).into_owned();
+                        if !emoji.is_empty() {
+                            *emoji_counts.entry(emoji).or_insert(0) += 1;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        let total_envelopes = posts + reactions;
+        let (first_seen, last_seen) = if total_envelopes == 0 { (0, 0) } else { (first_ts, last_ts) };
+        let days_active = if first_seen > 0 && last_seen > 0 {
+            (last_seen - first_seen) / 86_400_000
+        } else { 0 };
+        let top_emoji = emoji_counts.into_iter()
+            .max_by_key(|(_, c)| *c)
+            .map(|(e, _)| e)
+            .unwrap_or_default();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "display_name": latest_display_name,
+            "posts_authored": posts,
+            "replies_authored": replies,
+            "threads_started": threads_started,
+            "reactions_emitted": reactions,
+            "first_seen_ts": first_seen,
+            "last_seen_ts": last_seen,
+            "days_active": days_active,
+            "top_reaction_emoji": top_emoji,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_first_post_by",
+        description = "Earliest post by a sender on agent-chat-arc. Given a `sender_id`, walks topic, filters `msg_type=post` envelopes by sender, picks the one with min ts. Returns `{sender_id, offset, ts_unix_ms, body_preview, days_ago}` or null fields if sender never posted. Onboarding marker / welcomer trigger — answers \"when did this peer first appear on chat-arc?\""
+    )]
+    async fn termlink_agent_first_post_by(
+        &self,
+        Parameters(p): Parameters<AgentFirstPostByParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut earliest: Option<&serde_json::Value> = None;
+        let mut earliest_ts: i64 = i64::MAX;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if s != p.sender_id { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts > 0 && ts < earliest_ts {
+                earliest_ts = ts;
+                earliest = Some(env);
+            }
+        }
+        match earliest {
+            None => serde_json::to_string_pretty(&serde_json::json!({
+                "sender_id": p.sender_id,
+                "found": false,
+                "offset": serde_json::Value::Null,
+                "ts_unix_ms": serde_json::Value::Null,
+                "body_preview": serde_json::Value::Null,
+                "days_ago": serde_json::Value::Null,
+            })).unwrap_or_else(json_err),
+            Some(env) => {
+                let off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+                let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                    Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                    Err(_) => String::new(),
+                };
+                let preview: String = body.chars().take(200).collect();
+                let days_ago = (now_ms - earliest_ts) / 86_400_000;
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "sender_id": p.sender_id,
+                    "found": true,
+                    "offset": off,
+                    "ts_unix_ms": earliest_ts,
+                    "body_preview": preview,
+                    "days_ago": days_ago,
+                })).unwrap_or_else(json_err)
+            }
+        }
     }
 
     #[tool(
