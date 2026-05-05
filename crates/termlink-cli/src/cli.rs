@@ -4894,6 +4894,17 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Show the local ed25519 identity (T-1554): thin wrapper over
+    /// `identity show`. Surfaces fingerprint + key path. Answer to
+    /// "who am I posting as?" without leaving the `agent.*` namespace.
+    /// Companion to `agent who` (peer observability) which targets a
+    /// remote FP — `agent identity` targets self.
+    Identity {
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

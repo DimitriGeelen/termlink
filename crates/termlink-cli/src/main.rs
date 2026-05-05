@@ -443,6 +443,9 @@ async fn main() -> Result<()> {
             AgentAction::Inbox { hub, json } => {
                 commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
             }
+            AgentAction::Identity { json } => {
+                commands::identity::cmd_identity_show(json)
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
