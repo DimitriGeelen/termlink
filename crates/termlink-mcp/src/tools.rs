@@ -871,6 +871,18 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentThreadHealthParams {
+    /// Thread root offset on agent-chat-arc.
+    pub root_offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentEngagementRateParams {
+    /// Sender fingerprint to compute engagement rate for.
+    pub sender_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentPeerEngagementParams {
     /// First peer fingerprint.
     pub sender_a: String,
@@ -10780,6 +10792,195 @@ impl TermLinkTools {
             "window_days": window_days,
             "total_posts": total,
             "by_hour": by_hour,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_thread_health",
+        description = "Composite aliveness verdict for an agent-chat-arc thread. Given a `root_offset`, walks topic, expands descendants, computes max reply-depth, and returns `{root_offset, descendant_count, unique_senders, last_post_age_hours, max_depth, status}`. Status is bracketed by last_post_age_hours: <24 \"alive\", 24-168 \"slowing\", 168-720 \"dormant\", >720 \"dead\". One-call thread-aliveness check — collapses primitives from T-1591 thread_summary into a verdict. Useful for triage (\"is this conversation worth engaging with?\")."
+    )]
+    async fn termlink_agent_thread_health(
+        &self,
+        Parameters(p): Parameters<AgentThreadHealthParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let root_str = p.root_offset.to_string();
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+                if !child_off.is_empty() {
+                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                }
+            }
+        }
+        fn collect_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>, out: &mut std::collections::HashSet<String>) {
+            if let Some(children) = map.get(off) {
+                for c in children {
+                    if out.insert(c.clone()) {
+                        collect_descendants(c, map, out);
+                    }
+                }
+            }
+        }
+        let mut thread_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+        thread_set.insert(root_str.clone());
+        collect_descendants(&root_str, &parent_to_children, &mut thread_set);
+        let descendant_count = (thread_set.len().saturating_sub(1)) as u64;
+        let mut max_depth: u64 = 0;
+        let mut frontier: Vec<(String, u64)> = vec![(root_str.clone(), 0)];
+        while let Some((off, d)) = frontier.pop() {
+            if d > max_depth { max_depth = d; }
+            if let Some(children) = parent_to_children.get(&off) {
+                for c in children {
+                    frontier.push((c.clone(), d + 1));
+                }
+            }
+        }
+        let mut senders: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut last_ts: i64 = 0;
+        let mut found_root = false;
+        for env in &all {
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !thread_set.contains(&off) { continue; }
+            if off == root_str { found_root = true; }
+            if env.get("msg_type").and_then(|v| v.as_str()) == Some("post") {
+                let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                if !s.is_empty() { senders.insert(s); }
+            }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts > last_ts { last_ts = ts; }
+        }
+        let last_post_age_hours = if last_ts > 0 { (now_ms - last_ts) / 3_600_000 } else { -1 };
+        let status = if !found_root {
+            "not_found"
+        } else if last_post_age_hours < 0 {
+            "unknown"
+        } else if last_post_age_hours < 24 {
+            "alive"
+        } else if last_post_age_hours < 168 {
+            "slowing"
+        } else if last_post_age_hours < 720 {
+            "dormant"
+        } else {
+            "dead"
+        };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "root_offset": p.root_offset,
+            "found": found_root,
+            "descendant_count": descendant_count,
+            "unique_senders": senders.len(),
+            "last_post_age_hours": last_post_age_hours,
+            "max_depth": max_depth,
+            "status": status,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_engagement_rate",
+        description = "Per-sender reply-rate metric on agent-chat-arc. Given a `sender_id`, walks topic, counts posts authored by that sender, and counts how many of those posts received at least one reply. Returns `{sender_id, posts_authored, posts_with_replies, engagement_rate}` where engagement_rate = posts_with_replies/posts_authored (0.0-1.0, or 0.0 if no posts). New axis: per-peer resonance ratio. Useful for \"is this peer's content drawing engagement?\" / contributor effectiveness audits."
+    )]
+    async fn termlink_agent_engagement_rate(
+        &self,
+        Parameters(p): Parameters<AgentEngagementRateParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut sender_posts: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if s != p.sender_id { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !off.is_empty() {
+                sender_posts.insert(off);
+            }
+        }
+        let mut replied_to: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                if sender_posts.contains(parent) {
+                    replied_to.insert(parent.to_string());
+                }
+            }
+        }
+        let posts_authored = sender_posts.len() as u64;
+        let posts_with_replies = replied_to.len() as u64;
+        let engagement_rate = if posts_authored == 0 {
+            0.0
+        } else {
+            (posts_with_replies as f64) / (posts_authored as f64)
+        };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "posts_authored": posts_authored,
+            "posts_with_replies": posts_with_replies,
+            "engagement_rate": engagement_rate,
         })).unwrap_or_else(json_err)
     }
 
