@@ -308,6 +308,9 @@ async fn main() -> Result<()> {
             AgentAction::Search { query, n, hub, json } => {
                 commands::agent::cmd_agent_search(&query, n, hub.as_deref(), json).await
             }
+            AgentAction::Thread { root, hub, json } => {
+                commands::channel::cmd_channel_thread("agent-chat-arc", root, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
