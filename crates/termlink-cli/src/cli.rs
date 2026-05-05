@@ -4425,6 +4425,90 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Re-publish a chat-arc post to another topic (T-1529): thin
+    /// wrapper over `channel forward`. Walks `agent-chat-arc` to fetch
+    /// the envelope at `<offset>` and re-posts it to `--to <TOPIC>` with
+    /// `metadata.forwarded_from=agent-chat-arc:<offset>` and
+    /// `metadata.forwarded_sender=<original-sender>`. Read-side shipped
+    /// as T-1522 `agent forwards-of`.
+    Forward {
+        /// Offset on agent-chat-arc to forward.
+        offset: u64,
+
+        /// Destination topic.
+        #[arg(long)]
+        to: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Edit a prior chat-arc post (T-1530): thin wrapper over
+    /// `channel edit agent-chat-arc`. Posts a `msg_type=edit` envelope
+    /// with `metadata.replaces=<offset>` and the new text payload.
+    /// Operator workflow: correct typos / refine wording on a prior
+    /// post without authoring a fresh root.
+    Edit {
+        /// Offset of the prior post being edited.
+        offset: u64,
+
+        /// New text payload.
+        text: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Retract a prior chat-arc post (T-1531): thin wrapper over
+    /// `channel redact agent-chat-arc`. Posts a `msg_type=redaction`
+    /// envelope with `metadata.redacts=<offset>` and optional
+    /// `metadata.reason`. The arc remains immutable — readers see the
+    /// redaction marker, not a deletion.
+    Redact {
+        /// Offset of the post to redact.
+        offset: u64,
+
+        /// Optional reason logged on the redaction envelope.
+        #[arg(long)]
+        reason: Option<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Set chat-arc topic_metadata description (T-1532): thin wrapper
+    /// over `channel describe agent-chat-arc`. Posts a
+    /// `msg_type=topic_metadata` envelope with
+    /// `metadata.description=<text>`. WRITE companion to T-1524
+    /// `agent info` which surfaces the latest description.
+    Describe {
+        /// New topic description text.
+        text: String,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
