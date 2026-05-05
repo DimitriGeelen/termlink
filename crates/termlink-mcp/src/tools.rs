@@ -748,6 +748,15 @@ pub struct AgentHistoryParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentFollowupsParams {
+    /// Offset of the chat-arc envelope whose downstream references should be aggregated.
+    pub offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentStateParams {}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -8390,6 +8399,200 @@ impl TermLinkTools {
         serde_json::to_string_pretty(&serde_json::json!({
             "sender_id": sender_id,
             "posts": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_followups",
+        description = "Reverse-link aggregator for a chat-arc envelope. Given an offset, walks the topic and finds EVERY envelope that references it: replies (msg_type=post + metadata.in_reply_to), edits (msg_type=edit + metadata.replaces), redactions (msg_type=redaction + metadata.redacts), pins (msg_type=pin + metadata.pin_target), stars (msg_type=star + metadata.star_target), reactions (msg_type=reaction + metadata.in_reply_to). Returns `{target_offset, replies: [...], edits: [...], redactions: [...], pins: [...], stars: [...], reactions: [...], total}` — single-call answer to \"what happened to this post?\". No CLI mirror — purely MCP-side composite read."
+    )]
+    async fn termlink_agent_followups(
+        &self,
+        Parameters(p): Parameters<AgentFollowupsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let target = p.offset;
+        let target_str = target.to_string();
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let metadata_matches = |env: &serde_json::Value, key: &str| -> bool {
+            let md = match env.get("metadata") { Some(m) => m, None => return false };
+            let v = match md.get(key) { Some(v) => v, None => return false };
+            v.as_str() == Some(target_str.as_str())
+                || v.as_u64() == Some(target)
+                || v.as_str().and_then(|s| s.parse::<u64>().ok()) == Some(target)
+        };
+        let summarize = |env: &serde_json::Value| -> serde_json::Value {
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let payload = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            serde_json::json!({
+                "offset": offset,
+                "sender_id": sender,
+                "ts_unix_ms": ts,
+                "payload_b64": payload,
+            })
+        };
+        let mut replies = Vec::new();
+        let mut edits = Vec::new();
+        let mut redactions = Vec::new();
+        let mut pins = Vec::new();
+        let mut stars = Vec::new();
+        let mut reactions = Vec::new();
+        for env in &all {
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            match mt {
+                "edit" if metadata_matches(env, "replaces") => edits.push(summarize(env)),
+                "redaction" if metadata_matches(env, "redacts") => redactions.push(summarize(env)),
+                "pin" if metadata_matches(env, "pin_target") => pins.push(summarize(env)),
+                "star" if metadata_matches(env, "star_target") => stars.push(summarize(env)),
+                "reaction" if metadata_matches(env, "in_reply_to") => reactions.push(summarize(env)),
+                "" | "post" if metadata_matches(env, "in_reply_to") => replies.push(summarize(env)),
+                _ => {}
+            }
+        }
+        let total = replies.len() + edits.len() + redactions.len() + pins.len() + stars.len() + reactions.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "target_offset": target,
+            "replies": replies,
+            "edits": edits,
+            "redactions": redactions,
+            "pins": pins,
+            "stars": stars,
+            "reactions": reactions,
+            "total": total,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_state",
+        description = "Full reduced state snapshot of agent-chat-arc — the curated state right now. Walks the topic and applies the latest-wins reduce-pattern across THREE state targets simultaneously: current pins (pin_target where most recent action=pin), current stars (star_target where most recent star=true), latest topic_metadata description. Returns `{description, pinned: [...], starred: [...], pin_count, star_count, last_update_ts}`. Single-call orientation snapshot — composite of `termlink_agent_pinned` + `termlink_agent_starred` + `termlink_agent_info`(description). For MCP-aware agents that want one read-call to know \"what's the curated state right now?\" without 3 separate calls."
+    )]
+    async fn termlink_agent_state(
+        &self,
+        Parameters(_p): Parameters<AgentStateParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        all.sort_by_key(|env| {
+            env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0)
+        });
+        let mut pin_state: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+        let mut star_state: std::collections::HashMap<String, (String, i64)> = std::collections::HashMap::new();
+        let mut description: String = String::new();
+        let mut description_ts: i64 = 0;
+        let mut last_update_ts: i64 = 0;
+        for env in &all {
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            match mt {
+                "pin" => {
+                    if let Some(target) = env.get("metadata").and_then(|m| m.get("pin_target")).and_then(|v| v.as_str()) {
+                        let action = env.get("metadata").and_then(|m| m.get("action")).and_then(|v| v.as_str()).unwrap_or("pin").to_string();
+                        pin_state.insert(target.to_string(), (action, ts));
+                        if ts > last_update_ts { last_update_ts = ts; }
+                    }
+                }
+                "star" => {
+                    if let Some(target) = env.get("metadata").and_then(|m| m.get("star_target")).and_then(|v| v.as_str()) {
+                        let star_val = env.get("metadata").and_then(|m| m.get("star")).and_then(|v| v.as_str()).unwrap_or("true").to_string();
+                        star_state.insert(target.to_string(), (star_val, ts));
+                        if ts > last_update_ts { last_update_ts = ts; }
+                    }
+                }
+                "topic_metadata" => {
+                    use base64::Engine;
+                    if let Some(p_b64) = env.get("payload_b64").and_then(|v| v.as_str()) {
+                        if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                            description = String::from_utf8_lossy(&bytes).to_string();
+                            description_ts = ts;
+                            if ts > last_update_ts { last_update_ts = ts; }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        let pinned: Vec<serde_json::Value> = pin_state.into_iter()
+            .filter(|(_, (action, _))| action == "pin")
+            .map(|(target, (_, ts))| serde_json::json!({"pin_target": target, "ts_unix_ms": ts}))
+            .collect();
+        let starred: Vec<serde_json::Value> = star_state.into_iter()
+            .filter(|(_, (val, _))| val == "true")
+            .map(|(target, (_, ts))| serde_json::json!({"star_target": target, "ts_unix_ms": ts}))
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "description": description,
+            "description_ts": description_ts,
+            "pinned": pinned,
+            "pin_count": pinned.len(),
+            "starred": starred,
+            "star_count": starred.len(),
+            "last_update_ts": last_update_ts,
         })).unwrap_or_else(json_err)
     }
 
