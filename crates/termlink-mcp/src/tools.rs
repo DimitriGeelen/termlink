@@ -813,6 +813,22 @@ pub struct AgentTopRepliersParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentThreadsByParams {
+    /// Sender fingerprint whose thread roots to list. Defaults to caller's local Identity.
+    pub sender_id: Option<String>,
+    /// Max thread roots to return. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentSilentSendersParams {
+    /// Window in days — senders whose last post is older than this are flagged silent. Default 14.
+    pub window_days: Option<u64>,
+    /// Max silent senders to return. Default 100, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -9278,6 +9294,197 @@ impl TermLinkTools {
             "window_days": window_days,
             "leaderboard": leaderboard,
             "count": leaderboard.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_threads_by",
+        description = "List thread roots STARTED by a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=post` envelopes by `sender_id` (defaults to caller's local Identity) AND `metadata.in_reply_to` absent (root posts only), then counts descendants by recursive in_reply_to chain. Returns `[{root_offset, body_preview, ts_unix_ms, descendant_count}, ...]` sorted newest-first. Per-sender companion to `termlink_agent_threads` (T-1574, topic-wide) — answers \"what conversations did X kick off?\" or \"what threads have I started?\" (default sender_id = me)."
+    )]
+    async fn termlink_agent_threads_by(
+        &self,
+        Parameters(p): Parameters<AgentThreadsByParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // Build child-count map: parent_offset -> direct child count, then transitively expand
+        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+                if !child_off.is_empty() {
+                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                }
+            }
+        }
+        fn count_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>) -> u64 {
+            let mut total: u64 = 0;
+            if let Some(children) = map.get(off) {
+                for c in children {
+                    total += 1 + count_descendants(c, map);
+                }
+            }
+            total
+        }
+        let mut roots: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+            if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let off_str = offset.to_string();
+            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+            let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
+                .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
+            let preview: String = body.chars().take(120).collect();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let descendant_count = count_descendants(&off_str, &parent_to_children);
+            roots.push(serde_json::json!({
+                "root_offset": offset,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+                "descendant_count": descendant_count,
+            }));
+        }
+        roots.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        if roots.len() > limit { roots.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": sender_id,
+            "threads": roots,
+            "count": roots.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_silent_senders",
+        description = "Anti-leaderboard for agent-chat-arc — surfaces ever-posted-now-quiet peers. Walks the topic, finds all senders who posted at least once but NOT within the configured window (default 14 days). Returns `[{sender_id, last_post_ts_unix_ms, days_silent}, ...]` sorted by days_silent descending. Useful for re-engagement, fleet liveness audits, or identifying agents that have gone offline. Companion to `termlink_agent_top_repliers` (active leaderboard)."
+    )]
+    async fn termlink_agent_silent_senders(
+        &self,
+        Parameters(p): Parameters<AgentSilentSendersParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let limit = p.limit.unwrap_or(100).min(500) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff_ms = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // Track latest POST (msg_type=post) per sender — silent_senders is content-focused, not engagement
+        let mut last_post: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if sender.is_empty() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = last_post.entry(sender).or_insert(0);
+            if ts > *entry { *entry = ts; }
+        }
+        let mut silent: Vec<serde_json::Value> = last_post.into_iter()
+            .filter(|(_, ts)| *ts > 0 && *ts < cutoff_ms)
+            .map(|(s, ts)| {
+                let days_silent = ((now_ms - ts) / 86_400_000).max(0);
+                serde_json::json!({
+                    "sender_id": s,
+                    "last_post_ts_unix_ms": ts,
+                    "days_silent": days_silent,
+                })
+            })
+            .collect();
+        silent.sort_by(|a, b| {
+            let da = a.get("days_silent").and_then(|v| v.as_i64()).unwrap_or(0);
+            let db = b.get("days_silent").and_then(|v| v.as_i64()).unwrap_or(0);
+            db.cmp(&da)
+        });
+        if silent.len() > limit { silent.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "silent_senders": silent,
+            "count": silent.len(),
         })).unwrap_or_else(json_err)
     }
 
