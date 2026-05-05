@@ -3929,6 +3929,24 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Quote a single agent-chat-arc post by offset (T-1505): thin wrapper
+    /// over `channel quote agent-chat-arc <offset>`. Renders the post and
+    /// its parent (when the post is a reply via `metadata.in_reply_to`).
+    /// Operator picks an offset from `agent timeline` / `agent recent` /
+    /// `agent on-thread` and pulls the full content here.
+    Quote {
+        /// Arc offset (positional, required).
+        offset: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
