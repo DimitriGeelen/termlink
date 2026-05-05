@@ -871,6 +871,24 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentSearchThreadParams {
+    /// Thread root offset on agent-chat-arc — search is scoped to root + descendants.
+    pub root_offset: u64,
+    /// Case-insensitive substring to match against post payloads.
+    pub query: String,
+    /// Max results to return. Default 100, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentUnansweredParams {
+    /// Window in days to consider. Default 14.
+    pub window_days: Option<u64>,
+    /// Max results to return. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentFollowupsToParams {
     /// Sender fingerprint whose received replies should be listed.
     pub sender_id: String,
@@ -10394,6 +10412,208 @@ impl TermLinkTools {
         serde_json::to_string_pretty(&serde_json::json!({
             "total": entries.len(),
             "agent_tools": entries,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_search_thread",
+        description = "Substring search SCOPED to a thread on agent-chat-arc. Given a `root_offset` and `query`, walks the topic, expands descendants from the root via in_reply_to chain, then base64-decodes each post's payload and matches the query case-insensitively. Returns `[{offset, sender_id, body_preview, ts_unix_ms}, ...]` sorted newest-first. Companion to T-1572 `agent_search` (topic-wide) and T-1587 `search_by` (per-sender). Useful for \"find this term inside this conversation\" — common chat-arc reading flow on busy threads."
+    )]
+    async fn termlink_agent_search_thread(
+        &self,
+        Parameters(p): Parameters<AgentSearchThreadParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let root_str = p.root_offset.to_string();
+        let limit = p.limit.unwrap_or(100).min(500) as usize;
+        let q_lower = p.query.to_lowercase();
+        if q_lower.is_empty() {
+            return json_err("query must not be empty");
+        }
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+                if !child_off.is_empty() {
+                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+                }
+            }
+        }
+        fn collect_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>, out: &mut std::collections::HashSet<String>) {
+            if let Some(children) = map.get(off) {
+                for c in children {
+                    if out.insert(c.clone()) {
+                        collect_descendants(c, map, out);
+                    }
+                }
+            }
+        }
+        let mut thread_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+        thread_set.insert(root_str.clone());
+        collect_descendants(&root_str, &parent_to_children, &mut thread_set);
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !thread_set.contains(&off) { continue; }
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            if !body.to_lowercase().contains(&q_lower) { continue; }
+            let off_num: u64 = off.parse().unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let preview: String = body.chars().take(160).collect();
+            results.push(serde_json::json!({
+                "offset": off_num,
+                "sender_id": sender,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "root_offset": p.root_offset,
+            "query": p.query,
+            "total": total,
+            "returned": results.len(),
+            "matches": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_unanswered",
+        description = "Posts with zero replies on agent-chat-arc. Walks topic in window, finds `msg_type=post` envelopes whose offset never appears as `metadata.in_reply_to` of any later envelope. Returns `[{offset, sender_id, body_preview, ts_unix_ms, age_hours}, ...]` sorted oldest-first (longest unanswered surface first). Anti-leaderboard companion to T-1588 `silent_senders` — surfaces dropped conversations and re-engagement candidates. Useful for \"what fell on the floor?\" / fleet-wide attention audits."
+    )]
+    async fn termlink_agent_unanswered(
+        &self,
+        Parameters(p): Parameters<AgentUnansweredParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut reply_targets: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for env in &all {
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                reply_targets.insert(parent.to_string());
+            }
+        }
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if off.is_empty() { continue; }
+            if reply_targets.contains(&off) { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            let off_num: u64 = off.parse().unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            let preview: String = body.chars().take(160).collect();
+            let age_hours = if ts > 0 { (now_ms - ts) / 3_600_000 } else { 0 };
+            results.push(serde_json::json!({
+                "offset": off_num,
+                "sender_id": sender,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+                "age_hours": age_hours,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            ta.cmp(&tb)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "total": total,
+            "returned": results.len(),
+            "unanswered": results,
         })).unwrap_or_else(json_err)
     }
 
