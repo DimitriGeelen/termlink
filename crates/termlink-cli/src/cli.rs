@@ -4042,6 +4042,40 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// List active pinned posts on agent-chat-arc (T-1517): thin wrapper
+    /// over `channel pinned agent-chat-arc`. Computes active pin set
+    /// (latest pin/unpin action per target wins) and renders one row per
+    /// pinned offset. Companion to `agent starred` (T-1518): pinned is
+    /// admin-attention, starred is personal-attention.
+    Pinned {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List starred posts on agent-chat-arc (T-1518): thin wrapper over
+    /// `channel starred agent-chat-arc`. Default scope is the local
+    /// identity ("you"); pass `--all` for fleet-wide stars. Companion
+    /// to `agent pinned` (T-1517): stars are personal bookmarks; pins
+    /// are admin attention.
+    Starred {
+        /// Show stars from every identity, not just the local one.
+        #[arg(long)]
+        all: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Lifetime structural breakdown of agent-chat-arc (T-1516): thin wrapper
     /// over `channel topic-stats agent-chat-arc`. Total envelopes, distinct
     /// senders, by_msg_type histogram, top senders, top emojis, thread roots,
