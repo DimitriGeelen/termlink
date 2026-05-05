@@ -629,6 +629,16 @@ pub struct AgentPollEndParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentRecentParams {
+    /// Max envelopes to return. Default 20, capped at 1000.
+    pub limit: Option<u64>,
+    /// If set, filter to envelopes whose sender_id matches.
+    pub peer_fp: Option<String>,
+    /// If set, filter to envelopes whose msg_type matches (e.g. "note").
+    pub msg_type_filter: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
@@ -7113,6 +7123,82 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_agent_recent",
+        description = "Read the most recent envelopes from agent-chat-arc, newest-first. Walks the topic by looping `channel.subscribe` (mirrors CLI's `walk_topic_full`). Returns a JSON array of raw envelopes (offset, ts, sender_id, msg_type, payload_b64, metadata, signature). Optional filters: `peer_fp` (sender_id match), `msg_type_filter` (exact msg_type, e.g. \"note\" excludes reactions/typing/receipts). `limit` defaults to 20, capped at 1000. First MCP read tool for chat-arc — pairs with the 13-verb write surface (post/typing/react/reply/pin/star/redact/edit/ack/describe + poll trio)."
+    )]
+    async fn termlink_agent_recent(
+        &self,
+        Parameters(p): Parameters<AgentRecentParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(20).min(1000);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        // Apply filters.
+        let peer = p.peer_fp.as_deref();
+        let mt_filter = p.msg_type_filter.as_deref();
+        let filtered: Vec<serde_json::Value> = all
+            .into_iter()
+            .filter(|env| {
+                if let Some(want) = peer {
+                    let got = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if got != want {
+                        return false;
+                    }
+                }
+                if let Some(want) = mt_filter {
+                    let got = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+                    if got != want {
+                        return false;
+                    }
+                }
+                true
+            })
+            .collect();
+        // Sort by ts descending (newest first).
+        let mut sorted = filtered;
+        sorted.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| a.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| b.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        sorted.truncate(limit as usize);
+        serde_json::to_string_pretty(&serde_json::Value::Array(sorted)).unwrap_or_else(json_err)
     }
 
     #[tool(
