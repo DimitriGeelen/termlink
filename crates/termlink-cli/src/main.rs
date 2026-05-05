@@ -338,6 +338,9 @@ async fn main() -> Result<()> {
             AgentAction::Starred { all, hub, json } => {
                 commands::channel::cmd_channel_starred("agent-chat-arc", all, hub.as_deref(), json).await
             }
+            AgentAction::Snippet { offset, lines, header, hub, json } => {
+                commands::channel::cmd_channel_snippet("agent-chat-arc", offset, lines, header, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
