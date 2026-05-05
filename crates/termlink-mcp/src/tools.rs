@@ -871,6 +871,20 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentEmojiUsersParams {
+    /// Emoji string to filter reactions by (e.g. "🎉").
+    pub emoji: String,
+    /// Max leaderboard entries. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentOrphanRepliesParams {
+    /// Max results. Default 100, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentSelfRepliesParams {
     /// Sender fingerprint whose self-continuation pattern is requested.
     pub sender_id: String,
@@ -11796,6 +11810,176 @@ impl TermLinkTools {
             "window_days": window_days,
             "count": results.len(),
             "first_responders": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_emoji_users",
+        description = "Per-emoji peer leaderboard on agent-chat-arc. Given an `emoji` string (e.g. \"🎉\"), walks topic, filters `msg_type=reaction` envelopes whose decoded payload matches the emoji, tallies per-sender count + max-ts, and returns `[{sender_id, count, last_use_ts}, ...]` sorted by count desc. Companion to T-1580 `emoji_stats` (topic-wide aggregate) but pivoted: emoji_stats answers \"which emoji is most used?\", emoji_users answers \"who uses THIS emoji most?\". Useful for emoji-affinity / find-the-cheerleader-of-X."
+    )]
+    async fn termlink_agent_emoji_users(
+        &self,
+        Parameters(p): Parameters<AgentEmojiUsersParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        if p.emoji.is_empty() {
+            return json_err("emoji must not be empty");
+        }
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") { continue; }
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let emoji = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => continue,
+            };
+            if emoji != p.emoji { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if sender.is_empty() { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = by_sender.entry(sender).or_insert((0, 0));
+            entry.0 += 1;
+            if ts > entry.1 { entry.1 = ts; }
+        }
+        let mut results: Vec<serde_json::Value> = by_sender.into_iter()
+            .map(|(s, (c, ts))| serde_json::json!({"sender_id": s, "count": c, "last_use_ts": ts}))
+            .collect();
+        results.sort_by(|a, b| {
+            let ca = a.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "emoji": p.emoji,
+            "total_senders": total,
+            "returned": results.len(),
+            "leaderboard": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_orphan_replies",
+        description = "Integrity diagnostic for agent-chat-arc. Walks topic, builds the set of all envelope offsets present, then filters `msg_type=post` envelopes whose `metadata.in_reply_to` is non-empty AND not in that set — i.e. dangling replies pointing to non-existent parents. Returns `[{offset, sender_id, parent_offset, ts_unix_ms, body_preview}, ...]` sorted newest-first. On a healthy topic this should be small or empty; populated results may indicate cross-topic forwards (parent on dm:* / other topic), deleted parents, or hub corruption."
+    )]
+    async fn termlink_agent_orphan_replies(
+        &self,
+        Parameters(p): Parameters<AgentOrphanRepliesParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(100).min(500) as usize;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut all_offsets: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for env in &all {
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !off.is_empty() {
+                all_offsets.insert(off);
+            }
+        }
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let parent = match env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                Some(s) if !s.is_empty() => s,
+                _ => continue,
+            };
+            if all_offsets.contains(parent) { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let parent_off: u64 = parent.parse().unwrap_or(0);
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(p_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).into_owned(),
+                Err(_) => String::new(),
+            };
+            let preview: String = body.chars().take(160).collect();
+            results.push(serde_json::json!({
+                "offset": off,
+                "sender_id": sender,
+                "parent_offset": parent_off,
+                "ts_unix_ms": ts,
+                "body_preview": preview,
+            }));
+        }
+        results.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "total": total,
+            "returned": results.len(),
+            "orphan_replies": results,
         })).unwrap_or_else(json_err)
     }
 
