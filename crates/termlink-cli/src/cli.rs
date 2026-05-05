@@ -4509,6 +4509,90 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// List thread roots on chat-arc (T-1533): thin wrapper over
+    /// `channel threads agent-chat-arc`. Walks the arc, builds an index
+    /// by `metadata.in_reply_to`, returns per-root thread metadata.
+    /// Companion to T-1509 `agent thread <root>` (subtree render):
+    /// threads is the index, thread is the deep-dive.
+    Threads {
+        /// Limit output to N busiest threads (post-sort).
+        #[arg(long)]
+        top: Option<usize>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List retracted posts on chat-arc (T-1534): thin wrapper over
+    /// `channel redactions agent-chat-arc`. Walks the arc, surfaces
+    /// every `msg_type=redaction` envelope. READ companion to T-1531
+    /// `agent redact`.
+    Redactions {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Pin/unpin event log on chat-arc (T-1535): thin wrapper over
+    /// `channel pin-history agent-chat-arc`. Walks the arc, surfaces
+    /// every pin/unpin event in chronological order. Audit companion
+    /// to T-1517 `agent pinned` (current pins) and T-1527 `agent pin`.
+    PinHistory {
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Edit history of a chat-arc post (T-1536): thin wrapper over
+    /// `channel edits-of agent-chat-arc`. Walks the arc and returns
+    /// the chain of edits for `<offset>` (every `msg_type=edit` whose
+    /// `metadata.replaces=<offset>`). READ companion to T-1530
+    /// `agent edit`.
+    EditsOf {
+        /// Offset whose edit history to surface.
+        offset: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// All relations of a chat-arc post (T-1537): thin wrapper over
+    /// `channel relations agent-chat-arc`. Walks the arc and returns
+    /// every envelope pointing AT `<offset>` — replies, edits,
+    /// redactions, reactions, forwards, pins, stars. Single-shot
+    /// "everything that touched offset N" view; pairs with the
+    /// narrower thread/ancestors/reactions/edits-of verbs.
+    Relations {
+        /// Target offset whose relations to surface.
+        offset: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
