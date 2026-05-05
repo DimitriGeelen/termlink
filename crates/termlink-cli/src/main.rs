@@ -299,6 +299,9 @@ async fn main() -> Result<()> {
             AgentAction::Stats { window_secs, top, hub, json } => {
                 commands::agent::cmd_agent_stats(window_secs, top, hub.as_deref(), json).await
             }
+            AgentAction::Quote { offset, hub, json } => {
+                commands::channel::cmd_channel_quote("agent-chat-arc", offset, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
