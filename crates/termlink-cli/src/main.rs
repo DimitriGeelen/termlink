@@ -410,6 +410,18 @@ async fn main() -> Result<()> {
             AgentAction::EditStats { hub, json } => {
                 commands::channel::cmd_channel_edit_stats("agent-chat-arc", hub.as_deref(), json).await
             }
+            AgentAction::PollStart { question, option, hub, json } => {
+                commands::channel::cmd_channel_poll_start("agent-chat-arc", &question, &option, hub.as_deref(), json).await
+            }
+            AgentAction::Vote { poll_id, choice, hub, json } => {
+                commands::channel::cmd_channel_poll_vote("agent-chat-arc", poll_id, choice, hub.as_deref(), json).await
+            }
+            AgentAction::PollEnd { poll_id, hub, json } => {
+                commands::channel::cmd_channel_poll_end("agent-chat-arc", poll_id, hub.as_deref(), json).await
+            }
+            AgentAction::PollResults { poll_id, hub, json } => {
+                commands::channel::cmd_channel_poll_results("agent-chat-arc", poll_id, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

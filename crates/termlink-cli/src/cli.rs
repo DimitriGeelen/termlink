@@ -4675,6 +4675,80 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// Start a poll on chat-arc (T-1543): thin wrapper over
+    /// `channel poll-start agent-chat-arc`. Posts a `msg_type=poll_start`
+    /// envelope with the question and 2+ options. The returned offset
+    /// becomes the canonical poll_id for vote/end/results. First of
+    /// the 4-verb poll suite.
+    PollStart {
+        /// Poll question.
+        question: String,
+
+        /// Poll options (>=2). Repeat the flag for each option.
+        #[arg(long = "option", required = true)]
+        option: Vec<String>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Cast a vote on a chat-arc poll (T-1544): thin wrapper over
+    /// `channel poll-vote agent-chat-arc`. Posts a `msg_type=poll_vote`
+    /// envelope with `poll_id` + zero-indexed `choice`.
+    Vote {
+        /// poll_id (offset of the poll_start envelope).
+        poll_id: u64,
+
+        /// Zero-indexed option choice.
+        choice: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Close a chat-arc poll (T-1545): thin wrapper over
+    /// `channel poll-end agent-chat-arc`. Posts a `msg_type=poll_end`
+    /// envelope referencing the poll_id; late votes are rejected after.
+    PollEnd {
+        /// poll_id to close.
+        poll_id: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Render a chat-arc poll's tally (T-1546): thin wrapper over
+    /// `channel poll-results agent-chat-arc`. Walks the arc, returns
+    /// per-option vote counts + voter lists + status (open/closed).
+    /// READ side of the 4-verb poll suite.
+    PollResults {
+        /// poll_id whose tally to render.
+        poll_id: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions
