@@ -4898,7 +4898,10 @@ pub(crate) enum AgentAction {
     /// (`subscribe --resume` recorded), joins with hub-side topic counts,
     /// and reports unread per tracked topic. Operator's first command for
     /// "what needs my attention now". Companion to T-1512 `agent unread`
-    /// (chat-arc only) and T-1552 `agent dms` (DM directory).
+    /// (chat-arc only) and T-1552 `agent dms` (DM directory). T-1558:
+    /// `--watch` flips on a live monitor refreshing every
+    /// `--watch-interval` seconds — leave a terminal open and watch new
+    /// mail surface as it arrives.
     Inbox {
         /// Override hub address (default: local hub).
         #[arg(long)]
@@ -4907,6 +4910,17 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// Live monitor mode: re-fetch and re-render every
+        /// `--watch-interval` seconds. Incompatible with `--json`.
+        #[arg(long)]
+        watch: bool,
+
+        /// Refresh interval in seconds when `--watch` is set. Clamped to
+        /// [1, 300]. Default 5s — inbox unread counts are not as time-
+        /// sensitive as typing presence (T-1557 uses 1s).
+        #[arg(long, default_value = "5")]
+        watch_interval: u64,
     },
 
     /// Show the local ed25519 identity (T-1554): thin wrapper over

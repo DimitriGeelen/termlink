@@ -472,8 +472,34 @@ async fn main() -> Result<()> {
             AgentAction::Dms { unread, hub, json } => {
                 commands::channel::cmd_channel_dm_list(unread, hub.as_deref(), json).await
             }
-            AgentAction::Inbox { hub, json } => {
-                commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+            AgentAction::Inbox { hub, json, watch, watch_interval } => {
+                if watch && json {
+                    anyhow::bail!(
+                        "--watch and --json are incompatible: --watch streams \
+                         re-rendered text frames; --json is one-shot. Pick one."
+                    );
+                }
+                if watch {
+                    let clamped = watch_interval.clamp(1, 300);
+                    loop {
+                        print!("\x1b[2J\x1b[H");
+                        let now_secs = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
+                        let now_str = manifest::secs_to_rfc3339(now_secs);
+                        println!(
+                            "# agent inbox --watch | interval={}s | {}",
+                            clamped, now_str
+                        );
+                        if let Err(e) = commands::channel::cmd_channel_inbox(hub.as_deref(), false).await {
+                            println!("# fetch error (will retry next tick): {e}");
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(clamped)).await;
+                    }
+                } else {
+                    commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+                }
             }
             AgentAction::Identity { json } => {
                 commands::identity::cmd_identity_show(json)
