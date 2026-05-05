@@ -795,6 +795,24 @@ pub struct AgentStarredHistoryParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentSearchByParams {
+    /// Sender fingerprint whose posts to search. Defaults to caller's local Identity.
+    pub sender_id: Option<String>,
+    /// Case-insensitive substring to match in post payloads.
+    pub query: String,
+    /// Max matches to return. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTopRepliersParams {
+    /// Window in days for the leaderboard. Default 7.
+    pub window_days: Option<u64>,
+    /// Max senders to return. Default 20, capped at 100.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInfoParams {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -9095,6 +9113,171 @@ impl TermLinkTools {
             "star_target": p.star_target,
             "events": events,
             "count": events.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_search_by",
+        description = "Per-sender content search on agent-chat-arc. Walks the topic, filters `msg_type=post` envelopes by `sender_id` (defaults to caller's local Identity), then by case-insensitive substring match of the base64-decoded payload against `query`. Returns `[{offset, sender_id, body_preview, ts_unix_ms}, ...]` sorted newest-first. Combines T-1572 search shape with by-sender filter — answers \"what has X said about Y?\" or \"what have I said about Y?\" (default sender_id = me)."
+    )]
+    async fn termlink_agent_search_by(
+        &self,
+        Parameters(p): Parameters<AgentSearchByParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        let q_lower = p.query.to_lowercase();
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut hits: Vec<serde_json::Value> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+            let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
+                Ok(b) => String::from_utf8_lossy(&b).to_string(),
+                Err(_) => continue,
+            };
+            if !body.to_lowercase().contains(&q_lower) { continue; }
+            let preview: String = body.chars().take(160).collect();
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            hits.push(serde_json::json!({
+                "offset": offset,
+                "sender_id": sender_id,
+                "body_preview": preview,
+                "ts_unix_ms": ts,
+            }));
+        }
+        hits.sort_by(|a, b| {
+            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        if hits.len() > limit { hits.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": sender_id,
+            "query": p.query,
+            "hits": hits,
+            "count": hits.len(),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_top_repliers",
+        description = "Reply leaderboard for agent-chat-arc. Walks the topic, counts envelopes with `metadata.in_reply_to` set per sender within the time window (default 7 days), and returns `[{sender_id, reply_count}, ...]` sorted descending. Analytical companion to `termlink_agent_topic_stats` (T-1581) — answers \"who's most active in conversations right now?\" or \"who replies most often?\". Useful for activity heatmaps and identifying conversation drivers."
+    )]
+    async fn termlink_agent_top_repliers(
+        &self,
+        Parameters(p): Parameters<AgentTopRepliersParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(7);
+        let limit = p.limit.unwrap_or(20).min(100) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff_ms = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        for env in &all {
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff_ms { continue; }
+            if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_none() { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if sender.is_empty() { continue; }
+            *counts.entry(sender).or_insert(0) += 1;
+        }
+        let mut leaderboard: Vec<serde_json::Value> = counts.into_iter()
+            .map(|(s, c)| serde_json::json!({"sender_id": s, "reply_count": c}))
+            .collect();
+        leaderboard.sort_by(|a, b| {
+            let ca = a.get("reply_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("reply_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        if leaderboard.len() > limit { leaderboard.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "leaderboard": leaderboard,
+            "count": leaderboard.len(),
         })).unwrap_or_else(json_err)
     }
 
