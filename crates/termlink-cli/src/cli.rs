@@ -4042,6 +4042,25 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Show reactions on a specific chat-arc post (T-1514): thin wrapper over
+    /// `channel reactions-on agent-chat-arc <offset>`. Aggregates all
+    /// `msg_type=reaction` envelopes whose `metadata.target=<offset>`,
+    /// groups by emoji, prints `{emoji × count — senders}` rows. Pairs
+    /// with `agent quote <offset>` — together they answer "what did this
+    /// post say + how was it received".
+    Reactions {
+        /// Arc offset of the post to inspect (positional, required).
+        offset: u64,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// List every chat-arc envelope whose `metadata.mentions` CSV matches
     /// <USER> (T-1513): thin wrapper over `channel mentions-of agent-chat-arc <user>`.
     /// Distinct from `agent search` (free-text substring across payload):
