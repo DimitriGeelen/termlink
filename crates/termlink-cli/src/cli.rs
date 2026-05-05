@@ -4042,6 +4042,34 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Show a windowed context view around a chat-arc offset (T-1519):
+    /// thin wrapper over `channel snippet agent-chat-arc <offset>`. Picks
+    /// up to N content envelopes on each side (msg_type filtered to
+    /// post/chat/note — meta types excluded), renders a fenced markdown
+    /// block with `>>` marking the target. Distinct from `agent quote`
+    /// (parent + immediate replies) and `agent thread` (subtree): snippet
+    /// is chronological context, not threading.
+    Snippet {
+        /// Arc offset to center the snippet on (positional, required).
+        offset: u64,
+
+        /// Lines of context on each side of the target. Default 3.
+        #[arg(long, default_value_t = 3)]
+        lines: u64,
+
+        /// Print a `From '<topic>' @ offset N:` header above the block.
+        #[arg(long)]
+        header: bool,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// List active pinned posts on agent-chat-arc (T-1517): thin wrapper
     /// over `channel pinned agent-chat-arc`. Computes active pin set
     /// (latest pin/unpin action per target wins) and renders one row per
