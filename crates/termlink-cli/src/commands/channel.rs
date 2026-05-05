@@ -726,6 +726,14 @@ pub(crate) async fn fetch_recent_chat_arc_msgs(
     fetch_topic_msgs("agent-chat-arc", hub, slice_size).await
 }
 
+/// T-1508: fetch ALL envelopes on agent-chat-arc — unbounded by window or
+/// slice. Used by `agent search <query>` for full-lifetime substring lookup.
+/// Multiple round-trips for arcs >1000 envelopes (page size limit).
+pub(crate) async fn fetch_chat_arc_full(hub: Option<&str>) -> Result<Vec<Value>> {
+    let sock = hub_socket(hub)?;
+    walk_topic_full(&sock, "agent-chat-arc").await
+}
+
 /// T-1485: pure helper — find the first non-meta message on a dm topic
 /// posted by `peer_fp` *strictly after* `send_ts_ms`. Used by the ack-wait
 /// poll loop. Returns the timestamp of the first matching message, or None
