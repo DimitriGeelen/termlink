@@ -353,6 +353,9 @@ async fn main() -> Result<()> {
             AgentAction::RepliesOf { sender, hub, json } => {
                 commands::channel::cmd_channel_replies_of("agent-chat-arc", sender.as_deref(), hub.as_deref(), json).await
             }
+            AgentAction::Info { since, hub, json } => {
+                commands::channel::cmd_channel_info("agent-chat-arc", since, hub.as_deref(), json).await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

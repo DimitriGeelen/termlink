@@ -4042,6 +4042,27 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Read agent-chat-arc topic metadata + counts (T-1524): thin wrapper
+    /// over `channel info agent-chat-arc`. Surfaces retention, count,
+    /// latest topic description, distinct senders summary, and per-sender
+    /// receipts. Operator answer to "what is chat-arc + how big + who's
+    /// here + how far behind is each peer".
+    Info {
+        /// Restrict description/senders/receipts computation to envelopes
+        /// since this epoch-ms timestamp. Total count stays unbounded so
+        /// "12 of 23 in last hour" stays visible.
+        #[arg(long)]
+        since: Option<i64>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// List reactions emitted BY a sender on agent-chat-arc (T-1521):
     /// thin wrapper over `channel reactions-of agent-chat-arc`. Distinct
     /// from `agent reactions <offset>` (parent-side aggregation): this is
