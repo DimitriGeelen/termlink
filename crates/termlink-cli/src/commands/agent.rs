@@ -2098,6 +2098,67 @@ pub(crate) async fn cmd_agent_post(
     ).await
 }
 
+/// T-1508: full-arc substring search — unbounded by window. Walks the
+/// entire `agent-chat-arc` topic via `fetch_chat_arc_full`, runs the same
+/// case-insensitive substring filter `extract_recent_posts` already
+/// implements, returns last N matches. Operator answer to "did anyone
+/// ever mention X?" (vs `agent timeline --grep` capped at 7 days).
+pub(crate) async fn cmd_agent_search(
+    query: &str,
+    n: usize,
+    hub: Option<&str>,
+    json: bool,
+) -> Result<()> {
+    if query.trim().is_empty() {
+        let msg = "agent search: query cannot be empty";
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": msg}));
+        }
+        anyhow::bail!(msg);
+    }
+    let clamped_n = n.clamp(1, 500);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    // Effectively unbounded: window is the full now_ms (epoch onward).
+    // extract_recent_posts uses cutoff = now_ms - window_ms; with
+    // window_ms = now_ms, cutoff is 0 — all post-epoch posts pass.
+    let window_ms = now_ms.max(0);
+    let msgs = super::channel::fetch_chat_arc_full(hub)
+        .await
+        .context("Fetching chat-arc full slice for search")?;
+    let posts = super::channel::extract_recent_posts(
+        &msgs,
+        clamped_n,
+        window_ms,
+        now_ms,
+        None,
+        None,
+        None,
+        None,
+        Some(query),
+    );
+    if json {
+        let posts_json: Vec<serde_json::Value> = posts.iter().map(|p| p.to_json()).collect();
+        let envelope = serde_json::json!({
+            "verb": "agent.search",
+            "query": query,
+            "n": clamped_n,
+            "total_envelopes": msgs.len(),
+            "posts": posts_json,
+        });
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        return Ok(());
+    }
+    println!(
+        "# agent search | query={} | scanned={} envelopes | n={}",
+        query, msgs.len(), clamped_n
+    );
+    render_timeline_body(&posts, now_ms);
+    Ok(())
+}
+
 /// T-1507: focus-aware threaded reply on agent-chat-arc. Mirror of
 /// `cmd_agent_post` but threads `reply_to: Some(offset)` through to
 /// `cmd_channel_post`, which writes `metadata.in_reply_to=<offset>`. The

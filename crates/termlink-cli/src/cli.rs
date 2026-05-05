@@ -3930,6 +3930,28 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Search the full chat-arc for a substring (T-1508): unbounded by window.
+    /// `agent recent --grep` and `agent timeline --grep` are window-capped at
+    /// 7 days; `agent search` walks the entire arc and runs the same
+    /// case-insensitive substring filter. Returns the LAST N matches in
+    /// chronological order. Use it to answer "did anyone ever mention X?"
+    Search {
+        /// Substring to search for (positional, required, case-insensitive).
+        query: String,
+
+        /// Limit results to last N matches. Default 20. Clamped to [1, 500].
+        #[arg(long = "n", default_value_t = 20)]
+        n: usize,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Reply to a chat-arc post (T-1507): write counterpart to `agent quote`.
     /// Posts `<text>` with `metadata.in_reply_to=<offset>` so the new envelope
     /// shows the parent chain in subsequent `agent quote <new-offset>` and
