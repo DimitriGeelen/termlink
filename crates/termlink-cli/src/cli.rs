@@ -4042,6 +4042,29 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Lifetime emoji-reaction aggregates for agent-chat-arc (T-1515): thin
+    /// wrapper over `channel emoji-stats agent-chat-arc`. Walks the full
+    /// arc, groups `msg_type=reaction` envelopes by emoji, sorts by count
+    /// desc. Companion to `agent reactions <offset>` (per-post): emoji-stats
+    /// is per-arc — surfaces dominant ack signals fleet-wide.
+    EmojiStats {
+        /// Show per-reactor breakdown under each emoji row.
+        #[arg(long = "by-sender")]
+        by_sender: bool,
+
+        /// Truncate to top N rows. Default: no truncation.
+        #[arg(long)]
+        top: Option<usize>,
+
+        /// Override hub address (default: local hub).
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output result as JSON envelope.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Show reactions on a specific chat-arc post (T-1514): thin wrapper over
     /// `channel reactions-on agent-chat-arc <offset>`. Aggregates all
     /// `msg_type=reaction` envelopes whose `metadata.target=<offset>`,
