@@ -871,6 +871,20 @@ pub struct AgentActiveInThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentPeerEngagementParams {
+    /// First peer fingerprint.
+    pub sender_a: String,
+    /// Second peer fingerprint.
+    pub sender_b: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentActivityRhythmParams {
+    /// Window in days to consider. Default 14.
+    pub window_days: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentSearchThreadParams {
     /// Thread root offset on agent-chat-arc — search is scoped to root + descendants.
     pub root_offset: u64,
@@ -10614,6 +10628,158 @@ impl TermLinkTools {
             "total": total,
             "returned": results.len(),
             "unanswered": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_peer_engagement",
+        description = "Pair-wise interaction count between two peers on agent-chat-arc. Given `sender_a` and `sender_b` fingerprints, walks topic and counts: A→B replies (A's posts whose in_reply_to points to a B-authored post), B→A replies, A→B reactions, B→A reactions. Returns `{sender_a, sender_b, a_to_b_replies, b_to_a_replies, a_to_b_reactions, b_to_a_reactions, total_interactions}`. New axis: peer-pair relationship metric. Useful for \"how engaged are X and Y with each other?\" / collaboration audits."
+    )]
+    async fn termlink_agent_peer_engagement(
+        &self,
+        Parameters(p): Parameters<AgentPeerEngagementParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut author_of: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        for env in &all {
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if off.is_empty() { continue; }
+            let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            author_of.insert(off, s);
+        }
+        let mut a_to_b_replies: u64 = 0;
+        let mut b_to_a_replies: u64 = 0;
+        let mut a_to_b_reactions: u64 = 0;
+        let mut b_to_a_reactions: u64 = 0;
+        for env in &all {
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
+            if parent.is_empty() { continue; }
+            let parent_author = match author_of.get(parent) { Some(s) => s.as_str(), None => continue };
+            let is_a_to_b = sender == p.sender_a && parent_author == p.sender_b;
+            let is_b_to_a = sender == p.sender_b && parent_author == p.sender_a;
+            if !is_a_to_b && !is_b_to_a { continue; }
+            match mt {
+                "post" => {
+                    if is_a_to_b { a_to_b_replies += 1; }
+                    if is_b_to_a { b_to_a_replies += 1; }
+                }
+                "reaction" => {
+                    if is_a_to_b { a_to_b_reactions += 1; }
+                    if is_b_to_a { b_to_a_reactions += 1; }
+                }
+                _ => {}
+            }
+        }
+        let total = a_to_b_replies + b_to_a_replies + a_to_b_reactions + b_to_a_reactions;
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_a": p.sender_a,
+            "sender_b": p.sender_b,
+            "a_to_b_replies": a_to_b_replies,
+            "b_to_a_replies": b_to_a_replies,
+            "a_to_b_reactions": a_to_b_reactions,
+            "b_to_a_reactions": b_to_a_reactions,
+            "total_interactions": total,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_activity_rhythm",
+        description = "24-hour posting histogram on agent-chat-arc. Walks topic in window, buckets posts (msg_type=post) by hour-of-day (UTC), and returns `{window_days, total_posts, by_hour: [{hour, count}, ...]}` with all 24 buckets present (zero-filled). Hour derived as `(ts_unix_ms / 3_600_000) % 24`. New axis: temporal-pattern read. Useful for \"when is chat-arc most active?\" / scheduling broadcasts / detecting timezone clusters across the fleet."
+    )]
+    async fn termlink_agent_activity_rhythm(
+        &self,
+        Parameters(p): Parameters<AgentActivityRhythmParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14);
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut buckets: [u64; 24] = [0; 24];
+        let mut total: u64 = 0;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff || ts <= 0 { continue; }
+            let hour = ((ts / 3_600_000) % 24) as usize;
+            if hour < 24 {
+                buckets[hour] += 1;
+                total += 1;
+            }
+        }
+        let by_hour: Vec<serde_json::Value> = (0..24)
+            .map(|h| serde_json::json!({"hour": h, "count": buckets[h]}))
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "total_posts": total,
+            "by_hour": by_hour,
         })).unwrap_or_else(json_err)
     }
 
