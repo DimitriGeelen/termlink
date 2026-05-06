@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T13:27:35Z
-last_update: 2026-05-06T13:27:35Z
+last_update: 2026-05-06T13:32:56Z
 date_finished: null
 ---
 
@@ -29,21 +29,21 @@ Schema is additive (omitted when None / non-event.broadcast) — existing reader
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `rpc_audit::build_audit_line` accepts an additional `topic: Option<&str>` and emits `"topic":"..."` when Some+non-empty (additive — omitted when None)
-- [ ] Server dispatch site (server.rs ~597) extracts `params.topic` (best-effort) and threads it to `record()`
-- [ ] Existing rpc_audit unit tests still pass (no semantic regression)
-- [ ] New unit test: `build_audit_line` with topic Some emits the field; with None omits it
-- [ ] `fw metrics api-usage --json` for legacy event.broadcast surfaces a `top_topics` array (additive) bucketed by topic when present in audit lines
-- [ ] `cargo build -p termlink-hub` succeeds
-- [ ] `bash tests/test_t1619_metrics_trend_smoke.sh` still passes (no metrics regression)
+- [x] `rpc_audit::build_audit_line` accepts an additional `topic: Option<&str>` and emits `"topic":"..."` when Some+non-empty (additive — omitted when None)
+- [x] Server dispatch site (server.rs ~597) extracts `params.topic` (best-effort) and threads it to `record()`
+- [x] Existing rpc_audit unit tests still pass (no semantic regression) — 38/38
+- [x] New unit test: `build_audit_line` with topic Some emits the field; with None omits it (5 new tests added)
+- [x] `fw metrics api-usage --json` surfaces a `legacy_topics` array (additive) bucketed by (method, topic) when present in audit lines
+- [x] `cargo build -p termlink-hub` succeeds
+- [x] `bash tests/test_t1619_metrics_trend_smoke.sh` still passes (4/4)
 
 ## Verification
 
-cargo build -p termlink-hub --quiet 2>&1 | tail -5
-cargo test -p termlink-hub --lib --quiet rpc_audit 2>&1 | tail -10
-bash tests/test_t1619_metrics_trend_smoke.sh 2>&1 | tail -8
-grep -q '"topic":' crates/termlink-hub/src/rpc_audit.rs
-grep -qE 'params\.(get\("topic"\)|topic)' crates/termlink-hub/src/server.rs
+cargo build -p termlink-hub --quiet
+cargo test -p termlink-hub --lib --quiet rpc_audit 2>&1 | tail -3
+bash tests/test_t1619_metrics_trend_smoke.sh 2>&1 | tail -3
+grep -q 'topic: Option<&str>' crates/termlink-hub/src/rpc_audit.rs
+grep -q 'req.params.get("topic")' crates/termlink-hub/src/server.rs
 
 ## RCA
 
