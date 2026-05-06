@@ -42,6 +42,11 @@ Thumbs.db
 .context/working/.compact-log
 .context/working/.fleet-failure-state.json
 
+# T-1624: cron audit snapshots are 15-min telemetry. On-disk rotation
+# (audit.sh:119: find -mtime +7 -delete) doesn't sync to git → ~600 dirty
+# files per session. Same class as L-028 (ephemeral session state).
+.context/audits/cron/
+
 # Task locks (runtime, per-session)
 .context/locks/
 
