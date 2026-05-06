@@ -595,7 +595,12 @@ async fn handle_connection<S>(
                 // so legacy-caller breakdown is possible in `fw metrics api-usage`.
                 let from = req.params.get("from").and_then(|v| v.as_str());
                 let peer_addr_ref = peer_addr.as_deref();
-                crate::rpc_audit::record(&req.method, from, peer_pid, peer_addr_ref);
+                // T-1622: thread `topic` from params so the legacy event.broadcast
+                // residue can be sliced by destination channel — closes the last
+                // T-1166 visibility gap (operator can ID *which* channels the
+                // residue is going to without SSH+jq on the hub).
+                let topic = req.params.get("topic").and_then(|v| v.as_str());
+                crate::rpc_audit::record(&req.method, from, peer_pid, peer_addr_ref, topic);
                 // T-1311: real-time warn-log when a legacy primitive is dispatched.
                 // Rate-limited to one log per (method, from) per 5 minutes inside
                 // warn_if_legacy. Operator tailing logs sees deprecated usage
