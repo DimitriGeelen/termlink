@@ -4,16 +4,16 @@ name: "fleet doctor summary undercounts WARN (hard-coded total_warn=0)"
 description: >
   fleet doctor summary undercounts WARN (hard-coded total_warn=0)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T11:11:30Z
-last_update: 2026-05-06T11:11:30Z
-date_finished: null
+last_update: 2026-05-06T11:18:16Z
+date_finished: 2026-05-06T11:18:16Z
 ---
 
 # T-1615: fleet doctor summary undercounts WARN (hard-coded total_warn=0)
@@ -27,11 +27,11 @@ Live observation 2026-05-06: 5 hubs all on stale 0.9.0 binaries → 5 [WARN] lin
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `total_warn` declared `mut` (line ~2480 in remote.rs)
-- [ ] Increment `total_warn` whenever a stale-version `[WARN]` is emitted (logical state, regardless of `!json` branch)
-- [ ] `target/release/termlink fleet doctor` now reports correct WARN count matching emitted [WARN] lines
-- [ ] JSON output's `summary.warn` field reflects the same correct count
-- [ ] No regression: PASS / FAIL counts unchanged on the same fleet
+- [x] `total_warn` declared `mut` (line ~2480 in remote.rs)
+- [x] Increment `total_warn` whenever a stale-version `[WARN]` is emitted (logical state, regardless of `!json` branch)
+- [x] `target/release/termlink fleet doctor` now reports correct WARN count matching emitted [WARN] lines
+- [x] JSON output's `summary.warn` field reflects the same correct count
+- [x] No regression: PASS / FAIL counts unchanged on the same fleet
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,3 +124,6 @@ grep -qF "total_warn += 1;" crates/termlink-cli/src/commands/remote.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1615-fleet-doctor-summary-undercounts-warn-ha.md
 - **Context:** Initial task creation
+
+### 2026-05-06T11:18:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
