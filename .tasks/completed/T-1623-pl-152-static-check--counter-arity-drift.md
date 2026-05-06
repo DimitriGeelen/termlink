@@ -4,7 +4,7 @@ name: "PL-152 static check — counter-arity drift detection for stats_for_windo
 description: >
   PL-152 static check — counter-arity drift detection for stats_for_window unpack sites
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T13:38:36Z
-last_update: 2026-05-06T13:38:36Z
-date_finished: null
+last_update: 2026-05-06T13:40:49Z
+date_finished: 2026-05-06T13:40:49Z
 ---
 
 # T-1623: PL-152 static check — counter-arity drift detection for stats_for_window unpack sites
@@ -134,3 +134,6 @@ bash tests/test_t1619_metrics_trend_smoke.sh 2>&1 | tail -3
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1623-pl-152-static-check--counter-arity-drift.md
 - **Context:** Initial task creation
+
+### 2026-05-06T13:40:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

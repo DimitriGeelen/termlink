@@ -4,7 +4,7 @@ name: "topic-field availability signal in api-usage.sh — disambiguate no-traff
 description: >
   topic-field availability signal in api-usage.sh — disambiguate no-traffic vs pre-T-1622 hub
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T16:04:09Z
-last_update: 2026-05-06T16:04:09Z
-date_finished: null
+last_update: 2026-05-06T16:12:50Z
+date_finished: 2026-05-06T16:12:50Z
 ---
 
 # T-1625: topic-field availability signal in api-usage.sh — disambiguate no-traffic vs pre-T-1622 hub
@@ -152,3 +152,6 @@ bash /opt/termlink/tests/test_pl152_counter_arity_static.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1625-topic-field-availability-signal-in-api-u.md
 - **Context:** Initial task creation
+
+### 2026-05-06T16:12:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

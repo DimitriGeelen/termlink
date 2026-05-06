@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1424: Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T16:42:10Z
+# ============================================================================
+
+task_id: T-1424
+task_name: "Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T20:48:04Z
+completed: 2026-05-06T16:42:08Z
+duration_days: 6
+updates_count: 3
+first_commit: 2026-04-30T22:55:28+02:00
+last_commit: 2026-04-30T22:55:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  musl 0.9.1630 deployed to .122 — closes PL-100 build-pipeline gap
+
+# Key outcomes
+outcomes:
+  - "`target/x86_64-unknown-linux-musl/release/termlink` exists, `file` shows static-pie linked, `--version` reports current version (≥0.9.1591) — built 0.9.1630 musl-static, sha b94a64b8..."
+  - "`fleet-deploy-binary.sh ring20-management --probe` succeeds — probe printed `termlink 0.9.1630` from the remote, no ABORT"
+  - "Post-swap `termlink fleet doctor` from .107 shows ring20-management PASS at the new version — confirmed, hub respawned at 37s after kill, version 0.9.1630"
+  - "Cross-host chat-arc still works after swap: post on agent-chat-arc from .122 → readable on .107 — offset 2, sender 9219671e (.122 identity), readable on .107 hub. Three-host chat-arc pattern now in place: 9219671e (.122) + d1993c2c (.107) + earlier 6604a2af (.141) all post-capable to the same topic."
+  - "[REVIEW] Confirm .122 hub stable for 5+ min after swap"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1424-rebuild-musl-target--deploy-091591-to-12.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-30T22:55:28"
+    action: "T-1424: musl 0.9.1630 deployed to .122 — closes PL-100 build-pipeline gap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8394 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8394
+  commits: 1
+  files_changed: 1
+  lines_added: 68
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1424-rebuild-musl-target--deploy-091591-to-12.md
+generated_by: context-agent-hybrid

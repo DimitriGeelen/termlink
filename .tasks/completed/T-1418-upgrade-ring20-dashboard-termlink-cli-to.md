@@ -12,16 +12,16 @@ description: >
   source change to the dashboard's own code. This is the last known holdout
   in the fleet's audit log.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
-components: [target/release/termlink]
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]
 created: 2026-04-30T08:11:23Z
-last_update: 2026-05-03T08:12:21Z
-date_finished: null
+last_update: 2026-05-06T17:00:28Z
+date_finished: 2026-05-06T17:00:28Z
 ---
 
 # T-1418: Upgrade ring20-dashboard termlink-cli to T-1235 build (clear T-1166 cut blocker)
@@ -451,3 +451,7 @@ T-1419's `last_seen_iso` corroborates: `from=(unknown) count=1392 last_seen=2026
 **This is what "T-1235 SDK shim is doing its job" looks like in practice.** The polling agent on .121 spawns fresh `termlink ...` invocations per cycle (no persistent session — each call is a new ephemeral PID). After the binary swap, every new invocation links the upgraded SDK at startup, sees `channel.*` in hub capabilities, and routes through `channel.list` instead of `inbox.status`. The audit log corroborates: 6 `channel.list` calls from .121 in the last ~14 min, zero `inbox.status`.
 
 **Rolling-window age-out:** the 1393 count will drop to 0 within 24h of the swap (i.e. by 2026-05-04T10:06Z). Cut-readiness for .107 transitions from WAIT → CUT-READY at that moment, all-else-equal.
+
+### 2026-05-06T17:00:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

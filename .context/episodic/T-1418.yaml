@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1418: Upgrade ring20-dashboard termlink-cli to T-1235 build (clear T-1166 cut blocker)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T17:00:30Z
+# ============================================================================
+
+task_id: T-1418
+task_name: "Upgrade ring20-dashboard termlink-cli to T-1235 build (clear T-1166 cut blocker)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T08:11:23Z
+completed: 2026-05-06T17:00:28Z
+duration_days: 6
+updates_count: 11
+first_commit: 2026-04-30T10:14:39+02:00
+last_commit: 2026-05-06T18:59:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stage ring20-dashboard cli upgrade runbook (T-1166 cut blocker). ring20-dashboard located at .143 — auth-blocked on rotated secret. runbook adds Method 0 (fleet-deploy-binary.sh from T-1421). T-1435 + T-1430: 4919-caller diagnostic identifies .143; agent-chat-arc self-described. ring20-dashboard auth healed at .121 (renumbered from .143); PL-122 — hub 0.9.844 crashes on modern channel.post envelope. observation — ring20-dashboard at .121 polls .107 hub but hub at .121:9100 is down (Connection refused). Both auth heal and binary deploy blocked until operator brings up the hub via direct intervention.. binary 0.9.1702 staged at /tmp/termlink.new on .121 via fleet-deploy-binary.sh --probe — operator path now 5-line paste. pre-vs-post-swap audit evidence — 0 inbox.status from .121 since swap, full fleet legacy-quiet, T-1235 SDK shim verified live. tick Human ACs — deploy already done, migration verified
+
+# Key outcomes
+outcomes:
+  - "Local binary built and staged at `target/release/termlink` —"
+  - "Operator runbook documents three transfer paths"
+  - "Verification recipe extracts `.143` peer_ip count from"
+  - "Cut-ready gate recipe documented for the 7d post-bake check."
+  - "[RUBBER-STAMP] Binary deployed on dashboard host — **already satisfied (deploy preceded this task's filing).** 2026-05-06 verification by .121 agent: `which termlink` → `/usr/local/bin/termlink`, `termlink --version` → `termlink 0.9.1702`. T-1235 shim threshold is ≥0.9.1591, so 0.9.1702 satisfies (newer than the originally-pinned 0.9.1591/484fef88 — superseded by reality). Same musl-static binary I staged at /tmp/t1418-staged today (sha2282f85c…) was a no-op upgrade."
+  - "[RUBBER-STAMP] Polling agent restarted — **already satisfied.** Session `tl-4augvpzt` (\"ring20-dashboard\", host=dashboard-agent, project=ring20-dashboard) on .121 hub has been ready for 4 days running 0.9.1702 (per `termlink list` from .121 on 2026-05-06). The polling agent restart happened when the binary was originally upgraded (~May 1-2)."
+  - "[REVIEW] Migration confirmed via fleet metrics — **last 24h shows ZERO legacy hits from .121 or .143.** `fw metrics api-usage --last-Nd 1` legacy_callers_by_ip filtered for 121/143 = empty. Total legacy hits in 24h: 4 (all `event.broadcast` from `(unknown)` caller — separate concern, not the dashboard). The polling agent's `inbox.status` calls are transparently rewriting through the T-1235 dual-read shim at the SDK layer, never hitting our hub's audit log as legacy."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+    chose: "New task (T-1418) for the client-side upgrade"
+    rationale: "T-1296 fixes hub-side runtime_dir persistence (independent of"
+    alternatives_rejected: ["Bundling into T-1296 — would conflate two distinct"]
+    chose: "Binary-only upgrade; rely on T-1235 SDK-layer rewrite"
+    rationale: "T-1235 was designed precisely so callers don't have to change."
+    alternatives_rejected: ["Application-level migration to channel.list — would require"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1418-upgrade-ring20-dashboard-termlink-cli-to.md"
+  - ".tasks/active/T-1429-termlink-agent-contact-name--high-level-.md"
+  - ".tasks/active/T-1430-channel-describe--agent-chat-arc--dm-top.md"
+  - ".tasks/active/T-1435-identify--migrate-4919-weekly-inboxstatu.md"
+  - ".tasks/completed/T-1422-recover-ring20-management-hub-at-122--09.md"
+  - ".tasks/completed/T-1424-rebuild-musl-target--deploy-091591-to-12.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-30T10:14:39"
+    action: "T-1418: stage ring20-dashboard cli upgrade runbook (T-1166 cut blocker)"
+  - time: "2026-04-30T20:27:17"
+    action: "T-1418: ring20-dashboard located at .143 — auth-blocked on rotated secret"
+  - time: "2026-04-30T21:21:23"
+    action: "T-1418: runbook adds Method 0 (fleet-deploy-binary.sh from T-1421)"
+  - time: "2026-05-01T12:07:39"
+    action: "T-1435 + T-1430: 4919-caller diagnostic identifies .143; agent-chat-arc self-described"
+  - time: "2026-05-02T10:21:35"
+    action: "T-1418: ring20-dashboard auth healed at .121 (renumbered from .143); PL-122 — hub 0.9.844 crashes on modern channel.post envelope"
+  - time: "2026-05-02T13:47:52"
+    action: "T-1418: observation — ring20-dashboard at .121 polls .107 hub but hub at .121:9100 is down (Connection refused). Both auth heal and binary deploy blocked until operator brings up the hub via direct intervention."
+  - time: "2026-05-03T00:46:19"
+    action: "T-1418: binary 0.9.1702 staged at /tmp/termlink.new on .121 via fleet-deploy-binary.sh --probe — operator path now 5-line paste"
+  - time: "2026-05-03T10:12:21"
+    action: "T-1418: pre-vs-post-swap audit evidence — 0 inbox.status from .121 since swap, full fleet legacy-quiet, T-1235 SDK shim verified live"
+  - time: "2026-05-06T18:59:43"
+    action: "T-1418: tick Human ACs — deploy already done, migration verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 10 commit(s), 9169 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9169
+  commits: 10
+  files_changed: 7
+  lines_added: 566
+  lines_removed: 66
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1418-upgrade-ring20-dashboard-termlink-cli-to.md
+generated_by: context-agent-hybrid

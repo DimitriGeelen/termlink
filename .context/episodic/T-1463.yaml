@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1463: fleet doctor --save-snapshot <path> companion to --diff for routine decay-rate sampling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T05:47:03Z
+# ============================================================================
+
+task_id: T-1463
+task_name: "fleet doctor --save-snapshot <path> companion to --diff for routine decay-rate sampling"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T05:37:31Z
+completed: 2026-05-04T05:43:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T07:43:27+02:00
+last_commit: 2026-05-04T07:43:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --save-snapshot <PATH> + T-1166 doc
+
+# Key outcomes
+outcomes:
+  - "`--save-snapshot <PATH>` flag added to `fleet doctor`. Optional. When provided WITHOUT `--json`, human output still prints; the JSON document is written to PATH atomically (write to PATH.tmp, fsync, rename)."
+  - "When `--save-snapshot` is combined with `--json`, the same JSON is both printed to stdout AND saved to disk (verified: ts_ms 1777873367060 matches in both)."
+  - "If PATH's parent directory does not exist, the command exits non-zero with a clear error before doing fleet-doctor work (fail fast — verified)."
+  - "The saved JSON contains `_snapshot_ts_ms` and `legacy_summary` (jq has() returned true for both)."
+  - "T-1166 migration doc gains a \"Decay-rate sampling\" subsection with the recommended daily workflow + rate-sign reference table."
+  - "`cargo build --release -p termlink` succeeds"
+  - "Smoke: `--legacy-usage --save-snapshot /tmp/t1463-snaps/today.json` → file written, parses, both keys present."
+  - "Round-trip smoke: `--diff` against just-saved snapshot prints \"no change\" with rate 0.00 (flat)."
+  - "Error-path smoke: `--save-snapshot /nonexistent/dir/x.json` exits non-zero with the expected parent-missing message."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "docs/migrations/T-1166-retire-legacy-primitives.md"
+  - ".tasks/active/T-1463-fleet-doctor---save-snapshot-path-compan.md"
+  - ".tasks/completed/T-1462-fleet-doctor---legacy-usage---diff-snaps.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T07:43:27"
+    action: "T-1463: fleet doctor --save-snapshot <PATH> + T-1166 doc"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 6
+  lines_added: 173
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1463-fleet-doctor---save-snapshot-path-compan.md
+generated_by: context-agent-hybrid
