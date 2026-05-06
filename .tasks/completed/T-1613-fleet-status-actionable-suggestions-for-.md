@@ -4,16 +4,16 @@ name: "fleet status: actionable suggestions for misconfigured profiles (Secret-f
 description: >
   fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T09:09:26Z
-last_update: 2026-05-06T09:09:26Z
-date_finished: null
+last_update: 2026-05-06T09:25:35Z
+date_finished: 2026-05-06T09:25:35Z
 ---
 
 # T-1613: fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)
@@ -141,3 +141,6 @@ grep -qF "Stale test-fixture profile" crates/termlink-cli/src/commands/remote.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1613-fleet-status-actionable-suggestions-for-.md
 - **Context:** Initial task creation
+
+### 2026-05-06T09:25:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

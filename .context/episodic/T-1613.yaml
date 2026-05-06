@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1613: fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T09:25:37Z
+# ============================================================================
+
+task_id: T-1613
+task_name: "fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T09:09:26Z
+completed: 2026-05-06T09:25:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-06T11:16:45+02:00
+last_commit: 2026-05-06T11:25:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet status: actionable hints for misconfigured profiles. tighten verification — drop cargo-rebuild, pin to binary-strings (4m+ rebuild was timing out the gate; strings check on the artifact proves the build succeeded just as well). verification — apply PL-080 (avoid SIGPIPE on cmd | grep -q); switch to grep -aqF directly on binary
+
+# Key outcomes
+outcomes:
+  - "`cmd_fleet_status` action-string classifies \"Secret file not found\" failures into stale-test-residue vs genuinely-missing"
+  - "Stale-test-residue (path matches `/tmp/tmp.*` prefix) suggests `termlink remote profile remove <name>` plus a brief reason"
+  - "Genuinely-missing path (non-tempfile) suggests profile inspection + reauth incantation"
+  - "No regression for AUTH-FAIL, Connection-refused/Cannot-connect, or Timeout classifications (existing branches untouched)"
+  - "`cargo build --release` clean — 5m04s, 1 pre-existing unused-assignment warning unrelated"
+  - "`target/release/termlink fleet status` for testhub showed: \"Stale test-fixture profile (secret_file under /tmp/tmp.* — cargo TempDir residue). Remove with: termlink remote profile remove testhub\" — dogfooded, command worked, testhub gone, fleet now clean (5 up / 0 down)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1613-fleet-status-actionable-suggestions-for-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T11:16:45"
+    action: "T-1613: fleet status: actionable hints for misconfigured profiles"
+  - time: "2026-05-06T11:25:08"
+    action: "T-1613: tighten verification — drop cargo-rebuild, pin to binary-strings (4m+ rebuild was timing out the gate; strings check on the artifact proves the build succeeded just as well)"
+  - time: "2026-05-06T11:25:35"
+    action: "T-1613: verification — apply PL-080 (avoid SIGPIPE on cmd | grep -q); switch to grep -aqF directly on binary"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 3
+  files_changed: 2
+  lines_added: 167
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1613-fleet-status-actionable-suggestions-for-.md
+generated_by: context-agent-hybrid
