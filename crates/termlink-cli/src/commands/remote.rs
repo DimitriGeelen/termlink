@@ -2257,6 +2257,26 @@ pub(crate) async fn cmd_fleet_status(
                             "{}: Hub process not running — start via: ssh root@{} systemctl start termlink-hub",
                             name, entry.address.split(':').next().unwrap_or(&entry.address)
                         ));
+                    } else if msg.contains("Secret file not found") {
+                        // T-1613: stale-test-residue vs genuinely-missing classification.
+                        // Cargo's TempDir places per-test fixtures under /tmp/tmp.<rand>/...
+                        // — once the test process exits those paths vanish but the
+                        // saved hubs.toml profile keeps pointing at them, leaving
+                        // permanent DOWN noise in fleet status. Detect and suggest
+                        // direct removal. Other "Secret file not found" cases
+                        // (operator-supplied path that simply isn't there yet) get
+                        // the inspection + reauth incantation instead.
+                        if msg.contains("/tmp/tmp.") {
+                            actions.push(format!(
+                                "{}: Stale test-fixture profile (secret_file under /tmp/tmp.* — cargo TempDir residue). Remove with: termlink remote profile remove {}",
+                                name, name
+                            ));
+                        } else {
+                            actions.push(format!(
+                                "{}: Secret file missing — inspect profile (`termlink remote profile list {}`), then either fix the secret_file path or run `termlink fleet reauth {} --bootstrap-from ssh:<host>`",
+                                name, name, name
+                            ));
+                        }
                     } else {
                         actions.push(format!("{}: {}", name, msg));
                     }
