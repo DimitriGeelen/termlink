@@ -256,7 +256,8 @@ concerns:
   mitigation_candidate: "Short-term: operator creates the tap repo. Medium-term: `fw task verify` could accept a `gh-repo-exists:owner/name` verifier and the like. Long-term: rename the Agent/Human AC split to (Verifiable/Unverifiable) or (Local/External) to make explicit what the framework can and cannot attest."
   status: watching
   created: 2026-04-19
-  last_reviewed: 2026-04-19
+  last_reviewed: 2026-05-06
+  reprobe_evidence: "2026-05-06: `gh repo view DimitriGeelen/homebrew-termlink` still returns 'GraphQL: Could not resolve to a Repository'; `curl -sI https://github.com/DimitriGeelen/homebrew-termlink` returns HTTP/2 404. Detection-lag continues to grow (51 days as of probe). External-world verifier on T-212 (mitigation_landed 2026-04-26) is preventing accidental re-completion but not closing the underlying gap. Operator action remains pending: create the tap repo on GitHub. PL-150 quiescence-check applied; gap is NOT quiescent."
   related_tasks: [T-212, T-1141]
 
 - id: G-011
