@@ -2477,7 +2477,10 @@ pub(crate) async fn cmd_fleet_doctor(
 
     let mut hub_results: Vec<serde_json::Value> = Vec::new();
     let mut total_pass: u32 = 0;
-    let total_warn: u32 = 0;
+    // T-1615: was hard-coded to 0 — summary footer reported `0 warn` regardless
+    // of how many `[WARN]` lines fired in the body. Now incremented at each
+    // WARN-emit site (currently: stale-version detection in PASS branch).
+    let mut total_warn: u32 = 0;
     let mut total_fail: u32 = 0;
     // T-1132: aggregate binary versions across the fleet. `unknown` covers hubs
     // that failed to connect or that pre-date the hub.version RPC.
@@ -2611,8 +2614,12 @@ pub(crate) async fn cmd_fleet_doctor(
                 // than the git-derived freshness signal. Operator can't tell
                 // "I'm running latest" from "I haven't restarted in weeks".
                 let version_stale = hub_version == "0.9.0";
-                if version_stale && let Some(obj) = hub_obj.as_object_mut() {
-                    obj.insert("version_stale".to_string(), serde_json::Value::Bool(true));
+                if version_stale {
+                    // T-1615: count this as WARN regardless of json/text mode.
+                    total_warn += 1;
+                    if let Some(obj) = hub_obj.as_object_mut() {
+                        obj.insert("version_stale".to_string(), serde_json::Value::Bool(true));
+                    }
                 }
                 hub_results.push(hub_obj);
                 if !json {
