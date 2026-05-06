@@ -444,10 +444,11 @@ concerns:
   what_works_now: "Manual restoration via git mv works — file is back in active/ with status=started-work and decision still pending, captured in commit 9352d823. Watchtower /inceptions list now shows T-1448 again."
   what_remains: "1. Identify which framework code path silently finalizes an inception when the commit gate threshold is exceeded — inception gate should BLOCK the commit, not COMPLETE the task. 2. Add an integration test: create inception, accumulate 3+ exploration commits, attempt 4th — expect commit BLOCKED, not task auto-completed. 3. Audit episodic snapshots generated without a corresponding decision — they are evidence of the same bug firing on other inceptions. 4. Watchtower could surface 'inceptions completed without decision recorded' as an anomaly to detect future fires."
   mitigation_candidate: "Tactical: nothing structural until root cause identified. Operators noticing missing inceptions can restore via git mv + sed (recipe demonstrated in commit 9352d823). Structural: framework PR after root-cause hunt to make the gate BLOCK rather than COMPLETE."
-  status: watching
+  status: mitigated
+  resolution: "T-1626 (2026-05-06): Added check_inception_decision() to update-task.sh — fires on --status work-completed for workflow_type=inception, blocks unless `**Decision**: GO|NO-GO|DEFER` line is present in body. Bypass via --skip-inception-decision (logged) or --force. Regression test in tests/test_g052_inception_decision_gate.sh (3/3 PASS). Mirrored upstream to /opt/999-AEF (commit 04b0d474a). Local commit 45bc3169. Root cause was: the commit-msg hook only blocks COMMITS with no decision, but the lifecycle path that finalizes a task (update-task.sh status transition) had no equivalent gate — so any path that called update-task.sh with --status work-completed on an inception task with empty ACs would silently auto-finalize. The gate is now symmetric: both commit-msg AND update-task.sh refuse to let an inception complete without a decision. Captured as PL-153 (dual-gate principle for lifecycle discipline)."
   created: 2026-05-02
-  last_reviewed: 2026-05-02
-  related_tasks: [T-1448, T-1216]
+  last_reviewed: 2026-05-06
+  related_tasks: [T-1448, T-1216, T-1626]
 
 - id: G-053
   type: gap
