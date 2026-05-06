@@ -2252,11 +2252,21 @@ pub(crate) async fn cmd_fleet_status(
                         eprintln!("  \x1b[31mDOWN\x1b[0m  {:<20} {:<24} {}",
                             name, entry.address, msg);
                     }
-                    if msg.contains("Cannot connect") || msg.contains("Connection refused") {
+                    if msg.contains("Connection refused") {
+                        // Specifically: kernel listening, no process bound to port — RST.
+                        // Means hub binary isn't running but host is reachable.
                         actions.push(format!(
                             "{}: Hub process not running — start via: ssh root@{} systemctl start termlink-hub",
                             name, entry.address.split(':').next().unwrap_or(&entry.address)
                         ));
+                    } else if msg.contains("No route to host")
+                        || msg.contains("Network is unreachable")
+                        || msg.contains("Cannot connect")
+                    {
+                        // T-1614: kernel can't even reach the host — different probe path
+                        // than Connection-refused. Pre-T-1614 this branch sent operators
+                        // chasing systemd on a host they couldn't ssh to.
+                        actions.push(classify_unreachable_hint(name, &entry.address));
                     } else if msg.contains("Secret file not found") {
                         // T-1613: stale-test-residue vs genuinely-missing classification.
                         // Cargo's TempDir places per-test fixtures under /tmp/tmp.<rand>/...
@@ -2297,10 +2307,11 @@ pub(crate) async fn cmd_fleet_status(
                     eprintln!("  \x1b[31mDOWN\x1b[0m  {:<20} {:<24} timeout after {}s",
                         name, entry.address, timeout_secs);
                 }
-                actions.push(format!(
-                    "{}: Timeout — check network connectivity to {}",
-                    name, entry.address
-                ));
+                // T-1614: classify by address kind for actionable hint.
+                // Generic "check connectivity" restates the symptom; the operator
+                // wants to know WHICH probe to run first. Helper distinguishes
+                // loopback / RFC5737 / RFC1918 / public.
+                actions.push(classify_unreachable_hint(name, &entry.address));
             }
         }
     }
@@ -3139,6 +3150,61 @@ pub(crate) async fn cmd_fleet_doctor(
     }
 
     Ok(())
+}
+
+/// T-1614: Build an actionable hint for an unreachable hub based on the
+/// address kind. Used by both the "Cannot connect / no route" branch and
+/// the timeout branch in `cmd_fleet_status` — both indicate the operator
+/// can't reach the hub, but the next probe depends on whether the address
+/// is loopback, RFC5737 documentation range, RFC1918 private, or public.
+///
+/// Connection-refused (RST from a listening kernel without a bound port)
+/// stays specialized in the caller — that's "process not running", a
+/// different operator response.
+fn classify_unreachable_hint(name: &str, address: &str) -> String {
+    let host = address.split(':').next().unwrap_or(address);
+    let port = address.split(':').nth(1).unwrap_or("?");
+    if host == "localhost" || host.starts_with("127.") {
+        format!(
+            "{}: Localhost unreachable — hub not running on this host. Start with: termlink hub start (verify with: termlink hub status)",
+            name
+        )
+    } else if host.starts_with("192.0.2.")
+        || host.starts_with("198.51.100.")
+        || host.starts_with("203.0.113.")
+    {
+        format!(
+            "{}: Profile points at {} (RFC5737 documentation/test range — never routable). Stale config; remove with: termlink remote profile remove {}",
+            name, host, name
+        )
+    } else if is_rfc1918(host) {
+        format!(
+            "{}: Private-network hub at {} unreachable — verify route + remote process. Probe: nc -zv {} {} ; ssh root@{} systemctl status termlink-hub",
+            name, host, host, port, host
+        )
+    } else {
+        format!(
+            "{}: Network unreachable to {} — likely firewall/route. Probe: nc -zv {} {} ; ping -c2 {}",
+            name, address, host, port, host
+        )
+    }
+}
+
+/// T-1614: Match RFC1918 private network ranges (10/8, 172.16/12, 192.168/16).
+/// Used by the fleet-status TIMEOUT hint to distinguish "remote private hub
+/// unreachable" from generic "public/firewall block" — different probes apply.
+fn is_rfc1918(host: &str) -> bool {
+    if host.starts_with("10.") || host.starts_with("192.168.") {
+        return true;
+    }
+    if let Some(rest) = host.strip_prefix("172.") {
+        if let Some(second_octet) = rest.split('.').next() {
+            if let Ok(n) = second_octet.parse::<u8>() {
+                return (16..=31).contains(&n);
+            }
+        }
+    }
+    false
 }
 
 /// T-1034: Classify fleet doctor errors into actionable diagnostic hints.
@@ -4412,6 +4478,44 @@ mod tests {
                 "scope {scope} failed at secret length: {msg}"
             );
         }
+    }
+
+    // -------------------------------------------------------------------
+    // T-1614: is_rfc1918 helper for fleet-status TIMEOUT classification
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn is_rfc1918_matches_canonical_ranges() {
+        // 10.0.0.0/8
+        assert!(is_rfc1918("10.0.0.1"));
+        assert!(is_rfc1918("10.255.255.255"));
+        // 192.168.0.0/16
+        assert!(is_rfc1918("192.168.1.1"));
+        assert!(is_rfc1918("192.168.255.255"));
+        // 172.16.0.0/12 — boundaries
+        assert!(is_rfc1918("172.16.0.1"));
+        assert!(is_rfc1918("172.31.255.255"));
+        assert!(is_rfc1918("172.20.10.5"));
+    }
+
+    #[test]
+    fn is_rfc1918_rejects_outside_ranges() {
+        // Public IPs
+        assert!(!is_rfc1918("8.8.8.8"));
+        assert!(!is_rfc1918("1.1.1.1"));
+        // 172.x boundaries (just outside 16-31)
+        assert!(!is_rfc1918("172.15.0.1"));
+        assert!(!is_rfc1918("172.32.0.1"));
+        // RFC5737 documentation ranges (must NOT match RFC1918)
+        assert!(!is_rfc1918("192.0.2.1"));
+        assert!(!is_rfc1918("198.51.100.1"));
+        assert!(!is_rfc1918("203.0.113.1"));
+        // Loopback (handled separately in TIMEOUT classifier)
+        assert!(!is_rfc1918("127.0.0.1"));
+        // Garbage / hostnames
+        assert!(!is_rfc1918("localhost"));
+        assert!(!is_rfc1918("not.an.ip"));
+        assert!(!is_rfc1918(""));
     }
 
     // -------------------------------------------------------------------
