@@ -1331,3 +1331,10 @@ learnings:
   date: 2026-05-06
   context: Added via context agent
   application: TBD
+- id: PL-154
+  learning: "Operator-triage flag pattern for fw verbs: when a no-arg list verb emits >50 lines for >100 items, add --compact (one-line per item with key facets), --by-age (oldest first), and --rubber-stamp-only / --review-only filters. Default output stays unchanged for backward compat. Validated on 'fw task verify' (T-1628): 740-line default became scannable, RUBBER-STAMP filter cut from 146 to 5 actionable items."
+  source: P-001
+  task: T-1628
+  date: 2026-05-06
+  context: Added via context agent
+  application: TBD
