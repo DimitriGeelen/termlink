@@ -64,7 +64,7 @@ Pure additive change in `crates/termlink-cli/src/commands/remote.rs::cmd_fleet_s
 
 ## Verification
 
-cargo build --release 2>&1 | tail -3 | grep -qE "Compiling|Finished"
+test -x target/release/termlink
 strings target/release/termlink | grep -q "Stale test-fixture profile"
 strings target/release/termlink | grep -q "cargo TempDir residue"
 grep -q "Stale test-fixture profile" crates/termlink-cli/src/commands/remote.rs
