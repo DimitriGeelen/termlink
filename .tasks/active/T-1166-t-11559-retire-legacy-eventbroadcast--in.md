@@ -24,6 +24,15 @@ Final migration phase per T-1155 §"Migration strategy Phase 4": retire the lega
 
 This task is deliberately gated: it has entry criteria that block starting too early. Framework sovereignty (R-033) applies — final retirement is a Tier-2 authorized action.
 
+## Cut Projection (2026-05-06)
+
+**Projected cut-flip date: 2026-05-10** — see
+[`docs/reports/T-1627-t1166-cut-flip-projection-2026-05-06.md`](../../docs/reports/T-1627-t1166-cut-flip-projection-2026-05-06.md)
+for the per-day decay table, methodology, and operator runbook.
+
+Quick re-verification command:
+`cd /opt/termlink && .agentic-framework/bin/fw metrics api-usage --cut-ready --json`
+
 ## Acceptance Criteria
 
 ### Agent
