@@ -3147,6 +3147,30 @@ pub(crate) async fn cmd_fleet_doctor(
                 );
             }
         }
+
+        // T-1617: action-items rollup. Aggregates per-class signals into a
+        // single block so the operator gets at-a-glance "what to do" without
+        // parsing N identical per-hub WARN lines. Per-hub detail above is
+        // preserved; this is a roll-up summary.
+        let stale_count = fleet_versions.get("0.9.0").copied().unwrap_or(0);
+        let total_hubs = hub_results.len() as u32;
+        let any_action = stale_count > 0 || total_fail > 0;
+        if any_action {
+            eprintln!();
+            eprintln!("Action items:");
+            if stale_count > 0 {
+                eprintln!(
+                    "  - Version skew: {}/{} hubs on 0.9.0 — restart hub processes to pick up newer binary (CLI is on {})",
+                    stale_count, total_hubs, cli_version
+                );
+            }
+            if total_fail > 0 {
+                eprintln!(
+                    "  - Failed hubs: {} hub(s) returned errors above — see [FAIL]/hint lines for per-hub diagnostic",
+                    total_fail
+                );
+            }
+        }
     }
 
     // T-1465: verdict-mapped exit code, applied AFTER all output is produced
