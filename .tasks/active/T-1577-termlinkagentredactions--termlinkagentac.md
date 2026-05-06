@@ -4,16 +4,16 @@ name: "termlink_agent_redactions + termlink_agent_ack_status — curation log + 
 description: >
   termlink_agent_redactions + termlink_agent_ack_status — curation log + receipt frontiers MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T17:07:19Z
-last_update: 2026-05-05T17:07:19Z
-date_finished: null
+last_update: 2026-05-05T17:13:09Z
+date_finished: 2026-05-05T17:13:09Z
 ---
 
 # T-1577: termlink_agent_redactions + termlink_agent_ack_status — curation log + receipt frontiers MCP read tools
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_ack_status"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1577-termlinkagentredactions--termlinkagentac.md
 - **Context:** Initial task creation
+
+### 2026-05-05T17:13:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

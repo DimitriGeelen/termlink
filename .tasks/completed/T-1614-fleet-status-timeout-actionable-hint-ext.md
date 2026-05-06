@@ -1,36 +1,52 @@
 ---
-id: T-1572
-name: "termlink_agent_search — MCP read tool for chat-arc substring search"
+id: T-1614
+name: "fleet-status TIMEOUT actionable hint (extend T-1613)"
 description: >
-  termlink_agent_search — MCP read tool for chat-arc substring search
+  fleet-status TIMEOUT actionable hint (extend T-1613)
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
-created: 2026-05-05T14:07:45Z
-last_update: 2026-05-05T14:13:17Z
-date_finished: 2026-05-05T14:13:16Z
+created: 2026-05-06T10:47:39Z
+last_update: 2026-05-06T11:08:15Z
+date_finished: 2026-05-06T11:08:15Z
 ---
 
-# T-1572: termlink_agent_search — MCP read tool for chat-arc substring search
+# T-1614: fleet-status TIMEOUT actionable hint (extend T-1613)
 
 ## Context
 
-T-1571 shipped the topic-walk read primitive (`termlink_agent_recent`). This wave layers a substring-match filter on top: `termlink_agent_search` walks agent-chat-arc, base64-decodes payloads, returns envelopes whose payload contains the query string. Mirrors CLI T-1508 `agent search <query>`. Case-insensitive by default; honors `peer_fp` + `msg_type_filter` on top of the substring check. Limit defaults to 100 (search results often want more than the 20 default of `agent_recent`).
+T-1613 added per-class actionable hints for `fleet status` failures, but the
+TIMEOUT branch (line 2300 in `crates/termlink-cli/src/commands/remote.rs`) still
+emits a generic "check network connectivity to {addr}" — restating the symptom
+rather than directing the next operator action. This task classifies the
+timeout by the address kind so the hint actually tells the operator which probe
+to run first:
+
+- **Loopback** (127.x, localhost) → hub not running locally, `termlink hub start`
+- **RFC5737 test ranges** (192.0.2.x, 198.51.100.x, 203.0.113.x) → stale config
+  pointing at documentation IPs; remove the profile
+- **RFC1918 private** (10/8, 172.16/12, 192.168/16) → route + remote process check;
+  `nc -zv` + `ssh systemctl status`
+- **Other** (public/routable) → likely firewall/route; `nc -zv` + `ping`
+
+Synthetic dogfood: add a profile pointing at `192.0.2.1` (RFC5737 TEST-NET-1,
+guaranteed to time out as it's documented as never routable), run
+`fleet status`, observe the new RFC5737-class hint, then remove the profile.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] New `AgentSearchParams` struct (query required, limit Option, peer_fp Option, msg_type_filter Option, case_sensitive Option)
-- [x] New `termlink_agent_search` tool method that walks + filters + returns matches (newest-first)
-- [x] Substring match against base64-decoded payload (utf8 lossy)
-- [x] `cargo build --release` clean
-- [x] MCP tool count increments to >=90
-- [x] `termlink version --json` reports the new mcp_tools count
+- [x] `is_rfc1918()` helper added near `classify_fleet_error` in remote.rs, matches 10/8, 172.16-31/12, 192.168/16
+- [x] TIMEOUT branch (around line 2300 in `cmd_fleet_status`) replaced with 4-way classification (loopback / RFC5737 / RFC1918 / other)
+- [x] Each class produces a distinct, copy-pasteable hint string
+- [x] `cargo test --package termlink-cli is_rfc1918` passes (≥2 unit tests)
+- [x] Synthetic dogfood: add a profile pointing at 192.0.2.1, run `target/release/termlink fleet status`, observe the RFC5737-class hint emitted, capture the output, remove the profile
+- [x] No regression in existing fleet status output for already-DOWN profiles (Connection refused, Secret file not found classes still hit their existing hints)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,26 +62,20 @@ T-1571 shipped the topic-walk read primitive (`termlink_agent_recent`). This wav
          **Expected:** All panels visible, no console errors
          **If not:** Screenshot the broken panel and note the console error
 -->
-- [ ] [REVIEW] Verify `termlink_agent_search` is operator-fluent over MCP
-  **Steps:**
-  1. From an MCP-aware client, call `termlink_agent_search` with query="MCP"
-  2. Compare with `target/release/termlink agent search MCP`
-  **Expected:** MCP returns matching envelopes; CLI search shows similar set.
-  **If not:** report ergonomics suggestions.
 
 ## Verification
 
-cargo build --release 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink version --json 2>&1 | grep -qE '"mcp_tools":\s*(9[0-9]|1[0-9][0-9])'
-grep -q '"termlink_agent_search"' crates/termlink-mcp/src/tools.rs
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+test -x target/release/termlink
+grep -aqF "RFC5737 documentation/test range" target/release/termlink
+grep -aqF "Localhost unreachable" target/release/termlink
+grep -aqF "Private-network hub" target/release/termlink
+grep -qF "fn is_rfc1918" crates/termlink-cli/src/commands/remote.rs
+
+## Recommendation
+
+**Recommendation:** GO (extends T-1613 ship; same pattern, same operator-fluent value).
+**Rationale:** Operator gets actionable next-step instead of restated symptom. Synthetic dogfood (192.0.2.1 RFC5737) gives end-to-end validation without needing real infrastructure breakage.
+**Evidence:** T-1613 dogfooded the same shape — Secret-file-not-found stale-test-residue hint surfaced the right command and shipped real value (testhub cleanup).
 
 ## RCA
 
@@ -107,15 +117,6 @@ grep -q '"termlink_agent_search"' crates/termlink-mcp/src/tools.rs
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-## Recommendation
-
-**Recommendation:** GO
-**Rationale:** Second MCP read tool, builds on T-1571's topic-walk pattern. Walks agent-chat-arc + base64-decodes payloads + substring-matches against the query. Filters: peer_fp, msg_type, case_sensitive. MCP-aware agents can now grep the chat-arc for specific content without shelling out — completes the foundation for the natural read trio (recent, search, on-thread).
-**Evidence:**
-- Build clean (3m 56s)
-- `termlink version --json` reports mcp_tools=90 (was 89 after T-1571) — round-number milestone
-- Verification gate 3/3 passed
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -129,10 +130,10 @@ grep -q '"termlink_agent_search"' crates/termlink-mcp/src/tools.rs
 
 ## Updates
 
-### 2026-05-05T14:07:45Z — task-created [task-create-agent]
+### 2026-05-06T10:47:39Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1572-termlinkagentsearch--mcp-read-tool-for-c.md
+- **Output:** /opt/termlink/.tasks/active/T-1614-fleet-status-timeout-actionable-hint-ext.md
 - **Context:** Initial task creation
 
-### 2026-05-05T14:13:16Z — status-update [task-update-agent]
+### 2026-05-06T11:08:15Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

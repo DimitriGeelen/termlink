@@ -4,7 +4,7 @@ name: "termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate
 description: >
   termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T19:51:32Z
-last_update: 2026-05-05T19:51:32Z
-date_finished: null
+last_update: 2026-05-05T19:57:52Z
+date_finished: 2026-05-05T19:57:52Z
 ---
 
 # T-1590: termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_who_is"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1590-termlinkagentenvelope--termlinkagentwhoi.md
 - **Context:** Initial task creation
+
+### 2026-05-05T19:57:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m13s, mcp_tools=126. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

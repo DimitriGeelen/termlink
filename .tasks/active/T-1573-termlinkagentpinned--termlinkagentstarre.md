@@ -4,16 +4,16 @@ name: "termlink_agent_pinned + termlink_agent_starred — MCP read tools for cha
 description: >
   termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T16:20:38Z
-last_update: 2026-05-05T16:20:38Z
-date_finished: null
+last_update: 2026-05-05T16:30:11Z
+date_finished: 2026-05-05T16:30:11Z
 ---
 
 # T-1573: termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_starred"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1573-termlinkagentpinned--termlinkagentstarre.md
 - **Context:** Initial task creation
+
+### 2026-05-05T16:30:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "termlink_agent_thread_depth + termlink_agent_quiet_threads — tree-shape
 description: >
   termlink_agent_thread_depth + termlink_agent_quiet_threads — tree-shape diagnostics + low-engagement thread leaderboard MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T05:44:39Z
-last_update: 2026-05-06T05:44:39Z
-date_finished: null
+last_update: 2026-05-06T05:52:24Z
+date_finished: 2026-05-06T05:52:24Z
 ---
 
 # T-1603: termlink_agent_thread_depth + termlink_agent_quiet_threads — tree-shape diagnostics + low-engagement thread leaderboard MCP read tools
@@ -150,3 +150,7 @@ grep -q '"termlink_agent_quiet_threads"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1603-termlinkagentthreaddepth--termlinkagentq.md
 - **Context:** Initial task creation
+
+### 2026-05-06T05:52:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 9/9, build clean 5m22s, mcp_tools=152. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

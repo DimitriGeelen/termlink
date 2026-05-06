@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1614: fleet-status TIMEOUT actionable hint (extend T-1613)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T11:08:17Z
+# ============================================================================
+
+task_id: T-1614
+task_name: "fleet-status TIMEOUT actionable hint (extend T-1613)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T10:47:39Z
+completed: 2026-05-06T11:08:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-06T13:07:54+02:00
+last_commit: 2026-05-06T13:07:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet status — actionable hint for unreachable hubs (RFC5737 / RFC1918 / loopback / public)
+
+# Key outcomes
+outcomes:
+  - "`is_rfc1918()` helper added near `classify_fleet_error` in remote.rs, matches 10/8, 172.16-31/12, 192.168/16"
+  - "TIMEOUT branch (around line 2300 in `cmd_fleet_status`) replaced with 4-way classification (loopback / RFC5737 / RFC1918 / other)"
+  - "Each class produces a distinct, copy-pasteable hint string"
+  - "`cargo test --package termlink-cli is_rfc1918` passes (≥2 unit tests)"
+  - "Synthetic dogfood: add a profile pointing at 192.0.2.1, run `target/release/termlink fleet status`, observe the RFC5737-class hint emitted, capture the output, remove the profile"
+  - "No regression in existing fleet status output for already-DOWN profiles (Connection refused, Secret file not found classes still hit their existing hints)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1614-fleet-status-timeout-actionable-hint-ext.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T13:07:54"
+    action: "T-1614: fleet status — actionable hint for unreachable hubs (RFC5737 / RFC1918 / loopback / public)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 1
+  files_changed: 2
+  lines_added: 245
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1614-fleet-status-timeout-actionable-hint-ext.md
+generated_by: context-agent-hybrid

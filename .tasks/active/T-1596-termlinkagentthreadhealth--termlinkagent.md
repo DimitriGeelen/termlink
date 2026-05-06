@@ -4,16 +4,16 @@ name: "termlink_agent_thread_health + termlink_agent_engagement_rate — composi
 description: >
   termlink_agent_thread_health + termlink_agent_engagement_rate — composite thread aliveness score + per-sender reply-rate metric MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T22:38:01Z
-last_update: 2026-05-05T22:38:01Z
-date_finished: null
+last_update: 2026-05-05T22:44:56Z
+date_finished: 2026-05-05T22:44:56Z
 ---
 
 # T-1596: termlink_agent_thread_health + termlink_agent_engagement_rate — composite thread aliveness score + per-sender reply-rate metric MCP read tools
@@ -127,3 +127,7 @@ grep -q '"termlink_agent_engagement_rate"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1596-termlinkagentthreadhealth--termlinkagent.md
 - **Context:** Initial task creation
+
+### 2026-05-05T22:44:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 5m09s, mcp_tools=138. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

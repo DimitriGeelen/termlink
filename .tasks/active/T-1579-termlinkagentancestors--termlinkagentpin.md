@@ -4,16 +4,16 @@ name: "termlink_agent_ancestors + termlink_agent_pin_history — reply-chain wal
 description: >
   termlink_agent_ancestors + termlink_agent_pin_history — reply-chain walk + curation event log MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T17:28:26Z
-last_update: 2026-05-05T17:28:26Z
-date_finished: null
+last_update: 2026-05-05T17:34:24Z
+date_finished: 2026-05-05T17:34:24Z
 ---
 
 # T-1579: termlink_agent_ancestors + termlink_agent_pin_history — reply-chain walk + curation event log MCP read tools
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_pin_history"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1579-termlinkagentancestors--termlinkagentpin.md
 - **Context:** Initial task creation
+
+### 2026-05-05T17:34:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

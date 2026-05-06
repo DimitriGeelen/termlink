@@ -4,16 +4,16 @@ name: "termlink_agent_top_pinners + termlink_agent_top_starrers — most-active 
 description: >
   termlink_agent_top_pinners + termlink_agent_top_starrers — most-active curators leaderboards MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T07:27:11Z
-last_update: 2026-05-06T07:27:11Z
-date_finished: null
+last_update: 2026-05-06T07:34:28Z
+date_finished: 2026-05-06T07:34:28Z
 ---
 
 # T-1611: termlink_agent_top_pinners + termlink_agent_top_starrers — most-active curators leaderboards MCP read tools
@@ -133,3 +133,7 @@ grep -q '"termlink_agent_top_starrers"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1611-termlinkagenttoppinners--termlinkagentto.md
 - **Context:** Initial task creation
+
+### 2026-05-06T07:34:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 8/8, build clean 5m17s, mcp_tools=168. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

@@ -4,7 +4,7 @@ name: "termlink_agent_busiest_threads + termlink_agent_recent_decisions — top-
 description: >
   termlink_agent_busiest_threads + termlink_agent_recent_decisions — top-thread leaderboard + decision-bearing post heuristic search MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T19:39:28Z
-last_update: 2026-05-05T19:39:28Z
-date_finished: null
+last_update: 2026-05-05T19:46:02Z
+date_finished: 2026-05-05T19:46:02Z
 ---
 
 # T-1589: termlink_agent_busiest_threads + termlink_agent_recent_decisions — top-thread leaderboard + decision-bearing post heuristic search MCP read tools
@@ -125,3 +125,7 @@ grep -q '"termlink_agent_recent_decisions"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1589-termlinkagentbusiestthreads--termlinkage.md
 - **Context:** Initial task creation
+
+### 2026-05-05T19:46:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m16s, mcp_tools=124. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

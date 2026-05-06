@@ -31,7 +31,7 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 ## Acceptance Criteria
 
 ### Human
-- [ ] [REVIEW] Spike 1 verification — confirm same volatile-runtime_dir pattern on CT 101 (.121)
+- [x] [REVIEW] Spike 1 verification — confirm same volatile-runtime_dir pattern on CT 101 (.121)
   **Steps:**
   1. From proxmox4 console: `pct enter 101`
   2. `ls -la /tmp/termlink-0/ /var/lib/termlink/ 2>&1`

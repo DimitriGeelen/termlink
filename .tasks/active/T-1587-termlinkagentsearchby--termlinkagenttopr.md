@@ -4,7 +4,7 @@ name: "termlink_agent_search_by + termlink_agent_top_repliers — per-sender con
 description: >
   termlink_agent_search_by + termlink_agent_top_repliers — per-sender content search + reply-leaderboard MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T19:13:10Z
-last_update: 2026-05-05T19:13:10Z
-date_finished: null
+last_update: 2026-05-05T19:20:04Z
+date_finished: 2026-05-05T19:20:04Z
 ---
 
 # T-1587: termlink_agent_search_by + termlink_agent_top_repliers — per-sender content search + reply-leaderboard MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_top_repliers"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1587-termlinkagentsearchby--termlinkagenttopr.md
 - **Context:** Initial task creation
+
+### 2026-05-05T19:20:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m35s, mcp_tools=120. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

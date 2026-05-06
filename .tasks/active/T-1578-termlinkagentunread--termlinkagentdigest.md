@@ -4,16 +4,16 @@ name: "termlink_agent_unread + termlink_agent_digest — caught-up gap + period-
 description: >
   termlink_agent_unread + termlink_agent_digest — caught-up gap + period-summary MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T17:17:54Z
-last_update: 2026-05-05T17:17:54Z
-date_finished: null
+last_update: 2026-05-05T17:23:51Z
+date_finished: 2026-05-05T17:23:51Z
 ---
 
 # T-1578: termlink_agent_unread + termlink_agent_digest — caught-up gap + period-summary MCP read tools
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_digest"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1578-termlinkagentunread--termlinkagentdigest.md
 - **Context:** Initial task creation
+
+### 2026-05-05T17:23:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

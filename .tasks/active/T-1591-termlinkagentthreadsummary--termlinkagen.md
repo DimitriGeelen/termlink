@@ -4,7 +4,7 @@ name: "termlink_agent_thread_summary + termlink_agent_active_in_thread — deep 
 description: >
   termlink_agent_thread_summary + termlink_agent_active_in_thread — deep thread metrics + per-thread participants MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T20:03:20Z
-last_update: 2026-05-05T20:03:20Z
-date_finished: null
+last_update: 2026-05-05T20:09:46Z
+date_finished: 2026-05-05T20:09:46Z
 ---
 
 # T-1591: termlink_agent_thread_summary + termlink_agent_active_in_thread — deep thread metrics + per-thread participants MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_active_in_thread"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1591-termlinkagentthreadsummary--termlinkagen.md
 - **Context:** Initial task creation
+
+### 2026-05-05T20:09:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m14s, mcp_tools=128. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

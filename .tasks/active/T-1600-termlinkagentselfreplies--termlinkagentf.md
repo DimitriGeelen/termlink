@@ -4,16 +4,16 @@ name: "termlink_agent_self_replies + termlink_agent_first_responders — sender-
 description: >
   termlink_agent_self_replies + termlink_agent_first_responders — sender-self-continuations + fastest-first-replier leaderboard MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T23:25:17Z
-last_update: 2026-05-05T23:25:17Z
-date_finished: null
+last_update: 2026-05-05T23:32:05Z
+date_finished: 2026-05-05T23:32:05Z
 ---
 
 # T-1600: termlink_agent_self_replies + termlink_agent_first_responders — sender-self-continuations + fastest-first-replier leaderboard MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_first_responders"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1600-termlinkagentselfreplies--termlinkagentf.md
 - **Context:** Initial task creation
+
+### 2026-05-05T23:32:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m47s, mcp_tools=146. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

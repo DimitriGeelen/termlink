@@ -1,52 +1,33 @@
 ---
-id: T-1614
-name: "fleet-status TIMEOUT actionable hint (extend T-1613)"
+id: T-1497
+name: "fw upgrade 1.6.252 -> 1.6.260 (autonomous dispatch) + 5 framework-bug findings"
 description: >
-  fleet-status TIMEOUT actionable hint (extend T-1613)
+  Autonomous fw upgrade dispatch on dimitrimintdev. Upgraded 1.6.252 -> 1.6.260 via /tmp/aef-upstream clone (bare-from-consumer blocked by T-1542 guard). Doctor + tests run. 5 framework-bug findings posted to agent-chat-arc offset 254.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-05-06T10:47:39Z
-last_update: 2026-05-06T10:47:39Z
-date_finished: null
+created: 2026-05-04T19:48:46Z
+last_update: 2026-05-04T19:54:06Z
+date_finished: 2026-05-04T19:54:06Z
 ---
 
-# T-1614: fleet-status TIMEOUT actionable hint (extend T-1613)
+# T-1497: fw upgrade 1.6.252 -> 1.6.260 (autonomous dispatch) + 5 framework-bug findings
 
 ## Context
 
-T-1613 added per-class actionable hints for `fleet status` failures, but the
-TIMEOUT branch (line 2300 in `crates/termlink-cli/src/commands/remote.rs`) still
-emits a generic "check network connectivity to {addr}" — restating the symptom
-rather than directing the next operator action. This task classifies the
-timeout by the address kind so the hint actually tells the operator which probe
-to run first:
-
-- **Loopback** (127.x, localhost) → hub not running locally, `termlink hub start`
-- **RFC5737 test ranges** (192.0.2.x, 198.51.100.x, 203.0.113.x) → stale config
-  pointing at documentation IPs; remove the profile
-- **RFC1918 private** (10/8, 172.16/12, 192.168/16) → route + remote process check;
-  `nc -zv` + `ssh systemctl status`
-- **Other** (public/routable) → likely firewall/route; `nc -zv` + `ping`
-
-Synthetic dogfood: add a profile pointing at `192.0.2.1` (RFC5737 TEST-NET-1,
-guaranteed to time out as it's documented as never routable), run
-`fleet status`, observe the new RFC5737-class hint, then remove the profile.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `is_rfc1918()` helper added near `classify_fleet_error` in remote.rs, matches 10/8, 172.16-31/12, 192.168/16
-- [ ] TIMEOUT branch (around line 2300 in `cmd_fleet_status`) replaced with 4-way classification (loopback / RFC5737 / RFC1918 / other)
-- [ ] Each class produces a distinct, copy-pasteable hint string
-- [ ] `cargo test --package termlink-cli is_rfc1918` passes (≥2 unit tests)
-- [ ] Synthetic dogfood: add a profile pointing at 192.0.2.1, run `target/release/termlink fleet status`, observe the RFC5737-class hint emitted, capture the output, remove the profile
-- [ ] No regression in existing fleet status output for already-DOWN profiles (Connection refused, Secret file not found classes still hit their existing hints)
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -65,17 +46,14 @@ guaranteed to time out as it's documented as never routable), run
 
 ## Verification
 
-test -x target/release/termlink
-grep -aqF "RFC5737 documentation/test range" target/release/termlink
-grep -aqF "Localhost timeout" target/release/termlink
-grep -aqF "Private-network hub" target/release/termlink
-grep -qF "fn is_rfc1918" crates/termlink-cli/src/commands/remote.rs
-
-## Recommendation
-
-**Recommendation:** GO (extends T-1613 ship; same pattern, same operator-fluent value).
-**Rationale:** Operator gets actionable next-step instead of restated symptom. Synthetic dogfood (192.0.2.1 RFC5737) gives end-to-end validation without needing real infrastructure breakage.
-**Evidence:** T-1613 dogfooded the same shape — Secret-file-not-found stale-test-residue hint surfaced the right command and shipped real value (testhub cleanup).
+# Shell commands that MUST pass before work-completed. One per line.
+# Lines starting with # are comments (skipped). Empty lines ignored.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
+#
+# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
+# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
+# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
+# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 
 ## RCA
 
@@ -130,7 +108,10 @@ grep -qF "fn is_rfc1918" crates/termlink-cli/src/commands/remote.rs
 
 ## Updates
 
-### 2026-05-06T10:47:39Z — task-created [task-create-agent]
+### 2026-05-04T19:48:46Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1614-fleet-status-timeout-actionable-hint-ext.md
+- **Output:** /opt/termlink/.tasks/active/T-1497-fw-upgrade-16252---16260-autonomous-disp.md
 - **Context:** Initial task creation
+
+### 2026-05-04T19:54:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
