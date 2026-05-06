@@ -142,17 +142,23 @@ fn now_ms() -> u128 {
 /// address `"ip:port"`. Mirror of `peer_pid` for the network side —
 /// identifies callers that have no local PID. Omitted when `None` or
 /// empty. Unix connections always pass `None`.
+/// T-1622: `topic` (when Some non-empty) records the request `topic`
+/// param — relevant for `event.broadcast` so the T-1166 cut readiness
+/// review can answer "which channels are the legacy residue still going
+/// to?" without SSH+jq. Omitted when None or empty. Methods that don't
+/// carry a topic in their semantics simply pass None.
 pub fn record(
     method: &str,
     from: Option<&str>,
     peer_pid: Option<u32>,
     peer_addr: Option<&str>,
+    topic: Option<&str>,
 ) {
     if SKIP_METHODS.contains(&method) {
         return;
     }
     let Some(path) = current_path() else { return };
-    let line = build_audit_line(now_ms(), method, from, peer_pid, peer_addr);
+    let line = build_audit_line(now_ms(), method, from, peer_pid, peer_addr, topic);
     if let Err(e) = append_line(path, &line) {
         tracing::debug!(error = %e, "rpc_audit: append failed (suppressed)");
     }
@@ -166,8 +172,9 @@ pub(crate) fn build_audit_line(
     from: Option<&str>,
     peer_pid: Option<u32>,
     peer_addr: Option<&str>,
+    topic: Option<&str>,
 ) -> String {
-    let mut parts: Vec<String> = Vec::with_capacity(5);
+    let mut parts: Vec<String> = Vec::with_capacity(6);
     parts.push(format!("\"ts\":{ts_ms}"));
     parts.push(format!("\"method\":{}", json_escape(method)));
     if let Some(f) = from
@@ -184,6 +191,11 @@ pub(crate) fn build_audit_line(
         && !a.is_empty()
     {
         parts.push(format!("\"peer_addr\":{}", json_escape(a)));
+    }
+    if let Some(t) = topic
+        && !t.is_empty()
+    {
+        parts.push(format!("\"topic\":{}", json_escape(t)));
     }
     format!("{{{}}}", parts.join(","))
 }
@@ -394,7 +406,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("rpc-audit.jsonl");
         force_path(path.clone());
-        record("hub.auth", None, None, None);
+        record("hub.auth", None, None, None, None);
         // Read file (might be the first record with this OnceLock — only check existence + parse)
         if path.exists() {
             let body = fs::read_to_string(&path).unwrap();
@@ -408,7 +420,7 @@ mod tests {
     #[test]
     fn line_with_from_includes_field() {
         // T-1309: when caller attribution is provided, line must include "from".
-        let l = build_audit_line(42, "event.broadcast", Some("framework-agent"), None, None);
+        let l = build_audit_line(42, "event.broadcast", Some("framework-agent"), None, None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "event.broadcast");
         assert_eq!(v["from"], "framework-agent");
@@ -418,7 +430,7 @@ mod tests {
     #[test]
     fn line_without_from_omits_field() {
         // T-1309: when caller attribution is absent, the line must NOT include "from".
-        let l = build_audit_line(42, "event.broadcast", None, None, None);
+        let l = build_audit_line(42, "event.broadcast", None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("from").is_none(), "from must be omitted when None");
         assert_eq!(v["method"], "event.broadcast");
@@ -427,7 +439,7 @@ mod tests {
     #[test]
     fn empty_from_treated_as_absent() {
         // T-1309: empty-string from should be treated like None and omitted.
-        let l = build_audit_line(1, "event.broadcast", Some(""), None, None);
+        let l = build_audit_line(1, "event.broadcast", Some(""), None, None, None);
         let v: serde_json::Value = serde_json::from_str(&l).unwrap();
         assert!(v.get("from").is_none(), "empty from must be omitted");
     }
@@ -435,7 +447,7 @@ mod tests {
     #[test]
     fn line_with_peer_pid_includes_field() {
         // T-1407: when peer_pid is provided, line must include peer_pid as u32.
-        let l = build_audit_line(42, "inbox.status", None, Some(12345), None);
+        let l = build_audit_line(42, "inbox.status", None, Some(12345), None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "inbox.status");
         assert_eq!(v["peer_pid"], 12345);
@@ -445,7 +457,7 @@ mod tests {
     #[test]
     fn line_with_from_and_peer_pid_includes_both() {
         // T-1407: from + peer_pid both present should both appear.
-        let l = build_audit_line(7, "event.broadcast", Some("tl-abc"), Some(99), None);
+        let l = build_audit_line(7, "event.broadcast", Some("tl-abc"), Some(99), None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["from"], "tl-abc");
         assert_eq!(v["peer_pid"], 99);
@@ -454,7 +466,7 @@ mod tests {
     #[test]
     fn line_with_peer_pid_zero_omits_field() {
         // T-1407: pid 0 is treated as absent (no peer_pid available).
-        let l = build_audit_line(7, "inbox.list", None, Some(0), None);
+        let l = build_audit_line(7, "inbox.list", None, Some(0), None, None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("peer_pid").is_none(), "pid 0 must be omitted");
     }
@@ -462,7 +474,7 @@ mod tests {
     #[test]
     fn line_with_peer_addr_includes_field() {
         // T-1409: when peer_addr is provided, line must include peer_addr as string.
-        let l = build_audit_line(42, "inbox.status", None, None, Some("192.168.10.143:42820"));
+        let l = build_audit_line(42, "inbox.status", None, None, Some("192.168.10.143:42820"), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["method"], "inbox.status");
         assert_eq!(v["peer_addr"], "192.168.10.143:42820");
@@ -473,7 +485,7 @@ mod tests {
     #[test]
     fn line_with_peer_addr_and_from_includes_both() {
         // T-1409: from + peer_addr both present should both appear.
-        let l = build_audit_line(7, "event.broadcast", Some("tl-xyz"), None, Some("10.0.0.5:5555"));
+        let l = build_audit_line(7, "event.broadcast", Some("tl-xyz"), None, Some("10.0.0.5:5555"), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["from"], "tl-xyz");
         assert_eq!(v["peer_addr"], "10.0.0.5:5555");
@@ -488,6 +500,7 @@ mod tests {
             Some("tl-abc"),
             Some(42),
             Some("127.0.0.1:9100"),
+            None,
         );
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert_eq!(v["from"], "tl-abc");
@@ -498,9 +511,71 @@ mod tests {
     #[test]
     fn line_with_empty_peer_addr_omits_field() {
         // T-1409: empty-string peer_addr should be treated like None and omitted.
-        let l = build_audit_line(1, "event.broadcast", None, None, Some(""));
+        let l = build_audit_line(1, "event.broadcast", None, None, Some(""), None);
         let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
         assert!(v.get("peer_addr").is_none(), "empty peer_addr must be omitted");
+    }
+
+    // ---- T-1622: topic capture for legacy event.broadcast residue slicing ----
+
+    #[test]
+    fn line_with_topic_includes_field() {
+        // T-1622: when topic is provided, line must include "topic".
+        let l = build_audit_line(
+            42,
+            "event.broadcast",
+            Some("agent-x"),
+            None,
+            None,
+            Some("agent-chat-arc"),
+        );
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["method"], "event.broadcast");
+        assert_eq!(v["from"], "agent-x");
+        assert_eq!(v["topic"], "agent-chat-arc");
+    }
+
+    #[test]
+    fn line_without_topic_omits_field() {
+        // T-1622: when topic is None, the line must NOT include "topic".
+        let l = build_audit_line(42, "channel.post", Some("agent-x"), None, None, None);
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert!(v.get("topic").is_none(), "topic must be omitted when None");
+    }
+
+    #[test]
+    fn empty_topic_treated_as_absent() {
+        // T-1622: empty-string topic should be treated like None and omitted.
+        let l = build_audit_line(1, "event.broadcast", None, None, None, Some(""));
+        let v: serde_json::Value = serde_json::from_str(&l).unwrap();
+        assert!(v.get("topic").is_none(), "empty topic must be omitted");
+    }
+
+    #[test]
+    fn line_with_all_four_optional_fields() {
+        // T-1622: from + peer_pid + peer_addr + topic all present should all appear.
+        let l = build_audit_line(
+            7,
+            "event.broadcast",
+            Some("tl-abc"),
+            Some(42),
+            Some("127.0.0.1:9100"),
+            Some("framework.gap"),
+        );
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON");
+        assert_eq!(v["from"], "tl-abc");
+        assert_eq!(v["peer_pid"], 42);
+        assert_eq!(v["peer_addr"], "127.0.0.1:9100");
+        assert_eq!(v["topic"], "framework.gap");
+    }
+
+    #[test]
+    fn topic_with_special_chars_is_json_escaped() {
+        // T-1622: a topic containing quote/backslash must be safely escaped so
+        // the resulting line is still valid JSON.
+        let l = build_audit_line(1, "event.broadcast", None, None, None, Some("a\"b\\c"));
+        let v: serde_json::Value = serde_json::from_str(&l).expect("valid JSON despite special chars");
+        assert_eq!(v["topic"], "a\"b\\c");
     }
 
     #[test]
