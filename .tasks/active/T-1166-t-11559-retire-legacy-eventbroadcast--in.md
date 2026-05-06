@@ -70,6 +70,19 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-06T12:10Z — Cut-readiness snapshot post-T-1619 (F-7 fix unblocked trend visibility) [agent autonomous]
+- **Trend mode now works** (T-1619 shipped at adf465d7 — was crashing on every default invocation since fw 1.6.124).
+- **Per-window legacy traffic:**
+  - 1d: 1 attributable / 49646 total = **0.00% PASS**
+  - 2d: 3 attributable / 76282 total = **0.00% PASS**
+  - 7d: 4964 / 142062 = 3.49% FAIL
+  - 30d: 7867 / 195690 = 4.02% FAIL
+  - 60d: 7867 / 195690 = 4.02% FAIL (gate window)
+- **Crucial finding:** ring20-dashboard at .143/.121 **stopped polling inbox.status approximately 2-3 days ago.** The 7d/30d/60d windows still fail because of historical traffic that hasn't aged out. The 1d/2d windows are essentially clean.
+- **Real-time cut readiness:** PASS on rolling-day basis. Gate-window cut readiness will arrive automatically as the dashboard's pre-cut traffic ages out (~5 more days for 7d, ~50+ days for 60d).
+- **Remaining attributable callers (last 2d):** 3 event.broadcast from .122 (ring20-management) — sparse (~1/day, not a polling loop). Audit log records `peer_addr` only, no event topic — operator cannot identify the caller-script without SSH access. Gap: audit log lacks request body / topic — `topic` field would directly identify caller intent. Filed as task candidate.
+- **Practical implication:** the cut decision can be advanced by either (a) waiting for 7d window to clean up (~2026-05-13), (b) tightening the gate window from 60d to 7d in the AC, or (c) operator authorizing a manual cut now since real-time traffic is essentially zero.
+
 ### 2026-05-02T11:55Z — Cut-readiness snapshot post-T-1447 fw upgrade [agent autonomous]
 - **Last-1d window:** 1401 legacy calls / 17460 total = 8.02% (gate threshold 1.00% — FAIL)
 - **Breakdown (last-1d):**
