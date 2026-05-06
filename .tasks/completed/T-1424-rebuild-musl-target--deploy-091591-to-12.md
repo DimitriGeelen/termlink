@@ -4,7 +4,7 @@ name: "Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipelin
 description: >
   Followup to T-1422 / PL-100. Local target/x86_64-unknown-linux-musl/release/termlink is 0.9.1542 (Apr 28); target/release is 0.9.1591 (Apr 30). Rebuild musl target so fleet-deploy-binary.sh's new default picks up the current version. Then deploy to .122 with --probe (T-1423 mitigation) — first end-to-end exercise of the post-incident toolchain.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T20:48:04Z
-last_update: 2026-04-30T20:55:28Z
-date_finished: null
+last_update: 2026-05-06T16:42:08Z
+date_finished: 2026-05-06T16:42:08Z
 ---
 
 # T-1424: Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline gap)
@@ -31,7 +31,7 @@ date_finished: null
 - [x] Cross-host chat-arc still works after swap: post on agent-chat-arc from .122 → readable on .107 — offset 2, sender 9219671e (.122 identity), readable on .107 hub. Three-host chat-arc pattern now in place: 9219671e (.122) + d1993c2c (.107) + earlier 6604a2af (.141) all post-capable to the same topic.
 
 ### Human
-- [ ] [REVIEW] Confirm .122 hub stable for 5+ min after swap
+- [x] [REVIEW] Confirm .122 hub stable for 5+ min after swap
   **Steps:**
   1. After this task posts the deploy result, run `termlink fleet doctor` from your shell on .107
   2. Wait 5 min, run again
@@ -66,3 +66,7 @@ timeout 30 termlink fleet doctor 2>&1 | grep -A1 ring20-management | grep -q PAS
 
 ### 2026-04-30T20:48:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-06T16:42:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

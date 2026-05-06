@@ -4,16 +4,16 @@ name: "audit-log topic field — close T-1166 last-mile visibility for legacy ev
 description: >
   audit-log topic field — close T-1166 last-mile visibility for legacy event.broadcast residue
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 created: 2026-05-06T13:27:35Z
-last_update: 2026-05-06T13:32:56Z
-date_finished: null
+last_update: 2026-05-06T13:37:43Z
+date_finished: 2026-05-06T13:37:43Z
 ---
 
 # T-1622: audit-log topic field — close T-1166 last-mile visibility for legacy event.broadcast residue
@@ -102,3 +102,6 @@ grep -q 'req.params.get("topic")' crates/termlink-hub/src/server.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1622-audit-log-topic-field--close-t-1166-last.md
 - **Context:** Initial task creation
+
+### 2026-05-06T13:37:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

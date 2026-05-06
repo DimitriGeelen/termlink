@@ -4,7 +4,7 @@ name: "Recover ring20-management hub at .122 — 0.9.1591 swap left hub down"
 description: >
   On 2026-04-30T19:55Z deployed 0.9.1591 to .122 via fleet-deploy-binary.sh; staging succeeded, sha verified. Then swapped /usr/local/bin/termlink (backup at .bak) and killed PID 215. Cron watchdog runs every minute and should respawn — but hub at 9100 stayed down 6+ min. Suspect glibc/libc mismatch (binary built on .107). No SSH/console fallback. Operator needs to console into .122 and either rollback (cp /usr/local/bin/termlink.0.9.1542.bak /usr/local/bin/termlink) or run /usr/local/bin/termlink hub start --tcp 0.0.0.0:9100 to read the actual error. See PL-100.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T20:03:47Z
-last_update: 2026-04-30T20:40:53Z
-date_finished: null
+last_update: 2026-05-06T16:29:44Z
+date_finished: 2026-05-06T16:28:14Z
 ---
 
 # T-1422: Recover ring20-management hub at .122 — 0.9.1591 swap left hub down
@@ -76,3 +76,7 @@ timeout 5 bash -c "echo > /dev/tcp/192.168.10.122/9100" 2>&1 && echo PORT_OPEN
 
 ### 2026-04-30T20:40:36Z — status-update [task-update-agent]
 - **Change:** status: issues → started-work
+
+### 2026-05-06T16:28:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Completed via Watchtower UI (human action)

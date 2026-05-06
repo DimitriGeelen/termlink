@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1464: Close G-048 (T-1388 fix landed) + rate-vs-window-rolloff caveat in T-1166 doc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-04T05:49:55Z
+# ============================================================================
+
+task_id: T-1464
+task_name: "Close G-048 (T-1388 fix landed) + rate-vs-window-rolloff caveat in T-1166 doc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T05:48:02Z
+completed: 2026-05-04T05:49:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T07:49:35+02:00
+last_commit: 2026-05-04T07:49:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  close G-048 (T-1388 fix landed) + rate-vs-rolloff caveat
+
+# Key outcomes
+outcomes:
+  - "G-048 status updated to `resolved` in `.context/project/concerns.yaml` with `resolved: 2026-05-04` and a `resolution:` referencing T-1388 + grep evidence."
+  - "`fw gaps` shows G-048 resolved: 7 watching, 11 resolved (was 8/10)."
+  - "T-1166 migration doc gains a \"Rate interpretation caveat\" paragraph plus an interval-choice table under \"Decay-rate sampling\"."
+  - "No source-code changes (admin metadata + doc only)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "close G-048 (T-1388 fix landed) + rate-vs-rolloff caveat"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/concerns.yaml"
+  - "docs/migrations/T-1166-retire-legacy-primitives.md"
+  - ".tasks/active/T-1464-close-g-048-t-1388-fix-landed--rate-vs-w.md"
+  - ".tasks/completed/T-1463-fleet-doctor---save-snapshot-path-compan.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T07:49:35"
+    action: "T-1464: close G-048 (T-1388 fix landed) + rate-vs-rolloff caveat"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 128
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1464-close-g-048-t-1388-fix-landed--rate-vs-w.md
+generated_by: context-agent-hybrid

@@ -4,7 +4,7 @@ name: "gitignore cron audit dir — kill 600+ dirty files per session"
 description: >
   gitignore cron audit dir — kill 600+ dirty files per session
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T16:02:13Z
-last_update: 2026-05-06T16:02:13Z
-date_finished: null
+last_update: 2026-05-06T16:03:58Z
+date_finished: 2026-05-06T16:03:58Z
 ---
 
 # T-1624: gitignore cron audit dir — kill 600+ dirty files per session
@@ -133,3 +133,6 @@ test -w /opt/termlink/.context/audits/cron
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1624-gitignore-cron-audit-dir--kill-600-dirty.md
 - **Context:** Initial task creation
+
+### 2026-05-06T16:03:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

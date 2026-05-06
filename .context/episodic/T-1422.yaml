@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1422: Recover ring20-management hub at .122 — 0.9.1591 swap left hub down
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T16:28:16Z
+# ============================================================================
+
+task_id: T-1422
+task_name: "Recover ring20-management hub at .122 — 0.9.1591 swap left hub down"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T20:03:47Z
+completed: 2026-05-06T16:28:14Z
+duration_days: 6
+updates_count: 5
+first_commit: 2026-04-30T22:04:38+02:00
+last_commit: 2026-04-30T22:40:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ring20-management 0.9.1591 swap left hub down — incident captured. closed via .122 T-627 — PL-100 confirmed, fleet-deploy default fixed
+
+# Key outcomes
+outcomes:
+  - "Hub at 192.168.10.122:9100 responds again (port open + `termlink fleet doctor` PASS for ring20-management) — verified from .107 post-recovery, version reported 0.9.0/musl 0.9.1542"
+  - "If recovered via rollback to 0.9.1542: rollback path documented for next attempt — done in T-627 (proxmox-ring20-management) commit 469b5bef + this project's PL-100 update"
+  - "Root cause captured (glibc mismatch confirmed via ldd on .122) — PL-100 updated with concrete evidence and fix-forward plan"
+  - "PL-100 referenced in T-1423 (extend fleet-deploy-binary.sh with `--probe` pre-swap dry-run) — shipped commit 8b1d96a5; script default also flipped to prefer musl-static target when present"
+  - "[REVIEW] Console into ring20-management LXC and run diagnostic — DONE: AEF agent on .122 executed the full runbook, recorded as T-627 in proxmox-ring20-management (commit 469b5bef), root cause confirmed (PL-100), recovery via rollback completed, status posted to agent-chat-arc topic offset 0 (acked from .107 at offset 1)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "closed via .122 T-627 — PL-100 confirmed, fleet-deploy default fixed"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "scripts/fleet-deploy-binary.sh"
+  - ".tasks/active/T-1422-recover-ring20-management-hub-at-122--09.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-30T22:04:38"
+    action: "T-1422: ring20-management 0.9.1591 swap left hub down — incident captured"
+  - time: "2026-04-30T22:40:53"
+    action: "T-1422: closed via .122 T-627 — PL-100 confirmed, fleet-deploy default fixed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 8424 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8424
+  commits: 2
+  files_changed: 3
+  lines_added: 118
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1422-recover-ring20-management-hub-at-122--09.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1461: fleet doctor — fleet-wide top_callers aggregate under verdict
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-03T22:41:23Z
+# ============================================================================
+
+task_id: T-1461
+task_name: "fleet doctor — fleet-wide top_callers aggregate under verdict"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-03T22:35:38Z
+completed: 2026-05-03T22:41:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-04T00:41:06+02:00
+last_commit: 2026-05-04T00:41:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor — fleet-wide top_callers aggregate
+
+# Key outcomes
+outcomes:
+  - "CLI sums per-hub `top_callers` arrays into a single fleet-wide aggregate (BTreeMap by id, sum counts) — remote.rs:2046"
+  - "Print \"Top callers (fleet-wide):\" under the verdict block when at least one hub returned top_callers; show top-3 entries — remote.rs:2052"
+  - "Aggregate logic is in a pure helper `aggregate_fleet_top_callers` (testable independently) — remote.rs:14"
+  - "Unit tests cover: empty input → empty output, single hub → passthrough, multiple hubs same caller → sum, multiple hubs different callers → top-3 by count, tie-breaking — 5 tests"
+  - "Schema additive: legacy_summary_obj JSON gets a `top_callers_fleet` field"
+  - "Live verification deferred to post-T-1460 deploy: needs production hub binary upgraded to surface per-hub top_callers (current production binaries are pre-T-1460). The headline test case `fleet_top_callers_same_caller_across_hubs_sums` mirrors the exact production shape (3 hubs × 579 → 1737) — when hubs upgrade the live output will match"
+  - "`cargo test -p termlink --bin termlink fleet_top_callers` passes (5/5)"
+  - "`cargo build --release -p termlink` clean (3m 28s)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1461-fleet-doctor--fleet-wide-topcallers-aggr.md"
+  - ".tasks/completed/T-1460-fleet-doctor--surface-top-callers-under-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T00:41:06"
+    action: "T-1461: fleet doctor — fleet-wide top_callers aggregate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 189
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1461-fleet-doctor--fleet-wide-topcallers-aggr.md
+generated_by: context-agent-hybrid
