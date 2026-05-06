@@ -1,0 +1,20 @@
+id: tests/test_t1628_task_verify_flags.sh
+name: test_t1628_task_verify_flags
+type: script
+subsystem: unknown
+location: tests/test_t1628_task_verify_flags.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-05-06
+created_by: unknown
