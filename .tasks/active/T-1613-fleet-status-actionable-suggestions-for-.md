@@ -65,9 +65,9 @@ Pure additive change in `crates/termlink-cli/src/commands/remote.rs::cmd_fleet_s
 ## Verification
 
 test -x target/release/termlink
-strings target/release/termlink | grep -q "Stale test-fixture profile"
-strings target/release/termlink | grep -q "cargo TempDir residue"
-grep -q "Stale test-fixture profile" crates/termlink-cli/src/commands/remote.rs
+grep -aqF "Stale test-fixture profile" target/release/termlink
+grep -aqF "cargo TempDir residue" target/release/termlink
+grep -qF "Stale test-fixture profile" crates/termlink-cli/src/commands/remote.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
