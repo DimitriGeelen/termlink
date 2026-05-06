@@ -2471,8 +2471,15 @@ pub(crate) async fn cmd_fleet_doctor(
         return Ok(());
     }
 
+    // T-1616: surface CLI version in header so operator can immediately
+    // see skew between CLI and hubs (avoids cross-referencing `termlink info`).
+    let cli_version = env!("CARGO_PKG_VERSION");
+    let cli_commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
     if !json {
-        eprintln!("Fleet doctor: {} hub(s) configured\n", config.hubs.len());
+        eprintln!(
+            "Fleet doctor: {} hub(s) configured (CLI {} [{}])\n",
+            config.hubs.len(), cli_version, cli_commit
+        );
     }
 
     let mut hub_results: Vec<serde_json::Value> = Vec::new();
@@ -2625,11 +2632,14 @@ pub(crate) async fn cmd_fleet_doctor(
                 if !json {
                     eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
                     if version_stale {
+                        // T-1616: include CLI version so the WARN explicitly shows
+                        // the skew (operator no longer needs to cross-reference info).
                         eprintln!(
-                            "    [WARN] hub_version=0.9.0 — running binary predates T-1458 \
-                             (2026-05-03 build.rs fix). Restart with a newer binary for \
-                             accurate version reporting; this is a stale-build signal, \
-                             not a connectivity issue."
+                            "    [WARN] hub_version=0.9.0, cli_version={} — running hub binary \
+                             predates T-1458 (2026-05-03 build.rs fix). Restart hub with the \
+                             newer binary for accurate version reporting; this is a stale-build \
+                             signal, not a connectivity issue.",
+                            cli_version
                         );
                     }
                     // T-1446: render per-hub bus_state line when --topic-durability is set
