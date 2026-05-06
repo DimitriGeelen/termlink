@@ -1310,3 +1310,17 @@ learnings:
   date: 2026-05-06
   context: Added via context agent
   application: TBD
+- id: PL-151
+  learning: "Operator-fluent CLI hint pattern (T-1613/14/16): when an error message lands at the user, classify by a structural attribute (address kind via RFC1918/RFC5737/loopback, error class, type) and produce a copy-pasteable next action — never restate the symptom. Bad: 'Timeout — check network connectivity'. Good: 'Profile points at 192.0.2.1 (RFC5737) — never routable, remove with: termlink remote profile remove <name>'. Failure mode this prevents: 'Cannot connect: No route to host' was previously hinting 'Hub process not running — ssh root@<unrouteable-IP>...' which sent operators chasing systemd on hosts they couldn't reach. Refactor: extract a classify_unreachable_hint(name, address) helper shared by both the 'Cannot connect / no route' branch and the timeout branch; keep 'Connection refused' (RST) specialized as 'process not running' since that one IS the right hint. Synthetic dogfood with TEST-NET-1 (192.0.2.x) gives end-to-end validation without real infrastructure breakage."
+  source: P-001
+  task: T-1614
+  date: 2026-05-06
+  context: Added via context agent
+  application: TBD
+- id: PL-152
+  learning: "Aggregation-counter regression rule (T-1615/1619/1620): when a summary line or predicate references a counter (X pass, Y warn, Z fail; or `ok = fail_count == 0`) and the counter declaration is split from its increment sites, the counter silently undercounts. Three confirmed manifestations in one week: (a) T-1615 — Rust `let mut total_warn: u32 = 0;` in fleet doctor: declaration was `let mut` but no `+= 1` site existed; summary always reported 0 warn. (b) T-1619 — heredoc-Python `_, total, ..., legacy_unattr = stats_for_window(d)` at metrics/api-usage.sh:382: function returns 10 values but trend-loop unpacked into 7; ValueError on every default invocation. Other 5 call-sites had been updated to 10-tuple. (c) T-1620 — Rust `let fail_count: u32 = 0;` (NO `mut`!) in MCP termlink_remote_doctor: sibling pass_count/warn_count were mut, fail_count was not; `\"ok\": fail_count == 0` was a tautology, summary always 0. Operator trust gap — summary contradicting body undermines the whole report. Calling agents trust `ok` field. Detection heuristic: search for `let mut <name>` + `<name> += 1` parity; flag any `let <name>: u\\d+ = 0;` without mut where the binding is read by a `==` predicate. Bash-embedded Python: when growing a multi-value return, grep all `= func_name(` call-sites and verify same arity. Prevention: synthetic regression test emitting N WARN/FAIL/MALFORMED inputs and asserting summary fields equal N. Cheaper near-term fix: derive summary aggregation from the same `checks` Vec the body emits (no parallel state). Level C escalation candidate: a static-check pass that scans pass/warn/fail/total/count counter trios for arity drift across declaration vs read sites."
+  source: P-001
+  task: T-1620
+  date: 2026-05-06
+  context: Reinforced via T-1619 and T-1620 — pattern is robust across Rust + heredoc-Python
+  application: Apply at code-review time. When seeing pass/warn/fail counter trios, eyeball-verify all three are mut + have at least one increment site each. When growing a multi-value return, grep all callers.
