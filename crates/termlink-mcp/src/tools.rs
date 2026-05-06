@@ -905,6 +905,15 @@ pub struct AgentPostStreakParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentSilenceGapParams {
+    /// Sender fingerprint whose longest absence is requested.
+    pub sender_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentAgeDistributionParams {}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentPresenceNowParams {
     /// Window in minutes. Default 60, capped at 1440 (24h).
     pub minutes: Option<u64>,
@@ -12800,6 +12809,182 @@ impl TermLinkTools {
             "total_active": total,
             "returned": results.len(),
             "active": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_silence_gap",
+        description = "Per-peer longest-absence detector for agent-chat-arc. Given a `sender_id`, walks topic, filters posts by sender, sorts ts list, walks pairs computing inter-post deltas. Returns `{sender_id, total_posts, max_gap_days, max_gap_start, max_gap_end, current_gap_days}` with start/end as YYYY-MM-DD UTC and current_gap_days = days since last post. Inverse of `termlink_agent_post_streak` — surfaces lapsed-peer / welcome-back triggers."
+    )]
+    async fn termlink_agent_silence_gap(
+        &self,
+        Parameters(p): Parameters<AgentSilenceGapParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut ts_list: Vec<i64> = Vec::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if sender != p.sender_id { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts == 0 { continue; }
+            ts_list.push(ts);
+        }
+        ts_list.sort();
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        if ts_list.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "sender_id": p.sender_id,
+                "total_posts": 0,
+                "max_gap_days": 0,
+                "max_gap_start": serde_json::Value::Null,
+                "max_gap_end": serde_json::Value::Null,
+                "current_gap_days": 0,
+            })).unwrap_or_else(json_err);
+        }
+        let mut max_gap_ms: i64 = 0;
+        let mut max_gap_start_ts: i64 = ts_list[0];
+        let mut max_gap_end_ts: i64 = ts_list[0];
+        for i in 1..ts_list.len() {
+            let delta = ts_list[i] - ts_list[i-1];
+            if delta > max_gap_ms {
+                max_gap_ms = delta;
+                max_gap_start_ts = ts_list[i-1];
+                max_gap_end_ts = ts_list[i];
+            }
+        }
+        let last_post = *ts_list.last().unwrap();
+        let current_gap_days = ((now_ms - last_post) / 86_400_000).max(0);
+        let max_gap_days = max_gap_ms / 86_400_000;
+        let start_day = max_gap_start_ts / 86_400_000;
+        let end_day = max_gap_end_ts / 86_400_000;
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "total_posts": ts_list.len(),
+            "max_gap_days": max_gap_days,
+            "max_gap_start": if max_gap_ms > 0 { serde_json::Value::String(epoch_days_to_ymd(start_day)) } else { serde_json::Value::Null },
+            "max_gap_end": if max_gap_ms > 0 { serde_json::Value::String(epoch_days_to_ymd(end_day)) } else { serde_json::Value::Null },
+            "current_gap_days": current_gap_days,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_age_distribution",
+        description = "Topic-wide post-age histogram for agent-chat-arc. Walks topic, filters `msg_type=post`, buckets each by age relative to now into 6 fixed bands: `lt_1h`, `1_24h`, `1_7d`, `7_30d`, `30_90d`, `gt_90d`. Returns `{total_posts, buckets: {lt_1h: n, 1_24h: n, ...}, oldest_post_ts, newest_post_ts}`. Topic-wide companion to `termlink_agent_daily_volume` — answers 'how recent is this conversation?' / triage health-check."
+    )]
+    async fn termlink_agent_age_distribution(
+        &self,
+        Parameters(_p): Parameters<AgentAgeDistributionParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut total_posts: u64 = 0;
+        let mut lt_1h: u64 = 0;
+        let mut h1_24: u64 = 0;
+        let mut d1_7: u64 = 0;
+        let mut d7_30: u64 = 0;
+        let mut d30_90: u64 = 0;
+        let mut gt_90: u64 = 0;
+        let mut oldest: i64 = i64::MAX;
+        let mut newest: i64 = 0;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts == 0 { continue; }
+            total_posts += 1;
+            if ts < oldest { oldest = ts; }
+            if ts > newest { newest = ts; }
+            let age_ms = now_ms - ts;
+            if age_ms < 3_600_000 { lt_1h += 1; }
+            else if age_ms < 86_400_000 { h1_24 += 1; }
+            else if age_ms < 7 * 86_400_000 { d1_7 += 1; }
+            else if age_ms < 30 * 86_400_000 { d7_30 += 1; }
+            else if age_ms < 90 * 86_400_000 { d30_90 += 1; }
+            else { gt_90 += 1; }
+        }
+        let oldest_out = if total_posts > 0 { oldest } else { 0 };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "total_posts": total_posts,
+            "buckets": {
+                "lt_1h": lt_1h,
+                "1_24h": h1_24,
+                "1_7d": d1_7,
+                "7_30d": d7_30,
+                "30_90d": d30_90,
+                "gt_90d": gt_90,
+            },
+            "oldest_post_ts": oldest_out,
+            "newest_post_ts": newest,
         })).unwrap_or_else(json_err)
     }
 
