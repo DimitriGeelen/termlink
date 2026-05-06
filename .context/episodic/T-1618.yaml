@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1618: fleet doctor JSON: include action_items rollup (parity with text output)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T11:50:24Z
+# ============================================================================
+
+task_id: T-1618
+task_name: "fleet doctor JSON: include action_items rollup (parity with text output)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T11:43:41Z
+completed: 2026-05-06T11:50:22Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-06T13:50:22+02:00
+last_commit: 2026-05-06T13:50:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor JSON — include action_items rollup (parity with text)
+
+# Key outcomes
+outcomes:
+  - "Action-items computation lifted out of the `else !json` branch into shared scope before json_doc construction"
+  - "`json_doc` includes top-level `action_items` array (Vec<String>)"
+  - "Text output behavior unchanged (still prints `Action items:` block)"
+  - "`target/release/termlink fleet doctor --json | jq .action_items` returns the same items as text output"
+  - "When fleet is clean (no stale, no fail), `action_items` is `[]` (empty array, not missing)"
+  - "Build clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1618-fleet-doctor-json-include-actionitems-ro.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T13:50:22"
+    action: "T-1618: fleet doctor JSON — include action_items rollup (parity with text)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 150
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1618-fleet-doctor-json-include-actionitems-ro.md
+generated_by: context-agent-hybrid
