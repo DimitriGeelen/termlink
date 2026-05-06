@@ -1,0 +1,20 @@
+id: tests/test_g054_completion_smoke.sh
+name: test_g054_completion_smoke
+type: script
+subsystem: unknown
+location: tests/test_g054_completion_smoke.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-05-06
+created_by: unknown

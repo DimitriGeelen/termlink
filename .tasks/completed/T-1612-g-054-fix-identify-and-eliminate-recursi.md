@@ -4,16 +4,16 @@ name: "G-054 fix: identify and eliminate recursive update-task.sh fork on comple
 description: >
   G-054 fix: identify and eliminate recursive update-task.sh fork on completion deadlock
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [tests/test_g054_completion_smoke.sh]
 related_tasks: []
 created: 2026-05-06T08:05:18Z
-last_update: 2026-05-06T08:05:18Z
-date_finished: null
+last_update: 2026-05-06T08:15:03Z
+date_finished: 2026-05-06T08:15:03Z
 ---
 
 # T-1612: G-054 fix: identify and eliminate recursive update-task.sh fork on completion deadlock
@@ -34,12 +34,12 @@ G-054 was registered 2026-05-04 as severity:high after `update-task.sh --status 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Repro fired: synthetic completion via `update-task.sh T-XXX --status work-completed` runs in <10s without deadlock (N≥3 trials)
-- [ ] Smoke test exists at `tests/test_g054_completion_smoke.sh` covering: <10s ceiling, file-move-to-completed, lock-not-held-after
-- [ ] Smoke test passes when run directly
-- [ ] Smoke test cleans up its synthetic task on EXIT (no `.tasks/active/T-NNNN-g-054-smoke-*` residue)
-- [ ] `concerns.yaml` G-054 entry updated with: `last_reviewed`, `mitigated_at`, evidence summary, smoke-test reference
-- [ ] G-054 status transitioned `watching` → `mitigated`
+- [x] Repro fired: synthetic completion via `update-task.sh T-XXX --status work-completed` runs in <10s without deadlock (N≥3 trials) — T-1613/14/15/16, all <3s
+- [x] Smoke test exists at `tests/test_g054_completion_smoke.sh` covering: <10s ceiling, file-move-to-completed, lock-not-held-after
+- [x] Smoke test passes when run directly — 5/5 PASS verified
+- [x] Smoke test cleans up its synthetic task on EXIT (no `.tasks/active/T-NNNN-g-054-smoke-*` residue) — T-1617 created and removed by trap
+- [x] `concerns.yaml` G-054 entry updated with: `last_reviewed`, `mitigated_at`, evidence summary, smoke-test reference
+- [x] G-054 status transitioned `watching` → `mitigated`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,3 +143,6 @@ grep -A 30 "^- id: G-054$" .context/project/concerns.yaml | grep -q "status: mit
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1612-g-054-fix-identify-and-eliminate-recursi.md
 - **Context:** Initial task creation
+
+### 2026-05-06T08:15:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

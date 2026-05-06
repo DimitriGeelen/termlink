@@ -1296,3 +1296,17 @@ learnings:
   date: 2026-05-03
   context: Added via context agent
   application: TBD
+- id: PL-149
+  learning: "Test learning from Playwright"
+  source: unknown
+  task: T-1030
+  date: 2026-05-04
+  context: Added via context agent
+  application: TBD
+- id: PL-150
+  learning: "Concerns registered as 'watching' don't auto-resolve when symptoms stop firing. Periodically run a quiescence-check on watched gaps: if N successful operations have happened since last symptom, repro fails to reproduce, and time-since-last-symptom exceeds detection_lag_days — transition to mitigated with evidence. Otherwise the gap register accumulates phantoms and erodes signal."
+  source: P-001
+  task: T-1612
+  date: 2026-05-06
+  context: Added via context agent
+  application: TBD
