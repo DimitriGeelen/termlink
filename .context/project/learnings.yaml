@@ -1324,3 +1324,10 @@ learnings:
   date: 2026-05-06
   context: Reinforced via T-1619 and T-1620 — pattern is robust across Rust + heredoc-Python
   application: Apply at code-review time. When seeing pass/warn/fail counter trios, eyeball-verify all three are mut + have at least one increment site each. When growing a multi-value return, grep all callers.
+- id: PL-153
+  learning: "Inception lifecycle gates must guard BOTH paths: commit-msg (BLOCK) and update-task.sh status transition (BLOCK). T-1626 added the missing second gate after G-052 incident where T-1448 was silently moved active→completed during an unrelated commit. Apply to ANY new exploration-discipline gate: lifecycle paths often outnumber commit paths."
+  source: P-001
+  task: T-1626
+  date: 2026-05-06
+  context: Added via context agent
+  application: TBD

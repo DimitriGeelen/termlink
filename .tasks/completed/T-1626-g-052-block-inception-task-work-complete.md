@@ -4,16 +4,16 @@ name: "G-052: block inception task work-completed without decision"
 description: >
   G-052: block inception task work-completed without decision
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [tests/test_g052_inception_decision_gate.sh]
 related_tasks: []
 created: 2026-05-06T18:04:08Z
-last_update: 2026-05-06T18:04:08Z
-date_finished: null
+last_update: 2026-05-06T18:17:49Z
+date_finished: 2026-05-06T18:17:49Z
 ---
 
 # T-1626: G-052: block inception task work-completed without decision
@@ -117,3 +117,6 @@ bash tests/test_g052_inception_decision_gate.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1626-g-052-block-inception-task-work-complete.md
 - **Context:** Initial task creation
+
+### 2026-05-06T18:17:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
