@@ -4,16 +4,16 @@ name: "MCP termlink_remote_doctor fail_count immutable — summary.fail always 0
 description: >
   MCP termlink_remote_doctor fail_count immutable — summary.fail always 0
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-06T12:13:11Z
-last_update: 2026-05-06T12:13:11Z
-date_finished: null
+last_update: 2026-05-06T12:16:31Z
+date_finished: 2026-05-06T12:16:31Z
 ---
 
 # T-1620: MCP termlink_remote_doctor fail_count immutable — summary.fail always 0
@@ -121,3 +121,6 @@ awk '/Err\(msg\) => \{/,/checks\.push.*"check": "inbox"/' crates/termlink-mcp/sr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1620-mcp-termlinkremotedoctor-failcount-immut.md
 - **Context:** Initial task creation
+
+### 2026-05-06T12:16:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
