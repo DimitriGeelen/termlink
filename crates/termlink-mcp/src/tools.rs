@@ -891,6 +891,20 @@ pub struct AgentThreadDepthParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentCoPostersParams {
+    /// Sender fingerprint for whom to find co-thread peers.
+    pub sender_id: String,
+    /// Max leaderboard entries. Default 20, capped at 200.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentDailyVolumeParams {
+    /// Window in days. Default 14, capped at 90.
+    pub window_days: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentQuietThreadsParams {
     /// Max direct replies for a thread to qualify as "quiet". Default 1.
     pub max_replies: Option<u64>,
@@ -12389,6 +12403,195 @@ impl TermLinkTools {
             "total": total,
             "returned": results.len(),
             "quiet_threads": results,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_co_posters",
+        description = "Per-peer co-thread affinity leaderboard for agent-chat-arc. Given a `sender_id`, walks the topic, builds offset→author + child→root maps, identifies all thread roots where the target sender posted, then tallies which OTHER senders also posted in those same threads. Returns `[{sender_id, shared_threads, last_co_thread_ts}, ...]` sorted by shared_threads desc. Pair-wise affinity / collaboration detector — answers 'who does this peer co-thread with?'. Companion to `termlink_agent_peer_engagement` (direct reply count between a specific pair) — pivots to the leaderboard view."
+    )]
+    async fn termlink_agent_co_posters(
+        &self,
+        Parameters(p): Parameters<AgentCoPostersParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let limit = p.limit.unwrap_or(20).min(200) as usize;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut author_of: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut child_to_parent: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut ts_of: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if off.is_empty() { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            author_of.insert(off.clone(), sender);
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ts_of.insert(off.clone(), ts);
+            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+                if !parent.is_empty() {
+                    child_to_parent.insert(off, parent.to_string());
+                }
+            }
+        }
+        let resolve_root = |start: &str| -> String {
+            let mut up = start.to_string();
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            seen.insert(up.clone());
+            let mut guard = 0u32;
+            while let Some(parent) = child_to_parent.get(&up) {
+                if !seen.insert(parent.clone()) { break; }
+                up = parent.clone();
+                guard += 1;
+                if guard > 10000 { break; }
+            }
+            up
+        };
+        let mut target_threads: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for (off, sender) in &author_of {
+            if sender == &p.sender_id {
+                target_threads.insert(resolve_root(off));
+            }
+        }
+        let mut authors_per_thread: std::collections::HashMap<String, std::collections::HashSet<String>> = std::collections::HashMap::new();
+        let mut last_ts_per_pair: std::collections::HashMap<(String, String), i64> = std::collections::HashMap::new();
+        for (off, sender) in &author_of {
+            let root = resolve_root(off);
+            if !target_threads.contains(&root) { continue; }
+            authors_per_thread.entry(root.clone()).or_default().insert(sender.clone());
+            let ts = *ts_of.get(off).unwrap_or(&0);
+            let key = (root.clone(), sender.clone());
+            let entry = last_ts_per_pair.entry(key).or_insert(0);
+            if ts > *entry { *entry = ts; }
+        }
+        let mut tally: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for (root, authors) in &authors_per_thread {
+            for s in authors {
+                if s == &p.sender_id { continue; }
+                let entry = tally.entry(s.clone()).or_insert((0, 0));
+                entry.0 += 1;
+                let ts = *last_ts_per_pair.get(&(root.clone(), s.clone())).unwrap_or(&0);
+                if ts > entry.1 { entry.1 = ts; }
+            }
+        }
+        let mut leaderboard: Vec<serde_json::Value> = tally.into_iter()
+            .map(|(s, (c, ts))| serde_json::json!({"sender_id": s, "shared_threads": c, "last_co_thread_ts": ts}))
+            .collect();
+        leaderboard.sort_by(|a, b| {
+            let ca = a.get("shared_threads").and_then(|v| v.as_u64()).unwrap_or(0);
+            let cb = b.get("shared_threads").and_then(|v| v.as_u64()).unwrap_or(0);
+            cb.cmp(&ca)
+        });
+        let total_peers = leaderboard.len();
+        if leaderboard.len() > limit { leaderboard.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "target_threads": target_threads.len(),
+            "total_peers": total_peers,
+            "returned": leaderboard.len(),
+            "leaderboard": leaderboard,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_daily_volume",
+        description = "Per-day post-volume histogram for agent-chat-arc. Walks topic, filters `msg_type=post` envelopes within the last `window_days` (default 14, capped at 90), buckets by UTC day index `(ts_unix_ms / 86_400_000)`, returns `{window_days, total_posts, days_covered, daily: [{date_iso, count}, ...]}` sorted oldest-first. Day-axis companion to `termlink_agent_activity_rhythm` (hour-of-day bucket). Useful for weekend-dip / posting-spike / cadence-trend detection."
+    )]
+    async fn termlink_agent_daily_volume(
+        &self,
+        Parameters(p): Parameters<AgentDailyVolumeParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let window_days = p.window_days.unwrap_or(14).min(90);
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (window_days as i64) * 86_400_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut buckets: std::collections::BTreeMap<i64, u64> = std::collections::BTreeMap::new();
+        let mut total_posts: u64 = 0;
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            let day = ts / 86_400_000;
+            *buckets.entry(day).or_insert(0) += 1;
+            total_posts += 1;
+        }
+        let daily: Vec<serde_json::Value> = buckets.into_iter()
+            .map(|(d, c)| {
+                let date_iso = epoch_days_to_ymd(d);
+                serde_json::json!({"date_iso": date_iso, "count": c})
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "window_days": window_days,
+            "total_posts": total_posts,
+            "days_covered": daily.len(),
+            "daily": daily,
         })).unwrap_or_else(json_err)
     }
 
