@@ -4,16 +4,16 @@ name: "fleet doctor: action items rollup (single-line summary of what to do)"
 description: >
   fleet doctor: action items rollup (single-line summary of what to do)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T11:36:20Z
-last_update: 2026-05-06T11:36:20Z
-date_finished: null
+last_update: 2026-05-06T11:42:41Z
+date_finished: 2026-05-06T11:42:41Z
 ---
 
 # T-1617: fleet doctor: action items rollup (single-line summary of what to do)
@@ -27,12 +27,12 @@ Builds on T-1614/15/16 operator-fluent theme. Same dogfood target (5 stale-versi
 ## Acceptance Criteria
 
 ### Agent
-- [ ] After `Versions in fleet:` line, emit `Action items:` block when any of: stale versions detected, FAIL hubs present, or AUTH-FAIL present
-- [ ] Stale-version rollup: "Version skew: N/M hubs on <version> — restart hub processes to pick up newer binary (CLI is on <cli_version>)"
-- [ ] FAIL/AUTH-FAIL rollups also emit when applicable (one line each)
-- [ ] If no action items, skip the section entirely (clean fleet stays clean output)
-- [ ] Build clean
-- [ ] Dogfood: run `target/release/termlink fleet doctor`, observe Action items block lists "Version skew: 5/5 ..."
+- [x] After `Versions in fleet:` line, emit `Action items:` block when any of: stale versions detected, FAIL hubs present, or AUTH-FAIL present
+- [x] Stale-version rollup: "Version skew: N/M hubs on <version> — restart hub processes to pick up newer binary (CLI is on <cli_version>)"
+- [x] FAIL/AUTH-FAIL rollups also emit when applicable (one line each)
+- [x] If no action items, skip the section entirely (clean fleet stays clean output)
+- [x] Build clean
+- [x] Dogfood: run `target/release/termlink fleet doctor`, observe Action items block lists "Version skew: 5/5 ..."
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,3 +118,6 @@ grep -aqF "Version skew:" target/release/termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1617-fleet-doctor-action-items-rollup-single-.md
 - **Context:** Initial task creation
+
+### 2026-05-06T11:42:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
