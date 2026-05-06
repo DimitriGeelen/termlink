@@ -4,16 +4,16 @@ name: "termlink_agent_quote + termlink_agent_threads — single-offset fetch + t
 description: >
   termlink_agent_quote + termlink_agent_threads — single-offset fetch + thread-root listing MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T16:32:15Z
-last_update: 2026-05-05T16:32:15Z
-date_finished: null
+last_update: 2026-05-05T16:41:04Z
+date_finished: 2026-05-05T16:41:04Z
 ---
 
 # T-1574: termlink_agent_quote + termlink_agent_threads — single-offset fetch + thread-root listing MCP read tools
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_threads"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1574-termlinkagentquote--termlinkagentthreads.md
 - **Context:** Initial task creation
+
+### 2026-05-05T16:41:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

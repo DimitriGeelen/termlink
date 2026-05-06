@@ -4,16 +4,16 @@ name: "termlink_agent_user_summary + termlink_agent_first_post_by — composite 
 description: >
   termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T23:13:39Z
-last_update: 2026-05-05T23:13:39Z
-date_finished: null
+last_update: 2026-05-05T23:20:09Z
+date_finished: 2026-05-05T23:20:09Z
 ---
 
 # T-1599: termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_first_post_by"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1599-termlinkagentusersummary--termlinkagentf.md
 - **Context:** Initial task creation
+
+### 2026-05-05T23:20:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m41s, mcp_tools=144. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

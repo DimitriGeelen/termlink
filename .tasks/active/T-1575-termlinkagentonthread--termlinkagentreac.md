@@ -4,16 +4,16 @@ name: "termlink_agent_on_thread + termlink_agent_reactions — thread descent + 
 description: >
   termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T16:43:14Z
-last_update: 2026-05-05T16:43:14Z
-date_finished: null
+last_update: 2026-05-05T16:51:59Z
+date_finished: 2026-05-05T16:51:59Z
 ---
 
 # T-1575: termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_reactions"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1575-termlinkagentonthread--termlinkagentreac.md
 - **Context:** Initial task creation
+
+### 2026-05-05T16:51:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -12,7 +12,7 @@ tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-04-26T11:54:15Z
+last_update: 2026-05-04T19:40:30Z
 date_finished: null
 ---
 
@@ -110,3 +110,6 @@ test "$(curl -sf -o /dev/null -w '%{http_code}' https://github.com/DimitriGeelen
 - **Structural change:** Added an external-world verification command to `## Verification` — the next attempt to mark this task `work-completed` will be blocked by P-011 until the repo actually exists on GitHub. This is the "framework asserts external state" mitigation G-010 itself proposed.
 - **Sovereignty note:** Did not un-tick the Human AC checkboxes. Re-opening a human-attested AC is the human's prerogative; the framework's job is to make divergence detectable, which the new verification line does.
 - **Workaround status:** install.sh curl-pipe (T-1134) and `cargo install --git` continue to work as install paths; only `brew install` is blocked.
+
+### 2026-05-04T19:40:30Z — status-update [task-update-agent]
+- **Change:** horizon: now → now

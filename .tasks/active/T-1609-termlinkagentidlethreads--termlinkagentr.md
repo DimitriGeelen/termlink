@@ -4,16 +4,16 @@ name: "termlink_agent_idle_threads + termlink_agent_reaction_rate — cold-threa
 description: >
   termlink_agent_idle_threads + termlink_agent_reaction_rate — cold-thread surfacer + per-peer reactions-per-post popularity gauge MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T07:01:22Z
-last_update: 2026-05-06T07:01:22Z
-date_finished: null
+last_update: 2026-05-06T07:08:33Z
+date_finished: 2026-05-06T07:08:33Z
 ---
 
 # T-1609: termlink_agent_idle_threads + termlink_agent_reaction_rate — cold-thread surfacer + per-peer reactions-per-post popularity gauge MCP read tools
@@ -136,3 +136,7 @@ grep -q '"termlink_agent_reaction_rate"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1609-termlinkagentidlethreads--termlinkagentr.md
 - **Context:** Initial task creation
+
+### 2026-05-06T07:08:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 9/9, build clean 4m58s, mcp_tools=164. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

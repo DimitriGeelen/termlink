@@ -4,16 +4,16 @@ name: "termlink_agent_emoji_users + termlink_agent_orphan_replies — per-emoji 
 description: >
   termlink_agent_emoji_users + termlink_agent_orphan_replies — per-emoji top-user leaderboard + dangling-reply integrity check MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T23:37:02Z
-last_update: 2026-05-05T23:37:02Z
-date_finished: null
+last_update: 2026-05-05T23:43:26Z
+date_finished: 2026-05-05T23:43:26Z
 ---
 
 # T-1601: termlink_agent_emoji_users + termlink_agent_orphan_replies — per-emoji top-user leaderboard + dangling-reply integrity check MCP read tools
@@ -126,3 +126,7 @@ grep -q '"termlink_agent_orphan_replies"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1601-termlinkagentemojiusers--termlinkagentor.md
 - **Context:** Initial task creation
+
+### 2026-05-05T23:43:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m39s, mcp_tools=148. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

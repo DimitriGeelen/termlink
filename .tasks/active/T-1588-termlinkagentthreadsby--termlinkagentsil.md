@@ -4,7 +4,7 @@ name: "termlink_agent_threads_by + termlink_agent_silent_senders — sender-star
 description: >
   termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T19:26:48Z
-last_update: 2026-05-05T19:26:48Z
-date_finished: null
+last_update: 2026-05-05T19:33:48Z
+date_finished: 2026-05-05T19:33:48Z
 ---
 
 # T-1588: termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools
@@ -125,3 +125,7 @@ grep -q '"termlink_agent_silent_senders"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1588-termlinkagentthreadsby--termlinkagentsil.md
 - **Context:** Initial task creation
+
+### 2026-05-05T19:33:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 4m27s, mcp_tools=122. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

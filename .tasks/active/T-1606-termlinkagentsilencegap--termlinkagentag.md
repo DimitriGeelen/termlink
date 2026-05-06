@@ -4,16 +4,16 @@ name: "termlink_agent_silence_gap + termlink_agent_age_distribution — longest 
 description: >
   termlink_agent_silence_gap + termlink_agent_age_distribution — longest peer absence + topic-wide post-age histogram MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T06:23:39Z
-last_update: 2026-05-06T06:23:39Z
-date_finished: null
+last_update: 2026-05-06T06:31:11Z
+date_finished: 2026-05-06T06:31:11Z
 ---
 
 # T-1606: termlink_agent_silence_gap + termlink_agent_age_distribution — longest peer absence + topic-wide post-age histogram MCP read tools
@@ -137,3 +137,7 @@ grep -q '"termlink_agent_age_distribution"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1606-termlinkagentsilencegap--termlinkagentag.md
 - **Context:** Initial task creation
+
+### 2026-05-06T06:31:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 11/11, build clean 4m48s, mcp_tools=158. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

@@ -4,16 +4,16 @@ name: "termlink_agent_top_thread_starters + termlink_agent_thread_size_dist — 
 description: >
   termlink_agent_top_thread_starters + termlink_agent_thread_size_dist — root-authorship leaderboard + thread-size distribution MCP read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T06:36:36Z
-last_update: 2026-05-06T06:36:36Z
-date_finished: null
+last_update: 2026-05-06T06:43:28Z
+date_finished: 2026-05-06T06:43:28Z
 ---
 
 # T-1607: termlink_agent_top_thread_starters + termlink_agent_thread_size_dist — root-authorship leaderboard + thread-size distribution MCP read tools
@@ -134,3 +134,7 @@ grep -q '"termlink_agent_thread_size_dist"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1607-termlinkagenttopthreadstarters--termlink.md
 - **Context:** Initial task creation
+
+### 2026-05-06T06:43:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 9/9, build clean 4m49s, mcp_tools=160. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).

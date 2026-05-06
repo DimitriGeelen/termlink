@@ -4,16 +4,16 @@ name: "termlink_agent_info + termlink_agent_peers — orientation MCP read tools
 description: >
   termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T16:54:05Z
-last_update: 2026-05-05T16:54:05Z
-date_finished: null
+last_update: 2026-05-05T17:03:36Z
+date_finished: 2026-05-05T17:03:36Z
 ---
 
 # T-1576: termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)
@@ -123,3 +123,6 @@ grep -q '"termlink_agent_peers"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1576-termlinkagentinfo--termlinkagentpeers--o.md
 - **Context:** Initial task creation
+
+### 2026-05-05T17:03:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender
 description: >
   termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T21:55:44Z
-last_update: 2026-05-05T21:55:44Z
-date_finished: null
+last_update: 2026-05-05T22:02:47Z
+date_finished: 2026-05-05T22:02:47Z
 ---
 
 # T-1593: termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools
@@ -125,3 +125,7 @@ grep -q '"termlink_agent_help"' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1593-termlinkagentfollowupsto--termlinkagenth.md
 - **Context:** Initial task creation
+
+### 2026-05-05T22:02:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Agent ACs 10/10, build clean 5m18s, mcp_tools=132. Human REVIEW remains for human-side MCP-fluency check (Tier-2 logged).
