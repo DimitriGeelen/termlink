@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1619: fw metrics api-usage trend mode crash — F-7 unpack mismatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T12:08:43Z
+# ============================================================================
+
+task_id: T-1619
+task_name: "fw metrics api-usage trend mode crash — F-7 unpack mismatch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T12:03:14Z
+completed: 2026-05-06T12:08:40Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Line 382 unpacks 10 values matching `stats_for_window()` return shape (PL-152: aggregation/return-shape regression). Evidence: grep verifies `_, total, legacy_total, _, _, _, legacy_unattr, _, _, _ = stats_for_window(d)` present."
+  - "`fw metrics api-usage` (default invocation, trend mode) prints the 4-window table without traceback. Evidence: live output shows `60d  195690  7867  4.02%  FAIL` — table renders, no traceback."
+  - "`--cut-ready --last-Nd 1` still works (regression check on the workaround path). Evidence: command exits 1 (correct: gate is NOT READY) — exit code in expected range, no crash."
+  - "Upstream /opt/999-Agentic-Engineering-Framework patched + pushed to onedev (Channel 1 mirror pattern) so the fix survives next `fw upgrade`. Evidence: commit `adf465d76ec3087662578798257ef46ba52f1160` on origin/master, HEAD == origin/master verified."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1619-fw-metrics-api-usage-trend-mode-crash--f.md
+generated_by: context-agent-hybrid
