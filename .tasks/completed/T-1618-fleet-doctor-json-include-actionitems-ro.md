@@ -4,16 +4,16 @@ name: "fleet doctor JSON: include action_items rollup (parity with text output)"
 description: >
   fleet doctor JSON: include action_items rollup (parity with text output)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T11:43:41Z
-last_update: 2026-05-06T11:43:41Z
-date_finished: null
+last_update: 2026-05-06T11:50:22Z
+date_finished: 2026-05-06T11:50:22Z
 ---
 
 # T-1618: fleet doctor JSON: include action_items rollup (parity with text output)
@@ -25,12 +25,12 @@ T-1617 added an `Action items:` rollup to fleet doctor's text output. Verified l
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Action-items computation lifted out of the `else !json` branch into shared scope before json_doc construction
-- [ ] `json_doc` includes top-level `action_items` array (Vec<String>)
-- [ ] Text output behavior unchanged (still prints `Action items:` block)
-- [ ] `target/release/termlink fleet doctor --json | jq .action_items` returns the same items as text output
-- [ ] When fleet is clean (no stale, no fail), `action_items` is `[]` (empty array, not missing)
-- [ ] Build clean
+- [x] Action-items computation lifted out of the `else !json` branch into shared scope before json_doc construction
+- [x] `json_doc` includes top-level `action_items` array (Vec<String>)
+- [x] Text output behavior unchanged (still prints `Action items:` block)
+- [x] `target/release/termlink fleet doctor --json | jq .action_items` returns the same items as text output
+- [x] When fleet is clean (no stale, no fail), `action_items` is `[]` (empty array, not missing)
+- [x] Build clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -119,3 +119,6 @@ target/release/termlink fleet doctor --json 2>/dev/null | python3 -c "import sys
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1618-fleet-doctor-json-include-actionitems-ro.md
 - **Context:** Initial task creation
+
+### 2026-05-06T11:50:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
