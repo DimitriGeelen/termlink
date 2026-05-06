@@ -899,6 +899,20 @@ pub struct AgentCoPostersParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct AgentPostStreakParams {
+    /// Sender fingerprint whose consecutive-day posting streak is requested.
+    pub sender_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentPresenceNowParams {
+    /// Window in minutes. Default 60, capped at 1440 (24h).
+    pub minutes: Option<u64>,
+    /// Max results. Default 50, capped at 500.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentDailyVolumeParams {
     /// Window in days. Default 14, capped at 90.
     pub window_days: Option<u64>,
@@ -12592,6 +12606,200 @@ impl TermLinkTools {
             "total_posts": total_posts,
             "days_covered": daily.len(),
             "daily": daily,
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_post_streak",
+        description = "Per-peer consecutive-day posting streak for agent-chat-arc. Given a `sender_id`, walks topic, filters posts by sender, buckets by UTC day index, walks the ordered day-set tracking max consecutive run + current trailing run (current = streak ending today). Returns `{sender_id, total_post_days, max_streak_days, current_streak_days, max_streak_start, max_streak_end}` with start/end as YYYY-MM-DD UTC. Habit / consistency detector — answers 'longest stretch this peer kept showing up?' and 'still on a streak?'."
+    )]
+    async fn termlink_agent_post_streak(
+        &self,
+        Parameters(p): Parameters<AgentPostStreakParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut day_set: std::collections::BTreeSet<i64> = std::collections::BTreeSet::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+            if sender != p.sender_id { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts == 0 { continue; }
+            day_set.insert(ts / 86_400_000);
+        }
+        if day_set.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "sender_id": p.sender_id,
+                "total_post_days": 0,
+                "max_streak_days": 0,
+                "current_streak_days": 0,
+                "max_streak_start": serde_json::Value::Null,
+                "max_streak_end": serde_json::Value::Null,
+            })).unwrap_or_else(json_err);
+        }
+        let days: Vec<i64> = day_set.iter().copied().collect();
+        let mut max_run: u64 = 1;
+        let mut max_run_end: i64 = days[0];
+        let mut cur_run: u64 = 1;
+        let mut cur_run_end: i64 = days[0];
+        for i in 1..days.len() {
+            if days[i] == days[i-1] + 1 {
+                cur_run += 1;
+            } else {
+                cur_run = 1;
+            }
+            cur_run_end = days[i];
+            if cur_run > max_run {
+                max_run = cur_run;
+                max_run_end = cur_run_end;
+            }
+        }
+        let max_run_start = max_run_end - (max_run as i64) + 1;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let today = now_ms / 86_400_000;
+        let last_day = *days.last().unwrap();
+        let current_streak_days: u64 = if last_day == today || last_day == today - 1 {
+            let mut count = 1u64;
+            let mut walk = last_day;
+            let mut idx = days.len() as i64 - 1;
+            while idx >= 1 {
+                if days[(idx - 1) as usize] == walk - 1 {
+                    count += 1;
+                    walk -= 1;
+                    idx -= 1;
+                } else {
+                    break;
+                }
+            }
+            count
+        } else { 0 };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "sender_id": p.sender_id,
+            "total_post_days": days.len(),
+            "max_streak_days": max_run,
+            "current_streak_days": current_streak_days,
+            "max_streak_start": epoch_days_to_ymd(max_run_start),
+            "max_streak_end": epoch_days_to_ymd(max_run_end),
+        })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_presence_now",
+        description = "Live presence gauge for agent-chat-arc. Walks topic, identifies senders who posted in the last `minutes` (default 60, capped at 1440=24h), groups by sender, returns `[{sender_id, last_post_ts, mins_ago, post_count}, ...]` sorted by last_post_ts desc. Per-sender companion to `termlink_agent_recent_window` (which lists posts) — pivots to 'who's around right now?'. Useful for status-page / fleet-presence / who's-online checks. Default limit 50, capped at 500."
+    )]
+    async fn termlink_agent_presence_now(
+        &self,
+        Parameters(p): Parameters<AgentPresenceNowParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let minutes = p.minutes.unwrap_or(60).min(1440);
+        let limit = p.limit.unwrap_or(50).min(500) as usize;
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let cutoff = now_ms - (minutes as i64) * 60_000;
+        let mut all: Vec<serde_json::Value> = Vec::new();
+        let mut cursor: u64 = 0;
+        let page_limit: u64 = 1000;
+        loop {
+            let resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("RPC call failed: {e}")),
+            };
+            let result = match termlink_session::client::unwrap_result(resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("Hub returned error: {e}")),
+            };
+            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+            let n = msgs.len();
+            all.extend(msgs);
+            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+            if (n as u64) < page_limit {
+                break;
+            }
+        }
+        let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &all {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            if ts < cutoff { continue; }
+            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let entry = by_sender.entry(sender).or_insert((0, 0));
+            entry.0 += 1;
+            if ts > entry.1 { entry.1 = ts; }
+        }
+        let mut results: Vec<serde_json::Value> = by_sender.into_iter()
+            .map(|(s, (c, ts))| {
+                let mins_ago = ((now_ms - ts) / 60_000).max(0);
+                serde_json::json!({
+                    "sender_id": s,
+                    "post_count": c,
+                    "last_post_ts": ts,
+                    "mins_ago": mins_ago,
+                })
+            })
+            .collect();
+        results.sort_by(|a, b| {
+            let ta = a.get("last_post_ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            let tb = b.get("last_post_ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            tb.cmp(&ta)
+        });
+        let total = results.len();
+        if results.len() > limit { results.truncate(limit); }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "minutes": minutes,
+            "cutoff_ts_ms": cutoff,
+            "total_active": total,
+            "returned": results.len(),
+            "active": results,
         })).unwrap_or_else(json_err)
     }
 
