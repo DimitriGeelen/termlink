@@ -3050,6 +3050,26 @@ pub(crate) async fn cmd_fleet_doctor(
         None
     };
 
+    // T-1618: compute action-items rollup before json_doc construction so
+    // both --json and text paths see the same content. Mirrors T-1617's
+    // text rendering. Each entry is a single-line operator-actionable hint
+    // grouped by failure class.
+    let stale_count = fleet_versions.get("0.9.0").copied().unwrap_or(0);
+    let total_hubs_count = hub_results.len() as u32;
+    let mut action_items: Vec<String> = Vec::new();
+    if stale_count > 0 {
+        action_items.push(format!(
+            "Version skew: {}/{} hubs on 0.9.0 — restart hub processes to pick up newer binary (CLI is on {})",
+            stale_count, total_hubs_count, cli_version
+        ));
+    }
+    if total_fail > 0 {
+        action_items.push(format!(
+            "Failed hubs: {} hub(s) returned errors above — see [FAIL]/hint lines for per-hub diagnostic",
+            total_fail
+        ));
+    }
+
     // T-1463: build the JSON document unconditionally when either --json
     // or --save-snapshot was requested, so both paths emit the same value.
     let need_json_doc = json || save_snapshot.is_some();
@@ -3059,6 +3079,7 @@ pub(crate) async fn cmd_fleet_doctor(
             "hubs": hub_results,
             "summary": {"total": hub_results.len(), "pass": total_pass, "warn": total_warn, "fail": total_fail},
             "fleet_versions": fleet_versions,
+            "action_items": action_items,
             "_snapshot_ts_ms": snapshot_ts_ms,
         });
         if let Some(ls) = legacy_summary_obj.clone()
@@ -3148,27 +3169,16 @@ pub(crate) async fn cmd_fleet_doctor(
             }
         }
 
-        // T-1617: action-items rollup. Aggregates per-class signals into a
-        // single block so the operator gets at-a-glance "what to do" without
-        // parsing N identical per-hub WARN lines. Per-hub detail above is
-        // preserved; this is a roll-up summary.
-        let stale_count = fleet_versions.get("0.9.0").copied().unwrap_or(0);
-        let total_hubs = hub_results.len() as u32;
-        let any_action = stale_count > 0 || total_fail > 0;
-        if any_action {
+        // T-1617 / T-1618: action-items rollup. Per-class signals aggregated
+        // into a single block so the operator gets at-a-glance "what to do"
+        // without parsing N identical per-hub WARN lines. Per-hub detail
+        // above is preserved; this is a roll-up summary. The Vec is built
+        // before json_doc construction so --json sees the same content.
+        if !action_items.is_empty() {
             eprintln!();
             eprintln!("Action items:");
-            if stale_count > 0 {
-                eprintln!(
-                    "  - Version skew: {}/{} hubs on 0.9.0 — restart hub processes to pick up newer binary (CLI is on {})",
-                    stale_count, total_hubs, cli_version
-                );
-            }
-            if total_fail > 0 {
-                eprintln!(
-                    "  - Failed hubs: {} hub(s) returned errors above — see [FAIL]/hint lines for per-hub diagnostic",
-                    total_fail
-                );
+            for item in &action_items {
+                eprintln!("  - {}", item);
             }
         }
     }
