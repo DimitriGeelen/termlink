@@ -4,7 +4,7 @@ name: "T-1619 regression smoke — pin metrics api-usage trend mode (PL-152 prev
 description: >
   T-1619 regression smoke — pin metrics api-usage trend mode (PL-152 prevention)
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-06T12:22:16Z
-last_update: 2026-05-06T12:22:16Z
-date_finished: null
+last_update: 2026-05-06T12:24:16Z
+date_finished: 2026-05-06T12:24:16Z
 ---
 
 # T-1621: T-1619 regression smoke — pin metrics api-usage trend mode (PL-152 prevention)
@@ -57,6 +57,15 @@ bash tests/test_t1619_metrics_trend_smoke.sh
 
 ## RCA
 
+(This task is a *preventive* test, not a bug fix. The bug itself was diagnosed and resolved in T-1619; this task ships the regression smoke that pins it. RCA below restates T-1619's analysis to satisfy G-019, since the title contains "regression".)
+
+**Symptom:** `fw metrics api-usage` (default invocation = trend mode) crashed with `ValueError: too many values to unpack (expected 7)` at `agents/metrics/api-usage.sh:382`.
+
+**Root cause:** `stats_for_window()` returns a 10-tuple. Five call-sites had been updated to 10-unpack when the return shape grew (T-1414 added `last_seen_callers/pids/ips`). Line 382 in the trend-mode loop was missed.
+
+**Why structurally allowed:** Bash-embedded Python has no static type checker. Trend mode is the *default* invocation but no test exercised it — operators only used `--cut-ready --last-Nd N` (different code path). PL-152 generalizes: when a multi-value return shape changes, all unpack call-sites must be enumerated.
+
+**Prevention:** This task ships `tests/test_t1619_metrics_trend_smoke.sh` — a real-binary smoke that runs `fw metrics api-usage` (default + --cut-ready paths) and asserts no Python traceback, table renders, exit codes are sane. Distinct from T-1619's grep-based AC verification — this catches *any* future regression of the unpack arity (or of any code in stats_for_window's call chain) by exercising the live tool.
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -112,3 +121,6 @@ bash tests/test_t1619_metrics_trend_smoke.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1621-t-1619-regression-smoke--pin-metrics-api.md
 - **Context:** Initial task creation
+
+### 2026-05-06T12:24:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
