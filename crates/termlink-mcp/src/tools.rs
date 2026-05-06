@@ -65,6 +65,76 @@ fn epoch_days_to_ymd(days: i64) -> String {
     format!("{:04}-{:02}-{:02}", year, m, d)
 }
 
+/// Helper: build a curator-activity leaderboard for a given msg_type (pin/star)
+/// on agent-chat-arc. Walks topic, filters by msg_type, tallies per sender,
+/// returns sorted JSON. Used by termlink_agent_top_pinners / top_starrers.
+async fn curator_top(
+    limit_opt: &Option<u64>,
+    msg_type: &str,
+    count_field: &str,
+    last_ts_field: &str,
+) -> String {
+    let hub_socket = termlink_hub::server::hub_socket_path();
+    if !hub_socket.exists() {
+        return json_err("Hub is not running (no socket found)");
+    }
+    let topic = "agent-chat-arc";
+    let limit = limit_opt.unwrap_or(20).min(200) as usize;
+    let mut all: Vec<serde_json::Value> = Vec::new();
+    let mut cursor: u64 = 0;
+    let page_limit: u64 = 1000;
+    loop {
+        let resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+            serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("RPC call failed: {e}")),
+        };
+        let result = match termlink_session::client::unwrap_result(resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("Hub returned error: {e}")),
+        };
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        all.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < page_limit {
+            break;
+        }
+    }
+    let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+    for env in &all {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some(msg_type) { continue; }
+        let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if sender.is_empty() { continue; }
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = by_sender.entry(sender).or_insert((0, 0));
+        entry.0 += 1;
+        if ts > entry.1 { entry.1 = ts; }
+    }
+    let mut leaderboard: Vec<serde_json::Value> = by_sender.into_iter()
+        .map(|(s, (c, ts))| serde_json::json!({"sender_id": s, count_field: c, last_ts_field: ts}))
+        .collect();
+    leaderboard.sort_by(|a, b| {
+        let ca = a.get(count_field).and_then(|v| v.as_u64()).unwrap_or(0);
+        let cb = b.get(count_field).and_then(|v| v.as_u64()).unwrap_or(0);
+        cb.cmp(&ca)
+    });
+    let total = leaderboard.len();
+    if leaderboard.len() > limit { leaderboard.truncate(limit); }
+    serde_json::to_string_pretty(&serde_json::json!({
+        "total_curators": total,
+        "returned": leaderboard.len(),
+        "leaderboard": leaderboard,
+    })).unwrap_or_else(json_err)
+}
+
 /// Helper: connect to a remote hub via TOFU TLS and authenticate.
 ///
 /// Returns an authenticated [`client::Client`] on success, or a pre-formatted
@@ -935,6 +1005,18 @@ pub struct AgentIdleThreadsParams {
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentRecentThreadsParams {
     /// Max results. Default 20, capped at 200.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTopPinnersParams {
+    /// Max leaderboard entries. Default 20, capped at 200.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTopStarrersParams {
+    /// Max leaderboard entries. Default 20, capped at 200.
     pub limit: Option<u64>,
 }
 
@@ -13824,6 +13906,28 @@ impl TermLinkTools {
             "last_activity_ts": last_activity,
             "posts_24h": posts_24h,
         })).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_top_pinners",
+        description = "Most-active pinners leaderboard for agent-chat-arc. Walks topic, filters `msg_type=pin` envelopes, tallies per `sender_id`, returns `[{sender_id, pin_actions, last_pin_ts}, ...]` sorted desc by pin_actions. Curator-activity leader. Distinct from `termlink_agent_pinned_by` (per-curator current pins after latest-wins reduce) — this counts ALL pin actions (raw activity). Default limit 20, capped at 200."
+    )]
+    async fn termlink_agent_top_pinners(
+        &self,
+        Parameters(p): Parameters<AgentTopPinnersParams>,
+    ) -> String {
+        curator_top(&p.limit, "pin", "pin_actions", "last_pin_ts").await
+    }
+
+    #[tool(
+        name = "termlink_agent_top_starrers",
+        description = "Most-active starrers leaderboard for agent-chat-arc. Walks topic, filters `msg_type=star` envelopes, tallies per `sender_id`, returns `[{sender_id, star_actions, last_star_ts}, ...]` sorted desc by star_actions. Curator-activity leader for stars. Distinct from `termlink_agent_starred_by` (per-curator current stars). Default limit 20, capped at 200."
+    )]
+    async fn termlink_agent_top_starrers(
+        &self,
+        Parameters(p): Parameters<AgentTopStarrersParams>,
+    ) -> String {
+        curator_top(&p.limit, "star", "star_actions", "last_star_ts").await
     }
 
     #[tool(
