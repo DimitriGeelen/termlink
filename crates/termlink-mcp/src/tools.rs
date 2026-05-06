@@ -6017,7 +6017,10 @@ impl TermLinkTools {
             let mut checks: Vec<serde_json::Value> = Vec::new();
             let mut pass_count: u32 = 0;
             let mut warn_count: u32 = 0;
-            let fail_count: u32 = 0;
+            // T-1620: was `let fail_count` (immutable) — every probe outcome was
+            // forced to warn or pass and the summary `fail` field was a tautology
+            // (always 0 → `"ok": true` even on hub-side probe failure). PL-152.
+            let mut fail_count: u32 = 0;
 
             // 1. Connectivity
             let connect_start = std::time::Instant::now();
@@ -6115,8 +6118,12 @@ impl TermLinkTools {
                     checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("{} pending transfer(s) for {} target(s)", total, targets)}));
                 }
                 Err(msg) => {
-                    warn_count += 1;
-                    checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": msg}));
+                    // T-1620: both modern (channel.list) AND legacy (inbox.status)
+                    // probes failed — the doctor cannot probe the inbox at all.
+                    // That is a structural fail, not a warn. Reclassifying so the
+                    // summary `fail` field actually reflects probe outcomes.
+                    fail_count += 1;
+                    checks.push(serde_json::json!({"check": "inbox", "status": "fail", "message": msg}));
                 }
             }
 
