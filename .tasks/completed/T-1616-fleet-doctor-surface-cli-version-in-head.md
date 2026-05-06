@@ -4,16 +4,16 @@ name: "fleet doctor: surface CLI version in header + skew context in WARN"
 description: >
   fleet doctor: surface CLI version in header + skew context in WARN
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T11:21:19Z
-last_update: 2026-05-06T11:21:19Z
-date_finished: null
+last_update: 2026-05-06T11:27:36Z
+date_finished: 2026-05-06T11:27:36Z
 ---
 
 # T-1616: fleet doctor: surface CLI version in header + skew context in WARN
@@ -27,11 +27,11 @@ Live observation 2026-05-06: CLI is 0.9.2042 (d41fec98), all 5 hubs report 0.9.0
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `fleet doctor` header line includes CLI version: `Fleet doctor: N hub(s) configured (CLI 0.9.XXXX [hash])`
-- [ ] Stale-version WARN message includes CLI version for skew context: `hub_version=0.9.0, cli_version=0.9.XXXX — running hub binary predates ...`
-- [ ] Both changes use `env!("CARGO_PKG_VERSION")` and `option_env!("GIT_COMMIT")` (existing build.rs pattern, T-1458)
-- [ ] Build clean, no new warnings introduced
-- [ ] Dogfood: run `target/release/termlink fleet doctor`, observe header shows CLI version + WARN includes both versions
+- [x] `fleet doctor` header line includes CLI version: `Fleet doctor: N hub(s) configured (CLI 0.9.XXXX [hash])`
+- [x] Stale-version WARN message includes CLI version for skew context: `hub_version=0.9.0, cli_version=0.9.XXXX — running hub binary predates ...`
+- [x] Both changes use `env!("CARGO_PKG_VERSION")` and `option_env!("GIT_COMMIT")` (existing build.rs pattern, T-1458)
+- [x] Build clean, no new warnings introduced
+- [x] Dogfood: run `target/release/termlink fleet doctor`, observe header shows CLI version + WARN includes both versions
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,3 +117,6 @@ grep -aqF "cli_version=" target/release/termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1616-fleet-doctor-surface-cli-version-in-head.md
 - **Context:** Initial task creation
+
+### 2026-05-06T11:27:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
