@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1616: fleet doctor: surface CLI version in header + skew context in WARN
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-06T11:27:38Z
+# ============================================================================
+
+task_id: T-1616
+task_name: "fleet doctor: surface CLI version in header + skew context in WARN"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T11:21:19Z
+completed: 2026-05-06T11:27:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-06T13:27:31+02:00
+last_commit: 2026-05-06T13:27:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor — surface CLI version in header + WARN skew context
+
+# Key outcomes
+outcomes:
+  - "`fleet doctor` header line includes CLI version: `Fleet doctor: N hub(s) configured (CLI 0.9.XXXX [hash])`"
+  - "Stale-version WARN message includes CLI version for skew context: `hub_version=0.9.0, cli_version=0.9.XXXX — running hub binary predates ...`"
+  - "Both changes use `env!(\"CARGO_PKG_VERSION\")` and `option_env!(\"GIT_COMMIT\")` (existing build.rs pattern, T-1458)"
+  - "Build clean, no new warnings introduced"
+  - "Dogfood: run `target/release/termlink fleet doctor`, observe header shows CLI version + WARN includes both versions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1616-fleet-doctor-surface-cli-version-in-head.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T13:27:31"
+    action: "T-1616: fleet doctor — surface CLI version in header + WARN skew context"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 134
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1616-fleet-doctor-surface-cli-version-in-head.md
+generated_by: context-agent-hybrid
