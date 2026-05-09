@@ -1127,7 +1127,17 @@ learnings:
   task: T-1447
   date: 2026-05-02
   context: Added via context agent
-  application: TBD
+  application: |
+    SYSTEMIC — same class hit again 2026-05-03 (silently, undetected for 6 days
+    until T-1629 audit on 2026-05-09). The post-upgrade restoration step from
+    PL-124 was either skipped or mis-applied: working CLAUDE.md ended up
+    regressed vs both HEAD and CLAUDE.md.bak (which held the correct
+    pre-upgrade content). Detection only happened because git status surfaced
+    the modified file during an unrelated diff inspection. Until upgrade.sh
+    gains section-aware merge, after every `fw upgrade` run
+    `diff CLAUDE.md CLAUDE.md.bak` and `git diff CLAUDE.md`, re-apply project
+    additions, then delete CLAUDE.md.bak so it cannot mask further drift.
+    Concern G-021 tracks the structural follow-up.
 - id: PL-125
   learning: "fw test all web suite assumes framework-source project data context. 5/7 failures search for '001-Vision' doc, 'System Health' on dashboard, '/tasks/T-' on /patterns — these exist in the framework repo's own project files, not consumer projects. Tests should use fixtures or mocked PROJECT_ROOT consistently. Observed: T-1447 fw 1.6.124 web test against /opt/termlink."
   source: PL-007
