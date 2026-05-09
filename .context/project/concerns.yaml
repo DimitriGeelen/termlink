@@ -502,7 +502,20 @@ concerns:
     3. **Auto-cleanup of stale .bak** — after a configurable window (e.g. 1h post-upgrade), CLAUDE.md.bak should be auto-deleted by a hook so it cannot mask drift. Or: a daily audit hook fails if any CLAUDE.md.bak persists more than 24h.
     4. **Project-customization conventions** — encourage project-specific additions to live in clearly-delimited sections (e.g. a CLAUDE.md.local include) rather than inline in governance. Long-term cleanest fix.
   mitigation_candidate: "Tactical (T-1629): symptom restored via `git checkout HEAD -- CLAUDE.md`, .bak deleted. Structural: capture this G-055 entry, then open a follow-up framework task on upgrade.sh (Level C tooling). Path 2 (post-upgrade git-diff audit) is the lowest-friction insertion — ~20 lines of bash in upgrade.sh that runs after the template write."
+  mitigation_progress:
+    - date: 2026-05-09
+      task: T-1630
+      detail: |
+        Prevention path #2 SHIPPED — `lib/upgrade.sh` now diffs CLAUDE.md.bak
+        against the new CLAUDE.md after the template write and surfaces any
+        lines present in .bak but absent from the new file. Silent on no-loss
+        and additions-only cases; fires with line count + first-8 preview +
+        diff hint when customization loss detected. Mirrored upstream
+        (d7526505f). Status remains `watching` until verified by ≥1 real
+        upgrade cycle in production with non-trivial governance template
+        diff. Paths #1 (section-aware merge), #3 (auto-cleanup of stale
+        .bak), #4 (CLAUDE.md.local include) remain open.
   status: watching
   created: 2026-05-09
   last_reviewed: 2026-05-09
-  related_tasks: [T-1447, T-1629]
+  related_tasks: [T-1447, T-1629, T-1630]
