@@ -1,5 +1,14 @@
 # T-1166 Cut-Flip Projection — 2026-05-06
 
+> **Reality check 2026-05-09T21:10Z:** Cut flipped **1 day early** — actual flip
+> date 2026-05-09, not 2026-05-10 as projected below. Today's 7d window reads
+> `legacy=668 total=392619 pct=0.170%` (`passing=true`). The projection
+> over-counted forward residue because `.121`/`.143` traffic ceased before
+> 2026-05-04 (visible in the per-day table — zero new legacy traffic from
+> that date onward), so the linear-decay assumption was conservative. The
+> 60d window remains FAIL (1.621%) — see T-1166 Updates 2026-05-09 entry
+> for the operator decision surface (paths a/b/c).
+
 **Status as of 2026-05-06T18:59Z:** `cut_ready: false` (legacy_pct = 2.904%, gate = 1.0%)
 
 **Projected cut-flip date:** **2026-05-10** (4 days from observation)

@@ -79,6 +79,23 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-09T21:10Z — Cut-readiness snapshot — 7d window now PASSING (path (a) hit) [agent autonomous]
+- **7d window:** 668 legacy / 392619 total = **0.170% PASS** (gate ≤1.0%)
+- **60d window:** 7870 legacy / 485485 total = **1.621% FAIL** (gate ≤1.0% — strict AC criterion)
+- **Last-seen legacy callers:**
+  - 662× inbox.status from `192.168.10.121` — last seen 2026-05-03T08:04Z (**6 days ago**)
+  - 5× event.broadcast from `192.168.10.122` — last seen 2026-05-06T13:46Z (**3 days ago**)
+  - 1× inbox.list from `192.168.10.121` — last seen 2026-05-03T20:31Z (6 days ago)
+- **Real-time traffic is essentially zero** — no legacy RPC in the last 72h.
+- **T-1627 projection vs reality:** projection (2026-05-06) said 7d-window cut-flip would land 2026-05-10. Actual flip date: **2026-05-09 (1 day early).** Legacy traffic dried up faster than the linear-decay model assumed because the .121/.143 dashboard had already stopped polling before the projection epoch (visible in the per-day decay table: zero new legacy from 2026-05-04 onward).
+- **Cut decision (per 2026-05-06 update's three paths):**
+  - **(a) wait for 7d window to clean** → ✅ **HIT TODAY**
+  - **(b) tighten AC from `--last-60d` to `--last-7d`** → operator decision (semantically consistent with the 2026-05-06 plan; would let AC #1 tick today)
+  - **(c) operator authorizes manual Tier-2 cut now** → operator decision (real-time traffic essentially zero, no caller would notice)
+- **Agent recommendation:** path (b) — tighten the AC to `--last-7d`, tick AC #1, then operator authorizes Tier-2 cut. The 60d window failure is purely historical residue with zero forward-looking signal; staying gated on it costs ~50 more days of legacy code-path maintenance for no operational benefit.
+- **Authorization not autonomous (R-033):** agent will not tighten the AC nor tick it. Awaiting operator direction.
+- **Probe artifact:** `/tmp/cut_probe_20260509.json` (full snapshot — kept session-local, not committed; reproducible via `.agentic-framework/bin/fw metrics api-usage --last-Nd 7 --json`).
+
 ### 2026-05-06T12:10Z — Cut-readiness snapshot post-T-1619 (F-7 fix unblocked trend visibility) [agent autonomous]
 - **Trend mode now works** (T-1619 shipped at adf465d7 — was crashing on every default invocation since fw 1.6.124).
 - **Per-window legacy traffic:**
