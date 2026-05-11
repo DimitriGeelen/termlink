@@ -38,8 +38,13 @@ const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 /// either approach (edit the const expression directly, or rebuild with
 /// `--features legacy_primitives_disabled`); both produce identical
 /// behavior.
-pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool =
-    !cfg!(feature = "legacy_primitives_disabled");
+// T-1166 CUT 2026-05-11 — legacy primitives retired by operator authorization.
+// The const is hardcoded false to make cut behavior deterministic regardless of
+// build flags. The cfg-feature mechanism + this const + the legacy handler bodies
+// + cut_path test module + is_retired_legacy_method/legacy_method_retired_response
+// helpers all get removed in T-1415 once the 7-day bake passes with zero
+// attributable -32601 hits in production.
+pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = false;
 
 /// T-1411: Standardized response when a legacy method has been retired.
 /// Returns JSON-RPC error code -32601 (method-not-found) — what a stranger
@@ -2626,7 +2631,12 @@ mod tests {
 
     // T-1413: gated to default feature — the OFF feature retires
     // event.broadcast so this end-to-end happy path no longer applies.
+    // T-1166 cut (2026-05-11): pre-cut guard test — asserts legacy event.broadcast
+    // delivers end-to-end. With LEGACY_PRIMITIVES_ENABLED = false, the post-cut
+    // contract is method-not-found (covered by cut_path::route_returns_method_not_found_for_event_broadcast).
+    // Ignored at cut; T-1415 deletes this entire test post-bake.
     #[cfg(not(feature = "legacy_primitives_disabled"))]
+    #[ignore = "T-1166 cut: legacy event.broadcast retired; T-1415 deletes this test"]
     #[tokio::test]
     async fn tcp_broadcast_delivers_to_sessions() {
         let _lock = ENV_LOCK.lock().await;
@@ -3881,7 +3891,11 @@ mod tests {
     // T-1413: gated — under the OFF feature the array's "event.broadcast"
     // entry is filtered out, so the assertion that it must be present
     // would fail. The cut_path module below covers the OFF case.
+    // T-1166 cut (2026-05-11): pre-cut guard test — asserts legacy methods appear
+    // in the capabilities method list. Post-cut, cut_path::capabilities_methods_array_excludes_retired_names
+    // covers the inverse. Ignored at cut; T-1415 deletes.
     #[cfg(not(feature = "legacy_primitives_disabled"))]
+    #[ignore = "T-1166 cut: legacy methods no longer advertised; T-1415 deletes this test"]
     #[test]
     fn hub_capabilities_returns_sorted_method_list() {
         let resp = super::handle_hub_capabilities(json!(9));
@@ -3934,7 +3948,12 @@ mod tests {
     // T-1413: gated to default-feature builds — the OFF feature flips the
     // const and this assertion would otherwise fail. The OFF feature has
     // its own dedicated test below (`hub_capabilities_advertises_legacy_primitives_off`).
+    // T-1166 cut (2026-05-11): pre-cut guard test — asserts capabilities.features.legacy_primitives = true.
+    // Post-cut, cut_path::capabilities_advertises_legacy_primitives_off covers the inverse.
+    // This test was the forcing function "must be true while pre-T-1166". Now post-T-1166.
+    // Ignored at cut; T-1415 deletes.
     #[cfg(not(feature = "legacy_primitives_disabled"))]
+    #[ignore = "T-1166 cut: legacy_primitives feature now false; T-1415 deletes this test"]
     #[test]
     fn hub_capabilities_advertises_legacy_primitives_feature_flag() {
         let resp = super::handle_hub_capabilities(json!(42));
