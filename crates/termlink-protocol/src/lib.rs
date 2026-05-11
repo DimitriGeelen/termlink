@@ -18,7 +18,15 @@ pub const DATA_PLANE_VERSION: u8 = 1;
 /// All new methods are Tier-A per T-1133, so v1 clients continue to work
 /// against a v2 hub for every method they already speak; the bump signals
 /// "this hub also supports channel.* / bus semantics".
-pub const CONTROL_PLANE_VERSION: u8 = 2;
+///
+/// Bumped to **3** by T-1166 (2026-05-11) when the legacy primitives
+/// (`event.broadcast`, `inbox.{list,status,clear}`, `file.{send,receive}`)
+/// were retired via `LEGACY_PRIMITIVES_ENABLED = false`. This is a
+/// SUBTRACTIVE change — v1 and v2 clients lose methods they were using and
+/// receive -32601 (method-not-found) when invoking them. The bump signals
+/// "this hub no longer speaks the retired data-plane methods" so federating
+/// clients can plan their migration windows.
+pub const CONTROL_PLANE_VERSION: u8 = 3;
 
 /// Magic bytes for data plane frame sync: "TL" (0x54, 0x4C).
 pub const FRAME_MAGIC: [u8; 2] = [0x54, 0x4C];
