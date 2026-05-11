@@ -81,6 +81,61 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-11T22:00Z — CUT CODE SHIPPED + binary built; .122 deploy spec ready for operator [agent under operator authorization]
+- **Code committed:** `39b4558e` on `/opt/termlink` (pushed to onedev). Two edits:
+  - `crates/termlink-hub/src/router.rs:41-48` — `LEGACY_PRIMITIVES_ENABLED = false` (hardcoded, deterministic, no longer feature-gated)
+  - `crates/termlink-protocol/src/lib.rs:15-32` — `CONTROL_PLANE_VERSION: 2 → 3` (subtractive bump signaling retired methods)
+  - `crates/termlink-hub/src/router.rs` (3 pre-cut guard tests) — marked `#[ignore]` to avoid `cargo test` regression; T-1415 deletes
+- **Tests all green:**
+  - `cargo test -p termlink-hub --lib` → **310 passed / 0 failed / 3 ignored**
+  - `cargo test -p termlink-hub --lib --features legacy_primitives_disabled` → **315 passed / 0 failed**
+  - `cargo test -p termlink-protocol --lib` → **100 passed / 0 failed**
+  - `cargo clippy -p termlink-hub --lib` → clean
+- **Release binary built:**
+  - path: `workstation-107:/opt/termlink/target/release/termlink`
+  - version: `0.9.2085`
+  - size: 24,704,760 bytes
+  - sha256: `82f3d23d7af473461e96dbb935be22298983a5e393596af8e692e410a949adbc`
+
+#### .122 Deploy Spec (for operator or ring20-management-agent execution)
+
+Coordination posted to local hub topic `dm:9219671e28054458:d1993c2c3ec44c94` at offset 8 (cross-hub DM federation for this topic is not auto — message visible only on workstation-107's hub; the deploy spec below is the authoritative source).
+
+**Pre-swap (on workstation-107):**
+1. Verify binary integrity:
+   ```
+   sha256sum /opt/termlink/target/release/termlink
+   # expect: 82f3d23d7af473461e96dbb935be22298983a5e393596af8e692e410a949adbc
+   ```
+
+**Swap on .122 (ring20-management):**
+1. Back up current binary: `cp $(which termlink) /tmp/termlink.pre-T1166`
+2. Stop hub: `pkill -f 'termlink hub'` (or `systemctl stop` per launch method on .122)
+3. Deliver binary: easiest path is `git fetch origin && git checkout 39b4558e && cargo build --release -p termlink` if /opt/termlink is on .122. Otherwise `scp` or a separate `termlink_file_send` operation from workstation-107 to .122 (file.send still works pre-swap — the new behavior fires only after .122's hub is upgraded).
+4. Install: `cp target/release/termlink $(which termlink)`
+5. Restart hub (watchdog handles, or `termlink hub start`)
+
+**Post-swap verification (from any host that can reach .122):**
+- a. `termlink remote ping ring20-management` → `ok=true`
+- b. `termlink remote call ring20-management hub.capabilities --scope control` → result.features.legacy_primitives **must be `false`** AND result.protocol_version **must be `3`**
+- c. Negative: `termlink remote call ring20-management event.broadcast ...` → expect `-32601 method-not-found`
+- d. Positive: `termlink remote call ring20-management channel.list --scope execute` → ok=true
+
+**Rollback if any verification fails:**
+1. `cp /tmp/termlink.pre-T1166 $(which termlink)`
+2. Restart hub
+3. Report which verification failed (a/b/c/d) and the observed output
+4. Agent reverts commit `39b4558e` on workstation-107 and we re-plan
+
+**24h post-swap bake check:**
+- `bin/fw metrics api-usage --last-Nd 1` from workstation-107 should show zero attributable legacy traffic for .122 (the cut hub itself can't emit legacy, so this verifies no clients are hitting -32601 unexpectedly).
+
+#### Remaining AC State
+
+- **ACs ticked (6/10):** #1 (gate), #6 (PROTOCOL_VERSION), #7 (migration guide), #8 (blast radius), #9 (cut-path tests), #10 (capability handshake)
+- **ACs deferred to T-1415 (4/10):** #2 (zero callers), #3 (router removal), #4 (CLI removal), #5 (MCP removal) — these are the post-bake source cleanup per PL-094 destructive-cut pattern.
+- **T-1166 not yet `work-completed`** — gates remaining: (1) .122 hub deploy succeeds, (2) ≥24h bake with zero attributable legacy traffic, (3) operator can authorize work-completed (T-1415 then fires for the post-bake source removal).
+
 ### 2026-05-11T21:40Z — Option (b) executed: AC #1 window tightened + path-2 ACs ticked + remaining ACs scoped [agent under operator authorization]
 - **Operator authorization (this session):** path (b) of the 2026-05-09 decision surface — tighten AC #1's gate window from `--last-60d` to `--last-7d`, then tick the verifiable ACs and surface what remains.
 - **Done in this session:**
