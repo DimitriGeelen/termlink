@@ -1348,3 +1348,10 @@ learnings:
   date: 2026-05-06
   context: Added via context agent
   application: TBD
+- id: PL-155
+  learning: "Markdown content filters via grep -v must specify trailing context when adjacent header levels share a prefix. '^##' matches '###' (greedy prefix match), silently stripping H3 headings. Use '^## ' (with trailing space) for H2-only stripping. Compound risk: yaml.safe_load tolerates duplicate keys via silent merge — so 'file parses' is NOT sufficient validation for structured emission; the SHAPE (list vs mapping, key uniqueness) must be validated separately."
+  source: upstream-G-082
+  task: T-1631
+  date: 2026-05-11
+  context: Added via context agent
+  application: TBD
