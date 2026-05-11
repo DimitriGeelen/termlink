@@ -79,6 +79,13 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-11T21:30Z — Cut-readiness re-probe — 60d window now at threshold (1.061%) [agent autonomous]
+- **7d window:** 5 legacy / 624900 total = **0.0008% PASS** (essentially zero — last legacy traffic 2026-05-06T13:46Z, 5 days quiet).
+- **60d window:** 7870 legacy / 741843 total = **1.061% FAIL** but **only by 0.061pp** — down from 1.621% on 2026-05-09. Trajectory: drops below 1.0% within 1–3 days as the 2026-05-03 inbox.status burst from .121 ages out (it's currently 8 days old; 60d window will hit it for ~52 more days but each day strips total volume too).
+- **Cut decision now overdue on path (a)** — 7d has been clean for 5 days; the operator decision surface from the 2026-05-09 snapshot is unchanged but more obviously due. Path (b) (tighten AC to `--last-7d`) remains the agent recommendation. Path (c) (Tier-2 authorize now) becomes near-trivial given the 5-day real-time quiet.
+- **No legacy callers in last 5 days** — the 5 historical event.broadcast calls are all from 2026-05-06T13:46Z (.122), no new sources.
+- **Authorization not autonomous (R-033)** — agent will not tighten the AC nor authorize the Tier-2 cut. Surfacing.
+
 ### 2026-05-09T21:10Z — Cut-readiness snapshot — 7d window now PASSING (path (a) hit) [agent autonomous]
 - **7d window:** 668 legacy / 392619 total = **0.170% PASS** (gate ≤1.0%)
 - **60d window:** 7870 legacy / 485485 total = **1.621% FAIL** (gate ≤1.0% — strict AC criterion)
