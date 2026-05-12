@@ -21,6 +21,55 @@ pub fn hub_socket_path() -> PathBuf {
     discovery::runtime_dir().join("hub.sock")
 }
 
+/// T-1633: Emit a one-shot warning when the hub starts as root with the
+/// default `runtime_dir` falling through to `/tmp/termlink-$UID`. Hits the
+/// PL-021 footgun pattern: bare-respawn without `TERMLINK_RUNTIME_DIR=...`
+/// loses the operator's intended persistent path, so identity and channel
+/// state can vanish at next reboot (volatile /tmp via tmpfs or
+/// systemd-tmpfiles).
+///
+/// Returns true if the warning was emitted (used by tests; production callers
+/// can ignore the return).
+///
+/// Conditions for warning (all must hold):
+///   1. `TERMLINK_RUNTIME_DIR` is unset (operator did not explicitly choose)
+///   2. Effective UID is 0 (root — non-root /tmp/termlink-UID is the
+///      documented default for interactive sessions and not a footgun)
+///   3. The resolved default path starts with `/tmp/`
+fn warn_if_volatile_default_runtime_dir() -> bool {
+    let uid = unsafe { libc::getuid() };
+    warn_if_volatile_default_runtime_dir_impl(uid, discovery::runtime_dir())
+}
+
+/// Pure-function core of [`warn_if_volatile_default_runtime_dir`]. `uid` and
+/// `resolved` are injected so the four-way truth table (env set/unset × root/
+/// non-root × /tmp/non-tmp) can be exercised without privilege or env
+/// mutation. Production callers always go through the wrapper.
+fn warn_if_volatile_default_runtime_dir_impl(uid: u32, resolved: PathBuf) -> bool {
+    if std::env::var("TERMLINK_RUNTIME_DIR").is_ok() {
+        return false;
+    }
+
+    if uid != 0 {
+        return false;
+    }
+
+    let resolved_str = resolved.to_string_lossy();
+    if !resolved_str.starts_with("/tmp/") {
+        return false;
+    }
+
+    tracing::warn!(
+        resolved = %resolved.display(),
+        "Hub starting as root with TERMLINK_RUNTIME_DIR unset — falling through to volatile /tmp default. \
+         If /tmp is wiped on reboot (tmpfs OR systemd-tmpfiles D /tmp, PL-021), hub.secret + TLS cert \
+         + bus state will be regenerated on next boot and ALL TOFU-pinned clients will need to re-auth. \
+         For production: set TERMLINK_RUNTIME_DIR=/var/lib/termlink (ensure dir exists, owned by root, 0700), \
+         or install the systemd unit at .context/systemd/termlink-hub.service which carries the env."
+    );
+    true
+}
+
 /// Return the hub secret file path: `runtime_dir()/hub.secret`.
 pub fn hub_secret_path() -> PathBuf {
     discovery::runtime_dir().join("hub.secret")
@@ -115,6 +164,11 @@ pub async fn run_with_tcp(
     socket_path: &Path,
     tcp_addr: Option<&str>,
 ) -> std::io::Result<ShutdownHandle> {
+    // T-1633: One-shot footgun check before we commit to any runtime_dir path.
+    // Emitted before pidfile acquisition so the warning lands even if startup
+    // fails later for an unrelated reason.
+    let _ = warn_if_volatile_default_runtime_dir();
+
     let pidfile_path = pidfile::hub_pidfile_path();
 
     // Acquire pidfile (prevents double-start, cleans stale)
@@ -1324,5 +1378,87 @@ mod tests {
 
         // Unknown defaults to Execute
         assert_eq!(hub_method_scope("unknown.method"), PermissionScope::Execute);
+    }
+
+    // T-1633: volatile-runtime_dir startup warning truth table.
+    // The impl function is pure (uid + path injected), so all four branches
+    // are exercised without privilege escalation or env mutation race.
+    // ENV_LOCK serializes the TERMLINK_RUNTIME_DIR read so concurrent tests
+    // cannot race the env-var probe.
+    mod runtime_dir_warn {
+        use super::*;
+
+        #[tokio::test]
+        async fn warns_when_root_and_tmp_and_env_unset() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                0,
+                PathBuf::from("/tmp/termlink-0"),
+            );
+            assert!(fired, "must warn: root + /tmp + no env");
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
+
+        #[tokio::test]
+        async fn silent_when_non_root() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                1000,
+                PathBuf::from("/tmp/termlink-1000"),
+            );
+            assert!(!fired, "non-root /tmp is the documented default, not a footgun");
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
+
+        #[tokio::test]
+        async fn silent_when_env_set() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            // Even when the env value itself points at /tmp, the operator
+            // made a conscious choice — don't second-guess.
+            unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", "/tmp/explicit") };
+
+            let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                0,
+                PathBuf::from("/tmp/explicit"),
+            );
+            assert!(!fired, "explicit env opt-out, no second-guessing");
+
+            match prev {
+                Some(v) => unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) },
+                None => unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") },
+            }
+        }
+
+        #[tokio::test]
+        async fn silent_when_root_but_path_not_tmp() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            // Hypothetical: root + XDG_RUNTIME_DIR set, so resolved path is
+            // outside /tmp. Not the footgun pattern.
+            let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                0,
+                PathBuf::from("/run/user/0/termlink"),
+            );
+            assert!(!fired, "non-/tmp resolution is not the PL-021 footgun");
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
     }
 }
