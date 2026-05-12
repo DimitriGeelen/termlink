@@ -12,7 +12,7 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-12T22:12:41Z
+last_update: 2026-05-12T22:15:17Z
 date_finished: null
 ---
 
@@ -34,14 +34,14 @@ Rejected alternatives:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `hub.capabilities` response includes `control_plane_version: 3` field (sourced from `termlink_protocol::CONTROL_PLANE_VERSION`)
-- [ ] `hub.version` response includes `control_plane_version: 3` field (same source)
-- [ ] `protocol_version` field still emits `DATA_PLANE_VERSION` (= 1) — no semantic change to the existing field
-- [ ] Test `hub_version_returns_binary_version_and_protocol_version` updated to assert `control_plane_version` is present and equals `CONTROL_PLANE_VERSION`
-- [ ] Cut-path test for `hub.capabilities` (post-cut variant) asserts `control_plane_version` field
-- [ ] `cargo test -p termlink-hub --lib` passes
-- [ ] `cargo check --workspace` passes
-- [ ] No client-side reader of `protocol_version` breaks (verified via grep — no consumers exist today)
+- [x] `hub.capabilities` response includes `control_plane_version: 3` field (sourced from `termlink_protocol::CONTROL_PLANE_VERSION`) — router.rs:1033 (commit e89ecb47)
+- [x] `hub.version` response includes `control_plane_version: 3` field (same source) — router.rs:895 (commit e89ecb47)
+- [x] `protocol_version` field still emits `DATA_PLANE_VERSION` (= 1) — no semantic change to the existing field
+- [x] Test `hub_version_returns_binary_version_and_protocol_version` updated to assert `control_plane_version` is present and equals `CONTROL_PLANE_VERSION` — passes
+- [x] Cut-path test for `hub.capabilities` (post-cut variant) asserts `control_plane_version` field — `cut_path::capabilities_emits_control_plane_version` passes under `--features legacy_primitives_disabled` (6 cut_path tests pass)
+- [x] `cargo test -p termlink-hub --lib` passes — `hub_version_returns_binary_version_and_protocol_version` 1 passed; `hub_capabilities` 1 passed + 2 ignored (pre-cut tests, expected per T-1415)
+- [x] `cargo check --workspace` passes — clean (1 pre-existing unrelated warning in termlink-mcp)
+- [x] No client-side reader of `protocol_version` breaks (verified via grep — no consumers exist today)
 
 ### Human
 - [ ] [REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.
