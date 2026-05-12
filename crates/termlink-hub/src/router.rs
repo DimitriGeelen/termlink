@@ -892,6 +892,7 @@ fn handle_hub_version(id: serde_json::Value) -> RpcResponse {
         json!({
             "hub_version": env!("CARGO_PKG_VERSION"),
             "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
+            "control_plane_version": termlink_protocol::CONTROL_PLANE_VERSION,
         }),
     )
     .into()
@@ -1030,6 +1031,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
             "methods": methods,
             "hub_version": env!("CARGO_PKG_VERSION"),
             "protocol_version": termlink_protocol::DATA_PLANE_VERSION,
+            "control_plane_version": termlink_protocol::CONTROL_PLANE_VERSION,
             "features": features,
         }),
     )
@@ -3881,6 +3883,14 @@ mod tests {
                     r.result["protocol_version"],
                     termlink_protocol::DATA_PLANE_VERSION
                 );
+                // T-1632: control_plane_version is a separate axis from
+                // protocol_version (= DATA_PLANE_VERSION). T-1166 cut bumped
+                // CONTROL_PLANE_VERSION 2→3; this assertion locks the wire
+                // emit so older clients can distinguish a post-cut hub.
+                assert_eq!(
+                    r.result["control_plane_version"],
+                    termlink_protocol::CONTROL_PLANE_VERSION
+                );
             }
             RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
         }
@@ -4066,6 +4076,30 @@ mod tests {
                         .as_bool()
                         .expect("features.legacy_primitives must be bool");
                     assert!(!legacy, "post-cut: legacy_primitives must be false");
+                }
+                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
+            }
+        }
+
+        // T-1632: post-cut capabilities response carries the control-plane
+        // version axis on the wire. CONTROL_PLANE_VERSION was bumped 2→3 at
+        // the T-1166 cut; this test locks the emit so older clients can
+        // distinguish a post-cut hub without having to read the methods array
+        // or the features flag.
+        #[test]
+        fn capabilities_emits_control_plane_version() {
+            let resp = super::super::handle_hub_capabilities(json!(103));
+            match resp {
+                RpcResponse::Success(r) => {
+                    assert_eq!(
+                        r.result["control_plane_version"],
+                        termlink_protocol::CONTROL_PLANE_VERSION
+                    );
+                    // The data-plane axis remains untouched.
+                    assert_eq!(
+                        r.result["protocol_version"],
+                        termlink_protocol::DATA_PLANE_VERSION
+                    );
                 }
                 RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
             }
