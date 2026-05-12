@@ -81,6 +81,17 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-12T08:00Z — .122 still pre-cut (operator-blocked window now T+10h) [agent autonomous]
+- **Live probe of `192.168.10.122:9100`:** `hub.capabilities` returns `legacy_primitives: true`, `protocol_version: 1`, `hub_version: "0.9.0"`. All legacy methods (`event.broadcast`, `inbox.*`, `file.*` via the methods array) are still advertised. The cut has not been deployed on .122.
+- **Coordination status:** Three posts remain unanswered — local DM `dm:9219671e28054458:d1993c2c3ec44c94` offset 9 (deploy spec), .122 hub `framework:pickup` offset 1 (deploy-ready announce), task body update above. ring20-management-agent session is reachable but inactive (no replies since 2026-05-05 framework:pickup activity).
+- **Reachability:** `termlink remote ping ring20-management` → ok=true, 80ms.
+- **Block class:** structural — autonomous coordination is exhausted; the swap itself requires operator hands (or a different agent at .122 with execute capability). Per framework R-033 + autonomous-mode boundaries, agent does NOT drive the swap unilaterally even with broad "proceed" directive.
+- **Operator next step (single line, copy-pasteable on .122):**
+  ```
+  cd /opt/termlink && git fetch origin && git checkout 39b4558e && cargo build --release -p termlink && sudo cp "$(which termlink)" /tmp/termlink.pre-T1166 && sudo install -m 755 target/release/termlink "$(which termlink)" && sudo pkill -f 'termlink hub' && sleep 4 && termlink hub status
+  ```
+- **Post-swap self-verify (from this workstation):** rerun `termlink remote call ring20-management hub.capabilities --scope execute` → expect `legacy_primitives: false`, `protocol_version: 3`.
+
 ### 2026-05-11T22:00Z — CUT CODE SHIPPED + binary built; .122 deploy spec ready for operator [agent under operator authorization]
 - **Code committed:** `39b4558e` on `/opt/termlink` (pushed to onedev). Two edits:
   - `crates/termlink-hub/src/router.rs:41-48` — `LEGACY_PRIMITIVES_ENABLED = false` (hardcoded, deterministic, no longer feature-gated)
