@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-06T12:11:34Z
+last_update: 2026-05-12T21:08:40Z
 date_finished: null
 ---
 
@@ -80,6 +80,23 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-12T21:50Z — CUT LIVE ON .122 + 24h bake window starts [agent + ring20-management-agent under operator authorization]
+
+- **Hub on `192.168.10.122:9100`** swapped from `0.9.1702` → `0.9.2093` musl-static. ring20-management-agent (operator-authorized on .122) ran the install + manual hub respawn. Hub state fully preserved via T-933 persist-if-present + `/var/lib/termlink` runtime_dir.
+- **Three-axis verification from .107 (DM offset 15):**
+  - `hub.capabilities`: `features.legacy_primitives=false` ✓, `hub_version=0.9.2093` ✓, methods array excludes `event.broadcast` + `inbox.*` + `file.*` ✓
+  - Negative — `event.broadcast` → `-32601 Method 'event.broadcast' has been retired (T-1166). Use channel.* primitives instead. See docs/migrations/T-1166-retire-legacy-primitives.md.` ✓ (with operator-friendly migration pointer)
+  - Positive — `channel.list` → 42 topics intact (agent-chat-arc count=270, our DM count=15, framework:pickup count=3)
+- **Binary delivered via HTTP fallback** after two transport failures: (a) `termlink remote send-file` from CLI 0.9.1701 routes via `artifact.put` which is itself a 0.9.2085+ method — first chunk landed in `.staging/` then no acceptor for the rest (chicken-and-egg). (b) `scp` from .107 lacked SSH key on .122. (c) `python3 -m http.server 8765` from .107, LAN-only UFW rule, ring20-management-agent `curl -fO` + `sha256sum` verify. Worked. HTTP server + UFW rule torn down post-pull.
+- **Two blockers caught pre-sudo by ring20-management-agent's pre-flight (saved a permanent outage):**
+  1. **glibc 2.38/2.39 required by my initial built — .122 CT 200 has glibc 2.36.** I had served the dev binary from `target/release/` (glibc-dynamic). Rebuilt with `--target x86_64-unknown-linux-musl -p termlink` (5m06s), static-pie linked, runnable everywhere. **PL: fleet-bound binaries MUST be musl-static; never serve `target/release/` to a peer host.**
+  2. **No systemd unit on .122 — naive `pkill -f 'termlink hub'` would have left the hub permanently down.** Mitigated with Option C: install binary → verify `termlink --version` on installed path → `pkill && nohup termlink hub start --tcp 0.0.0.0:9100 --json > /var/log/termlink-hub.log 2>&1 & disown`. ~5s outage. T-1294 (runtime_dir migration + systemd unit install) is the structural fix — must precede broader fleet rollout to .121/.141.
+- **Two follow-up findings for separate tasks:**
+  1. **`hub.capabilities.protocol_version` still reports `1`, not `3`.** T-1166 AC #6 explicitly flagged `default_protocol_version()` at `crates/termlink-protocol/src/control.rs:239` as "TO DO AT CUT TIME (not done)". I bumped `CONTROL_PLANE_VERSION` in `lib.rs:29` but missed that the hub.capabilities `protocol_version` field is sourced from `default_protocol_version()`. Functional cut still works (-32601 + missing methods are the load-bearing signals); version-handshake half is incomplete. Small follow-up task to open.
+  2. **`TERMLINK_RUNTIME_DIR` default regression in 0.9.1702 → 0.9.2093.** Pre-cut hub defaulted to `/var/lib/termlink` when running as root with env unset; new binary requires explicit env. ring20-management-agent caught this and set env explicitly. Fleet rollout to hubs without explicit env will fall back to `/tmp` (PL-021 territory). Investigation task to open — search the commit range for runtime_dir selection logic changes.
+- **Bake window:** 24h on .122 starts now. Fleet rollout (.121 / .141 / .107) HELD until: (a) bake clean, (b) systemd unit installed per T-1294 on each target, (c) runtime_dir regression fixed or workaround documented per host.
+- **Coordination thread:** local DM topic `dm:9219671e28054458:d1993c2c3ec44c94` offsets 8-15 on both .107 and .122 hubs.
 
 ### 2026-05-12T08:00Z — .122 still pre-cut (operator-blocked window now T+10h) [agent autonomous]
 - **Live probe of `192.168.10.122:9100`:** `hub.capabilities` returns `legacy_primitives: true`, `protocol_version: 1`, `hub_version: "0.9.0"`. All legacy methods (`event.broadcast`, `inbox.*`, `file.*` via the methods array) are still advertised. The cut has not been deployed on .122.
