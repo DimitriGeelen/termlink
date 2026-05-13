@@ -202,8 +202,18 @@ pub(crate) async fn mirror_inbox_deposit_with(
         ts_unix_ms,
         metadata: Default::default(),
     };
-    if let Err(e) = bus.post(&topic_name, &env).await {
-        tracing::warn!(topic = %topic_name, error = %e, "T-1163 mirror: bus.post failed");
+    match bus.post(&topic_name, &env).await {
+        Err(e) => tracing::warn!(topic = %topic_name, error = %e, "T-1163 mirror: bus.post failed"),
+        Ok(offset) => if let Some(agg) = crate::router::aggregator() {
+            agg.inject(crate::aggregator::AggregatedEvent {
+                session_id: "hub".to_string(), session_name: "hub".to_string(), seq: 0,
+                topic: termlink_protocol::events::inbox_topic::QUEUED.to_string(),
+                payload: serde_json::json!({"schema_version": termlink_protocol::events::SCHEMA_VERSION,
+                    "addressee_session_id": target, "channel": &topic_name,
+                    "message_offset": offset, "enqueued_at": env.ts_unix_ms}),
+                timestamp: env.ts_unix_ms.max(0) as u64,
+            });
+        }
     }
 }
 
@@ -1776,5 +1786,27 @@ mod tests {
         let v = unwrap_success(resp);
         assert_eq!(v["offset"], 0);
         assert_eq!(v["ts"], 2);
+    }
+
+    #[tokio::test]
+    async fn inbox_queued_fires_for_no_consumer() {
+        let (_d, bus) = tmp_bus();
+        crate::router::init_aggregator();
+        let mut rx = crate::router::aggregator().unwrap().subscribe();
+        mirror_inbox_deposit_with(&bus, "target-a", "file.init",
+            &json!({"transfer_id": "x1"}), Some("sender")).await;
+        let evt = tokio::time::timeout(std::time::Duration::from_millis(200), rx.recv())
+            .await.expect("timeout").expect("closed");
+        assert_eq!(evt.topic, termlink_protocol::events::inbox_topic::QUEUED);
+        assert_eq!(evt.payload["addressee_session_id"], "target-a");
+        assert_eq!(evt.payload["channel"], "inbox:target-a");
+        assert!(evt.payload["message_offset"].as_u64().is_some());
+    }
+    #[tokio::test]
+    async fn inbox_queued_not_emitted_without_deposit() {
+        let agg = crate::aggregator::EventAggregator::new(16);
+        let mut rx = agg.subscribe();
+        let r = tokio::time::timeout(std::time::Duration::from_millis(50), rx.recv()).await;
+        assert!(r.is_err(), "no inbox.queued without deposit");
     }
 }
