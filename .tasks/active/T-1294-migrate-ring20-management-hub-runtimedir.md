@@ -12,7 +12,7 @@ tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
 components: []
 related_tasks: [T-1290, T-935, T-931, T-1291, T-1137, T-1051]
 created: 2026-04-26T12:04:17Z
-last_update: 2026-04-28T08:38:01Z
+last_update: 2026-05-13T06:05:28Z
 date_finished: null
 ---
 
@@ -138,3 +138,11 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
 
 ### 2026-04-28T08:38:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-13T13:20Z — Live re-verification before closure [agent]
+- **Probe:** `hub.bus_state` against 192.168.10.122:9100 via MCP termlink_remote_call (secret_file=ring20-management.hex)
+- **Result:** `runtime_dir = /var/lib/termlink`, `runtime_dir_volatile = false`, `audit_present = true`, `meta_db` 100KB present and recently updated
+- **Hub version:** 0.9.2093 (post-T-1166 cut, swapped 2026-05-12)
+- **Implication:** Migration has held across (a) the Apr 27 triple-reboot day, (b) all reboots in the 17 days since AC 3 was first verified, and (c) yesterday's bare-`nohup` Option C hub binary respawn during the T-1166 cut. The watchdog-script env-set at `ring20-watchdog.sh` reliably sources `TERMLINK_RUNTIME_DIR=/var/lib/termlink` on every restart path observed.
+- **Recommendation:** T-1294 is ready to close (`fw task update T-1294 --status work-completed`). All 4 ACs ticked with original evidence from Apr 26-28 + corroborating live state today.
+- **Out-of-scope follow-up (not blocking closure):** Replacing the watchdog-script env-set with a proper systemd unit on .122 (T-931 unit at `.context/systemd/termlink-hub.service` is structurally superior — env in Environment= survives any swap procedure including bare nohup). That's a NEW task if/when desired; T-1294's scope was "migrate off /tmp", not "adopt systemd". The startup warning landed in T-1633 today provides defensive coverage in the interim.
