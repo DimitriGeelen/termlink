@@ -454,6 +454,19 @@ impl std::fmt::Display for NegotiateError {
     }
 }
 
+pub mod inbox_topic { pub const QUEUED: &str = "inbox.queued"; }
+
+/// Payload for `inbox.queued` (T-1636): hub emits when a message spools to an offline inbox.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InboxQueued {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    pub addressee_session_id: String,
+    pub channel: String,
+    pub message_offset: u64,
+    pub enqueued_at: i64,
+}
+
 fn default_round() -> u8 {
     1
 }

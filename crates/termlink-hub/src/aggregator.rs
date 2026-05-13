@@ -66,6 +66,7 @@ impl EventAggregator {
         self.tasks.read().await.len()
     }
 
+    pub fn inject(&self, event: AggregatedEvent) { let _ = self.tx.send(event); } // T-1636
     /// Add a session subscription. Spawns a background long-poll loop.
     pub async fn add_session(&self, target: SessionTarget) {
         let sid = target.id.clone();
