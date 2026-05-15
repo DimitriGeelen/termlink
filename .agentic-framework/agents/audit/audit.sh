@@ -329,9 +329,19 @@ if command -v flock >/dev/null 2>&1; then
         exit 0
     fi
     # Apply timeout: kill self if still running after AUDIT_TIMEOUT seconds.
-    # Detach the watchdog's stdio so it doesn't keep parent pipes open after exit
-    # (bats `run` and shell pipelines wait on every descendant FD — T-1464).
-    ( sleep "$AUDIT_TIMEOUT" && kill -TERM $$ 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+    # T-1464 + T-1772: detach EVERY inherited fd in the watchdog subshell, not
+    # just stdio. The `sleep` child reparents to init when its subshell exits,
+    # carrying any inherited fds — including (a) FD 200, the flock fd, which
+    # silently kept the audit lock held for AUDIT_TIMEOUT (default 600s), and
+    # (b) any pipe fds from a parent shell pipeline (e.g. bats's per-test pipe
+    # at FD 3, which makes the bats orchestrator hang waiting for EOF). Walk
+    # /proc/self/fd and close everything > 2 that we don't already redirect.
+    ( for _fd in /proc/self/fd/*; do
+          _n="${_fd##*/}"
+          case "$_n" in 0|1|2) ;; *) eval "exec $_n>&-" 2>/dev/null ;; esac
+      done
+      sleep "$AUDIT_TIMEOUT" && kill -TERM $$ 2>/dev/null
+    ) </dev/null >/dev/null 2>&1 &
     AUDIT_TIMEOUT_PID=$!
     trap "kill $AUDIT_TIMEOUT_PID 2>/dev/null; rm -f '$AUDIT_LOCK_FILE'" EXIT
 else
@@ -536,13 +546,19 @@ else
          "Rename one of each pair: edit filename AND 'id:' frontmatter to a fresh T-NNNN"
 fi
 
-# Validate all project YAML files parse correctly (T-207 regression test)
+# Validate all project YAML files parse correctly (T-207 regression test).
+# T-1816: extended to .context/arcs/ — broken arc YAML silently 404s the
+# /arcs/<id> page AND silently excludes the arc from the /arcs list page
+# (try/except in web/blueprints/arcs.py:_list_arcs swallows the parse error).
 yaml_fail_count=0
 yaml_pass_count=0
-for yf in "$PROJECT_ROOT/.context/project/"*.yaml; do
-    [ -f "$yf" ] || continue
-    yf_name=$(basename "$yf")
-    parse_err=$(python3 -c "
+for yaml_dir in "$PROJECT_ROOT/.context/project" "$PROJECT_ROOT/.context/arcs"; do
+    [ -d "$yaml_dir" ] || continue
+    for yf in "$yaml_dir"/*.yaml; do
+        [ -f "$yf" ] || continue
+        yf_name=$(basename "$yf")
+        yf_rel="${yf#$PROJECT_ROOT/}"
+        parse_err=$(python3 -c "
 import yaml, sys
 try:
     with open('$yf') as f:
@@ -554,15 +570,16 @@ try:
 except yaml.YAMLError as e:
     print(str(e).split(chr(10))[0]); sys.exit(1)
 " 2>&1)
-    # shellcheck disable=SC2181 # $? needed: parse_err captures output, exit code checked separately
-    if [ $? -eq 0 ]; then
-        yaml_pass_count=$((yaml_pass_count + 1))
-    else
-        yaml_fail_count=$((yaml_fail_count + 1))
-        fail "YAML parse error: $yf_name" \
-             "$parse_err" \
-             "Fix the YAML syntax in .context/project/$yf_name"
-    fi
+        # shellcheck disable=SC2181 # $? needed: parse_err captures output, exit code checked separately
+        if [ $? -eq 0 ]; then
+            yaml_pass_count=$((yaml_pass_count + 1))
+        else
+            yaml_fail_count=$((yaml_fail_count + 1))
+            fail "YAML parse error: $yf_name" \
+                 "$parse_err" \
+                 "Fix the YAML syntax in $yf_rel (quote values containing ':' or '#')"
+        fi
+    done
 done
 if [ "$yaml_fail_count" -eq 0 ] && [ "$yaml_pass_count" -gt 0 ]; then
     pass "All $yaml_pass_count project YAML files parse correctly"
@@ -627,6 +644,8 @@ print(f'{len(registered)} {unregistered} {orphaned}')
         fi
 
         # Check for unenriched cards (no depends_on AND no depended_by edges)
+        # Cards explicitly marked `standalone: true` are excluded — these are
+        # one-shot probes/tools with no framework imports by design (T-1754).
         unenriched_count=$(python3 -c "
 import yaml, glob, os
 COMP_DIR = os.path.join('$PROJECT_ROOT', '.fabric', 'components')
@@ -636,6 +655,7 @@ for f in glob.glob(os.path.join(COMP_DIR, '*.yaml')):
     with open(f) as fh:
         d = yaml.safe_load(fh)
     if not d: continue
+    if d.get('standalone') is True: continue
     total += 1
     deps = d.get('depends_on') or []
     depby = d.get('depended_by') or []
@@ -703,6 +723,40 @@ DRIFTEOF
              "Run: fw fabric scan"
     else
         pass "Fabric drift: All watched source files registered ($drift_total cards)"
+    fi
+fi
+
+# T-1771 (T-1768 GO follow-up): cron drift check.
+# Mirrors `bin/fw doctor` cron-drift logic so the registry → generated →
+# deployed pipeline is monitored alongside fabric drift, hook threshold,
+# etc. — same surface, same cron, no new alert channel. WARN was the
+# doctor's level; here we use FAIL on substantive drift because cron
+# drift means *tasks won't run* (silent execution failure), strictly
+# more serious than a missing fabric card. Origin: T-1767 (cron-touching
+# task closed work-completed while drift made the new job a no-op for
+# 3 days). G-064 closure path.
+_cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
+if [ -f "$_cron_registry" ]; then
+    _cron_source="$PROJECT_ROOT/.context/cron/agentic-audit.crontab"
+    _cron_target_dir="${FW_CRON_INSTALL_DIR:-/etc/cron.d}"
+    _cron_slug=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')
+    _cron_target="$_cron_target_dir/agentic-audit-${_cron_slug}"
+    if [ -f "$_cron_source" ] && [ -f "$_cron_target" ]; then
+        if diff -q "$_cron_source" "$_cron_target" >/dev/null 2>&1; then
+            pass "Cron registry in sync with $_cron_target"
+        else
+            fail "Cron drift: $_cron_source differs from deployed $_cron_target" \
+                 "Registry edits or generator output have not been deployed — cron jobs may be running stale or absent" \
+                 "Run: fw cron install"
+        fi
+    elif [ -f "$_cron_source" ] && [ ! -f "$_cron_target" ]; then
+        fail "Cron drift: generated but not installed at $_cron_target" \
+             "Generated crontab exists but is not deployed — scheduled jobs are not running" \
+             "Run: fw cron install"
+    elif [ ! -f "$_cron_source" ]; then
+        warn "Cron drift: registry present but not generated" \
+             "$_cron_registry exists but $_cron_source is missing" \
+             "Run: fw cron install"
     fi
 fi
 
@@ -3268,6 +3322,49 @@ else
     fi
 fi
 
+# T-1798: Workflow → dispatcher coverage check.
+# T-1776 surfaced default.yaml → worker_kind: TermLink at *runtime*
+# (NotImplementedError). The structural prevention is to flag the gap at
+# audit time. lib/workflow_coverage.py cross-references each workflow's
+# declared worker_kind against lib/spawn._DISPATCHERS.keys().
+COVERAGE_HELPER="$FRAMEWORK_ROOT/lib/workflow_coverage.py"
+if [ -f "$COVERAGE_HELPER" ]; then
+    # T-1803: extend with recency + stale flag. Exit codes:
+    #   0 = PASS (ok and not warn)
+    #   1 = FAIL (not ok — unroutable or missing-provider)
+    #   2 = WARN (ok but stale)
+    COVERAGE_OUT=$(PROJECT_ROOT="$PROJECT_ROOT" python3 -c "
+import sys
+sys.path.insert(0, '$FRAMEWORK_ROOT/lib')
+import workflow_coverage
+r = workflow_coverage.check_workflow_dispatcher_coverage()
+r = workflow_coverage.enrich_with_dispatch_recency(r)
+r = workflow_coverage.flag_stale_workflows(r)
+print(workflow_coverage.format_audit_line(r))
+if not r['ok']:
+    sys.exit(1)
+if r.get('warn'):
+    sys.exit(2)
+sys.exit(0)
+" 2>&1)
+    COVERAGE_RC=$?
+    case "$COVERAGE_RC" in
+        0)
+            pass "Workflow dispatcher coverage: $COVERAGE_OUT"
+            ;;
+        2)
+            warn "Workflow dispatcher coverage: $COVERAGE_OUT" \
+                 "Workflows declared but not recently dispatched — consider deprecating" \
+                 "Run: bin/fw resolver workflows ; review which workflows are still relevant"
+            ;;
+        *)
+            fail "Workflow dispatcher coverage: $COVERAGE_OUT" \
+                 "Workflow declares worker_kind without a spawn handler — runtime NotImplementedError trap" \
+                 "Either add a handler to lib/spawn._DISPATCHERS, or change the workflow's worker_kind to a routable one (pi, ollama-loop, TermLink)"
+            ;;
+    esac
+fi
+
 echo ""
 fi # end orchestrator
 
@@ -3288,9 +3385,10 @@ else
     for arc_yaml in "$ARC_DIR"/*.yaml; do
         # Parse arc fields (id, status, constituent_tasks).
         # Use python to avoid yaml-library coupling — simple line scan suffices.
-        eval "$(python3 - "$arc_yaml" <<'PY'
-import re, sys
+        eval "$(python3 - "$arc_yaml" "$PROJECT_ROOT" <<'PY'
+import re, sys, os, glob
 text = open(sys.argv[1]).read()
+project_root = sys.argv[2]
 def grab(field, default=""):
     m = re.search(rf'^{field}:\s*(.*?)$', text, re.MULTILINE)
     return m.group(1).strip() if m else default
@@ -3301,6 +3399,24 @@ m = re.match(r'\[(.*?)\]', ct_line)
 items = []
 if m and m.group(1).strip():
     items = [s.strip().strip('"').strip("'") for s in m.group(1).split(",") if s.strip()]
+# Tag-based fallback (T-1813): when constituent_tasks is empty, scan .tasks/ for
+# tasks tagged arc:<id>. Mirrors lib/arc.sh:_arc_tasks_with_tag so audit and
+# fw arc show use the same task-discovery pathway.
+if not items and arc_id:
+    tag_pattern = f"arc:{arc_id}"
+    seen = set()
+    for d in ("active", "completed"):
+        for f in glob.glob(os.path.join(project_root, ".tasks", d, "T-*.md")):
+            try:
+                tt = open(f).read()
+            except OSError:
+                continue
+            tags_m = re.search(r'^tags:\s*(.*?)$', tt, re.MULTILINE)
+            if tags_m and tag_pattern in tags_m.group(1):
+                id_m = re.search(r'^id:\s*(T-\d+)', tt, re.MULTILINE)
+                if id_m:
+                    seen.add(id_m.group(1))
+    items = sorted(seen)
 print(f'ARC_ID={arc_id!r}')
 print(f'ARC_STATUS={status!r}')
 print(f'ARC_TASKS=({" ".join(items)})')

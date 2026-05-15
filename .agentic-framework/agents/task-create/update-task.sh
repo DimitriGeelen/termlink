@@ -114,6 +114,28 @@ check_acceptance_criteria() {
                 echo "$ac_section" | grep -E '^\s*-\s*\[ \]' | sed 's/^/  /' >&2
             fi
             echo "" >&2
+            # T-1836 (T-1831 C-3): surface body-vs-checkbox drift hint.
+            # Detect whether the task has a filled (non-template) ## Recommendation
+            # block — strong signal that substantive content was written. When
+            # present, prompt agent to tick boxes that correspond to completed work
+            # rather than re-doing the work. CLAUDE.md §Progressive AC ticking is
+            # the procedural rule; this message surfaces it at the point of refusal.
+            local _rec_block _rec_filled=false
+            _rec_block=$(sed -n '/^## Recommendation/,/^## /p' "$TASK_FILE" 2>/dev/null | sed '$d')
+            if [ -n "$_rec_block" ] && echo "$_rec_block" | grep -qE '^\*\*(Recommendation|Rationale|Evidence)(:\*\*|\*\*:)'; then
+                _rec_filled=true
+            fi
+            if [ "$_rec_filled" = true ]; then
+                echo -e "${YELLOW}Hint:${NC} task body has a filled \`## Recommendation\` block — AC content likely present." >&2
+                echo "  Tick the [x] boxes for each AC whose work is in place." >&2
+                echo "  Re-doing the work is not the answer; this is the body-vs-checkbox drift class." >&2
+                echo "  See CLAUDE.md §Verification Before Completion → Progressive AC ticking (T-1831 C-4)." >&2
+                echo "" >&2
+            else
+                echo -e "${YELLOW}Hint:${NC} if you wrote AC content in the body but didn't tick boxes, see" >&2
+                echo "  CLAUDE.md §Verification Before Completion → Progressive AC ticking (T-1831 C-4)." >&2
+                echo "" >&2
+            fi
             echo "Options:" >&2
             echo "  1. Check the criteria in the task file, then retry" >&2
             echo "  2. Use --skip-acceptance-criteria to bypass (logged)" >&2
@@ -351,11 +373,11 @@ PYRCA
 # `**Decision**: GO|NO-GO|DEFER` line in the task body — i.e. the operator
 # has run `fw inception decide T-XXX <go|no-go|defer>`.
 #
-# Origin: G-052 (2026-04-30). T-1448 inception got silently moved active→completed
+# Origin: G-052 (2026-04-30). T-1448 inception got silently moved active->completed
 # during an unrelated heartbeat-script commit. The commit-msg inception gate is
 # only a BLOCK-on-commit; it does not catch the lifecycle path that finalizes
 # tasks via update-task.sh. Without this gate, an inception decision queue can
-# silently empty — operator visibility into pending decisions is lost.
+# silently empty - operator visibility into pending decisions is lost.
 check_inception_decision() {
     [ "$NEW_STATUS" = "work-completed" ] || return 0
 
@@ -364,7 +386,7 @@ check_inception_decision() {
     [ "$task_type" = "inception" ] || return 0
 
     if grep -qE '^\*\*Decision\*\*:[[:space:]]*(GO|NO-GO|DEFER)\b' "$TASK_FILE"; then
-        echo -e "${GREEN}Inception decision: recorded ✓${NC}"
+        echo -e "${GREEN}Inception decision: recorded \xE2\x9C\x93${NC}"
         return 0
     fi
 
@@ -374,7 +396,7 @@ check_inception_decision() {
         return 0
     fi
 
-    echo -e "${RED}ERROR: Cannot complete inception task — no decision recorded.${NC}" >&2
+    echo -e "${RED}ERROR: Cannot complete inception task - no decision recorded.${NC}" >&2
     echo "" >&2
     echo "G-052 (CLAUDE.md Inception Discipline): inception tasks must produce a" >&2
     echo "go/no-go/defer decision. Silent completion empties the operator's" >&2
@@ -447,6 +469,129 @@ check_evolution_log() {
     echo "Options:" >&2
     echo "  1. Add the Evolution entry, then retry" >&2
     echo "  2. Use --skip-evolution to bypass (logged Tier-2, T-1718)" >&2
+    exit 1
+}
+
+# Task-pair §ACD Gate (P-012, T-1762, structural remediation for G-066)
+# Fires on --status work-completed for build tasks whose `related_tasks`
+# chain references an inception with `**Recommendation:** GO` AND that
+# inception has an explicit `**Decomposition (follow-up build tasks
+# after GO):**` heading enumerating promised follow-ups.
+#
+# For each promised deliverable, checks via lib/task_pair_acd.py whether
+# any task in the related_tasks chain has a title matching the
+# deliverable. Refuses on missing != [].
+#
+# Conservative on purpose: silent on inceptions without the explicit
+# Decomposition heading (single-deliverable inceptions, T-1713 itself,
+# T-1715 etc.). Forward-only — historic completed builds are never
+# re-checked.
+#
+# Origin: T-1442/T-1443 closed work-completed clean while 2/3 GO scope
+# items silently dropped. T-1711 registered G-066. T-1713 inception GO'd
+# the per-task gate but build was never filed (the very pattern G-066
+# documents, recurring on its own deliverable). T-1762 closes the loop.
+check_task_pair_acd() {
+    [ "$NEW_STATUS" = "work-completed" ] || return 0
+
+    # Load library if not already sourced
+    if ! type extract_deliverables >/dev/null 2>&1; then
+        # shellcheck source=/dev/null
+        source "$FRAMEWORK_ROOT/lib/task_pair_acd.sh" 2>/dev/null || return 0
+    fi
+
+    local task_type
+    task_type=$(grep '^workflow_type:' "$TASK_FILE" | head -1 \
+        | sed 's/workflow_type:[[:space:]]*//' | tr -d '"' | tr -d "'")
+
+    # Only build tasks gate on this. Inceptions/specs/designs are the
+    # things being checked AGAINST, not checked themselves.
+    [ "$task_type" = "build" ] || return 0
+
+    local task_id
+    task_id=$(basename "$TASK_FILE" | grep -oE '^T-[0-9]+')
+    [ -z "$task_id" ] && return 0
+
+    # Read related_tasks (YAML list, possibly multi-line)
+    local related_ids
+    related_ids=$(python3 - "$TASK_FILE" <<'PYRELATED' 2>/dev/null || true
+import re, sys
+with open(sys.argv[1]) as f:
+    head = f.read(4000)
+m = re.search(r'^related_tasks:\s*(\[[^\]]*\]|\n(?:\s+-\s+\S+\n?)+)',
+              head, re.MULTILINE)
+if m:
+    for tid in re.findall(r'T-\d+', m.group(1)):
+        print(tid)
+PYRELATED
+)
+    [ -z "$related_ids" ] && return 0
+
+    # Find an inception in related_tasks with GO + Decomposition heading.
+    # Skip on first match — there should be at most one parent inception.
+    local inception_id="" inception_file
+    while IFS= read -r tid; do
+        [ -z "$tid" ] && continue
+        inception_file=$(find "$PROJECT_ROOT/.tasks" -maxdepth 2 \
+            -name "${tid}-*.md" -type f 2>/dev/null | head -1)
+        [ -z "$inception_file" ] && continue
+        # Only inceptions with GO + Decomposition produce non-empty deliverables
+        local deliverables
+        deliverables=$(python3 "$FRAMEWORK_ROOT/lib/task_pair_acd.py" \
+            extract "$inception_file" 2>/dev/null || true)
+        if [ -n "$deliverables" ]; then
+            inception_id="$tid"
+            break
+        fi
+    done <<< "$related_ids"
+
+    [ -z "$inception_id" ] && return 0
+
+    # Run the verify pass.
+    #
+    # NOTE: `set -e` is in effect for this script. A plain command-substitution
+    # assignment (`var=$(cmd)`) to a variable that was declared `local` on
+    # a previous line is a REGULAR assignment, so set -e triggers exit on a
+    # non-zero exit of `cmd` — silently bypassing the error-reporting block
+    # below. Origin bug: gate fired exit-4 in production but no stderr ever
+    # reached the user; observed on T-1762 itself when the gate refused its
+    # own transition. Fix: capture exit code via `|| rc=$?` idiom so set -e
+    # does not see a failing command.
+    local verify_json="" verify_rc=0
+    verify_json=$(python3 "$FRAMEWORK_ROOT/lib/task_pair_acd.py" verify \
+        "$inception_id" "$task_id" "$PROJECT_ROOT" 2>/dev/null) || verify_rc=$?
+
+    if [ "$verify_rc" -eq 0 ]; then
+        echo -e "${GREEN}Task-pair §ACD: all promised deliverables shipped ✓ (P-012, vs $inception_id)${NC}"
+        return 0
+    fi
+
+    if [ "$verify_rc" -ne 4 ]; then
+        # 2/3/etc — gate no-op (no Recommendation, not GO)
+        return 0
+    fi
+
+    # Missing detected
+    if [ -n "$SCOPE_REDUCTION_ACK" ]; then
+        echo -e "${YELLOW}WARNING: Task-pair §ACD: missing deliverables (--scope-reduction-acknowledged bypass)${NC}"
+        log_gate_bypass "--scope-reduction-acknowledged" "check_task_pair_acd: $SCOPE_REDUCTION_ACK"
+        return 0
+    fi
+
+    echo -e "${RED}ERROR: Task-pair §ACD gate (P-012): inception $inception_id promised deliverables that did not ship.${NC}" >&2
+    echo "" >&2
+    echo "G-066 (CLAUDE.md): substrate-vs-deliverable conflation at task-pair level." >&2
+    echo "Inception's '## Recommendation' enumerates follow-up build tasks under" >&2
+    echo "'**Decomposition (follow-up build tasks after GO):**' but at least one" >&2
+    echo "promised item has no shipped counterpart in related_tasks chain." >&2
+    echo "" >&2
+    echo "Verify report:" >&2
+    echo "$verify_json" | sed 's/^/  /' >&2
+    echo "" >&2
+    echo "Options:" >&2
+    echo "  1. File the missing build task(s) and link via related_tasks, then retry" >&2
+    echo "  2. Update inception Decomposition list to reflect a real scope reduction, then retry" >&2
+    echo "  3. Use --scope-reduction-acknowledged \"<rationale>\" to acknowledge and bypass (logged, T-1762)" >&2
     exit 1
 }
 
@@ -555,6 +700,7 @@ SKIP_RECOMMENDATION=false
 SKIP_RCA=false
 SKIP_EVOLUTION=false
 SKIP_INCEPTION_DECISION=false
+SCOPE_REDUCTION_ACK=""  # T-1762/P-012: --scope-reduction-acknowledged "rationale"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -573,6 +719,13 @@ while [[ $# -gt 0 ]]; do
         --skip-rca) SKIP_RCA=true; shift ;;
         --skip-evolution) SKIP_EVOLUTION=true; shift ;;
         --skip-inception-decision) SKIP_INCEPTION_DECISION=true; shift ;;
+        --scope-reduction-acknowledged)
+            SCOPE_REDUCTION_ACK="$2"
+            if [ -z "$SCOPE_REDUCTION_ACK" ]; then
+                echo "ERROR: --scope-reduction-acknowledged requires a rationale string" >&2
+                exit 1
+            fi
+            shift 2 ;;
         --force|-f)
             echo -e "${YELLOW}DEPRECATED: --force will be removed. Use narrow flags instead:${NC}" >&2
             echo "  --skip-sovereignty          Bypass human ownership completion gate (R-033)" >&2
@@ -582,8 +735,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-rca                   Bypass RCA gate for bug-class (T-1550, G-019)" >&2
             echo "  --skip-evolution             Bypass Evolution-log gate for arc-tagged builds (T-1718)" >&2
             echo "  --skip-inception-decision    Bypass inception decision gate (T-1626, G-052)" >&2
+            echo "  --scope-reduction-acknowledged \"...\"   Bypass task-pair §ACD gate (P-012, T-1762, G-066)" >&2
             echo "  --skip-human-ownership       Bypass human ownership reassignment" >&2
-            FORCE=true; SKIP_SOVEREIGNTY=true; SKIP_AC=true; SKIP_VERIFICATION=true; SKIP_HUMAN_OWNERSHIP=true; SKIP_RECOMMENDATION=true; SKIP_RCA=true; SKIP_EVOLUTION=true; SKIP_INCEPTION_DECISION=true
+            FORCE=true; SKIP_SOVEREIGNTY=true; SKIP_AC=true; SKIP_VERIFICATION=true; SKIP_HUMAN_OWNERSHIP=true; SKIP_RECOMMENDATION=true; SKIP_RCA=true; SKIP_EVOLUTION=true; SKIP_INCEPTION_DECISION=true; SCOPE_REDUCTION_ACK="--force bypass"
             shift ;;
         -h|--help)
             echo "Usage: update-task.sh T-XXX [options]"
@@ -603,6 +757,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-rca                   Bypass RCA gate for bug-class (T-1550, G-019)"
             echo "  --skip-evolution             Bypass Evolution-log gate for arc-tagged builds (T-1718)"
             echo "  --skip-inception-decision    Bypass inception decision gate (T-1626, G-052)"
+            echo "  --scope-reduction-acknowledged \"...\"   Bypass task-pair §ACD gate (P-012, T-1762, G-066)"
             echo "  --skip-human-ownership       Bypass human ownership reassignment"
             echo "  --force, -f   (DEPRECATED) Sets all --skip-* flags"
             echo "  -h, --help    Show this help"
@@ -824,6 +979,15 @@ if [ -n "$NEW_STATUS" ]; then
         # without the section aren't gated.
         if [ "$NEW_STATUS" = "work-completed" ]; then
             check_evolution_log
+        fi
+
+        # === Task-pair §ACD Gate (P-012, T-1762, G-066 prong 2) ===
+        # Build tasks completing under an inception that explicitly
+        # enumerated follow-up build tasks must show the full set shipped.
+        # Conservative: silent on inceptions without `**Decomposition
+        # (follow-up build tasks after GO):**` heading.
+        if [ "$NEW_STATUS" = "work-completed" ]; then
+            check_task_pair_acd
         fi
 
         # === Reviewer Static-Scan (T-1443 v1.0) ===

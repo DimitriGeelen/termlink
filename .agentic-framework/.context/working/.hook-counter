@@ -1,0 +1,12 @@
+audit-task-tools=49
+
+heck-tier0=30
+budget-gate=100
+loop-detect=94
+checkpoint=95
+audit-task-tools=42
+check-project-boundary=80
+check-tier0=68
+error-watchdog=41
+pre-compact=1
+post-compact-resume=1
