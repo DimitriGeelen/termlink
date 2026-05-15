@@ -812,6 +812,7 @@ When the active task has `workflow_type: inception`:
 5. After a GO decision, **create separate build tasks** for implementation — do not continue building under the inception task ID
 6. **Research artifact first (C-001)** — When starting inception work, create `docs/reports/T-XXX-*.md` BEFORE conducting research. Update the file incrementally as dialogue produces findings. Commit after each dialogue segment. The thinking trail IS the artifact — conversations are ephemeral, files are permanent.
 7. **Dialogue log (C-001 extension)** — For phases involving human dialogue, include a `## Dialogue Log` section in the research artifact. Record: questions the human posed, answers given, course corrections, and the outcome/decision that resulted.
+8. **DEFER outcomes set `revisit_at` (T-1451, G-053)** — When `fw inception decide T-XXX defer` is the outcome, also set `revisit_at: YYYY-MM-DD` in the task frontmatter to the date when the decision should be reconsidered. Pair with `revisit_evidence_needed: <one-line>` to specify what evidence makes the revisit actionable. The daily G-053 cron (T-1452) will surface ripe revisits in the handover banner — without this field, the deferral has no structural reminder.
 
 ### Web App Startup
 When building a web application:
