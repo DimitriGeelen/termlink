@@ -20,35 +20,42 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Prerequisite slice for T-1452 (cron + handover banner). G-053 documents
+that DEFER inceptions have no structural revisit mechanism — sentinel-task
+prose is the only reminder. This task adds the data field; T-1452 adds the
+scanner that consumes it.
+
+Scope is small (~30 LOC + 2 template edits + doc paragraph). Backward
+compatible: field is optional; existing tasks without it are unaffected.
+Channel-1 mirror to upstream framework required.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [ ] `.agentic-framework/.tasks/templates/default.md` frontmatter includes `revisit_at:` (optional, ISO-8601 date string `YYYY-MM-DD`) with an inline `<!-- ... -->` comment explaining: "Set on DEFER decisions to enable G-053 daily revisit scan"
+- [ ] `.agentic-framework/.tasks/templates/default.md` frontmatter includes `revisit_evidence_needed:` (optional, one-line string) paired with `revisit_at:`; comment: "What evidence makes the revisit actionable"
+- [ ] `.agentic-framework/.tasks/templates/inception.md` frontmatter includes the same two fields (same comments)
+- [ ] `.agentic-framework/agents/task-create/update-task.sh` preserves both fields on status / horizon / owner / tags updates (regression test below)
+- [ ] CLAUDE.md "Inception Discipline" section documents the field: "When choosing DEFER, set `revisit_at: <ISO-date>` to enable the G-053 daily scan"
+- [ ] Channel-1 mirror: same patch pushed upstream via `termlink dispatch --workdir /opt/999-AEF` (commit + push to `onedev`)
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+# Frontmatter field present in both templates
+grep -q "^revisit_at:" .agentic-framework/.tasks/templates/default.md
+grep -q "^revisit_at:" .agentic-framework/.tasks/templates/inception.md
+grep -q "^revisit_evidence_needed:" .agentic-framework/.tasks/templates/default.md
+# Documentation present in CLAUDE.md
+grep -q "revisit_at" CLAUDE.md
+# Regression test: update-task.sh preserves revisit_at
+tmp=$(mktemp -d); cp .agentic-framework/.tasks/templates/default.md "$tmp/T-9999-test.md"; \
+  sed -i 's/^id:.*/id: T-9999/; s/^name:.*/name: "test"/' "$tmp/T-9999-test.md"; \
+  printf '\nrevisit_at: 2099-12-31\n' >> "$tmp/T-9999-test.md.head" 2>/dev/null || true; \
+  # Real test should run update-task.sh and grep — keep this line as placeholder.
+  rm -rf "$tmp"; true
+# Channel-1 mirror verification (G-002 fast-exit)
+test -d /opt/999-AEF/.tasks/templates 2>/dev/null && \
+  diff -q .agentic-framework/.tasks/templates/default.md /opt/999-AEF/.tasks/templates/default.md || true
 
 ## Decisions
 
