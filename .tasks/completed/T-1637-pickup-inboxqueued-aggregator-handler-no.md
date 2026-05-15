@@ -4,16 +4,16 @@ name: "Pickup: inbox.queued aggregator handler not registered at hub boot — em
 description: >
   Auto-created from pickup envelope. Source: agentic-engineering-framework, task T-1636. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [pickup, bug-report, arc:peer-consult, cross-repo]
-components: []
+components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
 related_tasks: [T-1636, T-1820, T-1821, T-1166]
 created: 2026-05-14T05:55:01Z
-last_update: 2026-05-14T05:55:01Z
-date_finished: null
+last_update: 2026-05-15T09:29:07Z
+date_finished: 2026-05-15T09:29:07Z
 source_task_id_in_origin: T-1636
 source_project_in_origin: "agentic-engineering-framework"
 ---
@@ -36,7 +36,7 @@ This is resolution path (C) from the bug report: bundle the emit with the delive
 - [x] No emit when topic does not start with `inbox:` (existing channel.post behaviour unchanged for non-inbox topics)
 - [x] Unit test pins both: channel.post to `inbox:<id>` fires; channel.post to a non-inbox topic does NOT fire
 - [x] `cargo build --release --bin termlink` clean; existing T-1636 tests still pass; `cargo test -p termlink-hub inbox_queued` exits 0
-- [ ] Framework-agent notified via `framework:pickup` channel with fix.shipped envelope including commit hash + version
+- [x] Framework-agent notified via `framework:pickup` channel with fix.shipped envelope including commit hash + version
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -56,7 +56,7 @@ This is resolution path (C) from the bug report: bundle the emit with the delive
 ## Verification
 
 cargo build --release --bin termlink 2>&1 | tail -3 | grep -q "Finished\|Compiling"
-cargo test -p termlink-hub inbox_queued 2>&1 | grep -qE "(3|4) passed"
+cargo test -p termlink-hub --lib -- inbox_queued channel_post_inbox channel_post_non_inbox --test-threads=1 2>&1 | grep -qE "4 passed; 0 failed"
 cargo check --all 2>&1 | grep -q "Finished"
 
 ## RCA
@@ -98,3 +98,6 @@ cargo check --all 2>&1 | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1637-pickup-inboxqueued-aggregator-handler-no.md
 - **Context:** Initial task creation
+
+### 2026-05-15T09:29:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

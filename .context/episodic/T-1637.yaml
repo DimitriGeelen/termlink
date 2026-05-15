@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1637: Pickup: inbox.queued aggregator handler not registered at hub boot — emit unreachable from CLI (from agentic-engineering-framework)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-15T09:29:10Z
+# ============================================================================
+
+task_id: T-1637
+task_name: "Pickup: inbox.queued aggregator handler not registered at hub boot — emit unreachable from CLI (from agentic-engineering-framework)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-14T05:55:01Z
+completed: 2026-05-15T09:29:07Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-05-15T11:15:29+02:00
+last_commit: 2026-05-15T11:15:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  emit inbox.queued from channel.post → inbox:<id> (close P-041)
+
+# Key outcomes
+outcomes:
+  - "`handle_channel_post_with` injects `inbox.queued` via `EventAggregator::inject` when the post topic starts with `inbox:` and `bus.post` returns `Ok(offset)`"
+  - "Payload shape exactly matches T-1636 contract: `{schema_version, addressee_session_id, channel, message_offset, enqueued_at}` — addressee_session_id derived from topic suffix after `inbox:`"
+  - "No emit when topic does not start with `inbox:` (existing channel.post behaviour unchanged for non-inbox topics)"
+  - "Unit test pins both: channel.post to `inbox:<id>` fires; channel.post to a non-inbox topic does NOT fire"
+  - "`cargo build --release --bin termlink` clean; existing T-1636 tests still pass; `cargo test -p termlink-hub inbox_queued` exits 0"
+  - "Framework-agent notified via `framework:pickup` channel with fix.shipped envelope including commit hash + version"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-hub/src/channel.rs"
+  - "crates/termlink-hub/src/router.rs"
+  - ".tasks/active/T-1637-pickup-inboxqueued-aggregator-handler-no.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-15T11:15:29"
+    action: "T-1637: emit inbox.queued from channel.post → inbox:<id> (close P-041)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1654 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report, arc:peer-consult, cross-repo]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1654
+  commits: 1
+  files_changed: 3
+  lines_added: 198
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1637-pickup-inboxqueued-aggregator-handler-no.md
+generated_by: context-agent-hybrid
