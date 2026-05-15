@@ -4,15 +4,15 @@ name: "fleet doctor: surface sender-side pickup-queue stall (T-1827 follow-up)"
 description: >
   Framework-agent T-1827 offset-14 follow-up. When termlink-agent posts to framework:pickup, the local hub returns offset+ts immediately but the message can sit queued (the offset-9/10/12 stretch took ~19h to surface to framework-agent on same local hub). fleet doctor currently shows hub health (reachable, version, latency) but NOT sender-side queue depth or stall age. Operator and agent both blind to outbound queue stalls until destination acks. Ask: add a queue-status block to fleet doctor that surfaces per-topic outbound-queue depth, oldest-unacked-age, and last-acked offset. Threshold-warn when oldest-unacked-age > 5min. Out of scope: fixing the queue stall itself — that's a different issue. This task is the visibility layer.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [ops, fleet-doctor, visibility, arc:queue-health]
 components: []
 related_tasks: []
 created: 2026-05-15T07:18:00Z
-last_update: 2026-05-15T07:18:00Z
+last_update: 2026-05-15T07:38:23Z
 date_finished: null
 ---
 
@@ -20,14 +20,26 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Framework-agent surfaced this ask on `framework:pickup` offset 14 (2026-05-14)
+after the offset-9/10/12 stretch took ~19h to surface across the same local
+hub. `fleet doctor` shows hub reachability + version + latency, but NOT
+sender-side outbound-queue state. `OfflineQueue` (~/.termlink/outbound.sqlite,
+T-1161) holds buffered posts when the local hub can't ack — already surfaced
+by the standalone `termlink channel queue-status` command but invisible in
+the fleet-wide view operators actually run.
+
+Goal: integrate the existing offline-queue read into `cmd_fleet_doctor`'s
+output. Tiny scope; pure additive surface, no new RPCs.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `cmd_fleet_doctor` in `crates/termlink-cli/src/commands/remote.rs` emits a `Outbound queue: N pending, oldest topic=X age=Ys` line (or `0 pending` / `0 pending (no queue file)`) BEFORE the per-hub probe loop, so it's the first thing the operator reads.
+- [x] When `pending > 0 AND oldest_age_secs > 300` the line is prefixed `[WARN]` and `total_warn` is incremented; a follow-up `hint:` line names the diagnostic command (`termlink channel queue-status`).
+- [x] JSON output (`fleet doctor --json`) carries a top-level `queue_status` object with fields: `queue_path`, `exists`, `pending`, `oldest_age_secs`, `oldest_topic`, `warn`.
+- [x] No new dependencies; reuses `termlink_session::offline_queue::{default_queue_path, OfflineQueue}` already used by `cmd_channel_queue_status`.
+- [x] `cargo build --release --bin termlink` clean (no new warnings in changed file).
+- [x] Manual smoke: `fleet doctor` on a healthy fleet shows `Outbound queue: 0 pending` first, then existing per-hub blocks; `fleet doctor --json | jq .queue_status` returns the object.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -54,6 +66,9 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+cargo build --release --bin termlink 2>&1 | tail -3 | grep -q "Finished"
+cargo check --all 2>&1 | tail -2 | grep -q "Finished"
+./target/release/termlink fleet doctor --json 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'queue_status' in d, 'missing queue_status'; qs=d['queue_status']; assert all(k in qs for k in ('queue_path','exists','pending','oldest_age_secs','warn')), f'missing fields in {qs}'; print('queue_status fields ok:', list(qs.keys()))"
 
 ## RCA
 
@@ -112,3 +127,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1639-fleet-doctor-surface-sender-side-pickup-.md
 - **Context:** Initial task creation
+
+### 2026-05-15T07:38:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

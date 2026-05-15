@@ -2489,6 +2489,91 @@ pub(crate) async fn cmd_fleet_doctor(
     // WARN-emit site (currently: stale-version detection in PASS branch).
     let mut total_warn: u32 = 0;
     let mut total_fail: u32 = 0;
+
+    // T-1639: surface local outbound-queue health BEFORE per-hub probes.
+    // Sender-side stall (BusClient buffering posts that the hub never accepted)
+    // was previously invisible to fleet doctor — operators only saw stalls
+    // once the destination side noticed. Origin: framework-agent T-1827
+    // offset-14 follow-up after the offset-9/10/12 pickup-channel stall.
+    let queue_status_obj: serde_json::Value = {
+        use termlink_session::offline_queue::{default_queue_path, OfflineQueue};
+        let qpath = default_queue_path();
+        if !qpath.exists() {
+            if !json {
+                eprintln!("Outbound queue: 0 pending (no queue file)\n");
+            }
+            serde_json::json!({
+                "queue_path": qpath.display().to_string(),
+                "exists": false,
+                "pending": 0,
+                "oldest_age_secs": 0,
+                "warn": false,
+            })
+        } else {
+            match OfflineQueue::open(&qpath) {
+                Ok(queue) => {
+                    let pending = queue.size().unwrap_or(0);
+                    let head = queue.peek_oldest().ok().flatten();
+                    let now_ms: i64 = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let oldest_age_secs: i64 = head
+                        .as_ref()
+                        .map(|(_, post)| {
+                            (now_ms.saturating_sub(post.ts_unix_ms)).max(0) / 1000
+                        })
+                        .unwrap_or(0);
+                    let warn = pending > 0 && oldest_age_secs > 300;
+                    if warn {
+                        total_warn += 1;
+                    }
+                    if !json {
+                        if pending == 0 {
+                            eprintln!("Outbound queue: 0 pending");
+                        } else {
+                            let topic = head
+                                .as_ref()
+                                .map(|(_, p)| p.topic.as_str())
+                                .unwrap_or("(unknown)");
+                            let tag = if warn { "[WARN] " } else { "" };
+                            eprintln!(
+                                "Outbound queue: {}{} pending, oldest topic={} age={}s",
+                                tag, pending, topic, oldest_age_secs
+                            );
+                            if warn {
+                                eprintln!(
+                                    "  hint: sender-side stall — local hub may have rejected posts; run `termlink channel queue-status` for head detail"
+                                );
+                            }
+                        }
+                        eprintln!();
+                    }
+                    serde_json::json!({
+                        "queue_path": qpath.display().to_string(),
+                        "exists": true,
+                        "pending": pending,
+                        "oldest_age_secs": oldest_age_secs,
+                        "oldest_topic": head.as_ref().map(|(_, p)| p.topic.clone()),
+                        "warn": warn,
+                    })
+                }
+                Err(e) => {
+                    if !json {
+                        eprintln!("Outbound queue: read error ({})\n", e);
+                    }
+                    serde_json::json!({
+                        "queue_path": qpath.display().to_string(),
+                        "exists": true,
+                        "pending": 0,
+                        "oldest_age_secs": 0,
+                        "warn": false,
+                        "error": e.to_string(),
+                    })
+                }
+            }
+        }
+    };
     // T-1132: aggregate binary versions across the fleet. `unknown` covers hubs
     // that failed to connect or that pre-date the hub.version RPC.
     let mut fleet_versions: std::collections::BTreeMap<String, u32> =
@@ -3081,6 +3166,7 @@ pub(crate) async fn cmd_fleet_doctor(
             "fleet_versions": fleet_versions,
             "action_items": action_items,
             "_snapshot_ts_ms": snapshot_ts_ms,
+            "queue_status": queue_status_obj,
         });
         if let Some(ls) = legacy_summary_obj.clone()
             && let Some(obj) = top.as_object_mut()
