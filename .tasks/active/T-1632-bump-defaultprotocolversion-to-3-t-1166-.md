@@ -12,7 +12,7 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-12T22:15:40Z
+last_update: 2026-05-15T19:55:48Z
 date_finished: null
 ---
 
@@ -110,6 +110,16 @@ grep -q "control_plane_version" crates/termlink-hub/src/router.rs
 -->
 
 ## Updates
+
+### 2026-05-15T20:11Z — .122 deploy complete, wire emit confirmed live
+
+- Deployed musl 0.9.2127 (sha `416e980ece6f9692...`) to ring20-management:9100 via `scripts/fleet-deploy-binary.sh --probe` (stage) + `scripts/hub-binary-swap.sh` (binary mv) + detached relaunch (the swap script's PID-resolution missed the long-running orphan, swap completed; manual SIGTERM + nohup relaunch closed it).
+- **Live wire verification (this task's REVIEW AC):**
+  - `hub.version` → `{"hub_version": "0.9.2127", "protocol_version": 1, "control_plane_version": 3}` ✓
+  - `hub.capabilities` (scope=execute) → same + `legacy_primitives: false`, 24 methods, no retired names ✓
+- Persistence holding: `hub.secret` sha `3dd9d01afe4ec599...` and `hub.cert.pem` sha `2355a206cd9c306d...` unchanged across swap → no client re-auth needed.
+- New hub PID 2506810, exe=`/usr/local/bin/termlink` (no `(deleted)` marker), started 2026-05-15T20:10:25.
+- Human REVIEW step is satisfied by the evidence above. Ready to tick once you've eyeballed.
 
 ### 2026-05-15T19:54Z — fresh release binary built (deploy-ready)
 
