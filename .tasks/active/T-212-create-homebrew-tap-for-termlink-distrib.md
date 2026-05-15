@@ -7,12 +7,12 @@ description: >
 status: started-work
 workflow_type: build
 owner: human
-horizon: now
+horizon: later
 tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-05-04T19:40:30Z
+last_update: 2026-05-15T17:56:24Z
 date_finished: null
 ---
 
@@ -118,3 +118,12 @@ test "$(curl -sf -o /dev/null -w '%{http_code}' https://github.com/DimitriGeelen
 - **Action:** `curl -sI https://github.com/DimitriGeelen/homebrew-termlink` → HTTP/2 **404**; raw `Formula/termlink.rb` fetch → **404**.
 - **Status:** Divergence persists 60 days after Human ACs were ticked (2026-03-23). G-010 `last_reviewed` refreshed to 2026-05-15.
 - **No autonomous AC change:** Per Human Task Completion Rule, the agent does not un-tick operator-attested ACs. Surface only.
+
+### 2026-05-15T17:55:17Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** DimitriGeelen/homebrew-termlink GitHub repo not yet created (G-010 60d divergence, reprobed 2026-05-15 → HTTP 404). Park until external prerequisite lands.
+
+### 2026-05-15T17:56:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
