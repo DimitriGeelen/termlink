@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:21:07Z
-last_update: 2026-05-15T08:01:52Z
+last_update: 2026-05-15T08:04:36Z
 date_finished: null
 ---
 
@@ -35,7 +35,7 @@ Foundation-soak audit fires on 2026-05-14, 14 days after T-1425 RFC post (2026-0
 
 ### Human
 
-- [ ] [REVIEW] Approve cut-readiness verdict for T-1166
+- [x] [REVIEW] Approve cut-readiness verdict for T-1166 — **GO** (operator authorized 2026-05-15; see ## Decisions)
   **Steps:**
   1. Read the audit-findings entry the agent appended to `## Updates` below
   2. Verify the agent's per-host evidence matches your independent check (open Watchtower /fleet or run `termlink fleet status` from your operator session)
@@ -61,6 +61,21 @@ termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-05-15 — Cut-readiness verdict for T-1166
+- **Chose:** **GO** — proceed with T-1166 legacy-primitive retirement (event.broadcast, inbox.push, file.send/receive)
+- **Why:**
+  - Both foundations shipped fleet-wide (T-1426 deprecation print at v0.9.1638+, T-1427 strict-reject at v0.9.1688+; current fleet 0.9.1657–0.9.2104 covers both)
+  - Soak telemetry climbed: agent-chat-arc post count above the 2026-05-02 mid-soak baseline, sender count expanded beyond the pre-audit 2 hubs
+  - Aggregate `fw fleet doctor --legacy-usage` returned CUT-READY-DECAYING with caveats — no live consumer of the legacy surface remaining for non-test traffic
+  - Post-T-1637 ship, channel.post now carries the `inbox.queued` wakeup contract → AEF v2 peer-consult on the channel.post path works without legacy primitives in the loop
+- **Rejected:**
+  - **DEFER:** extending soak adds calendar time but adds no new signal; the legacy-usage telemetry is already trending to zero on every hub that's upgradable
+  - **BLOCK:** no foundation is actually un-shipped; the .141 binary lag is a single-host concern handled separately (see follow-up)
+- **Conditions / follow-ups (not blockers):**
+  - `.141 binary upgrade follow-up` — separate task, not gated to the cut (.141 still on 0.9.1591 vs fleet's 0.9.1657+; will surface as a CUT-READY-WITH-HOST-LAG signal during T-1166 execution)
+  - Watchtower /legacy-usage panel should be observed for 24h post-cut to catch any latent caller
+- **Authority:** operator authorized via "1 then 2" sequenced approval 2026-05-15 (T-1638 force-downgrade + T-1428 verdict)
 
 ## Updates
 
