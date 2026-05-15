@@ -6,34 +6,37 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Structural audits (30 min)
-*/30 * * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section structure,compliance,quality,discovery --cron 2>/dev/null
+*/30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section structure,compliance,quality,discovery --cron 2>&1 | logger -t agentic-cron
 
 # Git traceability + episodic (hourly)
-0 * * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section traceability,episodic,discovery-trends --cron 2>/dev/null
+0 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section traceability,episodic,discovery-trends --cron 2>&1 | logger -t agentic-cron
 
 # Observations + gaps (6 hourly)
-0 */6 * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section observations,gaps --cron 2>/dev/null
+0 */6 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section observations,gaps --cron 2>&1 | logger -t agentic-cron
 
 # OE fast checks (30 min)
-15,45 * * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-fast,oe-research --cron 2>/dev/null
+15,45 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-fast,oe-research --cron 2>&1 | logger -t agentic-cron
 
 # OE hourly checks
-30 * * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-hourly --cron 2>/dev/null
+30 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-hourly --cron 2>&1 | logger -t agentic-cron
 
 # OE daily checks
-0 7 * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-daily --cron 2>/dev/null
+0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-daily --cron 2>&1 | logger -t agentic-cron
 
 # OE weekly checks
-0 9 * * 1 root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-weekly --cron 2>/dev/null
+0 9 * * 1 root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --section oe-weekly --cron 2>&1 | logger -t agentic-cron
 
 # Full audit (daily)
-0 8 * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --cron 2>/dev/null
+0 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" audit --cron 2>&1 | logger -t agentic-cron
 
 # Component docs regeneration (daily)
-15 8 * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" docs --all 2>/dev/null
+15 8 * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" docs --all 2>&1 | logger -t agentic-cron
 
 # Cron audit file retention (daily)
-0 9 * * * root cd "/opt/termlink" && find .context/audits/cron -name '*.yaml' -mtime +7 -delete 2>/dev/null
+0 9 * * * root cd "/opt/termlink" && find .context/audits/cron -name '*.yaml' -mtime +7 -delete 2>&1 | logger -t agentic-cron
 
 # Pickup inbox processor (15 min)
-*/15 * * * * root PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" pickup process 2>/dev/null
+*/15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" pickup process 2>&1 | logger -t agentic-cron
+
+# Revisit-due scan (daily 07:00, G-053)
+0 7 * * * root cd "/opt/termlink" && .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron

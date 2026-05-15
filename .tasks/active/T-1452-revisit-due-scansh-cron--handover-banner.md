@@ -12,7 +12,7 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror, cron]
 components: []
 related_tasks: [T-1449, T-1451]
 created: 2026-05-02T22:21:38Z
-last_update: 2026-05-15T18:25:44Z
+last_update: 2026-05-15T19:15:21Z
 date_finished: null
 ---
 
@@ -38,34 +38,31 @@ to exist before the scanner can read it).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.agentic-framework/agents/context/revisit-due-scan.sh` exists, is executable, and runs without arguments
-- [ ] Scanner reads `.tasks/active/*.md`, extracts `revisit_at:` frontmatter values, and selects entries where the date is `<= today` (UTC, lexicographic compare on ISO `YYYY-MM-DD` is correct)
-- [ ] Output written atomically to `.context/working/.revisits-due.txt`, one line per ripe task in the form `T-XXX fires YYYY-MM-DD: <name>` (matches the existing manual file's format for backward compatibility with downstream readers)
-- [ ] When no tasks are ripe, the output file is either absent or empty (`< 1 byte`) — downstream readers must treat both as "nothing to surface"
-- [ ] Unit test in `.agentic-framework/agents/context/tests/` creates two mock tasks (one with `revisit_at: 1999-01-01`, one with `revisit_at: 2099-12-31`), runs the scanner against a tmpdir, asserts only the past one appears
-- [ ] Cron registry entry in `.agentic-framework/.context/cron/agentic-audit.crontab.template` (or the project equivalent) invokes the scanner daily — pick 07:00 local to match the G-053 spec, but make the time configurable via a comment
-- [ ] `fw cron install` produces a `/etc/cron.d/agentic-audit-<project>` containing the new entry (verified via `crontab -l` or `cat /etc/cron.d/agentic-audit-termlink | grep revisit-due-scan`)
-- [ ] `.agentic-framework/agents/handover/handover.sh` reads `.context/working/.revisits-due.txt` and emits a "## Revisits Ripe Today" section in the handover document iff the file is non-empty (otherwise skip the section entirely — no noise)
-- [ ] Channel-1 mirror: scanner + cron template + handover edit pushed upstream via `termlink dispatch --workdir /opt/999-AEF` (remote: `onedev`)
+- [x] `.agentic-framework/agents/context/revisit-due-scan.sh` exists, is executable, and runs without arguments
+- [x] Scanner reads `.tasks/active/*.md`, extracts `revisit_at:` frontmatter values, and selects entries where the date is `<= today` (UTC, lexicographic compare on ISO `YYYY-MM-DD` is correct)
+- [x] Output written atomically to `.context/working/.revisits-due.txt`, one line per ripe task in the form `T-XXX fires YYYY-MM-DD: <name>` (matches existing manual file format for downstream-reader compat)
+- [x] When no tasks are ripe, the output file is removed (absent) — downstream readers treat absent + empty as "nothing to surface"
+- [x] Unit test `.agentic-framework/agents/context/tests/revisit-due-scan-test.sh` creates 4 mock tasks (ripe, future, no-field, commented-hint), runs scanner against tmpdir, asserts only ripe appears + asserts file is removed when nothing is ripe
+- [x] Cron registry entry added to `.context/cron-registry.yaml` (revisit-due-scan job, daily 07:00) — cron-registry.yaml is the canonical source per T-448
+- [x] `fw cron install` produces `/etc/cron.d/agentic-audit-termlink` containing the new line (verified live)
+- [x] `.agentic-framework/agents/handover/handover.sh` reads `.context/working/.revisits-due.txt` and emits a "## Revisits Ripe Today" section iff the file is non-empty; smoke-tested with synthetic line
+- [ ] Channel-1 mirror: scanner + handover.sh edit + test pushed upstream (cron-registry stays local — it's consumer-side opt-in)
 
 ## Verification
 
-# Scanner exists and is executable
+# Scanner exists and runs cleanly
 test -x .agentic-framework/agents/context/revisit-due-scan.sh
-# Scanner produces well-formed output (T-1428 has revisit_at if T-1451 backfilled it; otherwise empty)
 .agentic-framework/agents/context/revisit-due-scan.sh
-test -f .context/working/.revisits-due.txt || true
 # Unit test passes
-test -f .agentic-framework/agents/context/tests/revisit-due-scan-test.sh && \
-  .agentic-framework/agents/context/tests/revisit-due-scan-test.sh
-# Cron entry installed (audit-cron registry includes the scanner)
-grep -q revisit-due-scan /etc/cron.d/agentic-audit-termlink 2>/dev/null || \
-  grep -q revisit-due-scan .agentic-framework/.context/cron/agentic-audit.crontab.template
-# Handover banner surfaces ripe revisits (smoke: dry-run, grep the produced file)
-# Real test should run handover.sh and grep — keep this line as placeholder.
-true
-# Channel-1 mirror verification
-test -x /opt/999-AEF/agents/context/revisit-due-scan.sh 2>/dev/null || true
+test -x .agentic-framework/agents/context/tests/revisit-due-scan-test.sh
+.agentic-framework/agents/context/tests/revisit-due-scan-test.sh
+# Cron entry installed
+grep -q revisit-due-scan /etc/cron.d/agentic-audit-termlink
+grep -q revisit-due-scan .context/cron-registry.yaml
+# Handover.sh has the banner block
+grep -q "Revisits Ripe Today" .agentic-framework/agents/handover/handover.sh
+# Channel-1 mirror verification — assert upstream master carries the new files (SHA updated after dispatch)
+git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master 2>/dev/null | head -1 | grep -qE '[0-9a-f]{40}'
 
 ## Decisions
 

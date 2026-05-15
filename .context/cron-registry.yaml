@@ -105,3 +105,12 @@ jobs:
     origin_task: T-921
     status: active
     description: "Scans pickup inbox for cross-project proposals, validates, dedup-checks, and creates inception tasks."
+
+  - id: revisit-due-scan
+    name: "Revisit-due scan (daily 07:00, G-053)"
+    schedule: "0 7 * * *"
+    command: ".agentic-framework/agents/context/revisit-due-scan.sh"
+    source_file: agentic-audit-termlink
+    origin_task: T-1452
+    status: active
+    description: "Daily scan of .tasks/active for revisit_at <= today; ripe deferrals are written to .context/working/.revisits-due.txt and surfaced by the handover banner. Closes G-053 (DEFER decisions previously had no structural revisit reminder)."
