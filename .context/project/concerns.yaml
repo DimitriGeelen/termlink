@@ -232,8 +232,8 @@ concerns:
   mitigation_progress: "2026-04-25 (T-1264): Partial-complete count 64 → 3 over 10 days. Tier-2 batch validation cleared 75+ tasks across 3 batches (2026-04-23/24); 14 stale work-completed inceptions closed; backlog drained to 0 on 2026-04-24 then refilled to 3 on 2026-04-25. Current 3 (T-1215/T-1217/T-1218): all carry agent-gathered live evidence — pattern holding. Structural remediation (T-1244/T-1404/T-1407) still in flight; concern stays watching until structural fix lands or count is stable ≤5 for 7+ days. 2026-05-06 (T-1628): triage UX shipped — `fw task verify --compact --by-age --rubber-stamp-only` reduces the unscannable 740-line default to 5 actionable items at the time of measurement (146 tasks now in queue, vs 64 originally; refilled while rubber-stamp drain primitives matured). PL-154 captured as the generalizable verb-flag pattern. Triage tooling resolves bullet 1 of `what_remains`; bullets 2-4 (handover digest, batch rubber-stamp verb, audit threshold) remain. Concern stays watching."
   status: watching
   created: 2026-04-15
-  last_reviewed: 2026-05-06
-  last_observation: "2026-04-25T06:30Z: 3 partial-complete tasks (work-completed + owner=human): T-1215 [RUBBER-STAMP] live-probe (blocked on hub rebuild+restart), T-1217 [RUBBER-STAMP] cron entry (already operational on /opt/050-email-archive — agent-evidenced), T-1218 [REVIEW] render quality (blocked on fw upgrade + Watchtower :3100 restart). Backlog stable at 3 since 2026-04-24 drain. Closure candidate: when count stays ≤5 for 7 consecutive days AND structural remediation (T-1244/T-1404/T-1407) lands."
+  last_reviewed: 2026-05-15
+  last_observation: "2026-05-15T17:55Z: 134 partial-complete tasks (work-completed + owner=human + ≥1 unchecked Human AC). Trajectory: 64 (2026-04-15 trigger) → drained to 0 (2026-04-24) → refilled to 3 (2026-04-25) → 146 (2026-05-06, T-1628 measurement) → 134 (today). Net: backlog REGREW after the 2026-04-24 drain and has hovered ~140 for ~10 days. Triage UX (`fw task verify --compact --by-age --rubber-stamp-only`) shipped per T-1628 but doesn't auto-close — operator clicks still required per task. Structural items 2-4 in what_remains (handover digest, batch rubber-stamp verb, audit threshold) NOT shipped. The triage tooling alone is not enough; without auto-rubber-stamp the queue grows faster than the operator can drain. Closure candidate: when (count ≤ 5 for 7d) AND (auto-rubber-stamp or handover-digest delivered)."
   mitigation_history: |
     - 2026-04-23: Tier-2 batch validation of all unchecked Human ACs per operator direction — 75+ tasks closed in 3 batches via Watchtower /api/task/<id>/complete.
     - 2026-04-24: Final 8 remaining + 9 captured+GO inceptions + 14 stale work-completed inceptions closed. Backlog drained from 64 → 0.
@@ -515,7 +515,22 @@ concerns:
         upgrade cycle in production with non-trivial governance template
         diff. Paths #1 (section-aware merge), #3 (auto-cleanup of stale
         .bak), #4 (CLAUDE.md.local include) remain open.
+    - date: 2026-05-15
+      task: T-1638
+      detail: |
+        RECURRENCE — 3rd hit despite T-1630 mitigation. T-1638 re-vendor
+        (1.6.260 → 1.6.160 force-downgrade) lost the SAME 3 lines T-1629
+        identified on 2026-05-09: line 803 `Use the vendored path, not
+        global fw` (Copy-Pasteable Commands bullet 3), lines 991-992
+        `/agent-handoff` and `/check-arc` Quick Reference rows. T-1630's
+        warn-on-loss path #2 fires post-upgrade but doesn't RESTORE the
+        lines; operator/agent must notice the warning and re-apply
+        manually. Restored today via direct Edit. CONCLUSION: path #2 is
+        a detection-only mitigation; the structural fix needs path #1
+        (section-aware merge that re-applies lost lines automatically)
+        OR path #4 (.local include). Detection-lag this time: ~5 hours
+        (T-1638 push 12:10Z → audit during validation sweep ~17:00Z).
   status: watching
   created: 2026-05-09
-  last_reviewed: 2026-05-09
-  related_tasks: [T-1447, T-1629, T-1630]
+  last_reviewed: 2026-05-15
+  related_tasks: [T-1447, T-1629, T-1630, T-1638]
