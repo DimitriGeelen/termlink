@@ -4,7 +4,7 @@ name: "Eliminate rogue UDS-only hub on .121 ring20-dashboard"
 description: >
   On 2026-05-15 forensics for the T-1632/T-1633 fleet rollout, .121 was found running TWO concurrent termlink hub processes: PID 1895580 (started May 3, bound to TCP 9100 + /var/lib/termlink/hub.sock — canonical) AND PID 2391097 (started May 15 07:08, bound to /tmp/termlink-0/hub.sock only, no --tcp arg — rogue). Local agents on .121 hit the rogue via UDS; remote agents hit the canonical via TCP. The watchdog at /root/ring20-dashboard/scripts/watchdog.sh sets TERMLINK_RUNTIME_DIR=/var/lib/termlink AND uses --tcp, so the rogue did NOT come from there — some other launch path is spawning bare 'termlink hub start' without env or --tcp. Cause unknown. Risk: drift in local-vs-remote view of hub state (capabilities, legacy usage, session list, channel state, secret rotation if /tmp gets wiped). Action: identify the spawn origin (could be a manual operator command, a script under /root/ring20-dashboard/, an @reboot cron, a systemd service, or a sibling project on the same host); document; either remove the spawn or document it as intentional with a runtime_dir + --tcp fix. Workdir: /root/ring20-dashboard on .121 (via termlink remote exec). Related: T-1633 (volatile-/tmp warning will fire on the rogue once 0.9.2127 is deployed).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug, ring20-dashboard, dual-hub, fleet-hygiene, T-1633]
 components: []
 related_tasks: [T-1632, T-1633, T-1640]
 created: 2026-05-15T20:43:37Z
-last_update: 2026-05-15T21:11:11Z
-date_finished: null
+last_update: 2026-05-15T21:23:26Z
+date_finished: 2026-05-15T21:23:26Z
 ---
 
 # T-1641: Eliminate rogue UDS-only hub on .121 ring20-dashboard
@@ -224,3 +224,6 @@ that did NOT export the env. There is no automated trigger. Evidence:
 ### 2026-05-15T21:11:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-05-15T21:23:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

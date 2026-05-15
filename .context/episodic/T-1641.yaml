@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1641: Eliminate rogue UDS-only hub on .121 ring20-dashboard
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-15T21:23:28Z
+# ============================================================================
+
+task_id: T-1641
+task_name: "Eliminate rogue UDS-only hub on .121 ring20-dashboard"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-15T20:43:37Z
+completed: 2026-05-15T21:23:26Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-15T23:23:19+02:00
+last_commit: 2026-05-15T23:23:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rogue UDS-only hub on .121 — RCA + cross-project memo (PL-157)
+
+# Key outcomes
+outcomes:
+  - "Spawn origin identified — manual operator hub start at 2026-05-15 07:08 in an env-less shell; no automated trigger. Adjacent issue: dashboard's `termlink_events.py:ensure_self_session()` spawns `termlink register --self` via subprocess.Popen with no env override, so register-time sessions also land in /tmp when the dashboard's own env lacks `TERMLINK_RUNTIME_DIR` (see RCA)"
+  - "Documented (this RCA) + cross-project memo for the env hardening recommendation (see \"Prevention — proposed\" in RCA)"
+  - "Exactly one `termlink hub` process running on .121 — `pgrep -af '[t]ermlink hub'` returns PID 2704841 only"
+  - "No live UDS at `/tmp/termlink-0/hub.sock` on .121 — `ss -lx` shows no LISTEN there; the canonical UDS is `/var/lib/termlink/hub.sock`"
+  - "RCA documented below"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1641-eliminate-rogue-uds-only-hub-on-121-ring.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-15T23:23:19"
+    action: "T-1641: rogue UDS-only hub on .121 — RCA + cross-project memo (PL-157)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 39 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, ring20-dashboard, dual-hub, fleet-hygiene, T-1633]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 39
+  commits: 1
+  files_changed: 2
+  lines_added: 240
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1641-eliminate-rogue-uds-only-hub-on-121-ring.md
+generated_by: context-agent-hybrid
