@@ -12,7 +12,7 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: 2026-05-12T22:19:06Z
+last_update: 2026-05-12T22:21:32Z
 date_finished: null
 ---
 
@@ -126,6 +126,13 @@ grep -q "TERMLINK_RUNTIME_DIR" crates/termlink-hub/src/server.rs
 -->
 
 ## Updates
+
+### 2026-05-15T19:54Z — fresh release binary built (deploy-ready)
+
+- Built `target/release/termlink` 0.9.2125 (sha256 prefix `611d0013a748eb70`).
+- Binary includes `f55d48ac` (this task's volatile-/tmp startup warning) plus T-1632 / T-1636 / T-1637 cut-followups.
+- Re-ran `cargo test -p termlink-hub --lib --release runtime_dir_warn`: 4/4 PASS, including `warns_when_root_and_tmp_and_env_unset` which directly asserts the AC.
+- Deploy on .122 is no longer binary-blocked. The warning will fire if .122 ever starts the hub bare-respawn-style without `TERMLINK_RUNTIME_DIR=/var/lib/termlink` — caught at next restart per the three-prong remediation.
 
 ### 2026-05-12T21:55:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
