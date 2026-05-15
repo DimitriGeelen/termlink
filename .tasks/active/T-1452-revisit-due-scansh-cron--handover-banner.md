@@ -12,7 +12,7 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror, cron]
 components: []
 related_tasks: [T-1449, T-1451]
 created: 2026-05-02T22:21:38Z
-last_update: 2026-05-15T19:15:21Z
+last_update: 2026-05-15T19:19:38Z
 date_finished: null
 ---
 
@@ -46,7 +46,7 @@ to exist before the scanner can read it).
 - [x] Cron registry entry added to `.context/cron-registry.yaml` (revisit-due-scan job, daily 07:00) — cron-registry.yaml is the canonical source per T-448
 - [x] `fw cron install` produces `/etc/cron.d/agentic-audit-termlink` containing the new line (verified live)
 - [x] `.agentic-framework/agents/handover/handover.sh` reads `.context/working/.revisits-due.txt` and emits a "## Revisits Ripe Today" section iff the file is non-empty; smoke-tested with synthetic line
-- [ ] Channel-1 mirror: scanner + handover.sh edit + test pushed upstream (cron-registry stays local — it's consumer-side opt-in)
+- [x] Channel-1 mirror: scanner + handover.sh edit + test pushed upstream at commit `76d53e29` on master (rebased onto aaf7f69b). Cron-registry stays local — it's consumer-side opt-in.
 
 ## Verification
 
