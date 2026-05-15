@@ -99,7 +99,7 @@ echo "  chunk:     $CHUNK bytes"
 # If the running hub binary on the remote already matches our sha, skip.
 echo ">>> idempotency check: query running hub binary sha"
 RUNNING_SHA=$(timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
-  "PID=\$(pgrep -f 'termlink hub start' | head -1); [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]')
+  "PID=\$(pgrep -f '[t]ermlink hub start' | head -1); [ -n \"\$PID\" ] && sha256sum \"/proc/\$PID/exe\" 2>/dev/null | awk '{print \$1}'" 2>/dev/null | tr -d '[:space:]')
 if [ "$RUNNING_SHA" = "$EXPECTED_SHA" ]; then
   echo "✓ remote hub already running this exact binary (sha matches) — nothing to do"
   exit 0
@@ -181,7 +181,7 @@ ACTUAL=\$(sha256sum "\$NEW" | awk '{print \$1}')
 [ "\$ACTUAL" = "\$EXPECTED_SHA" ] || { echo "ABORT: sha mismatch"; exit 1; }
 
 # Locate the running hub binary's path via /proc/PID/exe
-PID=\$(pgrep -f 'termlink hub start' | head -1)
+PID=\$(pgrep -f '[t]ermlink hub start' | head -1)
 [ -z "\$PID" ] && { echo "no running hub — staging only"; exit 0; }
 TARGET=\$(readlink "/proc/\$PID/exe")
 echo "running hub PID=\$PID at \$TARGET"
@@ -195,10 +195,10 @@ sleep 3
 # Kill, wait for exit
 kill "\$PID"
 for i in \$(seq 1 15); do
-  pgrep -f 'termlink hub start' >/dev/null || { echo "hub exited after \${i}s"; break; }
+  pgrep -f '[t]ermlink hub start' >/dev/null || { echo "hub exited after \${i}s"; break; }
   sleep 1
 done
-pgrep -f 'termlink hub start' >/dev/null && { pkill -9 -f 'termlink hub start'; sleep 2; }
+pgrep -f '[t]ermlink hub start' >/dev/null && { pkill -9 -f '[t]ermlink hub start'; sleep 2; }
 
 # NTFS DrvFs: 5s wait for file-lock release
 sleep 5
@@ -221,7 +221,7 @@ NEW_PID=\$!
 echo "relaunched hub PID=\$NEW_PID"
 
 sleep 5
-pgrep -f 'termlink hub start' >/dev/null && \
+pgrep -f '[t]ermlink hub start' >/dev/null && \
   echo "\$(date) hub UP version=\$(\"\$TARGET\" --version 2>&1 | head -1)" || \
   echo "\$(date) hub did NOT come back"
 echo "===== deploy done ====="

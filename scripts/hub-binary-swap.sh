@@ -113,7 +113,7 @@ test -x '$STAGED_PATH' || { echo 'ERR: staged binary missing or not executable: 
 '$STAGED_PATH' --version >/dev/null 2>&1 || { echo 'ERR: staged --version failed' >&2; exit 1; }
 test -f /var/lib/termlink/hub.secret || { echo 'ERR: /var/lib/termlink/hub.secret missing — runtime_dir not migrated' >&2; exit 1; }
 test -f /var/lib/termlink/hub.cert.pem || { echo 'ERR: /var/lib/termlink/hub.cert.pem missing — runtime_dir not migrated' >&2; exit 1; }
-HUB_PID=\$(pgrep -f 'termlink hub start' | head -1)
+HUB_PID=\$(pgrep -f '[t]ermlink hub start' | head -1)
 test -n \"\$HUB_PID\" || { echo 'ERR: no termlink hub process found' >&2; exit 1; }
 # Emit raw KEY=VALUE lines; parse on the local side (remote sh has no printf %q).
 echo \"HUB_PID=\$HUB_PID\"
@@ -175,10 +175,10 @@ chmod +x /usr/local/bin/termlink
 # Kill the running hub (and wait for socket release)
 kill $HUB_PID 2>/dev/null || true
 for i in 1 2 3 4 5; do
-  if ! pgrep -f 'termlink hub start' >/dev/null; then break; fi
+  if ! pgrep -f '[t]ermlink hub start' >/dev/null; then break; fi
   sleep 1
 done
-if pgrep -f 'termlink hub start' >/dev/null; then
+if pgrep -f '[t]ermlink hub start' >/dev/null; then
   echo 'ERR: hub did not exit within 5s' >&2
   exit 1
 fi
@@ -190,14 +190,14 @@ sleep 1
 
 # Wait up to 10s for the socket to come back
 for i in 1 2 3 4 5 6 7 8 9 10; do
-  if pgrep -f 'termlink hub start' >/dev/null && ss -tlnp 2>/dev/null | grep -q ':9100'; then
+  if pgrep -f '[t]ermlink hub start' >/dev/null && ss -tlnp 2>/dev/null | grep -q ':9100'; then
     UP=1
     break
   fi
   sleep 1
 done
 echo \"HUB_UP=\${UP:-0}\"
-echo \"HUB_PID_NEW=\$(pgrep -f 'termlink hub start' | head -1)\"
+echo \"HUB_PID_NEW=\$(pgrep -f '[t]ermlink hub start' | head -1)\"
 echo \"POST_SECRET_SHA=\$(sha256sum /var/lib/termlink/hub.secret | awk '{print \$1}')\"
 echo \"POST_CERT_SHA=\$(sha256sum /var/lib/termlink/hub.cert.pem | awk '{print \$1}')\"
 echo \"POST_BIN_VERSION=\$(/usr/local/bin/termlink --version)\"
@@ -263,14 +263,14 @@ echo ">>> ROLLBACK initiated"
 ROLLBACK_RESULT=$(run_remote "
 set -e
 test -f /usr/local/bin/termlink.bak || { echo 'ERR: backup missing — manual recovery required' >&2; exit 1; }
-pkill -f 'termlink hub start' 2>/dev/null || true
+pkill -f '[t]ermlink hub start' 2>/dev/null || true
 sleep 2
 mv /usr/local/bin/termlink.bak /usr/local/bin/termlink
 TERMLINK_RUNTIME_DIR='$HUB_RUNTIME_DIR' setsid nohup /usr/local/bin/termlink hub start $HUB_ARGS </dev/null >>/var/log/termlink-hub.log 2>&1 &
 disown
 sleep 2
 echo 'ROLLBACK_VERSION='\$(/usr/local/bin/termlink --version)
-echo 'ROLLBACK_HUB_UP='\$(pgrep -f 'termlink hub start' | head -1)
+echo 'ROLLBACK_HUB_UP='\$(pgrep -f '[t]ermlink hub start' | head -1)
 ") || { echo "FATAL: rollback itself failed — operator intervention required"; exit 5; }
 echo "$ROLLBACK_RESULT" | sed 's/^/  /'
 exit 4
