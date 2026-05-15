@@ -4,7 +4,7 @@ name: "Fix G-082 upstream — episodic generator emits invalid YAML on tasks wit
 description: >
   Fix G-082 upstream — episodic generator emits invalid YAML on tasks with ## Decisions
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-11T11:07:29Z
-last_update: 2026-05-11T11:10:01Z
-date_finished: null
+last_update: 2026-05-11T11:24:40Z
+date_finished: 2026-05-11T11:24:40Z
 ---
 
 # T-1631: Fix G-082 upstream — episodic generator emits invalid YAML on tasks with ## Decisions
@@ -139,3 +139,6 @@ Fix happens on `/opt/999-AEF` (upstream framework). This task tracks the coordin
 - **.122 hub (ring20-management):** offset 2.
 - **Consumer action:** projects can `git pull origin master` in their `.agentic-framework/` (or wait for next `fw upgrade`) and then regenerate any episodics that had silent merge (e.g. proxmox-ring20-management's T-597, T-635, T-653).
 
+
+### 2026-05-11T11:24:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

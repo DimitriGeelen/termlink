@@ -4,7 +4,7 @@ name: "fw upgrade.sh — post-write audit warns on lost CLAUDE.md customizations
 description: >
   fw upgrade.sh — post-write audit warns on lost CLAUDE.md customizations (G-055 prevention)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-09T21:19:28Z
-last_update: 2026-05-09T21:19:28Z
-date_finished: null
+last_update: 2026-05-09T21:24:53Z
+date_finished: 2026-05-09T21:24:53Z
 ---
 
 # T-1630: fw upgrade.sh — post-write audit warns on lost CLAUDE.md customizations (G-055 prevention)
@@ -133,3 +133,6 @@ grep -q "lost_lines=" /opt/termlink/.agentic-framework/lib/upgrade.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1630-fw-upgradesh--post-write-audit-warns-on-.md
 - **Context:** Initial task creation
+
+### 2026-05-09T21:24:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

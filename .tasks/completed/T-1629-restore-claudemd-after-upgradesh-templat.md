@@ -4,7 +4,7 @@ name: "Restore CLAUDE.md after upgrade.sh template-overwrite regression"
 description: >
   Restore CLAUDE.md after upgrade.sh template-overwrite regression
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-09T21:13:48Z
-last_update: 2026-05-09T21:13:48Z
-date_finished: null
+last_update: 2026-05-09T21:17:18Z
+date_finished: 2026-05-09T21:17:18Z
 ---
 
 # T-1629: Restore CLAUDE.md after upgrade.sh template-overwrite regression
@@ -143,3 +143,6 @@ named project-only sections, not inline additions to governance sections.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1629-restore-claudemd-after-upgradesh-templat.md
 - **Context:** Initial task creation
+
+### 2026-05-09T21:17:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

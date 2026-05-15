@@ -12,7 +12,7 @@ tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-05-15T17:56:24Z
+last_update: 2026-05-15T17:57:00Z
 date_finished: null
 ---
 

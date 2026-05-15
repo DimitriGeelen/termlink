@@ -12,7 +12,7 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-15T20:12:01Z
+last_update: 2026-05-15T20:46:27Z
 date_finished: null
 ---
 
