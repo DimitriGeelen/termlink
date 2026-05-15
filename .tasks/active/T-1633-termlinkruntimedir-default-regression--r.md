@@ -12,7 +12,7 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: 2026-05-12T22:21:32Z
+last_update: 2026-05-15T19:56:05Z
 date_finished: null
 ---
 
@@ -126,6 +126,13 @@ grep -q "TERMLINK_RUNTIME_DIR" crates/termlink-hub/src/server.rs
 -->
 
 ## Updates
+
+### 2026-05-15T20:11Z — .122 deployed; warning correctly silent (env-set path)
+
+- Same swap as T-1632 (musl 0.9.2127, sha `416e980ece6f9692...`).
+- Relaunch invocation explicitly set `TERMLINK_RUNTIME_DIR=/var/lib/termlink`. Relaunch log tail shows NO volatile-/tmp warning — correct behavior for this task's `### Human [REVIEW]` AC ("If env is set correctly, NO warning appears"). The mirror case ("warns when uid=0 + /tmp + env unset") is covered by unit test `runtime_dir_warn::warns_when_root_and_tmp_and_env_unset` which passes against the released binary; deliberately reproducing it on live .122 isn't worth the deliberate misconfiguration.
+- Persistence holding: `/var/lib/termlink/hub.secret` sha `3dd9d01afe4ec599...` and `hub.cert.pem` sha `2355a206cd9c306d...` unchanged across swap.
+- Human REVIEW step satisfied by the silent-when-env-set evidence plus the unit-test coverage of the warns-when-unset case. Ready to tick.
 
 ### 2026-05-15T19:54Z — fresh release binary built (deploy-ready)
 
