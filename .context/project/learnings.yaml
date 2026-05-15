@@ -1355,3 +1355,17 @@ learnings:
   date: 2026-05-11
   context: Added via context agent
   application: TBD
+- id: PL-156
+  learning: "When a shell script uses pgrep -f / pkill -f with a literal search pattern, ALWAYS bracket-trick the first letter (e.g. '[t]ermlink hub start' not 'termlink hub start'). The search pattern appears in the calling shell's argv, so without the bracket trick pgrep self-matches the shell that's running the search. Manifests as: pgrep returns the wrong PID, kill silently misses, downstream verification reports a misleading timeout. Latent for ~2 weeks across 12 callsites in our deploy scripts before .122 surfaced it (T-1640). Apply at write-time AND enforce via static test."
+  source: P-001
+  task: T-1640
+  date: 2026-05-15
+  context: Added via context agent
+  application: TBD
+- id: PL-157
+  learning: "Python subprocess.Popen calls to termlink CLI MUST pass env= dict with TERMLINK_RUNTIME_DIR explicitly set; inherited env can be unset on operator-launched dashboards (e.g. Claude Code shells), causing register-self and any auto-spawned hubs to land in volatile /tmp/termlink-0/. Defense-in-depth at the call site (env= override) is one line. Origin: T-1641 .121 rogue-hub forensics; pattern observed in ring20-dashboard/termlink_events.py:113. Adjacent fix: T-1633 startup warning catches the symptom in-binary."
+  source: P-001
+  task: T-1641
+  date: 2026-05-15
+  context: Added via context agent
+  application: TBD
