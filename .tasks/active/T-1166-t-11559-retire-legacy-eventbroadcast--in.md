@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-12T21:08:40Z
+last_update: 2026-05-15T21:24:07Z
 date_finished: null
 ---
 
@@ -43,7 +43,7 @@ Quick re-verification command:
 - [ ] **DEFERRED TO T-1415:** Router methods removed from `crates/termlink-hub/src/router.rs`. The CUT mechanism is feature-gated (`legacy_primitives_disabled` Cargo feature → `LEGACY_PRIMITIVES_ENABLED = false` → router returns -32601). Handlers physically remain in `router.rs` until T-1415's source cleanup; the bake-window contract requires they stay deletable in case of rollback.
 - [ ] **DEFERRED TO T-1415:** CLI commands removed/rewritten. As of 2026-04-30 (T-1417 ship), `cmd_broadcast` already routes empty-targets through `channel.post(broadcast:global)` and non-empty-targets through parallel `event.emit_to` fanout — no actual `event.broadcast` RPC call from CLI. `remote.rs::inbox_*` paths use channel-aware variants. CLI verbs are RETAINED per AC's "rewritten as thin wrappers" option.
 - [ ] **DEFERRED TO T-1415:** MCP tools updated. `termlink_broadcast` migrated to `event.emit_to` (T-1417). `termlink_inbox_*` retained as channel-aware. Counts on `termlink doctor` change at T-1415.
-- [ ] **Protocol version bump — TO DO AT CUT TIME** (not done). `default_protocol_version()` in `crates/termlink-protocol/src/control.rs:239` still returns 1. The cut introduces a backward-incompatible response (-32601 for legacy methods) and warrants a v1→v2 bump so older clients see `PROTOCOL_VERSION_TOO_OLD` rather than method-not-found. Decision point at flag-flip time.
+- [x] **Protocol version bump — SUPERSEDED BY T-1632 (carve-out).** Live verification on .122 (2026-05-12) showed the AC's premise was wrong: `default_protocol_version()` is only used as a serde-default during deserialize and changing it has zero wire effect (would silently relabel v1 clients). The correct fix was emitting `CONTROL_PLANE_VERSION` (= 3) as a NEW sibling field `control_plane_version` on `hub.capabilities` + `hub.version`, leaving `protocol_version` (= DATA_PLANE_VERSION = 1) untouched. T-1632 carved out, built, and shipped this in musl 0.9.2127. **Live on both production hubs as of 2026-05-15:** `.122` ring20-management (20:10Z) and `.121` ring20-dashboard (20:45Z) — `hub.capabilities` returns `protocol_version: 1` + `control_plane_version: 3` + `legacy_primitives: false`. Older clients still see method-not-found on retired methods (the cut's intended semantic); a future protocol-aware client can negotiate against `control_plane_version >= 3` for the post-cut contract. See T-1632 RCA for axis-separation rationale.
 - [x] Migration guide published at `docs/migrations/T-1166-retire-legacy-primitives.md` — for downstream consumers (ring20, ntb-atc-plugin, skills-manager, etc.) — **verified present 2026-05-11.**
 - [x] Blast radius check (`fw fabric blast-radius HEAD`) shows no unregistered downstream surprises — **verified clean 2026-05-11** (HEAD = T-1166 snapshot update, 0 registered components changed).
 - [x] Cut-path tests pass: `cargo test -p termlink-hub --lib --features legacy_primitives_disabled cut_path` — **5/5 PASS, verified 2026-05-11T21:35Z** (re-verifies the 2026-04-30 baseline; cut behavior contract still holds). Full-workspace `cargo build && cargo test && cargo clippy -- -D warnings` is the operator's pre-deploy gate, not in this session's scope.
@@ -80,6 +80,15 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-15T21:30Z — CUT LIVE ON 2/2 PRODUCTION HUBS + AC #6 closed via T-1632 [agent under operator authorization]
+
+- **Fleet rollout 2/2.** `.122` ring20-management (deploy 20:10Z) and `.121` ring20-dashboard (deploy 20:45Z) both running musl 0.9.2127 with `legacy_primitives: false`, `protocol_version: 1`, `control_plane_version: 3`, 24 methods, no retired names on the wire. T-1166 cut is live on the entire current production fleet.
+- **AC #6 closed.** Re-scoped via T-1632 (carve-out): `default_protocol_version()` was the wrong handle (it's a serde-default with zero wire effect); the correct fix was emitting a new sibling field `control_plane_version: 3` from `CONTROL_PLANE_VERSION`, leaving `protocol_version` (data-plane axis) untouched at 1. AC line now ticked with supersession note above.
+- **Persistence holding on both hubs.** Hub secrets and TLS certs unchanged across swap on both .122 and .121 — no client re-pin events. Persist-if-present (T-933/T-945) doing its job.
+- **Cleanup forensics.** During .121 pre-state probe, found a dual-hub split (rogue UDS-only hub at `/tmp/termlink-0/` + canonical TCP at `/var/lib/termlink`). Killed the rogue, deployed cleanly, then investigated via T-1641 — origin was a one-off operator command, no automated trigger. T-1633's volatile-/tmp warning now in-binary on both hubs catches future bare-respawns.
+- **Adjacent shipped:** T-1640 (pgrep bracket-trick fix for hub-binary-swap.sh + fleet-deploy-binary.sh; 12 callsites, static + functional regression test), T-1641 (rogue-hub forensics + PL-157 env-override learning for ring20-dashboard pickup), T-1632 (control_plane_version emit), T-1633 (volatile-/tmp warning).
+- **Bake window:** Fleet bake started on .122 at 2026-05-12 21:50Z (3 days clean); .121 bake started 2026-05-15 20:45Z. Both hubs report 0 legacy-method calls in their 7d telemetry windows. Remaining deferred ACs (router methods removed, CLI commands removed, MCP tools updated) gate T-1166 closure on T-1415 post-bake source cleanup.
 
 ### 2026-05-12T21:50Z — CUT LIVE ON .122 + 24h bake window starts [agent + ring20-management-agent under operator authorization]
 
