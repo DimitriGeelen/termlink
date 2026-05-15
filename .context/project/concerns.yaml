@@ -462,10 +462,35 @@ concerns:
   what_works_now: "Sentinel tasks DO get created at DEFER time (T-1428 was captured at the same time as T-1425). Watchtower /tasks shows them. `fw task list` shows them. assumptions.yaml exists for tracking inception assumptions like A-1. decisions.yaml records architectural decisions. Cron registry can run scheduled jobs."
   what_remains: "1. Add `revisit_at: <ISO-date>` and optional `revisit_evidence_needed: <description>` frontmatter fields. 2. Cron job (daily, runs ~07:00) that scans active/ for `revisit_at <= today` and surfaces hits in Watchtower home + handover banner. 3. `fw task revisit-due` CLI to list ripe revisits on demand. 4. Backfill T-1428's ACs from the prose recipe so the audit is mechanically checkable. 5. Optional: `deferred-decisions.yaml` register linking each DEFER to (source-task, evidence-needed, revisit-date, sentinel-task-id) — but a per-task `revisit_at` may be sufficient. 6. Update inception templates so DEFER outcomes prompt for revisit_at + evidence_needed structurally."
   mitigation_candidate: "Tactical (now): add a `revisit_at` frontmatter field manually to T-1428 + T-1425, plus a daily cron grepping for them. Structural (T-1449 inception): design the proper revisit/sentinel mechanism — choose between per-task field, separate register, or both. Foundation-soak audit: T-1428 itself becomes the test case once the mechanism is wired."
+  mitigation_progress:
+    - date: 2026-05-15
+      task: T-1451
+      detail: |
+        Phase-1 #1 SHIPPED — `revisit_at` + `revisit_evidence_needed`
+        optional frontmatter fields added to default.md + inception.md
+        templates. Commented opt-in form. CLAUDE.md Inception Discipline
+        #8 documents the contract. update-task.sh preserves the fields
+        across status changes (preservation is structural; regression
+        test in agents/task-create/tests/revisit-at-preservation-test.sh
+        asserts the fields are NOT in the sed mutation set). Mirrored
+        upstream at aaf7f69b on master.
+    - date: 2026-05-15
+      task: T-1452
+      detail: |
+        Phase-1 #2 SHIPPED — revisit-due-scan.sh writes ripe deferrals
+        to .context/working/.revisits-due.txt; handover.sh emits a
+        "## Revisits Ripe Today" section before "Work in Progress"
+        when the file is non-empty (silent otherwise). Cron-registry
+        entry (daily 07:00 local) installed via `fw cron install`. Unit
+        test exercises ripe/future/no-field/commented-hint fixtures.
+        Mirrored upstream at 76d53e29 on master. G-053 is now
+        structurally addressed — pending only T-1450 (backfill
+        T-1428's empty ACs) and one real revisit_at sentinel firing
+        through the cron to graduate from `watching` to `closed`.
   status: watching
   created: 2026-05-02
-  last_reviewed: 2026-05-02
-  related_tasks: [T-1425, T-1428, T-1449]
+  last_reviewed: 2026-05-15
+  related_tasks: [T-1425, T-1428, T-1449, T-1450, T-1451, T-1452]
 
 - id: G-054
   type: gap
