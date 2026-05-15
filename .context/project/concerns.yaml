@@ -516,20 +516,26 @@ concerns:
         diff. Paths #1 (section-aware merge), #3 (auto-cleanup of stale
         .bak), #4 (CLAUDE.md.local include) remain open.
     - date: 2026-05-15
-      task: T-1638
+      task: null
       detail: |
-        RECURRENCE — 3rd hit despite T-1630 mitigation. T-1638 re-vendor
-        (1.6.260 → 1.6.160 force-downgrade) lost the SAME 3 lines T-1629
-        identified on 2026-05-09: line 803 `Use the vendored path, not
-        global fw` (Copy-Pasteable Commands bullet 3), lines 991-992
-        `/agent-handoff` and `/check-arc` Quick Reference rows. T-1630's
-        warn-on-loss path #2 fires post-upgrade but doesn't RESTORE the
-        lines; operator/agent must notice the warning and re-apply
-        manually. Restored today via direct Edit. CONCLUSION: path #2 is
-        a detection-only mitigation; the structural fix needs path #1
-        (section-aware merge that re-applies lost lines automatically)
-        OR path #4 (.local include). Detection-lag this time: ~5 hours
-        (T-1638 push 12:10Z → audit during validation sweep ~17:00Z).
+        RECURRENCE detected — 3rd hit despite T-1630 mitigation. During
+        gap-validation sweep today, `diff CLAUDE.md.bak CLAUDE.md` showed
+        the SAME 3 lines T-1629 identified on 2026-05-09 had been
+        stripped from working CLAUDE.md: line 803 `Use the vendored
+        path, not global fw` (Copy-Pasteable Commands bullet 3), lines
+        991-992 `/agent-handoff` and `/check-arc` Quick Reference rows.
+        CLAUDE.md.bak mtime: 2026-05-14 01:23 — the regression happened
+        ~14h before T-1638 re-vendor (not caused by T-1638; T-1638 did
+        not modify CLAUDE.md per `git log`). Upstream-pull or operator
+        upgrade ~2026-05-14 01:00 is the likely trigger; specific
+        invocation not committed so source not auditable. Restored today
+        via direct Edit; current CLAUDE.md matches HEAD (T-1447 state).
+        CONCLUSION: path #2 (warn-on-loss) is detection-only; the
+        structural fix needs path #1 (section-aware merge that
+        re-applies lost lines automatically) OR path #4 (.local
+        include). Detection-lag this time: ~19h (regression 2026-05-14
+        01:23Z → audit 2026-05-15 17:55Z); .bak preservation made
+        recovery trivial. Recurrence count: hit #3 since 2026-05-09 baseline.
   status: watching
   created: 2026-05-09
   last_reviewed: 2026-05-15
