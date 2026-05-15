@@ -4,16 +4,16 @@ name: "fleet doctor: surface sender-side pickup-queue stall (T-1827 follow-up)"
 description: >
   Framework-agent T-1827 offset-14 follow-up. When termlink-agent posts to framework:pickup, the local hub returns offset+ts immediately but the message can sit queued (the offset-9/10/12 stretch took ~19h to surface to framework-agent on same local hub). fleet doctor currently shows hub health (reachable, version, latency) but NOT sender-side queue depth or stall age. Operator and agent both blind to outbound queue stalls until destination acks. Ask: add a queue-status block to fleet doctor that surfaces per-topic outbound-queue depth, oldest-unacked-age, and last-acked offset. Threshold-warn when oldest-unacked-age > 5min. Out of scope: fixing the queue stall itself — that's a different issue. This task is the visibility layer.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [ops, fleet-doctor, visibility, arc:queue-health]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-15T07:18:00Z
-last_update: 2026-05-15T07:38:23Z
-date_finished: null
+last_update: 2026-05-15T07:47:48Z
+date_finished: 2026-05-15T07:47:48Z
 ---
 
 # T-1639: fleet doctor: surface sender-side pickup-queue stall (T-1827 follow-up)
@@ -110,6 +110,11 @@ cargo check --all 2>&1 | tail -2 | grep -q "Finished"
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-05-15 — scope held to additive surface
+- **What changed:** Original task description mentioned "per-topic" depth and "last-acked offset". Implementation surfaces a single overall depth + oldest-topic + oldest-age rather than a per-topic table. Reason: the local `OfflineQueue` (sqlite) keys posts by ordinal queue_id not topic; computing per-topic counts means a full table scan on every fleet-doctor run. For the visibility goal ("operator sees the stall at all"), the oldest-topic field plus the existing standalone `termlink channel queue-status` (which already shows head topic) is sufficient. If per-topic-grouped output becomes a real ask later, file as a follow-up.
+- **Plan impact:** Smaller surface than initially scoped; fewer joins; same operator value for the stall case.
+- **Triggered:** None — no scope cut warrants its own task. Recorded for arc traceability.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -131,3 +136,6 @@ cargo check --all 2>&1 | tail -2 | grep -q "Finished"
 ### 2026-05-15T07:38:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-05-15T07:47:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Fix pgrep self-match in hub-binary-swap.sh — bracket trick"
 description: >
   scripts/hub-binary-swap.sh:111 uses 'pgrep -f "termlink hub start" | head -1' to find the running hub PID. The pattern matches the remote-exec shell's own argv (which contains the pgrep command itself, including the search string), so head -1 can return a transient PID instead of the long-running hub. 2026-05-15 T-1632/T-1633 deploy on .122 hit this: pgrep returned PID 2274098 (transient) instead of 3067203 (real hub), kill missed, script reported 'hub did not exit within 5s' and exited without rollback — leaving binary swapped on disk but old process still serving. Fix: bracket trick '[t]ermlink hub start' so pgrep's own argv (which contains 't' followed by ']' not 'e') no longer self-matches. Apply same to fleet-deploy-binary.sh:101+118+127+142 where 'pgrep -f' patterns also appear. Add a regression test: spawn a fake remote-exec wrapper that contains 'termlink hub start' in its argv, run the script's PID-resolution against a known-PID hub, assert the right one is picked. Pre-existing latent since T-1438 (2026-05-01). Related: T-1632, T-1633, T-1438.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug, T-1438, hub-binary-swap, deploy-tooling]
 components: []
 related_tasks: [T-1632, T-1633, T-1438]
 created: 2026-05-15T20:14:13Z
-last_update: 2026-05-15T20:15:01Z
-date_finished: null
+last_update: 2026-05-15T20:19:24Z
+date_finished: 2026-05-15T20:19:24Z
 ---
 
 # T-1640: Fix pgrep self-match in hub-binary-swap.sh — bracket trick
@@ -123,3 +123,6 @@ bash tests/test_t1640_pgrep_self_match.sh
 
 ### 2026-05-15T20:15:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-15T20:19:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

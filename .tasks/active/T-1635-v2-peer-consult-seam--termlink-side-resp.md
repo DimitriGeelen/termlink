@@ -9,16 +9,16 @@ description: >
   artifact (docs/reports/v2-peer-consult-seam-response.md) with answers to
   the four decision points and a bounded cost estimate.
 
-status: started-work
+status: work-completed
 workflow_type: inception
-owner: agent
+owner: human
 horizon: now
 tags: [inception, cross-repo, arc:peer-consult]
 components: []
 related_tasks: []
 created: 2026-05-13T00:00:00Z
-last_update: 2026-05-13T00:00:00Z
-date_finished: null
+last_update: 2026-05-15T19:36:19Z
+date_finished: 2026-05-15T19:36:19Z
 ---
 
 # T-1635: v2 peer-consult seam — TermLink-side response to AEF T-1804
@@ -104,4 +104,33 @@ cost-bounded at ≤1 event class + ≤15 lines in inbox delivery path.
 
 ## Decision
 
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (with option-i refinement)
+
+Rationale: The seam is correct and maps to existing TermLink ownership.
+Wakeup via `inbox.queued` event class (not $WAKEUP_CMD hook) is the cleanest
+primitive: generic, machine-local, cross-machine correct via per-hub emission,
+cost-bounded at ≤1 event class + ≤15 lines in inbox delivery path.
+
+Evidence: See docs/reports/v2-peer-consult-seam-response.md.
+
+**Date**: 2026-05-15T19:36:19Z
+
 ## Updates
+
+### 2026-05-15T19:36:19Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (with option-i refinement)
+
+Rationale: The seam is correct and maps to existing TermLink ownership.
+Wakeup via `inbox.queued` event class (not $WAKEUP_CMD hook) is the cleanest
+primitive: generic, machine-local, cross-machine correct via per-hub emission,
+cost-bounded at ≤1 event class + ≤15 lines in inbox delivery path.
+
+Evidence: See docs/reports/v2-peer-consult-seam-response.md.
+
+### 2026-05-15T19:36:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
