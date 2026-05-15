@@ -1,0 +1,37 @@
+schema_version: 1
+scan_id: SC-2026-0502-104356
+scan_status: complete
+timestamp: '2026-05-02T10:43:56.606746+00:00'
+errors: []
+summary: 'Project: 0 active, 0 completed.'
+project_health:
+  stale_tasks: []
+  tasks_with_issues: []
+  audit_status: unknown
+  traceability:
+    score: 1.0
+    total_tasks: 0
+  velocity:
+    tasks_per_week: 0
+    window_days: 30
+antifragility:
+  patterns_total: 0
+  patterns_added_since_last_scan: 0
+  learnings_graduated: 0
+  dead_letter_practices: 0
+  practice_adoption:
+    active: 0
+    with_applications: 0
+  scan_accuracy:
+    recommendations_approved: 0
+    recommendations_dismissed: 0
+    approval_rate: null
+needs_decision: []
+framework_recommends: []
+opportunities: []
+work_queue: []
+risks: []
+changes_since_last_scan:
+  first_scan: true
+recent_failures: []
+warnings: []

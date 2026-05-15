@@ -521,7 +521,11 @@
       "Bash(split -b 500K -d -a 3 target/release/termlink /tmp/termlink-xfer/c.)",
       "Bash(target/x86_64-unknown-linux-musl/release/termlink fleet *)",
       "Bash(cp /opt/termlink/.claude/commands/agent-handoff.md ~/.claude/commands/agent-handoff.md)",
-      "Read(//root/.claude/commands/**)"
+      "Read(//root/.claude/commands/**)",
+      "mcp__termlink__termlink_channel_post",
+      "mcp__termlink__termlink_channel_queue_status",
+      "mcp__termlink__termlink_channel_list",
+      "mcp__termlink__termlink_info"
     ]
   },
   "enabledMcpjsonServers": [

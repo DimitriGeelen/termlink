@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook pre-compact"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook pre-compact"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook post-compact-resume"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook post-compact-resume"
           }
         ]
       },
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook post-compact-resume"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook post-compact-resume"
           }
         ]
       }
@@ -37,7 +37,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook block-plan-mode"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook block-plan-mode"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-active-task"
           }
         ]
       },
@@ -46,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-active-task"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-human-ac-tick"
           }
         ]
       },
@@ -55,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-tier0"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-tier0"
           }
         ]
       },
@@ -64,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-agent-dispatch"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-agent-dispatch"
           }
         ]
       },
@@ -73,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-project-boundary"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-project-boundary"
           }
         ]
       },
@@ -82,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook budget-gate"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook budget-gate"
           }
         ]
       },
@@ -91,7 +100,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook block-task-tools"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook block-task-tools"
           }
         ]
       }
@@ -102,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook checkpoint post-tool"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook checkpoint post-tool"
           }
         ]
       },
@@ -111,11 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook error-watchdog"
-          },
-          {
-            "type": "command",
-            "command": ".agentic-framework/bin/fw hook pl007-scanner"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook error-watchdog"
           }
         ]
       },
@@ -124,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-dispatch"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-dispatch"
           }
         ]
       },
@@ -133,7 +138,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook loop-detect"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook loop-detect"
           }
         ]
       },
@@ -142,7 +147,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook check-fabric-new-file"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-fabric-new-file"
           }
         ]
       },
@@ -151,7 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook commit-cadence"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook commit-cadence"
           }
         ]
       },
@@ -160,40 +165,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agentic-framework/bin/fw hook audit-task-tools"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".agentic-framework/bin/fw hook stop-guard"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".agentic-framework/bin/fw hook session-end"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".agentic-framework/bin/fw hook subagent-stop"
+            "command": "/opt/termlink/.agentic-framework/bin/fw hook audit-task-tools"
           }
         ]
       }

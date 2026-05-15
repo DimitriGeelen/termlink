@@ -292,3 +292,19 @@ upgrades:
     from_version: "1.5.307"
     to_version: "1.6.124"
     framework_root: "/opt/termlink/.agentic-framework"
+  - timestamp: 2026-05-03T18:05:10Z
+    from_version: "1.6.124"
+    to_version: "1.6.252"
+    framework_root: "/opt/999-Agentic-Engineering-Framework"
+  - timestamp: 2026-05-04T19:28:35Z
+    from_version: "1.6.252"
+    to_version: "1.6.260"
+    framework_root: "/tmp/aef-upstream"
+  - timestamp: 2026-05-15T12:08:56Z
+    from_version: "1.6.260"
+    to_version: "unknown"
+    framework_root: "/tmp/aef-upgrade"
+  - timestamp: 2026-05-15T12:10:50Z
+    from_version: "1.6.260"
+    to_version: "unknown"
+    framework_root: "/tmp/aef-upgrade"

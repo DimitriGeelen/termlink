@@ -1,0 +1,10 @@
+# Project Learnings - Knowledge gained during development
+# Added via: fw context add-learning "description" --task T-XXX
+learnings:
+- id: L-001
+  learning: "Test learning from Playwright"
+  source: unknown
+  task: T-1030
+  date: 2026-05-02
+  context: Added via context agent
+  application: TBD
