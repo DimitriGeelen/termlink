@@ -12,7 +12,7 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-12T22:15:17Z
+last_update: 2026-05-12T22:15:40Z
 date_finished: null
 ---
 
@@ -110,6 +110,13 @@ grep -q "control_plane_version" crates/termlink-hub/src/router.rs
 -->
 
 ## Updates
+
+### 2026-05-15T19:54Z — fresh release binary built (deploy-ready)
+
+- Built `target/release/termlink` 0.9.2125 (sha256 prefix `611d0013a748eb70`).
+- Binary includes `e89ecb47` (control_plane_version emit, this task) plus T-1633 / T-1636 / T-1637 cut-followup commits.
+- Re-ran `cargo test -p termlink-hub --lib --release --features legacy_primitives_disabled cut_path` against the release build: 6/6 PASS, including `cut_path::capabilities_emits_control_plane_version` which directly asserts the AC.
+- Deploy on .122 is no longer binary-blocked. Human REVIEW step from this task's `### Human` AC can proceed against this binary.
 
 ### 2026-05-12T21:55:18Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
