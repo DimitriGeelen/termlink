@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1642: Vendor reviewer policy + PYTHONPATH fix — unblock T-1636 closure
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-15T23:39:58Z
+# ============================================================================
+
+task_id: T-1642
+task_name: "Vendor reviewer policy + PYTHONPATH fix — unblock T-1636 closure"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-15T22:49:50Z
+completed: 2026-05-15T23:39:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-16T01:01:18+02:00
+last_commit: 2026-05-16T01:32:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  vendor reviewer policy + PYTHONPATH fix — local task log. T-1636 closure — inbox.queued event emission shipped (8/8 ACs)
+
+# Key outcomes
+outcomes:
+  - "`.agentic-framework/policy/anti-patterns.yaml` present, byte-identical to upstream `/opt/999-Agentic-Engineering-Framework/policy/anti-patterns.yaml` — sha256 af6ad4ba8766210b... matches upstream"
+  - "`.agentic-framework/policy/escalation-patterns.yaml` present, byte-identical to upstream — sha256 7ebf939dd3361078b... matches upstream"
+  - "All 5 reviewer dispatch lines in `.agentic-framework/bin/fw` (static_scan, audit, override_cli, drift_cli, reverify_cli) prepend `PYTHONPATH=$FRAMEWORK_ROOT` to the env block"
+  - "`.agentic-framework/bin/fw reviewer T-1636` runs without ModuleNotFoundError or catalogue-not-found — first scan produced CONCERN (2 findings), second scan after AC-evidence fixes produced PASS"
+  - "Reviewer verdict captured (PASS / CONCERN / FAIL) and recorded in this task's Updates — see 2026-05-15T23:00Z entry"
+  - "If verdict is PASS, T-1636 AC #8 ticked + status work-completed in a follow-on commit — T-1636 closed at 2026-05-15T23:31:46Z (commit c463a388), 8/8 ACs, episodic generated"
+  - "Channel-1 mirror: same patches applied to upstream `/opt/999-Agentic-Engineering-Framework` via framework-agent, committed + pushed to onedev — commit 874b38b5 on master pushed via framework-agent"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "vendor reviewer policy + PYTHONPATH fix — local task log"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1636.yaml"
+  - ".tasks/active/T-1636-v2-peer-consult-slice-1-termlink-half--.md"
+  - ".tasks/active/T-1642-vendor-reviewer-policy--pythonpath-fix--.md"
+  - ".tasks/completed/T-1636-v2-peer-consult-slice-1-termlink-half--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-16T01:01:18"
+    action: "T-1642: vendor reviewer policy + PYTHONPATH fix — local task log"
+  - time: "2026-05-16T01:32:42"
+    action: "T-1642: T-1636 closure — inbox.queued event emission shipped (8/8 ACs)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 50 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 50
+  commits: 2
+  files_changed: 4
+  lines_added: 231
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1642-vendor-reviewer-policy--pythonpath-fix--.md
+generated_by: context-agent-hybrid
