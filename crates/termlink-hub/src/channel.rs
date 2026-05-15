@@ -490,6 +490,27 @@ pub(crate) async fn handle_channel_post_with(
             if let Some(cid) = env.metadata.get("conversation_id") {
                 presence().record(cid, &env.sender_id, env.ts_unix_ms);
             }
+            // T-1637: emit inbox.queued for channel.post → inbox:<id> topics so
+            // the wakeup contract from T-1636 covers the channel.post delivery
+            // path too (post-T-1166 the legacy mirror_inbox_deposit emit site
+            // retires; channel.post becomes the only inbox delivery RPC).
+            if let Some(addressee) = topic.strip_prefix("inbox:")
+                && let Some(agg) = crate::router::aggregator() {
+                agg.inject(crate::aggregator::AggregatedEvent {
+                    session_id: "hub".to_string(),
+                    session_name: "hub".to_string(),
+                    seq: 0,
+                    topic: termlink_protocol::events::inbox_topic::QUEUED.to_string(),
+                    payload: serde_json::json!({
+                        "schema_version": termlink_protocol::events::SCHEMA_VERSION,
+                        "addressee_session_id": addressee,
+                        "channel": &topic,
+                        "message_offset": offset,
+                        "enqueued_at": env.ts_unix_ms,
+                    }),
+                    timestamp: env.ts_unix_ms.max(0) as u64,
+                });
+            }
             Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into()
         }
         Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(
@@ -1795,10 +1816,18 @@ mod tests {
         let mut rx = crate::router::aggregator().unwrap().subscribe();
         mirror_inbox_deposit_with(&bus, "target-a", "file.init",
             &json!({"transfer_id": "x1"}), Some("sender")).await;
-        let evt = tokio::time::timeout(std::time::Duration::from_millis(200), rx.recv())
-            .await.expect("timeout").expect("closed");
-        assert_eq!(evt.topic, termlink_protocol::events::inbox_topic::QUEUED);
-        assert_eq!(evt.payload["addressee_session_id"], "target-a");
+        // Aggregator is a process-global singleton; parallel tests may also
+        // inject. Filter to this test's addressee.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let evt = loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let r = tokio::time::timeout(remaining, rx.recv()).await
+                .expect("timeout waiting for inbox.queued for target-a").expect("closed");
+            if r.topic == termlink_protocol::events::inbox_topic::QUEUED
+                && r.payload["addressee_session_id"] == "target-a" {
+                break r;
+            }
+        };
         assert_eq!(evt.payload["channel"], "inbox:target-a");
         assert!(evt.payload["message_offset"].as_u64().is_some());
     }
@@ -1808,5 +1837,67 @@ mod tests {
         let mut rx = agg.subscribe();
         let r = tokio::time::timeout(std::time::Duration::from_millis(50), rx.recv()).await;
         assert!(r.is_err(), "no inbox.queued without deposit");
+    }
+
+    /// T-1637: channel.post to `inbox:<id>` topic fires inbox.queued, matching
+    /// the T-1636 emit contract on the channel.post delivery path (the natural
+    /// route AEF subscribers use, and the only route after T-1166 retirement).
+    #[tokio::test]
+    async fn channel_post_inbox_topic_fires_inbox_queued() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("inbox:bob", Retention::Forever).unwrap();
+        crate::router::init_aggregator();
+        let mut rx = crate::router::aggregator().unwrap().subscribe();
+        let key = signing_key();
+        let params = post_params(&key, "inbox:bob", "file.init", b"{}", 42);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["offset"], 0);
+        // Aggregator is a process-global singleton; other parallel tests may
+        // inject too. Filter to the addressee this test posted to.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let evt = loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let r = tokio::time::timeout(remaining, rx.recv()).await
+                .expect("timeout waiting for inbox.queued for bob").expect("closed");
+            if r.topic == termlink_protocol::events::inbox_topic::QUEUED
+                && r.payload["addressee_session_id"] == "bob" {
+                break r;
+            }
+        };
+        assert_eq!(evt.payload["channel"], "inbox:bob");
+        assert_eq!(evt.payload["message_offset"], 0);
+        assert_eq!(evt.payload["enqueued_at"], 42);
+    }
+
+    /// T-1637 negative: channel.post to non-inbox topics MUST NOT fire
+    /// inbox.queued (no false-positive wakeups on routine channel traffic).
+    /// Uses a unique topic name so parallel tests' emits don't false-positive
+    /// this negative assertion via the shared aggregator singleton.
+    #[tokio::test]
+    async fn channel_post_non_inbox_topic_does_not_fire() {
+        let (_d, bus) = tmp_bus();
+        let topic = "t1637-not-inbox";
+        bus.create_topic(topic, Retention::Forever).unwrap();
+        crate::router::init_aggregator();
+        let mut rx = crate::router::aggregator().unwrap().subscribe();
+        let key = signing_key();
+        let params = post_params(&key, topic, "msg", b"hi", 7);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let _ = unwrap_success(resp);
+        // Drain rx for 80ms and assert NO emit with our channel name appears.
+        // Cross-test events (other inbox:* emits) are tolerated and skipped.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(80);
+        loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() { break; }
+            match tokio::time::timeout(remaining, rx.recv()).await {
+                Ok(Ok(evt)) => {
+                    assert_ne!(evt.payload["channel"], topic,
+                        "inbox.queued must not fire for non-inbox topic '{topic}'");
+                }
+                _ => break,
+            }
+        }
     }
 }
