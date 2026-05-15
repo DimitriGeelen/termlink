@@ -12,7 +12,7 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-15T19:55:48Z
+last_update: 2026-05-15T20:12:01Z
 date_finished: null
 ---
 
@@ -110,6 +110,19 @@ grep -q "control_plane_version" crates/termlink-hub/src/router.rs
 -->
 
 ## Updates
+
+### 2026-05-15T20:46Z — .121 ring20-dashboard deploy complete (second production hub)
+
+- Deployed musl 0.9.2127 to ring20-dashboard:9100. Same binary as .122.
+- **Pre-state surprise:** .121 had TWO hub processes — canonical PID 1895580 (May 3, /var/lib + TCP) and rogue PID 2391097 (May 15 07:08, /tmp UDS only, no `--tcp`). Killed the rogue first (T-1641 filed to investigate where the rogue spawn comes from); then swapped the canonical.
+- **Procedure:** `fleet-deploy-binary.sh --probe` stage → atomic `mv` → detached relaunch via `nohup bash /tmp/relaunch.sh` (bypassed `hub-binary-swap.sh` for tight control over the dual-hub edge; the T-1640 pgrep fix is in the binary but wasn't exercised by this deploy).
+- **Live wire verification (REVIEW AC):**
+  - `hub.version` → `{hub_version: 0.9.2127, protocol_version: 1, control_plane_version: 3}` ✓
+  - `hub.capabilities` (scope=execute) → same + `legacy_primitives: false`, 24 methods, no retired names ✓
+  - `hub.legacy_usage` → 0 calls / 7d — T-1166 cut applied cleanly, no consumer broken ✓
+- Persistence holding: `hub.secret` `1792190e37b9c033...` and `hub.cert.pem` `9dcc461cfb98dd7d...` unchanged across swap.
+- Single hub post-deploy: PID 2704841, exe `/usr/local/bin/termlink` (no `(deleted)` marker), started 2026-05-15T20:45:11. `/tmp/termlink-0/` left with vestigial files (no socket bound) — harmless, /tmp gets wiped on next boot anyway.
+- **Both production hubs (.122 + .121) now on 0.9.2127 with control_plane_version=3.** REVIEW AC satisfied across the fleet.
 
 ### 2026-05-15T20:11Z — .122 deploy complete, wire emit confirmed live
 
