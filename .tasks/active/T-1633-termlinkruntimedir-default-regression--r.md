@@ -12,7 +12,7 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: 2026-05-15T19:56:05Z
+last_update: 2026-05-15T20:11:46Z
 date_finished: null
 ---
 
@@ -126,6 +126,13 @@ grep -q "TERMLINK_RUNTIME_DIR" crates/termlink-hub/src/server.rs
 -->
 
 ## Updates
+
+### 2026-05-15T20:46Z — .121 ring20-dashboard deploy: env-set path, no false-positive warning
+
+- Same musl 0.9.2127 deployed to .121. Relaunch script set `TERMLINK_RUNTIME_DIR=/var/lib/termlink` explicitly.
+- Relaunch log shows no volatile-/tmp warning — second hub deployed cleanly.
+- Counterfactual sanity: .121 has BOTH /usr/lib/tmpfiles.d/tmp.conf (boot-wipe `/tmp`) AND historical `/tmp/termlink-0/` runtime — so if the next operator-restart on .121 ever drops the env (bare `nohup termlink hub start`), the new binary's warning WILL fire and surface the footgun before it costs a re-pin event. T-1633's deliverable lands on a host that genuinely needs it.
+- **Both .122 + .121 now carry the warning in-binary** — fleet-wide footgun catcher is live.
 
 ### 2026-05-15T20:11Z — .122 deployed; warning correctly silent (env-set path)
 
