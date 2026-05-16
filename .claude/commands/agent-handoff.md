@@ -71,6 +71,38 @@ verb's stderr and exit non-zero. The verb already prints actionable
 errors (peer offline, missing identity_fingerprint, etc.) — do not
 swallow them.
 
+### Step 3.5: Fallback when peer lacks identity_fingerprint (T-1644)
+
+If `agent contact` exits with **exit code 8** and stderr contains "no
+identity_fingerprint in metadata — likely registered before T-1436",
+the peer's session was created before T-1436 shipped the metadata field
+and DM resolution is impossible. The verb's error message names three
+recovery paths; pick option (3) for this skill since it works without
+restarting the peer and without knowing the peer's fingerprint:
+
+```
+termlink channel post agent-chat-arc \
+  --msg-type proposal \
+  --metadata _thread=<task-id> \
+  --mention <target> \
+  --payload "[<task-id>] <message>"
+```
+
+The receiver picks the post up via mention-routing on the agent-chat-arc
+broadcast topic (T-1430 protocol canon). The `_thread=<task-id>`
+metadata threads it the same way `--thread` would on the dm path, so
+downstream tooling (`agent on-thread`, `agent recent --thread`) groups
+it correctly.
+
+For large structured payloads (T-1646), use `--payload "$(cat
+/tmp/handoff.txt)"` or pipe via stdin (`channel post` accepts both).
+The body should still begin with `[<task-id>]` for portability — agents
+on older binaries route by body prefix.
+
+When option (3) is used, the dm topic does not exist; the next session
+should still record the handoff in the task's Updates section (Step 4)
+but with topic `agent-chat-arc` instead of `dm:<a>:<b>`.
+
 The dm topic name is not in the JSON; if the user wants it for follow-up
 subscribe, derive it from `termlink whoami` (self fingerprint) and the
 target's discovered fingerprint (sorted lex), or run

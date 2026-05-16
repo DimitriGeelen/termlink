@@ -29,7 +29,8 @@ date_finished: null
 **CLI surface (Phase-1):**
 - [x] `termlink agent contact <target> --message <m> [--hub <addr>] [--json]` parses correctly via `termlink agent contact --help`. Help text references T-1425 RFC + T-1427 future strict-reject + T-1436 prereq + Phase-2 deferred ACs
 - [x] **Phase-2 partial — `--thread <id>` SHIPPED 2026-05-01T12:08Z:** `termlink agent contact <target> --message <m> --thread <task-id>` sets `metadata._thread=<task-id>` per agent-chat-arc protocol canon (T-1430 topic doc). Implementation: 1-line wire in cli.rs Contact variant, plumbed through main.rs and agent.rs:cmd_agent_contact, extends cmd_channel_dm to accept `&[String] extra_metadata` slot, mentions still go through unchanged. Vendored agents can now route DM messages by thread server-side without parsing the `[T-XXX]` body prefix. The skill keeps `[T-XXX]` body prefix for portability (older binaries lack `--thread`); callers on >= 0.9.1657 may use `--thread` directly for cleaner metadata routing
-- [ ] **Phase-2 (still deferred):** `--file <path>`, `--ack-required`, `--ack-wait <secs>`, `--require-online` flags. Out of scope; track separately when needed
+- [x] **Phase-2 partial — `--file <path>` SHIPPED 2026-05-16 via T-1646:** `termlink agent contact <target> --file <path>` reads message body from a UTF-8 file. Mutually exclusive with `--message`. Empty files rejected. Implementation: `pub(crate) fn resolve_contact_message` in agent.rs called from main.rs dispatcher; cli.rs Contact variant changes `message: String` → `Option<String>` and adds `file: Option<std::path::PathBuf>`. 6 new unit tests cover all branches (message-only, file-only, both, neither, empty, missing). Live --dry-run --file --thread --json end-to-end confirms file body flows to dm post correctly.
+- [ ] **Phase-2 (still deferred):** `--ack-required`, `--ack-wait <secs>`, `--require-online` flags. Out of scope; track separately when needed
 - [ ] **Phase-2 (deferred):** advanced `<target>` forms — `name@hub:port`, `sender_id:<hex>`. Phase-1 supports bare session-name only (resolved via local registration)
 
 **Discovery + topic resolution (Phase-1):**
@@ -45,7 +46,7 @@ date_finished: null
 
 **Envelope shape (Phase-1):**
 - [x] Posts via `cmd_channel_post` (called from `cmd_channel_dm`) with `msg_type=chat`. The richer `msg_type=request` shape with `metadata.thread`/`metadata.requires_ack` is Phase-2 (depends on `--ack-required` flag which Phase-1 doesn't ship)
-- [ ] **Phase-2 (deferred):** `--file` payload + `metadata.subject=<message>` when both flags supplied
+- [x] **Phase-2 partial — `--file` payload SHIPPED 2026-05-16 (T-1646), hybrid form with `metadata.subject` STILL DEFERRED:** the path-only variant is live (`--file <path>` reads body, mutually exclusive with `--message`). The `--message` + `--file` combination for stamping `metadata.subject=<message>` while sourcing body from file remains deferred — depends on unresolved subject-semantics question (where does subject get rendered, how does it interact with `--thread`?).
 
 **Acknowledgment (T-1425 Q2=C, all Phase-2):**
 - [x] Default fire-and-forget behavior: post and exit with offset on stdout (text or JSON). Verified against a fresh test session — `Posted to dm:... — offset=N, ts=M` printed, exit 0
