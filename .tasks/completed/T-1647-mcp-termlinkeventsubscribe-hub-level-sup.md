@@ -4,16 +4,16 @@ name: "MCP termlink_event_subscribe hub-level support (T-1645 PL-158 completion)
 description: >
   MCP termlink_event_subscribe hub-level support (T-1645 PL-158 completion)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-16T08:51:41Z
-last_update: 2026-05-16T08:51:41Z
-date_finished: null
+last_update: 2026-05-16T08:56:33Z
+date_finished: 2026-05-16T08:56:33Z
 ---
 
 # T-1647: MCP termlink_event_subscribe hub-level support (T-1645 PL-158 completion)
@@ -142,3 +142,15 @@ cd /opt/termlink && grep -q "hub-level\|omit.*hub" crates/termlink-mcp/src/tools
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1647-mcp-termlinkeventsubscribe-hub-level-sup.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-12ffef6c
+- **Timestamp:** 2026-05-16T08:58:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-16T08:56:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
