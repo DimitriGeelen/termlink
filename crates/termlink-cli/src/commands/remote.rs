@@ -2120,6 +2120,24 @@ async fn cmd_remote_inbox_inner(
     Ok(())
 }
 
+/// T-1648: pick the right `--bootstrap-from` argument to recommend in a heal hint.
+/// If the profile declares `bootstrap_from` in hubs.toml, suggest `auto` (T-1291);
+/// otherwise fall back to the literal `ssh:<host>` form and append a one-line tip
+/// pointing the operator at the declarative path for next time.
+pub(crate) fn heal_bootstrap_hint(
+    entry: &crate::config::HubEntry,
+    address: &str,
+) -> String {
+    if entry.bootstrap_from.is_some() {
+        "--bootstrap-from auto".to_string()
+    } else {
+        let host = address.split(':').next().unwrap_or(address);
+        format!(
+            "--bootstrap-from ssh:{host}  (tip: add `bootstrap_from = \"ssh:{host}\"` to this profile in hubs.toml to use `--bootstrap-from auto` next time)"
+        )
+    }
+}
+
 /// T-1102: One-screen fleet overview for human operators.
 /// Shows each hub's status, session count, version, latency, and actionable fixes.
 pub(crate) async fn cmd_fleet_status(
@@ -2237,8 +2255,8 @@ pub(crate) async fn cmd_fleet_status(
                             name, entry.address);
                     }
                     actions.push(format!(
-                        "{}: Reauth needed — termlink fleet reauth {} --bootstrap-from ssh:<host>",
-                        name, name
+                        "{}: Reauth needed — termlink fleet reauth {} {}",
+                        name, name, heal_bootstrap_hint(entry, &entry.address)
                     ));
                 } else {
                     down_count += 1;
@@ -2283,8 +2301,8 @@ pub(crate) async fn cmd_fleet_status(
                             ));
                         } else {
                             actions.push(format!(
-                                "{}: Secret file missing — inspect profile (`termlink remote profile list {}`), then either fix the secret_file path or run `termlink fleet reauth {} --bootstrap-from ssh:<host>`",
-                                name, name, name
+                                "{}: Secret file missing — inspect profile (`termlink remote profile list {}`), then either fix the secret_file path or run `termlink fleet reauth {} {}`",
+                                name, name, name, heal_bootstrap_hint(entry, &entry.address)
                             ));
                         }
                     } else {
@@ -5402,6 +5420,40 @@ secret_file = "/tmp/other.hex"
         assert!(msg.contains("no `bootstrap_from` declared"), "error must name the missing field: {msg}");
         assert!(msg.contains("ssh:<host>") || msg.contains("ssh:"), "error must give actionable example: {msg}");
         assert!(msg.contains("declared.") || msg.contains("declare it") || msg.contains("--bootstrap-from"), "error must offer alternative: {msg}");
+    }
+
+    #[test]
+    fn heal_bootstrap_hint_with_declared_channel_returns_auto() {
+        use crate::config::HubEntry;
+        let entry = HubEntry {
+            address: "192.168.10.122:9100".to_string(),
+            secret: None,
+            secret_file: Some("~/.termlink/secrets/ring20-management.hex".to_string()),
+            scope: None,
+            bootstrap_from: Some("ssh:192.168.10.122".to_string()),
+        };
+        let hint = heal_bootstrap_hint(&entry, &entry.address);
+        assert_eq!(hint, "--bootstrap-from auto",
+            "profile with declared bootstrap_from must yield `auto`");
+    }
+
+    #[test]
+    fn heal_bootstrap_hint_without_declaration_yields_ssh_form_plus_tip() {
+        use crate::config::HubEntry;
+        let entry = HubEntry {
+            address: "192.168.10.122:9100".to_string(),
+            secret: None,
+            secret_file: Some("/tmp/x.hex".to_string()),
+            scope: None,
+            bootstrap_from: None,
+        };
+        let hint = heal_bootstrap_hint(&entry, &entry.address);
+        assert!(hint.starts_with("--bootstrap-from ssh:192.168.10.122"),
+            "undeclared profile must yield literal ssh:<host>: got {hint}");
+        assert!(hint.contains("bootstrap_from"),
+            "undeclared profile hint must nudge operator toward declaring bootstrap_from: got {hint}");
+        assert!(hint.contains("auto"),
+            "tip must reference the `auto` mechanism it unlocks: got {hint}");
     }
 
     #[test]
