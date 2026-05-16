@@ -965,6 +965,8 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                             "secret_type": if entry.secret_file.is_some() { "file" }
                                 else if entry.secret.is_some() { "inline" }
                                 else { "none" },
+                            // T-1650: surface declarative heal anchor for parity with T-1291.
+                            "bootstrap_from": entry.bootstrap_from,
                         })
                     }).collect()
                 };
@@ -977,8 +979,9 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 return Ok(());
             }
             if !no_header {
-                println!("{:<12} {:<28} {:<10} SECRET", "NAME", "ADDRESS", "SCOPE");
-                println!("{}", "-".repeat(64));
+                // T-1650: HEAL column added — `auto` when bootstrap_from declared, `-` otherwise.
+                println!("{:<12} {:<28} {:<10} {:<10} HEAL", "NAME", "ADDRESS", "SCOPE", "SECRET");
+                println!("{}", "-".repeat(72));
             }
             let mut names: Vec<_> = config.hubs.keys().collect();
             names.sort();
@@ -992,11 +995,18 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 } else {
                     "none"
                 };
-                println!("{:<12} {:<28} {:<10} {}", name, entry.address, scope, secret_info);
+                let heal = if entry.bootstrap_from.is_some() { "auto" } else { "-" };
+                println!("{:<12} {:<28} {:<10} {:<10} {}", name, entry.address, scope, secret_info, heal);
             }
             if !no_header {
                 println!();
                 println!("{} profile(s) in {}", config.hubs.len(), hubs_config_path().display());
+                // T-1650: heal-readiness summary — count profiles lacking bootstrap_from
+                // and recommend declaration (proactive ergonomic, mirrors T-1648/T-1649
+                // hint emission at idle time so operators see the gap before incident time).
+                if let Some(msg) = heal_readiness_footer(&config.hubs) {
+                    println!("  {}", msg);
+                }
             }
             Ok(())
         }
@@ -2118,6 +2128,22 @@ async fn cmd_remote_inbox_inner(
         }
     }
     Ok(())
+}
+
+/// T-1650: heal-readiness footer for `remote profile list`. Returns a one-line
+/// recommendation when any profile lacks `bootstrap_from`, naming the count.
+/// Returns None when all profiles declare it (suppress nag once configured).
+pub(crate) fn heal_readiness_footer(
+    hubs: &std::collections::HashMap<String, crate::config::HubEntry>,
+) -> Option<String> {
+    let undeclared = hubs.values().filter(|e| e.bootstrap_from.is_none()).count();
+    if undeclared == 0 {
+        return None;
+    }
+    Some(format!(
+        "{} profile(s) lack `bootstrap_from` — declare with `termlink remote profile add --bootstrap-from ssh:<host>` (T-1291) to enable one-flag heal",
+        undeclared
+    ))
 }
 
 /// T-1649: format the per-hub HMAC-mismatch diagnosis surfaced by `fleet doctor`'s
@@ -5474,6 +5500,59 @@ secret_file = "/tmp/other.hex"
             "undeclared profile hint must nudge operator toward declaring bootstrap_from: got {hint}");
         assert!(hint.contains("auto"),
             "tip must reference the `auto` mechanism it unlocks: got {hint}");
+    }
+
+    #[test]
+    fn heal_readiness_footer_fires_when_any_profile_undeclared() {
+        use crate::config::HubEntry;
+        let mut hubs = std::collections::HashMap::new();
+        hubs.insert("declared".to_string(), HubEntry {
+            address: "10.0.0.1:9100".to_string(),
+            secret: None, secret_file: Some("/x".to_string()), scope: None,
+            bootstrap_from: Some("ssh:10.0.0.1".to_string()),
+        });
+        hubs.insert("undeclared-a".to_string(), HubEntry {
+            address: "10.0.0.2:9100".to_string(),
+            secret: None, secret_file: Some("/y".to_string()), scope: None,
+            bootstrap_from: None,
+        });
+        hubs.insert("undeclared-b".to_string(), HubEntry {
+            address: "10.0.0.3:9100".to_string(),
+            secret: None, secret_file: Some("/z".to_string()), scope: None,
+            bootstrap_from: None,
+        });
+        let msg = heal_readiness_footer(&hubs).expect("must emit when any undeclared");
+        assert!(msg.starts_with("2 profile(s) lack"),
+            "must name the undeclared count (2): got {msg}");
+        assert!(msg.contains("--bootstrap-from"),
+            "must point operator at the declarative flag: got {msg}");
+        assert!(msg.contains("T-1291"),
+            "must cite the feature task for traceability: got {msg}");
+    }
+
+    #[test]
+    fn heal_readiness_footer_silent_when_all_declared() {
+        use crate::config::HubEntry;
+        let mut hubs = std::collections::HashMap::new();
+        hubs.insert("a".to_string(), HubEntry {
+            address: "10.0.0.1:9100".to_string(),
+            secret: None, secret_file: Some("/x".to_string()), scope: None,
+            bootstrap_from: Some("ssh:10.0.0.1".to_string()),
+        });
+        hubs.insert("b".to_string(), HubEntry {
+            address: "10.0.0.2:9100".to_string(),
+            secret: None, secret_file: Some("/y".to_string()), scope: None,
+            bootstrap_from: Some("file:/etc/x".to_string()),
+        });
+        assert!(heal_readiness_footer(&hubs).is_none(),
+            "must suppress nag when all profiles declared (don't pester configured fleets)");
+    }
+
+    #[test]
+    fn heal_readiness_footer_silent_when_no_profiles() {
+        let hubs = std::collections::HashMap::new();
+        assert!(heal_readiness_footer(&hubs).is_none(),
+            "empty fleet → no recommendation (handled by empty-state output upstream)");
     }
 
     #[test]
