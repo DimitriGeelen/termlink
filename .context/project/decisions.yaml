@@ -346,3 +346,24 @@ decisions:
     date: 2026-05-03
     task: T-1438
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-029
+    decision: "Test decision from Playwright"
+    scope: project
+    date: 2026-05-04
+    task: T-1030
+    rationale: "Not specified"
+
+  - id: PD-030
+    decision: "New task (T-1418) for the client-side upgrade"
+    scope: project
+    date: 2026-05-06
+    task: T-1418
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-031
+    decision: "Binary-only upgrade; rely on T-1235 SDK-layer rewrite"
+    scope: project
+    date: 2026-05-06
+    task: T-1418
+    rationale: "Auto-captured from task file on completion"
