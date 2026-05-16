@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1648: fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T21:37:49Z
+# ============================================================================
+
+task_id: T-1648
+task_name: "fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T21:21:59Z
+completed: 2026-05-16T21:34:15Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-16T23:34:09+02:00
+last_commit: 2026-05-16T23:34:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor heal hints prefer --bootstrap-from auto when profile declares it
+
+# Key outcomes
+outcomes:
+  - "New helper `heal_bootstrap_hint(entry, address)` in `crates/termlink-cli/src/commands/remote.rs` returns `--bootstrap-from auto` when `entry.bootstrap_from.is_some()`, otherwise `--bootstrap-from ssh:<host>` + declarative tip"
+  - "`cmd_fleet_status` auth-mismatch hint (line ~2240) and secret-file-missing hint (line ~2286) use the new helper"
+  - "Two unit tests cover the helper: (1) profile with `bootstrap_from` declared yields `auto`, (2) profile without declaration yields `ssh:<host>` + tip text"
+  - "`cargo test --release -p termlink --bin termlink heal_bootstrap_hint` passes (2 passed; 0 failed)"
+  - "`cargo build --release -p termlink` succeeds (release build clean in 5m36s)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1648-fleet-doctor--suggest---bootstrap-from-a.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-16T23:34:09"
+    action: "T-1648: fleet doctor heal hints prefer --bootstrap-from auto when profile declares it"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, fleet, ergonomic]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 2
+  lines_added: 184
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1648-fleet-doctor--suggest---bootstrap-from-a.md
+generated_by: context-agent-hybrid

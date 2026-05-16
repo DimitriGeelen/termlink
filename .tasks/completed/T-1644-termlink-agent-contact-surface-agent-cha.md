@@ -4,16 +4,16 @@ name: "termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-pee
 description: >
   termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 created: 2026-05-16T06:59:41Z
-last_update: 2026-05-16T06:59:41Z
-date_finished: null
+last_update: 2026-05-16T07:23:04Z
+date_finished: 2026-05-16T07:23:04Z
 ---
 
 # T-1644: termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message
@@ -71,20 +71,16 @@ grep -c "mention" crates/termlink-cli/src/commands/agent.rs | awk '{ exit ($1 >=
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink agent contact <peer>` exits 8 with "no identity_fingerprint in metadata — likely registered before T-1436" when the peer's session was registered before T-1436 shipped. The error names only two recovery paths: upgrade the peer's binary + restart, or pass `--target-fp <hex>` (which requires already knowing the peer's fingerprint — a chicken-and-egg for a peer you can't yet contact). A third working path exists — post to `agent-chat-arc` with `--mention <peer>` per T-1430 protocol canon — but the error message doesn't mention it, so operators discover it by reading source or by trial-and-error.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The error message was authored at T-1436's shipping (introducing `identity_fingerprint`) and at T-1429 Phase-2's `--target-fp` addition. T-1430 (agent-chat-arc broadcast topic with `--mention`-based routing) shipped separately and the error-message author either didn't know about the alternative path or didn't see it as equivalent. The result: a real working workaround stayed undocumented in the very error that needed it.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** No structural gate ties error-message recovery-path text to the set of actually-working alternatives. CLI error messages are free-text prose with no schema, no inventory of "ways to recover," and no consistency check against the docs (`/agent-handoff` skill, T-1430 topic doc, T-1429 task notes). When a new recovery path ships, nothing reminds the prior error-message author to update their text. Discovery is purely manual + reader-dependent.
 
+**Prevention:**
+- **Tactical (this task):** error message now lists all three paths at both error sites; future readers of agent.rs see the canonical recovery set in-place.
+- **Pattern (worth capturing as PL-XXX):** "When shipping a new alternative path for a recoverable error, audit existing error messages that document the recovery set and update them." Cheap to apply, prevents the same drift across other CLI verbs.
+- **Tier-B (not in scope):** A test that loads a manifest of "error code → recovery paths" and asserts each path is named in the live error string. Out of scope; suggested for a future task if this class of drift recurs.
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -136,3 +132,20 @@ grep -c "mention" crates/termlink-cli/src/commands/agent.rs | awk '{ exit ($1 >=
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1644-termlink-agent-contact-surface-agent-cha.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-cfb7b111
+- **Timestamp:** 2026-05-16T07:23:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#7 (Agent)** — No new clippy warnings on agent.rs — `grep "agent\.rs" /tmp/T-1644-clippy.log` returns 0 hits. (The 23 clippy errors that DO fire are all in `termlink-mcp/src/tools.rs` — pre-existing, unrelated to T-
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/T-1644-clippy.log in: No new clippy warnings on agent.rs — `grep "agent\.rs" /tmp/T-1644-clippy.log` returns 0 hits. (The 23 clippy errors that DO fire are all in `termlink`
+
+### 2026-05-16T07:23:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
