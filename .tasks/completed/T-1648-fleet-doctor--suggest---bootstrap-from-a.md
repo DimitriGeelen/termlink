@@ -4,16 +4,16 @@ name: "fleet doctor — suggest --bootstrap-from auto when profile declares it (
 description: >
   fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, fleet, ergonomic]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1291, T-1054, T-1055, T-1051]
 created: 2026-05-16T21:21:59Z
-last_update: 2026-05-16T21:21:59Z
-date_finished: null
+last_update: 2026-05-16T21:34:15Z
+date_finished: 2026-05-16T21:34:15Z
 ---
 
 # T-1648: fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)
@@ -126,3 +126,20 @@ cargo test --release -p termlink --bin termlink heal_bootstrap_hint 2>&1 | tail 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1648-fleet-doctor--suggest---bootstrap-from-a.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-38c25ee4
+- **Timestamp:** 2026-05-16T21:37:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — New helper `heal_bootstrap_hint(entry, address)` in `crates/termlink-cli/src/commands/remote.rs` returns `--bootstrap-from auto` when `entry.bootstrap_from.is_some()`, otherwise `--bootstrap-from ssh:
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/remote.rs in: New helper `heal_bootstrap_hint(entry, address)` in `crates/termlink-cli/src/commands/remote.rs` returns `--bootstrap-from auto` when `entry.bootstrap`
+
+### 2026-05-16T21:34:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
