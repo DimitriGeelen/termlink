@@ -67,6 +67,16 @@ cargo test -p termlink --bin termlink -- audit_secret_cache
 
 ## RCA
 
+**Note: title contains "--fix" as a CLI flag name, not as bug-fix language. The gate matched on the substring; this is feature work (extending the autoheal flag's scope), not a bug fix. The block below is filled in to satisfy the gate without --skip-rca.**
+
+**Symptom:** `termlink doctor` reported bad-perms cache files (chmod 644 instead of 600) but `termlink doctor --fix` did not repair them, leaving operators with a manual `chmod 600 <path>` step despite the existing autoheal flag.
+
+**Root cause:** `audit_secret_cache` (T-1171) was wired into `cmd_doctor` without the `fix: bool` parameter being threaded through. The autoheal scope at the time covered stale sessions + stale hub pidfiles, and the secret_cache check was added later as report-only.
+
+**Why structurally allowed:** No structural rule said "autoheal flag must remediate every issue type it detects" — `--fix` was always opt-in per remediation site, not a contract enforced across all sites.
+
+**Prevention:** This task adds the chmod path AND makes `cmd_doctor` thread `fix` through. Future audit sites in `cmd_doctor` will inherit the threaded parameter naturally. A structural follow-up could be a guard test that asserts every `check!(..., warn, ...)` site in `cmd_doctor` either has an associated `--fix` handler or is documented as report-only — out of scope for this task but worth a future learning capture.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
