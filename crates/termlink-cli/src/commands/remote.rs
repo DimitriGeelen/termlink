@@ -924,6 +924,10 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             }
             let mut config = load_hubs_config();
             let is_update = config.hubs.contains_key(&name);
+            // T-1651: capture before move so we can emit the heal-readiness tip below.
+            let bootstrap_omitted = bootstrap_from.is_none();
+            // Derive a host suggestion for the tip from the address.
+            let host_for_tip = address.split(':').next().unwrap_or(&address).to_string();
             config.hubs.insert(name.clone(), HubEntry {
                 address: address.clone(),
                 secret_file,
@@ -947,6 +951,12 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                     println!("Added profile '{}' → {}", name, address);
                 }
                 println!("  Config: {}", hubs_config_path().display());
+                // T-1651: heal-readiness add-time nudge — catch missing bootstrap_from
+                // at the moment the profile is introduced, not later via list-review or
+                // at incident time. Suppressed in --json (machine consumers don't need it).
+                if bootstrap_omitted {
+                    println!("  Tip: no `bootstrap_from` declared — add `--bootstrap-from ssh:{}` to enable one-flag heal (T-1291)", host_for_tip);
+                }
             }
             Ok(())
         }
