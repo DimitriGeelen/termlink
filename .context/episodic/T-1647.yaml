@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1647: MCP termlink_event_subscribe hub-level support (T-1645 PL-158 completion)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T08:58:55Z
+# ============================================================================
+
+task_id: T-1647
+task_name: "MCP termlink_event_subscribe hub-level support (T-1645 PL-158 completion)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T08:51:41Z
+completed: 2026-05-16T08:56:33Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-16T10:56:29+02:00
+last_commit: 2026-05-16T10:56:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_event_subscribe — accept null target for hub-aggregator mode
+
+# Key outcomes
+outcomes:
+  - "`EventSubscribeParams.target` becomes `Option<String>` (additive change — existing callers with `target: \"...\"` keep working) — verified by `event_subscribe_params_defaults` test (passes with `assert_eq!(p.target.as_deref(), Some(\"s1\"))`)"
+  - "When `target` is `None`, `termlink_event_subscribe` routes to the hub socket and calls `event.subscribe` with no `target` field — handler branches on `match &p.target { Some(t) => session-socket, None => resolve_hub_paths() }`"
+  - "When `target` is `Some(t)`, behavior is unchanged (session-socket path) — same `manager::find_session(t).socket_path()` resolution, same params (since + max_events still applied)"
+  - "Updated tool description on `termlink_event_subscribe` documents the hub-level mode — description now reads \"Two modes: (1) per-session ... (2) hub-level: omit `target` (or pass null) ...\""
+  - "Unit test asserts `termlink_event_subscribe` with `target: None` constructs params — `event_subscribe_params_hub_mode_omits_target` + `event_subscribe_params_hub_mode_null_target` cover both omit-key and explicit-null paths"
+  - "`cargo build --release -p termlink-mcp` clean — `Finished release profile [optimized] target(s) in 1m 11s` (pre-existing tools.rs warning unrelated to this change)"
+  - "`cargo test --release -p termlink-mcp --lib event_subscribe` — 3 passed; 0 failed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1647-mcp-termlinkeventsubscribe-hub-level-sup.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-16T10:56:29"
+    action: "T-1647: termlink_event_subscribe — accept null target for hub-aggregator mode"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 206
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1647-mcp-termlinkeventsubscribe-hub-level-sup.md
+generated_by: context-agent-hybrid
