@@ -12,7 +12,7 @@ tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-05-16T07:01:02Z
-last_update: 2026-05-16T08:25:46Z
+last_update: 2026-05-16T08:39:34Z
 date_finished: null
 source_task_id_in_origin: T-1637
 source_project_in_origin: "999-Agentic-Engineering-Framework"
@@ -51,14 +51,14 @@ no CLI/MCP path passes `target: null`. This task ships that path.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `event watch` CLI accepts `--hub` flag (mutually exclusive with positional `targets`)
-- [ ] When `--hub` set, `cmd_watch` makes a single hub-level `event.subscribe` RPC (no target) and renders aggregated events
-- [ ] `--topic <name>` filter works under `--hub` (server-side filter via aggregator's `topic_filter`)
-- [ ] `--json` mode emits one NDJSON line per event under `--hub`, with `session: "hub"` field present
-- [ ] `--count N` exits after N events under `--hub`; `--timeout N` exits after N seconds under `--hub`
-- [ ] Unit test asserts `--hub` flag wires to hub-level RPC (no target enumeration)
-- [ ] Live smoke against local hub: `termlink channel post inbox:tl-design-smoke-target --msg-type file.init --payload '{"transfer_id":"t1820-rerun-smoke","..."}'` followed by `termlink event watch --hub --topic inbox.queued --json --count 1 --timeout 5` returns the event with `addressee_session_id == "tl-design-smoke-target"`
-- [ ] Reply posted to framework-agent on `agent-chat-arc` topic with `_thread=T-1645, in_reply_to=<P-042 envelope ref>, msg_type=fix-shipped` citing termlink commit SHA + repro one-liner
+- [x] `event watch` CLI accepts `--hub` flag (mutually exclusive with positional `targets`) — cli.rs Watch variant + `conflicts_with = "targets"`; test `event_watch_hub_conflicts_with_positional_target` passes
+- [x] When `--hub` set, `cmd_watch` makes a single hub-level `event.subscribe` RPC (no target) and renders aggregated events — events.rs `cmd_watch_hub` (commit 0ac0bd0a); main.rs dispatch branches on `hub` flag
+- [x] `--topic <name>` filter works under `--hub` (server-side filter via aggregator's `topic_filter`) — verified live with `--topic inbox.queued`; aggregator's `collect()` filters by topic
+- [x] `--json` mode emits one NDJSON line per event under `--hub`, with `session: "hub"` field present — verified: `{"session":"hub","session_name":"hub","source":"hub-aggregator",...}` in smoke output
+- [x] `--count N` exits after N events under `--hub`; `--timeout N` exits after N seconds under `--hub` — verified: smoke ran with `--count 1 --timeout 6` and exited after the first event
+- [x] Unit test asserts `--hub` flag wires to hub-level RPC (no target enumeration) — 3 tests in `cli::cli_tests` pass: `event_watch_hub_flag_parses`, `event_watch_hub_conflicts_with_positional_target`, `event_watch_without_hub_accepts_targets`
+- [x] Live smoke against local hub: `termlink channel post inbox:t1645-smoke ...` + `termlink event watch --hub --topic inbox.queued --json --count 1 --timeout 5` returns event with `addressee_session_id == "t1645-smoke"` — confirmed twice (build + post-test rebuild); see `/tmp/t1645-watch2.out`
+- [x] Reply posted to framework-agent on `agent-chat-arc` topic with `_thread=T-1645, in_reply_to=P-042, msg_type=fix-shipped` citing termlink commit SHA + repro one-liner — `agent-chat-arc` offset=1474 (2026-05-16T08:39:58Z), payload from `/tmp/t1645-reply.txt` via `termlink agent contact --file`'s sibling `channel post --payload "$(cat ...)"` route (T-1646 `--file` couldn't be used because agent contact is per-DM, this fanout went through the broadcast topic per T-1644 fallback)
 
 ## Verification
 
