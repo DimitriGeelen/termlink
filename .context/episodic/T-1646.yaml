@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1646: termlink agent contact: add --file <path> for payload-from-file (T-1429 Phase-2 AC)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T07:56:52Z
+# ============================================================================
+
+task_id: T-1646
+task_name: "termlink agent contact: add --file <path> for payload-from-file (T-1429 Phase-2 AC)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T07:33:18Z
+completed: 2026-05-16T07:50:35Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-16T09:43:34+02:00
+last_commit: 2026-05-16T09:50:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink agent contact: add --file <path> for payload-from-file. relax verification regex to allow qualified std::path::PathBuf
+
+# Key outcomes
+outcomes:
+  - "cli.rs Contact variant adds `file: Option<PathBuf>` arg (`--file <path>`) and changes `message: String` to `message: Option<String>` — cli.rs:3387-3401"
+  - "main.rs dispatcher resolves `--message`/`--file` into a single `String` before calling `cmd_agent_contact`; passing both errors with \"specify exactly one of --message or --file, not both\"; passing neither errors with \"specify exactly one of --message <STRING> or --file <PATH>\" — main.rs:266-269 + agent.rs `resolve_contact_message`"
+  - "File I/O reads to a String via `std::fs::read_to_string` — path-only, no stdin support in this task — agent.rs `resolve_contact_message`"
+  - "Empty file content rejected with a clear error (\"file ... is empty — refusing to post empty message\") — agent.rs `resolve_contact_message`, unit-tested via `resolve_empty_file_errors`"
+  - "Existing `--message` callers unchanged: `./target/release/termlink agent contact framework-agent --message \"regression check\"` reaches the T-1644 pre-T-1436 error as before (smoke-tested live)"
+  - "Help text on Contact variant updated — cli.rs:3387-3400 describes mutually-exclusive relationship + references T-1646 + T-1429 Phase-2"
+  - "`cargo build -p termlink --release` — Finished in 6m 10s"
+  - "`cargo check --workspace` — Finished dev profile in 10.30s (1 pre-existing termlink-mcp warning unrelated)"
+  - "`cargo test --bin termlink contact_tests` — **21/21 passed** (15 pre-existing + 6 new resolver tests: `resolve_message_only_returns_message`, `resolve_neither_errors`, `resolve_both_errors`, `resolve_file_reads_contents`, `resolve_empty_file_errors`, `resolve_missing_file_errors`)"
+  - "Live smoke test 1 (`--file` alone on pre-T-1436 peer): emits the T-1644 three-path error correctly — proves --file resolved, contact path entered, error fires at the identity_fingerprint check (as expected for framework-agent)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1646-termlink-agent-contact-add---file-path-f.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-16T09:43:34"
+    action: "T-1646: termlink agent contact: add --file <path> for payload-from-file"
+  - time: "2026-05-16T09:50:30"
+    action: "T-1646: relax verification regex to allow qualified std::path::PathBuf"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 4
+  lines_added: 245
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1646-termlink-agent-contact-add---file-path-f.md
+generated_by: context-agent-hybrid
