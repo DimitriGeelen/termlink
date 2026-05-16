@@ -2120,6 +2120,20 @@ async fn cmd_remote_inbox_inner(
     Ok(())
 }
 
+/// T-1649: format the per-hub HMAC-mismatch diagnosis surfaced by `fleet doctor`'s
+/// layered probe (cmd_fleet_doctor L3 AUTH failure). Carries the profile name and
+/// the declared-channel-aware heal-source argument, so operators get a copy-pasteable
+/// incantation instead of `<profile>` + `ssh:<host>` literal placeholders.
+pub(crate) fn format_hmac_mismatch_diagnosis(
+    profile_name: &str,
+    entry: &crate::config::HubEntry,
+) -> String {
+    format!(
+        "HMAC secret mismatch — run: termlink fleet reauth {} {}",
+        profile_name, heal_bootstrap_hint(entry, &entry.address)
+    )
+}
+
 /// T-1648: pick the right `--bootstrap-from` argument to recommend in a heal hint.
 /// If the profile declares `bootstrap_from` in hubs.toml, suggest `auto` (T-1291);
 /// otherwise fall back to the literal `ssh:<host>` form and append a one-line tip
@@ -3444,7 +3458,10 @@ pub(crate) async fn cmd_net_test(
 
         let mut layers = serde_json::Map::new();
         let mut hub_healthy = true;
-        let mut diagnosis: Option<&'static str> = None;
+        // T-1649: widened from `Option<&'static str>` to `Option<String>` so the
+        // HMAC-mismatch diagnosis can carry per-hub formatted heal incantation
+        // (profile name + declared-channel-aware `--bootstrap-from` argument).
+        let mut diagnosis: Option<String> = None;
 
         // --- L1: TCP ---
         let tcp_start = Instant::now();
@@ -3461,7 +3478,7 @@ pub(crate) async fn cmd_net_test(
         });
         if !tcp_ok {
             hub_healthy = false;
-            diagnosis = Some("Network-level failure — check firewall/VPN/routing and hub process is listening on the configured port");
+            diagnosis = Some("Network-level failure — check firewall/VPN/routing and hub process is listening on the configured port".to_string());
         }
 
         // --- L2: TLS ---
@@ -3503,7 +3520,7 @@ pub(crate) async fn cmd_net_test(
                                 }
                                 Ok(Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e))) => {
                                     hub_healthy = false;
-                                    diagnosis = Some("RPC call rejected — hub is authenticated but refusing session.discover");
+                                    diagnosis = Some("RPC call rejected — hub is authenticated but refusing session.discover".to_string());
                                     layers.insert("ping".to_string(), json!({
                                         "status": "fail", "latency_ms": ping_latency,
                                         "error": format!("{} {}", e.error.code, e.error.message),
@@ -3511,7 +3528,7 @@ pub(crate) async fn cmd_net_test(
                                 }
                                 Ok(Err(e)) => {
                                     hub_healthy = false;
-                                    diagnosis = Some("RPC transport error after auth — hub may have disconnected");
+                                    diagnosis = Some("RPC transport error after auth — hub may have disconnected".to_string());
                                     layers.insert("ping".to_string(), json!({
                                         "status": "fail", "latency_ms": ping_latency,
                                         "error": e.to_string(),
@@ -3519,7 +3536,7 @@ pub(crate) async fn cmd_net_test(
                                 }
                                 Err(_) => {
                                     hub_healthy = false;
-                                    diagnosis = Some("RPC timeout after auth — hub is slow or overloaded");
+                                    diagnosis = Some("RPC timeout after auth — hub is slow or overloaded".to_string());
                                     layers.insert("ping".to_string(), json!({
                                         "status": "timeout", "latency_ms": timeout_secs * 1000,
                                     }));
@@ -3528,7 +3545,10 @@ pub(crate) async fn cmd_net_test(
                         }
                         Err((auth_latency, msg)) => {
                             hub_healthy = false;
-                            diagnosis = Some("HMAC secret mismatch — run: termlink fleet reauth <profile> --bootstrap-from ssh:<host>");
+                            // T-1649: format per-hub heal incantation (profile name +
+                            // declared-channel-aware --bootstrap-from arg) so operators
+                            // get a copy-pasteable command instead of <profile>+ssh:<host>.
+                            diagnosis = Some(format_hmac_mismatch_diagnosis(name, entry));
                             layers.insert("auth".to_string(), json!({
                                 "status": "fail", "latency_ms": auth_latency,
                                 "error": msg,
@@ -3540,9 +3560,9 @@ pub(crate) async fn cmd_net_test(
                     hub_healthy = false;
                     let msg = e.to_string();
                     diagnosis = Some(if msg.contains("TOFU") || msg.contains("fingerprint") {
-                        "TLS cert changed — run: termlink tofu clear <host:port> and retry"
+                        "TLS cert changed — run: termlink tofu clear <host:port> and retry".to_string()
                     } else {
-                        "TLS handshake failed — hub may not be speaking TLS, or cert is invalid"
+                        "TLS handshake failed — hub may not be speaking TLS, or cert is invalid".to_string()
                     });
                     layers.insert("tls".to_string(), json!({
                         "status": "fail", "latency_ms": tls_latency,
@@ -3551,7 +3571,7 @@ pub(crate) async fn cmd_net_test(
                 }
                 Err(_) => {
                     hub_healthy = false;
-                    diagnosis = Some("TLS handshake timed out — hub is slow or silently dropping TLS");
+                    diagnosis = Some("TLS handshake timed out — hub is slow or silently dropping TLS".to_string());
                     layers.insert("tls".to_string(), json!({
                         "status": "timeout", "latency_ms": timeout_secs * 1000,
                     }));
@@ -5454,6 +5474,44 @@ secret_file = "/tmp/other.hex"
             "undeclared profile hint must nudge operator toward declaring bootstrap_from: got {hint}");
         assert!(hint.contains("auto"),
             "tip must reference the `auto` mechanism it unlocks: got {hint}");
+    }
+
+    #[test]
+    fn fleet_doctor_hmac_diagnosis_uses_auto_when_declared() {
+        use crate::config::HubEntry;
+        let entry = HubEntry {
+            address: "192.168.10.122:9100".to_string(),
+            secret: None,
+            secret_file: Some("~/.termlink/secrets/ring20-management.hex".to_string()),
+            scope: None,
+            bootstrap_from: Some("ssh:192.168.10.122".to_string()),
+        };
+        let diag = format_hmac_mismatch_diagnosis("ring20-management", &entry);
+        assert!(diag.starts_with("HMAC secret mismatch"),
+            "diagnosis must lead with the symptom: got {diag}");
+        assert!(diag.contains("termlink fleet reauth ring20-management"),
+            "diagnosis must name the profile, not <profile>: got {diag}");
+        assert!(diag.contains("--bootstrap-from auto"),
+            "declared-channel profile must point at `auto`, not the literal SSH form: got {diag}");
+    }
+
+    #[test]
+    fn fleet_doctor_hmac_diagnosis_falls_back_to_ssh_without_declaration() {
+        use crate::config::HubEntry;
+        let entry = HubEntry {
+            address: "192.168.10.121:9100".to_string(),
+            secret: None,
+            secret_file: Some("/tmp/x.hex".to_string()),
+            scope: None,
+            bootstrap_from: None,
+        };
+        let diag = format_hmac_mismatch_diagnosis("ring20-dashboard", &entry);
+        assert!(diag.contains("termlink fleet reauth ring20-dashboard"),
+            "diagnosis must name the profile: got {diag}");
+        assert!(diag.contains("--bootstrap-from ssh:192.168.10.121"),
+            "undeclared profile must use literal ssh:<host>: got {diag}");
+        assert!(diag.contains("bootstrap_from"),
+            "diagnosis must nudge operator toward declarative path: got {diag}");
     }
 
     #[test]
