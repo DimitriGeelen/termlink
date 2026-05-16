@@ -2188,6 +2188,49 @@ pub(crate) fn heal_bootstrap_hint(
     }
 }
 
+/// T-1652: warn when `secret_file`'s Unix perms grant group or world access.
+/// Returns `Some(remediation)` for any mode where the bottom 6 bits are set
+/// (group rwx or other rwx), `None` for 0o600 (or owner-only variants like
+/// 0o400/0o700), and `None` when metadata cannot be read — the "secret file
+/// missing" path elsewhere produces the right error for absent files; this
+/// helper stays silent there to keep the display clean.
+///
+/// Closes G-011 sub-point #4 (the 2026-04 incident: a peer-shared secret
+/// observed at chmod 644 sitting world-readable in a home directory).
+#[cfg(unix)]
+pub(crate) fn secret_file_perms_warning(path: &std::path::Path) -> Option<String> {
+    use std::os::unix::fs::PermissionsExt;
+    let metadata = std::fs::metadata(path).ok()?;
+    let mode = metadata.permissions().mode() & 0o777;
+    if mode & 0o077 != 0 {
+        Some(format!(
+            "secret_file perms 0o{:03o} expose secret to group/world — run: chmod 600 {}",
+            mode,
+            path.display()
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(not(unix))]
+pub(crate) fn secret_file_perms_warning(_path: &std::path::Path) -> Option<String> {
+    None
+}
+
+/// T-1652: best-effort `~/` → `$HOME/` expansion for `secret_file` values from
+/// hubs.toml. Returns the original string if no leading `~/` or HOME is unset
+/// — the perms helper silently returns None on stat failure, so an unexpanded
+/// path becomes a no-op warning rather than a false alarm.
+pub(crate) fn expand_secret_file_path(raw: &str) -> std::path::PathBuf {
+    if let Some(rest) = raw.strip_prefix("~/") {
+        if let Ok(home) = std::env::var("HOME") {
+            return std::path::PathBuf::from(home).join(rest);
+        }
+    }
+    std::path::PathBuf::from(raw)
+}
+
 /// T-1102: One-screen fleet overview for human operators.
 /// Shows each hub's status, session count, version, latency, and actionable fixes.
 pub(crate) async fn cmd_fleet_status(
@@ -2225,6 +2268,17 @@ pub(crate) async fn cmd_fleet_status(
         let entry = &config.hubs[*name];
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
         let connect_start = std::time::Instant::now();
+
+        // T-1652: surface insecure secret_file perms regardless of whether
+        // the hub itself comes up. The risk (32-byte HMAC sitting
+        // world-readable) is independent of reachability — flagging it here
+        // means the next `fleet status` run after a chmod regression fires
+        // immediately, not when an auth incident finally reveals the leak.
+        if let Some(path_raw) = entry.secret_file.as_deref()
+            && let Some(warning) = secret_file_perms_warning(&expand_secret_file_path(path_raw))
+        {
+            actions.push(format!("{}: {}", name, warning));
+        }
 
         let result = tokio::time::timeout(
             timeout_dur,
@@ -2679,6 +2733,14 @@ pub(crate) async fn cmd_fleet_doctor(
                 else { "none".to_string() }
             });
 
+        // T-1652: compute perms warning once per hub. Independent of probe
+        // success — even an UNREACHABLE hub with a world-readable secret_file
+        // is leaking the HMAC every time `ls` runs in that home directory.
+        let secret_perms_warning: Option<String> = entry
+            .secret_file
+            .as_deref()
+            .and_then(|p| secret_file_perms_warning(&expand_secret_file_path(p)));
+
         match result {
             Ok(Ok(mut client)) => {
                 let latency = connect_start.elapsed().as_millis();
@@ -2757,6 +2819,13 @@ pub(crate) async fn cmd_fleet_doctor(
                     "secret_source": &secret_source,
                     "hub_version": &hub_version,
                 });
+                // T-1652: surface the perms warning even on a healthy hub —
+                // the leak risk is structural to the file, not to the probe.
+                if let Some(w) = &secret_perms_warning
+                    && let Some(obj) = hub_obj.as_object_mut()
+                {
+                    obj.insert("secret_perms_warning".to_string(), serde_json::Value::String(w.clone()));
+                }
                 if let Some(ls) = &legacy_summary
                     && let Some(obj) = hub_obj.as_object_mut()
                 {
@@ -2784,6 +2853,11 @@ pub(crate) async fn cmd_fleet_doctor(
                 hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [PASS] connected in {}ms (version: {})", latency, hub_version);
+                    // T-1652: render perms warning under [PASS] so a clean
+                    // connectivity result doesn't hide the standing security risk.
+                    if let Some(w) = &secret_perms_warning {
+                        eprintln!("    [WARN] {}", w);
+                    }
                     if version_stale {
                         // T-1616: include CLI version so the WARN explicitly shows
                         // the skew (operator no longer needs to cross-reference info).
@@ -2825,11 +2899,20 @@ pub(crate) async fn cmd_fleet_doctor(
                 // connect — is the hub running?" and losing the actionable hint.
                 let msg = format!("{:#}", e);
                 let diagnostic = classify_fleet_error(&msg, &entry.address);
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic}));
+                let mut hub_obj = serde_json::json!({"hub": name, "address": entry.address, "status": "error", "error": &msg, "secret_source": &secret_source, "diagnostic": &diagnostic});
+                if let Some(w) = &secret_perms_warning
+                    && let Some(obj) = hub_obj.as_object_mut()
+                {
+                    obj.insert("secret_perms_warning".to_string(), serde_json::Value::String(w.clone()));
+                }
+                hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [FAIL] {}", msg);
                     eprintln!("  secret: {}", secret_source);
                     eprintln!("  hint: {}", diagnostic);
+                    if let Some(w) = &secret_perms_warning {
+                        eprintln!("  [WARN] {}", w);
+                    }
                 }
                 // T-1052: auto-register a learning for auth/TOFU failure classes so drift
                 // is detectable by future agents (R1). Silent best-effort — never blocks.
@@ -2841,10 +2924,19 @@ pub(crate) async fn cmd_fleet_doctor(
                 total_fail += 1;
                 *fleet_versions.entry("unknown".into()).or_insert(0) += 1;
                 let diagnostic = "Check network connectivity and that hub is listening on the configured port";
-                hub_results.push(serde_json::json!({"hub": name, "address": entry.address, "status": "timeout", "secret_source": &secret_source, "diagnostic": diagnostic}));
+                let mut hub_obj = serde_json::json!({"hub": name, "address": entry.address, "status": "timeout", "secret_source": &secret_source, "diagnostic": diagnostic});
+                if let Some(w) = &secret_perms_warning
+                    && let Some(obj) = hub_obj.as_object_mut()
+                {
+                    obj.insert("secret_perms_warning".to_string(), serde_json::Value::String(w.clone()));
+                }
+                hub_results.push(hub_obj);
                 if !json {
                     eprintln!("  [FAIL] Timeout after {}s", timeout_secs);
                     eprintln!("  hint: {}", diagnostic);
+                    if let Some(w) = &secret_perms_warning {
+                        eprintln!("  [WARN] {}", w);
+                    }
                 }
                 // T-1053: timeouts aren't auth-class failures → reset streak.
                 let _ = maybe_track_fleet_failure(name, &entry.address, None);
@@ -5601,6 +5693,67 @@ secret_file = "/tmp/other.hex"
             "undeclared profile must use literal ssh:<host>: got {diag}");
         assert!(diag.contains("bootstrap_from"),
             "diagnosis must nudge operator toward declarative path: got {diag}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn secret_file_perms_warning_silent_for_chmod_600() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::NamedTempFile::new().expect("create tmp");
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o600)).expect("chmod 600");
+        assert!(
+            secret_file_perms_warning(tmp.path()).is_none(),
+            "0o600 is the canonical safe mode — must not warn"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn secret_file_perms_warning_fires_for_chmod_644() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::NamedTempFile::new().expect("create tmp");
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o644)).expect("chmod 644");
+        let warning = secret_file_perms_warning(tmp.path())
+            .expect("0o644 is world-readable — must warn (the original G-011 incident mode)");
+        assert!(warning.contains("0o644"),
+            "warning must include the actual mode for operator clarity: {warning}");
+        assert!(warning.contains("chmod 600"),
+            "warning must name the remediation: {warning}");
+        assert!(warning.contains(tmp.path().to_str().unwrap()),
+            "warning must include the path so operator can paste it: {warning}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn secret_file_perms_warning_fires_for_group_read() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::NamedTempFile::new().expect("create tmp");
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o660)).expect("chmod 660");
+        let warning = secret_file_perms_warning(tmp.path())
+            .expect("group-readable (0o660) is also a leak — must warn");
+        assert!(warning.contains("0o660"), "warning must include the actual mode: {warning}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn secret_file_perms_warning_silent_for_missing_path() {
+        let nonexistent = std::path::PathBuf::from("/tmp/T-1652-does-not-exist-12345.hex");
+        assert!(
+            secret_file_perms_warning(&nonexistent).is_none(),
+            "absent files are handled by other error paths — perms check stays silent to avoid double-firing"
+        );
+    }
+
+    #[test]
+    fn expand_secret_file_path_substitutes_home_for_tilde() {
+        // Only the leading `~/` form is expanded — bare `~` or mid-string is left alone.
+        unsafe { std::env::set_var("HOME", "/home/testuser"); }
+        let expanded = expand_secret_file_path("~/.termlink/secrets/foo.hex");
+        assert_eq!(expanded, std::path::PathBuf::from("/home/testuser/.termlink/secrets/foo.hex"));
+
+        // Absolute paths pass through unchanged.
+        let absolute = expand_secret_file_path("/var/lib/termlink/hub.secret");
+        assert_eq!(absolute, std::path::PathBuf::from("/var/lib/termlink/hub.secret"));
     }
 
     #[test]
