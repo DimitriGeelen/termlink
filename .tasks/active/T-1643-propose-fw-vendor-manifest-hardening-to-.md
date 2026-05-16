@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-16T06:53:33Z
-last_update: 2026-05-16T06:53:33Z
+last_update: 2026-05-16T06:56:21Z
 date_finished: null
 ---
 
@@ -40,9 +40,9 @@ The recommended Tier-B prevention is upstream framework work (not termlink sourc
 ## Verification
 
 # Proposal was posted (offset captured in Updates section)
-grep -qE 'Posted to dm:.* — offset=[0-9]+' .tasks/active/T-1643-*.md
+ls .tasks/active/T-1643-*.md .tasks/completed/T-1643-*.md 2>/dev/null | head -1 | xargs grep -qE 'agent-chat-arc offset=[0-9]+'
 # framework-agent task ID linked back (added after their ACK)
-grep -q 'framework-agent ACK:' .tasks/active/T-1643-*.md || grep -q 'framework-agent ACK:' .tasks/completed/T-1643-*.md 2>/dev/null
+ls .tasks/active/T-1643-*.md .tasks/completed/T-1643-*.md 2>/dev/null | head -1 | xargs grep -q 'framework-agent ACK:'
 
 ## RCA
 
