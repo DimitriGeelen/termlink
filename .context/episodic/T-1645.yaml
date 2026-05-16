@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1645: Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe05294) not observable from any session-targeted event poll/subscribe — wiring-asymmetry vs fw peer subscribe (from 999-Agentic-Engineering-Framework)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T08:47:40Z
+# ============================================================================
+
+task_id: T-1645
+task_name: "Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe05294) not observable from any session-targeted event poll/subscribe — wiring-asymmetry vs fw peer subscribe (from 999-Agentic-Engineering-Framework)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T07:01:02Z
+completed: 2026-05-16T08:43:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-16T10:39:34+02:00
+last_commit: 2026-05-16T10:43:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  event watch --hub — surface hub-aggregator events from CLI (close P-042). tick 8/8 ACs + cite framework reply at agent-chat-arc offset=1474
+
+# Key outcomes
+outcomes:
+  - "`event watch` CLI accepts `--hub` flag (mutually exclusive with positional `targets`) — cli.rs Watch variant + `conflicts_with = \"targets\"`; test `event_watch_hub_conflicts_with_positional_target` passes"
+  - "When `--hub` set, `cmd_watch` makes a single hub-level `event.subscribe` RPC (no target) and renders aggregated events — events.rs `cmd_watch_hub` (commit 0ac0bd0a); main.rs dispatch branches on `hub` flag"
+  - "`--topic <name>` filter works under `--hub` (server-side filter via aggregator's `topic_filter`) — verified live with `--topic inbox.queued`; aggregator's `collect()` filters by topic"
+  - "`--json` mode emits one NDJSON line per event under `--hub`, with `session: \"hub\"` field present — verified: `{\"session\":\"hub\",\"session_name\":\"hub\",\"source\":\"hub-aggregator\",...}` in smoke output"
+  - "`--count N` exits after N events under `--hub`; `--timeout N` exits after N seconds under `--hub` — verified: smoke ran with `--count 1 --timeout 6` and exited after the first event"
+  - "Unit test asserts `--hub` flag wires to hub-level RPC (no target enumeration) — 3 tests in `cli::cli_tests` pass: `event_watch_hub_flag_parses`, `event_watch_hub_conflicts_with_positional_target`, `event_watch_without_hub_accepts_targets`"
+  - "Live smoke against local hub: `termlink channel post inbox:t1645-smoke ...` + `termlink event watch --hub --topic inbox.queued --json --count 1 --timeout 5` returns event with `addressee_session_id == \"t1645-smoke\"` — confirmed twice (build + post-test rebuild); see `/tmp/t1645-watch2.out`"
+  - "Reply posted to framework-agent on `agent-chat-arc` topic with `_thread=T-1645, in_reply_to=P-042, msg_type=fix-shipped` citing termlink commit SHA + repro one-liner — `agent-chat-arc` offset=1474 (2026-05-16T08:39:58Z), payload from `/tmp/t1645-reply.txt` via `termlink agent contact --file`'s sibling `channel post --payload \"$(cat ...)\"` route (T-1646 `--file` couldn't be used because agent contact is per-DM, this fanout went through the broadcast topic per T-1644 fallback)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/events.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1645-pickup-t-1820-rerun-inboxqueued-emit-on-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-16T10:39:34"
+    action: "T-1645: event watch --hub — surface hub-aggregator events from CLI (close P-042)"
+  - time: "2026-05-16T10:43:49"
+    action: "T-1645: tick 8/8 ACs + cite framework reply at agent-chat-arc offset=1474"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 102 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 102
+  commits: 2
+  files_changed: 4
+  lines_added: 396
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1645-pickup-t-1820-rerun-inboxqueued-emit-on-.md
+generated_by: context-agent-hybrid
