@@ -690,6 +690,38 @@ pub(crate) fn parse_contact_target(input: &str) -> Result<(String, Option<String
     }
 }
 
+/// T-1646: resolve `agent contact`'s `--message`/`--file` pair into a single
+/// `String`. Exactly one must be set. Empty file rejected.
+///
+/// Pure, unit-tested. Extracted so the CLI-layer dispatcher in `main.rs`
+/// stays a one-liner and the policy lives next to the verb it serves.
+pub(crate) fn resolve_contact_message(
+    message: Option<&str>,
+    file: Option<&std::path::Path>,
+) -> anyhow::Result<String> {
+    match (message, file) {
+        (Some(_), Some(_)) => Err(anyhow::anyhow!(
+            "specify exactly one of --message or --file, not both"
+        )),
+        (None, None) => Err(anyhow::anyhow!(
+            "specify exactly one of --message <STRING> or --file <PATH>"
+        )),
+        (Some(m), None) => Ok(m.to_string()),
+        (None, Some(p)) => {
+            let body = std::fs::read_to_string(p).map_err(|e| {
+                anyhow::anyhow!("failed to read {}: {e}", p.display())
+            })?;
+            if body.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "file {} is empty — refusing to post empty message",
+                    p.display()
+                ));
+            }
+            Ok(body)
+        }
+    }
+}
+
 /// T-1429 Phase-1: contact a peer agent on the canonical `dm:<a>:<b>` topic.
 ///
 /// Resolves `<target>` to a local session via `manager::find_session`, reads
@@ -698,9 +730,10 @@ pub(crate) fn parse_contact_target(input: &str) -> Result<(String, Option<String
 /// idempotent topic creation, and posting.
 ///
 /// Phase-1 scope: --message only, local-hub only, fire-and-forget. Phase-2
-/// adds --ack-required, --require-online, --file, and advanced target forms
+/// adds --ack-required, --require-online, advanced target forms
 /// (`name@hub:port`, `sender_id:<hex>`) — see T-1429 task for the deferred
-/// ACs.
+/// ACs. --file <path> shipped in T-1646 (resolved in `main.rs` via
+/// `resolve_contact_message`; this fn still takes the resolved `&str`).
 ///
 /// Errors:
 /// - target not found locally → exit code 1, message names the session
@@ -3064,6 +3097,55 @@ mod contact_tests {
         assert!(canon.starts_with("dm:"));
         assert!(canon.contains(":"));
         assert_eq!(canon.matches(":").count(), 2);
+    }
+
+    // T-1646: resolver tests for --message/--file (mutually exclusive).
+    use super::resolve_contact_message;
+    use std::path::PathBuf;
+
+    #[test]
+    fn resolve_message_only_returns_message() {
+        let got = resolve_contact_message(Some("hi"), None).unwrap();
+        assert_eq!(got, "hi");
+    }
+
+    #[test]
+    fn resolve_neither_errors() {
+        let err = resolve_contact_message(None, None).unwrap_err().to_string();
+        assert!(err.contains("--message"), "got: {err}");
+        assert!(err.contains("--file"), "got: {err}");
+    }
+
+    #[test]
+    fn resolve_both_errors() {
+        let p = PathBuf::from("/tmp/does-not-need-to-exist");
+        let err = resolve_contact_message(Some("x"), Some(&p)).unwrap_err().to_string();
+        assert!(err.contains("not both"), "got: {err}");
+    }
+
+    #[test]
+    fn resolve_file_reads_contents() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("msg.txt");
+        std::fs::write(&p, "from-file-body").unwrap();
+        let got = resolve_contact_message(None, Some(&p)).unwrap();
+        assert_eq!(got, "from-file-body");
+    }
+
+    #[test]
+    fn resolve_empty_file_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("empty.txt");
+        std::fs::write(&p, "").unwrap();
+        let err = resolve_contact_message(None, Some(&p)).unwrap_err().to_string();
+        assert!(err.contains("empty"), "got: {err}");
+    }
+
+    #[test]
+    fn resolve_missing_file_errors() {
+        let p = PathBuf::from("/nonexistent/path/that/should/never/exist/T-1646.txt");
+        let err = resolve_contact_message(None, Some(&p)).unwrap_err().to_string();
+        assert!(err.contains("failed to read"), "got: {err}");
     }
 
     // T-1448 (b): parser tests for the `<name>[:<project>]` target syntax.
