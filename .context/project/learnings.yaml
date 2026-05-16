@@ -1376,3 +1376,10 @@ learnings:
   date: 2026-05-16
   context: Added via context agent
   application: TBD
+- id: PL-159
+  learning: "When shipping a config-driven mechanism (e.g. T-1291's declarative bootstrap_from), audit every operator-facing CLI surface — incident-time hints, idle-time inspectors, add-time configurators — for whether they should reflect the new state. Discoverability lives across surfaces, not in one. Mirror the same helper across all of them for consistency (heal_bootstrap_hint shared across fleet status / fleet doctor / profile list / profile add in T-1648/T-1649/T-1650/T-1651). Without proactive audit, a shipped mechanism stays invisible until incident time at one surface."
+  source: P-001
+  task: T-1643
+  date: 2026-05-16
+  context: Added via context agent
+  application: TBD
