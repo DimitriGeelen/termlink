@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1652: fleet doctor + status — secret_file perms warning (G-011)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T22:56:31Z
+# ============================================================================
+
+task_id: T-1652
+task_name: "fleet doctor + status — secret_file perms warning (G-011)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T22:48:26Z
+completed: 2026-05-16T22:56:10Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T00:56:05+02:00
+last_commit: 2026-05-17T00:56:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor + status — secret_file perms warning (G-011)
+
+# Key outcomes
+outcomes:
+  - "New helper `secret_file_perms_warning(path: &Path) -> Option<String>` in `crates/termlink-cli/src/commands/remote.rs` — returns `Some(\"...\")` when the file's mode bits include group or world read/write/execute (`& 0o077 != 0`), `None` otherwise (or when the file doesn't exist / metadata read fails — silent for missing, those have their own messages elsewhere). **Implemented at remote.rs near format_hmac_mismatch_diagnosis; #[cfg(unix)] gated with non-unix stub returning None.**"
+  - "Helper formats with chmod-octal-display + remediation hint: `\"secret_file perms 0o{mode:03o} expose secret to group/world — run: chmod 600 {path}\"`. **Verified live: `secret_file perms 0o644 expose secret to group/world — run: chmod 600 /tmp/T-1652-test-secret.hex`**"
+  - "`cmd_fleet_doctor` per-hub block: when `entry.secret_file.is_some()`, expand `~` and call helper; if Some, emit as a warning line (text and JSON). **Wired at hub_obj construction for PASS branch + both Err branches (Ok(Err(e)) and timeout Err(_)) so warning fires even when probe fails. JSON: `secret_perms_warning` field. Text: `[WARN] ...` line under each per-hub status.**"
+  - "`cmd_fleet_status` per-hub block: same wire-in, emit as an action_item-style line so the existing \"Reauth needed\" pattern is mirrored. **Pushed to `actions` Vec early in the loop, before the connect attempt — fires before reachability is known.**"
+  - "Unit tests in `mod tests`: (a) helper returns None for 0o600, (b) helper returns Some for 0o644, (c) helper returns Some for 0o660, (d) helper returns None for non-existent path — using `tempfile` + `std::os::unix::fs::PermissionsExt`. **All 4 added; plus a 5th `expand_secret_file_path_substitutes_home_for_tilde` for the helper's HOME-expansion contract.**"
+  - "`cargo check --workspace` passes — clean (1 pre-existing unrelated warning in termlink-mcp)"
+  - "`cargo test -p termlink --bin termlink -- secret_file_perms expand_secret_file` passes — 5/5 PASS (note: cli crate name is `termlink` not `termlink-cli`, and target is `--bin termlink` since cli has no lib target)"
+  - "Live verification: built debug binary, staged fake HOME with `/tmp/T-1652-test-secret.hex` at chmod 644 + a test hubs.toml profile pointing at it. Ran `fleet status` → ACTIONS line \"test-bad-perms: secret_file perms 0o644 expose secret to group/world — run: chmod 600 /tmp/T-1652-test-secret.hex\" surfaced as item #1, alongside the existing Reauth action. Ran `fleet doctor` → `[WARN] secret_file perms 0o644 expose...` rendered under the per-hub FAIL block. Chmod 600 → both warnings silent. Fixtures cleaned up."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1652-fleet-doctor--status--secretfile-perms-w.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T00:56:05"
+    action: "T-1652: fleet doctor + status — secret_file perms warning (G-011)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 292
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1652-fleet-doctor--status--secretfile-perms-w.md
+generated_by: context-agent-hybrid

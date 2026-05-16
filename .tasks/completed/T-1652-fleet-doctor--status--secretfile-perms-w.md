@@ -4,16 +4,16 @@ name: "fleet doctor + status — secret_file perms warning (G-011)"
 description: >
   fleet doctor + status — secret_file perms warning (G-011)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-16T22:48:26Z
-last_update: 2026-05-16T22:48:26Z
-date_finished: null
+last_update: 2026-05-16T22:56:10Z
+date_finished: 2026-05-16T22:56:10Z
 ---
 
 # T-1652: fleet doctor + status — secret_file perms warning (G-011)
@@ -135,3 +135,22 @@ grep -q "secret_file_perms_warning" crates/termlink-cli/src/commands/remote.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1652-fleet-doctor--status--secretfile-perms-w.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-df8b1b03
+- **Timestamp:** 2026-05-16T22:56:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Helper formats with chmod-octal-display + remediation hint: `"secret_file perms 0o{mode:03o} expose secret to group/world — run: chmod 600 {path}"`. **Verified live: `secret_file perms 0o644 expose se
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/T-1652-test-secret.hex in: Helper formats with chmod-octal-display + remediation hint: `"secret_file perms 0o{mode:03o} expose secret to group/world — run: chmod 600 {path}"`. *`
+- **AC#8 (Agent)** — Live verification: built debug binary, staged fake HOME with `/tmp/T-1652-test-secret.hex` at chmod 644 + a test hubs.toml profile pointing at it. Ran `fleet status` → ACTIONS line "test-bad-perms: se
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/T-1652-test-secret.hex in: Live verification: built debug binary, staged fake HOME with `/tmp/T-1652-test-secret.hex` at chmod 644 + a test hubs.toml profile pointing at it. Ran`
+
+### 2026-05-16T22:56:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
