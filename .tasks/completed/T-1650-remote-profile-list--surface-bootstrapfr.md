@@ -4,16 +4,16 @@ name: "remote profile list — surface bootstrap_from per profile + heal-readine
 description: >
   remote profile list — surface bootstrap_from per profile + heal-readiness summary (T-1648 ergonomic family)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, fleet, ergonomic, discoverability]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1648, T-1649, T-1291, T-1054, T-1055]
 created: 2026-05-16T22:03:58Z
-last_update: 2026-05-16T22:03:58Z
-date_finished: null
+last_update: 2026-05-16T22:16:09Z
+date_finished: 2026-05-16T22:16:09Z
 ---
 
 # T-1650: remote profile list — surface bootstrap_from per profile + heal-readiness summary (T-1648 ergonomic family)
@@ -131,3 +131,15 @@ grep -E "test result: ok|0 failed" /tmp/t1650-test.log
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1650-remote-profile-list--surface-bootstrapfr.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-2982b6db
+- **Timestamp:** 2026-05-16T22:19:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-16T22:16:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
