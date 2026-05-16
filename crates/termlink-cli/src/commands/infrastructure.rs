@@ -516,12 +516,21 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
             let issues = audit_secret_cache(
                 &secrets_dir,
                 local_hub_secret.as_ref().map(|(p, t)| (p.as_path(), *t)),
+                fix,
             );
             if issues.is_empty() {
                 check!("secret_cache", pass, "all cached secrets look healthy");
             } else {
                 for msg in &issues {
-                    check!("secret_cache", warn, msg.clone());
+                    // T-1654: messages prefixed with "fixed:" represent
+                    // successful auto-remediation (--fix chmod 600). Render
+                    // them as pass-class so the operator sees green for the
+                    // closed-loop fix, not yellow for an outstanding warning.
+                    if msg.starts_with("fixed:") {
+                        check!("secret_cache", pass, msg.clone());
+                    } else {
+                        check!("secret_cache", warn, msg.clone());
+                    }
                 }
             }
         }
@@ -997,6 +1006,7 @@ pub(crate) fn cmd_tofu_clear(host: Option<&str>, all: bool, json_output: bool) -
 pub(crate) fn audit_secret_cache(
     secrets_dir: &std::path::Path,
     local_hub: Option<(&std::path::Path, std::time::SystemTime)>,
+    fix: bool,
 ) -> Vec<String> {
     use std::os::unix::fs::PermissionsExt;
     let mut issues = Vec::new();
@@ -1033,11 +1043,36 @@ pub(crate) fn audit_secret_cache(
         }
         let mode = meta.permissions().mode() & 0o777;
         if mode != 0o600 {
-            issues.push(format!(
-                "{} has mode {:o} (expected 600) — world/group-readable cache",
-                path.display(),
-                mode
-            ));
+            // T-1654: when --fix is on, chmod 600 in place — the canonical
+            // T-1055 write mode is the only correct state for a cached HMAC
+            // secret, so auto-remediation is safe. Drift/divergence issues
+            // below are NOT auto-fixed; the operator must decide what's
+            // authoritative.
+            if fix {
+                match std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)) {
+                    Ok(()) => {
+                        issues.push(format!(
+                            "fixed: {} mode 0o{:o} → 0o600",
+                            path.display(),
+                            mode
+                        ));
+                    }
+                    Err(e) => {
+                        issues.push(format!(
+                            "{} has mode {:o} (expected 600) — chmod failed: {}",
+                            path.display(),
+                            mode,
+                            e
+                        ));
+                    }
+                }
+            } else {
+                issues.push(format!(
+                    "{} has mode {:o} (expected 600) — world/group-readable cache",
+                    path.display(),
+                    mode
+                ));
+            }
         }
         if let Some((hub_path, hub_mtime)) = local_hub {
             // Try value comparison first — definitive when readable.
@@ -1177,21 +1212,21 @@ mod tests {
     fn missing_dir_is_empty() {
         let missing = std::env::temp_dir().join("termlink-audit-test-nonexistent-xyz");
         let _ = fs::remove_dir_all(&missing);
-        assert!(audit_secret_cache(&missing, None).is_empty());
+        assert!(audit_secret_cache(&missing, None, false).is_empty());
     }
 
     #[test]
     fn good_perms_no_local_hub_is_empty() {
         let d = tmpdir("good");
         write_hex(&d, "ring20.hex", 0o600);
-        assert!(audit_secret_cache(&d, None).is_empty());
+        assert!(audit_secret_cache(&d, None, false).is_empty());
     }
 
     #[test]
     fn bad_perms_reported() {
         let d = tmpdir("bad-perms");
         write_hex(&d, "proxmox4.hex", 0o644);
-        let issues = audit_secret_cache(&d, None);
+        let issues = audit_secret_cache(&d, None, false);
         assert_eq!(issues.len(), 1);
         assert!(issues[0].contains("mode 644"));
         assert!(issues[0].contains("proxmox4.hex"));
@@ -1202,9 +1237,103 @@ mod tests {
         let d = tmpdir("bak");
         write_hex(&d, "ring20.hex.bak", 0o644); // deliberately bad perms
         assert!(
-            audit_secret_cache(&d, None).is_empty(),
+            audit_secret_cache(&d, None, false).is_empty(),
             ".bak siblings must not be flagged"
         );
+    }
+
+    // T-1654: --fix autoheal contract — auto-chmod 600 on bad-perms cache files.
+
+    #[test]
+    fn fix_chmods_bad_perms_and_reports_fixed_message() {
+        let d = tmpdir("fix-chmod");
+        let p = write_hex(&d, "leaky.hex", 0o644);
+        let issues = audit_secret_cache(&d, None, true);
+        assert_eq!(issues.len(), 1, "expected one fixed:- line, got: {:?}", issues);
+        assert!(issues[0].starts_with("fixed:"),
+            "fix-mode message must begin with `fixed:` so doctor renders pass-class: {}", issues[0]);
+        assert!(issues[0].contains("0o644"),
+            "fixed message must include previous mode: {}", issues[0]);
+        assert!(issues[0].contains("0o600"),
+            "fixed message must include target mode: {}", issues[0]);
+        // Verify the file actually got chmodded.
+        let mode = fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "post-fix mode must be 0o600, got: 0o{:o}", mode);
+    }
+
+    #[test]
+    fn fix_no_op_on_already_correct_perms() {
+        let d = tmpdir("fix-noop");
+        let p = write_hex(&d, "healthy.hex", 0o600);
+        let issues = audit_secret_cache(&d, None, true);
+        assert!(issues.is_empty(),
+            "already-0o600 file must not generate any output even with --fix: {:?}", issues);
+        // Mode preserved.
+        let mode = fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[test]
+    fn fix_does_not_chmod_divergence_only_issues() {
+        // T-1654: drift/divergence is a semantic decision the operator must
+        // make. --fix must not touch the file contents nor mask the warning.
+        let d = tmpdir("fix-divergence");
+        let cache = write_hex(&d, "stalehub.hex", 0o600);
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options().write(true).open(&cache).unwrap().set_modified(past).unwrap();
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"cafebabe").unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), std::time::SystemTime::now())),
+            true,
+        );
+        assert_eq!(issues.len(), 1, "divergence must still warn under --fix: {:?}", issues);
+        assert!(!issues[0].starts_with("fixed:"),
+            "divergence is not auto-fixable; must not pretend it was: {}", issues[0]);
+        assert!(issues[0].contains("diverges"),
+            "divergence wording must survive --fix mode: {}", issues[0]);
+        // File content + perms unchanged.
+        let content = fs::read_to_string(&cache).unwrap();
+        assert_eq!(content.trim(), "deadbeef", "fix must not rewrite divergent cache");
+        let mode = fs::metadata(&cache).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "fix must not chmod already-correct file");
+    }
+
+    #[test]
+    fn fix_combines_chmod_and_drift_independently() {
+        // Real-world: one file has bad perms AND a *different* file is divergent.
+        // --fix must heal the perms problem and leave the divergence warning.
+        //
+        // To isolate the two signals we hand-write content (not write_hex) so
+        // the perms-problem file matches hub.secret value (no drift) and the
+        // divergent file has correct perms but stale value.
+        let d = tmpdir("fix-mixed");
+        let p_bad = d.join("leaky.hex");
+        fs::write(&p_bad, b"cafebabe").unwrap();
+        fs::set_permissions(&p_bad, fs::Permissions::from_mode(0o644)).unwrap();
+        let p_drift = d.join("drift.hex");
+        fs::write(&p_drift, b"deadbeef").unwrap();
+        fs::set_permissions(&p_drift, fs::Permissions::from_mode(0o600)).unwrap();
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        fs::File::options().write(true).open(&p_drift).unwrap().set_modified(past).unwrap();
+        let hub_secret = d.join("hub.secret");
+        fs::write(&hub_secret, b"cafebabe").unwrap();
+        let issues = audit_secret_cache(
+            &d,
+            Some((hub_secret.as_path(), std::time::SystemTime::now())),
+            true,
+        );
+        // Expect exactly 2 lines (1 fixed: from leaky.hex perms + 1 diverges from drift.hex).
+        // readdir order not guaranteed → check by partition.
+        assert_eq!(issues.len(), 2, "got: {:?}", issues);
+        let fixed_count = issues.iter().filter(|m| m.starts_with("fixed:")).count();
+        let drift_count = issues.iter().filter(|m| m.contains("diverges")).count();
+        assert_eq!(fixed_count, 1, "exactly one fixed: line expected: {:?}", issues);
+        assert_eq!(drift_count, 1, "exactly one diverges line expected: {:?}", issues);
+        // Bad-perms file healed.
+        let m_bad = fs::metadata(&p_bad).unwrap().permissions().mode() & 0o777;
+        assert_eq!(m_bad, 0o600, "leaky.hex must be chmodded to 0o600");
     }
 
     #[test]
@@ -1224,6 +1353,7 @@ mod tests {
         let issues = audit_secret_cache(
             &d,
             Some((hub_secret.as_path(), std::time::SystemTime::now())),
+            false,
         );
         assert_eq!(issues.len(), 1);
         // T-1284: with value-comparison enabled, the message now leads
@@ -1253,6 +1383,7 @@ mod tests {
         let issues = audit_secret_cache(
             &d,
             Some((hub_secret.as_path(), std::time::SystemTime::now())),
+            false,
         );
         assert!(
             issues.is_empty(),
@@ -1282,6 +1413,7 @@ mod tests {
         let issues = audit_secret_cache(
             &d,
             Some((hub_secret.as_path(), std::time::SystemTime::now())),
+            false,
         );
         assert_eq!(issues.len(), 1, "got: {:?}", issues);
         assert!(
@@ -1311,6 +1443,7 @@ mod tests {
         let issues = audit_secret_cache(
             &d,
             Some((hub_secret.as_path(), past)),
+            false,
         );
         assert!(
             issues.is_empty(),
