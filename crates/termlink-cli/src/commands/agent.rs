@@ -705,7 +705,9 @@ pub(crate) fn parse_contact_target(input: &str) -> Result<(String, Option<String
 /// Errors:
 /// - target not found locally → exit code 1, message names the session
 /// - peer registered before T-1436 (no identity_fingerprint in metadata) →
-///   exit 8, message instructs operator to upgrade the peer's binary
+///   exit 8, message lists three recovery paths: upgrade peer binary,
+///   pass `--target-fp <hex>`, or post via `agent-chat-arc --mention`
+///   (T-1644).
 pub(crate) async fn cmd_agent_contact(
     target: Option<&str>,
     target_fp: Option<&str>,
@@ -786,9 +788,13 @@ pub(crate) async fn cmd_agent_contact(
         reg.metadata.identity_fingerprint.clone().ok_or_else(|| {
             let msg = format!(
                 "Peer '{target_name}' has no identity_fingerprint in metadata — \
-                 likely registered before T-1436. Upgrade the peer's termlink \
-                 binary and restart the session, then retry. (Or use \
-                 --target-fp <hex> to bypass session.discover for cross-host.)"
+                 likely registered before T-1436. Three recovery paths: \
+                 (1) upgrade the peer's termlink binary and restart the session, then retry; \
+                 (2) if you know the peer's fingerprint, pass --target-fp <hex>; \
+                 (3) post to a public topic with --mention, e.g.: \
+                 `termlink channel post agent-chat-arc --mention {target_name} \
+                 --metadata _thread=<task-id> --payload '<msg>'` \
+                 (T-1430 protocol canon — works without restarting the peer)."
             );
             if json {
                 super::json_error_exit(serde_json::json!({
@@ -1031,7 +1037,9 @@ pub(crate) async fn cmd_agent_contact(
 /// share the same error semantics. Returns exit codes via `process::exit`
 /// on miss so the caller doesn't have to plumb the JSON envelope:
 /// - session not found → exit 1 (caller already printed JSON if needed)
-/// - peer registered before T-1436 → exit 8
+/// - peer registered before T-1436 → exit 8 (message lists three recovery
+///   paths: upgrade peer binary, pass --target-fp, or post via
+///   `agent-chat-arc --mention` — T-1644).
 fn resolve_target_name_to_fp(target_name: &str, json: bool) -> String {
     let reg = match manager::find_session(target_name) {
         Ok(r) => r,
@@ -1053,9 +1061,13 @@ fn resolve_target_name_to_fp(target_name: &str, json: bool) -> String {
         None => {
             let msg = format!(
                 "Peer '{target_name}' has no identity_fingerprint in metadata — \
-                 likely registered before T-1436. Upgrade the peer's termlink \
-                 binary and restart the session, then retry. (Or use \
-                 --target-fp <hex> to bypass session.discover.)"
+                 likely registered before T-1436. Three recovery paths: \
+                 (1) upgrade the peer's termlink binary and restart the session, then retry; \
+                 (2) if you know the peer's fingerprint, pass --target-fp <hex>; \
+                 (3) post to a public topic with --mention, e.g.: \
+                 `termlink channel post agent-chat-arc --mention {target_name} \
+                 --metadata _thread=<task-id> --payload '<msg>'` \
+                 (T-1430 protocol canon — works without restarting the peer)."
             );
             if json {
                 super::json_error_exit(serde_json::json!({
