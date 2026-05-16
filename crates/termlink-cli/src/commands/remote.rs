@@ -957,6 +957,14 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 if bootstrap_omitted {
                     println!("  Tip: no `bootstrap_from` declared — add `--bootstrap-from ssh:{}` to enable one-flag heal (T-1291)", host_for_tip);
                 }
+                // T-1653 (PL-159 mirror of T-1652): add-time perms warning so a
+                // world-readable secret_file is caught at configuration moment
+                // rather than waiting for the next fleet status / fleet doctor.
+                if let Some(secret_path_raw) = config.hubs.get(&name).and_then(|e| e.secret_file.as_deref())
+                    && let Some(warning) = secret_file_perms_warning(&expand_secret_file_path(secret_path_raw))
+                {
+                    println!("  Warning: {}", warning);
+                }
             }
             Ok(())
         }
@@ -968,6 +976,11 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                     names.sort();
                     names.iter().map(|name| {
                         let entry = &config.hubs[*name];
+                        // T-1653 (PL-159 mirror of T-1652): inspection-time perms surfacing.
+                        let secret_perms_warning = entry
+                            .secret_file
+                            .as_deref()
+                            .and_then(|p| secret_file_perms_warning(&expand_secret_file_path(p)));
                         serde_json::json!({
                             "name": name,
                             "address": entry.address,
@@ -977,6 +990,9 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                                 else { "none" },
                             // T-1650: surface declarative heal anchor for parity with T-1291.
                             "bootstrap_from": entry.bootstrap_from,
+                            // T-1653: null when perms are 600 or no secret_file — keeps
+                            // machine consumers' field set stable; presence is a flag.
+                            "secret_perms_warning": secret_perms_warning,
                         })
                     }).collect()
                 };
@@ -1007,6 +1023,14 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 };
                 let heal = if entry.bootstrap_from.is_some() { "auto" } else { "-" };
                 println!("{:<12} {:<28} {:<10} {:<10} {}", name, entry.address, scope, secret_info, heal);
+                // T-1653 (PL-159 mirror of T-1652): inspection-time perms warning,
+                // rendered as an indented row under the affected profile so the
+                // operator sees it without leaving the list view.
+                if let Some(secret_path_raw) = entry.secret_file.as_deref()
+                    && let Some(warning) = secret_file_perms_warning(&expand_secret_file_path(secret_path_raw))
+                {
+                    println!("  Warning: {}", warning);
+                }
             }
             if !no_header {
                 println!();
