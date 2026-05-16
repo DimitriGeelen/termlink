@@ -5173,9 +5173,20 @@ pub(crate) enum EventCommand {
 
     /// Watch events from one or more sessions in real-time
     Watch {
-        /// Session IDs or display names (omit for all sessions)
-        #[arg(value_name = "TARGET")]
+        /// Session IDs or display names (omit for all sessions). Mutually
+        /// exclusive with `--hub`.
+        #[arg(value_name = "TARGET", conflicts_with = "hub")]
         targets: Vec<String>,
+
+        /// Subscribe to the hub-level event aggregator instead of enumerating
+        /// per-session buses (T-1645). Surfaces events emitted via
+        /// `aggregator().inject()` with `session_id: "hub"` — notably
+        /// `inbox.queued` from `channel.post inbox:<id>`. Mutually exclusive
+        /// with positional `<TARGET>` args. Aggregator is a real-time
+        /// broadcast channel (no `--since` cursor); `--timeout` bounds the
+        /// collection window.
+        #[arg(long, conflicts_with = "targets")]
+        hub: bool,
 
         /// Poll interval in milliseconds (default: 500)
         #[arg(long, default_value = "500")]
@@ -5376,4 +5387,58 @@ pub(crate) enum KvAction {
         /// Key name
         key: String,
     },
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+    use clap::Parser;
+
+    /// T-1645: `event watch --hub` parses to Watch{ hub: true, targets: empty }.
+    #[test]
+    fn event_watch_hub_flag_parses() {
+        let cli = Cli::try_parse_from([
+            "termlink", "event", "watch", "--hub", "--topic", "inbox.queued",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Event(EventCommand::Watch { hub, targets, topic, .. }) => {
+                assert!(hub, "--hub should be true");
+                assert!(targets.is_empty(), "no positional targets when --hub");
+                assert_eq!(topic.as_deref(), Some("inbox.queued"));
+            }
+            _ => panic!("expected Event::Watch"),
+        }
+    }
+
+    /// T-1645: `event watch --hub <target>` is rejected (conflicts_with).
+    #[test]
+    fn event_watch_hub_conflicts_with_positional_target() {
+        let err = Cli::try_parse_from([
+            "termlink", "event", "watch", "--hub", "some-session",
+        ])
+        .err()
+        .expect("should reject --hub + positional target");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot be used with") || msg.contains("conflict"),
+            "expected conflict error, got: {msg}"
+        );
+    }
+
+    /// T-1645: `event watch` without --hub still accepts positional targets.
+    #[test]
+    fn event_watch_without_hub_accepts_targets() {
+        let cli = Cli::try_parse_from([
+            "termlink", "event", "watch", "alpha", "beta",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Event(EventCommand::Watch { hub, targets, .. }) => {
+                assert!(!hub);
+                assert_eq!(targets, vec!["alpha".to_string(), "beta".to_string()]);
+            }
+            _ => panic!("expected Event::Watch"),
+        }
+    }
 }

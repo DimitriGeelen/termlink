@@ -120,9 +120,13 @@ async fn main() -> Result<()> {
             EventCommand::Poll { target, since, topic, json, timeout, payload_only } => {
                 commands::events::cmd_events(&resolve_target(target)?, since, topic.as_deref(), json, timeout, payload_only).await
             }
-            EventCommand::Watch { targets, interval, topic, json, timeout, count, payload_only, since } => {
+            EventCommand::Watch { targets, hub, interval, topic, json, timeout, count, payload_only, since } => {
                 let watch_opts = commands::events::WatchOpts { interval_ms: interval, topic_filter: topic.as_deref(), json, timeout_secs: timeout, max_count: count, payload_only, since };
-                commands::events::cmd_watch(targets, watch_opts).await
+                if hub {
+                    commands::events::cmd_watch_hub(watch_opts).await
+                } else {
+                    commands::events::cmd_watch(targets, watch_opts).await
+                }
             }
             EventCommand::Emit { target, topic, payload, json, timeout } => {
                 commands::events::cmd_emit(&target, &topic, &payload, json, timeout).await

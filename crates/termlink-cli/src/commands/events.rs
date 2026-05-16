@@ -747,6 +747,145 @@ pub(crate) async fn cmd_watch(
     Ok(())
 }
 
+/// T-1645: Subscribe to the hub-level event aggregator (no `target` param).
+///
+/// Hub router routes `event.subscribe` with no `target` to
+/// `handle_hub_subscribe` → `aggregator.collect()`. This surfaces events
+/// emitted via `aggregator().inject(...)` with `session_id: "hub"` — notably
+/// `inbox.queued` from `channel.post inbox:<id>` (T-1636/T-1637 emit-site).
+/// The aggregator is a tokio broadcast channel: real-time only, no `since`
+/// cursor. `opts.since` is ignored under hub mode (warned at JSON-mode).
+pub(crate) async fn cmd_watch_hub(opts: WatchOpts<'_>) -> Result<()> {
+    let WatchOpts { interval_ms, topic_filter, json, timeout_secs, max_count, payload_only, since } = opts;
+
+    let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
+    if !hub_socket.exists() {
+        if json {
+            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+        }
+        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+    }
+
+    if since.is_some() && !json {
+        eprintln!("Note: --since is ignored under --hub (aggregator is real-time broadcast, no cursor).");
+    }
+
+    if !json {
+        eprintln!("Watching hub-level event aggregator. Press Ctrl+C to stop.");
+        if let Some(t) = topic_filter {
+            eprintln!("  Topic filter: {}", t);
+        }
+        if timeout_secs > 0 {
+            eprintln!("  Timeout: {}s", timeout_secs);
+        }
+        eprintln!();
+    }
+
+    let subscribe_timeout_ms = interval_ms.max(100);
+    let deadline = if timeout_secs > 0 {
+        Some(std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs))
+    } else {
+        None
+    };
+    let mut total_received: u64 = 0;
+
+    loop {
+        if let Some(dl) = deadline
+            && std::time::Instant::now() >= dl
+        {
+            if !json {
+                eprintln!();
+                eprintln!("Stopped (timeout after {}s). {} event(s) received.", timeout_secs, total_received);
+            }
+            break;
+        }
+
+        tokio::select! {
+            biased;
+            _ = tokio::signal::ctrl_c() => {
+                if !json {
+                    eprintln!();
+                    eprintln!("Stopped. {} event(s) received.", total_received);
+                }
+                break;
+            }
+            subscribe_result = async {
+                let mut params = serde_json::json!({
+                    "timeout_ms": subscribe_timeout_ms,
+                });
+                if let Some(t) = topic_filter {
+                    params["topic"] = serde_json::json!(t);
+                }
+                // No `target` field → routes to handle_hub_subscribe (router.rs:128 + 610)
+                client::rpc_call(&hub_socket, "event.subscribe", params).await
+            } => {
+                let resp = match subscribe_result {
+                    Ok(r) => r,
+                    Err(e) => {
+                        if !json {
+                            eprintln!("Hub connection error: {}. Retrying...", e);
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        continue;
+                    }
+                };
+                if let Ok(result) = client::unwrap_result(resp)
+                    && let Some(events) = result["events"].as_array()
+                {
+                    for event in events {
+                        let session = event["session"].as_str().unwrap_or("hub");
+                        let session_name = event["session_name"].as_str().unwrap_or(session);
+                        let seq = event["seq"].as_u64().unwrap_or(0);
+                        let topic = event["topic"].as_str().unwrap_or("?");
+                        let payload = &event["payload"];
+                        let ts = event["timestamp"].as_u64().unwrap_or(0);
+
+                        if payload_only {
+                            if !payload.is_null() {
+                                println!("{}", serde_json::to_string(payload).unwrap_or_default());
+                            }
+                        } else if json {
+                            println!("{}", serde_json::json!({
+                                "ok": true,
+                                "source": "hub-aggregator",
+                                "session": session,
+                                "session_name": session_name,
+                                "seq": seq,
+                                "topic": topic,
+                                "payload": payload,
+                                "timestamp": ts,
+                            }));
+                        } else if payload.is_null()
+                            || payload.as_object().is_some_and(|o| o.is_empty())
+                        {
+                            println!("[hub:{session_name}#{seq}] {topic} (t={ts})");
+                        } else {
+                            println!(
+                                "[hub:{session_name}#{seq}] {topic}: {} (t={ts})",
+                                serde_json::to_string(payload).unwrap_or_default()
+                            );
+                        }
+                        total_received += 1;
+                        if max_count > 0 && total_received >= max_count {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if max_count > 0 && total_received >= max_count {
+            if !json {
+                eprintln!();
+                eprintln!("{} event(s) received (limit reached).", total_received);
+            }
+            break;
+        }
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool, since: Option<u64>) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
