@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1654: termlink doctor --fix: auto-chmod 600 on bad-perms secret cache files
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-16T23:10:15Z
+# ============================================================================
+
+task_id: T-1654
+task_name: "termlink doctor --fix: auto-chmod 600 on bad-perms secret cache files"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T23:03:38Z
+completed: 2026-05-16T23:09:55Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T01:08:55+02:00
+last_commit: 2026-05-17T01:09:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink doctor --fix auto-chmods bad-perms secret cache files. add RCA block (satisfy bug-class gate for --fix flag title)
+
+# Key outcomes
+outcomes:
+  - "`audit_secret_cache` gains a `fix: bool` parameter; when `fix=true` AND a file has non-0o600 perms, `chmod 600` runs on it before recording the issue, and the issue text becomes `\"fixed: <path> mode 0o{prev} → 0o600\"` instead of the warn text. **Failures of the chmod call itself emit `\"<path> has mode {} — chmod failed: <err>\"` so operator sees the actual error.**"
+  - "Drift/divergence issues (value mismatch + older mtime) are NOT auto-fixed — they remain warn-only since the operator must decide what's authoritative. The fix flag has no effect on those lines. **Test `fix_does_not_chmod_divergence_only_issues` verifies file content + perms unchanged.**"
+  - "`cmd_doctor` passes its `fix` parameter through to the audit call. **Was previously hardcoded; now threaded.**"
+  - "The check status changes from `warn` to `pass` (using a dedicated `fixed:` prefix) when --fix successfully chmods every bad-perm file. Mixed outcomes (some fixed, some divergence remaining) still warn for the residual divergence. **Call site partitions on `msg.starts_with(\"fixed:\")` to choose pass vs warn class.**"
+  - "Unit tests in `infrastructure.rs` test module: 4 new tests added (`fix_chmods_bad_perms_and_reports_fixed_message`, `fix_no_op_on_already_correct_perms`, `fix_does_not_chmod_divergence_only_issues`, `fix_combines_chmod_and_drift_independently`). All 7 existing tests updated to pass `false` for the new parameter (call-site signature change)."
+  - "`cargo check --workspace` passes — clean (1 pre-existing unrelated warning in termlink-mcp)"
+  - "`cargo test -p termlink --bin termlink -- fix_chmods fix_no_op fix_does_not_chmod fix_combines bad_perms_reported good_perms` passes — **6/6 tests PASS**"
+  - "Live verification: built debug binary, staged fake HOME with `~/.termlink/secrets/test.hex` at 0o644. Ran `termlink doctor` (no --fix) → yellow warn line \"has mode 644 (expected 600) — world/group-readable cache\". Ran `termlink doctor --fix` → green pass line \"fixed: /tmp/.../test.hex mode 0o644 → 0o600\"; post-stat confirmed mode 600. Cleanup done."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "add RCA block (satisfy bug-class gate for `--fix` flag title)"
+    source: git-mined
+  - description: "termlink doctor --fix auto-chmods bad-perms secret cache files"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-1654-termlink-doctor---fix-auto-chmod-600-on-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T01:08:55"
+    action: "T-1654: termlink doctor --fix auto-chmods bad-perms secret cache files"
+  - time: "2026-05-17T01:09:51"
+    action: "T-1654: add RCA block (satisfy bug-class gate for `--fix` flag title)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 2
+  lines_added: 287
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1654-termlink-doctor---fix-auto-chmod-600-on-.md
+generated_by: context-agent-hybrid
