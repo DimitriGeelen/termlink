@@ -1526,15 +1526,21 @@ pub struct EventPollParams {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct EventSubscribeParams {
-    /// Session ID or display name
-    pub target: String,
+    /// Session ID or display name. Omit (or pass null) to subscribe to the
+    /// hub-level event aggregator instead — surfaces events emitted via
+    /// `aggregator().inject()` with `session_id: "hub"` (notably
+    /// `inbox.queued` from `channel.post inbox:<id>`). T-1647 / PL-158:
+    /// the hub-aggregator subscribe path is now reachable from MCP as well
+    /// as CLI (`event watch --hub`, T-1645).
+    pub target: Option<String>,
     /// Timeout in milliseconds (default 5000). Server blocks until events arrive or timeout.
     pub timeout_ms: Option<u64>,
     /// Filter by topic
     pub topic: Option<String>,
-    /// Replay historical events with seq > since before streaming live events
+    /// Replay historical events with seq > since before streaming live events.
+    /// Ignored in hub-aggregator mode (broadcast channel, no cursor).
     pub since: Option<u64>,
-    /// Maximum events to return (default 100)
+    /// Maximum events to return (default 100). Ignored in hub-aggregator mode.
     pub max_events: Option<u64>,
 }
 
@@ -2206,14 +2212,11 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_event_subscribe",
-        description = "Subscribe to events from a session using push-based delivery. Blocks until events arrive or timeout. Lower latency than polling. Optional 'since' parameter replays historical events before streaming live ones."
+        description = "Subscribe to events using push-based delivery. Blocks until events arrive or timeout. Lower latency than polling. Two modes: (1) per-session: pass `target` (session ID or display name) — surfaces events on that session's event bus, supports `since` cursor; (2) hub-level: omit `target` (or pass null) — surfaces hub-aggregator events including `inbox.queued` from `channel.post inbox:<id>` (T-1645/T-1647, PL-158). Hub mode ignores `since`/`max_events` (aggregator is a real-time broadcast)."
     )]
     async fn termlink_event_subscribe(&self, Parameters(p): Parameters<EventSubscribeParams>) -> String {
-        let reg = match manager::find_session(&p.target) {
-            Ok(r) => r,
-            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
-        };
-
+        // Build common params (timeout, topic). Hub mode skips since/max_events
+        // because the aggregator is a tokio broadcast channel — no cursor.
         let mut params = serde_json::json!({});
         if let Some(timeout_ms) = p.timeout_ms {
             params["timeout_ms"] = serde_json::json!(timeout_ms);
@@ -2221,14 +2224,35 @@ impl TermLinkTools {
         if let Some(topic) = &p.topic {
             params["topic"] = serde_json::json!(topic);
         }
-        if let Some(since) = p.since {
-            params["since"] = serde_json::json!(since);
-        }
-        if let Some(max_events) = p.max_events {
-            params["max_events"] = serde_json::json!(max_events);
-        }
 
-        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
+        let socket_path: std::path::PathBuf = match &p.target {
+            Some(t) => {
+                // Per-session mode (existing behavior). Include since/max_events.
+                if let Some(since) = p.since {
+                    params["since"] = serde_json::json!(since);
+                }
+                if let Some(max_events) = p.max_events {
+                    params["max_events"] = serde_json::json!(max_events);
+                }
+                let reg = match manager::find_session(t) {
+                    Ok(r) => r,
+                    Err(e) => return json_err(format!("session '{}' not found: {e}", t)),
+                };
+                reg.socket_path().to_path_buf()
+            }
+            None => {
+                // T-1647 / PL-158: hub-aggregator mode. No `target` field in
+                // params → router routes to handle_hub_subscribe →
+                // aggregator.collect(). Resolve hub socket directly.
+                let (_, hub_socket) = resolve_hub_paths();
+                if !hub_socket.exists() {
+                    return json_err("Hub is not running. Start it with: termlink hub");
+                }
+                hub_socket
+            }
+        };
+
+        match client::rpc_call(&socket_path, "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(e),
@@ -15023,11 +15047,31 @@ mod tests {
     fn event_subscribe_params_defaults() {
         let json = serde_json::json!({"target": "s1"});
         let p: EventSubscribeParams = serde_json::from_value(json).unwrap();
-        assert_eq!(p.target, "s1");
+        assert_eq!(p.target.as_deref(), Some("s1"));
         assert!(p.timeout_ms.is_none());
         assert!(p.topic.is_none());
         assert!(p.since.is_none());
         assert!(p.max_events.is_none());
+    }
+
+    /// T-1647: `target` is optional — omit for hub-aggregator mode (PL-158).
+    #[test]
+    fn event_subscribe_params_hub_mode_omits_target() {
+        let json = serde_json::json!({"topic": "inbox.queued", "timeout_ms": 5000});
+        let p: EventSubscribeParams = serde_json::from_value(json).unwrap();
+        assert!(p.target.is_none(), "target should be optional");
+        assert_eq!(p.topic.as_deref(), Some("inbox.queued"));
+        assert_eq!(p.timeout_ms, Some(5000));
+    }
+
+    /// T-1647: explicit null target also accepted (some MCP clients pass null
+    /// rather than omitting the key).
+    #[test]
+    fn event_subscribe_params_hub_mode_null_target() {
+        let json = serde_json::json!({"target": null, "topic": "inbox.queued"});
+        let p: EventSubscribeParams = serde_json::from_value(json).unwrap();
+        assert!(p.target.is_none());
+        assert_eq!(p.topic.as_deref(), Some("inbox.queued"));
     }
 
     #[test]
