@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-16T07:33:18Z
-last_update: 2026-05-16T07:33:18Z
+last_update: 2026-05-16T07:43:34Z
 date_finished: null
 ---
 
@@ -61,7 +61,7 @@ Mutually exclusive with `--message`. Exactly one must be set.
 
 cargo check --workspace 2>&1 | tail -3 | grep -q "Finished\|^$"
 cargo build -p termlink --release > /tmp/T-1646-build.log 2>&1 && grep -q "Finished" /tmp/T-1646-build.log
-grep -q "file: Option<PathBuf>" crates/termlink-cli/src/cli.rs
+grep -qE "file: Option<(std::path::)?PathBuf>" crates/termlink-cli/src/cli.rs
 grep -q "message: Option<String>" crates/termlink-cli/src/cli.rs
 
 # Trailing original template (commented):
