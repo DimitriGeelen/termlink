@@ -263,8 +263,9 @@ async fn main() -> Result<()> {
             AgentAction::Negotiate { specialist, schema, draft, from, max_rounds, timeout, interval, json } => {
                 commands::agent::cmd_agent_negotiate(commands::agent::NegotiateOpts { specialist: &specialist, schema_str: &schema, draft_str: &draft, from: from.as_deref(), max_rounds, timeout, interval, json }).await
             }
-            AgentAction::Contact { target, target_fp, message, thread, hub, json, dry_run, require_online, online_window_secs, ack_required, ack_timeout_secs } => {
-                commands::agent::cmd_agent_contact(target.as_deref(), target_fp.as_deref(), &message, thread.as_deref(), hub.as_deref(), json, dry_run, require_online, online_window_secs, ack_required, ack_timeout_secs).await
+            AgentAction::Contact { target, target_fp, message, file, thread, hub, json, dry_run, require_online, online_window_secs, ack_required, ack_timeout_secs } => {
+                let resolved_message = commands::agent::resolve_contact_message(message.as_deref(), file.as_deref())?;
+                commands::agent::cmd_agent_contact(target.as_deref(), target_fp.as_deref(), &resolved_message, thread.as_deref(), hub.as_deref(), json, dry_run, require_online, online_window_secs, ack_required, ack_timeout_secs).await
             }
             AgentAction::Who { target_fp, target, window_secs, hub, json, filter_thread } => {
                 commands::agent::cmd_agent_who(target_fp.as_deref(), target.as_deref(), window_secs, hub.as_deref(), json, filter_thread.as_deref()).await

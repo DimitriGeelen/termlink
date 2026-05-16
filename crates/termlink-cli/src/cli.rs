@@ -3384,9 +3384,21 @@ pub(crate) enum AgentAction {
         #[arg(long = "target-fp")]
         target_fp: Option<String>,
 
-        /// Message body
+        /// Message body. Mutually exclusive with `--file`; exactly one must
+        /// be set. For large structured handoffs prefer `--file`.
         #[arg(long)]
-        message: String,
+        message: Option<String>,
+
+        /// Read message body from a file (T-1646, T-1429 Phase-2 partial).
+        /// Mutually exclusive with `--message`; exactly one must be set. The
+        /// file is read as UTF-8 via `fs::read_to_string`; empty files are
+        /// rejected with a clear error. Useful for large structured
+        /// handoffs (proposals, RCAs) where inline `--message "<string>"`
+        /// would hit shell-quoting hazards. The peer-command `channel post`
+        /// already supports stdin-payload; this brings the same ergonomic
+        /// to `agent contact`.
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
 
         /// Thread / task id for routing (sets `metadata._thread=<value>`,
         /// per agent-chat-arc protocol canon). When set, vendored agents
