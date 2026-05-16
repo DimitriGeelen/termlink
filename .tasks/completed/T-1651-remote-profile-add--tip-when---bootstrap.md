@@ -4,16 +4,16 @@ name: "remote profile add — tip when --bootstrap-from omitted (heal-readiness 
 description: >
   remote profile add — tip when --bootstrap-from omitted (heal-readiness add-time nudge)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, fleet, ergonomic, discoverability]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1650, T-1648, T-1649, T-1291]
 created: 2026-05-16T22:23:56Z
-last_update: 2026-05-16T22:23:56Z
-date_finished: null
+last_update: 2026-05-16T22:31:50Z
+date_finished: 2026-05-16T22:31:50Z
 ---
 
 # T-1651: remote profile add — tip when --bootstrap-from omitted (heal-readiness add-time nudge)
@@ -127,3 +127,15 @@ cargo build --release -p termlink 2>&1 | tail -3 | grep -E "Finished|error"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1651-remote-profile-add--tip-when---bootstrap.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-fdb3dc3e
+- **Timestamp:** 2026-05-16T22:38:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-16T22:31:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
