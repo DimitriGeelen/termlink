@@ -4,16 +4,16 @@ name: "termlink doctor --fix: auto-chmod 600 on bad-perms secret cache files"
 description: >
   termlink doctor --fix: auto-chmod 600 on bad-perms secret cache files
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-05-16T23:03:38Z
-last_update: 2026-05-16T23:03:38Z
-date_finished: null
+last_update: 2026-05-16T23:09:55Z
+date_finished: 2026-05-16T23:09:55Z
 ---
 
 # T-1654: termlink doctor --fix: auto-chmod 600 on bad-perms secret cache files
@@ -142,3 +142,20 @@ cargo test -p termlink --bin termlink -- audit_secret_cache
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1654-termlink-doctor---fix-auto-chmod-600-on-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-fb9de914
+- **Timestamp:** 2026-05-16T23:10:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#8 (Agent)** — Live verification: built debug binary, staged fake HOME with `~/.termlink/secrets/test.hex` at 0o644. Ran `termlink doctor` (no --fix) → yellow warn line "has mode 644 (expected 600) — world/group-rea
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/secrets/test.hex in: Live verification: built debug binary, staged fake HOME with `~/.termlink/secrets/test.hex` at 0o644. Ran `termlink doctor` (no --fix) → yellow warn l`
+
+### 2026-05-16T23:09:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
