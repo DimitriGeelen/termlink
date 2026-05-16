@@ -1369,3 +1369,10 @@ learnings:
   date: 2026-05-15
   context: Added via context agent
   application: TBD
+- id: PL-158
+  learning: "When a hub event is emitted via aggregator().inject() with session_id='hub' (e.g., inbox.queued from channel.post inbox:<id>), the canonical CLI/MCP path must reach the hub-aggregator stream, not the per-session bus. Per-session probes (event poll <target>) cannot see direct-inject aggregator events. Acceptance gate for new hub-aggregator emits should include a CLI invocation, not just an agg.collect() unit test. Mirror-image of T-966: aggregator is the canonical fan-in sink; CLI must reach it explicitly via event.subscribe with no target."
+  source: P-001
+  task: T-1645
+  date: 2026-05-16
+  context: Added via context agent
+  application: TBD

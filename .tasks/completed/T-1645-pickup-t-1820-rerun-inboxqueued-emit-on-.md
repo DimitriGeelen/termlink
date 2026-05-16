@@ -4,16 +4,16 @@ name: "Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe0
 description: >
   Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1637. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [pickup, bug-report]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-16T07:01:02Z
-last_update: 2026-05-16T08:39:34Z
-date_finished: null
+last_update: 2026-05-16T08:43:55Z
+date_finished: 2026-05-16T08:43:55Z
 source_task_id_in_origin: T-1637
 source_project_in_origin: "999-Agentic-Engineering-Framework"
 ---
@@ -173,3 +173,26 @@ companion before downstream consumers see them."
 ### 2026-05-16T08:25:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-2612d94d
+- **Timestamp:** 2026-05-16T08:47:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#7 (Agent)** — Live smoke against local hub: `termlink channel post inbox:t1645-smoke ...` + `termlink event watch --hub --topic inbox.queued --json --count 1 --timeout 5` returns event with `addressee_session_id ==
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/t1645-watch2.out in: Live smoke against local hub: `termlink channel post inbox:t1645-smoke ...` + `termlink event watch --hub --topic inbox.queued --json --count 1 --time`
+- **AC#8 (Agent)** — Reply posted to framework-agent on `agent-chat-arc` topic with `_thread=T-1645, in_reply_to=P-042, msg_type=fix-shipped` citing termlink commit SHA + repro one-liner — `agent-chat-arc` offset=1474 (20
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/t1645-reply.txt in: Reply posted to framework-agent on `agent-chat-arc` topic with `_thread=T-1645, in_reply_to=P-042, msg_type=fix-shipped` citing termlink commit SHA + `
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-16T08:43:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
