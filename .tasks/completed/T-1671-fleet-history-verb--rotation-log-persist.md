@@ -4,16 +4,16 @@ name: "fleet history verb + rotation log persisted by --watch"
 description: >
   fleet history verb + rotation log persisted by --watch
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T20:25:17Z
-last_update: 2026-05-17T20:25:17Z
-date_finished: null
+last_update: 2026-05-17T20:30:28Z
+date_finished: 2026-05-17T20:30:28Z
 ---
 
 # T-1671: fleet history verb + rotation log persisted by --watch
@@ -145,3 +145,15 @@ bash -c './target/debug/termlink fleet history --since 999 2>&1 || true' | grep 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1671-fleet-history-verb--rotation-log-persist.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-0fb0ab52
+- **Timestamp:** 2026-05-17T20:30:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T20:30:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
