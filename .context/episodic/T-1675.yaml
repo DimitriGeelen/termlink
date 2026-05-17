@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1675: tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate all 8 callers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T21:09:50Z
+# ============================================================================
+
+task_id: T-1675
+task_name: "tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate all 8 callers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T20:59:40Z
+completed: 2026-05-17T21:09:48Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`probe_cert_with_timeout(addr: &str, timeout: Duration) -> Result<(Vec<u8>, String), String>` added to `crates/termlink-session/src/tofu.rs:447-468`, returning `TLS probe to {addr} timeout after {N}s` on timeout"
+  - "All 8 call sites migrated: `remote.rs` (cmd_fleet_doctor + cmd_fleet_verify), `infrastructure.rs` (cmd_hub_probe + cmd_tofu_verify), `tools.rs` (termlink_fleet_verify + termlink_hub_probe + termlink_tofu_verify). `grep probe_cert | grep -v probe_cert_with_timeout` returns zero matches in those files"
+  - "T-1674's inline `tokio::time::timeout` wrapper in `cmd_fleet_doctor` collapsed to a single `probe_cert_with_timeout` call — DRY achieved"
+  - "`cargo check --workspace` passes (1 pre-existing termlink-mcp warning unchanged)"
+  - "Live smoke: `fleet verify` total wall time **10.02s** with laptop-141 unreachable (was unbounded; T-1667 commit notes reported 2m16s for the parallel-spawn case). `hub probe 192.168.10.141:9100` and `tofu verify 192.168.10.141:9100` both bail at 10.01s with the canonical error string"
+  - "Unit test `tofu::tests::probe_cert_with_timeout_errors_on_unreachable` passes — probes RFC 5737 TEST-NET-1 with 1s bound, asserts error path includes addr + duration if timeout fires"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1675-tofuprobecertwithtimeout--pull-t-1674-ti.md
+generated_by: context-agent-hybrid
