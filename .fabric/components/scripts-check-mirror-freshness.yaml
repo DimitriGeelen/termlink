@@ -4,8 +4,9 @@ type: script
 subsystem: operations
 location: scripts/check-mirror-freshness.sh
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "Operational check: compares OneDev origin HEAD to GitHub mirror HEAD; alerts on drift (G-007). Black-box git ls-remote; no source-level edges."
 
 depends_on:
   # Format: - target: <relative-path>

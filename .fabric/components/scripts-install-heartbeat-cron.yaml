@@ -4,8 +4,9 @@ type: script
 subsystem: unknown
 location: scripts/install-heartbeat-cron.sh
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "Installer: writes agent-chat-arc heartbeat cron entry into /etc/cron.d. Standalone — pure file emission."
 
 depends_on:
   # Format: - target: <relative-path>

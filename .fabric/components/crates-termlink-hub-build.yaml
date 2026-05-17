@@ -4,8 +4,9 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/build.rs
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "Cargo build script for termlink-hub: derives version from git tags (T-1458). Standalone — runs at compile time, queries git, no source imports."
 
 depends_on:
   # Format: - target: <relative-path>

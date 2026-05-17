@@ -4,8 +4,9 @@ type: script
 subsystem: hub
 location: crates/termlink-hub/tests/no_legacy_callers.rs
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "T-1406 regression guard: scans crates/**/src/**/*.rs for new direct callers of legacy primitives (event.broadcast, inbox.*, file.*). Walks source tree at runtime; no specific symbol dependencies."
 
 depends_on:
   # Format: - target: <relative-path>

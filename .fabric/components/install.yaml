@@ -4,8 +4,9 @@ type: script
 subsystem: distribution
 location: install.sh
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "End-user installer script: detects platform, downloads binary from GitHub Releases, places in PATH. Standalone — no source-tree dependencies."
 
 depends_on:
   # Format: - target: <relative-path>

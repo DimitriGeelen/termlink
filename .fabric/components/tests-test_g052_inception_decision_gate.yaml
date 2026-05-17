@@ -1,12 +1,12 @@
-id: tests/test_g054_completion_smoke.sh
-name: test_g054_completion_smoke
+id: tests/test_g052_inception_decision_gate.sh
+name: test_g052_inception_decision_gate
 type: script
 subsystem: unknown
-location: tests/test_g054_completion_smoke.sh
+location: tests/test_g052_inception_decision_gate.sh
 tags: []
 standalone: true
 
-purpose: "G-054 completion smoke test: validates the completion gate's behavior against stubbed task fixtures. Bash-level test; no Rust source edges."
+purpose: "TODO: describe what this component does"
 
 depends_on:
   # Format: - target: <relative-path>

@@ -4,8 +4,9 @@ type: script
 subsystem: unknown
 location: scripts/check-vendored-arc-rollout.sh
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "Operational audit: verifies all framework-consuming projects have vendored agent-chat-arc heartbeat. Black-box file scans; no source edges."
 
 depends_on:
   # Format: - target: <relative-path>
