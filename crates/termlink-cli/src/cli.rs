@@ -3212,6 +3212,30 @@ pub(crate) enum FleetAction {
         #[arg(long = "bootstrap-from")]
         bootstrap_from: Option<String>,
     },
+
+    /// T-1660: probe every hub in ~/.termlink/hubs.toml and compare wire fingerprint vs pin
+    ///
+    /// Fleet-wide companion to `tofu verify <addr>`. Pure read-only diagnostic:
+    /// no auth, no profile mutation, no `KnownHubStore` writes. Cron-friendly.
+    ///
+    /// Exit codes (fleet rollup, drift dominates):
+    ///   0 — every reachable hub is `match`
+    ///   1 — any hub is `drift` (rotation happened — heal required)
+    ///   2 — any hub is `no-pin` (and no drift/probe-fail)
+    ///   3 — any hub is `probe-fail` (and no drift)
+    ///
+    /// `--exit-on-drift-only` collapses 2/3 to exit 0 so cron only alerts on
+    /// actual rotation, ignoring transient connectivity and unpinned hosts.
+    Verify {
+        /// Output as JSON: {verdict, profiles: [{name, address, status, wire, pinned, error}]}
+        #[arg(long)]
+        json: bool,
+
+        /// Only exit non-zero on drift; treat no-pin / probe-fail as exit 0.
+        /// Useful for cron pages — alert only when a hub has actually rotated.
+        #[arg(long)]
+        exit_on_drift_only: bool,
+    },
 }
 
 /// Network connectivity diagnostics (T-1106)

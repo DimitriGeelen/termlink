@@ -653,6 +653,9 @@ async fn main() -> Result<()> {
             FleetAction::Reauth { profile, bootstrap_from } => {
                 commands::remote::cmd_fleet_reauth(&profile, bootstrap_from.as_deref())
             }
+            FleetAction::Verify { json, exit_on_drift_only } => {
+                commands::remote::cmd_fleet_verify(json, exit_on_drift_only).await
+            }
         },
         Command::Net { action } => match action {
             NetAction::Test { profile, json, timeout } => {
