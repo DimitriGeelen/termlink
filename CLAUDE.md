@@ -115,7 +115,7 @@ the client needs healing:
   `G-XXX` concern in `.context/project/concerns.yaml` with
   `type: gap, severity: high, status: watching` (T-1053).
 
-**Detection — primitive verbs (T-1656/57/58/59/60/61) + unified (T-1663/1666) + continuous (T-1667).**
+**Detection — primitive verbs (T-1656/57/58/59/60/61) + unified (T-1663/1666) + continuous (T-1667) + event hook (T-1669).**
 Read-only, no-auth, no-`KnownHubStore`-mutation diagnostics. Use these to
 confirm a rotation happened and identify which hub before reaching for the
 heal paths below.
@@ -132,6 +132,24 @@ heal paths below.
 | `termlink_tofu_verify` (MCP) | same as `tofu verify` | Agent-callable single-host pin-check — returns `{status, wire, pinned, actions[]}`. T-1663. |
 | `termlink fleet doctor --include-pin-check` | auth (per-hub) + TLS (per-hub) | **Unified single-shot:** runs the existing fleet doctor sweep AND probes each profile's TLS cert in parallel. One command answers "auth-mismatch OR cert-drift OR both?" without two commands. T-1666. |
 | `termlink fleet doctor --watch <secs>` | same as above, looped | **Continuous monitor:** re-runs the unified diagnostic every N seconds (5..=3600), emits only per-hub state changes after a baseline. Cron-replacement; SIGINT exits cleanly. T-1667. |
+| `termlink fleet doctor --watch <secs> --notify <cmd>` | same; fires hook on change | **Event hook:** operator-pluggable shell command invoked on per-hub state change. Fire-and-forget — hanging scripts don't block the loop; cmd-not-found doesn't kill the watch. Env vars passed: `TERMLINK_WATCH_HUB`, `TERMLINK_WATCH_CHANGE_KIND` (`transition`/`new`/`removed`), `TERMLINK_WATCH_{OLD,NEW}_{CONN,PIN,LEGACY}`. T-1669. |
+
+**Auto-heal recipe (T-1669 + T-1291 declarative bootstrap_from):**
+
+```bash
+# /usr/local/bin/termlink-autoheal.sh
+#!/bin/sh
+[ "$TERMLINK_WATCH_NEW_PIN" = "drift" ] || exit 0  # only act on cert drift
+exec termlink fleet reauth "$TERMLINK_WATCH_HUB" --bootstrap-from auto
+
+# Then run the watch with notify wired to it:
+termlink fleet doctor --watch 30 --include-pin-check --notify /usr/local/bin/termlink-autoheal.sh
+```
+
+The script gates on `NEW_PIN=drift` (cert rotation) and delegates to the
+declared `bootstrap_from` per profile (T-1291). Termlink ships detection +
+event; operator ships response policy. R2 still applies — the
+`bootstrap_from` channel must be out-of-band.
 
 **Coverage scope (PL-162).** These verbs detect **CERT rotation** at the
 TLS layer. **Secret-only rotation** (cert unchanged, HMAC secret
