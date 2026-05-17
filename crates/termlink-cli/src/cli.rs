@@ -3145,6 +3145,18 @@ pub(crate) enum FleetAction {
         #[arg(long)]
         topic_durability: bool,
 
+        /// T-1666: additionally probe each hub via TLS handshake and compare
+        /// its wire fingerprint against the stored TOFU pin in `~/.termlink/known_hubs`.
+        /// Surfaces cert-rotation drift in the same report as auth-mismatch
+        /// (which surfaces secret-rotation). The two axes are independent — a
+        /// pin-drift does NOT change cut-readiness verdict, and cut-readiness
+        /// UNCERTAIN does NOT mask pin-drift. Per-hub JSON gains a `pin_check`
+        /// sub-object; fleet rollup JSON gains `pin_check_summary`. Plain mode
+        /// adds a `Pin check: <verdict>` footer plus per-hub drift lines.
+        /// No-op when false (default) — additive flag, no schema change.
+        #[arg(long)]
+        include_pin_check: bool,
+
         /// T-1462: compare cut-readiness against a previously-saved snapshot.
         /// Reads the file at PATH (must be JSON output of an earlier
         /// `fleet doctor --legacy-usage --json` run), computes per-hub +
