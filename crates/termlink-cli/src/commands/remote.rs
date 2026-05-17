@@ -3271,10 +3271,23 @@ pub(crate) async fn cmd_fleet_doctor(
     type PinCheck = (&'static str, Option<String>, Option<String>, Option<String>);
     let pin_checks: std::collections::HashMap<String, PinCheck> = if include_pin_check {
         let store = termlink_session::tofu::KnownHubStore::default_store();
+        // T-1674: bound each probe by `timeout_secs` (same value used for the
+        // hub-RPC connectivity check). Without this, an unreachable hub
+        // (laptop off, port firewalled) holds its tokio::spawn task open for
+        // the OS TCP retry budget (30-60+s), which determines the slowest
+        // probe and therefore the entire --watch cycle latency. With the
+        // timeout, slowest-probe is bounded to timeout_secs.
+        let probe_timeout = std::time::Duration::from_secs(timeout_secs);
         let probes: Vec<_> = hub_names.iter().map(|name| {
             let address = config.hubs[*name].address.clone();
             tokio::spawn(async move {
-                let result = termlink_session::tofu::probe_cert(&address).await;
+                let result = match tokio::time::timeout(
+                    probe_timeout,
+                    termlink_session::tofu::probe_cert(&address),
+                ).await {
+                    Ok(inner) => inner,
+                    Err(_) => Err(format!("TLS probe to {address} timeout after {}s", probe_timeout.as_secs())),
+                };
                 (address, result)
             })
         }).collect();
