@@ -4417,6 +4417,156 @@ pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> R
     }
 }
 
+/// T-1660: fleet-wide TLS pin verification.
+///
+/// For every profile in `~/.termlink/hubs.toml`, probe the hub's wire
+/// fingerprint and compare against the entry in `KnownHubStore`. Pure
+/// read-only — no auth, no mutation. Cron-friendly with a fleet-rollup
+/// exit code.
+///
+/// Verdict precedence (drift dominates):
+///   match     — every reachable hub matches its pin
+///   drift     — at least one hub rotated (heal required)
+///   probe-fail — at least one hub unreachable / TLS error (no drift)
+///   no-pin    — at least one hub not in KnownHubStore (no drift/probe-fail)
+///
+/// Exit code mapping: match=0, drift=1, no-pin=2, probe-fail=3.
+/// `--exit-on-drift-only` collapses 2/3 to 0 (only page on actual rotation).
+pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Result<()> {
+    let config = crate::config::load_hubs_config();
+
+    // Stable ordering — operators rely on `fleet verify` output being
+    // diff-friendly across runs.
+    let mut profiles: Vec<(String, String)> = config
+        .hubs
+        .iter()
+        .map(|(name, e)| (name.clone(), e.address.clone()))
+        .collect();
+    profiles.sort_by(|a, b| a.0.cmp(&b.0));
+
+    if profiles.is_empty() {
+        if json {
+            println!("{}", serde_json::json!({
+                "verdict": "match",
+                "profiles": [],
+                "note": "no hubs configured",
+            }));
+        } else {
+            println!("No hubs configured in {}", crate::config::hubs_config_path().display());
+            println!("  Add one with: termlink profile add <name> <host:port> --secret-file <path>");
+        }
+        return Ok(());
+    }
+
+    let store = termlink_session::tofu::KnownHubStore::default_store();
+
+    // Probe in parallel — each probe is bounded by TCP/TLS timeout already.
+    // For 3-5 hubs this is ~one round-trip total. Larger fleets benefit
+    // proportionally without us needing to spawn-and-throttle.
+    let probes: Vec<_> = profiles
+        .iter()
+        .map(|(name, addr)| {
+            let name = name.clone();
+            let addr = addr.clone();
+            tokio::spawn(async move {
+                let result = termlink_session::tofu::probe_cert(&addr).await;
+                (name, addr, result)
+            })
+        })
+        .collect();
+
+    #[derive(serde::Serialize)]
+    struct ProfileResult {
+        name: String,
+        address: String,
+        status: &'static str,
+        wire: Option<String>,
+        pinned: Option<String>,
+        error: Option<String>,
+    }
+
+    let mut results: Vec<ProfileResult> = Vec::with_capacity(profiles.len());
+    for handle in probes {
+        let (name, address, probe_result) = match handle.await {
+            Ok(t) => t,
+            Err(e) => {
+                results.push(ProfileResult {
+                    name: "<join-error>".to_string(),
+                    address: "<unknown>".to_string(),
+                    status: "probe-fail",
+                    wire: None,
+                    pinned: None,
+                    error: Some(format!("task panic: {e}")),
+                });
+                continue;
+            }
+        };
+        let pinned = store.get(&address);
+        let (status, wire, error) = match probe_result {
+            Ok((_, wire)) => match &pinned {
+                Some(pin) if pin == &wire => ("match", Some(wire), None),
+                Some(_) => ("drift", Some(wire), None),
+                None => ("no-pin", Some(wire), None),
+            },
+            Err(e) => ("probe-fail", None, Some(e)),
+        };
+        results.push(ProfileResult { name, address, status, wire, pinned, error });
+    }
+
+    // Fleet rollup — drift > probe-fail > no-pin > match.
+    let any_drift = results.iter().any(|r| r.status == "drift");
+    let any_probe_fail = results.iter().any(|r| r.status == "probe-fail");
+    let any_no_pin = results.iter().any(|r| r.status == "no-pin");
+    let verdict = if any_drift {
+        "drift"
+    } else if any_probe_fail {
+        "probe-fail"
+    } else if any_no_pin {
+        "no-pin"
+    } else {
+        "match"
+    };
+
+    if json {
+        println!("{}", serde_json::to_string(&serde_json::json!({
+            "verdict": verdict,
+            "profiles": results,
+        }))?);
+    } else {
+        println!("{:<24} {:<28} STATUS", "PROFILE", "ADDRESS");
+        println!("{}", "-".repeat(72));
+        for r in &results {
+            let note = match r.status {
+                "match" => "pin matches wire".to_string(),
+                "drift" => "ROTATED — heal required".to_string(),
+                "no-pin" => "no entry in known_hubs".to_string(),
+                "probe-fail" => r.error.clone().unwrap_or_else(|| "unreachable".to_string()),
+                _ => String::new(),
+            };
+            println!("{:<24} {:<28} {:<11} {}", r.name, r.address, r.status, note);
+        }
+        println!();
+        println!("Fleet verdict: {}", verdict);
+        if verdict == "drift" {
+            println!();
+            println!("  Heal drifted hubs: termlink fleet reauth <profile> --bootstrap-from auto");
+            println!("  Then re-pin:       termlink tofu clear <address>");
+        }
+    }
+
+    let exit = match verdict {
+        "match" => 0,
+        "drift" => 1,
+        "no-pin" => if exit_on_drift_only { 0 } else { 2 },
+        "probe-fail" => if exit_on_drift_only { 0 } else { 3 },
+        _ => 0,
+    };
+    if exit != 0 {
+        std::process::exit(exit);
+    }
+    Ok(())
+}
+
 /// T-1055 Tier-2 heal: fetch the new secret via the named out-of-band source,
 /// validate it, back up the existing file, and write the new one.
 fn cmd_fleet_reauth_bootstrap(
