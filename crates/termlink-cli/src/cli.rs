@@ -3202,6 +3202,26 @@ pub(crate) enum FleetAction {
         /// prevent runaway output on hubs with many distinct caller IDs.
         #[arg(long, default_value = "3")]
         top_callers: u32,
+
+        /// T-1667: continuous monitoring mode — re-run the diagnostic every N
+        /// seconds (5 <= N <= 3600) and emit ONLY per-hub state changes,
+        /// prefixed with an RFC3339 timestamp. First cycle emits a full
+        /// baseline. State tracked per hub: connectivity status, pin status
+        /// (when `--include-pin-check`), and total legacy invocations (when
+        /// `--legacy-usage`). SIGINT (Ctrl-C) exits cleanly with code 0.
+        /// Cron-replacement for rotation surveillance — leave it running in
+        /// a terminal. Internally re-spawns self with `--json` each cycle;
+        /// the subprocess boundary keeps transient failures from killing the
+        /// watch and avoids a full output-capture refactor.
+        ///
+        /// Composable with `--include-pin-check` (recommended — catches CERT
+        /// rotation), `--legacy-usage` (catches new legacy callers appearing
+        /// during the watch), and `--topic-durability`. Incompatible with
+        /// `--diff`, `--save-snapshot`, `--exit-code-on-verdict`, and
+        /// `--trend` (single-shot semantics — watch already produces a
+        /// time-series).
+        #[arg(long, value_name = "SECONDS")]
+        watch: Option<u64>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

@@ -2498,6 +2498,183 @@ pub(crate) async fn cmd_fleet_status(
     Ok(())
 }
 
+/// T-1667: per-hub state observed at each watch cycle. `(connectivity_status,
+/// pin_check_status, total_legacy_invocations)`. Used to compute cycle-over-cycle
+/// state diffs. `BTreeMap` (not `HashMap`) keeps output ordering stable across
+/// cycles so visual diffs work.
+type WatchHubState = (String, Option<String>, Option<u64>);
+
+/// T-1667: continuous-monitoring loop dispatched from `cmd_fleet_doctor` when
+/// `--watch <secs>` is set. Re-spawns self via `std::env::current_exe()` with
+/// `--json` each cycle, parses the result, tracks per-hub state in a
+/// `BTreeMap`, and emits ONLY changes after the baseline cycle.
+async fn cmd_fleet_doctor_watch(
+    secs: u64,
+    timeout_secs: u64,
+    legacy_usage: bool,
+    legacy_window_days: u64,
+    topic_durability: bool,
+    include_pin_check: bool,
+    top_callers: u32,
+) -> Result<()> {
+    if !(5..=3600).contains(&secs) {
+        anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
+    }
+    let exe = std::env::current_exe()
+        .context("--watch: cannot determine self path for subprocess re-spawn")?;
+
+    let mut args: Vec<String> = vec!["fleet".into(), "doctor".into(), "--json".into()];
+    args.push("--timeout".into());
+    args.push(timeout_secs.to_string());
+    if legacy_usage {
+        args.push("--legacy-usage".into());
+        args.push("--legacy-window-days".into());
+        args.push(legacy_window_days.to_string());
+    }
+    if topic_durability {
+        args.push("--topic-durability".into());
+    }
+    if include_pin_check {
+        args.push("--include-pin-check".into());
+    }
+    args.push("--top-callers".into());
+    args.push(top_callers.to_string());
+
+    let mut prior: std::collections::BTreeMap<String, WatchHubState> =
+        std::collections::BTreeMap::new();
+    let mut cycle: u32 = 0;
+
+    eprintln!(
+        "{} watch: polling every {}s (include-pin-check={}, legacy-usage={}); ctrl-c to stop",
+        crate::manifest::now_rfc3339(),
+        secs,
+        include_pin_check,
+        legacy_usage
+    );
+
+    loop {
+        let one_cycle = tokio::process::Command::new(&exe).args(&args).output();
+        let output = tokio::select! {
+            r = one_cycle => r.context("--watch: subprocess spawn failed")?,
+            _ = tokio::signal::ctrl_c() => {
+                println!("{} watch stopped (sigint, completed {} cycle(s))", crate::manifest::now_rfc3339(), cycle);
+                return Ok(());
+            }
+        };
+
+        let ts = crate::manifest::now_rfc3339();
+        let json_doc: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!(
+                    "{} watch: failed to parse subprocess JSON ({}): exit={:?}",
+                    ts,
+                    e,
+                    output.status.code()
+                );
+                tokio::select! {
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(secs)) => continue,
+                    _ = tokio::signal::ctrl_c() => {
+                        println!("{} watch stopped (sigint, completed {} cycle(s))", crate::manifest::now_rfc3339(), cycle);
+                        return Ok(());
+                    }
+                }
+            }
+        };
+
+        let mut current: std::collections::BTreeMap<String, WatchHubState> =
+            std::collections::BTreeMap::new();
+        if let Some(hubs) = json_doc.get("hubs").and_then(|v| v.as_array()) {
+            for hub in hubs {
+                let name = hub
+                    .get("hub")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("?")
+                    .to_string();
+                let conn = hub
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                let pin = hub
+                    .get("pin_check")
+                    .and_then(|p| p.get("status"))
+                    .and_then(|s| s.as_str())
+                    .map(String::from);
+                let legacy = hub
+                    .get("legacy_usage")
+                    .and_then(|l| l.get("total_legacy"))
+                    .and_then(|n| n.as_u64());
+                current.insert(name, (conn, pin, legacy));
+            }
+        }
+
+        cycle += 1;
+        if cycle == 1 {
+            println!("{} baseline: {} hub(s)", ts, current.len());
+            for (name, (conn, pin, legacy)) in &current {
+                let pin_str = pin.as_deref().unwrap_or("-");
+                let legacy_str = legacy
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "-".into());
+                println!(
+                    "{}   {} conn={} pin={} legacy={}",
+                    ts, name, conn, pin_str, legacy_str
+                );
+            }
+        } else {
+            let mut changes = 0u32;
+            for (name, new_state) in &current {
+                let old = prior.get(name);
+                if old != Some(new_state) {
+                    let pin_str = new_state.1.as_deref().unwrap_or("-");
+                    let legacy_str = new_state
+                        .2
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "-".into());
+                    if let Some(o) = old {
+                        let old_pin = o.1.as_deref().unwrap_or("-");
+                        let old_legacy =
+                            o.2.map(|n| n.to_string()).unwrap_or_else(|| "-".into());
+                        println!(
+                            "{}   {} conn={}→{} pin={}→{} legacy={}→{}",
+                            ts, name, o.0, new_state.0, old_pin, pin_str, old_legacy, legacy_str
+                        );
+                    } else {
+                        println!(
+                            "{}   {} NEW conn={} pin={} legacy={}",
+                            ts, name, new_state.0, pin_str, legacy_str
+                        );
+                    }
+                    changes += 1;
+                }
+            }
+            for (name, old_state) in &prior {
+                if !current.contains_key(name) {
+                    println!(
+                        "{}   {} REMOVED (was conn={})",
+                        ts, name, old_state.0
+                    );
+                    changes += 1;
+                }
+            }
+            if changes == 0 && cycle.is_multiple_of(10) {
+                eprintln!("{} watch: cycle {} (no changes)", ts, cycle);
+            }
+        }
+
+        prior = current;
+
+        tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_secs(secs)) => {},
+            _ = tokio::signal::ctrl_c() => {
+                println!("{} watch stopped (sigint, completed {} cycle(s))", crate::manifest::now_rfc3339(), cycle);
+                return Ok(());
+            }
+        }
+    }
+}
+
 pub(crate) async fn cmd_fleet_doctor(
     json: bool,
     timeout_secs: u64,
@@ -2511,7 +2688,23 @@ pub(crate) async fn cmd_fleet_doctor(
     trend: Option<std::path::PathBuf>,
     trend_keep: u32,
     top_callers: u32,
+    watch: Option<u64>,
 ) -> Result<()> {
+    // T-1667: --watch dispatches to the continuous-monitoring loop. The loop
+    // re-spawns self via std::env::current_exe() with --json each cycle and
+    // emits per-hub state diffs. Reject single-shot-only companion flags here
+    // (--diff / --save-snapshot / --exit-code-on-verdict / --trend) so the
+    // operator learns immediately, not after the fleet sweep.
+    if let Some(secs) = watch {
+        if diff.is_some() || save_snapshot.is_some() || exit_code_on_verdict || trend.is_some() {
+            anyhow::bail!("--watch is incompatible with --diff, --save-snapshot, --exit-code-on-verdict, --trend (single-shot semantics)");
+        }
+        return cmd_fleet_doctor_watch(
+            secs, timeout_secs, legacy_usage, legacy_window_days,
+            topic_durability, include_pin_check, top_callers,
+        ).await;
+    }
+
     // T-1471: clamp top-callers count to 1..=50. 50 ceiling guards against
     // pathological output (e.g. 10K-distinct-caller hub).
     let top_callers = top_callers.clamp(1, 50) as usize;
