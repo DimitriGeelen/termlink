@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-15T21:27:21Z
+last_update: 2026-05-17T20:43:41Z
 date_finished: null
 ---
 
@@ -80,6 +80,18 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-17T20:45Z — bake telemetry refresh: still CUT-READY-DECAYING [agent]
+
+- **Fresh fleet doctor --legacy-usage --legacy-window-days 7 (just now):**
+  - Verdict: `CUT-READY-DECAYING`
+  - Total legacy fleet: 4
+  - `hubs_clean`: [`ring20-dashboard`]
+  - `hubs_with_traffic`: `ring20-management` (2, from .107 + .122, last 2026-05-12 23:53), `local-test` (1, from addr:192.168.10.122, last 2026-05-17 22:38 — today), `workstation-107-public` (1, same .122 caller, same ts)
+  - All 4 invocations are `event.broadcast`. Zero `inbox.*` or `file.*` traffic.
+- **The two "today" .122-originating event.broadcast calls** hit BOTH .107-side hub views (local-test + workstation-107-public are two views of the same audit log). Net: **one** real new .122 → .107 event.broadcast call between the 2026-05-15 ship date and now. Caller is unknown (`from: "(unknown)"` in audit — pre-T-1427 whoami-binding payload).
+- **Bake holds.** Volume is in the noise floor (`0.0006%` of 624K+ RPC volume measured 2026-05-11). Pattern: residual .122-originating callers — likely ring20-management-agent's own peripherals on a pre-cut binary or a downstream consumer not yet migrated. The migration guide (`docs/migrations/T-1166-retire-legacy-primitives.md`) is the operator surface for these holdouts.
+- **Release tagged.** v0.10.0 cut today (T-1673) — operators upgrading via brew will pick up the cut binary and the rotation-protocol stack together. Future bake snapshots should see this number decay toward zero as consumer fleets refresh.
 
 ### 2026-05-15T21:30Z — CUT LIVE ON 2/2 PRODUCTION HUBS + AC #6 closed via T-1632 [agent under operator authorization]
 
