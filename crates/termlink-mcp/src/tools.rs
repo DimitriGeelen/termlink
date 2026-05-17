@@ -1802,6 +1802,15 @@ pub struct FleetStatusParams {
     pub timeout: Option<u64>,
 }
 
+// T-1661: Fleet verify params (TLS pin drift check)
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetVerifyParams {
+    /// If true, the verdict still surfaces no-pin/probe-fail but the
+    /// `ok` rollup field treats them as non-failures. Use when an agent
+    /// only wants to flag actual rotation events.
+    pub exit_on_drift_only: Option<bool>,
+}
+
 // T-1106: Net test params
 #[derive(Deserialize, JsonSchema)]
 pub struct NetTestParams {
@@ -6295,6 +6304,99 @@ impl TermLinkTools {
             "fleet": fleet,
             "summary": {"total": fleet.len(), "up": up_count, "down": down_count, "auth_fail": auth_fail_count},
             "actions": actions,
+        })).unwrap_or_else(json_err)
+    }
+
+    // === Fleet verify (T-1661) — TLS pin drift check, no auth required ===
+
+    #[tool(
+        name = "termlink_fleet_verify",
+        description = "Probe every hub in ~/.termlink/hubs.toml via TLS handshake and compare wire fingerprint vs the stored TOFU pin. Pure read-only diagnostic: no authentication, no cert/secret mutation. Returns per-profile status (match / drift / no-pin / probe-fail) plus a fleet rollup verdict where drift dominates. Use to detect hub rotation BEFORE auth-bearing workloads fail."
+    )]
+    async fn termlink_fleet_verify(&self, Parameters(p): Parameters<FleetVerifyParams>) -> String {
+        let profiles = list_all_hub_profiles();
+        if profiles.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "verdict": "match",
+                "profiles": [],
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
+            })).unwrap_or_else(json_err);
+        }
+
+        let store = termlink_session::tofu::KnownHubStore::default_store();
+
+        let probes: Vec<_> = profiles
+            .iter()
+            .map(|(name, address, _, _)| {
+                let name = name.clone();
+                let address = address.clone();
+                tokio::spawn(async move {
+                    let result = termlink_session::tofu::probe_cert(&address).await;
+                    (name, address, result)
+                })
+            })
+            .collect();
+
+        let mut results: Vec<serde_json::Value> = Vec::with_capacity(profiles.len());
+        for handle in probes {
+            let (name, address, probe_result) = match handle.await {
+                Ok(t) => t,
+                Err(e) => {
+                    results.push(serde_json::json!({
+                        "name": "<join-error>",
+                        "address": "<unknown>",
+                        "status": "probe-fail",
+                        "wire": serde_json::Value::Null,
+                        "pinned": serde_json::Value::Null,
+                        "error": format!("task panic: {e}"),
+                    }));
+                    continue;
+                }
+            };
+            let pinned = store.get(&address);
+            let (status, wire, error): (&str, Option<String>, Option<String>) = match probe_result {
+                Ok((_, wire)) => match &pinned {
+                    Some(pin) if pin == &wire => ("match", Some(wire), None),
+                    Some(_) => ("drift", Some(wire), None),
+                    None => ("no-pin", Some(wire), None),
+                },
+                Err(e) => ("probe-fail", None, Some(e)),
+            };
+            results.push(serde_json::json!({
+                "name": name,
+                "address": address,
+                "status": status,
+                "wire": wire,
+                "pinned": pinned,
+                "error": error,
+            }));
+        }
+
+        let any_drift = results.iter().any(|r| r["status"] == "drift");
+        let any_probe_fail = results.iter().any(|r| r["status"] == "probe-fail");
+        let any_no_pin = results.iter().any(|r| r["status"] == "no-pin");
+        let verdict = if any_drift { "drift" }
+            else if any_probe_fail { "probe-fail" }
+            else if any_no_pin { "no-pin" }
+            else { "match" };
+
+        // ok rollup mirrors the CLI exit-code semantics:
+        //   strict mode (default): ok iff verdict == match
+        //   --exit-on-drift-only:  ok iff verdict != drift
+        let drift_only = p.exit_on_drift_only.unwrap_or(false);
+        let ok = if drift_only { verdict != "drift" } else { verdict == "match" };
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": ok,
+            "verdict": verdict,
+            "profiles": results,
+            "actions": if verdict == "drift" {
+                vec![
+                    "Heal drifted hubs: termlink fleet reauth <profile> --bootstrap-from auto".to_string(),
+                    "Then re-pin:       termlink tofu clear <address>".to_string(),
+                ]
+            } else { vec![] },
         })).unwrap_or_else(json_err)
     }
 
