@@ -248,6 +248,7 @@ async fn main() -> Result<()> {
             Some(HubAction::Restart { json }) => commands::infrastructure::cmd_hub_restart(json),
             Some(HubAction::Status { json, short, check }) => commands::infrastructure::cmd_hub_status(json, short, check),
             Some(HubAction::ExportSecret { out, json }) => commands::infrastructure::cmd_hub_export_secret(out.as_deref(), json),
+            Some(HubAction::Fingerprint { json }) => commands::infrastructure::cmd_hub_fingerprint(json),
         },
         Command::Mcp { action } => match action {
             McpAction::Serve => termlink_mcp::server::run_stdio().await,

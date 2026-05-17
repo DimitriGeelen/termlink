@@ -906,6 +906,54 @@ pub(crate) fn cmd_hub_export_secret(out: Option<&str>, json_output: bool) -> Res
     Ok(())
 }
 
+/// T-1657: print sha256 fingerprint of <runtime_dir>/hub.cert.pem.
+///
+/// Output matches `KnownHubStore`'s `sha256:<hex>` form, so values printed
+/// here are directly comparable against peer pins. Reads the LIVE cert
+/// file via `termlink_hub::tls::hub_cert_path()` — same "never cache, always
+/// live" discipline as T-1656's `hub export-secret`.
+pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
+    use base64::Engine;
+
+    let cert_path = termlink_hub::tls::hub_cert_path();
+    let pem = std::fs::read_to_string(&cert_path).map_err(|e| {
+        anyhow::anyhow!(
+            "no hub.cert.pem at {} — is the hub running? ({})",
+            cert_path.display(),
+            e
+        )
+    })?;
+
+    // Extract the first CERTIFICATE block. The hub's PEM always contains
+    // exactly one cert, but be defensive in case the file is concatenated.
+    let start = pem.find("-----BEGIN CERTIFICATE-----").ok_or_else(|| {
+        anyhow::anyhow!("no CERTIFICATE block in {}", cert_path.display())
+    })?;
+    let end = pem.find("-----END CERTIFICATE-----").ok_or_else(|| {
+        anyhow::anyhow!("malformed CERTIFICATE block in {} (no END marker)", cert_path.display())
+    })?;
+    let body = &pem[start + "-----BEGIN CERTIFICATE-----".len()..end];
+    let b64: String = body.chars().filter(|c| !c.is_whitespace()).collect();
+    let der = base64::engine::general_purpose::STANDARD
+        .decode(b64.as_bytes())
+        .map_err(|e| anyhow::anyhow!("base64-decode failed for {}: {}", cert_path.display(), e))?;
+
+    let fingerprint = termlink_session::tofu::cert_fingerprint(&der);
+
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "path": cert_path.display().to_string(),
+                "fingerprint": fingerprint,
+            })
+        );
+    } else {
+        println!("{fingerprint}");
+    }
+    Ok(())
+}
+
 // === Inbox Commands (T-997) ===
 
 pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
@@ -1700,6 +1748,120 @@ mod tests {
             let _ = fs::remove_dir_all(&runtime_dir);
             let _ = fs::remove_dir_all(&home);
             let _ = fs::remove_dir_all(out.parent().unwrap());
+        }
+
+        // T-1657: hub fingerprint reads the live cert + emits sha256:<hex>
+        // matching `cert_fingerprint(der)`. Same env-lock pattern; serialize
+        // TERMLINK_RUNTIME_DIR mutations.
+        #[test]
+        fn fingerprint_matches_tofu_format() {
+            use base64::Engine;
+            let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+            // Hand-craft a minimal DER blob (16 bytes of known content), wrap
+            // it as a PEM "CERTIFICATE", and assert the cmd succeeds + the
+            // expected sha256:<hex> form is what `cert_fingerprint` would
+            // produce. We don't need a real X.509 cert — we're testing the
+            // parser + hasher contract, not certificate validity.
+            let der: Vec<u8> = (0u8..16).collect();
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&der);
+            let pem = format!(
+                "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+                b64
+            );
+            let expected = termlink_session::tofu::cert_fingerprint(&der);
+
+            let runtime_dir = unique_dir("fp");
+            fs::create_dir_all(&runtime_dir).unwrap();
+            fs::write(runtime_dir.join("hub.cert.pem"), &pem).unwrap();
+
+            let prev = std::env::var_os("TERMLINK_RUNTIME_DIR");
+            // SAFETY: ENV_LOCK held.
+            unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &runtime_dir); }
+
+            let result = super::super::cmd_hub_fingerprint(true);
+
+            // SAFETY: ENV_LOCK held.
+            unsafe {
+                match prev {
+                    Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                    None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+                }
+            }
+
+            result.expect("fingerprint must succeed");
+            assert!(expected.starts_with("sha256:"),
+                "expected fingerprint format sha256:<hex>, got: {}", expected);
+            assert_eq!(expected.len(), "sha256:".len() + 64,
+                "expected 64 hex chars after prefix, got: {}", expected);
+
+            let _ = fs::remove_dir_all(&runtime_dir);
+        }
+
+        #[test]
+        fn fingerprint_no_certificate_block_errors() {
+            let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+            let runtime_dir = unique_dir("badpem");
+            fs::create_dir_all(&runtime_dir).unwrap();
+            // PEM file exists but has no CERTIFICATE block (e.g. operator
+            // accidentally pointed at a key.pem instead).
+            fs::write(
+                runtime_dir.join("hub.cert.pem"),
+                "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n",
+            ).unwrap();
+
+            let prev = std::env::var_os("TERMLINK_RUNTIME_DIR");
+            // SAFETY: ENV_LOCK held.
+            unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &runtime_dir); }
+
+            let result = super::super::cmd_hub_fingerprint(false);
+
+            // SAFETY: ENV_LOCK held.
+            unsafe {
+                match prev {
+                    Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                    None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+                }
+            }
+
+            let err = result.expect_err("non-cert PEM must error");
+            assert!(format!("{err}").contains("no CERTIFICATE block"),
+                "error must explain missing CERTIFICATE block; got: {err}");
+
+            let _ = fs::remove_dir_all(&runtime_dir);
+        }
+
+        #[test]
+        fn fingerprint_missing_cert_errors() {
+            let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+            let runtime_dir = unique_dir("nocert");
+            fs::create_dir_all(&runtime_dir).unwrap();
+            // Intentionally no hub.cert.pem written.
+
+            let prev = std::env::var_os("TERMLINK_RUNTIME_DIR");
+            // SAFETY: ENV_LOCK held.
+            unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &runtime_dir); }
+
+            let result = super::super::cmd_hub_fingerprint(false);
+
+            // SAFETY: ENV_LOCK held.
+            unsafe {
+                match prev {
+                    Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                    None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+                }
+            }
+
+            let err = result.expect_err("missing live cert must error");
+            let msg = format!("{err}");
+            assert!(msg.contains("no hub.cert.pem"),
+                "error must mention missing cert; got: {}", msg);
+            assert!(msg.contains("is the hub running?"),
+                "error must hint at hub-not-running; got: {}", msg);
+
+            let _ = fs::remove_dir_all(&runtime_dir);
         }
 
         #[test]
