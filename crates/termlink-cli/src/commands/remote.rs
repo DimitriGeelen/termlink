@@ -769,11 +769,15 @@ pub(crate) async fn connect_remote_hub(
     // --- Generate auth token ---
     let token = auth::create_token(&secret, perm_scope, "", 3600);
 
-    // --- Connect via TOFU TLS ---
+    // --- Connect via TOFU TLS (T-1677: bounded to 10s — unreachable hubs
+    // would otherwise hang for the OS TCP retry budget, 30–60s.) ---
     let addr = termlink_protocol::TransportAddr::Tcp { host, port };
-    let mut rpc_client = client::Client::connect_addr(&addr)
-        .await
-        .context(format!("Cannot connect to {} — is the hub running?", hub))?;
+    let mut rpc_client = client::Client::connect_addr_with_timeout(
+        &addr,
+        std::time::Duration::from_secs(10),
+    )
+    .await
+    .context(format!("Cannot connect to {} — is the hub running?", hub))?;
 
     // --- Authenticate ---
     match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
