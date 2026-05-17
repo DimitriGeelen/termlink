@@ -1633,6 +1633,24 @@ pub(crate) enum TofuAction {
         #[arg(long)]
         json: bool,
     },
+    /// Verify a hub's wire fingerprint against the stored TOFU pin
+    ///
+    /// T-1659 — pure read-only diagnostic: probes <host> via TLS handshake
+    /// (no auth, no profile, no `KnownHubStore` mutation), then compares
+    /// the captured fingerprint against the entry in `~/.termlink/known_hubs`.
+    /// Exit codes (script-friendly):
+    ///   0 — match (pin still valid)
+    ///   1 — drift (wire != pin; rotation occurred)
+    ///   2 — no pin (host not in KnownHubStore)
+    ///   3 — probe failed (unreachable / TLS error)
+    Verify {
+        /// host:port to verify (e.g. 192.168.10.122:9100)
+        host: String,
+        /// Output as JSON: {"address":..., "wire":..., "pinned":..., "match":bool, "status":...}
+        /// JSON mode always exits 0 so callers can parse; `status` carries the verdict.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Agent cryptographic identity management (ed25519 keypair, T-1159)

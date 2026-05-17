@@ -662,6 +662,7 @@ async fn main() -> Result<()> {
         Command::Tofu { action } => match action {
             TofuAction::List { json } => commands::infrastructure::cmd_tofu_list(json),
             TofuAction::Clear { host, all, json } => commands::infrastructure::cmd_tofu_clear(host.as_deref(), all, json),
+            TofuAction::Verify { host, json } => commands::infrastructure::cmd_tofu_verify(&host, json).await,
         },
         Command::Identity { action } => match action {
             IdentityAction::Init { force, json } => commands::identity::cmd_identity_init(force, json),
