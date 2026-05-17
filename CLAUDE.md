@@ -115,10 +115,10 @@ the client needs healing:
   `G-XXX` concern in `.context/project/concerns.yaml` with
   `type: gap, severity: high, status: watching` (T-1053).
 
-**Detection — primitive verbs (T-1656/57/58/59/60/61).** Read-only,
-no-auth, no-`KnownHubStore`-mutation diagnostics. Use these to confirm a
-rotation happened and identify which hub before reaching for the heal
-paths below.
+**Detection — primitive verbs (T-1656/57/58/59/60/61) + unified (T-1663/1666) + continuous (T-1667).**
+Read-only, no-auth, no-`KnownHubStore`-mutation diagnostics. Use these to
+confirm a rotation happened and identify which hub before reaching for the
+heal paths below.
 
 | Verb | Reads | One-line purpose |
 |---|---|---|
@@ -128,6 +128,10 @@ paths below.
 | `termlink tofu verify <addr>` | wire vs `~/.termlink/known_hubs` | Per-host drift check. Exit 0=match, 1=drift, 2=no-pin, 3=probe-fail. |
 | `termlink fleet verify` | all profiles in `~/.termlink/hubs.toml` | Fleet rollup. Drift dominates. `--exit-on-drift-only` for cron alerting on rotations only. |
 | `termlink_fleet_verify` (MCP) | same as `fleet verify` | Agent-callable companion. Returns `{verdict, profiles[], actions[]}` JSON with heal hints when drift detected. |
+| `termlink_hub_probe` (MCP) | same as `hub probe` | Agent-callable single-host TLS-probe — returns `{ok, fingerprint, error}`. T-1663. |
+| `termlink_tofu_verify` (MCP) | same as `tofu verify` | Agent-callable single-host pin-check — returns `{status, wire, pinned, actions[]}`. T-1663. |
+| `termlink fleet doctor --include-pin-check` | auth (per-hub) + TLS (per-hub) | **Unified single-shot:** runs the existing fleet doctor sweep AND probes each profile's TLS cert in parallel. One command answers "auth-mismatch OR cert-drift OR both?" without two commands. T-1666. |
+| `termlink fleet doctor --watch <secs>` | same as above, looped | **Continuous monitor:** re-runs the unified diagnostic every N seconds (5..=3600), emits only per-hub state changes after a baseline. Cron-replacement; SIGINT exits cleanly. T-1667. |
 
 **Coverage scope (PL-162).** These verbs detect **CERT rotation** at the
 TLS layer. **Secret-only rotation** (cert unchanged, HMAC secret
