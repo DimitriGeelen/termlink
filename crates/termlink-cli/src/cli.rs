@@ -1143,6 +1143,21 @@ pub(crate) enum HubAction {
         #[arg(long)]
         check: bool,
     },
+    /// Export the live hub HMAC secret from <runtime_dir>/hub.secret
+    ///
+    /// G-011 R3 facet 2: always reads the live file, never the IP-keyed
+    /// cache at ~/.termlink/secrets/<host>.hex (which can be stale after
+    /// a hub regenerates). Use when handing the secret to a peer:
+    ///   termlink hub export-secret | ssh peer 'cat > /path && chmod 600 $_'
+    ExportSecret {
+        /// Write hex to <path> with chmod 600 (atomic). If omitted, prints to stdout.
+        #[arg(long)]
+        out: Option<String>,
+
+        /// Output as JSON: {"path":"<live-path>","hex":"<value>","bytes":<len>}
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Hub inbox actions (T-997)

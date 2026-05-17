@@ -826,6 +826,86 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
     Ok(())
 }
 
+/// T-1656 / G-011 R3 facet 2: export the LIVE hub HMAC secret.
+///
+/// Always reads `termlink_hub::server::hub_secret_path()` (== `<runtime_dir>/hub.secret`).
+/// Never reads `~/.termlink/secrets/<host>.hex` — that's an IP-keyed convenience cache
+/// which is NOT invalidated when the hub regenerates, so peers handed a cached value
+/// see auth-mismatch symptoms while the giving end appears clean.
+///
+/// Stdout default for piping; `--out` writes atomically with chmod 600 (mirrors
+/// `cmd_fleet_reauth_bootstrap`'s safe-write path).
+pub(crate) fn cmd_hub_export_secret(out: Option<&str>, json_output: bool) -> Result<()> {
+    use std::io::Write;
+
+    let live_path = termlink_hub::server::hub_secret_path();
+    let hex = std::fs::read_to_string(&live_path).map_err(|e| {
+        anyhow::anyhow!(
+            "no hub.secret at {} — is the hub running? ({})",
+            live_path.display(),
+            e
+        )
+    })?;
+    let hex = hex.trim().to_string();
+    let bytes = hex.len() / 2;
+
+    if let Some(out_path) = out {
+        let path = PathBuf::from(out_path);
+        let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+        std::fs::create_dir_all(dir).ok();
+        let tmp = path.with_extension(format!(
+            "tmp.{}",
+            std::process::id()
+        ));
+        {
+            let mut f = std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&tmp)
+                .with_context(|| format!("open {} for write", tmp.display()))?;
+            f.write_all(hex.as_bytes())?;
+            f.sync_all().ok();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("chmod 600 {}", tmp.display()))?;
+        }
+        std::fs::rename(&tmp, &path)
+            .with_context(|| format!("rename {} -> {}", tmp.display(), path.display()))?;
+
+        if json_output {
+            println!(
+                "{}",
+                json!({
+                    "path": live_path.display().to_string(),
+                    "out": path.display().to_string(),
+                    "bytes": bytes,
+                })
+            );
+        } else {
+            println!("Wrote {} ({} bytes, chmod 600)", path.display(), bytes);
+            println!("Source: {}", live_path.display());
+        }
+    } else if json_output {
+        println!(
+            "{}",
+            json!({
+                "path": live_path.display().to_string(),
+                "hex": hex,
+                "bytes": bytes,
+            })
+        );
+    } else {
+        // Stdout: just the hex, no trailing newline — pipe-friendly.
+        print!("{hex}");
+        std::io::stdout().flush().ok();
+    }
+    Ok(())
+}
+
 // === Inbox Commands (T-997) ===
 
 pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
@@ -1540,5 +1620,118 @@ mod tests {
         );
         let hints = audit_hubs_for_self_hub_cache(&config, &secrets_dir);
         assert_eq!(hints.len(), 2, "expected both loopback forms to flag; got: {:?}", hints);
+    }
+
+    // T-1656 / G-011 R3 facet 2: `hub export-secret` must read the LIVE
+    // <runtime_dir>/hub.secret, never the IP-keyed cache. The cmd takes
+    // no path parameter; it resolves via `hub_secret_path()` which honors
+    // TERMLINK_RUNTIME_DIR. Both tests use ENV_LOCK to serialize env writes.
+    mod export_secret {
+        use crate::test_env_lock::ENV_LOCK;
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+
+        fn unique_dir(label: &str) -> std::path::PathBuf {
+            let ns = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+            std::env::temp_dir().join(format!(
+                "termlink-export-secret-{}-{}-{}",
+                label,
+                std::process::id(),
+                ns
+            ))
+        }
+
+        #[test]
+        fn export_secret_reads_live_not_cache() {
+            let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+            // Stage two parallel sources of "the secret" — live + cache —
+            // with different content so we can prove which one was read.
+            let runtime_dir = unique_dir("live");
+            fs::create_dir_all(&runtime_dir).unwrap();
+            let live = runtime_dir.join("hub.secret");
+            fs::write(&live, "aaaaaaaa".repeat(8)).unwrap(); // 64-char "LIVE"
+
+            let home = unique_dir("home");
+            let secrets_dir = home.join(".termlink").join("secrets");
+            fs::create_dir_all(&secrets_dir).unwrap();
+            fs::write(secrets_dir.join("127.0.0.1.hex"), "bbbbbbbb".repeat(8)).unwrap(); // "STALE"
+
+            let out = unique_dir("dest").join("captured.hex");
+
+            let prev_rt = std::env::var_os("TERMLINK_RUNTIME_DIR");
+            let prev_home = std::env::var_os("HOME");
+            // SAFETY: single-threaded test region (ENV_LOCK).
+            unsafe {
+                std::env::set_var("TERMLINK_RUNTIME_DIR", &runtime_dir);
+                std::env::set_var("HOME", &home);
+            }
+
+            let result = super::super::cmd_hub_export_secret(
+                Some(out.to_str().unwrap()),
+                false,
+            );
+
+            // SAFETY: single-threaded test region (ENV_LOCK).
+            unsafe {
+                match prev_rt {
+                    Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                    None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+                }
+                match prev_home {
+                    Some(v) => std::env::set_var("HOME", v),
+                    None => std::env::remove_var("HOME"),
+                }
+            }
+
+            result.expect("export must succeed when live exists");
+            let captured = fs::read_to_string(&out).expect("out file should exist");
+            assert_eq!(captured, "a".repeat(64),
+                "must read LIVE (aaaa...), not STALE cache (bbbb...). Got: {}",
+                captured);
+
+            // chmod 600 invariant.
+            let mode = fs::metadata(&out).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600,
+                "--out path must be chmod 600, got: 0o{:o}", mode);
+
+            // Cleanup.
+            let _ = fs::remove_dir_all(&runtime_dir);
+            let _ = fs::remove_dir_all(&home);
+            let _ = fs::remove_dir_all(out.parent().unwrap());
+        }
+
+        #[test]
+        fn export_secret_missing_live_errors() {
+            let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+            let runtime_dir = unique_dir("nolive");
+            fs::create_dir_all(&runtime_dir).unwrap();
+            // Intentionally no hub.secret written.
+
+            let prev = std::env::var_os("TERMLINK_RUNTIME_DIR");
+            // SAFETY: ENV_LOCK held.
+            unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &runtime_dir); }
+
+            let result = super::super::cmd_hub_export_secret(None, true);
+
+            // SAFETY: ENV_LOCK held.
+            unsafe {
+                match prev {
+                    Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                    None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+                }
+            }
+
+            let err = result.expect_err("missing live secret must error");
+            let msg = format!("{err}");
+            assert!(msg.contains("no hub.secret"),
+                "error must mention missing hub.secret; got: {}", msg);
+            assert!(msg.contains("is the hub running?"),
+                "error must hint at hub-not-running; got: {}", msg);
+
+            let _ = fs::remove_dir_all(&runtime_dir);
+        }
     }
 }
