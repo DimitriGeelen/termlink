@@ -15,6 +15,31 @@ pub struct Client {
 }
 
 impl Client {
+    /// Wrap [`connect_addr`] in a wall-clock timeout (T-1677).
+    ///
+    /// Mirrors [`crate::tofu::probe_cert_with_timeout`] from T-1675: an
+    /// unbounded `tokio::net::TcpStream::connect` waits for the OS TCP
+    /// retry budget (30–60+s) when the target is unreachable. Every
+    /// operator-facing remote-hub command path goes through `connect_addr`,
+    /// so a single unreachable hub stretches their wall time the same way
+    /// fleet probes did before T-1675. Default 10s aligns with the
+    /// detection-verb defaults (T-1675).
+    pub async fn connect_addr_with_timeout(
+        addr: &TransportAddr,
+        timeout: std::time::Duration,
+    ) -> std::io::Result<Self> {
+        match tokio::time::timeout(timeout, Self::connect_addr(addr)).await {
+            Ok(inner) => inner,
+            Err(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!(
+                    "client connect to {addr:?} timeout after {}s",
+                    timeout.as_secs()
+                ),
+            )),
+        }
+    }
+
     /// Connect to a session's control plane via transport address.
     pub async fn connect_addr(addr: &TransportAddr) -> std::io::Result<Self> {
         match addr {
@@ -376,5 +401,34 @@ mod tests {
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-1677: `connect_addr_with_timeout` returns an error containing
+    /// "timeout" within the bound when target is guaranteed-unreachable.
+    /// Uses RFC 5737 TEST-NET-1 (192.0.2.0/24) — reserved for documentation
+    /// and guaranteed not to route. 1s bound keeps the test fast.
+    #[tokio::test(flavor = "current_thread")]
+    async fn connect_addr_with_timeout_errors_on_unreachable() {
+        let addr = TransportAddr::tcp("192.0.2.1".to_string(), 9100);
+        let start = std::time::Instant::now();
+        let r =
+            Client::connect_addr_with_timeout(&addr, std::time::Duration::from_secs(1)).await;
+        let elapsed = start.elapsed();
+        assert!(r.is_err(), "expected error from unreachable host");
+        // Allow up to 2s slack for CI noise; absent the timeout this would
+        // hang for 30-60s of OS TCP retry.
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected fast error, got {elapsed:?}"
+        );
+        let e = match r {
+            Err(e) => e,
+            Ok(_) => unreachable!("checked is_err above"),
+        };
+        let msg = e.to_string();
+        assert!(
+            msg.contains("timeout") || e.kind() == std::io::ErrorKind::TimedOut,
+            "expected timeout-related error, got: {msg}"
+        );
     }
 }
