@@ -115,7 +115,7 @@ the client needs healing:
   `G-XXX` concern in `.context/project/concerns.yaml` with
   `type: gap, severity: high, status: watching` (T-1053).
 
-**Detection — primitive verbs (T-1656/57/58/59/60/61) + unified (T-1663/1666) + continuous (T-1667) + event hook (T-1669).**
+**Detection — primitive verbs (T-1656/57/58/59/60/61) + unified (T-1663/1666) + continuous (T-1667) + event hook (T-1669) + history (T-1671).**
 Read-only, no-auth, no-`KnownHubStore`-mutation diagnostics. Use these to
 confirm a rotation happened and identify which hub before reaching for the
 heal paths below.
@@ -133,6 +133,7 @@ heal paths below.
 | `termlink fleet doctor --include-pin-check` | auth (per-hub) + TLS (per-hub) | **Unified single-shot:** runs the existing fleet doctor sweep AND probes each profile's TLS cert in parallel. One command answers "auth-mismatch OR cert-drift OR both?" without two commands. T-1666. |
 | `termlink fleet doctor --watch <secs>` | same as above, looped | **Continuous monitor:** re-runs the unified diagnostic every N seconds (5..=3600), emits only per-hub state changes after a baseline. Cron-replacement; SIGINT exits cleanly. T-1667. |
 | `termlink fleet doctor --watch <secs> --notify <cmd>` | same; fires hook on change | **Event hook:** operator-pluggable shell command invoked on per-hub state change. Fire-and-forget — hanging scripts don't block the loop; cmd-not-found doesn't kill the watch. Env vars passed: `TERMLINK_WATCH_HUB`, `TERMLINK_WATCH_CHANGE_KIND` (`transition`/`new`/`removed`), `TERMLINK_WATCH_{OLD,NEW}_{CONN,PIN,LEGACY}`. T-1669. |
+| `termlink fleet history [--since DAYS] [--hub NAME] [--json]` | `~/.termlink/rotation.log` (written by `--watch`) | **Retrospective history:** read-only diagnostic answering "is this hub's drift the 1st or Nth time?". `--watch` appends one NDJSON line per state change (ts/hub/kind/old/new). `fleet history` filters & summarizes. Default 7-day window, clamped 1..=365. Empty log prints a hint. T-1671. |
 
 **Auto-heal recipe (T-1669 + T-1291 declarative bootstrap_from):**
 
@@ -162,6 +163,21 @@ Operator rule: if `fleet verify` reports `match` but `fleet doctor`
 still flags auth-mismatch, the rotation was secret-only — heal via
 `fleet reauth <profile> --bootstrap-from <source>` directly without
 clearing the TOFU pin.
+
+**Retrospective check (T-1671).** After confirming a rotation just
+happened, the next question is usually "first time or Nth?" — a hub
+flapping repeatedly points at PL-021 (volatile /tmp or partial
+persist-if-present), not a one-off operator action. Run:
+
+```
+termlink fleet history --hub <name> --since 30
+```
+
+This reads `~/.termlink/rotation.log` (populated by any prior
+`fleet doctor --watch` session) and prints a chronological list +
+per-hub event count. Empty log means no prior watch session captured
+this hub — start one before the next rotation if recurrence diagnosis
+matters.
 
 **Heal path — Tier-1 (print the incantation).** For visibility and ad-hoc
 triage:
