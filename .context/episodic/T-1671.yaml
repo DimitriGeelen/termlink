@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1671: fleet history verb + rotation log persisted by --watch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T20:30:38Z
+# ============================================================================
+
+task_id: T-1671
+task_name: "fleet history verb + rotation log persisted by --watch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T20:25:17Z
+completed: 2026-05-17T20:30:28Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T22:30:21+02:00
+last_commit: 2026-05-17T22:30:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet history verb + rotation.log persisted by --watch
+
+# Key outcomes
+outcomes:
+  - "`fleet doctor --watch` writes one NDJSON line per state change — verified 2 lines for NEW + REMOVED"
+  - "Log line schema includes ts/hub/kind/old_conn/new_conn/old_pin/new_pin/old_legacy/new_legacy — all 9 fields present in smoke output"
+  - "Log write failure non-fatal — `append_rotation_log` reports to stderr, watch continues (mkdir + write errors both handled)"
+  - "`termlink fleet history` reads + prints human-readable summary — table + per-hub event count"
+  - "`--since <DAYS>` clamped 1..=365 — `Error: --since: must be 1..=365 days (got 999)` verified"
+  - "`--hub <NAME>` filter — `--hub t1671-flap` matched; `--hub does-not-exist` printed friendly empty message"
+  - "`--json` mode emits NDJSON per entry plus summary footer — verified `total: 2, per_hub: {'t1671-flap': 2}`"
+  - "Empty log → \"no rotation history yet\" hint pointing at `fleet doctor --watch` (verified by moving log aside)"
+  - "Live smoke: NEW + REMOVED events captured via mid-watch hubs.toml mutation, history shows both with correct fields including RFC3339 ts"
+  - "`cargo check -p termlink` clean (only pre-existing tools.rs warning)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1671-fleet-history-verb--rotation-log-persist.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T22:30:21"
+    action: "T-1671: fleet history verb + rotation.log persisted by --watch"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 440
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1671-fleet-history-verb--rotation-log-persist.md
+generated_by: context-agent-hybrid
