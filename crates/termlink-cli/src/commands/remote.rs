@@ -2508,6 +2508,249 @@ type WatchHubState = (String, Option<String>, Option<u64>);
 /// `--watch <secs>` is set. Re-spawns self via `std::env::current_exe()` with
 /// `--json` each cycle, parses the result, tracks per-hub state in a
 /// `BTreeMap`, and emits ONLY changes after the baseline cycle.
+/// T-1671: append one NDJSON line to `~/.termlink/rotation.log` per per-hub
+/// state change. Best-effort: write failures (disk full, permission denied)
+/// go to stderr but never crash the watch. Append-only; operators handle log
+/// rotation via logrotate or manual truncation.
+fn rotation_log_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    Some(std::path::PathBuf::from(home).join(".termlink").join("rotation.log"))
+}
+
+fn append_rotation_log(
+    hub: &str,
+    kind: &str,
+    old_conn: &str,
+    new_conn: &str,
+    old_pin: &str,
+    new_pin: &str,
+    old_legacy: &str,
+    new_legacy: &str,
+) {
+    let Some(path) = rotation_log_path() else { return };
+    let parent = path.parent();
+    if let Some(p) = parent
+        && !p.exists()
+        && let Err(e) = std::fs::create_dir_all(p)
+    {
+        eprintln!(
+            "{} watch: rotation.log mkdir failed: {} (logging skipped)",
+            crate::manifest::now_rfc3339(),
+            e
+        );
+        return;
+    }
+    let entry = serde_json::json!({
+        "ts": crate::manifest::now_rfc3339(),
+        "hub": hub,
+        "kind": kind,
+        "old_conn": old_conn,
+        "new_conn": new_conn,
+        "old_pin": old_pin,
+        "new_pin": new_pin,
+        "old_legacy": old_legacy,
+        "new_legacy": new_legacy,
+    });
+    let line = format!("{}\n", entry);
+    use std::io::Write;
+    let res = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut f| f.write_all(line.as_bytes()));
+    if let Err(e) = res {
+        eprintln!(
+            "{} watch: rotation.log write failed ({}): {} (entry dropped, watch continues)",
+            crate::manifest::now_rfc3339(),
+            path.display(),
+            e
+        );
+    }
+}
+
+/// T-1671: read & filter `~/.termlink/rotation.log`. Returns the path used,
+/// plus all entries that passed `since_days` + optional hub-name filter.
+/// Lines that fail to parse as JSON are reported on stderr and skipped (so
+/// a partially-corrupt file doesn't kill the entire history view).
+pub(crate) fn cmd_fleet_history(
+    since_days: u32,
+    hub: Option<&str>,
+    json_out: bool,
+) -> Result<()> {
+    if !(1..=365).contains(&since_days) {
+        anyhow::bail!("--since: must be 1..=365 days (got {})", since_days);
+    }
+    let Some(path) = rotation_log_path() else {
+        anyhow::bail!("fleet history: cannot resolve $HOME/.termlink/rotation.log");
+    };
+    if !path.exists() {
+        if json_out {
+            println!("{}", serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {"total": 0, "per_hub": {}, "log_path": path.display().to_string()},
+                "hint": "no rotation history yet — run `fleet doctor --watch` to start capturing"
+            }));
+        } else {
+            println!(
+                "no rotation history yet — run `fleet doctor --watch` to start capturing\n  (log path: {})",
+                path.display()
+            );
+        }
+        return Ok(());
+    }
+    let text = std::fs::read_to_string(&path)
+        .with_context(|| format!("fleet history: cannot read {}", path.display()))?;
+
+    // Compute cutoff as a unix epoch in seconds. RFC3339 timestamps written by
+    // append_rotation_log have second resolution; compare by parsing each row.
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed_lines: usize = 0;
+    for (lineno, raw) in text.lines().enumerate() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed_lines += 1;
+                if malformed_lines <= 3 {
+                    eprintln!(
+                        "fleet history: skipping malformed line {} in {}",
+                        lineno + 1,
+                        path.display()
+                    );
+                }
+                continue;
+            }
+        };
+        let ts_str = entry.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+        let ts_secs = rfc3339_to_unix_secs(ts_str);
+        if ts_secs < cutoff_secs {
+            continue;
+        }
+        if let Some(want) = hub {
+            let got = entry.get("hub").and_then(|v| v.as_str()).unwrap_or("");
+            if got != want {
+                continue;
+            }
+        }
+        entries.push(entry);
+    }
+
+    let mut per_hub: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    for e in &entries {
+        let h = e
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *per_hub.entry(h).or_insert(0) += 1;
+    }
+
+    if json_out {
+        for e in &entries {
+            println!("{}", e);
+        }
+        let summary = serde_json::json!({
+            "total": entries.len(),
+            "per_hub": per_hub,
+            "since_days": since_days,
+            "hub_filter": hub,
+            "malformed_lines_skipped": malformed_lines,
+            "log_path": path.display().to_string(),
+        });
+        println!("{}", summary);
+    } else {
+        if entries.is_empty() {
+            println!(
+                "no rotation events in the last {} day(s){}\n  (log path: {})",
+                since_days,
+                hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default(),
+                path.display()
+            );
+        } else {
+            for e in &entries {
+                let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("?");
+                let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?");
+                let kind = e.get("kind").and_then(|v| v.as_str()).unwrap_or("?");
+                let oc = e.get("old_conn").and_then(|v| v.as_str()).unwrap_or("-");
+                let nc = e.get("new_conn").and_then(|v| v.as_str()).unwrap_or("-");
+                let op = e.get("old_pin").and_then(|v| v.as_str()).unwrap_or("-");
+                let np = e.get("new_pin").and_then(|v| v.as_str()).unwrap_or("-");
+                println!(
+                    "{}  {:24} {:11} conn={}→{} pin={}→{}",
+                    ts, h, kind, oc, nc, op, np
+                );
+            }
+            println!();
+            println!(
+                "Summary: {} event(s) in last {} day(s){}:",
+                entries.len(),
+                since_days,
+                hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default()
+            );
+            for (h, n) in &per_hub {
+                println!("  {:24} {:>3} event(s)", h, n);
+            }
+            if malformed_lines > 0 {
+                println!(
+                    "  ({} malformed line(s) skipped — see stderr)",
+                    malformed_lines
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+/// T-1671: parse an RFC3339 timestamp (as produced by `now_rfc3339()`) into a
+/// unix epoch in seconds. Returns 0 on parse failure — the caller treats that
+/// as "ancient" so corrupt entries get filtered by the `since` window.
+fn rfc3339_to_unix_secs(ts: &str) -> i64 {
+    // Expected format: YYYY-MM-DDTHH:MM:SSZ. Parse field-by-field with stdlib
+    // — avoid chrono to stay consistent with the rest of this crate.
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let y = parse_u(0, 4) as Option<u32>;
+    let mo = parse_u(5, 2);
+    let d = parse_u(8, 2);
+    let h = parse_u(11, 2);
+    let mi = parse_u(14, 2);
+    let s = parse_u(17, 2);
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (y, mo, d, h, mi, s) else {
+        return 0;
+    };
+    // Convert (Y,M,D) to days since 1970-01-01 via Howard Hinnant civil-from-days
+    // inverse — same algorithm as `unix_secs_to_iso_date` but going the other way.
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 { y_shift / 400 } else { (y_shift - 399) / 400 };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
 /// T-1669: spawn an operator-supplied shell command on a per-hub state change.
 /// Fire-and-forget: we set the env vars, spawn via `sh -c "$cmd"`, and do NOT
 /// await the child. A hanging script must not block the watch loop. The child
@@ -2681,6 +2924,12 @@ async fn cmd_fleet_doctor_watch(
                             "{}   {} conn={}→{} pin={}→{} legacy={}→{}",
                             ts, name, o.0, new_state.0, old_pin, pin_str, old_legacy, legacy_str
                         );
+                        append_rotation_log(
+                            name, "transition",
+                            &o.0, &new_state.0,
+                            old_pin, pin_str,
+                            &old_legacy, &legacy_str,
+                        );
                         if let Some(cmd) = notify.as_deref() {
                             fire_notify(
                                 cmd, name, "transition",
@@ -2693,6 +2942,12 @@ async fn cmd_fleet_doctor_watch(
                         println!(
                             "{}   {} NEW conn={} pin={} legacy={}",
                             ts, name, new_state.0, pin_str, legacy_str
+                        );
+                        append_rotation_log(
+                            name, "new",
+                            "", &new_state.0,
+                            "-", pin_str,
+                            "-", &legacy_str,
                         );
                         if let Some(cmd) = notify.as_deref() {
                             fire_notify(
@@ -2712,12 +2967,18 @@ async fn cmd_fleet_doctor_watch(
                         "{}   {} REMOVED (was conn={})",
                         ts, name, old_state.0
                     );
+                    let old_pin = old_state.1.as_deref().unwrap_or("-");
+                    let old_legacy = old_state
+                        .2
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "-".into());
+                    append_rotation_log(
+                        name, "removed",
+                        &old_state.0, "",
+                        old_pin, "-",
+                        &old_legacy, "-",
+                    );
                     if let Some(cmd) = notify.as_deref() {
-                        let old_pin = old_state.1.as_deref().unwrap_or("-");
-                        let old_legacy = old_state
-                            .2
-                            .map(|n| n.to_string())
-                            .unwrap_or_else(|| "-".into());
                         fire_notify(
                             cmd, name, "removed",
                             &old_state.0, "",
