@@ -133,7 +133,7 @@ heal paths below.
 | `termlink fleet doctor --include-pin-check` | auth (per-hub) + TLS (per-hub) | **Unified single-shot:** runs the existing fleet doctor sweep AND probes each profile's TLS cert in parallel. One command answers "auth-mismatch OR cert-drift OR both?" without two commands. T-1666. |
 | `termlink fleet doctor --watch <secs>` | same as above, looped | **Continuous monitor:** re-runs the unified diagnostic every N seconds (5..=3600), emits only per-hub state changes after a baseline. Cron-replacement; SIGINT exits cleanly. T-1667. |
 | `termlink fleet doctor --watch <secs> --notify <cmd>` | same; fires hook on change | **Event hook:** operator-pluggable shell command invoked on per-hub state change. Fire-and-forget — hanging scripts don't block the loop; cmd-not-found doesn't kill the watch. Env vars passed: `TERMLINK_WATCH_HUB`, `TERMLINK_WATCH_CHANGE_KIND` (`transition`/`new`/`removed`), `TERMLINK_WATCH_{OLD,NEW}_{CONN,PIN,LEGACY}`, `TERMLINK_WATCH_TS` (RFC3339 detection time — for log correlation, prefer over the script's own `date`; T-1676). T-1669. |
-| `termlink fleet doctor --watch <secs> --auto-heal` | same; heals on cert-drift transitions | **Built-in auto-heal:** when a per-hub change cycle shows `new_pin=drift` AND the profile has declared `bootstrap_from` (T-1291), spawns the equivalent of `fleet reauth <hub> --bootstrap-from auto` fire-and-forget. Replaces the operator shell-script pattern from T-1670. R2 still enforced — no implicit anchors; profiles without declared `bootstrap_from` are skipped with a one-line stderr hint. Compose with `--include-pin-check` (needed to detect cert drift). T-1680. |
+| `termlink fleet doctor --watch <secs> --auto-heal` | same; heals on rotation transitions | **Built-in auto-heal:** fires when EITHER (a) `new_pin=drift` (cert rotation, needs `--include-pin-check`) OR (b) `new_conn=auth-mismatch` (secret-only rotation, T-1681 — closes PL-162 gap), AND the profile has declared `bootstrap_from` (T-1291). Spawns `fleet reauth <hub> --bootstrap-from auto` fire-and-forget. Both gates share the R2 declared-anchor check; one heal per change cycle (PL-021's "BOTH rotate" case dedups). Replaces the operator shell-script pattern from T-1670. T-1680 + T-1681. |
 | `termlink fleet reauth --all-drifted` | parallel TLS probe of every profile | **Bulk heal:** one-shot companion to `fleet reauth <profile>`. Probes all profiles, classifies drift, and for every drifted profile with declared `bootstrap_from` runs the heal. Per-profile failures don't abort the loop. Exit 0 = no drift or all healed; exit 1 = any skip or fail. Operator UX win for fleet-wide rotation events. T-1679. |
 | `termlink fleet history [--since DAYS] [--hub NAME] [--json]` | `~/.termlink/rotation.log` (written by `--watch`) | **Retrospective history:** read-only diagnostic answering "is this hub's drift the 1st or Nth time?". `--watch` appends one NDJSON line per state change (ts/hub/kind/old/new). `fleet history` filters & summarizes. Default 7-day window, clamped 1..=365. Empty log prints a hint. T-1671. |
 
@@ -171,17 +171,24 @@ declared `bootstrap_from` per profile (T-1291). Termlink ships detection +
 event; operator ships response policy. R2 still applies — the
 `bootstrap_from` channel must be out-of-band.
 
-**Coverage scope (PL-162).** These verbs detect **CERT rotation** at the
-TLS layer. **Secret-only rotation** (cert unchanged, HMAC secret
-regenerated — e.g. from a partial persist-if-present landing where
-`hub.cert.pem` survived but `hub.secret` did not) is invisible to TLS
-probes; `fleet doctor` (auth-mismatch surface) remains the right verb
-for that path. PL-021's "both rotate" case is detectable by either —
+**Coverage scope (PL-162).** TLS-probe verbs (`hub probe`, `tofu verify`,
+`fleet verify`) detect **CERT rotation** only. **Secret-only rotation**
+(cert unchanged, HMAC secret regenerated — e.g. from a partial
+persist-if-present landing where `hub.cert.pem` survived but `hub.secret`
+did not) is invisible to TLS probes and surfaces via `fleet doctor`'s
+auth-mismatch state. PL-021's "both rotate" case is detectable by either —
 prefer `fleet verify` because it succeeds with no profile auth needed.
-Operator rule: if `fleet verify` reports `match` but `fleet doctor`
-still flags auth-mismatch, the rotation was secret-only — heal via
+Operator rule: if `fleet verify` reports `match` but `fleet doctor` still
+flags auth-mismatch, the rotation was secret-only — heal via
 `fleet reauth <profile> --bootstrap-from <source>` directly without
 clearing the TOFU pin.
+
+**Coverage of `--auto-heal` (T-1681).** The watch-loop event hook covers
+**both** rotation types in one verb: cert-drift fires when `new_pin=drift`
+(needs `--include-pin-check`); secret-only fires when `new_conn=auth-mismatch`.
+Both gate on declared `bootstrap_from` (R2) and dedup so the PL-021 "both
+rotate" case heals once per cycle. This closes the PL-162 gap for the
+continuous-monitor case.
 
 **Retrospective check (T-1671).** After confirming a rotation just
 happened, the next question is usually "first time or Nth?" — a hub

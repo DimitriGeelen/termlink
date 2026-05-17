@@ -2985,23 +2985,33 @@ async fn cmd_fleet_doctor_watch(
                                 &ts,
                             );
                         }
-                        // T-1680: built-in auto-heal on cert drift.
-                        // Gate on (a) operator opted in, (b) pin actually
-                        // transitioned to drift this cycle, (c) profile has
-                        // declared a bootstrap_from anchor (R2). The heal
-                        // sub-process does the rest.
-                        if auto_heal && pin_str == "drift" && old_pin != "drift" {
-                            let has_anchor = crate::config::load_hubs_config()
-                                .hubs
-                                .get(name)
-                                .and_then(|e| e.bootstrap_from.as_deref())
-                                .is_some();
-                            if has_anchor {
-                                fire_auto_heal(name, &ts);
-                            } else {
-                                eprintln!(
-                                    "{ts} watch: --auto-heal skipped hub={name}: no bootstrap_from declared (R2 — declare it to enable auto-heal)"
-                                );
+                        // T-1680 + T-1681: built-in auto-heal on rotation.
+                        // Fires on either of two transitions in this cycle:
+                        //   (a) cert rotation:   new_pin == "drift"        (T-1680)
+                        //   (b) secret-only:     new_conn == "auth-mismatch" (T-1681, PL-162)
+                        // Same heal action serves both — bootstrap-from
+                        // fetches the new secret, which the auth-mismatch
+                        // path needs and the drift path also benefits from
+                        // (PL-021's "BOTH rotate" case trips both gates;
+                        // dedup below ensures only one heal fires per cycle).
+                        if auto_heal {
+                            let pin_drift_now =
+                                pin_str == "drift" && old_pin != "drift";
+                            let auth_mismatch_now = new_state.0 == "auth-mismatch"
+                                && o.0 != "auth-mismatch";
+                            if pin_drift_now || auth_mismatch_now {
+                                let has_anchor = crate::config::load_hubs_config()
+                                    .hubs
+                                    .get(name)
+                                    .and_then(|e| e.bootstrap_from.as_deref())
+                                    .is_some();
+                                if has_anchor {
+                                    fire_auto_heal(name, &ts);
+                                } else {
+                                    eprintln!(
+                                        "{ts} watch: --auto-heal skipped hub={name}: no bootstrap_from declared (R2 — declare it to enable auto-heal)"
+                                    );
+                                }
                             }
                         }
                     } else {
