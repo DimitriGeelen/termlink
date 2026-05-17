@@ -247,7 +247,12 @@ async fn rpc_call_authed(
     if addr.is_unix() {
         return client::rpc_call_addr(addr, method, params).await;
     }
-    let mut c = termlink_session::client::Client::connect_addr(addr).await?;
+    // T-1678: bound TCP connect to 10s so unreachable hubs fail fast.
+    let mut c = termlink_session::client::Client::connect_addr_with_timeout(
+        addr,
+        std::time::Duration::from_secs(10),
+    )
+    .await?;
     let hex = match resolve_hub_secret_hex(addr) {
         Ok(h) => h,
         Err(e) => {
