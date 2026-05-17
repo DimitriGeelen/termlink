@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1670: Document T-1669 --notify in CLAUDE.md rotation-protocol table
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T20:09:42Z
+# ============================================================================
+
+task_id: T-1670
+task_name: "Document T-1669 --notify in CLAUDE.md rotation-protocol table"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T20:08:20Z
+completed: 2026-05-17T20:09:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T22:09:33+02:00
+last_commit: 2026-05-17T22:09:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  document T-1669 --notify + auto-heal recipe in CLAUDE.md
+
+# Key outcomes
+outcomes:
+  - "CLAUDE.md detection table extended with `--watch --notify` row referencing T-1669"
+  - "Auto-heal recipe added showing how operators wire --notify to fleet reauth with `bootstrap_from auto`"
+  - "Section heading updated to include T-1669 alongside T-1666/1667"
+  - "`grep -q \"TERMLINK_WATCH_HUB\" CLAUDE.md` passes (env-var contract surfaced)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - ".tasks/active/T-1670-document-t-1669---notify-in-claudemd-rot.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T22:09:33"
+    action: "T-1670: document T-1669 --notify + auto-heal recipe in CLAUDE.md"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 147
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1670-document-t-1669---notify-in-claudemd-rot.md
+generated_by: context-agent-hybrid
