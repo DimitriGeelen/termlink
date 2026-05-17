@@ -2504,6 +2504,7 @@ pub(crate) async fn cmd_fleet_doctor(
     legacy_usage: bool,
     legacy_window_days: u64,
     topic_durability: bool,
+    include_pin_check: bool,
     diff: Option<std::path::PathBuf>,
     save_snapshot: Option<std::path::PathBuf>,
     exit_code_on_verdict: bool,
@@ -2728,6 +2729,44 @@ pub(crate) async fn cmd_fleet_doctor(
     // Sort hub names for deterministic output
     let mut hub_names: Vec<&String> = config.hubs.keys().collect();
     hub_names.sort();
+
+    // T-1666: when --include-pin-check is set, run TLS probes for every hub in
+    // parallel BEFORE the per-hub diagnostic loop, then inject results into each
+    // hub_obj as we build them. Probing here (rather than serially inside the
+    // loop) keeps total wall time bounded by the slowest probe rather than
+    // summing them. Reuses the same `probe_cert` + `KnownHubStore` primitives
+    // as `fleet verify` (T-1660) — verdict semantics MUST match so the two
+    // commands agree on rotation state.
+    // Tuple shape: (status, wire, pinned, error).
+    type PinCheck = (&'static str, Option<String>, Option<String>, Option<String>);
+    let pin_checks: std::collections::HashMap<String, PinCheck> = if include_pin_check {
+        let store = termlink_session::tofu::KnownHubStore::default_store();
+        let probes: Vec<_> = hub_names.iter().map(|name| {
+            let address = config.hubs[*name].address.clone();
+            tokio::spawn(async move {
+                let result = termlink_session::tofu::probe_cert(&address).await;
+                (address, result)
+            })
+        }).collect();
+        let mut out = std::collections::HashMap::with_capacity(probes.len());
+        for handle in probes {
+            if let Ok((address, probe_result)) = handle.await {
+                let pinned = store.get(&address);
+                let entry: PinCheck = match probe_result {
+                    Ok((_, wire)) => match &pinned {
+                        Some(pin) if pin == &wire => ("match", Some(wire), pinned.clone(), None),
+                        Some(_) => ("drift", Some(wire), pinned.clone(), None),
+                        None => ("no-pin", Some(wire), None, None),
+                    },
+                    Err(e) => ("probe-fail", None, pinned.clone(), Some(e)),
+                };
+                out.insert(address, entry);
+            }
+        }
+        out
+    } else {
+        std::collections::HashMap::new()
+    };
 
     for name in hub_names {
         let entry = &config.hubs[name];
@@ -2971,6 +3010,78 @@ pub(crate) async fn cmd_fleet_doctor(
             eprintln!();
         }
     }
+
+    // T-1666: inject pin_check into each hub_obj (post-loop, after all hub_results
+    // are built). pin_checks HashMap was populated up-front via parallel TLS probes;
+    // here we just look up by address and attach as a nested object. Pin-drift lines
+    // also emit to stderr in plain mode so the operator sees them grouped with the
+    // hub's other diagnostics (each per-hub block printed `--- name (address) ---`
+    // header during the loop; we deliberately separate pin-check output into a
+    // post-loop footer to keep the existing single-pass plain output stable).
+    let pin_check_summary: Option<serde_json::Value> = if include_pin_check {
+        let mut drift_count = 0u32;
+        let mut no_pin_count = 0u32;
+        let mut probe_fail_count = 0u32;
+        let mut match_count = 0u32;
+        let mut drift_hubs: Vec<(String, String, String)> = Vec::new();  // (name, pinned, wire)
+        for hub_obj in hub_results.iter_mut() {
+            let addr = hub_obj.get("address").and_then(|v| v.as_str()).map(String::from);
+            let hub_name = hub_obj.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            if let Some(addr) = addr
+                && let Some((status, wire, pinned, error)) = pin_checks.get(&addr)
+            {
+                let pin_obj = serde_json::json!({
+                    "status": status,
+                    "wire": wire,
+                    "pinned": pinned,
+                    "error": error,
+                });
+                match *status {
+                    "match" => match_count += 1,
+                    "drift" => {
+                        drift_count += 1;
+                        if let (Some(p), Some(w)) = (pinned.as_ref(), wire.as_ref()) {
+                            drift_hubs.push((hub_name.clone(), p.clone(), w.clone()));
+                        }
+                    },
+                    "no-pin" => no_pin_count += 1,
+                    "probe-fail" => probe_fail_count += 1,
+                    _ => {}
+                }
+                if let Some(obj) = hub_obj.as_object_mut() {
+                    obj.insert("pin_check".to_string(), pin_obj);
+                }
+            }
+        }
+        let verdict = if drift_count > 0 { "drift" }
+            else if probe_fail_count > 0 { "probe-fail" }
+            else if no_pin_count > 0 { "no-pin" }
+            else { "match" };
+
+        if !json {
+            eprintln!("Pin check: {} (match={}, drift={}, no-pin={}, probe-fail={})",
+                verdict, match_count, drift_count, no_pin_count, probe_fail_count);
+            for (name, pinned, wire) in &drift_hubs {
+                let short = |s: &str| s.chars().skip(7).take(12).collect::<String>();  // "sha256:" + 12 chars
+                eprintln!("  [DRIFT] {}: pin={} wire={}", name, short(pinned), short(wire));
+            }
+            if !drift_hubs.is_empty() {
+                eprintln!("  Heal: termlink fleet reauth <profile> --bootstrap-from auto");
+                eprintln!("  Re-pin: termlink tofu clear <address>");
+            }
+            eprintln!();
+        }
+
+        Some(serde_json::json!({
+            "verdict": verdict,
+            "match_count": match_count,
+            "drift_count": drift_count,
+            "no_pin_count": no_pin_count,
+            "probe_fail_count": probe_fail_count,
+        }))
+    } else {
+        None
+    };
 
     // T-1432: aggregate cut-readiness verdict from per-hub legacy_usage payloads.
     // T-1459: split the binary CUT-READY/WAIT into three traffic states so the
@@ -3361,6 +3472,15 @@ pub(crate) async fn cmd_fleet_doctor(
             && let Some(obj) = top.as_object_mut()
         {
             obj.insert("bus_state_summary".to_string(), bs);
+        }
+        // T-1666: attach pin_check_summary when --include-pin-check ran. Verdict
+        // mirrors `fleet verify` semantics so the two commands agree on rotation
+        // state. Field is absent when the flag is off — preserves existing JSON
+        // shape for default-mode callers.
+        if let Some(pcs) = pin_check_summary.clone()
+            && let Some(obj) = top.as_object_mut()
+        {
+            obj.insert("pin_check_summary".to_string(), pcs);
         }
         if let Some(d) = legacy_diff_obj.as_ref()
             && let Some(obj) = top.as_object_mut()
