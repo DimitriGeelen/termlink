@@ -3246,6 +3246,19 @@ pub(crate) enum FleetAction {
         /// detection + change events; operator ships response policy.
         #[arg(long, value_name = "CMD")]
         notify: Option<String>,
+
+        /// T-1680: built-in cert-drift auto-heal. Requires --watch. On every
+        /// per-hub change event where `new_pin == "drift"` AND the profile
+        /// declares `bootstrap_from` in hubs.toml, spawn the equivalent of
+        /// `termlink fleet reauth $hub --bootstrap-from auto` (fire-and-forget,
+        /// same semantics as --notify). Profiles without declared
+        /// `bootstrap_from` are skipped with a one-line stderr hint — R2
+        /// (out-of-band anchor) forbids implicit defaults.
+        ///
+        /// This makes the CLAUDE.md auto-heal recipe a one-flag invocation:
+        ///   termlink fleet doctor --watch 30 --include-pin-check --auto-heal
+        #[arg(long = "auto-heal", requires = "watch")]
+        auto_heal: bool,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

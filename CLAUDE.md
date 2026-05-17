@@ -133,9 +133,28 @@ heal paths below.
 | `termlink fleet doctor --include-pin-check` | auth (per-hub) + TLS (per-hub) | **Unified single-shot:** runs the existing fleet doctor sweep AND probes each profile's TLS cert in parallel. One command answers "auth-mismatch OR cert-drift OR both?" without two commands. T-1666. |
 | `termlink fleet doctor --watch <secs>` | same as above, looped | **Continuous monitor:** re-runs the unified diagnostic every N seconds (5..=3600), emits only per-hub state changes after a baseline. Cron-replacement; SIGINT exits cleanly. T-1667. |
 | `termlink fleet doctor --watch <secs> --notify <cmd>` | same; fires hook on change | **Event hook:** operator-pluggable shell command invoked on per-hub state change. Fire-and-forget — hanging scripts don't block the loop; cmd-not-found doesn't kill the watch. Env vars passed: `TERMLINK_WATCH_HUB`, `TERMLINK_WATCH_CHANGE_KIND` (`transition`/`new`/`removed`), `TERMLINK_WATCH_{OLD,NEW}_{CONN,PIN,LEGACY}`, `TERMLINK_WATCH_TS` (RFC3339 detection time — for log correlation, prefer over the script's own `date`; T-1676). T-1669. |
+| `termlink fleet doctor --watch <secs> --auto-heal` | same; heals on cert-drift transitions | **Built-in auto-heal:** when a per-hub change cycle shows `new_pin=drift` AND the profile has declared `bootstrap_from` (T-1291), spawns the equivalent of `fleet reauth <hub> --bootstrap-from auto` fire-and-forget. Replaces the operator shell-script pattern from T-1670. R2 still enforced — no implicit anchors; profiles without declared `bootstrap_from` are skipped with a one-line stderr hint. Compose with `--include-pin-check` (needed to detect cert drift). T-1680. |
+| `termlink fleet reauth --all-drifted` | parallel TLS probe of every profile | **Bulk heal:** one-shot companion to `fleet reauth <profile>`. Probes all profiles, classifies drift, and for every drifted profile with declared `bootstrap_from` runs the heal. Per-profile failures don't abort the loop. Exit 0 = no drift or all healed; exit 1 = any skip or fail. Operator UX win for fleet-wide rotation events. T-1679. |
 | `termlink fleet history [--since DAYS] [--hub NAME] [--json]` | `~/.termlink/rotation.log` (written by `--watch`) | **Retrospective history:** read-only diagnostic answering "is this hub's drift the 1st or Nth time?". `--watch` appends one NDJSON line per state change (ts/hub/kind/old/new). `fleet history` filters & summarizes. Default 7-day window, clamped 1..=365. Empty log prints a hint. T-1671. |
 
-**Auto-heal recipe (T-1669 + T-1291 declarative bootstrap_from):**
+**Auto-heal recipe — built-in (T-1680, preferred):**
+
+```bash
+termlink fleet doctor --watch 30 --include-pin-check --auto-heal
+```
+
+`--auto-heal` is the built-in equivalent of the shell-script pattern below.
+On every cert-drift transition for a profile that declares `bootstrap_from`
+in `hubs.toml` (T-1291), it spawns `fleet reauth <hub> --bootstrap-from auto`
+fire-and-forget. Profiles without declared `bootstrap_from` are skipped
+with a one-line stderr hint (R2 — no implicit anchors). Termlink ships
+detection AND response policy in this verb; operator declares the trust
+anchor and presses one flag.
+
+**Auto-heal recipe — shell-script (T-1669 + T-1291, pre-T-1680):**
+
+Use this form when you want custom logic (e.g. Slack post, page on-call,
+specific routing) rather than a straight reauth:
 
 ```bash
 # /usr/local/bin/termlink-autoheal.sh
