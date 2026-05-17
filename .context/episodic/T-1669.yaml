@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1669: fleet doctor --watch --notify <cmd> — exec hook on state change
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T20:07:22Z
+# ============================================================================
+
+task_id: T-1669
+task_name: "fleet doctor --watch --notify <cmd> — exec hook on state change"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T20:02:34Z
+completed: 2026-05-17T20:07:12Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T22:07:08+02:00
+last_commit: 2026-05-17T22:07:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --watch --notify — operator-pluggable change-event hook
+
+# Key outcomes
+outcomes:
+  - "`--notify <cmd>` flag accepted on `fleet doctor` (only valid with `--watch`) — `--notify requires --watch` verified"
+  - "When a hub's state changes during watch, the cmd is invoked once per affected hub — `synthetic-flap NEW` triggered notify in cycle 2"
+  - "Environment passed to cmd: TERMLINK_WATCH_HUB + OLD/NEW for conn, pin, legacy + CHANGE_KIND — `synthetic-flap:new::error` (HUB:KIND:OLD_CONN:NEW_CONN) written via env-var template"
+  - "Baseline cycle (cycle 1) does NOT trigger notifications — `/tmp/t1669-notify.tag` had 1 line for cycle-2 only event"
+  - "Notify is fire-and-forget (don't await): cmd spawned via `std::process::Command::spawn()`, not `.output().await`"
+  - "Notify failure (cmd not found) is logged to stderr but does NOT kill the watch — `sh: 1: /tmp/nonexistent-script.sh: not found` printed, watch continued to cycle 2 + clean SIGINT exit"
+  - "Live smoke: notify writes a tag file when invoked; baseline produced no file, change cycle produced file containing `synthetic-flap:new::error`"
+  - "`cargo check -p termlink` passes; no new clippy classes in touched files — only pre-existing tools.rs warning"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1669-fleet-doctor---watch---notify-cmd--exec-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T22:07:08"
+    action: "T-1669: fleet doctor --watch --notify — operator-pluggable change-event hook"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 249
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1669-fleet-doctor---watch---notify-cmd--exec-.md
+generated_by: context-agent-hybrid
