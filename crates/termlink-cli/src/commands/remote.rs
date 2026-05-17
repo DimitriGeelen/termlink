@@ -2800,6 +2800,42 @@ fn fire_notify(
     }
 }
 
+/// T-1680: built-in auto-heal — re-spawn self as `fleet reauth $hub
+/// --bootstrap-from auto`. Fire-and-forget, mirrors `fire_notify`'s shape.
+/// The heal sub-process does its own bootstrap-source resolution + secret
+/// write, so the watch loop's only job is to launch it and continue.
+///
+/// Caller is responsible for gating on `new_pin == "drift"` and checking
+/// that the profile has declared `bootstrap_from` (R2 — no implicit
+/// defaults). This function just spawns once it's invoked.
+fn fire_auto_heal(hub: &str, ts: &str) {
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!(
+                "{ts} watch: --auto-heal cannot resolve self path for hub={hub}: {e} (watch continues)"
+            );
+            return;
+        }
+    };
+    eprintln!("{ts} watch: --auto-heal spawning fleet reauth {hub} --bootstrap-from auto");
+    let mut child = std::process::Command::new(&exe);
+    child
+        .arg("fleet")
+        .arg("reauth")
+        .arg(hub)
+        .arg("--bootstrap-from")
+        .arg("auto");
+    match child.spawn() {
+        Ok(_) => {} // fire-and-forget
+        Err(e) => {
+            eprintln!(
+                "{ts} watch: --auto-heal spawn failed for hub={hub}: {e} (watch continues)"
+            );
+        }
+    }
+}
+
 async fn cmd_fleet_doctor_watch(
     secs: u64,
     timeout_secs: u64,
@@ -2809,6 +2845,7 @@ async fn cmd_fleet_doctor_watch(
     include_pin_check: bool,
     top_callers: u32,
     notify: Option<String>,
+    auto_heal: bool,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
@@ -2948,6 +2985,25 @@ async fn cmd_fleet_doctor_watch(
                                 &ts,
                             );
                         }
+                        // T-1680: built-in auto-heal on cert drift.
+                        // Gate on (a) operator opted in, (b) pin actually
+                        // transitioned to drift this cycle, (c) profile has
+                        // declared a bootstrap_from anchor (R2). The heal
+                        // sub-process does the rest.
+                        if auto_heal && pin_str == "drift" && old_pin != "drift" {
+                            let has_anchor = crate::config::load_hubs_config()
+                                .hubs
+                                .get(name)
+                                .and_then(|e| e.bootstrap_from.as_deref())
+                                .is_some();
+                            if has_anchor {
+                                fire_auto_heal(name, &ts);
+                            } else {
+                                eprintln!(
+                                    "{ts} watch: --auto-heal skipped hub={name}: no bootstrap_from declared (R2 — declare it to enable auto-heal)"
+                                );
+                            }
+                        }
                     } else {
                         println!(
                             "{}   {} NEW conn={} pin={} legacy={}",
@@ -3033,11 +3089,18 @@ pub(crate) async fn cmd_fleet_doctor(
     top_callers: u32,
     watch: Option<u64>,
     notify: Option<String>,
+    auto_heal: bool,
 ) -> Result<()> {
     // T-1669: --notify is meaningless without --watch (single-shot has no diff
     // cycles). Reject loudly so the operator sees the misuse immediately.
     if notify.is_some() && watch.is_none() {
         anyhow::bail!("--notify requires --watch (operator-hook fires on cycle-to-cycle state diffs)");
+    }
+    // T-1680: same rule for --auto-heal (cert-drift events only emerge in
+    // diff cycles). clap's `requires = "watch"` should already catch this,
+    // but keep a runtime guard for parity with --notify.
+    if auto_heal && watch.is_none() {
+        anyhow::bail!("--auto-heal requires --watch (cert-drift detection lives in the diff loop)");
     }
     // T-1667: --watch dispatches to the continuous-monitoring loop. The loop
     // re-spawns self via std::env::current_exe() with --json each cycle and
@@ -3050,7 +3113,7 @@ pub(crate) async fn cmd_fleet_doctor(
         }
         return cmd_fleet_doctor_watch(
             secs, timeout_secs, legacy_usage, legacy_window_days,
-            topic_durability, include_pin_check, top_callers, notify,
+            topic_durability, include_pin_check, top_callers, notify, auto_heal,
         ).await;
     }
 
