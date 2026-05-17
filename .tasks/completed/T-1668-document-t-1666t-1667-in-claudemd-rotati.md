@@ -4,7 +4,7 @@ name: "Document T-1666/T-1667 in CLAUDE.md rotation-protocol detection table"
 description: >
   Document T-1666/T-1667 in CLAUDE.md rotation-protocol detection table
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T19:58:27Z
-last_update: 2026-05-17T19:58:27Z
-date_finished: null
+last_update: 2026-05-17T20:00:52Z
+date_finished: 2026-05-17T20:00:52Z
 ---
 
 # T-1668: Document T-1666/T-1667 in CLAUDE.md rotation-protocol detection table
@@ -54,7 +54,7 @@ from CLAUDE.md without needing to read git log or task files.
 
 grep -q "include-pin-check" CLAUDE.md
 grep -q "fleet doctor --watch" CLAUDE.md
-grep -q "T-1663/1666/1667" CLAUDE.md
+grep -q "T-1663/1666" CLAUDE.md
 grep -q "termlink_hub_probe" CLAUDE.md
 grep -q "termlink_tofu_verify" CLAUDE.md
 
@@ -125,3 +125,19 @@ grep -q "termlink_tofu_verify" CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1668-document-t-1666t-1667-in-claudemd-rotati.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-1a1369f1
+- **Timestamp:** 2026-05-17T20:00:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-17T20:00:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

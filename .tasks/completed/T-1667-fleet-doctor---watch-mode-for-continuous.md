@@ -4,16 +4,16 @@ name: "fleet doctor --watch mode for continuous rotation monitoring"
 description: >
   fleet doctor --watch mode for continuous rotation monitoring
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T19:36:24Z
-last_update: 2026-05-17T19:36:24Z
-date_finished: null
+last_update: 2026-05-17T19:53:30Z
+date_finished: 2026-05-17T19:53:30Z
 ---
 
 # T-1667: fleet doctor --watch mode for continuous rotation monitoring
@@ -65,8 +65,8 @@ Completes the rotation-protocol stack at the continuous-monitoring layer:
 cargo check -p termlink 2>&1 | grep -q "Finished"
 grep -q "cmd_fleet_doctor_watch" crates/termlink-cli/src/commands/remote.rs
 grep -q "watch: Option<u64>" crates/termlink-cli/src/cli.rs
-./target/debug/termlink fleet doctor --watch 3 2>&1 | grep -q "must be 5..=3600"
-./target/debug/termlink fleet doctor --watch 10 --diff /tmp/nope.json 2>&1 | grep -q "incompatible with"
+bash -c './target/debug/termlink fleet doctor --watch 3 2>&1 || true' | grep -q "must be 5..=3600"
+bash -c './target/debug/termlink fleet doctor --watch 10 --diff /tmp/nope.json 2>&1 || true' | grep -q "incompatible with"
 
 ## RCA
 
@@ -135,3 +135,24 @@ grep -q "watch: Option<u64>" crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1667-fleet-doctor---watch-mode-for-continuous.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-2e3368c8
+- **Timestamp:** 2026-05-17T19:53:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#7 (Agent)** — Live smoke against the 5-hub fleet: 2 cycles, no false positives, plain output — `/tmp/t1667-smoke2.out` 2026-05-17T19:49:43Z baseline, 19:50:08Z stop, 0 spurious lines
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/t1667-smoke2.out in: Live smoke against the 5-hub fleet: 2 cycles, no false positives, plain output — `/tmp/t1667-smoke2.out` 2026-05-17T19:49:43Z baseline, 19:50:08Z stop`
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-17T19:53:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
