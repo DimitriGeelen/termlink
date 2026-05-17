@@ -320,6 +320,131 @@ pub fn build_tofu_connector(host_port: &str) -> tokio_rustls::TlsConnector {
     tokio_rustls::TlsConnector::from(Arc::new(config))
 }
 
+/// T-1658: capturing verifier — accepts any cert and stashes the leaf DER.
+///
+/// Used by `probe_cert()` to extract the remote hub's certificate during a
+/// TLS handshake WITHOUT pinning, WITHOUT auth, WITHOUT mutating
+/// `KnownHubStore`. The captured DER is read once by the caller after the
+/// handshake completes.
+#[derive(Debug)]
+struct ProbeVerifier {
+    captured: Arc<Mutex<Option<Vec<u8>>>>,
+}
+
+impl ServerCertVerifier for ProbeVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, Error> {
+        let der = end_entity.as_ref().to_vec();
+        if let Ok(mut slot) = self.captured.lock() {
+            *slot = Some(der);
+        }
+        Ok(ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        vec![
+            SignatureScheme::RSA_PKCS1_SHA256,
+            SignatureScheme::RSA_PKCS1_SHA384,
+            SignatureScheme::RSA_PKCS1_SHA512,
+            SignatureScheme::ECDSA_NISTP256_SHA256,
+            SignatureScheme::ECDSA_NISTP384_SHA384,
+            SignatureScheme::ECDSA_NISTP521_SHA512,
+            SignatureScheme::RSA_PSS_SHA256,
+            SignatureScheme::RSA_PSS_SHA384,
+            SignatureScheme::RSA_PSS_SHA512,
+            SignatureScheme::ED25519,
+            SignatureScheme::ED448,
+        ]
+    }
+
+    fn root_hint_subjects(&self) -> Option<&[rustls::DistinguishedName]> {
+        Some(&[])
+    }
+}
+
+/// T-1658: open TCP to `addr`, complete a TLS handshake accepting any cert,
+/// return the remote leaf cert's DER bytes and its `sha256:<hex>` fingerprint.
+///
+/// Companion to the local-side `hub fingerprint` (T-1657). Does NOT mutate
+/// `~/.termlink/known_hubs` — pure read-only diagnostic. `addr` must be
+/// `host:port` (e.g. `192.168.10.122:9100`). Accepts IPv4 and DNS names.
+///
+/// The TLS server name sent in the handshake is the host portion of `addr`
+/// or `localhost` if `addr` is a bare IP — most hub certs are self-signed
+/// CN=localhost so SNI rarely matters, but we set it for completeness.
+pub async fn probe_cert(addr: &str) -> Result<(Vec<u8>, String), String> {
+    // Split host:port — accept IPv4-style addresses only (no IPv6 brackets);
+    // hub addresses in the wild are all host:port with at most one ':'.
+    let (host, _port) = match addr.rsplit_once(':') {
+        Some((h, p)) if !h.is_empty() && !p.is_empty() => (h, p),
+        _ => return Err(format!(
+            "malformed address '{addr}' — expected host:port (e.g. 192.168.10.122:9100)"
+        )),
+    };
+
+    // TCP connect
+    let stream = tokio::net::TcpStream::connect(addr)
+        .await
+        .map_err(|e| format!("TCP connect to {addr} failed: {e}"))?;
+
+    // Build a one-shot capturing connector
+    let captured: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
+    let verifier = ProbeVerifier { captured: Arc::clone(&captured) };
+    let config = rustls::ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(verifier))
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+
+    // ServerName for SNI — host portion of addr; if it's a bare IP rustls is
+    // happy to accept it. Fall back to "localhost" if conversion fails (this
+    // is extremely unlikely; rustls's IpAddr/DnsName accept any non-empty
+    // string that parses as either).
+    let server_name = ServerName::try_from(host.to_string())
+        .or_else(|_| ServerName::try_from("localhost".to_string()))
+        .map_err(|e| format!("invalid SNI for '{host}': {e}"))?;
+
+    // Drive the handshake — we don't care about the resulting stream,
+    // only the captured cert.
+    let _tls = connector
+        .connect(server_name, stream)
+        .await
+        .map_err(|e| format!("TLS handshake to {addr} failed: {e}"))?;
+
+    let der = captured
+        .lock()
+        .map_err(|e| format!("verifier lock poisoned: {e}"))?
+        .take()
+        .ok_or_else(|| format!("no cert captured from {addr} (handshake completed without verifier call)"))?;
+
+    let fp = cert_fingerprint(&der);
+    Ok((der, fp))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

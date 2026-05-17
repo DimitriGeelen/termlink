@@ -1169,6 +1169,27 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Probe a remote hub via TLS handshake and print its leaf cert sha256
+    ///
+    /// G-011 rotation-protocol companion to `hub fingerprint` (which reads
+    /// the local cert). `probe` does NOT require auth, a profile, or shell
+    /// access to the remote host — it opens TCP, completes a TOFU-style
+    /// handshake accepting any cert, and prints the fingerprint in the
+    /// canonical `sha256:<hex>` form. Output is directly comparable to
+    /// `KnownHubStore.get(addr)` values and to remote `hub fingerprint`
+    /// output. Does NOT mutate `~/.termlink/known_hubs`.
+    ///
+    /// Use when:
+    ///   - verifying a hub is up and presenting a cert (pre-pin diagnostic)
+    ///   - comparing-without-trust after a suspected rotation
+    ///   - operator first-contact before adding a profile
+    Probe {
+        /// host:port of the hub to probe (e.g. 192.168.10.122:9100)
+        addr: String,
+        /// Output as JSON: {"address":"<addr>","fingerprint":"sha256:..."}
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Hub inbox actions (T-997)
