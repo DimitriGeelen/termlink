@@ -4,16 +4,16 @@ name: "fleet doctor --watch --notify <cmd> — exec hook on state change"
 description: >
   fleet doctor --watch --notify <cmd> — exec hook on state change
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T20:02:34Z
-last_update: 2026-05-17T20:02:34Z
-date_finished: null
+last_update: 2026-05-17T20:07:12Z
+date_finished: 2026-05-17T20:07:12Z
 ---
 
 # T-1669: fleet doctor --watch --notify <cmd> — exec hook on state change
@@ -145,3 +145,26 @@ bash -c './target/debug/termlink fleet doctor --notify /tmp/nope.sh 2>&1 || true
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1669-fleet-doctor---watch---notify-cmd--exec-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e52538a8
+- **Timestamp:** 2026-05-17T20:07:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Baseline cycle (cycle 1) does NOT trigger notifications — `/tmp/t1669-notify.tag` had 1 line for cycle-2 only event
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/t1669-notify.tag in: Baseline cycle (cycle 1) does NOT trigger notifications — `/tmp/t1669-notify.tag` had 1 line for cycle-2 only event`
+- **AC#6 (Agent)** — Notify failure (cmd not found) is logged to stderr but does NOT kill the watch — `sh: 1: /tmp/nonexistent-script.sh: not found` printed, watch continued to cycle 2 + clean SIGINT exit
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/nonexistent-script.sh in: Notify failure (cmd not found) is logged to stderr but does NOT kill the watch — `sh: 1: /tmp/nonexistent-script.sh: not found` printed, watch continu`
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-17T20:07:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
