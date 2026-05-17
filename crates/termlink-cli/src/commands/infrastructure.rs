@@ -1147,6 +1147,83 @@ pub(crate) fn cmd_tofu_clear(host: Option<&str>, all: bool, json_output: bool) -
     Ok(())
 }
 
+/// T-1659: probe a hub's wire fingerprint and compare against the stored TOFU pin.
+///
+/// Deterministic exit codes (script-friendly):
+///   0 — match (pin still valid)
+///   1 — drift (wire != pin; rotation occurred — heal required)
+///   2 — no pin (host not in KnownHubStore)
+///   3 — probe failed (unreachable / TLS error)
+///
+/// In `--json` mode we always exit 0 so callers can parse; the verdict is
+/// carried in the `status` field of the JSON object.
+///
+/// Pure read-only — does NOT mutate `KnownHubStore`.
+pub(crate) async fn cmd_tofu_verify(host: &str, json_output: bool) -> Result<()> {
+    let store = termlink_session::tofu::KnownHubStore::default_store();
+    let pinned: Option<String> = store.get(host);
+
+    // Probe the wire. Capture probe errors as "probe-failed" status.
+    let probe_result = termlink_session::tofu::probe_cert(host).await;
+
+    let (status, wire_fp, match_flag, probe_err): (&str, Option<String>, Option<bool>, Option<String>) =
+        match (&probe_result, &pinned) {
+            (Ok((_, wire)), Some(pin)) if wire == pin => ("match", Some(wire.clone()), Some(true), None),
+            (Ok((_, wire)), Some(_)) => ("drift", Some(wire.clone()), Some(false), None),
+            (Ok((_, wire)), None) => ("no-pin", Some(wire.clone()), None, None),
+            (Err(e), _) => ("probe-failed", None, None, Some(e.clone())),
+        };
+
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "address": host,
+                "wire": wire_fp,
+                "pinned": pinned,
+                "match": match_flag,
+                "status": status,
+                "probe_error": probe_err,
+            })
+        );
+        return Ok(());
+    }
+
+    // Human-readable output + deterministic exit code via process::exit.
+    match status {
+        "match" => {
+            println!("[OK] {} — pin matches wire fingerprint", host);
+            println!("  {}", wire_fp.as_deref().unwrap_or(""));
+        }
+        "drift" => {
+            println!("[DRIFT] {} — wire fingerprint does NOT match stored pin", host);
+            println!("  Pinned: {}", pinned.as_deref().unwrap_or("(none)"));
+            println!("  Wire:   {}", wire_fp.as_deref().unwrap_or("(none)"));
+            println!();
+            println!("  Hub rotated. Heal: termlink fleet reauth <profile> --bootstrap-from auto");
+            println!("  Then re-pin:        termlink tofu clear {}", host);
+            std::process::exit(1);
+        }
+        "no-pin" => {
+            println!("[NO-PIN] {} — host not in KnownHubStore", host);
+            println!("  Wire: {}", wire_fp.as_deref().unwrap_or(""));
+            println!();
+            println!("  This is the wire fingerprint. To trust it (TOFU), connect once via");
+            println!("  any auth-bearing command (e.g. termlink remote ping <profile>).");
+            std::process::exit(2);
+        }
+        "probe-failed" => {
+            println!("[PROBE-FAILED] {} — could not retrieve wire fingerprint", host);
+            if let Some(e) = &probe_err {
+                println!("  {}", e);
+            }
+            std::process::exit(3);
+        }
+        _ => unreachable!(),
+    }
+    Ok(())
+}
+
 /// T-1171 / G-011: Audit `~/.termlink/secrets/*.hex` for perm smells and
 /// staleness relative to a local hub secret. Returns a warning message per
 /// issue; empty vec means all caches look healthy.
