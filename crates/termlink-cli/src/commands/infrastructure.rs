@@ -954,6 +954,32 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
     Ok(())
 }
 
+/// T-1658: TLS-probe a remote hub and print its leaf cert fingerprint.
+///
+/// Companion to `cmd_hub_fingerprint` (T-1657, local) — `cmd_hub_probe`
+/// reads the same value from the wire, no auth required, no profile
+/// required, no `KnownHubStore` mutation. Output matches the canonical
+/// `sha256:<hex>` form so values are directly comparable to local
+/// `hub fingerprint`, `tofu list`, and `KnownHubStore.get(addr)`.
+pub(crate) async fn cmd_hub_probe(addr: &str, json_output: bool) -> Result<()> {
+    let (_der, fingerprint) = termlink_session::tofu::probe_cert(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "address": addr,
+                "fingerprint": fingerprint,
+            })
+        );
+    } else {
+        println!("{fingerprint}");
+    }
+    Ok(())
+}
+
 // === Inbox Commands (T-997) ===
 
 pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
