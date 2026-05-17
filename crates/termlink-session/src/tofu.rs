@@ -445,6 +445,31 @@ pub async fn probe_cert(addr: &str) -> Result<(Vec<u8>, String), String> {
     Ok((der, fp))
 }
 
+/// T-1675: timeout-bounded wrapper around [`probe_cert`].
+///
+/// Without this, a probe of an unreachable host holds open the underlying
+/// `tokio::net::TcpStream::connect` for the OS TCP retry budget (30–60+s),
+/// which when used in parallel-spawn paths (e.g. `fleet doctor
+/// --include-pin-check`, `fleet verify`) determines slowest-probe and
+/// therefore total wall time. With this wrapper, slowest-probe is bounded
+/// to `timeout`.
+///
+/// On timeout, returns an `Err` whose message contains the literal `timeout`
+/// substring and the elapsed seconds, so downstream classification (e.g.
+/// `probe-fail`) can preserve operator-visible error provenance.
+pub async fn probe_cert_with_timeout(
+    addr: &str,
+    timeout: std::time::Duration,
+) -> Result<(Vec<u8>, String), String> {
+    match tokio::time::timeout(timeout, probe_cert(addr)).await {
+        Ok(inner) => inner,
+        Err(_) => Err(format!(
+            "TLS probe to {addr} timeout after {}s",
+            timeout.as_secs()
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -608,5 +633,29 @@ mod tests {
         let store2 = KnownHubStore::new(path);
         assert_eq!(store2.list_all().len(), 1);
         assert_eq!(store2.get("h2:9200"), Some("sha256:f2".to_string()));
+    }
+
+    // T-1675: probe_cert_with_timeout returns a timeout error whose message
+    // contains the literal "timeout" substring and the elapsed-seconds value
+    // when the inner probe outlives the bound. Use a routeable but
+    // non-connectable address (RFC 5737 TEST-NET-1 192.0.2.0/24, reserved for
+    // documentation — guaranteed to drop the SYN at any internet boundary)
+    // and a 1s bound so the test stays under cargo's default per-test budget.
+    #[tokio::test]
+    async fn probe_cert_with_timeout_errors_on_unreachable() {
+        let res = super::probe_cert_with_timeout(
+            "192.0.2.1:9100",
+            std::time::Duration::from_secs(1),
+        )
+        .await;
+        let err = res.expect_err("expected probe to fail (unreachable + 1s bound)");
+        // Either the timeout fires first (slow networks) or the OS bails
+        // sooner with EHOSTUNREACH/ECONNREFUSED; both are acceptable failure
+        // paths for the operator. Assert the timeout-path produces the
+        // documented substring iff it fires.
+        if err.contains("timeout") {
+            assert!(err.contains("1s"), "timeout error should include duration: {err}");
+            assert!(err.contains("192.0.2.1"), "timeout error should include addr: {err}");
+        }
     }
 }

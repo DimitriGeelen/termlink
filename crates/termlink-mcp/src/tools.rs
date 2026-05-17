@@ -6340,13 +6340,18 @@ impl TermLinkTools {
 
         let store = termlink_session::tofu::KnownHubStore::default_store();
 
+        // T-1675: 10s per-probe bound — keeps fleet sweeps from hanging on
+        // an unreachable host's OS TCP retry budget. Matches CLI defaults.
+        let probe_timeout = std::time::Duration::from_secs(10);
         let probes: Vec<_> = profiles
             .iter()
             .map(|(name, address, _, _)| {
                 let name = name.clone();
                 let address = address.clone();
                 tokio::spawn(async move {
-                    let result = termlink_session::tofu::probe_cert(&address).await;
+                    let result = termlink_session::tofu::probe_cert_with_timeout(
+                        &address, probe_timeout,
+                    ).await;
                     (name, address, result)
                 })
             })
@@ -6421,7 +6426,10 @@ impl TermLinkTools {
         description = "Probe a single hub via TLS handshake and return its leaf cert sha256 fingerprint in canonical `sha256:<hex>` form. Pure read-only diagnostic: no authentication, no profile required, no `KnownHubStore` mutation. Use for pre-pin verification, comparing-without-trust after a suspected rotation, or operator first-contact before adding a profile. Companion to termlink_fleet_verify for per-host investigation without probing the whole fleet."
     )]
     async fn termlink_hub_probe(&self, Parameters(p): Parameters<HubProbeParams>) -> String {
-        match termlink_session::tofu::probe_cert(&p.address).await {
+        // T-1675: 10s bound matches CLI `hub probe` default.
+        match termlink_session::tofu::probe_cert_with_timeout(
+            &p.address, std::time::Duration::from_secs(10),
+        ).await {
             Ok((_der, fingerprint)) => serde_json::to_string_pretty(&serde_json::json!({
                 "ok": true,
                 "address": p.address,
@@ -6446,7 +6454,10 @@ impl TermLinkTools {
     async fn termlink_tofu_verify(&self, Parameters(p): Parameters<TofuVerifyParams>) -> String {
         let store = termlink_session::tofu::KnownHubStore::default_store();
         let pinned = store.get(&p.address);
-        let probe_result = termlink_session::tofu::probe_cert(&p.address).await;
+        // T-1675: 10s bound matches CLI `tofu verify` default.
+        let probe_result = termlink_session::tofu::probe_cert_with_timeout(
+            &p.address, std::time::Duration::from_secs(10),
+        ).await;
 
         let (status, wire, error): (&str, Option<String>, Option<String>) = match probe_result {
             Ok((_, wire)) => match &pinned {

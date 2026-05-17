@@ -962,7 +962,12 @@ pub(crate) fn cmd_hub_fingerprint(json_output: bool) -> Result<()> {
 /// `sha256:<hex>` form so values are directly comparable to local
 /// `hub fingerprint`, `tofu list`, and `KnownHubStore.get(addr)`.
 pub(crate) async fn cmd_hub_probe(addr: &str, json_output: bool) -> Result<()> {
-    let (_der, fingerprint) = termlink_session::tofu::probe_cert(addr)
+    // T-1675: bound the probe at 10s to match `fleet verify` / `fleet doctor
+    // --include-pin-check` defaults — otherwise an unreachable host holds
+    // the operator's terminal for the OS TCP retry budget (30-60+s).
+    let (_der, fingerprint) = termlink_session::tofu::probe_cert_with_timeout(
+        addr, std::time::Duration::from_secs(10),
+    )
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
 
@@ -1164,7 +1169,10 @@ pub(crate) async fn cmd_tofu_verify(host: &str, json_output: bool) -> Result<()>
     let pinned: Option<String> = store.get(host);
 
     // Probe the wire. Capture probe errors as "probe-failed" status.
-    let probe_result = termlink_session::tofu::probe_cert(host).await;
+    // T-1675: 10s timeout — match `fleet verify` / `hub probe` defaults.
+    let probe_result = termlink_session::tofu::probe_cert_with_timeout(
+        host, std::time::Duration::from_secs(10),
+    ).await;
 
     let (status, wire_fp, match_flag, probe_err): (&str, Option<String>, Option<bool>, Option<String>) =
         match (&probe_result, &pinned) {
