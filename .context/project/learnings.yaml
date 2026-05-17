@@ -1383,3 +1383,24 @@ learnings:
   date: 2026-05-16
   context: Added via context agent
   application: TBD
+- id: PL-160
+  learning: "Fleet doctor observed auth-mismatch on hub 'test-bad-perms' (192.168.10.122:9100). date_observed=2026-05-16T22:54:57Z hub_fingerprint=sha256:22c19fedafd73da27cb86945d8ae6002202fd4f4e75d22ce8d4097bd19d00d46. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-05-16
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+- id: PL-161
+  learning: "Audit-recurring WARN where the suggested mitigation is structurally a no-op (e.g. fabric-edges WARN suggesting fw fabric enrich on cards that have no detectable code-deps) indicates the metric is unactionable, not that the operator is failing. Resolution: tag the genuinely-edgeless cards with standalone:true (the audit already supports the opt-out at audit.sh:658) rather than chase the no-op enrich. Future audit warns: verify the mitigation is actually applicable before running it; the trend-analysis line is a candidate-for-practice signal, not a do-this-harder signal."
+  source: P-001
+  task: T-1655
+  date: 2026-05-17
+  context: Added via context agent
+  application: TBD
+- id: PL-162
+  learning: "G-011 rotation-protocol diagnostic stack covers CERT rotation (TLS layer). For wire-vs-pin checks: (T-1658) hub probe single-shot, (T-1659) tofu verify with exit codes, (T-1660) fleet verify with rollup, (T-1661) MCP companion. Local read-only: (T-1656) hub export-secret, (T-1657) hub fingerprint. All read-only, no auth, no KnownHubStore mutation. SECRET-only rotation (cert unchanged) is invisible to TLS-probe-based detection — those workloads only fail at auth time, so use `fleet doctor` (auth-mismatch surfaces it) for that case. PL-021's 'both rotate' case is detected by either. Don't rebuild these or wrap them in shell loops — the verbs exist and have script-friendly exit codes."
+  source: PL-021
+  task: T-1661
+  date: 2026-05-17
+  context: Added via context agent, updated 2026-05-17 with T-1661 MCP companion + secret-only caveat
+  application: When an operator reports auth-mismatch and tofu verify says [OK], suspect secret-only rotation and proceed straight to fleet reauth without a tofu clear step
