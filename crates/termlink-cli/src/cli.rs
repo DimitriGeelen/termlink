@@ -1158,6 +1158,17 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Print the sha256 fingerprint of <runtime_dir>/hub.cert.pem (TOFU pin)
+    ///
+    /// Use to verify what peers should pin after a hub rotation (PL-021)
+    /// or first-connection. Output matches the `sha256:<hex>` form stored
+    /// by `KnownHubStore` (~/.termlink/known_hubs) so values are directly
+    /// comparable across hosts.
+    Fingerprint {
+        /// Output as JSON: {"path":"<live-cert>","fingerprint":"sha256:..."}
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Hub inbox actions (T-997)
