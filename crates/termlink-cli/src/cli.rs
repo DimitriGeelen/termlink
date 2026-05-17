@@ -3291,6 +3291,30 @@ pub(crate) enum FleetAction {
         #[arg(long)]
         exit_on_drift_only: bool,
     },
+
+    /// T-1671: print the rotation history captured by `fleet doctor --watch`.
+    ///
+    /// Reads `~/.termlink/rotation.log` (NDJSON, append-only). Each line is
+    /// one per-hub state change recorded during an earlier `--watch` session.
+    /// Useful for retrospective diagnosis: "did this hub flap before this
+    /// week?" / "is /tmp wiping multiple times (PL-021)?" — without needing
+    /// to keep a watch terminal open continuously.
+    ///
+    /// Empty/missing log → prints a hint pointing at `fleet doctor --watch`
+    /// to start capturing.
+    History {
+        /// Window in days (default 7, clamped 1..=365). Older entries skipped.
+        #[arg(long, default_value = "7")]
+        since: u32,
+
+        /// Restrict output to one hub profile name.
+        #[arg(long, value_name = "NAME")]
+        hub: Option<String>,
+
+        /// Emit NDJSON (one matching log entry per line) plus a summary footer.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Network connectivity diagnostics (T-1106)
