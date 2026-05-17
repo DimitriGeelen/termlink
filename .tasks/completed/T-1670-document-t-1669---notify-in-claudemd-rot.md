@@ -4,7 +4,7 @@ name: "Document T-1669 --notify in CLAUDE.md rotation-protocol table"
 description: >
   Document T-1669 --notify in CLAUDE.md rotation-protocol table
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T20:08:20Z
-last_update: 2026-05-17T20:08:20Z
-date_finished: null
+last_update: 2026-05-17T20:09:40Z
+date_finished: 2026-05-17T20:09:40Z
 ---
 
 # T-1670: Document T-1669 --notify in CLAUDE.md rotation-protocol table
@@ -126,3 +126,19 @@ grep -q "fleet doctor --watch <secs> --notify" CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1670-document-t-1669---notify-in-claudemd-rot.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-bbed747c
+- **Timestamp:** 2026-05-17T20:09:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-17T20:09:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
