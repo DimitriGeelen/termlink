@@ -2765,6 +2765,7 @@ fn fire_notify(
     new_pin: &str,
     old_legacy: &str,
     new_legacy: &str,
+    ts: &str,
 ) {
     let mut child = std::process::Command::new("sh");
     child
@@ -2777,7 +2778,11 @@ fn fire_notify(
         .env("TERMLINK_WATCH_OLD_PIN", old_pin)
         .env("TERMLINK_WATCH_NEW_PIN", new_pin)
         .env("TERMLINK_WATCH_OLD_LEGACY", old_legacy)
-        .env("TERMLINK_WATCH_NEW_LEGACY", new_legacy);
+        .env("TERMLINK_WATCH_NEW_LEGACY", new_legacy)
+        // T-1676: detection timestamp (RFC3339, UTC). Operator-side log
+        // correlation needs the watch-loop's diff-cycle time, not the
+        // notify-script's launch time. Set per change event.
+        .env("TERMLINK_WATCH_TS", ts);
     match child.spawn() {
         Ok(_) => {} // fire-and-forget; child reaped by OS when it exits
         Err(e) => {
@@ -2936,6 +2941,7 @@ async fn cmd_fleet_doctor_watch(
                                 &o.0, &new_state.0,
                                 old_pin, pin_str,
                                 &old_legacy, &legacy_str,
+                                &ts,
                             );
                         }
                     } else {
@@ -2955,6 +2961,7 @@ async fn cmd_fleet_doctor_watch(
                                 "", &new_state.0,
                                 "-", pin_str,
                                 "-", &legacy_str,
+                                &ts,
                             );
                         }
                     }
@@ -2984,6 +2991,7 @@ async fn cmd_fleet_doctor_watch(
                             &old_state.0, "",
                             old_pin, "-",
                             &old_legacy, "-",
+                            &ts,
                         );
                     }
                     changes += 1;

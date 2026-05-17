@@ -3238,6 +3238,7 @@ pub(crate) enum FleetAction {
         ///   TERMLINK_WATCH_NEW_PIN     current pin status (or "-")
         ///   TERMLINK_WATCH_OLD_LEGACY  prior total_legacy count (or "-")
         ///   TERMLINK_WATCH_NEW_LEGACY  current total_legacy count (or "-")
+        ///   TERMLINK_WATCH_TS          RFC3339 detection time (T-1676)
         ///
         /// Operator usage: write a shell script that responds to the event
         /// (notify Slack, page on-call, run `fleet reauth $TERMLINK_WATCH_HUB
