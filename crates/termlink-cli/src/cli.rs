@@ -3222,6 +3222,29 @@ pub(crate) enum FleetAction {
         /// time-series).
         #[arg(long, value_name = "SECONDS")]
         watch: Option<u64>,
+
+        /// T-1669: invoke this shell command whenever a hub's state changes
+        /// during `--watch` (skipped on baseline cycle). Requires `--watch`.
+        /// The command is fire-and-forget (not awaited) — a hanging script
+        /// will NOT block the watch loop. Non-zero exits are logged to
+        /// stderr but the watch continues.
+        ///
+        /// Per-event environment passed to the command:
+        ///   TERMLINK_WATCH_HUB         hub profile name
+        ///   TERMLINK_WATCH_CHANGE_KIND "transition" | "new" | "removed"
+        ///   TERMLINK_WATCH_OLD_CONN    prior connectivity status (or empty if new)
+        ///   TERMLINK_WATCH_NEW_CONN    current connectivity status
+        ///   TERMLINK_WATCH_OLD_PIN     prior pin status (or "-")
+        ///   TERMLINK_WATCH_NEW_PIN     current pin status (or "-")
+        ///   TERMLINK_WATCH_OLD_LEGACY  prior total_legacy count (or "-")
+        ///   TERMLINK_WATCH_NEW_LEGACY  current total_legacy count (or "-")
+        ///
+        /// Operator usage: write a shell script that responds to the event
+        /// (notify Slack, page on-call, run `fleet reauth $TERMLINK_WATCH_HUB
+        /// --bootstrap-from auto` for declared profiles, etc.). Termlink ships
+        /// detection + change events; operator ships response policy.
+        #[arg(long, value_name = "CMD")]
+        notify: Option<String>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

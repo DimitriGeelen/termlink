@@ -2508,6 +2508,46 @@ type WatchHubState = (String, Option<String>, Option<u64>);
 /// `--watch <secs>` is set. Re-spawns self via `std::env::current_exe()` with
 /// `--json` each cycle, parses the result, tracks per-hub state in a
 /// `BTreeMap`, and emits ONLY changes after the baseline cycle.
+/// T-1669: spawn an operator-supplied shell command on a per-hub state change.
+/// Fire-and-forget: we set the env vars, spawn via `sh -c "$cmd"`, and do NOT
+/// await the child. A hanging script must not block the watch loop. The child
+/// inherits stdout/stderr so operator output is visible to the same terminal.
+fn fire_notify(
+    cmd: &str,
+    hub: &str,
+    kind: &str,
+    old_conn: &str,
+    new_conn: &str,
+    old_pin: &str,
+    new_pin: &str,
+    old_legacy: &str,
+    new_legacy: &str,
+) {
+    let mut child = std::process::Command::new("sh");
+    child
+        .arg("-c")
+        .arg(cmd)
+        .env("TERMLINK_WATCH_HUB", hub)
+        .env("TERMLINK_WATCH_CHANGE_KIND", kind)
+        .env("TERMLINK_WATCH_OLD_CONN", old_conn)
+        .env("TERMLINK_WATCH_NEW_CONN", new_conn)
+        .env("TERMLINK_WATCH_OLD_PIN", old_pin)
+        .env("TERMLINK_WATCH_NEW_PIN", new_pin)
+        .env("TERMLINK_WATCH_OLD_LEGACY", old_legacy)
+        .env("TERMLINK_WATCH_NEW_LEGACY", new_legacy);
+    match child.spawn() {
+        Ok(_) => {} // fire-and-forget; child reaped by OS when it exits
+        Err(e) => {
+            eprintln!(
+                "{} watch: --notify spawn failed for hub={}: {} (watch continues)",
+                crate::manifest::now_rfc3339(),
+                hub,
+                e
+            );
+        }
+    }
+}
+
 async fn cmd_fleet_doctor_watch(
     secs: u64,
     timeout_secs: u64,
@@ -2516,6 +2556,7 @@ async fn cmd_fleet_doctor_watch(
     topic_durability: bool,
     include_pin_check: bool,
     top_callers: u32,
+    notify: Option<String>,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
@@ -2640,11 +2681,27 @@ async fn cmd_fleet_doctor_watch(
                             "{}   {} conn={}→{} pin={}→{} legacy={}→{}",
                             ts, name, o.0, new_state.0, old_pin, pin_str, old_legacy, legacy_str
                         );
+                        if let Some(cmd) = notify.as_deref() {
+                            fire_notify(
+                                cmd, name, "transition",
+                                &o.0, &new_state.0,
+                                old_pin, pin_str,
+                                &old_legacy, &legacy_str,
+                            );
+                        }
                     } else {
                         println!(
                             "{}   {} NEW conn={} pin={} legacy={}",
                             ts, name, new_state.0, pin_str, legacy_str
                         );
+                        if let Some(cmd) = notify.as_deref() {
+                            fire_notify(
+                                cmd, name, "new",
+                                "", &new_state.0,
+                                "-", pin_str,
+                                "-", &legacy_str,
+                            );
+                        }
                     }
                     changes += 1;
                 }
@@ -2655,6 +2712,19 @@ async fn cmd_fleet_doctor_watch(
                         "{}   {} REMOVED (was conn={})",
                         ts, name, old_state.0
                     );
+                    if let Some(cmd) = notify.as_deref() {
+                        let old_pin = old_state.1.as_deref().unwrap_or("-");
+                        let old_legacy = old_state
+                            .2
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "-".into());
+                        fire_notify(
+                            cmd, name, "removed",
+                            &old_state.0, "",
+                            old_pin, "-",
+                            &old_legacy, "-",
+                        );
+                    }
                     changes += 1;
                 }
             }
@@ -2689,7 +2759,13 @@ pub(crate) async fn cmd_fleet_doctor(
     trend_keep: u32,
     top_callers: u32,
     watch: Option<u64>,
+    notify: Option<String>,
 ) -> Result<()> {
+    // T-1669: --notify is meaningless without --watch (single-shot has no diff
+    // cycles). Reject loudly so the operator sees the misuse immediately.
+    if notify.is_some() && watch.is_none() {
+        anyhow::bail!("--notify requires --watch (operator-hook fires on cycle-to-cycle state diffs)");
+    }
     // T-1667: --watch dispatches to the continuous-monitoring loop. The loop
     // re-spawns self via std::env::current_exe() with --json each cycle and
     // emits per-hub state diffs. Reject single-shot-only companion flags here
@@ -2701,7 +2777,7 @@ pub(crate) async fn cmd_fleet_doctor(
         }
         return cmd_fleet_doctor_watch(
             secs, timeout_secs, legacy_usage, legacy_window_days,
-            topic_durability, include_pin_check, top_callers,
+            topic_durability, include_pin_check, top_callers, notify,
         ).await;
     }
 
