@@ -115,6 +115,32 @@ the client needs healing:
   `G-XXX` concern in `.context/project/concerns.yaml` with
   `type: gap, severity: high, status: watching` (T-1053).
 
+**Detection — primitive verbs (T-1656/57/58/59/60/61).** Read-only,
+no-auth, no-`KnownHubStore`-mutation diagnostics. Use these to confirm a
+rotation happened and identify which hub before reaching for the heal
+paths below.
+
+| Verb | Reads | One-line purpose |
+|---|---|---|
+| `termlink hub export-secret` | live local `<runtime_dir>/hub.secret` | Authoritative secret-share source (G-011 R3); never the IP-keyed cache. |
+| `termlink hub fingerprint` | live local `<runtime_dir>/hub.cert.pem` | TLS fingerprint of the local hub for peers to pin. |
+| `termlink hub probe <addr>` | remote leaf cert via TLS handshake | Pre-pin diagnostic — confirm a hub is up and capture its current fingerprint. |
+| `termlink tofu verify <addr>` | wire vs `~/.termlink/known_hubs` | Per-host drift check. Exit 0=match, 1=drift, 2=no-pin, 3=probe-fail. |
+| `termlink fleet verify` | all profiles in `~/.termlink/hubs.toml` | Fleet rollup. Drift dominates. `--exit-on-drift-only` for cron alerting on rotations only. |
+| `termlink_fleet_verify` (MCP) | same as `fleet verify` | Agent-callable companion. Returns `{verdict, profiles[], actions[]}` JSON with heal hints when drift detected. |
+
+**Coverage scope (PL-162).** These verbs detect **CERT rotation** at the
+TLS layer. **Secret-only rotation** (cert unchanged, HMAC secret
+regenerated — e.g. from a partial persist-if-present landing where
+`hub.cert.pem` survived but `hub.secret` did not) is invisible to TLS
+probes; `fleet doctor` (auth-mismatch surface) remains the right verb
+for that path. PL-021's "both rotate" case is detectable by either —
+prefer `fleet verify` because it succeeds with no profile auth needed.
+Operator rule: if `fleet verify` reports `match` but `fleet doctor`
+still flags auth-mismatch, the rotation was secret-only — heal via
+`fleet reauth <profile> --bootstrap-from <source>` directly without
+clearing the TOFU pin.
+
 **Heal path — Tier-1 (print the incantation).** For visibility and ad-hoc
 triage:
 
