@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1668: Document T-1666/T-1667 in CLAUDE.md rotation-protocol detection table
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T20:00:54Z
+# ============================================================================
+
+task_id: T-1668
+task_name: "Document T-1666/T-1667 in CLAUDE.md rotation-protocol detection table"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T19:58:27Z
+completed: 2026-05-17T20:00:52Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T22:00:30+02:00
+last_commit: 2026-05-17T22:00:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  document T-1666/T-1667 in rotation-protocol detection table
+
+# Key outcomes
+outcomes:
+  - "CLAUDE.md \"Detection — primitive verbs\" table extended with 4 rows: `termlink_hub_probe` (MCP), `termlink_tofu_verify` (MCP), `fleet doctor --include-pin-check`, `fleet doctor --watch <secs>`"
+  - "Section heading updated to reference T-1663/1666/1667 alongside T-1656-61"
+  - "No other CLAUDE.md sections modified (focused doc change)"
+  - "`grep -c \"fleet doctor --include-pin-check\\|fleet doctor --watch\" CLAUDE.md` reports >= 2 occurrences"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - ".tasks/active/T-1668-document-t-1666t-1667-in-claudemd-rotati.md"
+  - ".tasks/completed/T-1667-fleet-doctor---watch-mode-for-continuous.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T22:00:30"
+    action: "T-1668: document T-1666/T-1667 in rotation-protocol detection table"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 135
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1668-document-t-1666t-1667-in-claudemd-rotati.md
+generated_by: context-agent-hybrid

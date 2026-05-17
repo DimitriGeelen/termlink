@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1667: fleet doctor --watch mode for continuous rotation monitoring
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T19:53:32Z
+# ============================================================================
+
+task_id: T-1667
+task_name: "fleet doctor --watch mode for continuous rotation monitoring"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T19:36:24Z
+completed: 2026-05-17T19:53:30Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T21:52:00+02:00
+last_commit: 2026-05-17T21:52:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --watch — continuous rotation monitoring with state-diff output
+
+# Key outcomes
+outcomes:
+  - "`fleet doctor --watch <N>` flag added to CLI with validation 5 <= N <= 3600 seconds — `Error: --watch: interval must be 5..=3600 seconds (got 3)` verified"
+  - "`--watch` is mutually compatible with `--include-pin-check` (auth + cert observed together) — verified, just slow when fleet has unreachable hub (probe_cert serialization)"
+  - "First cycle emits full state as a baseline (same shape as single-shot) — `baseline: 5 hub(s)` + per-hub lines confirmed"
+  - "Subsequent cycles emit ONLY state changes per hub, prefixed with RFC3339 timestamp — cycle 2 emitted no lines (no changes), confirmed"
+  - "State tracked per hub: (connectivity, pin_status, legacy_count). A change in any of three fires a line"
+  - "SIGINT (Ctrl-C) cleanly exits with a \"watch stopped\" line and exit code 0 — `watch stopped (sigint, completed 2 cycle(s))` confirmed"
+  - "Live smoke against the 5-hub fleet: 2 cycles, no false positives, plain output — `/tmp/t1667-smoke2.out` 2026-05-17T19:49:43Z baseline, 19:50:08Z stop, 0 spurious lines"
+  - "`cargo check -p termlink` passes with no new warnings in touched files — only pre-existing tools.rs:13024 warning"
+  - "No new clippy classes in touched files — the existing \"too many arguments\" warning on cmd_fleet_doctor went 12→13 (same class); cmd_fleet_doctor_watch itself has 7 args (under threshold)"
+  - "Incompatible-flag guards: --diff / --save-snapshot / --exit-code-on-verdict / --trend rejected with \"single-shot semantics\" hint"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1667-fleet-doctor---watch-mode-for-continuous.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T21:52:00"
+    action: "T-1667: fleet doctor --watch — continuous rotation monitoring with state-diff output"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 1
+  files_changed: 4
+  lines_added: 352
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1667-fleet-doctor---watch-mode-for-continuous.md
+generated_by: context-agent-hybrid
