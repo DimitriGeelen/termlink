@@ -296,9 +296,15 @@ async fn connect_remote_hub_mcp(
     // Generate auth token
     let token = auth::create_token(&secret, perm_scope, "", 3600);
 
-    // Connect via TOFU TLS
+    // Connect via TOFU TLS (T-1678: 10s timeout — unreachable hubs would
+    // otherwise hang for the OS TCP retry budget, 30-60s.)
     let addr = termlink_protocol::TransportAddr::Tcp { host, port };
-    let mut rpc_client = match client::Client::connect_addr(&addr).await {
+    let mut rpc_client = match client::Client::connect_addr_with_timeout(
+        &addr,
+        std::time::Duration::from_secs(10),
+    )
+    .await
+    {
         Ok(c) => c,
         Err(e) => {
             return Err(json_err(format!(
