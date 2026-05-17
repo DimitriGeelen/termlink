@@ -1811,6 +1811,20 @@ pub struct FleetVerifyParams {
     pub exit_on_drift_only: Option<bool>,
 }
 
+// T-1663: Hub probe params (single-host TLS fingerprint capture)
+#[derive(Deserialize, JsonSchema)]
+pub struct HubProbeParams {
+    /// host:port of the hub to probe (e.g. "192.168.10.122:9100").
+    pub address: String,
+}
+
+// T-1663: Tofu verify params (single-host wire-vs-pin drift check)
+#[derive(Deserialize, JsonSchema)]
+pub struct TofuVerifyParams {
+    /// host:port of the hub to verify (e.g. "192.168.10.122:9100").
+    pub address: String,
+}
+
 // T-1106: Net test params
 #[derive(Deserialize, JsonSchema)]
 pub struct NetTestParams {
@@ -6397,6 +6411,68 @@ impl TermLinkTools {
                     "Then re-pin:       termlink tofu clear <address>".to_string(),
                 ]
             } else { vec![] },
+        })).unwrap_or_else(json_err)
+    }
+
+    // === Hub probe (T-1663) — single-host TLS fingerprint, no auth required ===
+
+    #[tool(
+        name = "termlink_hub_probe",
+        description = "Probe a single hub via TLS handshake and return its leaf cert sha256 fingerprint in canonical `sha256:<hex>` form. Pure read-only diagnostic: no authentication, no profile required, no `KnownHubStore` mutation. Use for pre-pin verification, comparing-without-trust after a suspected rotation, or operator first-contact before adding a profile. Companion to termlink_fleet_verify for per-host investigation without probing the whole fleet."
+    )]
+    async fn termlink_hub_probe(&self, Parameters(p): Parameters<HubProbeParams>) -> String {
+        match termlink_session::tofu::probe_cert(&p.address).await {
+            Ok((_der, fingerprint)) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "address": p.address,
+                "fingerprint": fingerprint,
+                "error": serde_json::Value::Null,
+            })).unwrap_or_else(json_err),
+            Err(e) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "address": p.address,
+                "fingerprint": serde_json::Value::Null,
+                "error": e,
+            })).unwrap_or_else(json_err),
+        }
+    }
+
+    // === Tofu verify (T-1663) — single-host wire-vs-pin drift check ===
+
+    #[tool(
+        name = "termlink_tofu_verify",
+        description = "Probe a single hub via TLS and compare its wire fingerprint against the stored TOFU pin in `~/.termlink/known_hubs`. Pure read-only diagnostic: no authentication, no profile required, no `KnownHubStore` mutation. Returns status (match / drift / no-pin / probe-fail) plus heal hints when drift detected. Use for per-host rotation diagnosis when termlink_fleet_verify would be overkill or too slow."
+    )]
+    async fn termlink_tofu_verify(&self, Parameters(p): Parameters<TofuVerifyParams>) -> String {
+        let store = termlink_session::tofu::KnownHubStore::default_store();
+        let pinned = store.get(&p.address);
+        let probe_result = termlink_session::tofu::probe_cert(&p.address).await;
+
+        let (status, wire, error): (&str, Option<String>, Option<String>) = match probe_result {
+            Ok((_, wire)) => match &pinned {
+                Some(pin) if pin == &wire => ("match", Some(wire), None),
+                Some(_) => ("drift", Some(wire), None),
+                None => ("no-pin", Some(wire), None),
+            },
+            Err(e) => ("probe-fail", None, Some(e)),
+        };
+
+        let ok = status == "match";
+        let actions: Vec<String> = if status == "drift" {
+            vec![
+                format!("Heal: termlink fleet reauth <profile-for-{}> --bootstrap-from auto", p.address),
+                format!("Re-pin: termlink tofu clear {}", p.address),
+            ]
+        } else { Vec::new() };
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": ok,
+            "address": p.address,
+            "status": status,
+            "wire": wire,
+            "pinned": pinned,
+            "error": error,
+            "actions": actions,
         })).unwrap_or_else(json_err)
     }
 
