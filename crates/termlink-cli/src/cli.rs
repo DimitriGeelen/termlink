@@ -3260,13 +3260,22 @@ pub(crate) enum FleetAction {
     /// on termlink auth).
     Reauth {
         /// Hub profile name as configured in ~/.termlink/hubs.toml
-        profile: String,
+        /// (omit when using --all-drifted).
+        profile: Option<String>,
 
         /// Out-of-band trust anchor that delivers the new secret.
         /// When omitted, this command prints the heal incantation instead of
         /// performing the heal.
         #[arg(long = "bootstrap-from")]
         bootstrap_from: Option<String>,
+
+        /// T-1679: bulk-heal every profile that is drifted AND has declared
+        /// `bootstrap_from` in hubs.toml. Mutex with positional <profile>.
+        /// Each profile uses its own declared trust anchor; failures on one
+        /// profile do not abort the loop. Profiles drifted without declared
+        /// bootstrap_from are skipped with a hint pointing at Tier-1.
+        #[arg(long = "all-drifted", conflicts_with = "profile")]
+        all_drifted: bool,
     },
 
     /// T-1660: probe every hub in ~/.termlink/hubs.toml and compare wire fingerprint vs pin

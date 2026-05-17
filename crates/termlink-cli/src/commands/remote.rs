@@ -5086,6 +5086,158 @@ pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> R
     }
 }
 
+/// T-1679: bulk-heal every drifted profile that has declared bootstrap_from.
+///
+/// Probes every profile in `~/.termlink/hubs.toml` (parallel, 10s per-probe
+/// timeout via `probe_cert_with_timeout`), classifies each into
+/// match/drift/no-pin/probe-fail (same logic as `cmd_fleet_verify`), then for
+/// every `drift` profile with a declared `bootstrap_from` it invokes the
+/// Tier-2 bootstrap heal. Per-profile failures do NOT abort the loop —
+/// operators want the rest of the fleet healed even if one heal fails.
+///
+/// Profiles drifted without declared bootstrap_from are skipped with a hint
+/// pointing at Tier-1 (`fleet reauth <profile>` to print the incantation, or
+/// declare bootstrap_from per profile). R2 (out-of-band trust anchor) is
+/// preserved — every heal goes through the existing fetch_bootstrap_secret
+/// path with its scheme allow-list.
+///
+/// Exit code semantics (via std::process::exit):
+///   0 — no drift, OR every drifted profile healed cleanly
+///   1 — any drifted profile was skipped (no bootstrap_from) or failed to heal
+pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        println!("No hubs configured in {}", crate::config::hubs_config_path().display());
+        return Ok(());
+    }
+
+    let mut profiles: Vec<(String, String, crate::config::HubEntry)> = config
+        .hubs
+        .iter()
+        .map(|(name, e)| (name.clone(), e.address.clone(), e.clone()))
+        .collect();
+    profiles.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let store = termlink_session::tofu::KnownHubStore::default_store();
+    let probe_timeout = std::time::Duration::from_secs(10);
+
+    let probes: Vec<_> = profiles
+        .iter()
+        .map(|(name, addr, _)| {
+            let name = name.clone();
+            let addr = addr.clone();
+            tokio::spawn(async move {
+                let result = termlink_session::tofu::probe_cert_with_timeout(
+                    &addr, probe_timeout,
+                ).await;
+                (name, addr, result)
+            })
+        })
+        .collect();
+
+    // Collect (profile, status, healed_outcome, note) for the summary table.
+    let mut rows: Vec<(String, &'static str, &'static str, String)> = Vec::new();
+    let mut any_failure = false;
+
+    for (handle, (name, _addr, entry)) in probes.into_iter().zip(profiles.iter()) {
+        let (probe_name, address, probe_result) = match handle.await {
+            Ok(t) => t,
+            Err(e) => {
+                rows.push((name.clone(), "probe-fail", "skip", format!("task panic: {e}")));
+                any_failure = true;
+                continue;
+            }
+        };
+        debug_assert_eq!(&probe_name, name);
+
+        let pinned = store.get(&address);
+        let status = match &probe_result {
+            Ok((_, wire)) => match &pinned {
+                Some(pin) if pin == wire => "match",
+                Some(_) => "drift",
+                None => "no-pin",
+            },
+            Err(_) => "probe-fail",
+        };
+
+        match status {
+            "match" => {
+                rows.push((name.clone(), status, "n/a", "pin matches wire".into()));
+            }
+            "no-pin" => {
+                rows.push((name.clone(), status, "n/a", "no entry in known_hubs".into()));
+            }
+            "probe-fail" => {
+                let err = match probe_result {
+                    Err(e) => e,
+                    _ => "unreachable".into(),
+                };
+                rows.push((name.clone(), status, "skip", err));
+            }
+            "drift" => {
+                // The interesting branch — heal if we have a declared anchor.
+                match entry.bootstrap_from.as_deref() {
+                    Some(source) => {
+                        match cmd_fleet_reauth_bootstrap(name, entry, source) {
+                            Ok(()) => {
+                                rows.push((
+                                    name.clone(),
+                                    status,
+                                    "healed",
+                                    format!("via {source}"),
+                                ));
+                            }
+                            Err(e) => {
+                                any_failure = true;
+                                rows.push((
+                                    name.clone(),
+                                    status,
+                                    "failed",
+                                    format!("{e}"),
+                                ));
+                            }
+                        }
+                    }
+                    None => {
+                        any_failure = true;
+                        rows.push((
+                            name.clone(),
+                            status,
+                            "skip",
+                            "no bootstrap_from declared — run `termlink fleet reauth <profile>` for Tier-1 incantation".into(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Render summary table.
+    println!();
+    println!("{:<24} {:<11} {:<8} NOTE", "PROFILE", "STATUS", "HEALED?");
+    println!("{}", "-".repeat(80));
+    for (name, status, healed, note) in &rows {
+        println!("{:<24} {:<11} {:<8} {}", name, status, healed, note);
+    }
+    let drifted = rows.iter().filter(|r| r.1 == "drift").count();
+    let healed = rows.iter().filter(|r| r.2 == "healed").count();
+    println!();
+    println!(
+        "Summary: {drifted} drifted, {healed} healed{}",
+        if any_failure {
+            " (some skipped or failed — exit 1)"
+        } else {
+            ""
+        }
+    );
+
+    if any_failure {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 /// T-1660: fleet-wide TLS pin verification.
 ///
 /// For every profile in `~/.termlink/hubs.toml`, probe the hub's wire
