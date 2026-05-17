@@ -4,8 +4,9 @@ type: script
 subsystem: unknown
 location: tests/test_t1628_task_verify_flags.sh
 tags: []
+standalone: true
 
-purpose: "TODO: describe what this component does"
+purpose: "T-1628 regression test: validates fw task verify --json + --strict flag behavior. Bash-level test; no Rust source edges."
 
 depends_on:
   # Format: - target: <relative-path>

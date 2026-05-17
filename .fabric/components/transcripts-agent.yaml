@@ -13,5 +13,6 @@ interfaces:
 depends_on: []  # Standalone script — no imports from registered components
 depended_by: []  # Leaf node — invoked manually by human, not called by other components
 tags: [maintenance, transcripts, retention, cleanup, storage]
+standalone: true
 created: 2026-03-12
 task: T-110
