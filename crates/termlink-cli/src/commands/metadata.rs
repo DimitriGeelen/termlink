@@ -537,7 +537,9 @@ pub(crate) async fn cmd_whoami(
     if let Some(q) = query.as_deref() {
         match manager::find_session(q) {
             Ok(reg) => {
-                print_whoami_card(&reg, json, None)?;
+                let all = manager::list_sessions(false).unwrap_or_default();
+                let shared = count_shared_identity(&reg, &all);
+                print_whoami_card(&reg, json, None, shared)?;
                 return Ok(());
             }
             Err(e) => {
@@ -565,7 +567,8 @@ pub(crate) async fn cmd_whoami(
     let ancestors = walk_ancestor_pids(std::process::id());
     for ancestor_pid in &ancestors {
         if let Some(reg) = sessions.iter().find(|s| s.pid == *ancestor_pid) {
-            print_whoami_card(reg, json, Some(*ancestor_pid))?;
+            let shared = count_shared_identity(reg, &sessions);
+            print_whoami_card(reg, json, Some(*ancestor_pid), shared)?;
             return Ok(());
         }
     }
@@ -623,6 +626,28 @@ pub(crate) async fn cmd_whoami(
     Ok(())
 }
 
+/// T-1704: count how many OTHER sessions on this hub share this registration's
+/// identity_fingerprint. Used by `whoami` to flag the shared-host case
+/// (PL-166 / G-056) and nudge operators toward T-1700 `--identity-key`.
+/// Pure function — takes the full session list rather than calling
+/// `manager::list_sessions` itself so it stays unit-testable. Returns 0
+/// when the target has no identity_fingerprint (pre-T-1436 sessions).
+fn count_shared_identity(
+    target: &termlink_session::registration::Registration,
+    sessions: &[termlink_session::registration::Registration],
+) -> usize {
+    let Some(target_fp) = target.metadata.identity_fingerprint.as_deref() else {
+        return 0;
+    };
+    sessions
+        .iter()
+        .filter(|s| {
+            s.id.as_str() != target.id.as_str()
+                && s.metadata.identity_fingerprint.as_deref() == Some(target_fp)
+        })
+        .count()
+}
+
 /// T-1440: build the JSON payload for `termlink whoami --json`. Extracted
 /// from `print_whoami_card` so tests can assert wire shape (notably the
 /// presence/absence of identity_fingerprint per T-1436 plumbing) without
@@ -630,6 +655,7 @@ pub(crate) async fn cmd_whoami(
 fn whoami_card_json(
     reg: &termlink_session::registration::Registration,
     pid_walked_match: Option<u32>,
+    shared_identity_count: usize,
 ) -> serde_json::Value {
     let mut card = serde_json::json!({
         "ok": true,
@@ -649,6 +675,10 @@ fn whoami_card_json(
     // Only emit when present so pre-T-1436 registrations stay key-stable.
     if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
         card["session"]["identity_fingerprint"] = serde_json::json!(fp);
+        // T-1704: surface the shared-identity count alongside the fingerprint
+        // so JSON callers can detect the PL-166 case without re-querying.
+        card["session"]["identity_shared_with"] =
+            serde_json::json!(shared_identity_count);
     }
     // T-1477: surface the auto-resolved from_project so operators see what
     // T-1472's CLI default-injection would stamp on a `channel post` from
@@ -666,14 +696,19 @@ fn whoami_card_json(
 }
 
 /// Print a whoami identity card. When `pid_walked_match` is `Some(pid)`, annotate
-/// the output to show the lookup succeeded via PID-walk (T-1303).
+/// the output to show the lookup succeeded via PID-walk (T-1303). The
+/// `shared_identity_count` is the number of OTHER sessions on this hub
+/// sharing this registration's identity_fingerprint (T-1704); when >0 the
+/// card emits a hint about `--identity-key` (T-1700) to surface the PL-166
+/// shared-host case.
 fn print_whoami_card(
     reg: &termlink_session::registration::Registration,
     json: bool,
     pid_walked_match: Option<u32>,
+    shared_identity_count: usize,
 ) -> Result<()> {
     if json {
-        println!("{}", serde_json::to_string_pretty(&whoami_card_json(reg, pid_walked_match))?);
+        println!("{}", serde_json::to_string_pretty(&whoami_card_json(reg, pid_walked_match, shared_identity_count))?);
     } else {
         println!("ID:           {}", reg.id.as_str());
         println!("Display name: {}", reg.display_name);
@@ -682,6 +717,13 @@ fn print_whoami_card(
         // T-1440: copy-pasteable into `agent contact --target-fp <hex>`.
         if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
             println!("Identity FP:  {fp}");
+            // T-1704: PL-166 hint — flag when this FP is host-shared.
+            if shared_identity_count > 0 {
+                let plural = if shared_identity_count == 1 { "" } else { "s" };
+                println!(
+                    "              \u{21B3} shared with {shared_identity_count} other session{plural} on this hub — see `termlink register --identity-key <PATH>` for per-agent identity (T-1700)"
+                );
+            }
         }
         println!("Roles:        {}", if reg.roles.is_empty() { "(none)".to_string() } else { reg.roles.join(", ") });
         println!("Tags:         {}", if reg.tags.is_empty() { "(none)".to_string() } else { reg.tags.join(", ") });
@@ -829,7 +871,7 @@ mod tests {
     fn whoami_card_json_with_identity_fp_emits_field() {
         let fp = "d1993c2c3ec44c94";
         let reg = make_reg(Some(fp));
-        let card = whoami_card_json(&reg, None);
+        let card = whoami_card_json(&reg, None, 0);
         let session = card.get("session").and_then(|v| v.as_object()).expect("session present");
         assert_eq!(
             session.get("identity_fingerprint").and_then(|v| v.as_str()),
@@ -841,11 +883,95 @@ mod tests {
     #[test]
     fn whoami_card_json_without_identity_fp_omits_key() {
         let reg = make_reg(None);
-        let card = whoami_card_json(&reg, None);
+        let card = whoami_card_json(&reg, None, 0);
         let session = card.get("session").and_then(|v| v.as_object()).expect("session present");
         assert!(
             !session.contains_key("identity_fingerprint"),
             "identity_fingerprint key must be omitted on legacy registrations (pre-T-1436)"
+        );
+        assert!(
+            !session.contains_key("identity_shared_with"),
+            "identity_shared_with key must be omitted when identity_fingerprint is absent"
+        );
+    }
+
+    // T-1704: build a Registration whose id can be controlled, so
+    // count_shared_identity tests can construct a small fleet without
+    // bumping into duplicate ids (which would mask the same-FP filter).
+    fn make_reg_id(id: &str, identity_fp: Option<&str>) -> termlink_session::registration::Registration {
+        let id_field = identity_fp
+            .map(|fp| format!(r#","identity_fingerprint":"{fp}""#))
+            .unwrap_or_default();
+        let json = format!(
+            r#"{{
+                "version": 1,
+                "id": "{id}",
+                "display_name": "test-session-{id}",
+                "pid": 12345,
+                "uid": 0,
+                "addr": {{ "type": "unix", "path": "/tmp/test.sock" }},
+                "created_at": "2026-05-01T17:00:00Z",
+                "heartbeat_at": "2026-05-01T17:00:00Z",
+                "state": "ready",
+                "capabilities": [],
+                "roles": [],
+                "tags": [],
+                "metadata": {{ "cwd": "/tmp"{id_field} }}
+            }}"#
+        );
+        serde_json::from_str(&json).expect("Registration JSON shape valid in test")
+    }
+
+    #[test]
+    fn count_shared_identity_zero_when_unique() {
+        let fp = "aaaaaaaaaaaaaaaa";
+        let target = make_reg_id("tl-alpha0001", Some(fp));
+        let other = make_reg_id("tl-beta00002", Some("bbbbbbbbbbbbbbbb"));
+        let sessions = vec![target.clone(), other];
+        assert_eq!(
+            count_shared_identity(&target, &sessions),
+            0,
+            "unique identity_fingerprint must not count itself or unrelated peers"
+        );
+    }
+
+    #[test]
+    fn count_shared_identity_two_for_host_shared_triple() {
+        let host_fp = "d1993c2c3ec44c94";
+        let target = make_reg_id("tl-self00001", Some(host_fp));
+        let peer_a = make_reg_id("tl-peer00002", Some(host_fp));
+        let peer_b = make_reg_id("tl-peer00003", Some(host_fp));
+        let unrelated = make_reg_id("tl-other0004", Some("ffffffffffffffff"));
+        let sessions = vec![target.clone(), peer_a, peer_b, unrelated];
+        assert_eq!(
+            count_shared_identity(&target, &sessions),
+            2,
+            "three sessions share the host FP — count for any one of them should be 2 (others)"
+        );
+    }
+
+    #[test]
+    fn count_shared_identity_zero_when_target_fp_absent() {
+        let target = make_reg_id("tl-self00001", None);
+        let peer = make_reg_id("tl-peer00002", Some("d1993c2c3ec44c94"));
+        let sessions = vec![target.clone(), peer];
+        assert_eq!(
+            count_shared_identity(&target, &sessions),
+            0,
+            "pre-T-1436 sessions with no identity_fingerprint must report 0 (no hint emitted)"
+        );
+    }
+
+    #[test]
+    fn whoami_card_json_emits_identity_shared_with_when_fp_present() {
+        let fp = "d1993c2c3ec44c94";
+        let reg = make_reg(Some(fp));
+        let card = whoami_card_json(&reg, None, 4);
+        let session = card.get("session").and_then(|v| v.as_object()).expect("session present");
+        assert_eq!(
+            session.get("identity_shared_with").and_then(|v| v.as_u64()),
+            Some(4),
+            "identity_shared_with must surface the live count for downstream JSON callers"
         );
     }
 }
