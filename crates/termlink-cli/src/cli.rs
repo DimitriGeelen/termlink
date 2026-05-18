@@ -3273,6 +3273,17 @@ pub(crate) enum FleetAction {
         ///   termlink fleet doctor --include-pin-check --auto-heal
         #[arg(long = "auto-heal")]
         auto_heal: bool,
+
+        /// T-1684: preview which heals `--auto-heal` would fire without
+        /// actually spawning the heal subprocesses. Useful when wiring
+        /// automation, debugging the bootstrap_from gate, or just verifying
+        /// the dedup behavior. Output mirrors live mode but each fire site
+        /// emits `[DRY-RUN] would fire: termlink fleet reauth ... --bootstrap-from auto`
+        /// to stderr instead of spawning a process. Works with both single-shot
+        /// and `--watch` modes. Requires `--auto-heal` (alone it has nothing
+        /// to dry-run).
+        #[arg(long = "dry-run", requires = "auto_heal")]
+        dry_run: bool,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
