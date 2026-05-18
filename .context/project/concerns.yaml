@@ -45,12 +45,14 @@ concerns:
   trigger_fired: true
   trigger_event: "2026-05-18: Pen drafting reply via MCP, T-1427 rejected sender_id=9219671e claim. Pen routed structural request via cohort-agent letter to termlink-agent (filed as T-1692 + T-1693). 6+ weeks of mental-model drift surfaced in one error message."
   detection_lag_days: 45
-  what_works_now: "Single-agent-per-host deployments are unaffected — host identity = agent identity by definition. TOFU + KnownHubStore handle hub-key rotation correctly. T-1159 keyring infra works at the session layer."
-  what_remains: "Wire per-agent keys through to session registration so co-resident agents can sign with distinct identities. Filed as T-1693 inception. Independent from but enables T-1448's strongest disambiguation variant."
-  mitigation_candidate: "T-1693 (inception, owner=human): per-agent ed25519 keypair files under per-project secrets dir, passed via --identity-key at termlink register. Cohort-agent recommends Shape 1 (agent-managed) over hub-managed or operator-derived shapes. Rotation story: regenerate + restart + TOFU history covers old envelopes."
-  status: watching
+  what_works_now: "RESOLVED 2026-05-19. T-1693 GO decision (Shape 1: agent-managed key files) → T-1700 shipped `termlink register --identity-key <PATH>` (PTY path) → T-1701 added `--self` parity → T-1702 wrote operator guide → T-1704 added `whoami` hint so the host-shared case is discoverable without operator tribal knowledge. Live smoke on .107: per-agent key produces FP `13bc46a23bf4d18f` (distinct from host default `d1993c2c3ec44c94`); `whoami` now reports `↳ shared with N other sessions on this hub` for the 11 sessions still on the host default. Adoption is opt-in (`--identity-key` flag at register time, or `TERMLINK_IDENTITY_FILE` env var); the structural primitive that made attribution unanswerable has been replaced with one that makes it answerable. Single-agent-per-host deployments and pre-T-1436 sessions remain unaffected."
+  what_remains: "Adoption: co-resident agents on .107 still use the host default. Migrating each one is operator/agent-owned (per-project `instance/secrets/<agent>_identity.key`). Out-of-scope future follow-ups already listed in `docs/migrations/T-1700-per-agent-identity.md`: rotation tooling (`termlink identity rotate-file`), `termlink doctor` hint when an --identity-key is not declared in shared-host context, Watchtower view of fleet-wide identity assignments. T-1448 (payload-layer disambiguation) is a separate concern."
+  mitigation_candidate: "Shipped — T-1700/T-1701/T-1702/T-1704 closed the structural gap. Operational adoption is per-agent."
+  status: resolved
   created: 2026-05-18
-  related_tasks: [T-1693, T-1448, T-1159, T-1427, T-1457]
+  resolved: 2026-05-19T00:00Z
+  resolution: "Shape 1 (agent-managed `--identity-key` files) shipped end-to-end in T-1700 (PTY register) + T-1701 (--self register) + T-1702 (operator guide at docs/migrations/T-1700-per-agent-identity.md) + T-1704 (whoami discoverability hint). Per-agent envelope identity is now achievable by any operator; adoption is opt-in. The structural answer to 'is this from Pen?' exists — at the envelope layer — provided Pen has registered with her own key file."
+  related_tasks: [T-1693, T-1700, T-1701, T-1702, T-1704, T-1448, T-1159, T-1427, T-1457]
 
 - id: G-057
   type: gap
