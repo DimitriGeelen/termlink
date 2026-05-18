@@ -4,16 +4,16 @@ name: "Release pipeline drift canary — alert when OneDev HEAD diverges from Gi
 description: >
   Release pipeline drift canary — alert when OneDev HEAD diverges from GitHub HEAD >24h (G-058 prevention)
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [release, observability, canary, G-058]
-components: []
+components: [scripts/check-mirror-freshness.sh]
 related_tasks: [T-1695, T-1691]
 created: 2026-05-18T10:44:52Z
-last_update: 2026-05-18T10:44:52Z
-date_finished: null
+last_update: 2026-05-18T10:50:15Z
+date_finished: 2026-05-18T10:50:15Z
 ---
 
 # T-1696: Release pipeline drift canary (G-058 prevention)
@@ -105,6 +105,19 @@ grep -q 'check-mirror-freshness.sh' .context/cron/release-mirror-canary.crontab
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** Pure additive tooling; closes a 16-day silent-failure mode (G-058) at low cost. Reuses existing T-1140 detector and only adds (a) tag-drift coverage that catches the specific G-058 failure mode where main mirrors but tags don't, (b) cron wiring that turns a manual debugging tool into automated prevention, (c) one paragraph in CLAUDE.md so future agents know the canary exists. No Rust changes, no breaking changes, no security surface change. Sibling T-1695 (operator) handles the actual restoration.
+
+**Evidence:**
+- `scripts/check-mirror-freshness.sh` smoke test: `exit=1, GitHub is 534 commit(s) behind origin, Latest tag v0.11.1 is NOT on GitHub` — both detection paths fire correctly
+- `.context/cron/release-mirror-canary.crontab` written and references the script
+- CLAUDE.md "Mirror drift canary (T-1140 + T-1696, G-058 prevention)" subsection added
+- PL-168 captures the Level-C-without-Level-D failure pattern
+- All 5 Agent ACs ticked; Verification block runs clean (exit=1 expected on current G-058 drift state)
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -132,3 +145,15 @@ grep -q 'check-mirror-freshness.sh' .context/cron/release-mirror-canary.crontab
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-923ac7c9
+- **Timestamp:** 2026-05-18T10:50:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-18T10:50:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
