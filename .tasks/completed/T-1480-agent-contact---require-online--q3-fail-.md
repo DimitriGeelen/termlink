@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T12:31:51Z
-last_update: 2026-05-04T12:50:10Z
+last_update: 2026-05-18T17:34:03Z
 date_finished: 2026-05-04T12:50:10Z
 ---
 
@@ -42,14 +42,14 @@ to receive". No new RPC; reuses `channel.subscribe` to walk the topic.
 - [x] `cargo test --release -p termlink --bin termlink presence` passes (>=5 tests)
 - [x] Live smoke against local hub: `--require-online` against own FP succeeds (just posted heartbeat would count); against an obviously-fake fp `00deadbeef00deadbeef` exits 9
 - [x] `--dry-run --require-online` against fake FP prints preview JSON with `online_check.online=false` and exit 0
+- [x] Offline error wording names the FP, the configured window, and the last_seen state (moved from Human AC per PL-169 — operator-actionability is operationalizable as `names {fp, window, last_seen} + offers recovery path`, all mechanically verifiable).
+  **Evidence (2026-05-18T11:00Z):** `target/release/termlink agent contact --target-fp 00deadbeef00deadbeef --message x --require-online --online-window-secs 60` exited code 9, stderr was `error: peer fp=00deadbeef00deadbeef not online — last seen: never (no posts on agent-chat-arc), window=60s. Re-run without --require-online to queue the post (chat-arc is offset-durable), or wait for the peer's next heartbeat.` All four criteria present: exit 9 ✓, FP named ✓, window=60s named ✓, "last seen: never" named ✓; bonus: two recovery paths offered (drop flag to queue / wait for heartbeat) — operator-actionable beyond the spec minimum.
 
 ### Human
-- [ ] [REVIEW] Verify offline error wording is operator-actionable
-  **Steps:**
-  1. `target/release/termlink agent contact --target-fp 00deadbeef00deadbeef --message x --require-online --online-window-secs 60` (run from /opt/termlink)
-  2. Observe stderr message + exit code
-  **Expected:** exit 9; message names the FP, the configured window, and "last seen: never" (or a timestamp)
-  **If not:** capture the actual message, suggest concrete wording
+<!-- All criteria are mechanically verifiable and have been moved to ### Agent
+     per PL-169. Original [REVIEW] AC was sound at filing but the success
+     criterion ("names FP + window + last_seen") is pure string-match. -->
+- (none — all moved to ### Agent per PL-169)
 
 ## Verification
 
@@ -117,3 +117,7 @@ out=$(target/release/termlink agent contact --target-fp 00deadbeef00deadbeef --m
 
 ### 2026-05-04T12:50:10Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-05-18T17:33:48Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** Operator authorized via conversation option 3: same as T-1481. PL-169 applies.

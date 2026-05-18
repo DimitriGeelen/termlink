@@ -4,7 +4,7 @@ name: "MCP channel_post metadata exposure — close envelope.metadata caller-ina
 description: >
   Cohort-agent ask (A). MCP termlink_channel_post does not accept a metadata parameter; envelope.metadata always emits empty even though the protocol carries it. Affects routing for any LLM consumer keying on metadata.thread/conversation_id. Recommend Shape 1 free-form metadata object.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T09:19:40Z
-last_update: 2026-05-18T09:19:40Z
+last_update: 2026-05-18T09:27:25Z
 date_finished: null
 ---
 
@@ -158,3 +158,6 @@ schema (thread, in_reply_to, mentions) and rejects unknown keys.
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-05-18T09:27:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

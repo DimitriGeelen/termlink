@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1480: agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T17:34:03Z
+# ============================================================================
+
+task_id: T-1480
+task_name: "agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T12:31:51Z
+completed: 2026-05-18T17:33:48Z
+duration_days: 14
+updates_count: 4
+first_commit: 2026-05-04T14:44:04+02:00
+last_commit: 2026-05-04T14:50:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog). complete (work-completed) — agent contact --require-online shipped
+
+# Key outcomes
+outcomes:
+  - "`--require-online` flag added to `agent contact` (clap parses via `--help`)"
+  - "`--online-window-secs <N>` flag (default 300, clamped to [10, 86400])"
+  - "Pre-flight: when `--require-online` is set, query `agent-chat-arc` for peer FP activity in last <N> seconds via channel.subscribe (last 500 msgs scanned). If `posts_in_window == 0` → exit code 9, error names peer FP, last_seen (or \"never\"), and the configured window"
+  - "Live success path: peer recently active → no behavior change (proceeds to dm post)"
+  - "Dry-run + `--require-online`: presence check still runs; result attached to preview JSON as `online_check: { online, last_seen_ms, posts_in_window, window_secs }`. Dry-run exits 0 either way (preview is non-failing)"
+  - "Pure helper `evaluate_presence(msgs, peer_fp, now_ms, window_ms) -> PresenceCheck` in `commands/channel.rs` — no I/O"
+  - "5+ unit tests for `evaluate_presence`: peer never seen / only outside window / only inside / mixed (last_seen_ms == max ts) / meta-msg filter (reaction/topic_metadata excluded)"
+  - "`cargo build --release -p termlink` clean"
+  - "`cargo test --release -p termlink --bin termlink presence` passes (>=5 tests)"
+  - "Live smoke against local hub: `--require-online` against own FP succeeds (just posted heartbeat would count); against an obviously-fake fp `00deadbeef00deadbeef` exits 9"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1480-agent-contact---require-online--q3-fail-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T14:44:04"
+    action: "T-1480: agent contact --require-online — Q3 fail-fast flag (T-1425 Phase-2 backlog)"
+  - time: "2026-05-04T14:50:20"
+    action: "T-1480: complete (work-completed) — agent contact --require-online shipped"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20461 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20461
+  commits: 2
+  files_changed: 5
+  lines_added: 476
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1480-agent-contact---require-online--q3-fail-.md
+generated_by: context-agent-hybrid

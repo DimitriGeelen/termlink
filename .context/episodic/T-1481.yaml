@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1481: agent who — peer observability primitive (presence + projects + dm topics)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T17:34:03Z
+# ============================================================================
+
+task_id: T-1481
+task_name: "agent who — peer observability primitive (presence + projects + dm topics)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T12:51:38Z
+completed: 2026-05-18T17:33:48Z
+duration_days: 14
+updates_count: 4
+first_commit: 2026-05-04T15:00:49+02:00
+last_commit: 2026-05-04T15:06:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent who — peer observability primitive (presence + projects). complete (work-completed) — agent who shipped
+
+# Key outcomes
+outcomes:
+  - "`termlink agent who --target-fp <hex>` parses via `--help`; --target-fp accepts ≥8 hex chars (same validation as `agent contact --target-fp`)"
+  - "`--window-secs <N>` (default 3600) bounds the from_project / posts_in_window slice. Clamped [60, 604800]"
+  - "Output (text, default): peer FP, last_seen (age + ts_ms or \"never\"), posts in window, distinct from_projects (sorted, with per-project post count)"
+  - "Output (JSON, --json): { peer_fp, last_seen_ms, posts_in_window, window_secs, from_projects: [{project, posts}] }"
+  - "Pure helper `summarize_peer_activity(msgs, peer_fp, now_ms, window_ms) -> PeerActivity` in `commands/channel.rs` — no I/O"
+  - "5+ unit tests for `summarize_peer_activity`: peer never seen / posts in window only / mixed in/out window / multi-project (counts grouped) / meta-msg filter (reaction etc. excluded)"
+  - "`cargo build --release -p termlink` clean"
+  - "`cargo test --release -p termlink --bin termlink peer_activity` passes (>=5 tests)"
+  - "Live smoke against own FP `d1993c2c3ec44c94` with --window-secs 86400: returns posts > 0, ≥1 from_project, sane last_seen age"
+  - "Live smoke against fake FP `00deadbeef00deadbeef`: returns posts=0, last_seen=null in --json"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1481-agent-who--peer-observability-primitive-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-04T15:00:49"
+    action: "T-1481: agent who — peer observability primitive (presence + projects)"
+  - time: "2026-05-04T15:06:50"
+    action: "T-1481: complete (work-completed) — agent who shipped"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20442 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20442
+  commits: 2
+  files_changed: 5
+  lines_added: 487
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1481-agent-who--peer-observability-primitive-.md
+generated_by: context-agent-hybrid

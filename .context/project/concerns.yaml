@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-059
+  type: gap
+  title: "Human-AC over-deferral pattern — mechanically verifiable ACs misclassified under ### Human, creating dead weight (PL-169)"
+  description: "T-193 split (Agent vs Human ACs) is sound in principle but observed twice in 2026-05-18 review: T-1480 and T-1481 both had Human ACs whose success criterion was mechanically verifiable (exit codes, string-match on stderr, fields-present in stdout, column alignment). The framework hard-blocks agent tick on Human ACs (T-1731), so these tasks sat at work-completed/owner=human pending rubber-stamp on checks the agent had already verified. Pattern likely exists in other tasks closed in the past N months — every time an author defaulted to Human ACs out of caution rather than asking 'does this require human-only access?'. Cost: open ACs that can't auto-close, false 'awaiting review' signals in metrics, operator overhead to validate the obvious. Today's fix moved the two known instances to ### Agent and registered PL-169; the broader audit (find all stale Human ACs that should be Agent ACs across the active/ + completed/ task corpus) is the structural prevention not yet done."
+  spec_reference: "CLAUDE.md §Agent/Human AC Split + §Human AC Format Requirements (T-325); T-1731 (hook that blocks agent tick on Human ACs)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-18T11:00Z operator question 'why do we need human to verify ?' after agent ran the mechanical commands on T-1480 + T-1481 and presented evidence. Surfaced that both ACs had concrete success criteria misplaced under ### Human."
+  detection_lag_days: 14
+  what_works_now: "T-1731 hook correctly enforces agent-may-not-tick-Human — that's not the issue. PL-169 captures the discipline. The framework's existing T-325 'Human AC Format Requirements' rule could be extended with a 'can this be Agent?' filter."
+  what_remains: "(1) Audit active/ + recently-completed/ tasks for unticked Human ACs whose success criteria are mechanically verifiable; (2) For each, propose moving to ### Agent (or close if already met); (3) Optional: add a task-create-time check that asks the author 'does this AC require human-only access? if not, file under Agent'. Sibling audit task not yet filed."
+  mitigation_candidate: "Short-term: PL-169 captures the rule, future tasks should honor it at filing time. Structural: tooling pass to detect Human ACs whose Expected criterion is string-match/structural-check could surface back-log of misclassified ACs."
+  status: watching
+  created: 2026-05-18
+  related_tasks: [T-1480, T-1481]
+
 - id: G-058
   type: gap
   title: "OneDev → GitHub mirror silently broken since 2026-05-02 — release pipeline structurally bypassed (v0.10.0, v0.11.0, v0.11.1 missed GH Releases)"

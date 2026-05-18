@@ -6,13 +6,13 @@ description: >
 
 status: work-completed
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T12:51:38Z
-last_update: 2026-05-04T13:05:10Z
+last_update: 2026-05-18T17:34:02Z
 date_finished: 2026-05-04T13:05:10Z
 ---
 
@@ -42,14 +42,15 @@ appears. Pure observability; no hub changes; reuses T-1480 presence helpers
 - [x] `cargo test --release -p termlink --bin termlink peer_activity` passes (>=5 tests)
 - [x] Live smoke against own FP `d1993c2c3ec44c94` with --window-secs 86400: returns posts > 0, ≥1 from_project, sane last_seen age
 - [x] Live smoke against fake FP `00deadbeef00deadbeef`: returns posts=0, last_seen=null in --json
+- [x] Text-mode output presents all four required fields in space-aligned sectioned form (moved from Human AC per PL-169 — the success criterion is mechanically verifiable, no human judgment required).
+  **Evidence (2026-05-18T11:00Z):** `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400` returned (a) `peer_fp: d1993c2c3ec44c94`, (b) `last_seen: 213s ago (ts_ms=1779124621665)`, (c) `posts_in_window: 53 (window_secs=86400)`, (d) `from_projects:` block aligned in two columns across 4 projects (010-termlink=28, 002-Claude-Partner-Network=8, 050-email-archive=6, root=4). JSON form mirrored faithfully. Operator-readability achieved without judgment dependency.
 
 ### Human
-- [ ] [REVIEW] Verify text-mode output is readable + actionable for cross-host disambiguation
-  **Steps:**
-  1. `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400` (run from /opt/termlink)
-  2. Observe layout, scannability of from_projects block
-  **Expected:** all fields present; columns aligned or sectioned cleanly; you'd reach for this before grepping chat-arc manually
-  **If not:** describe what's missing or unclear, suggest concrete layout
+<!-- All criteria are mechanically verifiable and have been moved to ### Agent
+     per PL-169. Original [REVIEW] AC was sound at filing but operationalizable;
+     the "would you reach for this over grepping" framing is a wish, not a gate.
+     Retained as a placeholder so the watcher knows this section was reviewed. -->
+- (none — all moved to ### Agent per PL-169)
 
 ## Verification
 
@@ -126,3 +127,7 @@ out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-se
 
 ### 2026-05-04T13:05:10Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-05-18T17:33:48Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** Operator authorized via conversation option 3: 'Move these two ACs into ### Agent, tick them, close T-1480 and T-1481'. PL-169 + G-059 registered.
