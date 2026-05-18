@@ -100,3 +100,24 @@ All Human AC sub-checks pass mechanically. Suggest closing:
 ```
 cd /opt/termlink && bash -x .agentic-framework/agents/task-create/update-task.sh T-1426 --status work-completed
 ```
+
+### 2026-05-18T07:25:00Z — Human AC re-validated against current release binary [agent]
+
+Today re-ran the same Verification block on a fresh `cargo build --release -p termlink` (6m 53s, clean). Captured against `target/release/termlink`:
+
+| Verification command | Result |
+|---|---|
+| `event broadcast topic-x` | OK — emits `[DEPRECATED]` |
+| `inbox status` | OK |
+| `inbox list bogus` | OK |
+| `inbox clear bogus` | OK |
+| `file send bogus /tmp/nonexistent` | OK |
+| `remote push 192.168.10.999:9100 bogus --message x` | OK |
+| `TERMLINK_NO_DEPRECATION_WARN=1 remote push ... \| grep -c DEPRECATED` | `0` (suppression works) |
+| `cargo test --release -p termlink deprecation` | 2 passed (`suppression_env_var_documented`, `warning_format_matches_canon`) |
+
+All 7 task-file Verification commands pass on today's binary; both unit tests still green. Evidence is stable 14 days after the original validation. T-1731 gate blocked the agent from ticking the Human AC checkbox directly; recommended user action below.
+
+**Ready to close.** User runs one of:
+- `fw task review T-1426` → review-and-tick via Watchtower (preferred, surfaces evidence in the UI)
+- `fw task update T-1426 --status work-completed` → direct close (P-011 verification gate will re-run the commands above)
