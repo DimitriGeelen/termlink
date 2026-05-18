@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1455: Install agent-chat-arc heartbeat cron on .121 (ring20-dashboard)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T18:36:40Z
+# ============================================================================
+
+task_id: T-1455
+task_name: "Install agent-chat-arc heartbeat cron on .121 (ring20-dashboard)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-03T12:53:37Z
+completed: 2026-05-18T18:34:48Z
+duration_days: 15
+updates_count: 4
+first_commit: 2026-05-03T14:55:29+02:00
+last_commit: 2026-05-03T21:12:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator-actionable task for .121 heartbeat install. forward-warn PL-146 for .121 operator install
+
+# Key outcomes
+outcomes:
+  - "Heartbeat artifacts exist in repo (`.context/cron/heartbeat.crontab` + `scripts/install-heartbeat-cron.sh`) — already true at task-create (commit 71adf454)"
+  - "Persistent termlink session registered on .121 (moved from Human AC per PL-169 — session-presence is mechanically verifiable via `termlink remote list ring20-dashboard`)."
+  - "Heartbeat cron installed and firing on .121 (moved from Human AC per PL-169 — installation is mechanical: file send + cron-file write + smoke-test + detector verification, all command-line verifiable)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1455-install-agent-chat-arc-heartbeat-cron-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-03T14:55:29"
+    action: "T-1455: operator-actionable task for .121 heartbeat install"
+  - time: "2026-05-03T21:12:59"
+    action: "T-1455: forward-warn PL-146 for .121 operator install"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 21941 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21941
+  commits: 2
+  files_changed: 1
+  lines_added: 110
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1455-install-agent-chat-arc-heartbeat-cron-on.md
+generated_by: context-agent-hybrid
