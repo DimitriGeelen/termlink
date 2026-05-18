@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T18:51:09Z
-last_update: 2026-05-18T18:52:52Z
+last_update: 2026-05-18T20:58:10Z
 date_finished: null
 ---
 
@@ -60,11 +60,16 @@ anchor source must NOT depend on the auth being healed:
 
 ## Recommendation
 
-**GO on Path 1 (ssh: anchors) — with Path 4 (manual Tier-1 reauth) as the interim default until SSH keys exist.**
+**Recommendation:** GO on Path 1 (ssh: anchors) — with Path 4 (manual Tier-1 reauth) as the interim default until SSH keys exist.
 
-Path 1 is the only R2-clean operational outcome. Paths 2 and 3 (warm-cache / native remote-exec anchors) fail R2 on analysis — the fetch channel shares its auth with the credential being rotated; the cache always holds the OLD secret post-rotation. Path 4 is the right interim — no false promise of auto-heal where it cannot actually work today; rotations are handled manually via `fleet reauth <profile>` (Tier-1, T-1054).
+**Rationale:** Path 1 is the only R2-clean operational outcome. The R2 rule (CLAUDE.md, "out-of-band trust anchor") requires the bootstrap source to be independent of the auth being healed. SSH auth ≠ termlink auth, so a termlink rotation doesn't kill the SSH fetch path. Paths 2 and 3 (warm-cache / native remote-exec anchors) fail R2 on analysis — the fetch channel shares its auth with the credential being rotated; the cache always holds the OLD secret post-rotation, which is precisely the value that's invalid. Path 4 is the right interim because it makes no false promise of auto-heal where it cannot actually work today; rotations are handled manually via `fleet reauth <profile>` (Tier-1, T-1054). Wiring SSH keys is a one-time operator action with broad benefit beyond termlink (general administration of the ring20 fleet).
 
-Wiring SSH keys is a one-time operator action with broad benefit beyond termlink (general administration of the ring20 fleet). Full path analysis + reachability matrix + runbook in `docs/reports/T-1698-auto-heal-dormancy-inception.md`.
+**Evidence:**
+- `termlink fleet bootstrap-check --all` on .107 (2026-05-18T18:50Z): every profile reports `no-anchor`; verdict `no-anchor`. Auto-heal stack (T-1666 → T-1689) is operationally dormant.
+- Reachability matrix (docs/reports/T-1698-auto-heal-dormancy-inception.md § Reachability matrix): SSH root from .107 to .121/.122 currently `Permission denied (publickey,password)`; `termlink remote exec` works for all hubs because their secrets were bootstrapped at setup.
+- Path 2/3 R2 analysis: fetch channel uses the same hub secret as the auth being healed; when the hub rotates, the live session dies and the warm cache stops updating at exactly the moment the cache value is needed.
+- Pattern match: PL-159 (config-driven mechanism shipped without operator declaration → dormant tooling) and PL-168 (canary scripts without trigger → dormant). Implementation milestone landed; operational milestone never did.
+- Full path analysis + reachability matrix + runbook in `docs/reports/T-1698-auto-heal-dormancy-inception.md`.
 
 Concrete next step (operator, on .107):
 ```
@@ -158,13 +163,11 @@ grep -qE "^### Reachability matrix" docs/reports/T-1698-auto-heal-dormancy-incep
 
 ## Decision
 
-<!-- Filled at completion of inception tasks via:
-     fw inception decide T-XXX go|no-go|defer --rationale "..."
+**Decision**: GO
+**Date**: 2026-05-18
+**Rationale**: Path 1 (ssh: anchors) selected — only R2-clean operational outcome for auto-heal (T-1680..T-1689). SSH-key wiring to .121/.122/.141 is operator-bound; Path 4 (Tier-1 manual reauth) is the interim default until keys exist. Paths 2/3 (warm-cache, remote-exec anchors) rejected on R2 analysis — the fetch channel shares its auth with the credential being rotated. Operator authorised via Watchtower 2026-05-18 (decision recorded — GO; side-effect rewrite of this section deferred pending gate-compliant **Recommendation:** body, now landed).
 
-     For non-inception tasks this section is ignored. Kept in template
-     so `fw inception decide` (lib/inception.sh) finds the anchor heading
-     without auto-creating; T-1832 added auto-create as fallback for
-     legacy tasks lacking this section. -->
+Recorded manually here because the first Watchtower click on T-1698 GO predated the gate-compliant `## Recommendation` body — Watchtower's ledger captured the decision but the side-effect that writes this section aborted. Section format mirrors what `fw inception decide` would have written.
 
 ## Updates
 
