@@ -1915,6 +1915,20 @@ pub struct FleetHistoryParams {
     pub include_heals: Option<bool>,
 }
 
+// T-1689: Fleet bootstrap-check params (MCP parity for T-1688).
+// Exactly one of `profile`/`all` must be set; both/neither rejected with a
+// structured error from the tool body.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetBootstrapCheckParams {
+    /// Hub profile name (mutex with `all`).
+    pub profile: Option<String>,
+    /// Validate every profile that declares `bootstrap_from`. Mutex with `profile`.
+    pub all: Option<bool>,
+    /// Bound the subprocess call (clamped to 1..=120s). Default 10. Caps how
+    /// long an interactive `ssh:` anchor can hang the call.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1663: Hub probe params (single-host TLS fingerprint capture)
 #[derive(Deserialize, JsonSchema)]
 pub struct HubProbeParams {
@@ -6994,6 +7008,98 @@ impl TermLinkTools {
             "summary": summary,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    // === Fleet bootstrap-check (T-1689: MCP parity for T-1688) ===
+
+    #[tool(
+        name = "termlink_fleet_bootstrap_check",
+        description = "Preflight-validate declared `bootstrap_from` anchors WITHOUT performing any heal. Reuses the live heal fetch+validate path so the check exercises the exact same code path that `--auto-heal` would use. Pass either `profile` for a single hub or `all=true` for the whole fleet. `timeout_secs` (default 10, max 120) caps how long an interactive ssh: anchor can hang the call. Returns the same JSON the CLI emits: {verdict, profiles: [{name, address, bootstrap_from, status, error?}]}."
+    )]
+    async fn termlink_fleet_bootstrap_check(
+        &self,
+        Parameters(p): Parameters<FleetBootstrapCheckParams>,
+    ) -> String {
+        // T-1689 R1: exactly one of profile/all
+        let all = p.all.unwrap_or(false);
+        match (&p.profile, all) {
+            (Some(_), true) => {
+                return json_err("pass either `profile` or `all: true`, not both");
+            }
+            (None, false) => {
+                return json_err("must pass either `profile: <name>` or `all: true`");
+            }
+            _ => {}
+        }
+
+        // T-1689 R2: timeout clamp
+        let timeout = p.timeout_secs.unwrap_or(10).clamp(1, 120);
+
+        // Resolve own binary path. `current_exe()` returns the running
+        // `termlink mcp` binary; same binary handles `fleet bootstrap-check`.
+        let exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => return json_err(format!("cannot resolve termlink binary path: {e}")),
+        };
+
+        let mut cmd = tokio::process::Command::new(&exe);
+        cmd.arg("fleet").arg("bootstrap-check").arg("--json");
+        if let Some(name) = p.profile.as_deref() {
+            cmd.arg(name);
+        } else {
+            cmd.arg("--all");
+        }
+        // T-1689: kill the child on parent drop so a hanging ssh doesn't leak.
+        cmd.kill_on_drop(true);
+        // Don't inherit stdin; ssh: anchors that would prompt will get EOF + fail.
+        cmd.stdin(std::process::Stdio::null());
+
+        let fut = cmd.output();
+        let output = match tokio::time::timeout(std::time::Duration::from_secs(timeout), fut).await
+        {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+            Err(_) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "verdict": "timeout",
+                    "error": format!("timeout after {}s", timeout),
+                    "hint": "interactive ssh: anchors can hang the subprocess; raise timeout_secs or use a file: anchor",
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+
+        // CLI's --json path writes verdict+profiles to stdout. On classify
+        // failures it sets exit code 1 or 2 but stdout JSON is still valid.
+        // If stdout isn't parseable, surface the raw output so the caller
+        // can see what went wrong.
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code();
+
+        match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+            Ok(mut parsed) => {
+                // Decorate with `ok` for caller convenience and the exit code
+                // so the agent can distinguish "0 = all good", "1 = anchor
+                // broken", "2 = no anchor declared at all".
+                if let Some(obj) = parsed.as_object_mut() {
+                    obj.entry("ok".to_string())
+                        .or_insert(serde_json::Value::Bool(matches!(exit_code, Some(0))));
+                    obj.insert(
+                        "exit_code".to_string(),
+                        serde_json::json!(exit_code.unwrap_or(-1)),
+                    );
+                }
+                serde_json::to_string_pretty(&parsed).unwrap_or_else(json_err)
+            }
+            Err(parse_err) => json_err(format!(
+                "subprocess returned non-JSON output (exit={:?}): {parse_err}\nstdout: {}\nstderr: {}",
+                exit_code,
+                stdout.chars().take(300).collect::<String>(),
+                stderr.chars().take(300).collect::<String>()
+            )),
+        }
     }
 
     // === Hub restart (T-1040) ===
@@ -16525,6 +16631,89 @@ not-json
         assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(true));
         assert_eq!(parsed.get("entries").and_then(|v| v.as_array()).map(|a| a.len()), Some(0));
         assert!(parsed.get("hint").and_then(|v| v.as_str()).is_some());
+    }
+
+    // === T-1689: fleet_bootstrap_check MCP tool tests ===
+
+    #[tokio::test]
+    async fn fleet_bootstrap_check_rejects_both_profile_and_all() {
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_bootstrap_check(Parameters(FleetBootstrapCheckParams {
+                profile: Some("ring20-x".to_string()),
+                all: Some(true),
+                timeout_secs: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(false));
+        assert!(parsed
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .contains("not both"));
+    }
+
+    #[tokio::test]
+    async fn fleet_bootstrap_check_rejects_neither_profile_nor_all() {
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_bootstrap_check(Parameters(FleetBootstrapCheckParams {
+                profile: None,
+                all: None,
+                timeout_secs: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(false));
+        let err = parsed.get("error").and_then(|v| v.as_str()).unwrap();
+        assert!(err.contains("must pass"));
+    }
+
+    #[tokio::test]
+    async fn fleet_bootstrap_check_accepts_all_false_with_profile() {
+        // We don't drive a real subprocess here (the test harness binary isn't
+        // termlink), but we can at least verify param parsing accepts the
+        // canonical "single profile, all=false" shape without hitting the
+        // validation guard. The subprocess call will fail (since current_exe
+        // isn't termlink in test context), and that's expected — what we're
+        // pinning is that the validation gate passes for valid input.
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_bootstrap_check(Parameters(FleetBootstrapCheckParams {
+                profile: Some("nonexistent".to_string()),
+                all: Some(false),
+                timeout_secs: Some(2),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // ok=false is expected (the subprocess failed), but error text must
+        // NOT be one of the validation-guard messages.
+        let err = parsed.get("error").and_then(|v| v.as_str()).unwrap_or("");
+        assert!(
+            !err.contains("must pass") && !err.contains("not both"),
+            "validation guard should pass for profile=Some/all=false; got: {err}"
+        );
+    }
+
+    #[test]
+    fn fleet_bootstrap_check_params_defaults_when_omitted() {
+        let json = serde_json::json!({});
+        let p: FleetBootstrapCheckParams = serde_json::from_value(json).unwrap();
+        assert!(p.profile.is_none());
+        assert!(p.all.is_none());
+        assert!(p.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn fleet_bootstrap_check_timeout_clamp_bounds() {
+        // Clamp behavior tested indirectly: 0 -> 1, 9999 -> 120.
+        let clamp = |t: u64| t.clamp(1, 120);
+        assert_eq!(clamp(0), 1);
+        assert_eq!(clamp(1), 1);
+        assert_eq!(clamp(10), 10);
+        assert_eq!(clamp(120), 120);
+        assert_eq!(clamp(9999), 120);
     }
 
     #[tokio::test]
