@@ -3371,6 +3371,43 @@ pub(crate) enum FleetAction {
         #[arg(long = "include-heals")]
         include_heals: bool,
     },
+
+    /// T-1688: preflight-validate declared `bootstrap_from` anchors WITHOUT
+    /// performing any heal. Operator scenario: "I declared
+    /// `bootstrap_from = ssh:host` on profile X. Will it actually work
+    /// when `--auto-heal` fires?" Runs `fetch_bootstrap_secret(source)`
+    /// + `normalize_and_validate_secret_hex(raw)` and reports per-profile
+    /// status. Never writes the secret file.
+    ///
+    /// Status taxonomy:
+    ///   ok             — fetched + valid 64-hex
+    ///   no-anchor      — no `bootstrap_from` declared on profile
+    ///   fetch-fail     — channel error (ssh failed, file unreadable, etc.)
+    ///   invalid-format — fetched but not 64 hex chars (trimmed)
+    ///
+    /// Exit codes:
+    ///   0 — no fetch-fail and no invalid-format
+    ///   1 — any fetch-fail or invalid-format
+    ///   2 — `--all` and no profile declares `bootstrap_from` at all
+    ///
+    /// Either `<profile>` (positional) OR `--all` must be present.
+    ///
+    /// Note: `ssh:` channels invoke `ssh <host> -- sudo cat
+    /// /var/lib/termlink/hub.secret` interactively (same as the live heal
+    /// path). For CI/automation, prefer `file:` anchors.
+    BootstrapCheck {
+        /// Hub profile name (mutex with --all).
+        profile: Option<String>,
+
+        /// Validate every profile that declares `bootstrap_from`.
+        /// Profiles without a declared anchor are listed with status=no-anchor.
+        #[arg(long, conflicts_with = "profile")]
+        all: bool,
+
+        /// Output as JSON: {verdict, profiles: [{name, address, bootstrap_from, status, error?}]}
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Network connectivity diagnostics (T-1106)

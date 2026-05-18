@@ -668,6 +668,9 @@ async fn main() -> Result<()> {
             FleetAction::History { since, hub, json, include_heals } => {
                 commands::remote::cmd_fleet_history(since, hub.as_deref(), json, include_heals)
             }
+            FleetAction::BootstrapCheck { profile, all, json } => {
+                commands::remote::cmd_fleet_bootstrap_check(profile.as_deref(), all, json)
+            }
         },
         Command::Net { action } => match action {
             NetAction::Test { profile, json, timeout } => {
