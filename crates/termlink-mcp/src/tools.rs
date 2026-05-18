@@ -670,6 +670,17 @@ pub struct ChannelPostParams {
     pub artifact_ref: Option<String>,
     /// Override sender_id (default: identity fingerprint).
     pub sender_id: Option<String>,
+    /// T-1694: free-form routing-hint metadata pass-through to `envelope.metadata`.
+    /// Map of string keys to string values; the hub parses it into a
+    /// `BTreeMap<String, String>` and stores it on the envelope (NOT signed —
+    /// trusted-mesh threat model treats metadata as routing-only). Well-known
+    /// keys per T-1287/T-1288: `conversation_id`, `event_type`, `thread`,
+    /// `in_reply_to`. Non-string values would be dropped by the hub's parser;
+    /// pass JSON-stringified blobs if you need to carry nested data. Contracts
+    /// define their own key conventions; the tool layer does no schema
+    /// enforcement (Shape 1, T-1692). Closes the gap where envelope.metadata
+    /// was on-wire but caller-inaccessible (G-057).
+    pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -7338,7 +7349,7 @@ impl TermLinkTools {
             let _ = write!(&mut sig_hex, "{b:02x}");
         }
         let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
-        let params = serde_json::json!({
+        let mut params = serde_json::json!({
             "topic": p.topic,
             "msg_type": msg_type,
             "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
@@ -7348,6 +7359,17 @@ impl TermLinkTools {
             "sender_pubkey_hex": identity.public_key_hex(),
             "signature_hex": sig_hex,
         });
+        // T-1694: pass-through metadata when the caller supplied any. The hub
+        // parses params["metadata"] as a string→string map; omitting the key
+        // preserves the prior behavior (empty envelope.metadata).
+        if let Some(md) = p.metadata
+            && !md.is_empty()
+            && let Some(obj) = params.as_object_mut() {
+            obj.insert(
+                "metadata".to_string(),
+                serde_json::to_value(&md).unwrap_or_else(|_| serde_json::json!({})),
+            );
+        }
         match termlink_session::client::rpc_call(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_POST,
@@ -16733,5 +16755,65 @@ not-json
             .and_then(|v| v.as_str())
             .unwrap()
             .contains("since_days"));
+    }
+
+    // T-1694: ChannelPostParams metadata field — deserialization + JSON shape.
+    #[test]
+    fn channel_post_params_deserializes_metadata_field() {
+        let raw = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "payload": "hi",
+            "metadata": {
+                "thread": "T-1692",
+                "conversation_id": "abc123",
+                "in_reply_to": "350"
+            }
+        });
+        let p: ChannelPostParams = serde_json::from_value(raw).unwrap();
+        let md = p.metadata.expect("metadata must deserialize when provided");
+        assert_eq!(md.get("thread").map(String::as_str), Some("T-1692"));
+        assert_eq!(md.get("conversation_id").map(String::as_str), Some("abc123"));
+        assert_eq!(md.get("in_reply_to").map(String::as_str), Some("350"));
+    }
+
+    #[test]
+    fn channel_post_params_metadata_optional_omitted() {
+        let raw = serde_json::json!({
+            "topic": "x",
+            "payload": "y"
+        });
+        let p: ChannelPostParams = serde_json::from_value(raw).unwrap();
+        assert!(p.metadata.is_none(), "absent metadata must remain Option::None");
+    }
+
+    #[test]
+    fn channel_post_params_metadata_empty_map_distinct_from_none() {
+        let raw = serde_json::json!({
+            "topic": "x",
+            "payload": "y",
+            "metadata": {}
+        });
+        let p: ChannelPostParams = serde_json::from_value(raw).unwrap();
+        // Empty map deserializes as Some(empty) — the pass-through branch
+        // gates on `!is_empty()` so this still avoids inserting the key
+        // into the RPC params. Documenting the contract here.
+        let md = p.metadata.expect("explicit empty object → Some(empty)");
+        assert!(md.is_empty());
+    }
+
+    #[test]
+    fn channel_post_params_metadata_round_trip_json_shape() {
+        // Confirm a passed-through metadata map shows up as a JSON object
+        // when re-serialized — matches what the hub parser expects.
+        let raw = serde_json::json!({
+            "topic": "t",
+            "payload": "p",
+            "metadata": {"thread": "T-1694"}
+        });
+        let p: ChannelPostParams = serde_json::from_value(raw).unwrap();
+        let md = p.metadata.unwrap();
+        let v = serde_json::to_value(&md).unwrap();
+        assert_eq!(v.get("thread").and_then(|x| x.as_str()), Some("T-1694"));
+        assert!(v.is_object(), "metadata must serialize as JSON object for hub-side parse");
     }
 }
