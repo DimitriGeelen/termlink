@@ -168,6 +168,14 @@ to stderr instead of spawning a subprocess. Use it to validate the
 declared anchors and the bootstrap_from gate before turning a watch
 loop loose unattended.
 
+Audit trail (T-1685): every auto-heal decision — live fire, dry-run
+preview, or skip-for-missing-anchor — appends one NDJSON line to
+`~/.termlink/heal.log`. Schema: `{ts, hub, mode, trigger, action,
+bootstrap_from}`. Symmetric to T-1671's `rotation.log` (state transitions)
+but specifically for the operator-actionable response. Read with
+`jq -c 'select(.hub=="ring20-management")' ~/.termlink/heal.log` or
+similar. Write failures emit to stderr but never block the heal.
+
 **Auto-heal recipe — shell-script (T-1669 + T-1291, pre-T-1680):**
 
 Use this form when you want custom logic (e.g. Slack post, page on-call,
