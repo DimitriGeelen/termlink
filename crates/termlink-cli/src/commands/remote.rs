@@ -2521,6 +2521,69 @@ fn rotation_log_path() -> Option<std::path::PathBuf> {
     Some(std::path::PathBuf::from(home).join(".termlink").join("rotation.log"))
 }
 
+/// T-1685: parallel audit log for heal actions. `rotation.log` (T-1671)
+/// captures state-transition events; this captures the operator-actionable
+/// response. Each `--auto-heal` decision — whether it fired live, skipped
+/// for missing anchor, or was a dry-run preview — appends one NDJSON line.
+/// Best-effort: write failures emit to stderr but never block the heal or
+/// the watch loop.
+///
+/// Schema (NDJSON):
+///   { ts, hub, mode, trigger, action, bootstrap_from }
+///
+/// mode:    "watch" | "one-shot"
+/// trigger: "cert-drift" | "auth-mismatch"
+/// action:  "fired" | "skipped-no-anchor" | "dry-run"
+fn heal_log_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    Some(std::path::PathBuf::from(home).join(".termlink").join("heal.log"))
+}
+
+fn append_heal_log(
+    hub: &str,
+    mode: &str,
+    trigger: &str,
+    action: &str,
+    bootstrap_from: Option<&str>,
+) {
+    let Some(path) = heal_log_path() else { return };
+    let parent = path.parent();
+    if let Some(p) = parent
+        && !p.exists()
+        && let Err(e) = std::fs::create_dir_all(p)
+    {
+        eprintln!(
+            "{} heal.log mkdir failed: {} (logging skipped)",
+            crate::manifest::now_rfc3339(),
+            e
+        );
+        return;
+    }
+    let entry = serde_json::json!({
+        "ts": crate::manifest::now_rfc3339(),
+        "hub": hub,
+        "mode": mode,
+        "trigger": trigger,
+        "action": action,
+        "bootstrap_from": bootstrap_from,
+    });
+    let line = format!("{}\n", entry);
+    use std::io::Write;
+    let res = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut f| f.write_all(line.as_bytes()));
+    if let Err(e) = res {
+        eprintln!(
+            "{} heal.log write failed ({}): {} (entry dropped, heal continues)",
+            crate::manifest::now_rfc3339(),
+            path.display(),
+            e
+        );
+    }
+}
+
 fn append_rotation_log(
     hub: &str,
     kind: &str,
@@ -3001,25 +3064,31 @@ async fn cmd_fleet_doctor_watch(
                             let auth_mismatch_now = new_state.0 == "auth-mismatch"
                                 && o.0 != "auth-mismatch";
                             if pin_drift_now || auth_mismatch_now {
-                                let has_anchor = crate::config::load_hubs_config()
+                                // T-1685: prefer cert-drift trigger when
+                                // both fire (PL-021's "BOTH rotate" case).
+                                let trigger = if pin_drift_now { "cert-drift" } else { "auth-mismatch" };
+                                let anchor = crate::config::load_hubs_config()
                                     .hubs
                                     .get(name)
                                     .and_then(|e| e.bootstrap_from.as_deref())
-                                    .is_some();
-                                if has_anchor {
+                                    .map(String::from);
+                                if let Some(bootstrap) = anchor.as_deref() {
                                     if dry_run {
                                         // T-1684: watch + dry-run.
                                         eprintln!(
                                             "{ts} [DRY-RUN] would fire: termlink fleet reauth {} --bootstrap-from auto",
                                             name
                                         );
+                                        append_heal_log(name, "watch", trigger, "dry-run", Some(bootstrap));
                                     } else {
                                         fire_auto_heal(name, &ts);
+                                        append_heal_log(name, "watch", trigger, "fired", Some(bootstrap));
                                     }
                                 } else {
                                     eprintln!(
                                         "{ts} watch: --auto-heal skipped hub={name}: no bootstrap_from declared (R2 — declare it to enable auto-heal)"
                                     );
+                                    append_heal_log(name, "watch", trigger, "skipped-no-anchor", None);
                                 }
                             }
                         }
@@ -3752,12 +3821,15 @@ pub(crate) async fn cmd_fleet_doctor(
             if !(cert_drift || auth_mismatch) {
                 continue;
             }
-            let has_anchor = hubs_config
+            // T-1685: trigger for the audit line. If both fired (PL-021's
+            // "both rotate" case), prefer cert-drift since that's the more
+            // commonly visible failure mode in practice.
+            let trigger = if cert_drift { "cert-drift" } else { "auth-mismatch" };
+            let anchor = hubs_config
                 .hubs
                 .get(&name)
-                .and_then(|e| e.bootstrap_from.as_deref())
-                .is_some();
-            if has_anchor {
+                .and_then(|e| e.bootstrap_from.as_deref());
+            if let Some(bootstrap) = anchor {
                 if dry_run {
                     // T-1684: dry-run — describe the intended fire without
                     // spawning anything. Keep the line format stable so
@@ -3766,11 +3838,14 @@ pub(crate) async fn cmd_fleet_doctor(
                         "[DRY-RUN] would fire: termlink fleet reauth {} --bootstrap-from auto",
                         name
                     );
+                    append_heal_log(&name, "one-shot", trigger, "dry-run", Some(bootstrap));
                 } else {
                     fire_auto_heal(&name, &ts);
+                    append_heal_log(&name, "one-shot", trigger, "fired", Some(bootstrap));
                 }
                 acted += 1;
             } else {
+                append_heal_log(&name, "one-shot", trigger, "skipped-no-anchor", None);
                 skipped_no_anchor.push(name);
             }
         }
