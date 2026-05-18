@@ -1404,3 +1404,40 @@ learnings:
   date: 2026-05-17
   context: Added via context agent, updated 2026-05-17 with T-1661 MCP companion + secret-only caveat
   application: When an operator reports auth-mismatch and tofu verify says [OK], suspect secret-only rotation and proceed straight to fleet reauth without a tofu clear step
+- id: PL-163
+  learning: "When emitting YAML double-quoted scalars from shell, escape backslashes BEFORE quotes (sed 's/\\\\/\\\\\\\\/g' | sed 's/\"/\\\\\"/g'). Order matters: quote-first would double-escape the new \\\" pass. Any literal \\X where X is not a YAML-defined escape (\\n, \\t, \\\", \\\\) crashes parsers. Bug source: episodic.sh quote-only escaping let \\| from regex pipes in AC text emit invalid YAML."
+  source: unknown
+  task: T-1664
+  date: 2026-05-17
+  context: Added via context agent
+  application: TBD
+- id: PL-164
+  learning: "Don't gate on a string literal without verifying that the producing layer actually writes it — auth-mismatch class lived only in internal failure-tracking and never reached the JSON the watch parser reads. Cross-layer vocabulary drift is invisible until operationally stressed. Pin contracts with unit tests at the layer boundary."
+  source: P-001
+  task: T-1682
+  date: 2026-05-18
+  context: Added via context agent
+  application: TBD
+- id: PL-165
+  learning: "Fleet doctor observed tofu-violation on hub 'ring20-dashboard' (192.168.10.121:9100). date_observed=2026-05-18T06:21:22Z hub_fingerprint=sha256:0000000000000000000000000000000000000000000000000000000000000000. T-1051 Option D auto-registration — if a later agent sees a different pinned fingerprint for this hub, this learning is stale and should not be acted on."
+  source: T-1052
+  task: T-1051
+  date: 2026-05-18
+  context: fleet-doctor auto-registered
+  application: "Drift-detection: compare hub_fingerprint in this learning against current KnownHubStore.get(address)"
+
+- id: PL-166
+  learning: "Envelope `from_fingerprint` on a shared host identifies the HOST, not the agent. On .107 all co-resident agents (penelope, cohort-agent, framework-agent, termlink-agent, this Claude session) sign envelopes with one host-wide ed25519 key (d1993c2c). Payload-level fingerprints (e.g. 9219671e treated as 'Pen's' for 6+ weeks) are advisory labels only — never identity claims. T-1427 binds envelope.sender_id to the actual signing pubkey; if your matcher tries to claim a different sender_id, T-1427 rejects with error -32014. Operational rule: matchers that key on envelope.from_fingerprint to distinguish co-resident agents are matching the host and therefore vacuous. To genuinely distinguish, either (a) ship per-agent signing keys (T-1693 inception filed) or (b) rely on payload-layer disambiguation primitives (T-1448 inception). G-056 watches this gap."
+  source: T-1693
+  task: T-1693
+  date: 2026-05-18
+  context: cohort-agent operator-relay letter, T-1427 enforcement empirical evidence
+  application: "When designing or debugging co-resident matchers: never claim envelope.from_fingerprint distinguishes one Claude session from another on the same host. Use payload-layer fields or wait for T-1693 to ship per-agent keys."
+
+- id: PL-167
+  learning: "MCP tool wrappers may silently hide protocol-level fields. envelope.metadata is on the TermLink wire (proven by chat-arc:350) but termlink_channel_post doesn't accept a metadata parameter, so every MCP caller emits envelope.metadata = {}. Symptom looks like a protocol gap; the gap is at the tool surface. Generalizes: any time an MCP tool wraps a protocol verb, the tool schema is the constraint, not the protocol. Verification rule: when investigating why feature X 'doesn't work over MCP', check (1) does the protocol carry X (raw RPC trace), (2) does the MCP tool schema expose X as a parameter — gaps in (2) are common and recoverable as additive schema changes; gaps in (1) need protocol-level work. G-057 watches this class; T-1692 fixes the channel_post instance."
+  source: T-1692
+  task: T-1692
+  date: 2026-05-18
+  context: cohort-agent operator-relay letter, chat-arc:350 wire evidence
+  application: "When a peer reports a 'protocol gap' affecting MCP callers, first audit the tool schema before reaching for protocol changes. Use chat-arc:350 as the canonical example of populated wire metadata when explaining to others."
