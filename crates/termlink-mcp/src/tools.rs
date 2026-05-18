@@ -44,6 +44,90 @@ impl TermLinkTools {
 }
 
 /// Helper: create a JSON error response string.
+/// T-1687: parse one of `rotation.log` / `heal.log` (NDJSON) into entries,
+/// applying since-cutoff + hub filter and tagging each entry with `event_type`.
+/// Mirrors the CLI `cmd_fleet_history` parser so MCP and CLI return the same
+/// per-row shape; kept file-local rather than shared to avoid the CLI→MCP
+/// dependency direction. Malformed lines are counted but not surfaced
+/// per-line (CLI prints the first 3; MCP returns the count instead).
+fn fleet_history_parse_log(
+    text: &str,
+    event_type: &str,
+    cutoff_secs: i64,
+    hub_filter: Option<&str>,
+    out: &mut Vec<serde_json::Value>,
+    malformed_counter: &mut usize,
+) {
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let mut entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                *malformed_counter += 1;
+                continue;
+            }
+        };
+        let ts_str = entry.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        if let Some(want) = hub_filter {
+            let got = entry.get("hub").and_then(|v| v.as_str()).unwrap_or("");
+            if got != want {
+                continue;
+            }
+        }
+        if let Some(obj) = entry.as_object_mut() {
+            obj.insert("event_type".into(), serde_json::Value::from(event_type));
+        }
+        out.push(entry);
+    }
+}
+
+/// T-1687: civil-from-days RFC3339(Z) → unix seconds. Copy of the CLI parser;
+/// see `rfc3339_to_unix_secs` in crates/termlink-cli/src/commands/remote.rs.
+/// No chrono — keeps termlink-mcp dep-clean.
+fn fleet_history_rfc3339_to_unix(ts: &str) -> i64 {
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        parse_u(0, 4),
+        parse_u(5, 2),
+        parse_u(8, 2),
+        parse_u(11, 2),
+        parse_u(14, 2),
+        parse_u(17, 2),
+    ) else {
+        return 0;
+    };
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 {
+        y_shift / 400
+    } else {
+        (y_shift - 399) / 400
+    };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
 fn json_err(msg: impl std::fmt::Display) -> String {
     serde_json::to_string_pretty(&serde_json::json!({"ok": false, "error": msg.to_string()}))
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
@@ -1815,6 +1899,20 @@ pub struct FleetVerifyParams {
     /// `ok` rollup field treats them as non-failures. Use when an agent
     /// only wants to flag actual rotation events.
     pub exit_on_drift_only: Option<bool>,
+}
+
+// T-1687: Fleet history params (rotation/heal log retrospective).
+// MCP parity for T-1671 + T-1686. Read-only file scan.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetHistoryParams {
+    /// Look-back window in days (default: 7, clamped 1..=365).
+    pub since_days: Option<u32>,
+    /// Filter to a single hub profile name (None = all hubs).
+    pub hub: Option<String>,
+    /// When true, also read ~/.termlink/heal.log and merge entries
+    /// chronologically. Each entry is tagged `event_type: "rotation"|"heal"`
+    /// so a caller can distinguish T-1671 transitions from T-1685 heal actions.
+    pub include_heals: Option<bool>,
 }
 
 // T-1663: Hub probe params (single-host TLS fingerprint capture)
@@ -6757,6 +6855,145 @@ impl TermLinkTools {
             "hubs": hub_results,
             "summary": {"total": hub_results.len(), "pass": pass_count, "fail": fail_count},
         })).unwrap_or_else(json_err)
+    }
+
+    // === Fleet history (T-1687: MCP parity for T-1671 + T-1686) ===
+
+    #[tool(
+        name = "termlink_fleet_history",
+        description = "Read-only retrospective over hub rotation events. Reads ~/.termlink/rotation.log (populated by `fleet doctor --watch`) and optionally ~/.termlink/heal.log (populated by `--auto-heal`). Answers 'is this hub's drift the first or Nth time, and what did we do about it?' Returns merged entries sorted chronologically with per-hub counts. No auth, no network."
+    )]
+    async fn termlink_fleet_history(
+        &self,
+        Parameters(p): Parameters<FleetHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+        let include_heals = p.include_heals.unwrap_or(false);
+
+        let Some(home) = std::env::var("HOME").ok() else {
+            return json_err("HOME env var not set; cannot resolve rotation.log");
+        };
+        let rotation_path = std::path::PathBuf::from(&home)
+            .join(".termlink")
+            .join("rotation.log");
+        let heal_path = std::path::PathBuf::from(&home)
+            .join(".termlink")
+            .join("heal.log");
+
+        // Empty-state path: no logs to read at all.
+        if !rotation_path.exists() && (!include_heals || !heal_path.exists()) {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "per_hub": {},
+                    "since_days": since_days,
+                    "hub_filter": p.hub,
+                    "log_path": rotation_path.display().to_string(),
+                },
+                "hint": "no rotation history yet — run `fleet doctor --watch` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let mut entries: Vec<serde_json::Value> = Vec::new();
+        let mut malformed = 0usize;
+        if rotation_path.exists() {
+            match std::fs::read_to_string(&rotation_path) {
+                Ok(text) => fleet_history_parse_log(
+                    &text,
+                    "rotation",
+                    cutoff,
+                    p.hub.as_deref(),
+                    &mut entries,
+                    &mut malformed,
+                ),
+                Err(e) => return json_err(format!("cannot read rotation.log: {e}")),
+            }
+        }
+
+        let mut heal_malformed = 0usize;
+        if include_heals && heal_path.exists() {
+            match std::fs::read_to_string(&heal_path) {
+                Ok(text) => fleet_history_parse_log(
+                    &text,
+                    "heal",
+                    cutoff,
+                    p.hub.as_deref(),
+                    &mut entries,
+                    &mut heal_malformed,
+                ),
+                Err(e) => return json_err(format!("cannot read heal.log: {e}")),
+            }
+        }
+
+        if include_heals {
+            entries.sort_by_key(|e| {
+                let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+                fleet_history_rfc3339_to_unix(ts)
+            });
+        }
+
+        let mut per_hub_rot: std::collections::BTreeMap<String, u32> =
+            std::collections::BTreeMap::new();
+        let mut per_hub_heal: std::collections::BTreeMap<String, u32> =
+            std::collections::BTreeMap::new();
+        for e in &entries {
+            let h = e
+                .get("hub")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string();
+            let et = e
+                .get("event_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("rotation");
+            if et == "heal" {
+                *per_hub_heal.entry(h).or_insert(0) += 1;
+            } else {
+                *per_hub_rot.entry(h).or_insert(0) += 1;
+            }
+        }
+
+        let summary = if include_heals {
+            serde_json::json!({
+                "total": entries.len(),
+                "per_hub_rotation": per_hub_rot,
+                "per_hub_heal": per_hub_heal,
+                "since_days": since_days,
+                "hub_filter": p.hub,
+                "malformed_lines_skipped": malformed,
+                "heal_malformed_lines_skipped": heal_malformed,
+                "rotation_log_path": rotation_path.display().to_string(),
+                "heal_log_path": heal_path.display().to_string(),
+            })
+        } else {
+            serde_json::json!({
+                "total": entries.len(),
+                "per_hub": per_hub_rot,
+                "since_days": since_days,
+                "hub_filter": p.hub,
+                "malformed_lines_skipped": malformed,
+                "log_path": rotation_path.display().to_string(),
+            })
+        };
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": summary,
+        }))
+        .unwrap_or_else(json_err)
     }
 
     // === Hub restart (T-1040) ===
@@ -16060,4 +16297,252 @@ mod tests {
         assert!(serde_json::from_value::<EventsParams>(json).is_err());
     }
 
+    // === T-1687: fleet_history helper tests ===
+
+    #[test]
+    fn fleet_history_rfc3339_round_trip() {
+        // 2026-05-18T06:38:39Z → 1779863919 (verified via `date -u -d '...' +%s`)
+        // We don't pin to that exact value (depends on host date binary); instead
+        // check monotonicity + difference matches expected seconds.
+        let earlier = fleet_history_rfc3339_to_unix("2026-05-18T06:38:39Z");
+        let later = fleet_history_rfc3339_to_unix("2026-05-18T06:38:40Z");
+        assert_eq!(later - earlier, 1);
+        let day_later = fleet_history_rfc3339_to_unix("2026-05-19T06:38:39Z");
+        assert_eq!(day_later - earlier, 86_400);
+    }
+
+    #[test]
+    fn fleet_history_rfc3339_rejects_malformed() {
+        assert_eq!(fleet_history_rfc3339_to_unix(""), 0);
+        assert_eq!(fleet_history_rfc3339_to_unix("not-a-date"), 0);
+        // Missing trailing Z
+        assert_eq!(fleet_history_rfc3339_to_unix("2026-05-18T06:38:39"), 0);
+    }
+
+    #[test]
+    fn fleet_history_parse_log_tags_event_type_and_filters() {
+        let cutoff = 0i64; // accept everything
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        let mut malformed = 0usize;
+        let text = r#"{"ts":"2026-05-18T06:00:00Z","hub":"ring20-management","kind":"new","old":null,"new":"drift"}
+{"ts":"2026-05-18T06:01:00Z","hub":"ring20-dashboard","kind":"transition","old":"ok","new":"drift"}
+not-json
+{"ts":"2026-05-18T06:02:00Z","hub":"ring20-management","kind":"transition","old":"drift","new":"ok"}
+"#;
+        fleet_history_parse_log(text, "rotation", cutoff, None, &mut out, &mut malformed);
+        assert_eq!(out.len(), 3);
+        assert_eq!(malformed, 1);
+        for e in &out {
+            assert_eq!(e.get("event_type").and_then(|v| v.as_str()), Some("rotation"));
+        }
+    }
+
+    #[test]
+    fn fleet_history_parse_log_filters_by_hub_and_cutoff() {
+        // Cutoff = 2026-05-18T06:01:00Z; only entries >= that survive.
+        let cutoff = fleet_history_rfc3339_to_unix("2026-05-18T06:01:00Z");
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        let mut malformed = 0usize;
+        let text = r#"{"ts":"2026-05-18T06:00:00Z","hub":"ring20-management"}
+{"ts":"2026-05-18T06:01:00Z","hub":"ring20-dashboard"}
+{"ts":"2026-05-18T06:02:00Z","hub":"ring20-management"}
+"#;
+        fleet_history_parse_log(
+            text,
+            "rotation",
+            cutoff,
+            Some("ring20-management"),
+            &mut out,
+            &mut malformed,
+        );
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].get("ts").and_then(|v| v.as_str()), Some("2026-05-18T06:02:00Z"));
+        assert_eq!(malformed, 0);
+    }
+
+    #[test]
+    fn fleet_history_parse_log_event_type_tag_overrides_payload() {
+        // Even if the source payload smuggles an event_type, the parser must
+        // tag with the argument so callers can trust the field.
+        let cutoff = 0i64;
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        let mut malformed = 0usize;
+        let text = r#"{"ts":"2026-05-18T06:00:00Z","hub":"x","event_type":"forged"}
+"#;
+        fleet_history_parse_log(text, "heal", cutoff, None, &mut out, &mut malformed);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].get("event_type").and_then(|v| v.as_str()), Some("heal"));
+    }
+
+    #[test]
+    fn fleet_history_params_defaults_when_omitted() {
+        let json = serde_json::json!({});
+        let p: FleetHistoryParams = serde_json::from_value(json).unwrap();
+        assert!(p.since_days.is_none());
+        assert!(p.hub.is_none());
+        assert!(p.include_heals.is_none());
+    }
+
+    /// HOME is a process-global; tokio tests run concurrently and would
+    /// race on `set_var("HOME", ...)`. Serialize every HOME-mutating test
+    /// through this mutex.
+    static HOME_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// End-to-end smoke: synthetic ~/.termlink/{rotation,heal}.log under a
+    /// temp HOME, drive `termlink_fleet_history` directly, assert the JSON
+    /// shape matches the CLI's contract. Holds HOME_TEST_LOCK for the
+    /// duration to keep HOME stable for this test's MCP call.
+    #[tokio::test]
+    async fn fleet_history_e2e_merges_rotation_and_heal() {
+        let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        use std::io::Write;
+        // Use a process-unique temp dir to avoid clobbering anyone's real ~/.termlink.
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-mcp-fleet-history-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let termlink_dir = tmp.join(".termlink");
+        std::fs::create_dir_all(&termlink_dir).unwrap();
+
+        // Two rotation entries + one heal entry, in scrambled order to test sort.
+        let mut rot = std::fs::File::create(termlink_dir.join("rotation.log")).unwrap();
+        // Use a recent ts so the default 7-day cutoff doesn't filter them out.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let ts_a = unix_to_rfc3339(now - 3600); // 1h ago
+        let ts_b = unix_to_rfc3339(now - 1800); // 30m ago
+        let ts_heal = unix_to_rfc3339(now - 2700); // 45m ago (between)
+        writeln!(rot, r#"{{"ts":"{ts_a}","hub":"ring20-x","kind":"new","old":null,"new":"drift"}}"#).unwrap();
+        writeln!(rot, r#"{{"ts":"{ts_b}","hub":"ring20-x","kind":"transition","old":"drift","new":"ok"}}"#).unwrap();
+        drop(rot);
+
+        let mut heal = std::fs::File::create(termlink_dir.join("heal.log")).unwrap();
+        writeln!(
+            heal,
+            r#"{{"ts":"{ts_heal}","hub":"ring20-x","mode":"watch","trigger":"cert-drift","action":"fired","bootstrap_from":"ssh:test"}}"#
+        )
+        .unwrap();
+        drop(heal);
+
+        let orig_home = std::env::var("HOME").ok();
+        // SAFETY: tests don't run in parallel within this single-process binary
+        // (rustc serializes #[tokio::test] by default), and no other test in
+        // this file mutates HOME. Restoring below in both paths.
+        // SAFETY: set_var requires unsafe in edition2024+.
+        unsafe { std::env::set_var("HOME", &tmp); }
+
+        let tools = TermLinkTools::new();
+        let params = FleetHistoryParams {
+            since_days: Some(1),
+            hub: None,
+            include_heals: Some(true),
+        };
+        let result_str = tools.termlink_fleet_history(Parameters(params)).await;
+
+        // Restore HOME before asserting (asserts can panic).
+        unsafe {
+            match orig_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let parsed: serde_json::Value = serde_json::from_str(&result_str)
+            .unwrap_or_else(|e| panic!("MCP tool returned invalid JSON: {e}\nbody:\n{result_str}"));
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(true));
+
+        let entries = parsed.get("entries").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(entries.len(), 3, "expected 2 rotation + 1 heal entries");
+
+        // Verify sorted chronologically: rotation_a (1h ago) < heal (45m) < rotation_b (30m).
+        assert_eq!(
+            entries[0].get("event_type").and_then(|v| v.as_str()),
+            Some("rotation")
+        );
+        assert_eq!(
+            entries[1].get("event_type").and_then(|v| v.as_str()),
+            Some("heal")
+        );
+        assert_eq!(
+            entries[2].get("event_type").and_then(|v| v.as_str()),
+            Some("rotation")
+        );
+
+        let summary = parsed.get("summary").unwrap();
+        assert_eq!(summary.get("total").and_then(|v| v.as_u64()), Some(3));
+        let per_hub_rot = summary.get("per_hub_rotation").unwrap();
+        assert_eq!(per_hub_rot.get("ring20-x").and_then(|v| v.as_u64()), Some(2));
+        let per_hub_heal = summary.get("per_hub_heal").unwrap();
+        assert_eq!(per_hub_heal.get("ring20-x").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    /// Helper for the e2e test only: unix seconds → RFC3339(Z) string,
+    /// inverse of fleet_history_rfc3339_to_unix. Stdlib only.
+    fn unix_to_rfc3339(secs: i64) -> String {
+        let days = secs.div_euclid(86_400);
+        let rem = secs.rem_euclid(86_400);
+        let h = rem / 3600;
+        let mi = (rem % 3600) / 60;
+        let s = rem % 60;
+        let ymd = epoch_days_to_ymd(days);
+        format!("{}T{:02}:{:02}:{:02}Z", ymd, h, mi, s)
+    }
+
+    #[tokio::test]
+    async fn fleet_history_e2e_empty_state_returns_hint() {
+        let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-mcp-fleet-history-empty-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let orig_home = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", &tmp); }
+
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_history(Parameters(FleetHistoryParams {
+                since_days: None,
+                hub: None,
+                include_heals: None,
+            }))
+            .await;
+
+        unsafe {
+            match orig_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(parsed.get("entries").and_then(|v| v.as_array()).map(|a| a.len()), Some(0));
+        assert!(parsed.get("hint").and_then(|v| v.as_str()).is_some());
+    }
+
+    #[tokio::test]
+    async fn fleet_history_rejects_out_of_range_since() {
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_history(Parameters(FleetHistoryParams {
+                since_days: Some(500),
+                hub: None,
+                include_heals: None,
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(false));
+        assert!(parsed
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .contains("since_days"));
+    }
 }

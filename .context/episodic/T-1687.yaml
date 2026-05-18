@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1687: MCP exposure: termlink_fleet_history --include-heals — agent-callable retrospective
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T06:57:05Z
+# ============================================================================
+
+task_id: T-1687
+task_name: "MCP exposure: termlink_fleet_history --include-heals — agent-callable retrospective"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T06:47:56Z
+completed: 2026-05-18T06:57:02Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`termlink_fleet_history` MCP tool exists in `crates/termlink-mcp/src/tools.rs` with params `since_days` (default 7, clamped 1..=365), `hub` (optional filter), `include_heals` (default false)"
+  - "Returns JSON `{ok, entries[], summary{total, per_hub_*, log_path, heal_log_path?}, hint?}` mirroring CLI `cmd_fleet_history` shape; entries tagged with `event_type: \"rotation\" | \"heal\"` and sorted chronologically"
+  - "When `include_heals=true`, also reads `~/.termlink/heal.log` and merges entries; when log files don't exist, returns `entries: []` with an explanatory `hint`"
+  - "Out-of-range `since_days` returns a structured error JSON (not a panic) — covered by `fleet_history_rejects_out_of_range_since`"
+  - "`cargo check -p termlink` clean (rebuilds after MCP edit since CLI depends on MCP)"
+  - "Smoke: 3 e2e tokio tests pin the contract with synthetic logs — `fleet_history_e2e_merges_rotation_and_heal` (3-entry chronological sort), `fleet_history_e2e_empty_state_returns_hint`, `fleet_history_rejects_out_of_range_since`; plus 6 parse-helper unit tests"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1687-mcp-exposure-termlinkfleethistory---incl.md
+generated_by: context-agent-hybrid
