@@ -6,7 +6,7 @@ jobs:
         name: Push to GitHub
         remoteUrl: https://github.com/DimitriGeelen/termlink.git
         userName: DimitriGeelen
-        passwordSecret: github-push-token
+        passwordSecret: github-push-token-v2
         force: false
         condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
     triggers:
