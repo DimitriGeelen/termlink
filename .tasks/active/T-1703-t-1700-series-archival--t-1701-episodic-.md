@@ -1,8 +1,8 @@
 ---
-id: T-1702
-name: "docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)"
+id: T-1703
+name: "T-1700 series archival — T-1701 episodic + T-1702 completion"
 description: >
-  docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)
+  T-1700 series archival — T-1701 episodic + T-1702 completion
 
 status: started-work
 workflow_type: build
@@ -11,27 +11,28 @@ horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-05-18T22:26:25Z
-last_update: 2026-05-18T22:26:25Z
+created: 2026-05-18T22:28:43Z
+last_update: 2026-05-18T22:28:43Z
 date_finished: null
 ---
 
-# T-1702: docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)
+# T-1703: T-1700 series archival — T-1701 episodic + T-1702 completion
 
 ## Context
 
-T-1700 + T-1701 shipped `--identity-key <PATH>` on `termlink register`
-(both PTY and `--self` paths) plus the `TERMLINK_IDENTITY_FILE`
-precedence chain. The CLI surface exists; without an operator-facing
-doc the convention is folklore. This task captures it as
-`docs/migrations/T-1700-per-agent-identity.md`.
+Housekeeping: T-1701/T-1702 completed in this session via
+`fw task update --status work-completed`, which renamed the task files
+into `.tasks/completed/` and auto-generated `.context/episodic/*.yaml`
+sidecars. Those generated artifacts are pending commit and belong
+together as a single archival commit so the next session sees the
+T-1700 series fully archived.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `docs/migrations/T-1700-per-agent-identity.md` exists (170 lines) covering motivation, CLI surface, env-var precedence chain, per-project secrets convention, register example, rotation story, "when to use" guidance, post-registration verification
-- [x] Doc references T-1693, T-1700, T-1701, T-1159, T-1436, T-1427, PL-166 (Related work section)
-- [x] Doc is 170 lines (≤200 budget)
+- [ ] `.context/episodic/T-1701.yaml` committed
+- [ ] `.context/episodic/T-1702.yaml` committed
+- [ ] `.tasks/completed/T-1701-…` final state committed (post AC-tick edits)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -49,12 +50,6 @@ doc the convention is folklore. This task captures it as
 -->
 
 ## Verification
-
-test -f docs/migrations/T-1700-per-agent-identity.md
-grep -q "TERMLINK_IDENTITY_FILE" docs/migrations/T-1700-per-agent-identity.md
-grep -q "T-1693" docs/migrations/T-1700-per-agent-identity.md
-grep -q "PL-166" docs/migrations/T-1700-per-agent-identity.md
-test $(wc -l < docs/migrations/T-1700-per-agent-identity.md) -le 200
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -128,7 +123,7 @@ test $(wc -l < docs/migrations/T-1700-per-agent-identity.md) -le 200
 
 ## Updates
 
-### 2026-05-18T22:26:25Z — task-created [task-create-agent]
+### 2026-05-18T22:28:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1702-docsmigrations-guide-for-per-agent-ident.md
+- **Output:** /opt/termlink/.tasks/active/T-1703-t-1700-series-archival--t-1701-episodic-.md
 - **Context:** Initial task creation

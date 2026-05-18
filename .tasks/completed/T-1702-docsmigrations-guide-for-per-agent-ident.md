@@ -1,41 +1,37 @@
 ---
-id: T-1701
-name: "termlink register --self --identity-key parity (T-1700 follow-up)"
+id: T-1702
+name: "docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)"
 description: >
-  termlink register --self --identity-key parity (T-1700 follow-up)
+  docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)
 
 status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs]
+components: []
 related_tasks: []
-created: 2026-05-18T22:22:12Z
-last_update: 2026-05-18T22:25:57Z
-date_finished: 2026-05-18T22:25:57Z
+created: 2026-05-18T22:26:25Z
+last_update: 2026-05-18T22:28:12Z
+date_finished: 2026-05-18T22:28:12Z
 ---
 
-# T-1701: termlink register --self --identity-key parity (T-1700 follow-up)
+# T-1702: docs/migrations guide for per-agent identity (T-1700/T-1701 operator doc)
 
 ## Context
 
-T-1700 shipped `termlink register --identity-key <PATH>` for the PTY path but
-intentionally left `--self` mode (event-only endpoint) with a stderr warning:
-"warning: --identity-key has no effect with --self yet (T-1700 follow-up)".
-This task closes the parity gap so co-resident event-only sessions (e.g.
-`agent-chat-arc` heartbeats, framework-agent presence registrations) can also
-present distinct envelope identities. Same mechanism as T-1700:
-`TERMLINK_IDENTITY_FILE` env var, just plumbed through `cmd_register_self`.
+T-1700 + T-1701 shipped `--identity-key <PATH>` on `termlink register`
+(both PTY and `--self` paths) plus the `TERMLINK_IDENTITY_FILE`
+precedence chain. The CLI surface exists; without an operator-facing
+doc the convention is folklore. This task captures it as
+`docs/migrations/T-1700-per-agent-identity.md`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `cmd_register_self` accepts `identity_key: Option<PathBuf>` and exports `TERMLINK_IDENTITY_FILE` before `Endpoint::start` (`session.rs:311-340`)
-- [x] `main.rs` Register dispatch passes `identity_key` into both branches; the prior `"warning: --identity-key has no effect with --self yet"` block is gone (`main.rs:33-39`)
-- [x] Smoke test: `--self --identity-key /tmp/self-x.key` registered with fingerprint `b19839a69fc1f643`, distinct from host default `d1993c2c3ec44c94` (2026-05-18T22:25Z)
-- [x] `cargo check --workspace` clean (only the pre-existing termlink-mcp `cur_run_end` warning)
-- [x] `cargo test -p termlink-session --lib agent_identity` green (same suite as T-1700 — no new test needed; the code path is shared)
+- [x] `docs/migrations/T-1700-per-agent-identity.md` exists (170 lines) covering motivation, CLI surface, env-var precedence chain, per-project secrets convention, register example, rotation story, "when to use" guidance, post-registration verification
+- [x] Doc references T-1693, T-1700, T-1701, T-1159, T-1436, T-1427, PL-166 (Related work section)
+- [x] Doc is 170 lines (≤200 budget)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -54,10 +50,11 @@ present distinct envelope identities. Same mechanism as T-1700:
 
 ## Verification
 
-cargo check --workspace
-cargo test -p termlink-session --lib agent_identity
-grep -q "identity_key" crates/termlink-cli/src/commands/session.rs
-! grep -q "no effect with --self yet" crates/termlink-cli/src/main.rs
+test -f docs/migrations/T-1700-per-agent-identity.md
+grep -q "TERMLINK_IDENTITY_FILE" docs/migrations/T-1700-per-agent-identity.md
+grep -q "T-1693" docs/migrations/T-1700-per-agent-identity.md
+grep -q "PL-166" docs/migrations/T-1700-per-agent-identity.md
+test $(wc -l < docs/migrations/T-1700-per-agent-identity.md) -le 200
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -131,24 +128,19 @@ grep -q "identity_key" crates/termlink-cli/src/commands/session.rs
 
 ## Updates
 
-### 2026-05-18T22:22:12Z — task-created [task-create-agent]
+### 2026-05-18T22:26:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1701-termlink-register---self---identity-key-.md
+- **Output:** /opt/termlink/.tasks/active/T-1702-docsmigrations-guide-for-per-agent-ident.md
 - **Context:** Initial task creation
 
 ## Reviewer Verdict (v1.4)
 
-- **Scan ID:** R-94e656f6
-- **Timestamp:** 2026-05-18T22:26:06Z
+- **Scan ID:** R-bd668654
+- **Timestamp:** 2026-05-18T22:28:12Z
 - **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
+- **Overall:** PASS
 - **Needs Human:** no
-- **Findings:** 1
+- **Findings:** none
 
-**Per-AC findings:**
-
-- **AC#3 (Agent)** — Smoke test: `--self --identity-key /tmp/self-x.key` registered with fingerprint `b19839a69fc1f643`, distinct from host default `d1993c2c3ec44c94` (2026-05-18T22:25Z)
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/self-x.key in: Smoke test: `--self --identity-key /tmp/self-x.key` registered with fingerprint `b19839a69fc1f643`, distinct from host default `d1993c2c3ec44c94` (202`
-
-### 2026-05-18T22:25:57Z — status-update [task-update-agent]
+### 2026-05-18T22:28:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
