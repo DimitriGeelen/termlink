@@ -665,8 +665,8 @@ async fn main() -> Result<()> {
             FleetAction::Verify { json, exit_on_drift_only } => {
                 commands::remote::cmd_fleet_verify(json, exit_on_drift_only).await
             }
-            FleetAction::History { since, hub, json, include_heals } => {
-                commands::remote::cmd_fleet_history(since, hub.as_deref(), json, include_heals)
+            FleetAction::History { since, hub, json, include_heals, analyze } => {
+                commands::remote::cmd_fleet_history(since, hub.as_deref(), json, include_heals, analyze)
             }
             FleetAction::BootstrapCheck { profile, all, json } => {
                 commands::remote::cmd_fleet_bootstrap_check(profile.as_deref(), all, json)

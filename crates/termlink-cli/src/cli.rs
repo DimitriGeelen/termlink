@@ -3370,6 +3370,22 @@ pub(crate) enum FleetAction {
         /// HEAL/<mode> kind marker and trigger/action fields.
         #[arg(long = "include-heals")]
         include_heals: bool,
+
+        /// T-1690: scan rotation.log for PL-021 flap signatures
+        /// (BOTH cert + secret rotating simultaneously, repeatedly).
+        /// Replaces the chronological listing with a per-hub classification:
+        /// `pl021-candidate` / `cert-only` / `secret-only` / `clean`.
+        /// Emits the volatile-/tmp diagnostic verbatim for any candidate so
+        /// the operator has a copy-pasteable next step. Exit code 2 when at
+        /// least one PL-021 candidate is detected, 0 otherwise.
+        ///
+        /// Signature: ≥2 entries within the `--since` window where the same
+        /// log row carries both `new_pin=drift` (was-not-drift) AND
+        /// `new_conn=auth-mismatch` (was-not-auth-mismatch). Single
+        /// double-rotation could be a one-off operator nuke; two or more in
+        /// the same window points at recurring volatile runtime_dir.
+        #[arg(long)]
+        analyze: bool,
     },
 
     /// T-1688: preflight-validate declared `bootstrap_from` anchors WITHOUT
