@@ -135,6 +135,7 @@ heal paths below.
 | `termlink fleet doctor --watch <secs> --notify <cmd>` | same; fires hook on change | **Event hook:** operator-pluggable shell command invoked on per-hub state change. Fire-and-forget — hanging scripts don't block the loop; cmd-not-found doesn't kill the watch. Env vars passed: `TERMLINK_WATCH_HUB`, `TERMLINK_WATCH_CHANGE_KIND` (`transition`/`new`/`removed`), `TERMLINK_WATCH_{OLD,NEW}_{CONN,PIN,LEGACY}`, `TERMLINK_WATCH_TS` (RFC3339 detection time — for log correlation, prefer over the script's own `date`; T-1676). T-1669. |
 | `termlink fleet doctor --watch <secs> --auto-heal` | same; heals on rotation transitions | **Built-in auto-heal (continuous):** fires when EITHER (a) `new_pin=drift` (cert rotation, needs `--include-pin-check`) OR (b) `new_conn=auth-mismatch` (secret-only rotation, T-1681 — closes PL-162 gap), AND the profile has declared `bootstrap_from` (T-1291). Spawns `fleet reauth <hub> --bootstrap-from auto` fire-and-forget. Both gates share the R2 declared-anchor check; one heal per change cycle (PL-021's "BOTH rotate" case dedups). T-1680 + T-1681 (gate) + T-1682 (parser fix making the auth-mismatch path actually fire). |
 | `termlink fleet doctor --auto-heal` (no `--watch`) | same; heals on current state | **Built-in auto-heal (one-shot, T-1683):** page-respond mode — drops the `--watch` requirement so operators can fix a known rotation without spinning up a watch loop. Runs the existing fleet-doctor sweep, then classifies each hub's current state and fires the same heal for any profile in `pin=drift` (with `--include-pin-check`) or `conn=auth-mismatch` AND declared `bootstrap_from`. Without `--include-pin-check` only the auth-mismatch path can fire — surfaced via stderr info hint. |
+| `termlink fleet doctor --auto-heal --dry-run` | same; prints intended fires | **Preview (T-1684):** classifies and reports what `--auto-heal` would do without spawning any heal subprocesses. Per affected hub: `[DRY-RUN] would fire: termlink fleet reauth <name> --bootstrap-from auto` to stderr. Same skip-no-anchor lines as live mode. Header reads "Auto-heal: would fire N (dry-run, T-1684)". Works with both single-shot and `--watch`. Clap requires `--auto-heal`. Use when wiring automation or debugging the bootstrap_from gate. |
 | `termlink fleet reauth --all-drifted` | parallel TLS probe of every profile | **Bulk heal:** one-shot companion to `fleet reauth <profile>`. Probes all profiles, classifies drift, and for every drifted profile with declared `bootstrap_from` runs the heal. Per-profile failures don't abort the loop. Exit 0 = no drift or all healed; exit 1 = any skip or fail. Operator UX win for fleet-wide rotation events. T-1679. |
 | `termlink fleet history [--since DAYS] [--hub NAME] [--json]` | `~/.termlink/rotation.log` (written by `--watch`) | **Retrospective history:** read-only diagnostic answering "is this hub's drift the 1st or Nth time?". `--watch` appends one NDJSON line per state change (ts/hub/kind/old/new). `fleet history` filters & summarizes. Default 7-day window, clamped 1..=365. Empty log prints a hint. T-1671. |
 
@@ -159,6 +160,13 @@ with a one-line stderr hint (R2 — no implicit anchors). The continuous
 form is right when a hub is flapping or you want hands-off detection;
 the one-shot form is right when fleet doctor already told you what's
 broken and you just want it fixed.
+
+Preview before wiring automation (T-1684): append `--dry-run` to either
+form. Same classification, same per-hub output, but each fire site emits
+`[DRY-RUN] would fire: termlink fleet reauth ... --bootstrap-from auto`
+to stderr instead of spawning a subprocess. Use it to validate the
+declared anchors and the bootstrap_from gate before turning a watch
+loop loose unattended.
 
 **Auto-heal recipe — shell-script (T-1669 + T-1291, pre-T-1680):**
 
@@ -192,12 +200,24 @@ flags auth-mismatch, the rotation was secret-only — heal via
 `fleet reauth <profile> --bootstrap-from <source>` directly without
 clearing the TOFU pin.
 
-**Coverage of `--auto-heal` (T-1681).** The watch-loop event hook covers
-**both** rotation types in one verb: cert-drift fires when `new_pin=drift`
-(needs `--include-pin-check`); secret-only fires when `new_conn=auth-mismatch`.
-Both gate on declared `bootstrap_from` (R2) and dedup so the PL-021 "both
-rotate" case heals once per cycle. This closes the PL-162 gap for the
-continuous-monitor case.
+**Coverage of `--auto-heal` (T-1681 + T-1682 + T-1683).** `--auto-heal`
+covers **both** rotation types in **both** modes:
+
+- Continuous (with `--watch`): heal fires on per-cycle transitions —
+  cert-drift when `new_pin=drift` (needs `--include-pin-check`), secret-only
+  when `new_conn=auth-mismatch`. T-1681 introduced the OR-gate; T-1682
+  fixed the dead gate (the auth-mismatch class is computed internally
+  but never appears in JSON `status`, so the watch parser now bridges
+  via `derive_watch_conn` — auth-mismatch error message → `auth-mismatch`
+  class in watch's in-memory state).
+- One-shot (no `--watch`, T-1683): heal fires on current state at end of
+  the single sweep — same gate, same fire-and-forget heal subprocess.
+  Page-respond pattern: fleet doctor flagged it, fix it now.
+
+Both modes gate on declared `bootstrap_from` (R2) and skip profiles
+without an anchor with a stderr hint. The continuous mode dedups
+PL-021's "both rotate" case at one heal per cycle; the one-shot mode
+fires per affected hub.
 
 **Retrospective check (T-1671).** After confirming a rotation just
 happened, the next question is usually "first time or Nth?" — a hub

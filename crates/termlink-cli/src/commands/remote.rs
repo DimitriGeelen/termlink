@@ -2846,6 +2846,7 @@ async fn cmd_fleet_doctor_watch(
     top_callers: u32,
     notify: Option<String>,
     auto_heal: bool,
+    dry_run: bool,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
@@ -3006,7 +3007,15 @@ async fn cmd_fleet_doctor_watch(
                                     .and_then(|e| e.bootstrap_from.as_deref())
                                     .is_some();
                                 if has_anchor {
-                                    fire_auto_heal(name, &ts);
+                                    if dry_run {
+                                        // T-1684: watch + dry-run.
+                                        eprintln!(
+                                            "{ts} [DRY-RUN] would fire: termlink fleet reauth {} --bootstrap-from auto",
+                                            name
+                                        );
+                                    } else {
+                                        fire_auto_heal(name, &ts);
+                                    }
                                 } else {
                                     eprintln!(
                                         "{ts} watch: --auto-heal skipped hub={name}: no bootstrap_from declared (R2 — declare it to enable auto-heal)"
@@ -3100,6 +3109,7 @@ pub(crate) async fn cmd_fleet_doctor(
     watch: Option<u64>,
     notify: Option<String>,
     auto_heal: bool,
+    dry_run: bool,
 ) -> Result<()> {
     // T-1669: --notify is meaningless without --watch (single-shot has no diff
     // cycles). Reject loudly so the operator sees the misuse immediately.
@@ -3129,7 +3139,7 @@ pub(crate) async fn cmd_fleet_doctor(
         }
         return cmd_fleet_doctor_watch(
             secs, timeout_secs, legacy_usage, legacy_window_days,
-            topic_durability, include_pin_check, top_callers, notify, auto_heal,
+            topic_durability, include_pin_check, top_callers, notify, auto_heal, dry_run,
         ).await;
     }
 
@@ -3725,7 +3735,7 @@ pub(crate) async fn cmd_fleet_doctor(
     if auto_heal {
         let ts = crate::manifest::now_rfc3339();
         let hubs_config = crate::config::load_hubs_config();
-        let mut healed = 0u32;
+        let mut acted = 0u32;
         let mut skipped_no_anchor: Vec<String> = Vec::new();
         for hub_obj in &hub_results {
             let name = hub_obj.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
@@ -3748,15 +3758,29 @@ pub(crate) async fn cmd_fleet_doctor(
                 .and_then(|e| e.bootstrap_from.as_deref())
                 .is_some();
             if has_anchor {
-                fire_auto_heal(&name, &ts);
-                healed += 1;
+                if dry_run {
+                    // T-1684: dry-run — describe the intended fire without
+                    // spawning anything. Keep the line format stable so
+                    // operators can grep / pipe to a reviewer.
+                    eprintln!(
+                        "[DRY-RUN] would fire: termlink fleet reauth {} --bootstrap-from auto",
+                        name
+                    );
+                } else {
+                    fire_auto_heal(&name, &ts);
+                }
+                acted += 1;
             } else {
                 skipped_no_anchor.push(name);
             }
         }
-        if !json && (healed > 0 || !skipped_no_anchor.is_empty()) {
+        if !json && (acted > 0 || !skipped_no_anchor.is_empty()) {
             eprintln!();
-            eprintln!("Auto-heal: fired {} (one-shot, T-1683)", healed);
+            if dry_run {
+                eprintln!("Auto-heal: would fire {} (dry-run, T-1684)", acted);
+            } else {
+                eprintln!("Auto-heal: fired {} (one-shot, T-1683)", acted);
+            }
             for name in &skipped_no_anchor {
                 eprintln!(
                     "  [SKIP] {}: no bootstrap_from declared (R2 — declare it to enable auto-heal)",
