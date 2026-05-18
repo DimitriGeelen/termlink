@@ -2,6 +2,38 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-056
+  type: gap
+  title: "Co-resident agents on a shared host share one envelope-signing identity — per-agent attribution structurally unanswerable"
+  description: "On .107, every co-resident agent (penelope, cohort-agent, framework-agent, termlink-agent, this Claude session) signs envelopes with one host-wide ed25519 key d1993c2c. The fingerprint 9219671e treated as 'Pen's' for 6+ weeks was a payload-level label only, never an envelope-identity claim. T-1427 enforcement empirically demonstrated this: Pen's attempt to post with sender_id=9219671e was rejected with error -32014 (sender_id does not match identity fingerprint d1993c2c derived from sender_pubkey_hex). Implication: at envelope layer 'is this from Pen?' is unanswerable when Pen and cohort-agent share the host. Audit attribution, multi-tenant trust, and defence-in-depth against single-agent compromise all rely on per-agent identity which does not exist at envelope layer today. Matchers using event['from_fingerprint'] to distinguish co-resident agents have been matching the host — vacuously true, no actual discrimination."
+  spec_reference: "crates/termlink-session/ ed25519 keyring (T-1159 added per-session keypair infra; deployment model is single shared key per host)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-18: Pen drafting reply via MCP, T-1427 rejected sender_id=9219671e claim. Pen routed structural request via cohort-agent letter to termlink-agent (filed as T-1692 + T-1693). 6+ weeks of mental-model drift surfaced in one error message."
+  detection_lag_days: 45
+  what_works_now: "Single-agent-per-host deployments are unaffected — host identity = agent identity by definition. TOFU + KnownHubStore handle hub-key rotation correctly. T-1159 keyring infra works at the session layer."
+  what_remains: "Wire per-agent keys through to session registration so co-resident agents can sign with distinct identities. Filed as T-1693 inception. Independent from but enables T-1448's strongest disambiguation variant."
+  mitigation_candidate: "T-1693 (inception, owner=human): per-agent ed25519 keypair files under per-project secrets dir, passed via --identity-key at termlink register. Cohort-agent recommends Shape 1 (agent-managed) over hub-managed or operator-derived shapes. Rotation story: regenerate + restart + TOFU history covers old envelopes."
+  status: watching
+  created: 2026-05-18
+  related_tasks: [T-1693, T-1448, T-1159, T-1427, T-1457]
+
+- id: G-057
+  type: gap
+  title: "MCP tool wrappers can silently hide protocol-level fields — caller-inaccessible features look like protocol gaps"
+  description: "TermLink protocol carries envelope.metadata (proven by chat-arc:350 where {thread, in_reply_to, task, mentions} is populated). But the MCP tool termlink_channel_post does not accept a metadata parameter, so every MCP caller — which is most LLM-driven agents — emits envelope.metadata = {}. Symptom looks like a protocol gap (metadata missing) but the protocol carries it; the tool layer drops it. Generalizes: any MCP tool wrapping a protocol verb is a potential silent-strip point. Named consumer impact: cohort-agent's n8n event-watch matcher at cohort_hub/n8n_event_match.py:42 keys on envelope.metadata.thread + conversation_id; Pen's acks land empty; n8n exec 7 is parked indefinitely. Filed as T-1692 inception; sibling audit task captures the class. The fix-at-source for any field is at the tool layer, not the protocol layer — but discovering which fields are at risk requires explicit audit because tool schemas don't currently advertise pass-through behavior."
+  spec_reference: "crates/termlink-mcp/src/tools.rs ChannelPostParams (and N adjacent tools)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-18: cohort-agent operator-relayed letter to termlink-agent identifying the gap. Conversation anchors: chat-arc:350 (proof of on-wire metadata), 351/383 (Pen acks with empty metadata), 1558 (cohort's contract request), 1560 (Pen's reply with diagnosis)."
+  detection_lag_days: 30
+  what_works_now: "Protocol-direct callers (cohort-ack-emit.js, raw RPC, custom Rust callers) work — bypass the MCP layer and populate metadata. termlink_agent_post (T-1560) already accepts _thread and _project as underscore-prefixed metadata keys."
+  what_remains: "T-1692 (inception): add free-form metadata param to termlink_channel_post. Sibling audit task (not yet filed): scan termlink-mcp/src/tools.rs for protocol-feature-vs-tool-schema gaps — produce punch list of other affected tools."
+  mitigation_candidate: "T-1692 GO recommendation: Shape 1 (free-form object). After T-1692 ships, file the audit task to catch sibling cases."
+  status: watching
+  created: 2026-05-18
+  related_tasks: [T-1692, T-1560, T-1584]
+
 - id: G-048
   type: gap
   title: "termlink remote push leaks payload-on-error — error message echoes the base64-encoded shell command"
