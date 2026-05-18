@@ -72,6 +72,25 @@ impl Identity {
         }
     }
 
+    /// Load the identity at `path` directly (no `identity.key` suffix
+    /// appended), or generate a new one atomically if the file is missing.
+    /// Created files are chmod 600; the parent directory is created if
+    /// needed (mirroring `write_seed_atomic`). T-1700 — backs the
+    /// `termlink register --identity-key <PATH>` flag so co-resident agents
+    /// on a shared host can present distinct envelope identities (PL-166
+    /// resolution path; T-1693 Shape 1 wiring).
+    pub fn load_or_create_from_file(path: &Path) -> Result<Self> {
+        match fs::read(path) {
+            Ok(bytes) => Self::from_seed_bytes(&bytes),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                let ident = Self::generate();
+                write_seed_atomic(path, ident.seed_bytes())?;
+                Ok(ident)
+            }
+            Err(e) => Err(IdentityError::Io(e)),
+        }
+    }
+
     /// Bootstrap a new identity at `<base>/identity.key`. Refuses to
     /// overwrite an existing file unless `force` is true; when forcing,
     /// the old file is renamed to `identity.key.bak-<unix-ms>`.
@@ -272,6 +291,36 @@ mod tests {
         let a = Identity::load_or_create(tmp.path()).unwrap();
         let b = Identity::load_or_create(tmp.path()).unwrap();
         assert_eq!(a.fingerprint(), b.fingerprint());
+    }
+
+    // T-1700: explicit-file constructor — backs `termlink register --identity-key`.
+    #[test]
+    fn load_or_create_from_file_writes_seed_0600_at_arbitrary_filename() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("nested").join("agent-a.key");
+        let ident = Identity::load_or_create_from_file(&path).unwrap();
+        assert!(path.is_file(), "key file at custom path must exist");
+        let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "explicit-path key file must be chmod 600");
+        let ident2 = Identity::load_or_create_from_file(&path).unwrap();
+        assert_eq!(
+            ident.public_key_hex(),
+            ident2.public_key_hex(),
+            "round-trip must yield the same public key"
+        );
+    }
+
+    #[test]
+    fn load_or_create_from_file_two_paths_produce_distinct_identities() {
+        // PL-166 resolution path: two paths on the same host must give
+        // structurally-distinct fingerprints (the cohort-letter ask).
+        let tmp = TempDir::new().unwrap();
+        let a_path = tmp.path().join("agent-a.key");
+        let b_path = tmp.path().join("agent-b.key");
+        let a = Identity::load_or_create_from_file(&a_path).unwrap();
+        let b = Identity::load_or_create_from_file(&b_path).unwrap();
+        assert_ne!(a.fingerprint(), b.fingerprint());
+        assert_ne!(a.public_key_hex(), b.public_key_hex());
     }
 
     #[test]

@@ -30,11 +30,17 @@ async fn main() -> Result<()> {
 
     match cli.command {
         // Session management
-        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet } => {
+        Command::Register { name, roles, tags, cap, shell, self_mode, token_secret, allowed_commands, json, quiet, identity_key } => {
             if self_mode {
+                // --self path does not currently honor --identity-key; the
+                // event-only endpoint reuses the host-shared key. Surface a
+                // warning rather than silently dropping the override.
+                if identity_key.is_some() {
+                    eprintln!("warning: --identity-key has no effect with --self yet (T-1700 follow-up)");
+                }
                 commands::session::cmd_register_self(name, roles, tags, cap, json).await
             } else {
-                commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet }).await
+                commands::session::cmd_register(commands::session::RegisterOpts { name, roles, tags, cap, shell, enable_token_secret: token_secret, allowed_commands, json, quiet, identity_key }).await
             }
         }
         Command::List { all, json, tag, name, role, cap, count, names, ids, first, wait, wait_timeout, no_header, sort } => {

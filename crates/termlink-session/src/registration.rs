@@ -11,25 +11,54 @@ use termlink_protocol::TransportAddr;
 pub const REGISTRATION_VERSION: u8 = 1;
 
 /// T-1436: best-effort load of the agent identity fingerprint for inclusion
-/// in `SessionMetadata`. Resolves the identity base dir via `$HOME/.termlink`
-/// (matching `crates/termlink-cli/src/commands/channel.rs::identity_base_dir`)
-/// and returns `None` on any error: missing HOME, IO failure, or absent key
-/// file when we don't want to auto-create one inside registration. This
-/// keeps `Registration::new` infallible — pre-T-1436 callers and tests that
-/// run without an identity continue to work, the field just stays None.
+/// in `SessionMetadata`. Resolution order (highest precedence first):
+///
+///   1. `TERMLINK_IDENTITY_FILE` — explicit file path (T-1700, per-agent
+///      override for shared hosts). Created by `termlink register
+///      --identity-key <PATH>` for the registering session.
+///   2. `TERMLINK_IDENTITY_DIR/identity.key` — base-dir override (T-1159,
+///      matches `crates/termlink-cli/src/commands/{identity,channel}.rs`).
+///   3. `$HOME/.termlink/identity.key` — host default.
+///
+/// Returns `None` on any error (missing HOME, IO failure, or absent key
+/// file). Registration is read-only here — creation is the responsibility
+/// of the CLI (`termlink register` or `termlink identity init`). This keeps
+/// `Registration::new` infallible: pre-T-1436 callers and tests that run
+/// without an identity continue to work, the field just stays None.
 fn load_identity_fingerprint_best_effort() -> Option<String> {
-    let home = std::env::var("HOME").ok()?;
-    let base = PathBuf::from(home).join(".termlink");
-    // Only load if the identity already exists; do not auto-create from
-    // inside registration (creation is the channel.post path's
-    // responsibility — this is read-only).
-    let key_path = crate::agent_identity::identity_path(&base);
+    let key_path = resolve_identity_key_path(|k| std::env::var(k).ok())?;
     if !key_path.exists() {
         return None;
     }
-    Identity::load_or_create(&base)
+    Identity::load_or_create_from_file(&key_path)
         .ok()
         .map(|id| id.fingerprint().to_string())
+}
+
+/// Resolve the identity key file path from the environment. Pure function
+/// (env-var lookups go through the supplied closure) so it can be tested
+/// without touching global process state. Precedence:
+///
+///   1. `TERMLINK_IDENTITY_FILE` — explicit file path (T-1700).
+///   2. `TERMLINK_IDENTITY_DIR/identity.key` — base-dir override (T-1159).
+///   3. `$HOME/.termlink/identity.key` — host default.
+///
+/// Returns `None` if none of the above can be resolved (e.g. `HOME` unset
+/// in a sandboxed test process).
+fn resolve_identity_key_path<F>(get_env: F) -> Option<PathBuf>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    if let Some(file) = get_env("TERMLINK_IDENTITY_FILE") {
+        return Some(PathBuf::from(file));
+    }
+    if let Some(dir) = get_env("TERMLINK_IDENTITY_DIR") {
+        return Some(crate::agent_identity::identity_path(Path::new(&dir)));
+    }
+    let home = get_env("HOME")?;
+    Some(crate::agent_identity::identity_path(
+        &PathBuf::from(home).join(".termlink"),
+    ))
 }
 
 /// Registration entry written as a JSON sidecar file alongside the session socket.
@@ -358,6 +387,47 @@ mod tests {
         let read_back = Registration::read_from(&json_path).unwrap();
         assert_eq!(read_back.id, reg.id);
         assert_eq!(read_back.state, SessionState::Initializing);
+    }
+
+    // T-1700: precedence of TERMLINK_IDENTITY_FILE > TERMLINK_IDENTITY_DIR > HOME.
+    #[test]
+    fn resolve_identity_key_path_prefers_explicit_file() {
+        let path = resolve_identity_key_path(|k| match k {
+            "TERMLINK_IDENTITY_FILE" => Some("/tmp/agent-a.key".to_string()),
+            "TERMLINK_IDENTITY_DIR" => Some("/should/not/be/used".to_string()),
+            "HOME" => Some("/should/not/be/used".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(path, PathBuf::from("/tmp/agent-a.key"));
+    }
+
+    #[test]
+    fn resolve_identity_key_path_falls_back_to_dir() {
+        let path = resolve_identity_key_path(|k| match k {
+            "TERMLINK_IDENTITY_FILE" => None,
+            "TERMLINK_IDENTITY_DIR" => Some("/etc/termlink".to_string()),
+            "HOME" => Some("/should/not/be/used".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(path, PathBuf::from("/etc/termlink/identity.key"));
+    }
+
+    #[test]
+    fn resolve_identity_key_path_falls_back_to_home() {
+        let path = resolve_identity_key_path(|k| match k {
+            "HOME" => Some("/root".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(path, PathBuf::from("/root/.termlink/identity.key"));
+    }
+
+    #[test]
+    fn resolve_identity_key_path_none_without_home() {
+        let path = resolve_identity_key_path(|_| None);
+        assert!(path.is_none());
     }
 
     #[test]

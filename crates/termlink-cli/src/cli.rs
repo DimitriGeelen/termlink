@@ -56,6 +56,15 @@ pub(crate) enum Command {
         /// Suppress all non-error output at startup
         #[arg(long, short = 'q')]
         quiet: bool,
+
+        /// Per-agent ed25519 identity key file (T-1693 Shape 1, T-1700).
+        /// When set, this session signs and registers with the identity at
+        /// the given file path instead of the host-shared
+        /// `$HOME/.termlink/identity.key`. The file is auto-created (chmod
+        /// 600) on first use. Required on shared hosts where co-resident
+        /// agents must present distinct envelope identities.
+        #[arg(long, value_name = "PATH")]
+        identity_key: Option<std::path::PathBuf>,
     },
 
     /// List all registered sessions

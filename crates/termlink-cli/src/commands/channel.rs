@@ -25,6 +25,15 @@ fn identity_base_dir() -> Result<PathBuf> {
 }
 
 pub(crate) fn load_identity_or_create() -> Result<Identity> {
+    // T-1700: explicit per-agent identity file takes precedence over the
+    // host-shared base-dir convention. Keeps signing identity in lockstep
+    // with the registration fingerprint (registration.rs honors the same
+    // env var) so the wire envelope and the SessionMetadata agree.
+    if let Ok(file) = std::env::var("TERMLINK_IDENTITY_FILE") {
+        let path = PathBuf::from(file);
+        return Identity::load_or_create_from_file(&path)
+            .map_err(|e| anyhow!("Failed to load identity from TERMLINK_IDENTITY_FILE: {e}"));
+    }
     let base = identity_base_dir()?;
     let path = identity_path(&base);
     if !path.exists() {

@@ -66,11 +66,46 @@ pub(crate) struct RegisterOpts {
     pub allowed_commands: Vec<String>,
     pub json: bool,
     pub quiet: bool,
+    /// T-1700 / T-1693 Shape 1: per-agent identity key file. When set, the
+    /// session registers and signs envelopes with the key at this path
+    /// instead of the host-shared default. Wired by exporting
+    /// `TERMLINK_IDENTITY_FILE` for this process before
+    /// `Session::register` so registration metadata + downstream
+    /// `channel.post` signing both pick it up.
+    pub identity_key: Option<std::path::PathBuf>,
 }
 
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
-    let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet } = opts;
+    let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key } = opts;
     let verbose = !json && !quiet;
+
+    // T-1700: bind per-agent identity BEFORE Session::register so the
+    // fingerprint baked into SessionMetadata (registration.rs T-1436 path)
+    // and any later channel.post signing (channel.rs::load_identity_or_create)
+    // resolve to the same key file. Creates the file at chmod 600 on first
+    // use; failure here is fatal because the user explicitly asked for this
+    // identity.
+    if let Some(ref key_path) = identity_key {
+        use termlink_session::agent_identity::Identity;
+        let ident = Identity::load_or_create_from_file(key_path)
+            .with_context(|| format!("Failed to load/create identity at {}", key_path.display()))?;
+        // SAFETY: setting env vars after `main` has started is unsound in
+        // multi-threaded programs that read env concurrently. At this point
+        // the tokio runtime is up but no task reads TERMLINK_IDENTITY_FILE
+        // yet (registration.rs reads it inside Session::register, called
+        // sequentially below). Acceptable in this single-call path.
+        unsafe {
+            std::env::set_var("TERMLINK_IDENTITY_FILE", key_path);
+        }
+        if verbose {
+            println!(
+                "Identity (T-1700): {} ({})",
+                key_path.display(),
+                ident.fingerprint()
+            );
+        }
+    }
+
     let mut config = SessionConfig {
         display_name: name,
         roles,
