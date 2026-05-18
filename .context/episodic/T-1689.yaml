@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1689: MCP exposure: termlink_fleet_bootstrap_check — agent-callable anchor preflight
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T07:23:49Z
+# ============================================================================
+
+task_id: T-1689
+task_name: "MCP exposure: termlink_fleet_bootstrap_check — agent-callable anchor preflight"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T07:10:39Z
+completed: 2026-05-18T07:23:43Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`termlink_fleet_bootstrap_check` MCP tool exists with `FleetBootstrapCheckParams { profile, all, timeout_secs }`; timeout clamped to 1..=120 via `clamp(1, 120)`"
+  - "Validates exactly one of `profile`/`all` set; structured error JSON for both/neither — covered by `rejects_both_profile_and_all` + `rejects_neither_profile_nor_all` tests"
+  - "Subprocesses `current_exe() fleet bootstrap-check --json [profile|--all]` via `tokio::process::Command` under `tokio::time::timeout`; `kill_on_drop=true` + stdin=null so a hanging interactive ssh anchor can't wedge the MCP server"
+  - "Timeout returns structured `{ok: false, verdict: \"timeout\", error: \"timeout after Ns\", hint}` JSON (no panic, child killed via `kill_on_drop`)"
+  - "5 unit tests (3 tokio, 2 sync) pin: validation guards (both/neither), valid-input passthrough, params default parsing, clamp bounds"
+  - "CLAUDE.md row added immediately under the CLI `fleet bootstrap-check` row, matching the T-1687 MCP-companion pattern"
+  - "`cargo check -p termlink-mcp` clean; new tests pass (5/5); full mcp suite green (119/119)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1689-mcp-exposure-termlinkfleetbootstrapcheck.md
+generated_by: context-agent-hybrid
