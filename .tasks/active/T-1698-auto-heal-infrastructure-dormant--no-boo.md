@@ -58,6 +58,23 @@ anchor source must NOT depend on the auth being healed:
      ops-aware-only feature; the fleet here is small enough to manual-heal.
      Concedes the value of T-1680..T-1689. Honest but wasteful.
 
+## Recommendation
+
+**GO on Path 1 (ssh: anchors) — with Path 4 (manual Tier-1 reauth) as the interim default until SSH keys exist.**
+
+Path 1 is the only R2-clean operational outcome. Paths 2 and 3 (warm-cache / native remote-exec anchors) fail R2 on analysis — the fetch channel shares its auth with the credential being rotated; the cache always holds the OLD secret post-rotation. Path 4 is the right interim — no false promise of auto-heal where it cannot actually work today; rotations are handled manually via `fleet reauth <profile>` (Tier-1, T-1054).
+
+Wiring SSH keys is a one-time operator action with broad benefit beyond termlink (general administration of the ring20 fleet). Full path analysis + reachability matrix + runbook in `docs/reports/T-1698-auto-heal-dormancy-inception.md`.
+
+Concrete next step (operator, on .107):
+```
+ssh-keygen -t ed25519 -f ~/.ssh/termlink-heal -N "" -C "termlink-heal@workstation-107 $(date -I)"
+cat ~/.ssh/termlink-heal.pub
+# Append public key to /root/.ssh/authorized_keys on each hub (.121 / .122 / .141)
+# Then declare bootstrap_from = "ssh:192.168.10.<N>" per profile in ~/.termlink/hubs.toml
+# Verify: termlink fleet bootstrap-check --all  → all profiles ok
+```
+
 ## Acceptance Criteria
 
 ### Agent
