@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# T-1140 — Detect OneDev → GitHub mirror drift (G-007 mitigation).
+# T-1140 / T-1696 — Detect OneDev → GitHub mirror drift (G-007 / G-058 mitigation).
 #
 # The CI flow depends on OneDev auto-mirroring main + tags to GitHub via
 # its PushRepository buildspec job. When the mirror stalls, recent commits
 # on OneDev never reach GitHub, and Actions (release, install-check) silently
 # stop firing. This script makes that drift visible by comparing the two
-# HEADs side-by-side.
+# HEADs side-by-side AND by checking the most-recent local tag exists on
+# GitHub (the specific failure mode G-058 exposed — tag-mirror can fail
+# independently of branch-mirror).
 #
 # Exit codes:
 #   0  — synced (or GitHub ahead, which should not happen but is not an incident)
-#   1  — drift detected (OneDev ahead of GitHub)
+#   1  — drift detected (OneDev ahead of GitHub on HEAD or tag)
 #   2  — network/tooling error (could not read one of the refs)
 #
 # Usage:
@@ -63,9 +65,27 @@ else
     behind=unknown
 fi
 
+# T-1696: tag drift — most-recent local tag must exist on GitHub.
+# Mirror jobs can lose tags independently of branches; G-058's release
+# tags (v0.10.0, v0.11.0, v0.11.1) all missed GitHub for 16 days while
+# main was the only thing being checked.
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+tag_status=skipped
+if [ -n "$latest_tag" ]; then
+    if git ls-remote --tags "$GITHUB_URL" "refs/tags/$latest_tag" 2>/dev/null \
+        | grep -q "refs/tags/$latest_tag$"; then
+        tag_status=synced
+    else
+        tag_status=missing
+        if [ "$status" = synced ]; then
+            status=drift
+        fi
+    fi
+fi
+
 if [ "$FORMAT" = json ]; then
-    printf '{"status":"%s","behind":"%s","origin":"%s","github":"%s"}\n' \
-        "$status" "$behind" "$origin_head" "$github_head"
+    printf '{"status":"%s","behind":"%s","origin":"%s","github":"%s","latest_tag":"%s","tag_status":"%s"}\n' \
+        "$status" "$behind" "$origin_head" "$github_head" "$latest_tag" "$tag_status"
 elif [ "$QUIET" = 1 ] && [ "$status" = synced ]; then
     :
 else
@@ -73,7 +93,12 @@ else
     echo "  origin (OneDev): $origin_head"
     echo "  GitHub:          $github_head"
     if [ "$status" = drift ]; then
-        echo "  GitHub is $behind commit(s) behind origin"
+        if [ "$behind" != "0" ] && [ "$behind" != "?" ]; then
+            echo "  GitHub is $behind commit(s) behind origin"
+        fi
+        if [ "$tag_status" = missing ]; then
+            echo "  Latest tag $latest_tag is NOT on GitHub (tag mirror broken)"
+        fi
     elif [ "$status" = diverged ]; then
         echo "  GitHub and origin have diverged — manual investigation needed"
     fi

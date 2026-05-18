@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-058
+  type: gap
+  title: "OneDev → GitHub mirror silently broken since 2026-05-02 — release pipeline structurally bypassed (v0.10.0, v0.11.0, v0.11.1 missed GH Releases)"
+  description: "Per CLAUDE.md the release flow is: push to OneDev → .onedev-buildspec.yml PushRepository job mirrors all branches + tags to github.com/DimitriGeelen/termlink → GitHub Actions release.yml triggers on v* tags → GitHub Releases publishes binaries → Homebrew install works. As of 2026-05-18T10:30Z: OneDev HEAD = b179b0cb (today), GitHub HEAD = b39fc916 (2026-05-02T05:39Z, T-1444 NO-GO commit). 16 days of commits + 3 release tags (v0.10.0 2026-05-15, v0.11.0 + v0.11.1 2026-05-17/18) never reached GitHub. Last successful GH Actions run was Install Check for T-1444 on 2026-05-02. Buildspec file (.onedev-buildspec.yml) is unchanged and looks correct — both BranchUpdateTrigger '**' and TagCreateTrigger '**' are configured. Root cause is upstream of the buildspec: either the github-push-token secret expired/was revoked, the OneDev job is failing silently, or push is rejected. Detection lag is the full 16 days because (a) no canary checked GH state daily, (b) operator does not personally verify GH releases after every tag, (c) the agent never thought to cross-check until v0.11.x Human AC came due. The CLAUDE.md rule 'NEVER push to GitHub' prevents the agent from healing this directly — by design — but no fallback observability fires when the OneDev mirror itself fails."
+  spec_reference: ".onedev-buildspec.yml + CLAUDE.md 'CI / Release Flow' section"
+  severity: high
+  trigger_fired: true
+  trigger_event: "2026-05-18T10:30Z agent investigation surfaced 16-day divergence while attempting to verify v0.11.1 GitHub Release for T-1691 Human AC. GH API confirms HEAD frozen at b39fc916 (T-1444, 2026-05-02). No release v0.10.0/v0.11.0/v0.11.1 exists on github.com (gh release list shows only v0.9.0 + v0.9.1)."
+  detection_lag_days: 16
+  what_works_now: "OneDev hosts canonical history. Local binaries built from source (cargo build --release) work. The cut binary deployed to .107 (/root/.cargo/bin/termlink, v0.11.1) is independent of GH publication. T-1166 cut + T-1694 metadata fix are operationally live regardless of GH state."
+  what_remains: "(1) Diagnose root cause: log into OneDev → Job Runs for 'Push to GitHub Mirror' → read failure log; check 'github-push-token' secret freshness; (2) Rotate token if expired (creates new PAT, updates OneDev secret); (3) Force-fire the job once after fix (manual run on OneDev) to catch up the 16-day backlog and the 3 missing tags; (4) Verify GH HEAD + tags catch up; (5) Confirm release.yml workflow fires for v0.10.0/v0.11.0/v0.11.1 and Releases publish; (6) Add a daily canary (CronCreate or operator script) that compares OneDev HEAD vs GitHub HEAD and alerts on >24h drift — closes the structural blindness that allowed this to run for 16 days."
+  mitigation_candidate: "Short-term: operator-driven recovery (steps 1-5 above). Structural: prevention canary (step 6) is the real fix — without it the next breakage runs unnoticed for another N days. Candidate cron: `fw monitor github-mirror-lag` or shell wrapper that compares `git ls-remote origin HEAD` vs `git ls-remote github HEAD` and pages if commits diverge >24h. Append to .context/cron/heartbeat.crontab once authored."
+  status: watching
+  created: 2026-05-18
+  related_tasks: [T-1691]
+
 - id: G-056
   type: gap
   title: "Co-resident agents on a shared host share one envelope-signing identity — per-agent attribution structurally unanswerable"

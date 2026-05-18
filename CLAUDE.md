@@ -37,6 +37,22 @@ Homebrew formula                     # brew install works (downloads from GitHub
 - **Releases** happen when you tag (`git tag v0.X.0`) and push to OneDev. GitHub Actions builds the binaries.
 - **Versioning** is git-derived via `build.rs`: tag = exact version, N commits after tag = `major.minor.N`.
 
+### Mirror drift canary (T-1140 + T-1696, G-058 prevention)
+
+The OneDev → GitHub mirror can fail silently (token expiry, OneDev job-runner
+issue, GitHub auth change). G-058 documents a 16-day silent failure where
+`v0.10.0` / `v0.11.0` / `v0.11.1` release tags all missed GitHub. A daily
+cron runs `scripts/check-mirror-freshness.sh --quiet` (see
+`.context/cron/release-mirror-canary.crontab`) and appends to
+`.context/working/.release-mirror-canary.log`. The canary checks BOTH branch
+HEAD drift AND tag drift (the most-recent local tag must exist on GitHub) —
+the second check is what catches the failure mode where branches mirror but
+tags don't. Empty log = healthy. Any entry = OneDev → GitHub mirror needs
+operator restoration (T-1695-style task: inspect OneDev job log, rotate
+`github-push-token` if expired, re-fire the mirror job). Ad-hoc check:
+`bash scripts/check-mirror-freshness.sh` (exit 0 = synced, 1 = drift,
+2 = network/tooling error).
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

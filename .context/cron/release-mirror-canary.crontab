@@ -1,0 +1,16 @@
+# T-1696 — release-pipeline mirror drift canary (G-058 prevention)
+# Source of truth: /opt/termlink/.context/cron/release-mirror-canary.crontab (git-tracked)
+# Daily check that OneDev → GitHub mirror is alive (commits + latest tag).
+# Exit 1 from --quiet means drift; the log accumulates only when drift is
+# present, so an empty log is the healthy state. G-058 ran 16 days because
+# T-1140's canary was never wired to a trigger — this file closes that gap.
+#
+# Diagnostic on drift: see scripts/check-mirror-freshness.sh (HEAD + tag).
+# Operator action on drift: open T-1695-style mirror-restore task (operator-only).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:13 UTC — offset chosen to avoid colliding with :17 heartbeat
+# and :43 rollout audit (heartbeat.crontab). Runs as root so cwd-into the
+# repo doesn't trip permissions on .git.
+13 7 * * * root cd /opt/termlink && bash scripts/check-mirror-freshness.sh --quiet >> .context/working/.release-mirror-canary.log 2>&1

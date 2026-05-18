@@ -1441,3 +1441,12 @@ learnings:
   date: 2026-05-18
   context: cohort-agent operator-relay letter, chat-arc:350 wire evidence
   application: "When a peer reports a 'protocol gap' affecting MCP callers, first audit the tool schema before reaching for protocol changes. Use chat-arc:350 as the canonical example of populated wire metadata when explaining to others."
+
+- id: PL-168
+  learning: "Canary scripts without a trigger are not prevention — they are dormant tooling. T-1140 shipped scripts/check-mirror-freshness.sh in 2026 to detect OneDev→GitHub mirror drift, but the task closed without installing a cron, so the canary never fired automatically. Result: G-058 — 16-day silent mirror failure (2026-05-02 → 2026-05-18) hiding 3 missed release tags (v0.10.0, v0.11.0, v0.11.1) and broken Homebrew install. The script correctly detected the drift on smoke-test at the END of the incident, which proves the failure was wiring, not logic. Generalizes: any Level-C tooling fix (write the detector) has a Level-D requirement (wire it to a trigger — cron, hook, CI job, pre-push). Closing the Level-C task without checking 'how does this fire next time?' leaves a script-shaped placebo that gives false sense of safety. Verification rule: every detector task must have a Verification command of the form 'crontab -l | grep <script>' or equivalent — if the schedule isn't enforced by the gate, the next breakage runs unnoticed for N days, where N is bounded only by how long it takes someone to look."
+  source: T-1696
+  task: T-1696
+  date: 2026-05-18
+  context: G-058 incident — 16-day silent mirror failure where T-1140's existing canary script correctly detected the drift on manual run but had never been scheduled.
+  application: "When closing a detector/canary/audit task, add a Verification command that proves the trigger is active (cron entry exists, hook installed, CI job registered). Do not accept 'manually invocable' as a complete task; the manual path is for debugging, the automated path is the actual prevention."
+
