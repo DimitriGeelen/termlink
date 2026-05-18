@@ -1458,3 +1458,10 @@ learnings:
   context: Operator question 'why do we need human to verify?' after agent ran the commands and presented evidence — surfaced the structural over-deferral pattern.
   application: "When filing a task with Human ACs, ask: 'can I write a concrete pass/fail criterion using only commands or string-matches?' If yes, the AC belongs under ### Agent. Reserve ### Human for things that genuinely require human-only access or subjective judgment. When reviewing an old task with an unticked Human AC that turns out to be mechanically verifiable, move it to ### Agent (not tick it under Human — that's framework-blocked by T-1731). Optional follow-up: audit existing tasks with stale Human ACs to surface other instances of this pattern."
 
+- id: PL-170
+  learning: "Detector alerts trigger blocker-re-evaluation. When the framework's audit/detector fires on a long-stale asset (e.g. 15d heartbeat staleness alert), the agent should re-check the 'this is blocked because X' claim in any human-owned task related to that asset BEFORE proposing operator action. Constraints documented at task-create time can resolve silently (a session gets registered, a host becomes reachable, a binary gets vendored). T-1455 was filed 2026-05-03 with 'agent has no termlink session on .121' as the blocker; by 2026-05-18 session tl-qe2pao72 was ready — the blocker had been gone for some unknown number of days. Pattern: alert fires → agent investigates → constraint check reveals it changed → migrate Human ACs per PL-169 → execute. Distinct from PL-169 (which addresses misclassification at filing time) — this addresses staleness over time."
+  source: P-002
+  task: T-1455
+  date: 2026-05-18
+  context: Added via context agent
+  application: TBD
