@@ -4,16 +4,16 @@ name: "whoami hint when identity is host-shared (drives T-1700 adoption)"
 description: >
   whoami hint when identity is host-shared (drives T-1700 adoption)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: []
 created: 2026-05-18T22:49:36Z
-last_update: 2026-05-18T22:49:36Z
-date_finished: null
+last_update: 2026-05-18T23:00:04Z
+date_finished: 2026-05-18T23:00:04Z
 ---
 
 # T-1704: whoami hint when identity is host-shared (drives T-1700 adoption)
@@ -53,7 +53,7 @@ zero schema changes, zero risk to existing tooling, drives adoption.
 
 ## Verification
 
-cargo test -p termlink-cli --lib commands::metadata::tests 2>&1 | tail -5 | grep -E "test result: ok"
+cargo test -p termlink --bins commands::metadata::tests 2>&1 | tail -5 | grep -E "test result: ok"
 ./target/release/termlink whoami --session tl-7zlfowtz 2>&1 | grep -E "shared with [0-9]+ other"
 
 ## RCA
@@ -123,3 +123,20 @@ cargo test -p termlink-cli --lib commands::metadata::tests 2>&1 | tail -5 | grep
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1704-whoami-hint-when-identity-is-host-shared.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-fd4d0f48
+- **Timestamp:** 2026-05-18T23:00:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `print_whoami_card` in `crates/termlink-cli/src/commands/metadata.rs` emits a `↳ shared with N other session(s) on this hub` line directly under `Identity FP:` when N ≥ 1 (counted as sessions other th
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/metadata.rs in: `print_whoami_card` in `crates/termlink-cli/src/commands/metadata.rs` emits a `↳ shared with N other session(s) on this hub` line directly under `Iden`
+
+### 2026-05-18T23:00:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
