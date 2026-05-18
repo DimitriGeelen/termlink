@@ -112,12 +112,13 @@ gh release list -L 5 --repo DimitriGeelen/termlink   # three new tags
   **Expected:** OneDev auto-mirror healthy for all future pushes
   **If not:** Fall back to scheduled manual catch-up; file follow-up task
 
-- [ ] [REVIEW] Revoke `[REDACTED-PAT-T-1695]` — it was pasted into this conversation log (`/root/.claude/projects/...`) for diagnostic purposes
+- [ ] [REVIEW] Revoke the diagnostic PAT pasted in this session (ends `…7ehL`, ~93 chars long, fine-grained `github_pat_…` prefix)
   **Steps:**
   1. Open https://github.com/settings/tokens
-  2. Find this PAT (last 6 chars `7ehL`), click Revoke
+  2. Find the PAT whose suffix ends `7ehL`, click Revoke
   **Expected:** Token marked revoked
-  **If not:** No active risk locally but log will retain the value — clean hygiene practice
+  **If not:** No active risk locally but conversation log retains the value — clean hygiene practice
+  **Note:** Original full value was in `/root/.claude/projects/...` session JSONL (local only); also briefly committed to git history at commit `15c19f22` and was redacted out in the follow-up commit. OneDev's git history retains the original commit; rewriting that is destructive and not worth it — revoking the token is the right closure.
 
 - [ ] [REVIEW] Releases published on GitHub for v0.10.0, v0.11.0, v0.11.1 (the GH Actions auto-trigger)
   **Steps:**
