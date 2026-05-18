@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1688: fleet bootstrap-check — preflight validate declared bootstrap_from anchors
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T07:08:47Z
+# ============================================================================
+
+task_id: T-1688
+task_name: "fleet bootstrap-check — preflight validate declared bootstrap_from anchors"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T07:00:47Z
+completed: 2026-05-18T07:08:42Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "New `FleetSub::BootstrapCheck { profile?, all, json }` clap variant in `crates/termlink-cli/src/cli.rs`; either `profile` or `--all` must be present (validated in command body — clap mutex via `conflicts_with`)"
+  - "Implementation `cmd_fleet_bootstrap_check` in `crates/termlink-cli/src/commands/remote.rs` reuses existing `fetch_bootstrap_secret` + `normalize_and_validate_secret_hex`; **no `write_secret_file` call**, **no `std::fs::copy` to back up**, no mutation of any secret file"
+  - "Per-profile status taxonomy: `ok`, `no-anchor`, `fetch-fail`, `invalid-format` — all four classify paths covered by `classify_bootstrap_check` unit tests"
+  - "Exit codes 0/1/2 implemented via `bootstrap_check_exit_code` helper; covered by 5 unit tests; live-smoked exit 2 with `--all` no-anchor case"
+  - "`--json` flag emits `{verdict, profiles: [{name, address, bootstrap_from, status, error?}]}` — shape confirmed via live smoke"
+  - "11 unit tests in `tests` module cover classify mapping, exit-code rollup, and verdict words; all pass"
+  - "CLAUDE.md row added under the auto-heal block matching the `fleet history` entry style"
+  - "`cargo check -p termlink` clean; `cargo test -p termlink --bin termlink bootstrap_check` shows 11/11 ok"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1688-fleet-bootstrap-check--preflight-validat.md
+generated_by: context-agent-hybrid

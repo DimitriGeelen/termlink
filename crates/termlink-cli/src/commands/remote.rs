@@ -5768,6 +5768,225 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
     Ok(())
 }
 
+/// T-1688: per-profile preflight classification. Pure function, exported for tests.
+/// Reuses the live heal path's fetch + validate helpers so the check exercises the
+/// exact same code as `--auto-heal` would.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum BootstrapCheckStatus {
+    Ok,
+    NoAnchor,
+    FetchFail(String),
+    InvalidFormat(String),
+}
+
+impl BootstrapCheckStatus {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::NoAnchor => "no-anchor",
+            Self::FetchFail(_) => "fetch-fail",
+            Self::InvalidFormat(_) => "invalid-format",
+        }
+    }
+    fn error(&self) -> Option<&str> {
+        match self {
+            Self::FetchFail(msg) | Self::InvalidFormat(msg) => Some(msg.as_str()),
+            _ => None,
+        }
+    }
+}
+
+fn classify_bootstrap_check(bootstrap_from: Option<&str>) -> BootstrapCheckStatus {
+    let Some(source) = bootstrap_from else {
+        return BootstrapCheckStatus::NoAnchor;
+    };
+    let raw = match fetch_bootstrap_secret(source) {
+        Ok(r) => r,
+        Err(e) => return BootstrapCheckStatus::FetchFail(format!("{e:#}")),
+    };
+    match normalize_and_validate_secret_hex(&raw) {
+        Ok(_) => BootstrapCheckStatus::Ok,
+        Err(e) => BootstrapCheckStatus::InvalidFormat(format!("{e:#}")),
+    }
+}
+
+/// T-1688: roll up per-profile statuses into an exit code.
+/// - 0 = no fetch-fail and no invalid-format
+/// - 1 = any fetch-fail or invalid-format
+/// - 2 = `--all` and no profile declares `bootstrap_from` at all
+fn bootstrap_check_exit_code(statuses: &[BootstrapCheckStatus], all_mode: bool) -> i32 {
+    let any_fail = statuses
+        .iter()
+        .any(|s| matches!(s, BootstrapCheckStatus::FetchFail(_) | BootstrapCheckStatus::InvalidFormat(_)));
+    if any_fail {
+        return 1;
+    }
+    if all_mode {
+        let any_declared = statuses
+            .iter()
+            .any(|s| !matches!(s, BootstrapCheckStatus::NoAnchor));
+        if !any_declared {
+            return 2;
+        }
+    }
+    0
+}
+
+/// T-1688: roll up statuses into a single verdict word for JSON consumers.
+fn bootstrap_check_verdict(statuses: &[BootstrapCheckStatus], all_mode: bool) -> &'static str {
+    if statuses
+        .iter()
+        .any(|s| matches!(s, BootstrapCheckStatus::FetchFail(_) | BootstrapCheckStatus::InvalidFormat(_)))
+    {
+        return "fail";
+    }
+    let any_declared = statuses
+        .iter()
+        .any(|s| !matches!(s, BootstrapCheckStatus::NoAnchor));
+    if !any_declared {
+        return if all_mode { "no-anchor" } else { "ok" };
+    }
+    let any_missing = statuses
+        .iter()
+        .any(|s| matches!(s, BootstrapCheckStatus::NoAnchor));
+    if any_missing { "mixed" } else { "ok" }
+}
+
+/// T-1688: preflight-validate declared `bootstrap_from` anchors WITHOUT
+/// performing a heal. See CLI doc-comment on FleetSub::BootstrapCheck.
+///
+/// Either `profile` or `all=true` MUST be provided (validated here, not by clap,
+/// because both fields are individually optional in the variant).
+pub(crate) fn cmd_fleet_bootstrap_check(
+    profile: Option<&str>,
+    all: bool,
+    json: bool,
+) -> Result<()> {
+    if profile.is_none() && !all {
+        anyhow::bail!(
+            "fleet bootstrap-check: either <profile> or --all must be given\n  e.g. termlink fleet bootstrap-check ring20-management\n       termlink fleet bootstrap-check --all"
+        );
+    }
+
+    let config = crate::config::load_hubs_config();
+
+    // Pick the profile set. Mirrors `fleet verify` ordering convention.
+    let mut entries: Vec<(String, crate::config::HubEntry)> = if let Some(name) = profile {
+        let entry = config
+            .hubs
+            .get(name)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("no such hub profile: '{name}'"))?;
+        vec![(name.to_string(), entry)]
+    } else {
+        // --all
+        config.hubs.iter().map(|(n, e)| (n.clone(), e.clone())).collect()
+    };
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    if entries.is_empty() {
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "verdict": if all { "no-anchor" } else { "ok" },
+                    "profiles": [],
+                    "note": "no hubs configured",
+                })
+            );
+        } else {
+            println!(
+                "No hubs configured in {}",
+                crate::config::hubs_config_path().display()
+            );
+        }
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize)]
+    struct ProfileResult {
+        name: String,
+        address: String,
+        bootstrap_from: Option<String>,
+        status: &'static str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+    }
+
+    let mut statuses: Vec<BootstrapCheckStatus> = Vec::with_capacity(entries.len());
+    let mut results: Vec<ProfileResult> = Vec::with_capacity(entries.len());
+
+    for (name, entry) in &entries {
+        let status = classify_bootstrap_check(entry.bootstrap_from.as_deref());
+        results.push(ProfileResult {
+            name: name.clone(),
+            address: entry.address.clone(),
+            bootstrap_from: entry.bootstrap_from.clone(),
+            status: status.as_str(),
+            error: status.error().map(|s| s.to_string()),
+        });
+        statuses.push(status);
+    }
+
+    let verdict = bootstrap_check_verdict(&statuses, all);
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string(&serde_json::json!({
+                "verdict": verdict,
+                "profiles": results,
+            }))?
+        );
+    } else {
+        println!("{:<24} {:<28} {:<14} STATUS", "PROFILE", "ADDRESS", "ANCHOR");
+        println!("{}", "-".repeat(86));
+        for r in &results {
+            let anchor = r.bootstrap_from.as_deref().unwrap_or("—");
+            // Truncate anchor for column-friendly display; full string in JSON.
+            let anchor_display: String = if anchor.chars().count() > 14 {
+                let mut s: String = anchor.chars().take(11).collect();
+                s.push_str("...");
+                s
+            } else {
+                anchor.to_string()
+            };
+            let note = match r.status {
+                "ok" => "fetched + valid hex".to_string(),
+                "no-anchor" => "no bootstrap_from declared".to_string(),
+                "fetch-fail" => r.error.clone().unwrap_or_else(|| "unknown error".to_string()),
+                "invalid-format" => r.error.clone().unwrap_or_else(|| "bad hex".to_string()),
+                _ => String::new(),
+            };
+            println!(
+                "{:<24} {:<28} {:<14} {:<14} {}",
+                r.name, r.address, anchor_display, r.status, note
+            );
+        }
+        println!();
+        println!("Fleet verdict: {}", verdict);
+        if verdict == "fail" {
+            println!();
+            println!(
+                "  Fix declarations in {} so each `bootstrap_from` channel returns 64-char hex.",
+                crate::config::hubs_config_path().display()
+            );
+            println!("  Re-test:           termlink fleet bootstrap-check --all");
+        } else if verdict == "no-anchor" {
+            println!();
+            println!("  No profile declares `bootstrap_from`. Add e.g.:");
+            println!("    [hubs.<name>]");
+            println!("    bootstrap_from = \"ssh:<host>\"   # or \"file:<path>\"");
+        }
+    }
+
+    let exit = bootstrap_check_exit_code(&statuses, all);
+    if exit != 0 {
+        std::process::exit(exit);
+    }
+    Ok(())
+}
+
 /// T-1055 Tier-2 heal: fetch the new secret via the named out-of-band source,
 /// validate it, back up the existing file, and write the new one.
 fn cmd_fleet_reauth_bootstrap(
@@ -7946,6 +8165,116 @@ secret_file = "/tmp/other.hex"
             assert!(j.get(k).is_some(), "missing key {k}: {j}");
         }
         assert_eq!(j["total_fleet_delta"].as_i64(), Some(-3));
+    }
+
+    // === T-1688: bootstrap-check tests ===
+
+    #[test]
+    fn bootstrap_check_classify_no_anchor_when_none() {
+        let s = classify_bootstrap_check(None);
+        assert_eq!(s, BootstrapCheckStatus::NoAnchor);
+        assert_eq!(s.as_str(), "no-anchor");
+        assert!(s.error().is_none());
+    }
+
+    #[test]
+    fn bootstrap_check_classify_ok_when_valid_file() {
+        let tmp = std::env::temp_dir().join(format!("tl-bootstrap-check-ok-{}.hex", std::process::id()));
+        // 64 hex chars
+        std::fs::write(&tmp, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n").unwrap();
+        let source = format!("file:{}", tmp.display());
+        let s = classify_bootstrap_check(Some(&source));
+        let _ = std::fs::remove_file(&tmp);
+        assert_eq!(s, BootstrapCheckStatus::Ok);
+    }
+
+    #[test]
+    fn bootstrap_check_classify_fetch_fail_when_file_missing() {
+        let source = format!("file:/tmp/nonexistent-bootstrap-{}.hex", std::process::id());
+        let s = classify_bootstrap_check(Some(&source));
+        assert_eq!(s.as_str(), "fetch-fail");
+        assert!(s.error().is_some());
+    }
+
+    #[test]
+    fn bootstrap_check_classify_invalid_format_when_short() {
+        let tmp = std::env::temp_dir()
+            .join(format!("tl-bootstrap-check-short-{}.hex", std::process::id()));
+        std::fs::write(&tmp, "not-64-chars").unwrap();
+        let source = format!("file:{}", tmp.display());
+        let s = classify_bootstrap_check(Some(&source));
+        let _ = std::fs::remove_file(&tmp);
+        assert_eq!(s.as_str(), "invalid-format");
+        assert!(s.error().is_some());
+    }
+
+    #[test]
+    fn bootstrap_check_classify_fetch_fail_unknown_scheme() {
+        let s = classify_bootstrap_check(Some("command:echo deadbeef"));
+        assert_eq!(s.as_str(), "fetch-fail");
+        assert!(s.error().unwrap().contains("Unknown bootstrap source"));
+    }
+
+    #[test]
+    fn bootstrap_check_exit_code_all_ok() {
+        let statuses = vec![BootstrapCheckStatus::Ok, BootstrapCheckStatus::Ok];
+        assert_eq!(bootstrap_check_exit_code(&statuses, true), 0);
+        assert_eq!(bootstrap_check_exit_code(&statuses, false), 0);
+    }
+
+    #[test]
+    fn bootstrap_check_exit_code_any_fetch_fail_is_1() {
+        let statuses = vec![
+            BootstrapCheckStatus::Ok,
+            BootstrapCheckStatus::FetchFail("boom".into()),
+        ];
+        assert_eq!(bootstrap_check_exit_code(&statuses, true), 1);
+        assert_eq!(bootstrap_check_exit_code(&statuses, false), 1);
+    }
+
+    #[test]
+    fn bootstrap_check_exit_code_any_invalid_format_is_1() {
+        let statuses = vec![BootstrapCheckStatus::InvalidFormat("short".into())];
+        assert_eq!(bootstrap_check_exit_code(&statuses, true), 1);
+    }
+
+    #[test]
+    fn bootstrap_check_exit_code_all_no_anchor_under_all_is_2() {
+        let statuses = vec![BootstrapCheckStatus::NoAnchor, BootstrapCheckStatus::NoAnchor];
+        assert_eq!(bootstrap_check_exit_code(&statuses, true), 2);
+        // Under single-profile mode, no-anchor isn't a failure (exit 0).
+        assert_eq!(bootstrap_check_exit_code(&statuses, false), 0);
+    }
+
+    #[test]
+    fn bootstrap_check_exit_code_mixed_no_anchor_plus_ok_under_all_is_0() {
+        let statuses = vec![BootstrapCheckStatus::NoAnchor, BootstrapCheckStatus::Ok];
+        assert_eq!(bootstrap_check_exit_code(&statuses, true), 0);
+    }
+
+    #[test]
+    fn bootstrap_check_verdict_words() {
+        assert_eq!(
+            bootstrap_check_verdict(&[BootstrapCheckStatus::Ok], false),
+            "ok"
+        );
+        assert_eq!(
+            bootstrap_check_verdict(&[BootstrapCheckStatus::FetchFail("x".into())], true),
+            "fail"
+        );
+        assert_eq!(
+            bootstrap_check_verdict(&[BootstrapCheckStatus::NoAnchor, BootstrapCheckStatus::Ok], true),
+            "mixed"
+        );
+        assert_eq!(
+            bootstrap_check_verdict(&[BootstrapCheckStatus::NoAnchor], true),
+            "no-anchor"
+        );
+        // Under single-profile mode (all=false), a sole no-anchor profile is informational, not failure.
+        assert_eq!(
+            bootstrap_check_verdict(&[BootstrapCheckStatus::NoAnchor], false),
+            "ok"
+        );
     }
 }
 
