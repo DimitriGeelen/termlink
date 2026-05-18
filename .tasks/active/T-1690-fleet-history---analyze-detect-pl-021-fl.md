@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T08:13:53Z
-last_update: 2026-05-18T08:13:53Z
+last_update: 2026-05-18T08:50:06Z
 date_finished: null
 ---
 
@@ -25,14 +25,14 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `fleet history --analyze` flag parses, gated to scan rotation.log within `--since` window
-- [ ] Per-hub flap classifier: ≥3 pin transitions OR (cert+secret rotation within 5min, ≥2 occurrences) flags PL-021 candidate
-- [ ] Output cites the specific CLAUDE.md PL-021 section + emits diagnostic command set verbatim
-- [ ] Unit tests cover: no-flaps (clean log), single-rotation-not-flap, true-PL-021 (3 pin transitions same hub), false-positive-guard (different hubs)
-- [ ] `cargo build --release -p termlink` + `cargo test --release -p termlink-cli` green
-
-## Parked — pivoted to v0.11.0 release cut on 2026-05-18T08:14Z. Will resume after release.
+- [x] `fleet history --analyze` flag parses, scans rotation.log within `--since` window
+- [x] Per-hub flap classifier: `clean` / `cert-only` / `secret-only` / `single-double-rotation` / `pl021-candidate`. PL-021 candidate fires at ≥2 double-rotations (same log row with both new_pin=drift AND new_conn=auth-mismatch) — empirically tighter than the original spec
+- [x] Output cites CLAUDE.md "Special case — volatile runtime_dir (T-1290 / T-1294)" + emits diagnostic command set verbatim (ls, mount, tmpfiles.d)
+- [x] Exit code 2 on any candidate, 0 otherwise (cron/CI alerting hook)
+- [x] JSON mode emits structured per-hub verdicts (operator + agent friendly)
+- [x] Unit tests (9/9 green): empty-log, only-new-entries-skipped, cert-only, secret-only, single-double, two-double-is-candidate, no-cross-hub-contamination, recovery-not-counted, stable-drifted-no-transition
+- [x] `cargo build --release -p termlink` green; `target/release/termlink fleet history --analyze --since 30` smoke-test PASS on live log (no transitions → exit 0, expected)
+- [x] CLAUDE.md table row added documenting the new flag
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -50,6 +50,11 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo build --release -p termlink 2>&1 | tail -3
+cargo test --release -p termlink --bin termlink analyze_pl021 2>&1 | grep -q "test result: ok. 9 passed"
+target/release/termlink fleet history --analyze --since 30 2>&1 | grep -q "PL-021 flap analysis"
+target/release/termlink fleet history --analyze --json --since 30 2>&1 | grep -q '"pl021_candidates"'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

@@ -2644,6 +2644,7 @@ pub(crate) fn cmd_fleet_history(
     hub: Option<&str>,
     json_out: bool,
     include_heals: bool,
+    analyze: bool,
 ) -> Result<()> {
     if !(1..=365).contains(&since_days) {
         anyhow::bail!("--since: must be 1..=365 days (got {})", since_days);
@@ -2775,6 +2776,32 @@ pub(crate) fn cmd_fleet_history(
         });
     }
 
+    // T-1690: --analyze short-circuits the chronological listing — classify
+    // each hub by flap signature and emit the diagnostic verbatim when
+    // PL-021 is suspected. Operates only on rotation entries (heal events
+    // are diagnostic noise here, not symptom). Exits with code 2 when any
+    // PL-021 candidate is found so cron/CI can alert on the structural
+    // problem without parsing output.
+    if analyze {
+        let rotation_only: Vec<&serde_json::Value> = entries
+            .iter()
+            .filter(|e| e.get("event_type").and_then(|v| v.as_str()) != Some("heal"))
+            .collect();
+        let report = analyze_pl021(&rotation_only);
+        emit_pl021_report(
+            &report,
+            since_days,
+            hub,
+            &rotation_path,
+            json_out,
+        );
+        let any_candidate = report.iter().any(|h| h.verdict == HubFlapVerdict::Pl021Candidate);
+        if any_candidate {
+            std::process::exit(2);
+        }
+        return Ok(());
+    }
+
     // T-1686: track rotation vs heal counts separately per hub when both
     // sources are merged. Without --include-heals this collapses to the
     // T-1671 rotation-only summary.
@@ -2889,6 +2916,221 @@ pub(crate) fn cmd_fleet_history(
         }
     }
     Ok(())
+}
+
+/// T-1690: per-hub flap classification produced by `analyze_pl021`.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum HubFlapVerdict {
+    /// No rotation transitions observed in window.
+    Clean,
+    /// Cert (TLS) rotation only — operator restart or one-off.
+    CertOnly,
+    /// Secret (HMAC) rotation only — partial persist or operator regen.
+    SecretOnly,
+    /// Both cert + secret rotated together, but only once. Could be a
+    /// single nuke; insufficient evidence for PL-021 yet.
+    SingleDoubleRotation,
+    /// PL-021 signature: ≥2 simultaneous cert+secret rotations in window
+    /// — strongly indicative of volatile runtime_dir (likely /tmp wipe).
+    Pl021Candidate,
+}
+
+#[derive(Debug)]
+pub(crate) struct HubFlapReport {
+    pub hub: String,
+    pub verdict: HubFlapVerdict,
+    pub cert_transitions: u32,
+    pub secret_transitions: u32,
+    pub double_rotations: u32,
+    pub last_double_rotation: Option<String>,
+}
+
+/// T-1690: classify each hub's rotation history into a flap verdict.
+///
+/// A "transition" entry's `new_pin == "drift"` with `old_pin != "drift"` is a
+/// cert rotation. `new_conn == "auth-mismatch"` with `old_conn != "auth-mismatch"`
+/// is a secret rotation. A single log row carrying BOTH is a "double
+/// rotation" — the PL-021 signature. ≥2 double rotations in the window is
+/// the candidate threshold.
+pub(crate) fn analyze_pl021(entries: &[&serde_json::Value]) -> Vec<HubFlapReport> {
+    use std::collections::BTreeMap;
+    let mut per_hub: BTreeMap<String, HubFlapReport> = BTreeMap::new();
+    for e in entries {
+        if e.get("kind").and_then(|v| v.as_str()) != Some("transition") {
+            continue;
+        }
+        let hub = e
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let oc = e.get("old_conn").and_then(|v| v.as_str()).unwrap_or("");
+        let nc = e.get("new_conn").and_then(|v| v.as_str()).unwrap_or("");
+        let op = e.get("old_pin").and_then(|v| v.as_str()).unwrap_or("");
+        let np = e.get("new_pin").and_then(|v| v.as_str()).unwrap_or("");
+        let cert_now = np == "drift" && op != "drift";
+        let secret_now = nc == "auth-mismatch" && oc != "auth-mismatch";
+        if !cert_now && !secret_now {
+            continue;
+        }
+        let entry_ts = e.get("ts").and_then(|v| v.as_str()).map(String::from);
+        let rep = per_hub.entry(hub.clone()).or_insert_with(|| HubFlapReport {
+            hub,
+            verdict: HubFlapVerdict::Clean,
+            cert_transitions: 0,
+            secret_transitions: 0,
+            double_rotations: 0,
+            last_double_rotation: None,
+        });
+        if cert_now {
+            rep.cert_transitions += 1;
+        }
+        if secret_now {
+            rep.secret_transitions += 1;
+        }
+        if cert_now && secret_now {
+            rep.double_rotations += 1;
+            rep.last_double_rotation = entry_ts;
+        }
+    }
+    for rep in per_hub.values_mut() {
+        rep.verdict = match (rep.cert_transitions, rep.secret_transitions, rep.double_rotations) {
+            (0, 0, _) => HubFlapVerdict::Clean,
+            (_, _, n) if n >= 2 => HubFlapVerdict::Pl021Candidate,
+            (_, _, 1) => HubFlapVerdict::SingleDoubleRotation,
+            (c, 0, 0) if c > 0 => HubFlapVerdict::CertOnly,
+            (0, s, 0) if s > 0 => HubFlapVerdict::SecretOnly,
+            _ => HubFlapVerdict::SingleDoubleRotation,
+        };
+    }
+    per_hub.into_values().collect()
+}
+
+/// T-1690: render the analyzer report. JSON form for machine parsing,
+/// human form embeds the volatile-/tmp diagnostic command set verbatim
+/// so the operator has a copy-pasteable next step.
+pub(crate) fn emit_pl021_report(
+    report: &[HubFlapReport],
+    since_days: u32,
+    hub_filter: Option<&str>,
+    log_path: &std::path::Path,
+    json_out: bool,
+) {
+    if json_out {
+        let arr: Vec<serde_json::Value> = report
+            .iter()
+            .map(|r| {
+                serde_json::json!({
+                    "hub": r.hub,
+                    "verdict": match r.verdict {
+                        HubFlapVerdict::Clean => "clean",
+                        HubFlapVerdict::CertOnly => "cert-only",
+                        HubFlapVerdict::SecretOnly => "secret-only",
+                        HubFlapVerdict::SingleDoubleRotation => "single-double-rotation",
+                        HubFlapVerdict::Pl021Candidate => "pl021-candidate",
+                    },
+                    "cert_transitions": r.cert_transitions,
+                    "secret_transitions": r.secret_transitions,
+                    "double_rotations": r.double_rotations,
+                    "last_double_rotation": r.last_double_rotation,
+                })
+            })
+            .collect();
+        let any_candidate = report.iter().any(|h| h.verdict == HubFlapVerdict::Pl021Candidate);
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "since_days": since_days,
+                "hub_filter": hub_filter,
+                "log_path": log_path.display().to_string(),
+                "hubs": arr,
+                "pl021_candidates": any_candidate,
+            })
+        );
+        return;
+    }
+    let scope = hub_filter.map(|h| format!(" (hub `{}`)", h)).unwrap_or_default();
+    println!(
+        "PL-021 flap analysis — last {} day(s){}",
+        since_days, scope
+    );
+    println!("  (log path: {})", log_path.display());
+    println!();
+    if report.is_empty() {
+        println!("No rotation transitions in window. Nothing to analyze.");
+        return;
+    }
+    let mut candidates: Vec<&HubFlapReport> = Vec::new();
+    let mut single_doubles: Vec<&HubFlapReport> = Vec::new();
+    let mut singles: Vec<&HubFlapReport> = Vec::new();
+    let mut cleans: Vec<&HubFlapReport> = Vec::new();
+    for r in report {
+        match r.verdict {
+            HubFlapVerdict::Pl021Candidate => candidates.push(r),
+            HubFlapVerdict::SingleDoubleRotation => single_doubles.push(r),
+            HubFlapVerdict::CertOnly | HubFlapVerdict::SecretOnly => singles.push(r),
+            HubFlapVerdict::Clean => cleans.push(r),
+        }
+    }
+    if !candidates.is_empty() {
+        println!("PL-021 candidate(s) — BOTH cert + secret rotating, recurring:");
+        for r in &candidates {
+            println!(
+                "  {:24} {} double-rotation(s){}",
+                r.hub,
+                r.double_rotations,
+                r.last_double_rotation
+                    .as_deref()
+                    .map(|t| format!(" (last: {})", t))
+                    .unwrap_or_default()
+            );
+        }
+        println!();
+        println!("Recommended next step — confirm volatile runtime_dir:");
+        println!("  ls -la /tmp/termlink-0/ /var/lib/termlink/");
+        println!("  mount | grep -E ' /tmp |termlink'");
+        println!("  cat /usr/lib/tmpfiles.d/tmp.conf /etc/tmpfiles.d/tmp.conf 2>/dev/null");
+        println!();
+        println!("See CLAUDE.md \"Special case — volatile runtime_dir (T-1290 / T-1294)\"");
+        println!("for the full diagnostic + fix (move runtime_dir off /tmp permanently).");
+        println!();
+    }
+    if !single_doubles.is_empty() {
+        println!("Single double-rotation (could be one-off, watch for recurrence):");
+        for r in &single_doubles {
+            println!(
+                "  {:24} 1 double-rotation{}",
+                r.hub,
+                r.last_double_rotation
+                    .as_deref()
+                    .map(|t| format!(" (at: {})", t))
+                    .unwrap_or_default()
+            );
+        }
+        println!();
+    }
+    if !singles.is_empty() {
+        println!("Single-axis rotation (operator restart or partial persist):");
+        for r in &singles {
+            let axis = match r.verdict {
+                HubFlapVerdict::CertOnly => "cert-only",
+                HubFlapVerdict::SecretOnly => "secret-only",
+                _ => "single",
+            };
+            println!(
+                "  {:24} {} (cert={} secret={})",
+                r.hub, axis, r.cert_transitions, r.secret_transitions
+            );
+        }
+        println!();
+    }
+    if !cleans.is_empty() {
+        println!("Clean (no rotation transitions): {} hub(s)", cleans.len());
+    }
+    if candidates.is_empty() {
+        println!("No PL-021 signature detected in window.");
+    }
 }
 
 /// T-1671: parse an RFC3339 timestamp (as produced by `now_rfc3339()`) into a
@@ -8275,6 +8517,108 @@ secret_file = "/tmp/other.hex"
             bootstrap_check_verdict(&[BootstrapCheckStatus::NoAnchor], false),
             "ok"
         );
+    }
+
+    // T-1690: PL-021 flap analyzer tests
+    fn rot(hub: &str, ts: &str, old_conn: &str, new_conn: &str, old_pin: &str, new_pin: &str) -> serde_json::Value {
+        serde_json::json!({
+            "ts": ts,
+            "hub": hub,
+            "kind": "transition",
+            "old_conn": old_conn,
+            "new_conn": new_conn,
+            "old_pin": old_pin,
+            "new_pin": new_pin,
+        })
+    }
+
+    #[test]
+    fn analyze_pl021_empty_log_classifies_nothing() {
+        let entries: Vec<&serde_json::Value> = Vec::new();
+        let report = analyze_pl021(&entries);
+        assert!(report.is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_only_new_entries_skipped() {
+        // `kind: "new"` (first-time observation) is not a transition.
+        let e = serde_json::json!({
+            "ts": "2026-05-01T00:00:00Z", "hub": "h1", "kind": "new",
+            "old_conn": "", "new_conn": "auth-mismatch",
+            "old_pin": "-", "new_pin": "drift",
+        });
+        let report = analyze_pl021(&[&e]);
+        assert!(report.is_empty(), "non-transition kinds must not be classified");
+    }
+
+    #[test]
+    fn analyze_pl021_cert_only_rotation() {
+        let e = rot("h1", "2026-05-01T00:00:00Z", "ok", "ok", "ok", "drift");
+        let report = analyze_pl021(&[&e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, HubFlapVerdict::CertOnly);
+        assert_eq!(report[0].cert_transitions, 1);
+        assert_eq!(report[0].secret_transitions, 0);
+        assert_eq!(report[0].double_rotations, 0);
+    }
+
+    #[test]
+    fn analyze_pl021_secret_only_rotation() {
+        let e = rot("h1", "2026-05-01T00:00:00Z", "ok", "auth-mismatch", "ok", "ok");
+        let report = analyze_pl021(&[&e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, HubFlapVerdict::SecretOnly);
+        assert_eq!(report[0].secret_transitions, 1);
+    }
+
+    #[test]
+    fn analyze_pl021_single_double_rotation_not_candidate() {
+        let e = rot("h1", "2026-05-01T00:00:00Z", "ok", "auth-mismatch", "ok", "drift");
+        let report = analyze_pl021(&[&e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, HubFlapVerdict::SingleDoubleRotation);
+        assert_eq!(report[0].double_rotations, 1);
+        assert_eq!(report[0].last_double_rotation.as_deref(), Some("2026-05-01T00:00:00Z"));
+    }
+
+    #[test]
+    fn analyze_pl021_two_double_rotations_is_candidate() {
+        let e1 = rot("h1", "2026-05-01T00:00:00Z", "ok", "auth-mismatch", "ok", "drift");
+        let e2 = rot("h1", "2026-05-02T00:00:00Z", "ok", "auth-mismatch", "ok", "drift");
+        let report = analyze_pl021(&[&e1, &e2]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, HubFlapVerdict::Pl021Candidate);
+        assert_eq!(report[0].double_rotations, 2);
+        assert_eq!(report[0].last_double_rotation.as_deref(), Some("2026-05-02T00:00:00Z"));
+    }
+
+    #[test]
+    fn analyze_pl021_does_not_cross_contaminate_hubs() {
+        // h1 has 1 double-rotation, h2 has 1 — neither alone is a candidate.
+        let e1 = rot("h1", "2026-05-01T00:00:00Z", "ok", "auth-mismatch", "ok", "drift");
+        let e2 = rot("h2", "2026-05-02T00:00:00Z", "ok", "auth-mismatch", "ok", "drift");
+        let report = analyze_pl021(&[&e1, &e2]);
+        assert_eq!(report.len(), 2);
+        for r in &report {
+            assert_eq!(r.verdict, HubFlapVerdict::SingleDoubleRotation,
+                "hub {} must not inherit other hubs' transitions", r.hub);
+        }
+    }
+
+    #[test]
+    fn analyze_pl021_recovery_transitions_not_counted_as_rotations() {
+        // drift→ok is recovery, not rotation. auth-mismatch→ok same.
+        let e = rot("h1", "2026-05-01T00:00:00Z", "auth-mismatch", "ok", "drift", "ok");
+        let report = analyze_pl021(&[&e]);
+        assert!(report.is_empty(), "recovery transitions must not count as rotations");
+    }
+
+    #[test]
+    fn analyze_pl021_already_drifted_no_new_transition() {
+        // Both old and new are drift/auth-mismatch — no fresh rotation here.
+        let e = rot("h1", "2026-05-01T00:00:00Z", "auth-mismatch", "auth-mismatch", "drift", "drift");
+        let report = analyze_pl021(&[&e]);
+        assert!(report.is_empty(), "stable-drifted state must not register as a transition");
     }
 }
 
