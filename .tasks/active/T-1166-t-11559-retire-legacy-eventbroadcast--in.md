@@ -81,6 +81,22 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-05-18T22:00Z — bake telemetry refresh: HOLDING — zero new traffic in 10h window [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --legacy-window-days 7`:**
+  - Verdict: `CUT-READY-DECAYING`
+  - Total legacy fleet: **6** (unchanged from 2026-05-18T10:30Z)
+  - `hubs_clean`: [`ring20-dashboard`] (.121 still pristine, ~74h post-cut)
+  - `hubs_with_traffic`:
+    - `local-test` (2; last call **12h ago** — same 2026-05-18 ~08:30Z .122 → .107 call from morning entry)
+    - `workstation-107-public` (2; twin view of the same call)
+    - `ring20-management` (2; last call **5d ago** — .107 + .122 origins, unchanged residue)
+  - All 6 invocations are `event.broadcast`. Zero `inbox.*`, zero `file.*`.
+  - "No live callers" gate holds — none in last 300s.
+- **Signal:** zero new legacy traffic between 10:30Z and 22:00Z (11.5h). Caller decay pattern continues at ~1 call / 24h.
+- **Bake clock.** .122 cut 2026-05-12 21:50Z → ~96h elapsed; T-1415 promotion gate (7d clean) at **2026-05-19 21:50Z** (~24h out). .121 cut 2026-05-15 20:45Z → ~49h elapsed; .121 gate at **2026-05-22 20:45Z** (~94h out). Earliest defensible T-1415 promotion: **2026-05-22** (whichever-hub-is-latest).
+- **.141 laptop hub still DOWN** (timeout 10s — unchanged; outside cut scope, T-1457 operator-bound).
+
 ### 2026-05-18T10:30Z — bake telemetry refresh: still CUT-READY-DECAYING [agent]
 
 - **Fresh fleet doctor --legacy-usage --legacy-window-days 7 (just now):**
