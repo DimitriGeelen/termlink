@@ -3247,17 +3247,31 @@ pub(crate) enum FleetAction {
         #[arg(long, value_name = "CMD")]
         notify: Option<String>,
 
-        /// T-1680: built-in cert-drift auto-heal. Requires --watch. On every
-        /// per-hub change event where `new_pin == "drift"` AND the profile
-        /// declares `bootstrap_from` in hubs.toml, spawn the equivalent of
-        /// `termlink fleet reauth $hub --bootstrap-from auto` (fire-and-forget,
-        /// same semantics as --notify). Profiles without declared
-        /// `bootstrap_from` are skipped with a one-line stderr hint — R2
-        /// (out-of-band anchor) forbids implicit defaults.
+        /// T-1680/T-1683: built-in auto-heal on rotation.
         ///
-        /// This makes the CLAUDE.md auto-heal recipe a one-flag invocation:
+        /// Two modes:
+        ///   * With `--watch`: continuous-monitor mode. On every per-hub change
+        ///     event where `new_pin == "drift"` (cert rotation, T-1680) OR
+        ///     `new_conn == "auth-mismatch"` (secret-only rotation, T-1681)
+        ///     AND the profile declares `bootstrap_from` in hubs.toml,
+        ///     spawn the equivalent of `termlink fleet reauth $hub
+        ///     --bootstrap-from auto` (fire-and-forget).
+        ///   * Without `--watch` (T-1683): single-shot mode. After the
+        ///     fleet sweep, classify each hub's current state and fire the
+        ///     same heal for any profile that's CURRENTLY in drift or
+        ///     auth-mismatch AND has declared `bootstrap_from`. Same R2 gate.
+        ///     Useful for page-respond ("doctor says drift, fix it now")
+        ///     without starting a watch loop.
+        ///
+        /// Profiles without declared `bootstrap_from` are skipped with a
+        /// one-line stderr hint — R2 (out-of-band anchor) forbids implicit
+        /// defaults.
+        ///
+        /// One-flag continuous-monitor recipe:
         ///   termlink fleet doctor --watch 30 --include-pin-check --auto-heal
-        #[arg(long = "auto-heal", requires = "watch")]
+        /// One-shot recipe:
+        ///   termlink fleet doctor --include-pin-check --auto-heal
+        #[arg(long = "auto-heal")]
         auto_heal: bool,
     },
 

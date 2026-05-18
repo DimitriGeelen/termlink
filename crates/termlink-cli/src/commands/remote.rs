@@ -3106,11 +3106,17 @@ pub(crate) async fn cmd_fleet_doctor(
     if notify.is_some() && watch.is_none() {
         anyhow::bail!("--notify requires --watch (operator-hook fires on cycle-to-cycle state diffs)");
     }
-    // T-1680: same rule for --auto-heal (cert-drift events only emerge in
-    // diff cycles). clap's `requires = "watch"` should already catch this,
-    // but keep a runtime guard for parity with --notify.
-    if auto_heal && watch.is_none() {
-        anyhow::bail!("--auto-heal requires --watch (cert-drift detection lives in the diff loop)");
+    // T-1683: `--auto-heal` is supported both with and without `--watch`.
+    // With `--watch`: heal fires on per-cycle state transitions (T-1680/T-1681).
+    // Without `--watch`: heal fires on current state at end of single sweep
+    // (this function, post-loop). Hint when pin-check is missing — without it,
+    // only the auth-mismatch path can fire, so a primary use-case (cert drift)
+    // is silently disabled.
+    if auto_heal && watch.is_none() && !include_pin_check {
+        eprintln!(
+            "[info] --auto-heal without --include-pin-check: only conn=auth-mismatch heals will fire. \
+             Pass --include-pin-check to also heal on cert drift."
+        );
     }
     // T-1667: --watch dispatches to the continuous-monitoring loop. The loop
     // re-spawns self via std::env::current_exe() with --json each cycle and
@@ -3704,6 +3710,61 @@ pub(crate) async fn cmd_fleet_doctor(
     } else {
         None
     };
+
+    // T-1683: single-shot --auto-heal pass.
+    //
+    // This runs only in the non-watch single-shot path. The --watch path
+    // dispatches to cmd_fleet_doctor_watch earlier and handles auto-heal
+    // per-transition there (T-1680/T-1681). Here we classify each hub's
+    // CURRENT state from hub_results and fire the same heal for any
+    // profile that's in drift or auth-mismatch AND has declared
+    // bootstrap_from. Same R2 gate, same fire-and-forget semantics.
+    //
+    // Operator value: page-respond ("doctor flagged drift, fix it") without
+    // starting a watch loop. One command, one heal per affected hub.
+    if auto_heal {
+        let ts = crate::manifest::now_rfc3339();
+        let hubs_config = crate::config::load_hubs_config();
+        let mut healed = 0u32;
+        let mut skipped_no_anchor: Vec<String> = Vec::new();
+        for hub_obj in &hub_results {
+            let name = hub_obj.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            // Derive effective conn class — same vocabulary bridge as the
+            // watch parser (T-1682). status=error + auth class → "auth-mismatch".
+            let conn = derive_watch_conn(hub_obj);
+            let pin = hub_obj
+                .get("pin_check")
+                .and_then(|p| p.get("status"))
+                .and_then(|s| s.as_str())
+                .unwrap_or("-");
+            let cert_drift = pin == "drift";
+            let auth_mismatch = conn == "auth-mismatch";
+            if !(cert_drift || auth_mismatch) {
+                continue;
+            }
+            let has_anchor = hubs_config
+                .hubs
+                .get(&name)
+                .and_then(|e| e.bootstrap_from.as_deref())
+                .is_some();
+            if has_anchor {
+                fire_auto_heal(&name, &ts);
+                healed += 1;
+            } else {
+                skipped_no_anchor.push(name);
+            }
+        }
+        if !json && (healed > 0 || !skipped_no_anchor.is_empty()) {
+            eprintln!();
+            eprintln!("Auto-heal: fired {} (one-shot, T-1683)", healed);
+            for name in &skipped_no_anchor {
+                eprintln!(
+                    "  [SKIP] {}: no bootstrap_from declared (R2 — declare it to enable auto-heal)",
+                    name
+                );
+            }
+        }
+    }
 
     // T-1432: aggregate cut-readiness verdict from per-hub legacy_usage payloads.
     // T-1459: split the binary CUT-READY/WAIT into three traffic states so the
