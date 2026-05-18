@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-17T20:43:41Z
+last_update: 2026-05-18T09:49:48Z
 date_finished: null
 ---
 
@@ -80,6 +80,22 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-18T10:30Z — bake telemetry refresh: still CUT-READY-DECAYING [agent]
+
+- **Fresh fleet doctor --legacy-usage --legacy-window-days 7 (just now):**
+  - Verdict: `CUT-READY-DECAYING`
+  - Total legacy fleet: **6** (was 4 on 2026-05-17 → +2 net since yesterday)
+  - `hubs_clean`: [`ring20-dashboard`] (.121 still pristine, 0 calls — ~62h post-cut)
+  - `hubs_with_traffic`:
+    - `ring20-management` (2; .107-orig + .122-orig, last 2026-05-12 23:53 → 5d-old residue, unchanged)
+    - `local-test` (2; both 2026-05-18 ~08:30Z from .122)
+    - `workstation-107-public` (2; same .122 caller, same ts — twin views of one .107-side audit log)
+  - All 6 invocations are `event.broadcast`. Zero `inbox.*`, zero `file.*`.
+  - "No live callers" gate holds — none in last 300s.
+- **The "+2 today" are one logical .122 → .107 event.broadcast call** (mirrored in both `local-test` and `workstation-107-public` audit views per yesterday's pattern). One per ~24h = same noise floor as the 2026-05-15 → 2026-05-17 single-call gap. Caller still unknown (pre-T-1427 audit). Top fleet caller is unchanged: **5× from 192.168.10.122**.
+- **Bake holds.** .122 cut deployed 2026-05-12 21:50Z → 4d 13h elapsed; T-1415 promotion gate (7d clean bake on .122) at **2026-05-19 21:50Z** (~35h out). .121 cut deployed 2026-05-15 20:45Z → 1d 14h elapsed; T-1415 gate on .121 at **2026-05-22 20:45Z** (4d out). Earliest defensible T-1415 promotion: **2026-05-22**.
+- **.141 laptop hub down** (timeout — unchanged from prior snapshots; outside cut scope).
 
 ### 2026-05-17T20:45Z — bake telemetry refresh: still CUT-READY-DECAYING [agent]
 
