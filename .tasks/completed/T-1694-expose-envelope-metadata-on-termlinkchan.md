@@ -4,16 +4,16 @@ name: "Expose envelope metadata on termlink_channel_post MCP tool (implements T-
 description: >
   Implementation of T-1692 GO recommendation. Add metadata: Option<serde_json::Value> to ChannelPostParams in crates/termlink-mcp/src/tools.rs, pass-through to the post envelope. Free-form, no schema enforcement at tool layer (Shape 1). Unblocks cohort-agent n8n exec 7.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-18T09:27:54Z
-last_update: 2026-05-18T09:28:02Z
-date_finished: null
+last_update: 2026-05-18T09:34:36Z
+date_finished: 2026-05-18T09:34:36Z
 ---
 
 # T-1694: Expose envelope metadata on termlink_channel_post MCP tool (implements T-1692 Shape 1)
@@ -133,3 +133,20 @@ grep -q "pub metadata: Option" crates/termlink-mcp/src/tools.rs
 
 ### 2026-05-18T09:28:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e05a3387
+- **Timestamp:** 2026-05-18T09:38:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Hub-side handler at `crates/termlink-hub/src/channel.rs:466` already parses `params["metadata"]` into the envelope — no hub change needed (verified by reading the existing code)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-hub/src/channel.rs in: Hub-side handler at `crates/termlink-hub/src/channel.rs:466` already parses `params["metadata"]` into the envelope — no hub change needed (verified by`
+
+### 2026-05-18T09:34:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
