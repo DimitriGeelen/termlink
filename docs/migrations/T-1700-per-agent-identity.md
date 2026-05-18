@@ -159,12 +159,14 @@ file was passed to both invocations.
 - **T-1693** — inception that authorized this work (Shape 1 GO).
 - **T-1700** — `--identity-key` on `termlink register` (PTY path).
 - **T-1701** — `--self` mode parity for `--identity-key`.
+- **T-1704** — `termlink whoami` discoverability hint: prints `↳ shared with N other sessions on this hub` under `Identity FP:` when the local key is the host default. Operators see the PL-166 condition at the place they'd naturally look. JSON callers also get `session.identity_shared_with`.
 - **T-1159** — ed25519 keyring foundation.
 - **T-1436** — `identity_fingerprint` in `SessionMetadata`.
 - **T-1427** — strict-reject path that exposed PL-166.
 - **PL-166** — the structural gap closed by this work.
+- **G-056** — resolved 2026-05-19 (T-1700 + T-1701 + T-1702 + T-1704 collectively).
 
 Out of scope here (future follow-ups if needed): rotation tooling
 (`termlink identity rotate-file`), `termlink doctor` hint when a
-per-agent key isn't backed up, and a Watchtower view of fleet-wide
-agent identity assignments.
+per-agent key isn't declared on a shared-host context, and a Watchtower
+view of fleet-wide agent identity assignments.
