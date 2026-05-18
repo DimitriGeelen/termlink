@@ -2643,6 +2643,7 @@ pub(crate) fn cmd_fleet_history(
     since_days: u32,
     hub: Option<&str>,
     json_out: bool,
+    include_heals: bool,
 ) -> Result<()> {
     if !(1..=365).contains(&since_days) {
         anyhow::bail!("--since: must be 1..=365 days (got {})", since_days);
@@ -2650,7 +2651,8 @@ pub(crate) fn cmd_fleet_history(
     let Some(path) = rotation_log_path() else {
         anyhow::bail!("fleet history: cannot resolve $HOME/.termlink/rotation.log");
     };
-    if !path.exists() {
+    let rotation_path = path.clone();
+    if !path.exists() && !include_heals {
         if json_out {
             println!("{}", serde_json::json!({
                 "ok": true,
@@ -2666,8 +2668,12 @@ pub(crate) fn cmd_fleet_history(
         }
         return Ok(());
     }
-    let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("fleet history: cannot read {}", path.display()))?;
+    let text = if path.exists() {
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("fleet history: cannot read {}", path.display()))?
+    } else {
+        String::new()
+    };
 
     // Compute cutoff as a unix epoch in seconds. RFC3339 timestamps written by
     // append_rotation_log have second resolution; compare by parsing each row.
@@ -2684,7 +2690,7 @@ pub(crate) fn cmd_fleet_history(
         if trimmed.is_empty() {
             continue;
         }
-        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+        let mut entry: serde_json::Value = match serde_json::from_str(trimmed) {
             Ok(v) => v,
             Err(_) => {
                 malformed_lines += 1;
@@ -2709,44 +2715,135 @@ pub(crate) fn cmd_fleet_history(
                 continue;
             }
         }
+        // T-1686: tag with event_type so downstream parsers can distinguish.
+        if let Some(obj) = entry.as_object_mut() {
+            obj.insert("event_type".into(), serde_json::Value::from("rotation"));
+        }
         entries.push(entry);
     }
 
-    let mut per_hub: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    // T-1686: also harvest heal.log entries when --include-heals.
+    let mut heal_malformed: usize = 0;
+    if include_heals {
+        if let Some(hpath) = heal_log_path()
+            && hpath.exists()
+        {
+            let htext = std::fs::read_to_string(&hpath)
+                .with_context(|| format!("fleet history: cannot read {}", hpath.display()))?;
+            for (lineno, raw) in htext.lines().enumerate() {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let mut entry: serde_json::Value = match serde_json::from_str(trimmed) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        heal_malformed += 1;
+                        if heal_malformed <= 3 {
+                            eprintln!(
+                                "fleet history: skipping malformed heal.log line {} in {}",
+                                lineno + 1,
+                                hpath.display()
+                            );
+                        }
+                        continue;
+                    }
+                };
+                let ts_str = entry.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+                let ts_secs = rfc3339_to_unix_secs(ts_str);
+                if ts_secs < cutoff_secs {
+                    continue;
+                }
+                if let Some(want) = hub {
+                    let got = entry.get("hub").and_then(|v| v.as_str()).unwrap_or("");
+                    if got != want {
+                        continue;
+                    }
+                }
+                if let Some(obj) = entry.as_object_mut() {
+                    obj.insert("event_type".into(), serde_json::Value::from("heal"));
+                }
+                entries.push(entry);
+            }
+        }
+    }
+    // T-1686: chronologically interleave both sources by ts when --include-heals.
+    if include_heals {
+        entries.sort_by_key(|e| {
+            let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+            rfc3339_to_unix_secs(ts)
+        });
+    }
+
+    // T-1686: track rotation vs heal counts separately per hub when both
+    // sources are merged. Without --include-heals this collapses to the
+    // T-1671 rotation-only summary.
+    let mut per_hub_rot: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+    let mut per_hub_heal: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
     for e in &entries {
         let h = e
             .get("hub")
             .and_then(|v| v.as_str())
             .unwrap_or("?")
             .to_string();
-        *per_hub.entry(h).or_insert(0) += 1;
+        let et = e.get("event_type").and_then(|v| v.as_str()).unwrap_or("rotation");
+        if et == "heal" {
+            *per_hub_heal.entry(h).or_insert(0) += 1;
+        } else {
+            *per_hub_rot.entry(h).or_insert(0) += 1;
+        }
     }
 
     if json_out {
         for e in &entries {
             println!("{}", e);
         }
-        let summary = serde_json::json!({
-            "total": entries.len(),
-            "per_hub": per_hub,
-            "since_days": since_days,
-            "hub_filter": hub,
-            "malformed_lines_skipped": malformed_lines,
-            "log_path": path.display().to_string(),
-        });
-        println!("{}", summary);
-    } else {
-        if entries.is_empty() {
-            println!(
-                "no rotation events in the last {} day(s){}\n  (log path: {})",
-                since_days,
-                hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default(),
-                path.display()
-            );
+        let summary = if include_heals {
+            serde_json::json!({
+                "total": entries.len(),
+                "per_hub_rotation": per_hub_rot,
+                "per_hub_heal": per_hub_heal,
+                "since_days": since_days,
+                "hub_filter": hub,
+                "malformed_lines_skipped": malformed_lines,
+                "heal_malformed_lines_skipped": heal_malformed,
+                "rotation_log_path": rotation_path.display().to_string(),
+                "heal_log_path": heal_log_path().map(|p| p.display().to_string()),
+            })
         } else {
-            for e in &entries {
-                let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("?");
-                let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?");
+            serde_json::json!({
+                "total": entries.len(),
+                "per_hub": per_hub_rot,
+                "since_days": since_days,
+                "hub_filter": hub,
+                "malformed_lines_skipped": malformed_lines,
+                "log_path": rotation_path.display().to_string(),
+            })
+        };
+        println!("{}", summary);
+    } else if entries.is_empty() {
+        let what = if include_heals { "events" } else { "rotation events" };
+        println!(
+            "no {} in the last {} day(s){}\n  (log path: {})",
+            what,
+            since_days,
+            hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default(),
+            rotation_path.display()
+        );
+    } else {
+        for e in &entries {
+            let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("?");
+            let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?");
+            let et = e.get("event_type").and_then(|v| v.as_str()).unwrap_or("rotation");
+            if et == "heal" {
+                let mode = e.get("mode").and_then(|v| v.as_str()).unwrap_or("?");
+                let trig = e.get("trigger").and_then(|v| v.as_str()).unwrap_or("?");
+                let act = e.get("action").and_then(|v| v.as_str()).unwrap_or("?");
+                println!(
+                    "{}  {:24} HEAL/{:6} trigger={} action={}",
+                    ts, h, mode, trig, act
+                );
+            } else {
                 let kind = e.get("kind").and_then(|v| v.as_str()).unwrap_or("?");
                 let oc = e.get("old_conn").and_then(|v| v.as_str()).unwrap_or("-");
                 let nc = e.get("new_conn").and_then(|v| v.as_str()).unwrap_or("-");
@@ -2757,22 +2854,38 @@ pub(crate) fn cmd_fleet_history(
                     ts, h, kind, oc, nc, op, np
                 );
             }
-            println!();
+        }
+        println!();
+        println!(
+            "Summary: {} event(s) in last {} day(s){}:",
+            entries.len(),
+            since_days,
+            hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default()
+        );
+        // Merge hub keys from both maps for stable display
+        let mut all_hubs: std::collections::BTreeSet<&String> = std::collections::BTreeSet::new();
+        for k in per_hub_rot.keys() { all_hubs.insert(k); }
+        for k in per_hub_heal.keys() { all_hubs.insert(k); }
+        for h in &all_hubs {
+            let r = per_hub_rot.get(*h).copied().unwrap_or(0);
+            let hl = per_hub_heal.get(*h).copied().unwrap_or(0);
+            if include_heals {
+                println!("  {:24} rotation={:>2}  heal={:>2}", h, r, hl);
+            } else {
+                println!("  {:24} {:>3} event(s)", h, r);
+            }
+        }
+        if malformed_lines > 0 {
             println!(
-                "Summary: {} event(s) in last {} day(s){}:",
-                entries.len(),
-                since_days,
-                hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default()
+                "  ({} malformed rotation line(s) skipped — see stderr)",
+                malformed_lines
             );
-            for (h, n) in &per_hub {
-                println!("  {:24} {:>3} event(s)", h, n);
-            }
-            if malformed_lines > 0 {
-                println!(
-                    "  ({} malformed line(s) skipped — see stderr)",
-                    malformed_lines
-                );
-            }
+        }
+        if include_heals && heal_malformed > 0 {
+            println!(
+                "  ({} malformed heal line(s) skipped — see stderr)",
+                heal_malformed
+            );
         }
     }
     Ok(())
