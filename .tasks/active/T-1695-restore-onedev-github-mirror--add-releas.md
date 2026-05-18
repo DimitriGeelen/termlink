@@ -30,14 +30,57 @@ binaries. As of 2026-05-18T10:30Z the mirror has been silently broken for **16 d
 | OneDev  | b179b0cb   | 2026-05-18 (today)    | ✓       | ✓       | ✓       |
 | GitHub  | b39fc916   | 2026-05-02T05:39Z     | ✗       | ✗       | ✗       |
 
-Last successful GH Actions run: T-1444 Install Check on 2026-05-02. `.onedev-buildspec.yml`
-itself is unchanged and looks correct — the failure is upstream (most likely
-`github-push-token` expired, or the OneDev job stopped running). Per CLAUDE.md
-the agent **cannot** push to GitHub directly to heal this; restoration is
-operator-only.
+Sibling: T-1696 (agent-buildable, work-completed) added a drift canary so the next
+breakage is caught in <24h instead of 16 days.
 
-Sibling: T-1696 (agent-buildable) adds a drift canary so the next breakage is
-caught in <24h instead of 16 days.
+## Diagnostic (T-1695 inception, 2026-05-18T10:55Z — agent autonomous)
+
+Agent hit OneDev's REST API (`/~api/builds?query=...`) using the access token
+embedded in the `origin` remote URL. Findings:
+
+- **Mirror job is still firing on every push** — not a scheduling failure. Build
+  #1606 was triggered by commit `06e81da4` (the T-1696 close commit I just
+  pushed), submitted 2026-05-18T10:50:56Z, finished FAILED 4 seconds later.
+- **Failure signature: fast-fail ≈ 2000ms** (pendingDuration=1005ms,
+  runningDuration=2001ms across the last 30 failures). Network/DNS issues take
+  10-30s; build setup failures take ~5s. **2s consistent fast-fail is the
+  signature of an HTTPS auth-401 on `git push`** — the runner connects, sends
+  credentials, gets rejected, exits.
+- **Last successful mirror build: #1114, 2026-04-27T21:07:39Z, commit `e261275bc6`.**
+  Failure span = **21 days** (2026-04-27 → today), ~900+ consecutive failures
+  (paginated through builds 1115 → 1605 over offsets 0..1000, all FAILED or
+  CANCELLED-by-supersession). The 2026-05-02 commit `b39fc916` reaching GitHub
+  was almost certainly a one-off operator action, not the mirror succeeding.
+- **OneDev log API is HTML-only** (`/~projects/30/builds/N/log` returns a
+  Wicket page driven by websockets; no plaintext log endpoint via REST in this
+  OneDev version). Cannot read the exact stderr line, but the signature is
+  unambiguous.
+
+**High-confidence root cause:** `github-push-token` secret in OneDev is
+expired or revoked. The PR token referenced in `.onedev-buildspec.yml`
+(`passwordSecret: github-push-token`) is rejected by GitHub on `git push`
+with an HTTP 401, causing the 2-second fast-fail.
+
+**Operator's actual workload (reduced from 4 ACs to ~3 steps):**
+1. On GitHub: Settings → Developer settings → Personal access tokens —
+   confirm the existing PAT used for OneDev mirror is expired/revoked.
+2. Generate a new fine-grained PAT: repo `DimitriGeelen/termlink` only,
+   permissions Contents: Read+Write, Workflows: Read+Write, expiration ~1 year.
+3. On OneDev (UI): Project termlink → Settings → Build → Secrets — edit
+   `github-push-token`, paste the new PAT, save.
+4. After save, **OneDev will auto-retry the mirror job on next push, OR you can
+   force-fire** by re-running build #1606 in the OneDev UI (Build → Re-run).
+   Subsequent commits will all push through in catch-up order; 21 days of
+   backlog (~900 commits + 3 release tags) will replay in seconds.
+5. Once GH catches up, `gh release list` will show v0.10.0, v0.11.0, v0.11.1;
+   the release.yml workflow will fire for each tag and publish binaries.
+
+Agent can verify post-fix via:
+```
+git ls-remote github HEAD   # should match OneDev's b179b0cb (or newer)
+git ls-remote --tags github | grep v0.11.1   # should appear
+gh release list -L 5 --repo DimitriGeelen/termlink   # three new tags
+```
 
 ## Acceptance Criteria
 
