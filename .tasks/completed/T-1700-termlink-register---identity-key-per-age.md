@@ -4,16 +4,16 @@ name: "termlink register --identity-key per-agent path (T-1693 Shape 1)"
 description: >
   termlink register --identity-key per-agent path (T-1693 Shape 1)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [identity, T-1693, T-1159, per-agent-keys]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/agent_identity.rs, crates/termlink-session/src/registration.rs]
 related_tasks: [T-1693, T-1159, T-1436, T-1427]
 created: 2026-05-18T22:11:34Z
-last_update: 2026-05-18T22:11:34Z
-date_finished: null
+last_update: 2026-05-18T22:21:38Z
+date_finished: 2026-05-18T22:21:38Z
 ---
 
 # T-1700: termlink register --identity-key per-agent path (T-1693 Shape 1)
@@ -70,9 +70,10 @@ env-var equivalent, rotation tooling, docs convention writeup.
 
 cargo check --workspace
 cargo test -p termlink-session --lib agent_identity
-cargo test -p termlink-cli --lib
-grep -q "identity_key" crates/termlink-cli/src/commands/register.rs
+cargo test -p termlink-session --lib registration::tests::resolve_identity_key_path
+grep -q "identity_key" crates/termlink-cli/src/commands/session.rs
 grep -q "load_or_create_from_file" crates/termlink-session/src/agent_identity.rs
+grep -q "identity_key: Option" crates/termlink-cli/src/cli.rs
 
 ## RCA
 
@@ -141,3 +142,20 @@ grep -q "load_or_create_from_file" crates/termlink-session/src/agent_identity.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1700-termlink-register---identity-key-per-age.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-378d6aca
+- **Timestamp:** 2026-05-18T22:21:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — When `--identity-key` unset, behavior unchanged — `load_identity_fingerprint_best_effort` falls back to `TERMLINK_IDENTITY_DIR` then `$HOME/.termlink/identity.key` (registration.rs:28-65); `resolve_id
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=HOME/.termlink/identity.key in: When `--identity-key` unset, behavior unchanged — `load_identity_fingerprint_best_effort` falls back to `TERMLINK_IDENTITY_DIR` then `$HOME/.termlink/`
+
+### 2026-05-18T22:21:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
