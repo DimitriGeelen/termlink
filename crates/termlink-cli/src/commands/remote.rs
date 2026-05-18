@@ -2921,11 +2921,11 @@ async fn cmd_fleet_doctor_watch(
                     .and_then(|s| s.as_str())
                     .unwrap_or("?")
                     .to_string();
-                let conn = hub
-                    .get("status")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+                // T-1682: bridge JSON status vocabulary (ok/error/timeout)
+                // into watch's in-memory conn vocabulary (which T-1681's
+                // gate compares against "auth-mismatch"). Extracted for
+                // unit-testability — see derive_watch_conn.
+                let conn = derive_watch_conn(hub);
                 let pin = hub
                     .get("pin_check")
                     .and_then(|p| p.get("status"))
@@ -4660,6 +4660,33 @@ fn auth_mismatch_class(msg: &str) -> Option<&'static str> {
     }
 }
 
+/// T-1682: derive the watch loop's effective conn-state class for one hub_obj.
+///
+/// `cmd_fleet_doctor` writes `status` as one of "ok" / "error" / "timeout"
+/// in the JSON output. The watch loop in T-1681 needs to distinguish a
+/// secret-only-rotation auth-mismatch from a generic connect failure so
+/// `--auto-heal` can gate on it. We compute the finer class here by
+/// classifying the `error` message via `auth_mismatch_class` whenever
+/// `status == "error"`; otherwise we pass `status` through unchanged.
+///
+/// JSON output is NOT modified — this remapping lives only in the watch
+/// parser's in-memory state.
+fn derive_watch_conn(hub: &serde_json::Value) -> String {
+    let raw = hub
+        .get("status")
+        .and_then(|s| s.as_str())
+        .unwrap_or("unknown");
+    if raw == "error" {
+        let err_msg = hub.get("error").and_then(|s| s.as_str()).unwrap_or("");
+        match auth_mismatch_class(err_msg) {
+            Some(class) => class.to_string(),
+            None => raw.to_string(),
+        }
+    } else {
+        raw.to_string()
+    }
+}
+
 /// T-1052: compute UTC ISO-8601 timestamp. Same algorithm as `termlink_session::tofu::now_utc`
 /// but inlined here to avoid exporting a new public symbol purely for this helper.
 fn utc_iso8601_now() -> String {
@@ -5912,6 +5939,63 @@ mod tests {
         assert_eq!(auth_mismatch_class("Connection refused"), None);
         assert_eq!(auth_mismatch_class("Secret file not found"), None);
         assert_eq!(auth_mismatch_class("TLS handshake failed"), None);
+    }
+
+    // -------------------------------------------------------------------
+    // T-1682: pin the watch parser's conn-state remapping. Without this,
+    // a future refactor of cmd_fleet_doctor's status vocabulary can
+    // silently regress T-1681's auto-heal gate on conn=auth-mismatch
+    // (which is itself the PL-162 secret-only-rotation closure).
+    // -------------------------------------------------------------------
+    #[test]
+    fn derive_watch_conn_classifies_auth_mismatch() {
+        // status=error + auth-class error message → "auth-mismatch"
+        let hub = serde_json::json!({
+            "hub": "ring20-management",
+            "status": "error",
+            "error": "Token validation failed: invalid signature",
+        });
+        assert_eq!(derive_watch_conn(&hub), "auth-mismatch");
+    }
+
+    #[test]
+    fn derive_watch_conn_classifies_tofu_violation() {
+        // status=error + tofu-class error message → "tofu-violation"
+        let hub = serde_json::json!({
+            "hub": "ring20-dashboard",
+            "status": "error",
+            "error": "TOFU VIOLATION: Hub fingerprint changed",
+        });
+        assert_eq!(derive_watch_conn(&hub), "tofu-violation");
+    }
+
+    #[test]
+    fn derive_watch_conn_passes_through_non_error_status() {
+        for raw in &["ok", "timeout", "unknown"] {
+            let hub = serde_json::json!({"hub": "h", "status": raw});
+            assert_eq!(derive_watch_conn(&hub), *raw);
+        }
+    }
+
+    #[test]
+    fn derive_watch_conn_falls_back_to_error_when_unclassified() {
+        // status=error + generic error → keep "error" (no false auth claim)
+        let hub = serde_json::json!({
+            "hub": "h",
+            "status": "error",
+            "error": "Connection refused",
+        });
+        assert_eq!(derive_watch_conn(&hub), "error");
+    }
+
+    #[test]
+    fn derive_watch_conn_handles_missing_fields() {
+        // No status at all → "unknown"; no error msg under error status → "error"
+        assert_eq!(derive_watch_conn(&serde_json::json!({})), "unknown");
+        assert_eq!(
+            derive_watch_conn(&serde_json::json!({"status": "error"})),
+            "error"
+        );
     }
 
     // -------------------------------------------------------------------
