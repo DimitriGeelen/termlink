@@ -27,12 +27,14 @@ concerns:
   trigger_fired: true
   trigger_event: "2026-05-18T10:30Z agent investigation surfaced 16-day divergence while attempting to verify v0.11.1 GitHub Release for T-1691 Human AC. GH API confirms HEAD frozen at b39fc916 (T-1444, 2026-05-02). No release v0.10.0/v0.11.0/v0.11.1 exists on github.com (gh release list shows only v0.9.0 + v0.9.1)."
   detection_lag_days: 16
-  what_works_now: "OneDev hosts canonical history. Local binaries built from source (cargo build --release) work. The cut binary deployed to .107 (/root/.cargo/bin/termlink, v0.11.1) is independent of GH publication. T-1166 cut + T-1694 metadata fix are operationally live regardless of GH state."
-  what_remains: "(1) Diagnose root cause: log into OneDev → Job Runs for 'Push to GitHub Mirror' → read failure log; check 'github-push-token' secret freshness; (2) Rotate token if expired (creates new PAT, updates OneDev secret); (3) Force-fire the job once after fix (manual run on OneDev) to catch up the 16-day backlog and the 3 missing tags; (4) Verify GH HEAD + tags catch up; (5) Confirm release.yml workflow fires for v0.10.0/v0.11.0/v0.11.1 and Releases publish; (6) Add a daily canary (CronCreate or operator script) that compares OneDev HEAD vs GitHub HEAD and alerts on >24h drift — closes the structural blindness that allowed this to run for 16 days."
-  mitigation_candidate: "Short-term: operator-driven recovery (steps 1-5 above). Structural: prevention canary (step 6) is the real fix — without it the next breakage runs unnoticed for another N days. Candidate cron: `fw monitor github-mirror-lag` or shell wrapper that compares `git ls-remote origin HEAD` vs `git ls-remote github HEAD` and pages if commits diverge >24h. Append to .context/cron/heartbeat.crontab once authored."
-  status: watching
+  what_works_now: "RESOLVED 2026-05-18T20:25Z. Direct push from .107 healed main + v0.10.0/v0.11.0/v0.11.1 tags. Canary (T-1696, cron 07:13Z daily) confirms `synced` end-to-end. Underlying cause: PL-171 — fine-grained PATs need `Workflows: Read+Write` permission to push refs touching .github/workflows/*; replacement PATs minted without it failed silently with HTTP 401 fast-fail. OneDev auto-mirror remains DEGRADED until operator mints a PAT with that permission added (see T-1695 Human ACs)."
+  what_remains: "(a) Mint a PAT with Workflows permission, restore OneDev auto-mirror — without this the next workflow-touching commit will fail the mirror again. (b) Revoke the diagnostic PAT pasted into conversation log (T-1695 has the exact value). (c) Verify release.yml workflow fired and published v0.10.0/v0.11.0/v0.11.1 GitHub Releases with binaries. All three in T-1695 Human ACs."
+  mitigation_candidate: "Detection: T-1696 canary cron (installed, daily 07:13Z, tag-drift extension included). Resolution: PL-171 now documents the Workflows-permission gotcha for next PAT mint. Tooling delta: PAT-mint runbook in CLAUDE.md or docs/ops/ would help — currently the workflow-permission requirement is operator-tribal-knowledge."
+  status: resolved
   created: 2026-05-18
-  related_tasks: [T-1691]
+  resolved: 2026-05-18T20:25Z
+  resolution: "Mirror healed via direct push from .107 using operator's PAT. Root cause identified as PL-171 (fine-grained PAT Workflows-permission gotcha). Canary reports synced. OneDev auto-mirror remains degraded pending PAT re-mint with Workflows permission."
+  related_tasks: [T-1691, T-1696, T-1695]
 
 - id: G-056
   type: gap

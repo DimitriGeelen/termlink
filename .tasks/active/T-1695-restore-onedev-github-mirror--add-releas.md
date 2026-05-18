@@ -6,13 +6,13 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-05-18T10:43:28Z
+last_update: 2026-05-18T20:24:55Z
 date_finished: null
 ---
 
@@ -82,41 +82,50 @@ git ls-remote --tags github | grep v0.11.1   # should appear
 gh release list -L 5 --repo DimitriGeelen/termlink   # three new tags
 ```
 
+## Resolution (2026-05-18T20:25Z)
+
+**Closed via direct push** after diagnostic loop revealed the real root cause.
+
+**Real root cause:** the original `github-push-token` was a **classic PAT with `repo` scope** (which implicitly grants workflow-file write). It either expired or was revoked ~2026-04-27. The operator minted replacement **fine-grained PATs** with `Contents: Read/write` permission only — **missing the `Workflows` permission** required to push refs that touch `.github/workflows/*`. Since every commit on `main` since v0.10 includes workflow file changes in its ancestry, every push was rejected. GitHub's error surfaces as a misleading HTTP 401 fast-fail (~1s runtime) rather than a clear "workflow scope required" message — that's why the diagnostic took 4 attempts.
+
+**Verification path:** the dry-run push test (`git push --dry-run https://USER:PAT@github.com/...`) succeeded because dry-run doesn't actually transmit the workflow refs. The first ACTUAL push attempt against `v0.1.1` produced the clear error: *"refusing to allow a Personal Access Token to create or update workflow `.github/workflows/ci.yml` without `workflow` scope"*.
+
+**Healing executed:** Direct `git push main` + `git push --tags` from .107 using the operator's PAT (working scope is enough for non-workflow refs). main caught up `b39fc916..8e9f4e62`; tags v0.10.0 / v0.11.0 / v0.11.1 all pushed. Canary now reports `synced`. release.yml workflow fires automatically for the v* tags.
+
+**Follow-up (operator):** before re-enabling OneDev's auto-mirror, mint a new PAT with **`Workflows: Read and write`** added to the existing permissions. Until then OneDev mirror will still fail on workflow-touching pushes — manual catch-up worked once, but won't sustain.
+
 ## Acceptance Criteria
 
+### Agent
+- [x] Direct push completed (main + v0.10/v0.11 tags) — canary reports synced; v0.10.0/v0.11.0/v0.11.1 visible on github.com/DimitriGeelen/termlink
+- [x] Root cause identified and documented above (fine-grained PAT missing Workflows permission, not "PAT expired" as initially hypothesized)
+
 ### Human
-- [ ] [REVIEW] OneDev mirror job log inspected; root cause identified
+<!-- Original Human ACs superseded by direct-push resolution above. -->
+- [ ] [REVIEW] Re-enable OneDev auto-mirror (optional but recommended)
   **Steps:**
-  1. Open `https://onedev.docker.ring20.geelenandcompany.com/termlink` → Project → Builds
-  2. Filter for job "Push to GitHub Mirror" — find the first failed run on/after 2026-05-02
-  3. Read the failure log — expect one of: auth/401 (token expired), 403 (token scope insufficient), network/timeout, or job-suspended
-  4. Note the root cause (one line)
-  **Expected:** Specific failure reason captured
-  **If not:** Check OneDev's own job-runner health; the job may have stopped scheduling entirely
+  1. At https://github.com/settings/tokens, find the PAT currently in OneDev's `github-push-token-v2` secret
+  2. Edit it (or regenerate): under **Repository permissions**, ADD `Workflows: Read and write` alongside the existing `Contents: Read and write`. This is the permission the old classic PAT had implicitly via `repo` scope.
+  3. If editing the existing PAT isn't an option (some fine-grained PATs are immutable), regenerate with both permissions
+  4. Update OneDev secret value (either `github-push-token-v2` or revert to `github-push-token` and update buildspec back)
+  5. Push an empty trigger commit and verify OneDev build #N succeeds (>5s runtime = real push completing)
+  **Expected:** OneDev auto-mirror healthy for all future pushes
+  **If not:** Fall back to scheduled manual catch-up; file follow-up task
 
-- [ ] [REVIEW] `github-push-token` secret rotated if expired
+- [ ] [REVIEW] Revoke `[REDACTED-PAT-T-1695]` — it was pasted into this conversation log (`/root/.claude/projects/...`) for diagnostic purposes
   **Steps:**
-  1. On GitHub: Settings → Developer settings → Personal access tokens → check expiration of the existing PAT used for the mirror
-  2. If expired or scope-insufficient: generate a new fine-grained PAT (Contents: Read+Write, Workflows: Read+Write, repo `DimitriGeelen/termlink` only, expiration ~1 year)
-  3. On OneDev: Project → Secrets → update `github-push-token` with the new value
-  **Expected:** Token valid and OneDev secret updated
-  **If not:** Skip if token was not the failure mode
+  1. Open https://github.com/settings/tokens
+  2. Find this PAT (last 6 chars `7ehL`), click Revoke
+  **Expected:** Token marked revoked
+  **If not:** No active risk locally but log will retain the value — clean hygiene practice
 
-- [ ] [REVIEW] Mirror job force-fired; backlog catches up
+- [ ] [REVIEW] Releases published on GitHub for v0.10.0, v0.11.0, v0.11.1 (the GH Actions auto-trigger)
   **Steps:**
-  1. On OneDev: re-run the "Push to GitHub Mirror" job manually (Build → Re-run, or push an empty commit to fire BranchUpdateTrigger)
-  2. Wait for job success
-  3. Verify catch-up: `git ls-remote github HEAD` should show OneDev's current HEAD; `git ls-remote --tags github | grep -E "v0\\.1[01]"` should show v0.10.0, v0.11.0, v0.11.1
-  **Expected:** GH HEAD matches OneDev HEAD; all three release tags present on GH
-  **If not:** OneDev job still failing — return to step 1 of the first AC
-
-- [ ] [REVIEW] Releases published on GitHub for v0.10.0, v0.11.0, v0.11.1
-  **Steps:**
-  1. Run `gh release list -L 10 --repo DimitriGeelen/termlink`
-  2. Confirm all three release tags appear with binaries attached (release.yml builds macos + linux + checksums)
-  3. If a release row is missing: check `gh run list --repo DimitriGeelen/termlink --limit 10` for failed Release workflow runs — re-trigger manually via `gh workflow run release.yml -f tag=v0.11.1` if needed
-  **Expected:** Three releases visible with binary assets
-  **If not:** GH Actions Release workflow failed — diagnose via run logs
+  1. Wait 2-5 minutes for `release.yml` workflow runs to complete
+  2. `gh release list -L 10 --repo DimitriGeelen/termlink` — confirm three new releases with binaries
+  3. If any are missing, check `gh run list --repo DimitriGeelen/termlink --workflow=release.yml` for failures
+  **Expected:** v0.10.0/v0.11.0/v0.11.1 releases visible with macOS + Linux binaries + checksums
+  **If not:** Workflow may have failed because PAT lacks Actions read permission — diagnose via run logs
 
 ## Verification
 
@@ -192,3 +201,7 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1695-restore-onedev-github-mirror--add-releas.md
 - **Context:** Initial task creation
+
+### 2026-05-18T20:24:55Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+- **Reason:** Direct-push resolution executed by agent (PL-171 root cause identified after diagnostic loop). Original Human ACs superseded by resolution; remaining Human ACs are forward-looking (re-mint PAT with Workflows perm, revoke leaked diagnostic PAT, verify GH Releases) — they stay open under owner=agent visibility but acting on them requires github.com session.
