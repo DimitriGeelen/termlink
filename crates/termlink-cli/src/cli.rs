@@ -3362,6 +3362,14 @@ pub(crate) enum FleetAction {
         /// Emit NDJSON (one matching log entry per line) plus a summary footer.
         #[arg(long)]
         json: bool,
+
+        /// T-1686: also include heal events from `~/.termlink/heal.log`
+        /// (T-1685), merged in chronological order with rotation events.
+        /// Without this flag, only rotation events are shown — preserving
+        /// the original T-1671 surface. Heal entries render with the
+        /// HEAL/<mode> kind marker and trigger/action fields.
+        #[arg(long = "include-heals")]
+        include_heals: bool,
     },
 }
 
