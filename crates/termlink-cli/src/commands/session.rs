@@ -314,7 +314,32 @@ pub(crate) async fn cmd_register_self(
     tags: Vec<String>,
     cap: Vec<String>,
     json: bool,
+    identity_key: Option<std::path::PathBuf>,
 ) -> Result<()> {
+    let verbose = !json;
+
+    // T-1701: parity with cmd_register's --identity-key handling (T-1700).
+    // Bind the per-agent identity BEFORE Endpoint::start so the event-only
+    // session's SessionMetadata.identity_fingerprint and any subsequent
+    // channel.post signing both pick up the override.
+    if let Some(ref key_path) = identity_key {
+        use termlink_session::agent_identity::Identity;
+        let ident = Identity::load_or_create_from_file(key_path)
+            .with_context(|| format!("Failed to load/create identity at {}", key_path.display()))?;
+        // SAFETY: same single-threaded reasoning as cmd_register — no task
+        // is reading TERMLINK_IDENTITY_FILE yet at this point in startup.
+        unsafe {
+            std::env::set_var("TERMLINK_IDENTITY_FILE", key_path);
+        }
+        if verbose {
+            println!(
+                "Identity (T-1701): {} ({})",
+                key_path.display(),
+                ident.fingerprint()
+            );
+        }
+    }
+
     let config = SessionConfig {
         display_name: name,
         roles,
