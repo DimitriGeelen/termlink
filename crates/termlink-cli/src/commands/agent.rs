@@ -722,18 +722,25 @@ pub(crate) fn resolve_contact_message(
     }
 }
 
-/// T-1429 Phase-1: contact a peer agent on the canonical `dm:<a>:<b>` topic.
+/// T-1429: contact a peer agent on the canonical `dm:<a>:<b>` topic.
 ///
 /// Resolves `<target>` to a local session via `manager::find_session`, reads
 /// the peer's `identity_fingerprint` from `SessionMetadata` (T-1436), then
 /// delegates to `cmd_channel_dm` which already does dm-topic canonicalisation,
 /// idempotent topic creation, and posting.
 ///
-/// Phase-1 scope: --message only, local-hub only, fire-and-forget. Phase-2
-/// adds --ack-required, --require-online, advanced target forms
-/// (`name@hub:port`, `sender_id:<hex>`) — see T-1429 task for the deferred
-/// ACs. --file <path> shipped in T-1646 (resolved in `main.rs` via
-/// `resolve_contact_message`; this fn still takes the resolved `&str`).
+/// Shipped surface: --message / --file (T-1646 — resolved upstream in main.rs
+/// via `resolve_contact_message`, this fn takes the resolved `&str`), --thread
+/// (canonical `metadata._thread` routing per agent-chat-arc protocol), --json,
+/// --dry-run (T-1478 preview-without-posting), --target-fp <hex> (cross-host
+/// bypass when `manager::find_session` can't resolve the peer locally),
+/// --require-online + --online-window-secs (T-1480, exit 9 on offline),
+/// --ack-required + --ack-timeout-secs (T-1485, exit 10 on ack timeout).
+///
+/// Phase-2 still deferred: `name@hub:port` federated name syntax for remote
+/// session discovery via channel.list/peer-registry overlay — `--target-fp
+/// <hex>` is the current workaround when the peer's name isn't locally
+/// resolvable. See T-1429 task body.
 ///
 /// Errors:
 /// - target not found locally → exit code 1, message names the session
