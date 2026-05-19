@@ -2284,6 +2284,12 @@ pub struct FleetDoctorParams {
 pub struct FleetStatusParams {
     /// Timeout per hub in seconds (default: 10)
     pub timeout: Option<u64>,
+    /// T-1711 (G-057 punch-list #2): when true, each up-hub entry includes
+    /// `session_names: [...]` (display_name strings pulled from
+    /// `session.discover`). Mirrors CLI `fleet status --verbose`. Agents
+    /// triaging "is the right workload on the right hub?" need names, not
+    /// counts. Default false to preserve the existing response shape.
+    pub verbose: Option<bool>,
 }
 
 // T-1661: Fleet verify params (TLS pin drift check)
@@ -6787,7 +6793,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_status",
-        description = "One-screen operational overview of all configured hubs. Shows each hub's status (up/down/auth-fail), session count, latency, and actionable fix steps for broken hubs. The operator's morning-check command."
+        description = "One-screen operational overview of all configured hubs. Shows each hub's status (up/down/auth-fail), session count, latency, and actionable fix steps for broken hubs. The operator's morning-check command. T-1711: pass `verbose: true` to also include `session_names: [...]` per up-hub (display_name strings from session.discover) — for agents that need to know WHICH workloads are running, not just how many."
     )]
     async fn termlink_fleet_status(&self, Parameters(p): Parameters<FleetStatusParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -6802,6 +6808,7 @@ impl TermLinkTools {
         }
 
         let timeout_secs = p.timeout.unwrap_or(10);
+        let verbose = p.verbose.unwrap_or(false);
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
         let mut fleet: Vec<serde_json::Value> = Vec::new();
         let mut actions: Vec<String> = Vec::new();
@@ -6826,23 +6833,48 @@ impl TermLinkTools {
                     let latency = connect_start.elapsed().as_millis();
                     up_count += 1;
 
-                    // Query session count
-                    let session_count = match client.call(
+                    // Query session count (and names when verbose). T-1711: parallel
+                    // to CLI behavior — fetch the array once, derive count + names.
+                    let (session_count, session_names) = match client.call(
                         "session.discover",
                         serde_json::json!("mcp-fleet-sd"),
                         serde_json::json!({}),
                     ).await {
                         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                            r.result["sessions"].as_array().map(|s| s.len()).unwrap_or(0)
+                            let arr = r.result["sessions"].as_array();
+                            let count = arr.map(|s| s.len()).unwrap_or(0);
+                            let names: Vec<String> = if verbose {
+                                arr.map(|s| {
+                                    s.iter()
+                                        .filter_map(|sess| {
+                                            sess["display_name"].as_str().map(String::from)
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default()
+                            } else {
+                                Vec::new()
+                            };
+                            (count, names)
                         }
-                        _ => 0,
+                        _ => (0, Vec::new()),
                     };
 
-                    fleet.push(serde_json::json!({
+                    let mut entry = serde_json::json!({
                         "hub": name, "address": address,
                         "status": "up", "latency_ms": latency,
                         "sessions": session_count,
-                    }));
+                    });
+                    // T-1711: mirror CLI JSON shape exactly — when verbose=true,
+                    // always include session_names (even an empty array). The CLI
+                    // human-readable path only prints names when non-empty, but
+                    // the JSON field is unconditional. Match the JSON contract.
+                    if verbose
+                        && let Some(obj) = entry.as_object_mut()
+                    {
+                        obj.insert("session_names".into(), serde_json::json!(session_names));
+                    }
+                    fleet.push(entry);
                 }
                 Ok(Err(err_json)) => {
                     let is_auth = err_json.contains("invalid signature")
@@ -18126,6 +18158,32 @@ not-json
         // Must NOT have the chronological-listing shape:
         assert!(parsed.get("entries").is_none());
         assert!(parsed.get("summary").is_none());
+    }
+
+    // === T-1711 (G-057 punch-list #2): FleetStatusParams verbose field ===
+
+    #[test]
+    fn fleet_status_params_defaults_when_omitted() {
+        let json = serde_json::json!({});
+        let p: FleetStatusParams = serde_json::from_value(json).unwrap();
+        assert!(p.timeout.is_none());
+        assert!(p.verbose.is_none());
+    }
+
+    #[test]
+    fn fleet_status_params_accepts_verbose_true() {
+        let json = serde_json::json!({"verbose": true});
+        let p: FleetStatusParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.verbose, Some(true));
+        assert!(p.timeout.is_none()); // omitted fields still None
+    }
+
+    #[test]
+    fn fleet_status_params_accepts_verbose_with_timeout() {
+        let json = serde_json::json!({"verbose": true, "timeout": 5});
+        let p: FleetStatusParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.verbose, Some(true));
+        assert_eq!(p.timeout, Some(5));
     }
 
     // T-1694: ChannelPostParams metadata field — deserialization + JSON shape.
