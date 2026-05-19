@@ -64,11 +64,11 @@ concerns:
   trigger_event: "2026-05-18: cohort-agent operator-relayed letter to termlink-agent identifying the gap. Conversation anchors: chat-arc:350 (proof of on-wire metadata), 351/383 (Pen acks with empty metadata), 1558 (cohort's contract request), 1560 (Pen's reply with diagnosis)."
   detection_lag_days: 30
   what_works_now: "Protocol-direct callers (cohort-ack-emit.js, raw RPC, custom Rust callers) work — bypass the MCP layer and populate metadata. termlink_agent_post (T-1560) already accepts _thread and _project as underscore-prefixed metadata keys."
-  what_remains: "T-1692 (inception): add free-form metadata param to termlink_channel_post. Sibling audit task (not yet filed): scan termlink-mcp/src/tools.rs for protocol-feature-vs-tool-schema gaps — produce punch list of other affected tools."
-  mitigation_candidate: "T-1692 GO recommendation: Shape 1 (free-form object). After T-1692 ships, file the audit task to catch sibling cases."
-  status: watching
+  what_remains: "MED-tier punch-list CLOSED 2026-05-19: T-1710 (fleet_history.analyze, PL-021 detection parity), T-1711 (fleet_status.verbose, session_names parity), T-1712 (doctor.strict, warn→fail verdict parity), T-1713 (fleet_doctor.auto_heal_preview, dry-run parity). HIGH-tier punch-list deferred deliberately: live --auto-heal, --watch, --notify, --fix are unsuitable for one-shot MCP exposure (cannot oversee fire-and-forget subprocesses). Sibling audit task (originally proposed) effectively superseded: the audit was performed during T-1710 inception and acted on directly via the four MED-tier ship tasks. Future silent-strip risk: any new MCP tool wrapping a CLI verb — fix at filing time, not after detection."
+  mitigation_candidate: "Pattern recipe captured as learning (silent-strip-fix-recipe). New MCP tool wrappers must mirror CLI flag schema or document strip deliberately."
+  status: decided-build
   created: 2026-05-18
-  related_tasks: [T-1692, T-1560, T-1584]
+  related_tasks: [T-1692, T-1560, T-1584, T-1707, T-1708, T-1709, T-1710, T-1711, T-1712, T-1713]
 
 - id: G-048
   type: gap

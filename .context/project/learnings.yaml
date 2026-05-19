@@ -1472,3 +1472,10 @@ learnings:
   date: 2026-05-18
   context: Added via context agent
   application: TBD
+- id: PL-172
+  learning: "MCP silent-strip fix recipe: when a CLI feature is missing in its MCP wrapper, the 5-step parity pattern is (1) add Option<bool> param to params struct with safe default false, (2) extract classification/derivation logic as pure helpers (auth_mismatch_class_mcp, classify_X), (3) wire helpers into handler AFTER the existing sweep so unset behavior is byte-identical, (4) emit structured JSON shape matching CLI stderr/stdout semantics, (5) unit-test deserialization defaults + helper logic without requiring infrastructure. Same pattern shipped T-1707, T-1708, T-1709, T-1710, T-1711, T-1712, T-1713 — proven 7 times across G-057. Live --auto-heal / --watch / --notify variants are deliberately MCP-incompatible (one-shot RPC cannot oversee fire-and-forget subprocesses); preview-only shape is the right substitute."
+  source: P-001
+  task: T-1713
+  date: 2026-05-19
+  context: Added via context agent
+  application: TBD
