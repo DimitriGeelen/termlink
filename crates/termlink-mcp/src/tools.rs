@@ -87,6 +87,116 @@ fn fleet_history_parse_log(
     }
 }
 
+/// T-1710 (G-057 punch-list #1): per-hub flap verdict from PL-021 analysis.
+/// Parallels CLI `HubFlapVerdict` (remote.rs); MCP cannot import it (pub(crate)).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum FleetHistoryFlapVerdict {
+    Clean,
+    CertOnly,
+    SecretOnly,
+    SingleDoubleRotation,
+    Pl021Candidate,
+}
+
+impl FleetHistoryFlapVerdict {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Clean => "clean",
+            Self::CertOnly => "cert-only",
+            Self::SecretOnly => "secret-only",
+            Self::SingleDoubleRotation => "single-double-rotation",
+            Self::Pl021Candidate => "pl021-candidate",
+        }
+    }
+}
+
+/// T-1710: per-hub flap report. Parallels CLI `HubFlapReport`.
+#[derive(Debug, Clone)]
+pub(crate) struct FleetHistoryFlapReport {
+    pub hub: String,
+    pub verdict: FleetHistoryFlapVerdict,
+    pub cert_transitions: u32,
+    pub secret_transitions: u32,
+    pub double_rotations: u32,
+    pub last_double_rotation: Option<String>,
+}
+
+/// T-1710: PL-021 flap classifier — pure function on entries already parsed
+/// by `fleet_history_parse_log`. Walks only `event_type=rotation` +
+/// `kind=transition` rows; counts cert/secret transitions and "double
+/// rotations" (cert + secret in the same row). Verdict precedence mirrors
+/// CLI T-1690's `analyze_pl021` exactly:
+/// - `(0,0,_)` → Clean
+/// - `(_,_,n)` if n ≥ 2 → Pl021Candidate
+/// - `(_,_,1)` → SingleDoubleRotation
+/// - `(c,0,0)` if c > 0 → CertOnly
+/// - `(0,s,0)` if s > 0 → SecretOnly
+/// - else (c>0, s>0, n=0; cert and secret rotated separately, never together)
+///   → SingleDoubleRotation (CLI fallthrough)
+fn analyze_pl021_mcp(entries: &[serde_json::Value]) -> Vec<FleetHistoryFlapReport> {
+    use std::collections::BTreeMap;
+    let mut per_hub: BTreeMap<String, FleetHistoryFlapReport> = BTreeMap::new();
+    for e in entries {
+        // Analysis is rotation-only by construction; ignore heal events.
+        if e.get("event_type").and_then(|v| v.as_str()).unwrap_or("rotation") != "rotation" {
+            continue;
+        }
+        if e.get("kind").and_then(|v| v.as_str()) != Some("transition") {
+            continue;
+        }
+        let hub = e
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let oc = e.get("old_conn").and_then(|v| v.as_str()).unwrap_or("");
+        let nc = e.get("new_conn").and_then(|v| v.as_str()).unwrap_or("");
+        let op = e.get("old_pin").and_then(|v| v.as_str()).unwrap_or("");
+        let np = e.get("new_pin").and_then(|v| v.as_str()).unwrap_or("");
+        let cert_now = np == "drift" && op != "drift";
+        let secret_now = nc == "auth-mismatch" && oc != "auth-mismatch";
+        if !cert_now && !secret_now {
+            continue;
+        }
+        let entry_ts = e.get("ts").and_then(|v| v.as_str()).map(String::from);
+        let rep = per_hub
+            .entry(hub.clone())
+            .or_insert_with(|| FleetHistoryFlapReport {
+                hub,
+                verdict: FleetHistoryFlapVerdict::Clean,
+                cert_transitions: 0,
+                secret_transitions: 0,
+                double_rotations: 0,
+                last_double_rotation: None,
+            });
+        if cert_now {
+            rep.cert_transitions += 1;
+        }
+        if secret_now {
+            rep.secret_transitions += 1;
+        }
+        if cert_now && secret_now {
+            rep.double_rotations += 1;
+            rep.last_double_rotation = entry_ts;
+        }
+    }
+    for rep in per_hub.values_mut() {
+        rep.verdict = match (
+            rep.cert_transitions,
+            rep.secret_transitions,
+            rep.double_rotations,
+        ) {
+            (0, 0, _) => FleetHistoryFlapVerdict::Clean,
+            (_, _, n) if n >= 2 => FleetHistoryFlapVerdict::Pl021Candidate,
+            (_, _, 1) => FleetHistoryFlapVerdict::SingleDoubleRotation,
+            (c, 0, 0) if c > 0 => FleetHistoryFlapVerdict::CertOnly,
+            (0, s, 0) if s > 0 => FleetHistoryFlapVerdict::SecretOnly,
+            _ => FleetHistoryFlapVerdict::SingleDoubleRotation,
+        };
+    }
+    per_hub.into_values().collect()
+}
+
 /// T-1687: civil-from-days RFC3339(Z) → unix seconds. Copy of the CLI parser;
 /// see `rfc3339_to_unix_secs` in crates/termlink-cli/src/commands/remote.rs.
 /// No chrono — keeps termlink-mcp dep-clean.
@@ -2197,6 +2307,15 @@ pub struct FleetHistoryParams {
     /// chronologically. Each entry is tagged `event_type: "rotation"|"heal"`
     /// so a caller can distinguish T-1671 transitions from T-1685 heal actions.
     pub include_heals: Option<bool>,
+    /// T-1710 (G-057 punch-list #1): when true, short-circuit the chronological
+    /// listing and return a per-hub flap-classification report (CLI T-1690
+    /// parity). Classifies each hub as
+    /// `clean` / `cert-only` / `secret-only` / `single-double-rotation` /
+    /// `pl021-candidate`. PL-021 candidates (≥2 simultaneous cert+secret
+    /// rotations in window) indicate volatile runtime_dir (likely /tmp wipe
+    /// on reboot). `include_heals` is ignored when `analyze=true` —
+    /// analysis is rotation-only by design.
+    pub analyze: Option<bool>,
 }
 
 // T-1689: Fleet bootstrap-check params (MCP parity for T-1688).
@@ -7356,7 +7475,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_history",
-        description = "Read-only retrospective over hub rotation events. Reads ~/.termlink/rotation.log (populated by `fleet doctor --watch`) and optionally ~/.termlink/heal.log (populated by `--auto-heal`). Answers 'is this hub's drift the first or Nth time, and what did we do about it?' Returns merged entries sorted chronologically with per-hub counts. No auth, no network."
+        description = "Read-only retrospective over hub rotation events. Reads ~/.termlink/rotation.log (populated by `fleet doctor --watch`) and optionally ~/.termlink/heal.log (populated by `--auto-heal`). Answers 'is this hub's drift the first or Nth time, and what did we do about it?' Returns merged entries sorted chronologically with per-hub counts. No auth, no network. T-1710: pass `analyze: true` to short-circuit the chronological listing and return a per-hub PL-021 flap classification (CLI T-1690 parity) — verdicts: clean / cert-only / secret-only / single-double-rotation / pl021-candidate (≥2 simultaneous cert+secret rotations = volatile runtime_dir signature)."
     )]
     async fn termlink_fleet_history(
         &self,
@@ -7366,7 +7485,15 @@ impl TermLinkTools {
         if !(1..=365).contains(&since_days) {
             return json_err(format!("since_days must be 1..=365 (got {since_days})"));
         }
-        let include_heals = p.include_heals.unwrap_or(false);
+        let analyze = p.analyze.unwrap_or(false);
+        // T-1710: analyze is rotation-only — heal log is irrelevant to PL-021
+        // classification. Ignore include_heals when analyze=true so the caller
+        // can't accidentally inflate the classifier with non-rotation rows.
+        let include_heals = if analyze {
+            false
+        } else {
+            p.include_heals.unwrap_or(false)
+        };
 
         let Some(home) = std::env::var("HOME").ok() else {
             return json_err("HOME env var not set; cannot resolve rotation.log");
@@ -7379,7 +7506,21 @@ impl TermLinkTools {
             .join("heal.log");
 
         // Empty-state path: no logs to read at all.
+        // T-1710: when analyze=true, return the CLI T-1690 analyze shape with
+        // an empty hubs[] instead of the chronological-listing shape.
         if !rotation_path.exists() && (!include_heals || !heal_path.exists()) {
+            if analyze {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "since_days": since_days,
+                    "hub_filter": p.hub,
+                    "log_path": rotation_path.display().to_string(),
+                    "hubs": [],
+                    "pl021_candidates": false,
+                    "hint": "no rotation history yet — run `fleet doctor --watch` to start capturing",
+                }))
+                .unwrap_or_else(json_err);
+            }
             return serde_json::to_string_pretty(&serde_json::json!({
                 "ok": true,
                 "entries": [],
@@ -7430,6 +7571,41 @@ impl TermLinkTools {
                 ),
                 Err(e) => return json_err(format!("cannot read heal.log: {e}")),
             }
+        }
+
+        // T-1710 (G-057 punch-list #1): short-circuit chronological listing
+        // when analyze=true. Returns the same JSON shape the CLI emits with
+        // `fleet history --analyze --json` (see emit_pl021_report in remote.rs).
+        // Entries here are rotation-only — include_heals was forced to false
+        // above when analyze=true, so the classifier sees only transitions.
+        if analyze {
+            let report = analyze_pl021_mcp(&entries);
+            let arr: Vec<serde_json::Value> = report
+                .iter()
+                .map(|r| {
+                    serde_json::json!({
+                        "hub": r.hub,
+                        "verdict": r.verdict.as_str(),
+                        "cert_transitions": r.cert_transitions,
+                        "secret_transitions": r.secret_transitions,
+                        "double_rotations": r.double_rotations,
+                        "last_double_rotation": r.last_double_rotation,
+                    })
+                })
+                .collect();
+            let any_candidate = report
+                .iter()
+                .any(|h| h.verdict == FleetHistoryFlapVerdict::Pl021Candidate);
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "since_days": since_days,
+                "hub_filter": p.hub,
+                "log_path": rotation_path.display().to_string(),
+                "hubs": arr,
+                "pl021_candidates": any_candidate,
+                "malformed_lines_skipped": malformed,
+            }))
+            .unwrap_or_else(json_err);
         }
 
         if include_heals {
@@ -17335,6 +17511,7 @@ not-json
         assert!(p.since_days.is_none());
         assert!(p.hub.is_none());
         assert!(p.include_heals.is_none());
+        assert!(p.analyze.is_none()); // T-1710
     }
 
     /// HOME is a process-global; tokio tests run concurrently and would
@@ -17393,6 +17570,7 @@ not-json
             since_days: Some(1),
             hub: None,
             include_heals: Some(true),
+            analyze: None,
         };
         let result_str = tools.termlink_fleet_history(Parameters(params)).await;
 
@@ -17464,6 +17642,7 @@ not-json
                 since_days: None,
                 hub: None,
                 include_heals: None,
+                analyze: None,
             }))
             .await;
 
@@ -17572,6 +17751,7 @@ not-json
                 since_days: Some(500),
                 hub: None,
                 include_heals: None,
+                analyze: None,
             }))
             .await;
         let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
@@ -17581,6 +17761,371 @@ not-json
             .and_then(|v| v.as_str())
             .unwrap()
             .contains("since_days"));
+    }
+
+    // === T-1710 (G-057 punch-list #1): analyze_pl021_mcp classifier tests ===
+    //
+    // Mirrors CLI T-1690 `analyze_pl021_*` tests (remote.rs lines ~8536-8625)
+    // because the MCP classifier is a parallel reimplementation (G-057
+    // anti-pattern; CLI's `analyze_pl021` is `pub(crate)` and not reachable
+    // from termlink-mcp crate). If you touch one, mirror the change in both.
+
+    /// Build a transition row with explicit old/new pin + conn states.
+    fn fh_transition(hub: &str, ts: &str, op: &str, np: &str, oc: &str, nc: &str) -> serde_json::Value {
+        serde_json::json!({
+            "ts": ts,
+            "hub": hub,
+            "kind": "transition",
+            "old_pin": op,
+            "new_pin": np,
+            "old_conn": oc,
+            "new_conn": nc,
+            "event_type": "rotation",
+        })
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_empty_returns_no_hubs() {
+        assert!(analyze_pl021_mcp(&[]).is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_only_new_kind_entries_are_skipped() {
+        // `kind=new` rows (initial-observation entries) are NOT transitions and
+        // must not influence classification.
+        let e = serde_json::json!({
+            "ts": "2026-05-18T06:00:00Z",
+            "hub": "ring20-x",
+            "kind": "new",
+            "old_pin": null,
+            "new_pin": "drift",
+        });
+        assert!(analyze_pl021_mcp(&[e]).is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_heal_event_type_is_skipped() {
+        // T-1710 specific: even if a heal-tagged row sneaks in (shouldn't happen
+        // because handler forces include_heals=false when analyze=true), the
+        // classifier must drop it.
+        let e = serde_json::json!({
+            "ts": "2026-05-18T06:00:00Z",
+            "hub": "ring20-x",
+            "kind": "transition",
+            "old_pin": "ok",
+            "new_pin": "drift",
+            "old_conn": "ok",
+            "new_conn": "auth-mismatch",
+            "event_type": "heal",
+        });
+        assert!(analyze_pl021_mcp(&[e]).is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_cert_only_rotation() {
+        let e = fh_transition("ring20-x", "2026-05-18T06:00:00Z", "ok", "drift", "ok", "ok");
+        let report = analyze_pl021_mcp(&[e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].hub, "ring20-x");
+        assert_eq!(report[0].verdict, FleetHistoryFlapVerdict::CertOnly);
+        assert_eq!(report[0].cert_transitions, 1);
+        assert_eq!(report[0].secret_transitions, 0);
+        assert_eq!(report[0].double_rotations, 0);
+        assert_eq!(report[0].last_double_rotation, None);
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_secret_only_rotation() {
+        let e = fh_transition("ring20-x", "2026-05-18T06:00:00Z", "ok", "ok", "ok", "auth-mismatch");
+        let report = analyze_pl021_mcp(&[e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, FleetHistoryFlapVerdict::SecretOnly);
+        assert_eq!(report[0].cert_transitions, 0);
+        assert_eq!(report[0].secret_transitions, 1);
+        assert_eq!(report[0].double_rotations, 0);
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_single_double_rotation_not_candidate() {
+        // One row with BOTH cert + secret rotated = single-double-rotation,
+        // not pl021-candidate (threshold is ≥2).
+        let e = fh_transition(
+            "ring20-x",
+            "2026-05-18T06:00:00Z",
+            "ok",
+            "drift",
+            "ok",
+            "auth-mismatch",
+        );
+        let report = analyze_pl021_mcp(&[e]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(
+            report[0].verdict,
+            FleetHistoryFlapVerdict::SingleDoubleRotation
+        );
+        assert_eq!(report[0].double_rotations, 1);
+        assert_eq!(
+            report[0].last_double_rotation.as_deref(),
+            Some("2026-05-18T06:00:00Z")
+        );
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_two_double_rotations_is_pl021_candidate() {
+        // ≥2 simultaneous cert+secret rotations in window = PL-021 signature.
+        let e1 = fh_transition(
+            "ring20-mgmt",
+            "2026-05-15T06:00:00Z",
+            "ok",
+            "drift",
+            "ok",
+            "auth-mismatch",
+        );
+        let e2 = fh_transition(
+            "ring20-mgmt",
+            "2026-05-18T06:00:00Z",
+            "ok",
+            "drift",
+            "ok",
+            "auth-mismatch",
+        );
+        let report = analyze_pl021_mcp(&[e1, e2]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].verdict, FleetHistoryFlapVerdict::Pl021Candidate);
+        assert_eq!(report[0].double_rotations, 2);
+        // last_double_rotation should be the most-recent we processed; order
+        // depends on iteration (we walk input as given), so the second entry
+        // overwrites — assert the second timestamp.
+        assert_eq!(
+            report[0].last_double_rotation.as_deref(),
+            Some("2026-05-18T06:00:00Z")
+        );
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_does_not_cross_contaminate_hubs() {
+        // One double rotation on hub A + one on hub B → both are
+        // single-double-rotation (NOT a fleet-wide candidate).
+        let e1 = fh_transition(
+            "hub-a",
+            "2026-05-15T06:00:00Z",
+            "ok",
+            "drift",
+            "ok",
+            "auth-mismatch",
+        );
+        let e2 = fh_transition(
+            "hub-b",
+            "2026-05-18T06:00:00Z",
+            "ok",
+            "drift",
+            "ok",
+            "auth-mismatch",
+        );
+        let report = analyze_pl021_mcp(&[e1, e2]);
+        assert_eq!(report.len(), 2);
+        for r in &report {
+            assert_eq!(r.verdict, FleetHistoryFlapVerdict::SingleDoubleRotation);
+            assert_eq!(r.double_rotations, 1);
+        }
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_recovery_transitions_not_counted() {
+        // A row where the hub MOVES FROM drift BACK TO ok (recovery) must not
+        // count as a rotation — only `new_pin=drift` with prior `old_pin != drift`
+        // counts. This guards against post-heal status flips inflating the count.
+        let e = fh_transition(
+            "ring20-x",
+            "2026-05-18T06:00:00Z",
+            "drift",
+            "ok",
+            "auth-mismatch",
+            "ok",
+        );
+        let report = analyze_pl021_mcp(&[e]);
+        // Hub had no qualifying transitions → it does not appear in the report
+        // at all (the CLI behaves the same way via the early `continue`).
+        assert!(report.is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_already_drifted_no_new_transition() {
+        // A row where old_pin AND new_pin are both "drift" (continued drift,
+        // not a new rotation) must not count.
+        let e = fh_transition(
+            "ring20-x",
+            "2026-05-18T06:00:00Z",
+            "drift",
+            "drift",
+            "auth-mismatch",
+            "auth-mismatch",
+        );
+        let report = analyze_pl021_mcp(&[e]);
+        assert!(report.is_empty());
+    }
+
+    #[test]
+    fn analyze_pl021_mcp_cert_plus_separate_secret_falls_through_to_single_double() {
+        // CLI fallthrough case: c>0, s>0, but n=0 (cert and secret rotated in
+        // SEPARATE rows, never simultaneously). The classifier slots this into
+        // `SingleDoubleRotation` via the `_ => ...` arm. Mirror exactly.
+        let cert_row = fh_transition("ring20-x", "2026-05-15T06:00:00Z", "ok", "drift", "ok", "ok");
+        let secret_row =
+            fh_transition("ring20-x", "2026-05-16T06:00:00Z", "ok", "ok", "ok", "auth-mismatch");
+        let report = analyze_pl021_mcp(&[cert_row, secret_row]);
+        assert_eq!(report.len(), 1);
+        assert_eq!(report[0].cert_transitions, 1);
+        assert_eq!(report[0].secret_transitions, 1);
+        assert_eq!(report[0].double_rotations, 0);
+        assert_eq!(
+            report[0].verdict,
+            FleetHistoryFlapVerdict::SingleDoubleRotation
+        );
+    }
+
+    #[tokio::test]
+    async fn fleet_history_e2e_analyze_returns_pl021_shape() {
+        // End-to-end: synthetic rotation.log with two double rotations on one
+        // hub + a clean cert-only on another. analyze=true returns CLI T-1690
+        // JSON shape (hubs[], pl021_candidates) — NOT the chronological listing.
+        let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        use std::io::Write;
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-mcp-fleet-history-analyze-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let termlink_dir = tmp.join(".termlink");
+        std::fs::create_dir_all(&termlink_dir).unwrap();
+        let rot_path = termlink_dir.join("rotation.log");
+        let mut f = std::fs::File::create(&rot_path).unwrap();
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let one_day = 86_400i64;
+        // Two double rotations on ring20-mgmt → pl021-candidate.
+        // One cert-only on ring20-x → cert-only.
+        let ts1 = unix_to_rfc3339(now_secs - 3 * one_day);
+        let ts2 = unix_to_rfc3339(now_secs - 2 * one_day);
+        let ts3 = unix_to_rfc3339(now_secs - 1 * one_day);
+        writeln!(
+            f,
+            r#"{{"ts":"{ts1}","hub":"ring20-mgmt","kind":"transition","old_pin":"ok","new_pin":"drift","old_conn":"ok","new_conn":"auth-mismatch"}}"#
+        ).unwrap();
+        writeln!(
+            f,
+            r#"{{"ts":"{ts2}","hub":"ring20-mgmt","kind":"transition","old_pin":"ok","new_pin":"drift","old_conn":"ok","new_conn":"auth-mismatch"}}"#
+        ).unwrap();
+        writeln!(
+            f,
+            r#"{{"ts":"{ts3}","hub":"ring20-x","kind":"transition","old_pin":"ok","new_pin":"drift","old_conn":"ok","new_conn":"ok"}}"#
+        ).unwrap();
+        drop(f);
+
+        let orig_home = std::env::var("HOME").ok();
+        unsafe {
+            std::env::set_var("HOME", &tmp);
+        }
+
+        let tools = TermLinkTools::new();
+        let result_str = tools
+            .termlink_fleet_history(Parameters(FleetHistoryParams {
+                since_days: Some(7),
+                hub: None,
+                include_heals: Some(true), // T-1710: must be ignored when analyze=true
+                analyze: Some(true),
+            }))
+            .await;
+
+        unsafe {
+            match orig_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let parsed: serde_json::Value = serde_json::from_str(&result_str).expect("valid JSON");
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(true));
+        // analyze shape: hubs array, pl021_candidates bool — NOT entries/summary.
+        assert!(parsed.get("hubs").is_some(), "analyze response must have hubs[]");
+        assert!(parsed.get("entries").is_none(), "analyze must NOT include entries[]");
+        assert_eq!(
+            parsed.get("pl021_candidates").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        let hubs = parsed.get("hubs").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(hubs.len(), 2);
+        let mgmt = hubs
+            .iter()
+            .find(|h| h.get("hub").and_then(|v| v.as_str()) == Some("ring20-mgmt"))
+            .expect("ring20-mgmt present");
+        assert_eq!(
+            mgmt.get("verdict").and_then(|v| v.as_str()),
+            Some("pl021-candidate")
+        );
+        assert_eq!(mgmt.get("double_rotations").and_then(|v| v.as_u64()), Some(2));
+        let other = hubs
+            .iter()
+            .find(|h| h.get("hub").and_then(|v| v.as_str()) == Some("ring20-x"))
+            .expect("ring20-x present");
+        assert_eq!(
+            other.get("verdict").and_then(|v| v.as_str()),
+            Some("cert-only")
+        );
+    }
+
+    #[tokio::test]
+    async fn fleet_history_e2e_analyze_empty_state_returns_analyze_shape() {
+        // Empty-state path with analyze=true must return the analyze shape
+        // (hubs=[], pl021_candidates=false), NOT the listing shape.
+        let _guard = HOME_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-mcp-fleet-history-analyze-empty-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let orig_home = std::env::var("HOME").ok();
+        unsafe {
+            std::env::set_var("HOME", &tmp);
+        }
+
+        let tools = TermLinkTools::new();
+        let result_str = tools
+            .termlink_fleet_history(Parameters(FleetHistoryParams {
+                since_days: Some(7),
+                hub: None,
+                include_heals: None,
+                analyze: Some(true),
+            }))
+            .await;
+
+        unsafe {
+            match orig_home {
+                Some(v) => std::env::set_var("HOME", v),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let parsed: serde_json::Value = serde_json::from_str(&result_str).expect("valid JSON");
+        assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(true));
+        assert!(parsed.get("hubs").is_some());
+        assert_eq!(
+            parsed.get("hubs").and_then(|v| v.as_array()).map(|a| a.len()),
+            Some(0)
+        );
+        assert_eq!(
+            parsed.get("pl021_candidates").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        // Must NOT have the chronological-listing shape:
+        assert!(parsed.get("entries").is_none());
+        assert!(parsed.get("summary").is_none());
     }
 
     // T-1694: ChannelPostParams metadata field — deserialization + JSON shape.
