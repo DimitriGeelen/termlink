@@ -30,8 +30,9 @@ date_finished: null
 - [x] `termlink agent contact <target> --message <m> [--hub <addr>] [--json]` parses correctly via `termlink agent contact --help`. Help text references T-1425 RFC + T-1427 future strict-reject + T-1436 prereq + Phase-2 deferred ACs
 - [x] **Phase-2 partial — `--thread <id>` SHIPPED 2026-05-01T12:08Z:** `termlink agent contact <target> --message <m> --thread <task-id>` sets `metadata._thread=<task-id>` per agent-chat-arc protocol canon (T-1430 topic doc). Implementation: 1-line wire in cli.rs Contact variant, plumbed through main.rs and agent.rs:cmd_agent_contact, extends cmd_channel_dm to accept `&[String] extra_metadata` slot, mentions still go through unchanged. Vendored agents can now route DM messages by thread server-side without parsing the `[T-XXX]` body prefix. The skill keeps `[T-XXX]` body prefix for portability (older binaries lack `--thread`); callers on >= 0.9.1657 may use `--thread` directly for cleaner metadata routing
 - [x] **Phase-2 partial — `--file <path>` SHIPPED 2026-05-16 via T-1646:** `termlink agent contact <target> --file <path>` reads message body from a UTF-8 file. Mutually exclusive with `--message`. Empty files rejected. Implementation: `pub(crate) fn resolve_contact_message` in agent.rs called from main.rs dispatcher; cli.rs Contact variant changes `message: String` → `Option<String>` and adds `file: Option<std::path::PathBuf>`. 6 new unit tests cover all branches (message-only, file-only, both, neither, empty, missing). Live --dry-run --file --thread --json end-to-end confirms file body flows to dm post correctly.
-- [ ] **Phase-2 (still deferred):** `--ack-required`, `--ack-wait <secs>`, `--require-online` flags. Out of scope; track separately when needed
-- [ ] **Phase-2 (deferred):** advanced `<target>` forms — `name@hub:port`, `sender_id:<hex>`. Phase-1 supports bare session-name only (resolved via local registration)
+- [x] **Phase-2 SHIPPED — `--require-online` + `--online-window-secs` (T-1480) + `--ack-required` + `--ack-timeout-secs` (T-1485):** verified live 2026-05-19 via `target/release/termlink agent contact --help` — all four flags documented with exit-code semantics (exit 9 = peer not online; exit 10 = ack timeout). The original AC named `--ack-wait` but final naming landed on `--ack-timeout-secs` (consistent cadence with `--online-window-secs`). Implementation: `cmd_agent_contact` (agent.rs:744-1050) — pre-flight probe of `agent-chat-arc` within `clamped_window_secs` (clamped [10, 86400]); post-send ack poll within `ack_timeout_secs` (clamped [5, 600]).
+- [x] **Phase-2 SHIPPED — `--target-fp <hex>` cross-host bypass:** verified live via `--help` — when local `session.discover` can't reach a peer on a remote hub, caller passes the peer's identity fingerprint directly. Mutually exclusive with positional `<target>`. Closes the remote-hub gap from the Phase-1-only design. Implementation: agent.rs:746,760,797 — short-circuits the `find_session` path.
+- [ ] **Phase-2 (still deferred):** `name@hub:port` federated name syntax — would require cross-hub `session.discover` via the channel.list/peer-registry overlay. `--target-fp <hex>` is the current workaround when the peer's name isn't locally resolvable.
 
 **Discovery + topic resolution (Phase-1):**
 - [x] `<target>` resolves via `manager::find_session` (local-only). Peer's `sender_id` (`identity_fingerprint`) is read directly from `Registration.metadata` — exactly the field T-1436 plumbed in
@@ -50,18 +51,18 @@ date_finished: null
 
 **Acknowledgment (T-1425 Q2=C, all Phase-2):**
 - [x] Default fire-and-forget behavior: post and exit with offset on stdout (text or JSON). Verified against a fresh test session — `Posted to dm:... — offset=N, ts=M` printed, exit 0
-- [ ] **Phase-2 (deferred):** `--ack-required` subscribe + wait + exit-6 timeout
-- [ ] **Phase-2 (deferred):** `--ack-wait 0` redundancy doc
+- [x] **Phase-2 SHIPPED (T-1485):** `--ack-required` subscribe + wait + **exit-10** timeout (not exit-6 — final naming). Implementation polls the dm topic for any non-meta message from the peer's fp posted *after* our send. Clamped poll window `[5, 600]` via `--ack-timeout-secs` (default 60).
+- [x] **Phase-2 SHIPPED:** the `--ack-wait 0` redundancy doc was supplanted by `--ack-timeout-secs` (default 60s; minimum 5s after clamp — a 0 would be ignored anyway). Help text on the flag spells this out.
 
 **Offline behavior (T-1425 Q3=C, all Phase-2):**
 - [x] Default behavior — post regardless of target online state — works (the dm topic is offset-durable; queueing happens at the topic level). Verified
-- [ ] **Phase-2 (deferred):** `--require-online` pre-flight + exit-7 not-found
-- [ ] **Phase-2 (deferred):** disambiguated discover-failure reasons
+- [x] **Phase-2 SHIPPED (T-1480):** `--require-online` pre-flight + **exit-9** not-found (not exit-7 — final naming). Probes `agent-chat-arc` for the peer fp within `--online-window-secs` (default 300, clamped [10, 86400]). Combines with `--dry-run` to preview the verdict.
+- [x] **Phase-2 SHIPPED:** disambiguated discover-failure reasons — error message names FP, window, and last_seen when probe fails (per PL-169 wording validation in T-1480).
 
 **Output (Phase-1):**
 - [x] Default text output: one line `Posted to <topic> — offset=<N>, ts=<ms>` (delegated to `cmd_channel_post`). Verified
 - [x] `--json` output: structured JSON with topic + offset + ts_ms (delegated). Verified — `target/release/termlink agent contact <peer> --message x --json` returns valid JSON
-- [ ] **Phase-2 (deferred):** the `ack` JSON sub-object on success/timeout
+- [x] **Phase-2 SHIPPED (T-1485):** the `ack` JSON sub-object lands on success/timeout when `--ack-required --json` is set (agent.rs:1014-1044 — emits `{ack: {received, ts_ms?, offset?, body_preview?}}` envelope; timeout produces `ack.received=false` with exit 10).
 
 **Tests:**
 - [x] Unit test added: `commands::agent::contact_tests::dm_topic_shape_canon_stable` — locks the dm:<a>:<b> canon shape so a future refactor can't silently change the format vendored agents key off. 1 passed
@@ -69,8 +70,8 @@ date_finished: null
 - [x] No regressions: 542 existing tests remain green (pre-existing `manifest::tests::test_is_git_repo_on_temp_dir` failure is environmental, documented in T-1436)
 
 **Documentation (Phase-1):**
-- [x] Verb's `--help` text references T-1425 RFC, T-1427 (strict-reject futures), T-1436 (identity prereq), and explicitly names Phase-2 deferred ACs so operators don't expect them
-- [ ] **Phase-2 (deferred):** docs/reference/cli.md entry — current scope is in-CLI help only; will land alongside the Phase-2 flag set
+- [x] Verb's `--help` text references T-1425 RFC, T-1427 (strict-reject futures), T-1436 (identity prereq), and lists Phase-2 shipped flags + remaining `name@hub:port` deferral (cli.rs:3632-3651 updated 2026-05-19 — prior text incorrectly claimed `--ack-required`, `--require-online`, `--file` deferred when all shipped).
+- [ ] **Phase-2 (deferred):** docs/reference/cli.md entry — current scope is in-CLI help only; will land alongside the federated `name@hub:port` syntax (the only remaining Phase-2 work).
 
 ### Human
 - [ ] [REVIEW] Verify the verb's UX from a vendored-agent perspective

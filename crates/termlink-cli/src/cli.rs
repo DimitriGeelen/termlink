@@ -3630,7 +3630,7 @@ pub(crate) enum AgentAction {
     },
 
     /// Contact a peer agent on its canonical `dm:<a>:<b>` topic (T-1429
-    /// Phase-1 + Phase-2 partial).
+    /// Phase-1 + Phase-2 mostly shipped).
     ///
     /// Resolves <target> via local `session.discover`, reads the peer's
     /// `identity_fingerprint` from their registration metadata (T-1436),
@@ -3639,10 +3639,17 @@ pub(crate) enum AgentAction {
     /// agent-to-agent contact. See agent-chat-arc topic description for the
     /// full envelope canon (RFC: T-1425). Strict identity-binding lands in
     /// T-1427; this build relies on the authoritative `sender_id` derived
-    /// from the local identity key. Phase-2 ACs --ack-required,
-    /// --require-online, --file, name@hub:port target forms remain
-    /// deferred — see T-1429 task. Phase-2 partial (this build): --thread
-    /// for canonical task-id routing via `metadata._thread`.
+    /// from the local identity key.
+    ///
+    /// Phase-2 shipped: --thread (task-id routing via `metadata._thread`),
+    /// --file (body from path), --require-online + --online-window-secs
+    /// (T-1480 presence pre-flight, exit 9), --ack-required +
+    /// --ack-timeout-secs (T-1485 synchronous wait, exit 10), --target-fp
+    /// (cross-host bypass when local session.discover can't reach the peer),
+    /// --dry-run (T-1478 preview without posting).
+    ///
+    /// Phase-2 still deferred: `name@hub:port` advanced target syntax for
+    /// federated name resolution across hubs — track in T-1429 task.
     Contact {
         /// Target session's display_name, optionally qualified with a
         /// project (T-1448 (b)): `<name>` or `<name>:<project>`.
