@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-19T07:36:25Z
+last_update: 2026-05-19T12:03:46Z
 date_finished: null
 ---
 
@@ -565,3 +565,15 @@ Field rollout stabilized. Three of four vendored hubs now have working hourly he
 - **Bake clock.** .122 cut 2026-05-12 21:50Z → ~6d 9h elapsed; T-1415 promotion gate (7d clean bake on .122) at **2026-05-19 21:50Z** (~14h out from this snapshot). .121 cut 2026-05-15 20:45Z → ~3d 10h elapsed; .121 gate at **2026-05-22 20:45Z** (~3d 13h out). Earliest defensible T-1415 promotion: **2026-05-22**.
 - **Version skew.** local-test + workstation-107-public on 0.9.2110; ring20-dashboard + ring20-management on 0.9.2127. Skew documented in doctor output (Tier-B RPCs may fail across diversity); not blocking.
 - **.141 laptop hub still DOWN** (timeout 10s — unchanged; outside cut scope, T-1457 operator-bound).
+
+### 2026-05-19T14:05Z — bake telemetry refresh: HOLDING — zero new traffic in ~7h window, .122 gate ~7.78h out [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --json`:**
+  - Verdict still **CUT-READY-DECAYING** (no live callers in last 300s; same residue ageing)
+  - Fleet-wide total: **6 legacy invocations** in 7d window — UNCHANGED from 07:10Z snapshot
+  - Per-hub ageing: ring20-dashboard CLEAN; local-test 2 (now 29.62h ago, was 22h); ring20-management 2 (now 160.22h ago, was 6d ago); workstation-107-public 2 (now 29.62h ago, was 22h)
+  - Top callers: 5× addr:192.168.10.122, 1× addr:192.168.10.107 (no growth)
+- **Decay arithmetic.** 7d window = 604800s. ring20-management's oldest entry at 160.22h means it falls out of window in (168 − 160.22) = **7.78h** → ~2026-05-19T21:50Z (matches the previously documented .122 gate to the minute).
+- **Bake clock unchanged.** .122 gate **2026-05-19 21:50Z** (~7h45m out). .121 gate **2026-05-22 20:45Z** (~3d 7h out). Earliest defensible T-1415 promotion: **2026-05-22 20:45Z**.
+- **No regressions.** Pre-cut residue continues to age out monotonically; no new live callers detected. T-1415 source-cleanup remains gated on these two timestamps + a final clean fleet doctor.
+- **Version skew unchanged** (2 hubs on 0.9.2110, 2 on 0.9.2127). **.141 still DOWN** — outside scope.
