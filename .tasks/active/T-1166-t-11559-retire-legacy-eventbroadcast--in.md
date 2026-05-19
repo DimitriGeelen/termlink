@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-19T06:59:08Z
+last_update: 2026-05-19T07:36:25Z
 date_finished: null
 ---
 
@@ -80,6 +80,22 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-19T12:05Z — bake telemetry refresh: HOLDING — zero new traffic in ~5h window, .122 gate at 21:50Z (~10h out) [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --legacy-window-days 7`:**
+  - Verdict: `CUT-READY-DECAYING` (unchanged)
+  - Total legacy fleet: **6** (unchanged from 07:10Z and 22:00Z prior day)
+  - `hubs_clean`: [`ring20-dashboard`]
+  - `hubs_with_traffic`:
+    - `local-test`: 2 invocations; last call **1d ago** (timestamp advanced from "22h ago" → "1d ago" — caller has NOT re-fired)
+    - `workstation-107-public`: 2 invocations; last call **1d ago** (twin view)
+    - `ring20-management`: 2 invocations; last call **6d ago** (unchanged)
+  - Top callers fleet-wide: `5× addr:192.168.10.122`, `1× addr:192.168.10.107`
+  - 5-min active-traffic gate: **PASS** (zero live callers)
+- **Signal:** Three consecutive readings (yesterday 10:30Z, 22:00Z, today 07:10Z, today 12:05Z) all show **6 invocations frozen**. Caller decay is now beyond the 24h-per-call cadence we modelled — closer to ≥48h since last new call. .122 gate at 21:50Z still clear-pathed.
+- **Side observation:** laptop-141 (`.141`) was offline in this sweep (FAIL on Tcp connect after 10s). Not a T-1166 blocker — `.141` is the T-1420 / T-1457 WSL host that operates intermittently. The hubs that matter for T-1166 cut (122/121/107/local-test) are all PASS.
+- **Action:** continue holding. Next telemetry refresh at the 21:50Z gate elapse; if still CUT-READY-DECAYING with no live callers, advance to operator-cut path for .122 first, then .121 at 2026-05-22 20:45Z.
 
 ### 2026-05-18T22:00Z — bake telemetry refresh: HOLDING — zero new traffic in 10h window [agent]
 
