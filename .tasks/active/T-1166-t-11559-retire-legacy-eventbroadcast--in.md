@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-19T14:07:36Z
+last_update: 2026-05-19T21:45:23Z
 date_finished: null
 ---
 
@@ -80,6 +80,21 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-19T21:52Z — bake telemetry refresh: HOLDING — .122 partial gate elapse confirmed (1 entry rolled out) [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --legacy-window-days 7`** (2 minutes post-gate):
+  - Verdict: `CUT-READY-DECAYING` (unchanged)
+  - Total legacy fleet: **5** (was 6; -1 from gate elapse)
+  - `hubs_clean`: [`ring20-dashboard`] (still the only clean hub)
+  - `hubs_with_traffic`:
+    - `local-test`: 2 invocations; last call 1d ago (unchanged)
+    - `workstation-107-public`: 2 invocations; last call 1d ago (unchanged)
+    - `ring20-management`: **1 invocation** (was 2); last call **6d ago** (remaining call rolls out at its own 7d anniversary)
+  - Top callers fleet-wide: `4× addr:192.168.10.122`, `1× addr:192.168.10.107`
+  - 5-min active-traffic gate: **PASS** (zero live callers)
+- **Signal:** .122 7d gate (21:50Z) elapsed cleanly — the older of the two ring20-management entries rolled out exactly when projected. The second entry's individual 7d anniversary is offset by however many hours separated the two original calls (call originally landed 12.05Z → 21:38Z showed both as "6d ago" → call timing must differ by <24h so it'll roll out within the next ~24h). ring20-management transitions to `hubs_clean` at that point.
+- **Action:** continue holding. Next telemetry refresh in 12-24h to confirm ring20-management fully clean. .121 gate at 2026-05-22 20:45Z (~71h out). Earliest defensible T-1415 promotion remains **2026-05-22**.
 
 ### 2026-05-19T21:38Z — bake telemetry refresh: HOLDING — .122 7d gate elapses in 12 minutes (21:50Z) [agent]
 
