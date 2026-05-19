@@ -220,6 +220,64 @@ fn aggregate_legacy_summary(
     })
 }
 
+/// T-1708: lookup pin_check tuple for `address` and inject it into the
+/// per-hub JSON object. Caller decides whether to invoke this based on the
+/// `include_pin_check` flag. Tuple shape mirrors fleet_verify so MCP
+/// consumers see one shape across both tools.
+fn inject_pin_check(
+    hub_obj: &mut serde_json::Value,
+    address: &str,
+    pin_checks: &std::collections::HashMap<
+        String,
+        (&'static str, Option<String>, Option<String>, Option<String>),
+    >,
+) {
+    if pin_checks.is_empty() {
+        return;
+    }
+    let Some(entry) = pin_checks.get(address) else {
+        return;
+    };
+    let (status, wire, pinned, error) = entry;
+    if let Some(obj) = hub_obj.as_object_mut() {
+        obj.insert(
+            "pin_check".to_string(),
+            serde_json::json!({
+                "status": status,
+                "wire": wire,
+                "pinned": pinned,
+                "error": error,
+            }),
+        );
+    }
+}
+
+/// T-1708: pin-check summary verdict — mirror of CLI's fleet_doctor
+/// `pin_check_summary` (T-1666) and termlink_fleet_verify rollup. Pure
+/// fn so the precedence rules (drift > probe-fail > no-pin > match) are
+/// unit-testable from `profiles` JSON without running real probes.
+fn aggregate_pin_check_summary(profiles: &[serde_json::Value]) -> serde_json::Value {
+    let any_drift = profiles.iter().any(|p| p["status"] == "drift");
+    let any_probe_fail = profiles.iter().any(|p| p["status"] == "probe-fail");
+    let any_no_pin = profiles.iter().any(|p| p["status"] == "no-pin");
+    let verdict = if any_drift {
+        "drift"
+    } else if any_probe_fail {
+        "probe-fail"
+    } else if any_no_pin {
+        "no-pin"
+    } else {
+        "match"
+    };
+    serde_json::json!({
+        "verdict": verdict,
+        "any_drift": any_drift,
+        "any_probe_fail": any_probe_fail,
+        "any_no_pin": any_no_pin,
+        "profiles": profiles,
+    })
+}
+
 /// T-1707: cut-readiness verdict — mirror of CLI's compute_cut_readiness_verdict.
 /// CUT-READY: no traffic, no unsupported.
 /// CUT-READY-DECAYING: traffic exists but stale (>5 min since last call) AND no unmeasurable hubs.
@@ -2030,6 +2088,13 @@ pub struct FleetDoctorParams {
     /// Look-back window in days for the legacy-usage probe (default 7,
     /// clamped 1..=90). Ignored when `legacy_usage` is unset/false.
     pub legacy_window_days: Option<u64>,
+    /// Opt-in: parallel TLS-probe every configured hub and report
+    /// per-profile pin status (match / drift / no-pin / probe-fail)
+    /// alongside auth diagnostics — single-call answer to
+    /// "auth-mismatch OR cert-drift OR both?". Reuses the same primitives
+    /// as `termlink_fleet_verify` so the two agree on rotation state.
+    /// T-1708 (MCP parity for CLI `--include-pin-check`, T-1666).
+    pub include_pin_check: Option<bool>,
 }
 
 // T-1102: Fleet status params
@@ -6996,7 +7061,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback."
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-fail) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -7012,9 +7077,56 @@ impl TermLinkTools {
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
         let legacy_usage = p.legacy_usage.unwrap_or(false);
         let legacy_window_days = p.legacy_window_days.unwrap_or(7).clamp(1, 90);
+        let include_pin_check = p.include_pin_check.unwrap_or(false);
         let mut hub_results: Vec<serde_json::Value> = Vec::new();
         let mut pass_count: u32 = 0;
         let mut fail_count: u32 = 0;
+
+        // T-1708: parallel TLS probe of every hub BEFORE the connect loop.
+        // Mirrors CLI T-1666 — total wall time bounded by slowest probe
+        // rather than summed serial probes. Result map keyed by address so
+        // the per-hub inject is O(1). Reuses termlink_session::tofu primitives.
+        // Tuple shape mirrors fleet_verify: (status, wire, pinned, error).
+        type PinCheck = (&'static str, Option<String>, Option<String>, Option<String>);
+        let pin_checks: std::collections::HashMap<String, PinCheck> = if include_pin_check {
+            let store = termlink_session::tofu::KnownHubStore::default_store();
+            let probe_timeout = timeout_dur;
+            let probe_tasks: Vec<_> = profiles
+                .iter()
+                .map(|(_, address, _, _)| {
+                    let address = address.clone();
+                    tokio::spawn(async move {
+                        let result = termlink_session::tofu::probe_cert_with_timeout(
+                            &address,
+                            probe_timeout,
+                        )
+                        .await;
+                        (address, result)
+                    })
+                })
+                .collect();
+            let mut out: std::collections::HashMap<String, PinCheck> =
+                std::collections::HashMap::with_capacity(profiles.len());
+            for handle in probe_tasks {
+                if let Ok((address, probe_result)) = handle.await {
+                    let pinned = store.get(&address);
+                    let entry: PinCheck = match probe_result {
+                        Ok((_, wire)) => match &pinned {
+                            Some(pin) if pin == &wire => {
+                                ("match", Some(wire), pinned.clone(), None)
+                            }
+                            Some(_) => ("drift", Some(wire), pinned.clone(), None),
+                            None => ("no-pin", Some(wire), None, None),
+                        },
+                        Err(e) => ("probe-fail", None, pinned.clone(), Some(e)),
+                    };
+                    out.insert(address, entry);
+                }
+            }
+            out
+        } else {
+            std::collections::HashMap::new()
+        };
 
         for (name, address, secret_file, secret_hex) in &profiles {
             let connect_start = std::time::Instant::now();
@@ -7062,15 +7174,23 @@ impl TermLinkTools {
                             obj.insert("legacy_usage".to_string(), lu_value);
                         }
                     }
+                    // T-1708: pin_check is orthogonal to RPC connectivity —
+                    // a hub can probe-fail on auth but TLS-handshake fine,
+                    // or vice versa. Inject on every path.
+                    inject_pin_check(&mut hub_obj, address, &pin_checks);
                     hub_results.push(hub_obj);
                 }
                 Ok(Err(err_json)) => {
                     fail_count += 1;
-                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "error", "error": err_json}));
+                    let mut hub_obj = serde_json::json!({"hub": name, "address": address, "status": "error", "error": err_json});
+                    inject_pin_check(&mut hub_obj, address, &pin_checks);
+                    hub_results.push(hub_obj);
                 }
                 Err(_) => {
                     fail_count += 1;
-                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "timeout", "error": format!("Timeout after {}s", timeout_secs)}));
+                    let mut hub_obj = serde_json::json!({"hub": name, "address": address, "status": "timeout", "error": format!("Timeout after {}s", timeout_secs)});
+                    inject_pin_check(&mut hub_obj, address, &pin_checks);
+                    hub_results.push(hub_obj);
                 }
             }
         }
@@ -7086,6 +7206,31 @@ impl TermLinkTools {
             None
         };
 
+        // T-1708: aggregate fleet-wide pin-check verdict from per-hub
+        // pin_check fields. Pulls from `hub_results` so we exercise the same
+        // shape an external consumer would parse.
+        let pin_check_summary = if include_pin_check {
+            let pin_profiles: Vec<serde_json::Value> = hub_results
+                .iter()
+                .filter_map(|h| {
+                    let pc = h.get("pin_check")?.clone();
+                    let mut obj = pc;
+                    if let Some(map) = obj.as_object_mut() {
+                        if let Some(name) = h.get("hub").cloned() {
+                            map.insert("name".to_string(), name);
+                        }
+                        if let Some(addr) = h.get("address").cloned() {
+                            map.insert("address".to_string(), addr);
+                        }
+                    }
+                    Some(obj)
+                })
+                .collect();
+            Some(aggregate_pin_check_summary(&pin_profiles))
+        } else {
+            None
+        };
+
         let mut response = serde_json::json!({
             "ok": fail_count == 0,
             "hubs": hub_results,
@@ -7095,6 +7240,11 @@ impl TermLinkTools {
             && let Some(obj) = response.as_object_mut()
         {
             obj.insert("legacy_summary".to_string(), ls);
+        }
+        if let Some(ps) = pin_check_summary
+            && let Some(obj) = response.as_object_mut()
+        {
+            obj.insert("pin_check_summary".to_string(), ps);
         }
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
@@ -16708,6 +16858,112 @@ mod tests {
         );
         // ancient last_ts → not active → DECAYING (mixed with unsupported → UNCERTAIN)
         assert_eq!(summary["verdict"], "UNCERTAIN");
+    }
+
+    // === Fleet doctor pin-check tests (T-1708) ===
+
+    #[test]
+    fn fleet_doctor_params_with_pin_check() {
+        let json = serde_json::json!({"include_pin_check": true});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.include_pin_check, Some(true));
+    }
+
+    #[test]
+    fn fleet_doctor_params_pin_check_optional() {
+        let json = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert!(p.include_pin_check.is_none());
+    }
+
+    #[test]
+    fn fleet_doctor_pin_check_verdict_match_when_all_match() {
+        let profiles = vec![
+            serde_json::json!({"name": "h1", "status": "match"}),
+            serde_json::json!({"name": "h2", "status": "match"}),
+        ];
+        let s = aggregate_pin_check_summary(&profiles);
+        assert_eq!(s["verdict"], "match");
+        assert_eq!(s["any_drift"], false);
+    }
+
+    #[test]
+    fn fleet_doctor_pin_check_verdict_drift_dominates() {
+        // drift beats probe-fail beats no-pin beats match
+        let profiles = vec![
+            serde_json::json!({"name": "h1", "status": "match"}),
+            serde_json::json!({"name": "h2", "status": "no-pin"}),
+            serde_json::json!({"name": "h3", "status": "probe-fail"}),
+            serde_json::json!({"name": "h4", "status": "drift"}),
+        ];
+        let s = aggregate_pin_check_summary(&profiles);
+        assert_eq!(s["verdict"], "drift");
+        assert_eq!(s["any_drift"], true);
+        assert_eq!(s["any_probe_fail"], true);
+        assert_eq!(s["any_no_pin"], true);
+    }
+
+    #[test]
+    fn fleet_doctor_pin_check_verdict_probe_fail_when_no_drift() {
+        let profiles = vec![
+            serde_json::json!({"name": "h1", "status": "match"}),
+            serde_json::json!({"name": "h2", "status": "probe-fail"}),
+            serde_json::json!({"name": "h3", "status": "no-pin"}),
+        ];
+        let s = aggregate_pin_check_summary(&profiles);
+        assert_eq!(s["verdict"], "probe-fail");
+        assert_eq!(s["any_drift"], false);
+        assert_eq!(s["any_probe_fail"], true);
+    }
+
+    #[test]
+    fn fleet_doctor_pin_check_verdict_no_pin_when_only_no_pin() {
+        let profiles = vec![
+            serde_json::json!({"name": "h1", "status": "match"}),
+            serde_json::json!({"name": "h2", "status": "no-pin"}),
+        ];
+        let s = aggregate_pin_check_summary(&profiles);
+        assert_eq!(s["verdict"], "no-pin");
+        assert_eq!(s["any_no_pin"], true);
+    }
+
+    #[test]
+    fn fleet_doctor_pin_check_verdict_match_when_empty() {
+        // No profiles → vacuous match (matches fleet_verify convention).
+        let s = aggregate_pin_check_summary(&[]);
+        assert_eq!(s["verdict"], "match");
+    }
+
+    #[test]
+    fn fleet_doctor_inject_pin_check_no_op_when_empty_map() {
+        // include_pin_check=false → empty map → no `pin_check` field added.
+        let mut hub_obj = serde_json::json!({"hub": "h1", "address": "1.2.3.4:9100"});
+        let empty: std::collections::HashMap<
+            String,
+            (&'static str, Option<String>, Option<String>, Option<String>),
+        > = std::collections::HashMap::new();
+        inject_pin_check(&mut hub_obj, "1.2.3.4:9100", &empty);
+        assert!(hub_obj.get("pin_check").is_none());
+    }
+
+    #[test]
+    fn fleet_doctor_inject_pin_check_adds_field_when_address_present() {
+        let mut hub_obj = serde_json::json!({"hub": "h1", "address": "1.2.3.4:9100"});
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "1.2.3.4:9100".to_string(),
+            (
+                "drift",
+                Some("sha256:wire".to_string()),
+                Some("sha256:pinned".to_string()),
+                None::<String>,
+            ),
+        );
+        inject_pin_check(&mut hub_obj, "1.2.3.4:9100", &map);
+        let pc = hub_obj.get("pin_check").expect("pin_check should be added");
+        assert_eq!(pc["status"], "drift");
+        assert_eq!(pc["wire"], "sha256:wire");
+        assert_eq!(pc["pinned"], "sha256:pinned");
     }
 
     #[test]
