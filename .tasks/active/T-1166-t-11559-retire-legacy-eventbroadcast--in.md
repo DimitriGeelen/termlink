@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-19T12:03:46Z
+last_update: 2026-05-19T14:07:36Z
 date_finished: null
 ---
 
@@ -80,6 +80,22 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-19T21:38Z — bake telemetry refresh: HOLDING — .122 7d gate elapses in 12 minutes (21:50Z) [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --legacy-window-days 7`:**
+  - Verdict: `CUT-READY-DECAYING` (unchanged)
+  - Total legacy fleet: **6** (unchanged across 5 consecutive readings — frozen)
+  - `hubs_clean`: [`ring20-dashboard`] (still pristine ~144h post-cut)
+  - `hubs_with_traffic`:
+    - `local-test`: 2 invocations; last call **1d ago** (unchanged)
+    - `workstation-107-public`: 2 invocations; last call **1d ago** (twin view)
+    - `ring20-management`: 2 invocations; last call **6d ago** (advances to 7d at 21:50Z → falls out of 7d window)
+  - Top callers fleet-wide: `5× addr:192.168.10.122`, `1× addr:192.168.10.107`
+  - 5-min active-traffic gate: **PASS** (zero live callers)
+- **Signal:** .122 7d gate is now T-minus 12 minutes. Once 21:50Z passes, `ring20-management` rolls into `hubs_clean` and the next telemetry refresh should report 2 hubs clean (ring20-dashboard + ring20-management). Residue then sits only on `local-test` + `workstation-107-public` (twin views of the same .107/.122 historical traffic).
+- **Action:** continue holding. Next telemetry refresh post-22:00Z to confirm .122 transition. .121 gate at 2026-05-22 20:45Z (~71h out). Earliest defensible T-1415 promotion remains **2026-05-22**.
+- **Side observation:** laptop-141 (`.141`) still offline (TCP timeout 10s). Not a T-1166 blocker per .141 pickup memo — peer return planned ~2026-05-26.
 
 ### 2026-05-19T12:05Z — bake telemetry refresh: HOLDING — zero new traffic in ~5h window, .122 gate at 21:50Z (~10h out) [agent]
 
