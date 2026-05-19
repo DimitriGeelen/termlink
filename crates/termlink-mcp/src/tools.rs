@@ -2295,6 +2295,23 @@ pub struct FleetDoctorParams {
     ///
     /// Default false to preserve the existing response shape.
     pub auto_heal_preview: Option<bool>,
+    /// T-1714: when true (AND `auto_heal_preview=true`), decorate each
+    /// `would_fire[i]` entry with the result of
+    /// `termlink fleet bootstrap-check --all --json` — answering
+    /// "is the anchor I'd use actually reachable?" before letting heal
+    /// fire. Injects per-entry `anchor_status` (one of `ok` /
+    /// `no-anchor` / `fetch-fail` / `invalid-format`, mirroring CLI
+    /// T-1688 taxonomy) and optional `anchor_error` string. Adds
+    /// `anchor_validation_summary: {validated, ok, broken}` to the
+    /// preview block.
+    ///
+    /// Silently ignored when `auto_heal_preview=false` (no surprise
+    /// subprocess invocation). Subprocess failure (spawn / timeout /
+    /// non-JSON) degrades to `anchor_validation_error: <string>` field
+    /// inside the preview — the preview itself is always returned.
+    ///
+    /// Default false to preserve the existing response shape.
+    pub validate_anchors: Option<bool>,
 }
 
 // T-1712 (G-057 punch-list #3): doctor params — strict opt-in.
@@ -2465,6 +2482,147 @@ pub(crate) fn read_bootstrap_from_map() -> std::collections::HashMap<String, Str
         }
     }
     out
+}
+
+// T-1714: anchor-validation extension to auto_heal_preview.
+//
+// Pure decoration helper + opaque map type. The fetch path subprocesses
+// `termlink fleet bootstrap-check --all --json` once (same pattern as
+// `termlink_fleet_bootstrap_check` MCP tool) and parses the per-profile
+// status. Decoration is split out as a pure function so it's testable
+// without the subprocess.
+
+/// T-1714: parsed per-profile anchor status. `status` mirrors the CLI
+/// T-1688 taxonomy (`ok` / `no-anchor` / `fetch-fail` / `invalid-format`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AnchorValidation {
+    pub status: String,
+    pub error: Option<String>,
+}
+
+/// T-1714: decorate auto-heal preview `would_fire` entries with anchor
+/// validation results. Returns `(decorated_entries, summary_counts)` where
+/// summary is `(validated, ok, broken)`. "broken" = any status != "ok".
+///
+/// Pure function — accepts a map keyed by profile name. Subprocess /
+/// parsing concerns live separately in `fetch_anchor_validation_map`.
+pub(crate) fn decorate_preview_with_anchors(
+    would_fire: &[serde_json::Value],
+    anchor_map: &std::collections::HashMap<String, AnchorValidation>,
+) -> (Vec<serde_json::Value>, (u32, u32, u32)) {
+    let mut decorated: Vec<serde_json::Value> = Vec::with_capacity(would_fire.len());
+    let mut validated: u32 = 0;
+    let mut ok_count: u32 = 0;
+    let mut broken_count: u32 = 0;
+    for entry in would_fire {
+        let mut new_entry = entry.clone();
+        let hub_name = entry
+            .get("hub")
+            .and_then(|s| s.as_str())
+            .unwrap_or("?")
+            .to_string();
+        if let Some(map_obj) = new_entry.as_object_mut() {
+            if let Some(av) = anchor_map.get(&hub_name) {
+                map_obj.insert(
+                    "anchor_status".to_string(),
+                    serde_json::Value::String(av.status.clone()),
+                );
+                if let Some(err) = &av.error {
+                    map_obj.insert(
+                        "anchor_error".to_string(),
+                        serde_json::Value::String(err.clone()),
+                    );
+                }
+                validated += 1;
+                if av.status == "ok" {
+                    ok_count += 1;
+                } else {
+                    broken_count += 1;
+                }
+            } else {
+                // T-1714: would_fire entries are gated on declared
+                // bootstrap_from per T-1713's classify step — so a hub
+                // here that's absent from anchor_map means
+                // bootstrap-check didn't return it (subprocess scope
+                // mismatch). Mark as `unknown` so the agent can see
+                // the gap rather than assume ok.
+                map_obj.insert(
+                    "anchor_status".to_string(),
+                    serde_json::Value::String("unknown".to_string()),
+                );
+                map_obj.insert(
+                    "anchor_error".to_string(),
+                    serde_json::Value::String(
+                        "profile not in bootstrap-check output".to_string(),
+                    ),
+                );
+                broken_count += 1;
+                validated += 1;
+            }
+        }
+        decorated.push(new_entry);
+    }
+    (decorated, (validated, ok_count, broken_count))
+}
+
+/// T-1714: parse `fleet bootstrap-check --all --json` output into a
+/// per-profile validation map. Pure function — takes the JSON value,
+/// returns the map. Subprocess concerns live in the caller.
+pub(crate) fn parse_bootstrap_check_json(
+    parsed: &serde_json::Value,
+) -> std::collections::HashMap<String, AnchorValidation> {
+    let mut out: std::collections::HashMap<String, AnchorValidation> =
+        std::collections::HashMap::new();
+    let Some(profiles) = parsed.get("profiles").and_then(|p| p.as_array()) else {
+        return out;
+    };
+    for prof in profiles {
+        let Some(name) = prof.get("name").and_then(|s| s.as_str()) else {
+            continue;
+        };
+        let status = prof
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let error = prof
+            .get("error")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string());
+        out.insert(name.to_string(), AnchorValidation { status, error });
+    }
+    out
+}
+
+/// T-1714: subprocess-fetch + parse anchor validation map. Mirrors the
+/// pattern in `termlink_fleet_bootstrap_check` MCP tool — single
+/// `termlink fleet bootstrap-check --all --json` call, parsed once.
+/// On any failure (spawn, timeout, non-JSON) returns Err with a
+/// human-readable string; caller threads it into `anchor_validation_error`.
+pub(crate) async fn fetch_anchor_validation_map(
+    timeout_secs: u64,
+) -> Result<std::collections::HashMap<String, AnchorValidation>, String> {
+    let exe = std::env::current_exe()
+        .map_err(|e| format!("cannot resolve termlink binary path: {e}"))?;
+    let mut cmd = tokio::process::Command::new(&exe);
+    cmd.arg("fleet").arg("bootstrap-check").arg("--all").arg("--json");
+    cmd.kill_on_drop(true);
+    cmd.stdin(std::process::Stdio::null());
+    let fut = cmd.output();
+    let output = match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), fut).await
+    {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => return Err(format!("subprocess spawn failed: {e}")),
+        Err(_) => return Err(format!("bootstrap-check timed out after {}s", timeout_secs)),
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).map_err(|e| {
+        format!(
+            "bootstrap-check returned non-JSON output: {e}; stdout head: {}",
+            stdout.chars().take(300).collect::<String>()
+        )
+    })?;
+    Ok(parse_bootstrap_check_json(&parsed))
 }
 
 // T-1102: Fleet status params
@@ -7500,6 +7658,11 @@ impl TermLinkTools {
         let topic_durability = p.topic_durability.unwrap_or(false);
         // T-1713 (G-057 punch-list #4): auto-heal preview opt-in.
         let auto_heal_preview = p.auto_heal_preview.unwrap_or(false);
+        // T-1714: anchor-validation extension. Silently ignored when
+        // auto_heal_preview=false — validation only makes sense within
+        // the preview, and we don't want a stray subprocess invocation
+        // on calls that didn't ask for it.
+        let validate_anchors = auto_heal_preview && p.validate_anchors.unwrap_or(false);
         let mut hub_results: Vec<serde_json::Value> = Vec::new();
         let mut pass_count: u32 = 0;
         let mut fail_count: u32 = 0;
@@ -7751,8 +7914,32 @@ impl TermLinkTools {
                 }
             }
             let total_would_fire = would_fire.len();
-            let preview = serde_json::json!({
-                "would_fire": would_fire,
+            // T-1714: optional anchor-validation pass. Subprocess
+            // bootstrap-check ONCE, decorate would_fire entries, fold in
+            // summary counts. Failures degrade gracefully — preview is
+            // always emitted.
+            let (decorated_would_fire, anchor_summary, anchor_error) = if validate_anchors {
+                match fetch_anchor_validation_map(timeout_secs).await {
+                    Ok(map) => {
+                        let (dec, (val, ok_n, broken)) =
+                            decorate_preview_with_anchors(&would_fire, &map);
+                        (
+                            dec,
+                            Some(serde_json::json!({
+                                "validated": val,
+                                "ok": ok_n,
+                                "broken": broken,
+                            })),
+                            None,
+                        )
+                    }
+                    Err(e) => (would_fire.clone(), None, Some(e)),
+                }
+            } else {
+                (would_fire.clone(), None, None)
+            };
+            let mut preview = serde_json::json!({
+                "would_fire": decorated_would_fire,
                 "skipped_no_anchor": skipped_no_anchor,
                 "no_action": no_action,
                 "total_would_fire": total_would_fire,
@@ -7765,6 +7952,17 @@ impl TermLinkTools {
                     total_would_fire
                 ),
             });
+            if let Some(pobj) = preview.as_object_mut() {
+                if let Some(summary) = anchor_summary {
+                    pobj.insert("anchor_validation_summary".to_string(), summary);
+                }
+                if let Some(err) = anchor_error {
+                    pobj.insert(
+                        "anchor_validation_error".to_string(),
+                        serde_json::Value::String(err),
+                    );
+                }
+            }
             obj.insert("auto_heal_preview".to_string(), preview);
         }
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
@@ -18726,5 +18924,203 @@ not-json
         assert_eq!(AutoHealTrigger::PinDrift.as_str(), "pin-drift");
         assert_eq!(AutoHealTrigger::AuthMismatch.as_str(), "auth-mismatch");
         assert_eq!(AutoHealTrigger::Both.as_str(), "both");
+    }
+
+    // === T-1714: validate_anchors extension tests ===
+
+    #[test]
+    fn fleet_doctor_params_defaults_when_validate_anchors_omitted() {
+        let raw = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(raw).unwrap();
+        assert_eq!(p.validate_anchors, None);
+    }
+
+    #[test]
+    fn fleet_doctor_params_accepts_validate_anchors_true() {
+        let raw = serde_json::json!({"auto_heal_preview": true, "validate_anchors": true});
+        let p: FleetDoctorParams = serde_json::from_value(raw).unwrap();
+        assert_eq!(p.validate_anchors, Some(true));
+        assert_eq!(p.auto_heal_preview, Some(true));
+    }
+
+    #[test]
+    fn parse_bootstrap_check_json_extracts_per_profile_status() {
+        // Mirrors CLI T-1688 output shape.
+        let raw = serde_json::json!({
+            "verdict": "mixed",
+            "profiles": [
+                {"name": "hub-a", "address": "1.1.1.1:9100", "bootstrap_from": "ssh:1.1.1.1", "status": "ok"},
+                {"name": "hub-b", "address": "1.1.1.2:9100", "bootstrap_from": "file:/missing", "status": "fetch-fail", "error": "no such file"},
+                {"name": "hub-c", "address": "1.1.1.3:9100", "status": "no-anchor"},
+            ],
+        });
+        let map = parse_bootstrap_check_json(&raw);
+        assert_eq!(map.len(), 3);
+        assert_eq!(map.get("hub-a").unwrap().status, "ok");
+        assert_eq!(map.get("hub-a").unwrap().error, None);
+        assert_eq!(map.get("hub-b").unwrap().status, "fetch-fail");
+        assert_eq!(map.get("hub-b").unwrap().error.as_deref(), Some("no such file"));
+        assert_eq!(map.get("hub-c").unwrap().status, "no-anchor");
+    }
+
+    #[test]
+    fn parse_bootstrap_check_json_handles_missing_profiles_array() {
+        // Defensive: CLI returns an error shape without profiles[].
+        let raw = serde_json::json!({"error": "could not read hubs.toml"});
+        let map = parse_bootstrap_check_json(&raw);
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_injects_ok_status() {
+        let would_fire = vec![serde_json::json!({
+            "hub": "hub-a",
+            "trigger": "pin-drift",
+            "action": "termlink fleet reauth hub-a --bootstrap-from auto",
+        })];
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "hub-a".to_string(),
+            AnchorValidation {
+                status: "ok".to_string(),
+                error: None,
+            },
+        );
+        let (decorated, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert_eq!(validated, 1);
+        assert_eq!(ok_n, 1);
+        assert_eq!(broken, 0);
+        assert_eq!(
+            decorated[0].get("anchor_status").and_then(|v| v.as_str()),
+            Some("ok")
+        );
+        assert!(decorated[0].get("anchor_error").is_none());
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_injects_fetch_fail_with_error() {
+        let would_fire = vec![serde_json::json!({"hub": "hub-b", "trigger": "auth-mismatch"})];
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "hub-b".to_string(),
+            AnchorValidation {
+                status: "fetch-fail".to_string(),
+                error: Some("ssh: permission denied".to_string()),
+            },
+        );
+        let (decorated, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert_eq!(validated, 1);
+        assert_eq!(ok_n, 0);
+        assert_eq!(broken, 1);
+        assert_eq!(
+            decorated[0].get("anchor_status").and_then(|v| v.as_str()),
+            Some("fetch-fail")
+        );
+        assert_eq!(
+            decorated[0].get("anchor_error").and_then(|v| v.as_str()),
+            Some("ssh: permission denied")
+        );
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_handles_no_anchor_and_invalid_format() {
+        let would_fire = vec![
+            serde_json::json!({"hub": "hub-c"}),
+            serde_json::json!({"hub": "hub-d"}),
+        ];
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "hub-c".to_string(),
+            AnchorValidation {
+                status: "no-anchor".to_string(),
+                error: None,
+            },
+        );
+        map.insert(
+            "hub-d".to_string(),
+            AnchorValidation {
+                status: "invalid-format".to_string(),
+                error: Some("expected 64-char hex".to_string()),
+            },
+        );
+        let (decorated, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert_eq!(validated, 2);
+        assert_eq!(ok_n, 0);
+        assert_eq!(broken, 2);
+        assert_eq!(
+            decorated[0].get("anchor_status").and_then(|v| v.as_str()),
+            Some("no-anchor")
+        );
+        assert_eq!(
+            decorated[1].get("anchor_status").and_then(|v| v.as_str()),
+            Some("invalid-format")
+        );
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_marks_missing_profile_unknown() {
+        // Defensive case: a would_fire hub is absent from the bootstrap-check
+        // map. Mark it `unknown` (broken) so the agent sees the gap.
+        let would_fire = vec![serde_json::json!({"hub": "hub-missing"})];
+        let map: std::collections::HashMap<String, AnchorValidation> =
+            std::collections::HashMap::new();
+        let (decorated, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert_eq!(validated, 1);
+        assert_eq!(ok_n, 0);
+        assert_eq!(broken, 1);
+        assert_eq!(
+            decorated[0].get("anchor_status").and_then(|v| v.as_str()),
+            Some("unknown")
+        );
+        assert_eq!(
+            decorated[0].get("anchor_error").and_then(|v| v.as_str()),
+            Some("profile not in bootstrap-check output")
+        );
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_empty_input_returns_empty() {
+        let would_fire: Vec<serde_json::Value> = vec![];
+        let map: std::collections::HashMap<String, AnchorValidation> =
+            std::collections::HashMap::new();
+        let (decorated, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert!(decorated.is_empty());
+        assert_eq!((validated, ok_n, broken), (0, 0, 0));
+    }
+
+    #[test]
+    fn decorate_preview_with_anchors_mixed_summary() {
+        // Realistic 3-hub mix: ok + fetch-fail + missing-from-map.
+        let would_fire = vec![
+            serde_json::json!({"hub": "a"}),
+            serde_json::json!({"hub": "b"}),
+            serde_json::json!({"hub": "c"}),
+        ];
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "a".to_string(),
+            AnchorValidation {
+                status: "ok".to_string(),
+                error: None,
+            },
+        );
+        map.insert(
+            "b".to_string(),
+            AnchorValidation {
+                status: "fetch-fail".to_string(),
+                error: Some("boom".to_string()),
+            },
+        );
+        // "c" intentionally absent
+        let (_, (validated, ok_n, broken)) =
+            decorate_preview_with_anchors(&would_fire, &map);
+        assert_eq!(validated, 3);
+        assert_eq!(ok_n, 1);
+        assert_eq!(broken, 2);
     }
 }
