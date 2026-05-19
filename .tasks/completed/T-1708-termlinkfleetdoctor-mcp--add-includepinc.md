@@ -4,7 +4,7 @@ name: "termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (
 description: >
   termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity for LLM agents)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [mcp, fleet-doctor, T-1666, G-057, PL-167]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1666, T-1707, T-1692, T-1706]
 created: 2026-05-19T07:23:59Z
-last_update: 2026-05-19T07:23:59Z
-date_finished: null
+last_update: 2026-05-19T07:27:38Z
+date_finished: 2026-05-19T07:27:38Z
 ---
 
 # T-1708: termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity for LLM agents)
@@ -149,3 +149,15 @@ cargo test -p termlink-mcp --lib tests::fleet_doctor 2>&1 | tail -5 | grep -qE "
 - **Behavior:** opt-in `include_pin_check` adds per-hub `pin_check {status, wire, pinned, error}` AND top-level `pin_check_summary {verdict, any_*, profiles}`. Pin_check is orthogonal to RPC connectivity — injected on ok/error/timeout paths. Default off → byte-identical to T-1707.
 - **Tests:** 20/0/0 under `tests::fleet_doctor` (11 prior + 9 new): verdict precedence (drift>probe-fail>no-pin>match), empty-profile vacuous-match, params-shape, inject no-op vs populated.
 - **Single-call diagnostic:** LLM agent can now ask `termlink_fleet_doctor {legacy_usage: true, include_pin_check: true}` and get back EVERY rotation signal (auth, cert, cut-readiness) in one call. Matches CLI T-1666's unified-doctor goal.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-d114b33b
+- **Timestamp:** 2026-05-19T07:27:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-19T07:27:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1708: termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity for LLM agents)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T07:27:50Z
+# ============================================================================
+
+task_id: T-1708
+task_name: "termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity for LLM agents)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T07:23:59Z
+completed: 2026-05-19T07:27:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-19T09:27:31+02:00
+last_commit: 2026-05-19T09:27:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity; single-call auth+legacy+pin diagnostic)
+
+# Key outcomes
+outcomes:
+  - "`FleetDoctorParams` gains `include_pin_check: Option<bool>` (default false)"
+  - "When `include_pin_check = true`: parallel TLS-probe every configured hub (`probe_cert_with_timeout` with the doctor's per-hub timeout); inject `pin_check: {status, wire, pinned, error}` into each per-hub object. Reuses the same `termlink_session::tofu::KnownHubStore::default_store()` + `probe_cert_with_timeout` primitives as `termlink_fleet_verify` so the two tools agree on rotation state."
+  - "When `include_pin_check = true`: response gains top-level `pin_check_summary: {verdict, any_drift, any_probe_fail, any_no_pin, profiles}` where verdict is one of `match` / `drift` / `probe-fail` / `no-pin` (drift dominates)."
+  - "When `include_pin_check = false` (default): response shape is byte-identical to T-1707 (no behavior change for existing callers)"
+  - "Tool description string mentions `include_pin_check` and links to T-1666"
+  - "Unit tests cover: verdict-precedence rules (drift > probe-fail > no-pin > match), the params shape (with/without pin_check), and a smoke test that aggregate_pin_check_summary handles an empty profile list"
+  - "`cargo build -p termlink-mcp` clean; tests in `tests::fleet_doctor_pin_check` all pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1708-termlinkfleetdoctor-mcp--add-includepinc.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T09:27:31"
+    action: "T-1708: termlink_fleet_doctor MCP — add include_pin_check + pin_check_summary (T-1666 parity; single-call auth+legacy+pin diagnostic)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, fleet-doctor, T-1666, G-057, PL-167]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 410
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1708-termlinkfleetdoctor-mcp--add-includepinc.md
+generated_by: context-agent-hybrid
