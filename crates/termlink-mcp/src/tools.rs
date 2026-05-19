@@ -300,6 +300,138 @@ fn preview_body(s: &str, max_chars: usize) -> String {
     format!("{truncated}…")
 }
 
+/// T-1716: presence signal — mirrors CLI's `PresenceCheck` minus the
+/// `to_json` helper (MCP renders the shape inline at the call site).
+#[derive(Debug, Clone)]
+struct PresenceMcp {
+    online: bool,
+    last_seen_ms: Option<i64>,
+    posts_in_window: u64,
+    window_secs: u64,
+}
+
+/// Meta msg_types that don't count as liveness or ack signal.
+/// Mirrors CLI's `META` constant in commands/channel.rs.
+const META_MSG_TYPES: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+
+/// T-1716 pure helper: walk a slice of agent-chat-arc envelopes and
+/// compute presence for `peer_fp` over a window. Pure — no I/O, no globals.
+/// Mirrors CLI's `evaluate_presence` (commands/channel.rs:651) one-to-one.
+///
+/// `last_seen_ms` tracks the max ts across the peer's posts regardless of
+/// window (so "X seen 4h ago" works even when window is 5min). Counts only
+/// non-meta msg_types; sender_id match is case-sensitive (FPs are canonical
+/// hex). `ts_unix_ms` is preferred; falls back to `ts` (some hub builds
+/// emit one or the other).
+fn evaluate_presence_msgs(
+    msgs: &[serde_json::Value],
+    peer_fp: &str,
+    now_ms: i64,
+    window_ms: i64,
+) -> PresenceMcp {
+    let cutoff = now_ms - window_ms;
+    let mut last_seen: Option<i64> = None;
+    let mut posts_in_window: u64 = 0;
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
+        if ts >= cutoff {
+            posts_in_window += 1;
+        }
+    }
+    PresenceMcp {
+        online: posts_in_window > 0,
+        last_seen_ms: last_seen,
+        posts_in_window,
+        window_secs: (window_ms / 1000).max(0) as u64,
+    }
+}
+
+/// T-1716 pure helper: find the first non-meta envelope from `peer_fp`
+/// posted strictly after `send_ts_ms`. Mirrors CLI's `detect_ack_in_msgs`
+/// (commands/channel.rs:765) one-to-one.
+fn detect_ack_in_msgs_mcp(
+    msgs: &[serde_json::Value],
+    peer_fp: &str,
+    send_ts_ms: i64,
+) -> Option<i64> {
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender != peer_fp {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts > send_ts_ms {
+            return Some(ts);
+        }
+    }
+    None
+}
+
+/// T-1716: fetch the last `slice_size` envelopes of `topic` via
+/// channel.list + channel.subscribe on the local hub. Returns empty Vec
+/// when the topic is empty or doesn't exist. Mirrors CLI's
+/// `fetch_topic_msgs` (commands/channel.rs:693) using the MCP-side RPC
+/// path (local hub_socket, no auth — same as termlink_agent_post).
+async fn fetch_topic_msgs_mcp(
+    hub_socket: &std::path::Path,
+    topic: &str,
+    slice_size: u64,
+) -> Result<Vec<serde_json::Value>, String> {
+    let list_resp = termlink_session::client::rpc_call(
+        hub_socket,
+        termlink_protocol::control::method::CHANNEL_LIST,
+        serde_json::json!({"prefix": topic}),
+    )
+    .await
+    .map_err(|e| format!("channel.list transport: {e}"))?;
+    let list_result = termlink_session::client::unwrap_result(list_resp)
+        .map_err(|e| format!("channel.list error: {e}"))?;
+    let topics = list_result["topics"].as_array().cloned().unwrap_or_default();
+    let count = topics
+        .iter()
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
+        .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
+        .unwrap_or(0);
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    let cursor = count.saturating_sub(slice_size);
+    let sub_resp = termlink_session::client::rpc_call(
+        hub_socket,
+        termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+        serde_json::json!({"topic": topic, "cursor": cursor, "limit": slice_size}),
+    )
+    .await
+    .map_err(|e| format!("channel.subscribe transport: {e}"))?;
+    let sub_result = termlink_session::client::unwrap_result(sub_resp)
+        .map_err(|e| format!("channel.subscribe error: {e}"))?;
+    Ok(sub_result["messages"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default())
+}
+
 /// T-1707: 5-minute active-traffic threshold for cut-readiness verdict.
 /// Mirrors `ACTIVE_TRAFFIC_THRESHOLD_SECS` in termlink-cli's remote.rs.
 const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
@@ -1148,6 +1280,25 @@ pub struct AgentContactParams {
     pub dry_run: Option<bool>,
     /// Override sender_id (default: local identity fingerprint).
     pub sender_id: Option<String>,
+    /// T-1716: pre-flight presence check (mirror of CLI `--require-online`,
+    /// T-1480). When true, probes `agent-chat-arc` for the peer's fingerprint
+    /// within `online_window_secs` BEFORE posting. If the peer has no posts
+    /// in the window, returns `{ok: false, online_check: {...}, error: ...}`
+    /// without posting. Default: false (no probe, behavior identical to v1).
+    pub require_online: Option<bool>,
+    /// T-1716: window (seconds) for `require_online` presence check. Clamped
+    /// to [10, 86400]; default 300 (5 min). Ignored when `require_online` is
+    /// false or unset.
+    pub online_window_secs: Option<u64>,
+    /// T-1716: synchronous ack wait (mirror of CLI `--ack-required`, T-1485).
+    /// When true, after posting, polls the dm topic at ~1s cadence for any
+    /// non-meta envelope from the peer with `ts > send_ts_ms`. Returns
+    /// `{ok: true, ack: {received: bool, ts_ms?, wait_secs}}` — received=true
+    /// on match, received=false on timeout. Default: false (fire-and-forget).
+    pub ack_required: Option<bool>,
+    /// T-1716: timeout (seconds) for `ack_required` poll. Clamped to [5, 600];
+    /// default 60. Ignored when `ack_required` is false or unset.
+    pub ack_timeout_secs: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -8703,7 +8854,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_contact",
-        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. v1 scope: presence/ack flags (--require-online/--ack-required from CLI T-1480/T-1485) deferred to v2."
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429 Phase-2). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. **Synchronous-engagement flags (T-1716):** `require_online=true` probes agent-chat-arc within `online_window_secs` (default 300, clamped [10, 86400]) before posting — fail-fast with `{ok: false, online_check, error}` if peer has zero posts in window (CLI exit-9 semantic). `ack_required=true` polls the dm topic at ~1s cadence up to `ack_timeout_secs` (default 60, clamped [5, 600]) for a non-meta peer reply — returns `ack: {received, ts_ms?, wait_secs}` on the success envelope (CLI exit-10 semantic mapped to `received=false`)."
     )]
     async fn termlink_agent_contact(
         &self,
@@ -8801,6 +8952,54 @@ impl TermLinkTools {
             .unwrap_or_else(json_err);
         }
 
+        // T-1716: pre-flight presence probe when require_online is set.
+        // Mirrors CLI exit-9 semantics (T-1480) — fail-fast without posting.
+        if p.require_online.unwrap_or(false) {
+            let window_secs = p.online_window_secs.unwrap_or(300).clamp(10, 86_400);
+            let chat_arc_msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 500).await
+            {
+                Ok(m) => m,
+                Err(e) => return json_err(format!("require_online: agent-chat-arc probe failed: {e}")),
+            };
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            let window_ms = (window_secs as i64).saturating_mul(1000);
+            let presence = evaluate_presence_msgs(&chat_arc_msgs, &peer_fp, now_ms, window_ms);
+            if !presence.online {
+                let last_seen_phrase = match presence.last_seen_ms {
+                    Some(ms) => {
+                        let age_secs = ((now_ms - ms) / 1000).max(0);
+                        format!("last seen {age_secs}s ago (ts_ms={ms})")
+                    }
+                    None => "last seen: never (no posts on agent-chat-arc)".to_string(),
+                };
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "peer_fp": peer_fp,
+                    "online_check": {
+                        "online": presence.online,
+                        "last_seen_ms": presence.last_seen_ms,
+                        "posts_in_window": presence.posts_in_window,
+                        "window_secs": presence.window_secs,
+                    },
+                    "error": format!(
+                        "peer fp={} not online — {last_seen_phrase}, window={window_secs}s. Re-run without require_online to queue the post (chat-arc is offset-durable), or wait for the peer's next heartbeat.",
+                        peer_fp
+                    ),
+                }))
+                .unwrap_or_else(json_err);
+            }
+        }
+
+        // Capture send timestamp BEFORE posting so the ack-wait poll only
+        // matches messages strictly after our post. T-1485 / T-1716 parity.
+        let send_ts_ms_for_ack = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+
         // Ensure dm topic exists (idempotent, retention=forever).
         let create_result = termlink_session::client::rpc_call(
             &hub_socket,
@@ -8847,7 +9046,7 @@ impl TermLinkTools {
         {
             obj.insert("metadata".to_string(), serde_json::Value::Object(metadata));
         }
-        match termlink_session::client::rpc_call(
+        let post_result = match termlink_session::client::rpc_call(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_POST,
             post_params,
@@ -8855,27 +9054,83 @@ impl TermLinkTools {
         .await
         {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => {
-                    // Decorate hub's reply with topic + peer_fp for caller convenience.
-                    let mut envelope = serde_json::json!({
-                        "ok": true,
-                        "topic": topic,
-                        "peer_fp": peer_fp,
-                        "my_fp": my_fp,
-                    });
-                    if let Some(obj) = envelope.as_object_mut()
-                        && let Some(post_obj) = result.as_object()
-                    {
-                        for (k, v) in post_obj {
-                            obj.insert(k.clone(), v.clone());
+                Ok(result) => result,
+                Err(e) => return json_err(format!("agent contact: channel.post error: {e}")),
+            },
+            Err(e) => return json_err(format!("agent contact: RPC failed: {e}")),
+        };
+
+        // Decorate hub's reply with topic + peer_fp for caller convenience.
+        let mut envelope = serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "peer_fp": peer_fp,
+            "my_fp": my_fp,
+        });
+        if let Some(obj) = envelope.as_object_mut()
+            && let Some(post_obj) = post_result.as_object()
+        {
+            for (k, v) in post_obj {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+
+        // T-1716: synchronous-engagement — poll dm topic for an ack.
+        // Mirrors CLI exit-10 semantics (T-1485); MCP returns
+        // `ack.received=false` on timeout instead of an exit code.
+        if p.ack_required.unwrap_or(false) {
+            let timeout_secs = p.ack_timeout_secs.unwrap_or(60).clamp(5, 600);
+            let start = std::time::Instant::now();
+            let mut ack_ts: Option<i64> = None;
+            loop {
+                match fetch_topic_msgs_mcp(&hub_socket, &topic, 200).await {
+                    Ok(msgs) => {
+                        if let Some(ts) = detect_ack_in_msgs_mcp(&msgs, &peer_fp, send_ts_ms_for_ack)
+                        {
+                            ack_ts = Some(ts);
+                            break;
                         }
                     }
-                    serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
+                    Err(e) => {
+                        // Hub unreachable mid-poll — surface as ack.error but
+                        // preserve the successful post envelope.
+                        if let Some(obj) = envelope.as_object_mut() {
+                            obj.insert(
+                                "ack".to_string(),
+                                serde_json::json!({
+                                    "received": false,
+                                    "wait_secs": start.elapsed().as_secs(),
+                                    "error": format!("ack poll failed: {e}"),
+                                }),
+                            );
+                        }
+                        return serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err);
+                    }
                 }
-                Err(e) => json_err(format!("agent contact: channel.post error: {e}")),
-            },
-            Err(e) => json_err(format!("agent contact: RPC failed: {e}")),
+                if start.elapsed().as_secs() >= timeout_secs {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            let wait_secs = start.elapsed().as_secs();
+            let ack_obj = match ack_ts {
+                Some(ts) => serde_json::json!({
+                    "received": true,
+                    "ts_ms": ts,
+                    "wait_secs": wait_secs,
+                }),
+                None => serde_json::json!({
+                    "received": false,
+                    "wait_secs": wait_secs,
+                    "timeout_secs": timeout_secs,
+                }),
+            };
+            if let Some(obj) = envelope.as_object_mut() {
+                obj.insert("ack".to_string(), ack_obj);
+            }
         }
+
+        serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -16767,6 +17022,139 @@ mod tests {
         assert_eq!(p.thread.as_deref(), Some("T-1715"));
         assert_eq!(p.dry_run, Some(true));
         assert_eq!(p.sender_id.as_deref(), Some("abcd1234"));
+    }
+
+    // === T-1716: presence + ack helper tests ===
+
+    #[test]
+    fn agent_contact_params_v2_extension_deserializes() {
+        let json = serde_json::json!({
+            "target_fp": "deadbeefdeadbeef",
+            "message": "ack test",
+            "require_online": true,
+            "online_window_secs": 60,
+            "ack_required": true,
+            "ack_timeout_secs": 10,
+        });
+        let p: AgentContactParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.require_online, Some(true));
+        assert_eq!(p.online_window_secs, Some(60));
+        assert_eq!(p.ack_required, Some(true));
+        assert_eq!(p.ack_timeout_secs, Some(10));
+    }
+
+    #[test]
+    fn agent_contact_evaluate_presence_online_when_peer_in_window() {
+        let now_ms: i64 = 1_700_000_000_000;
+        let window_ms: i64 = 60_000; // 60s
+        let msgs = vec![serde_json::json!({
+            "msg_type": "chat",
+            "sender_id": "peer123",
+            "ts_unix_ms": now_ms - 30_000, // 30s ago — inside window
+        })];
+        let p = evaluate_presence_msgs(&msgs, "peer123", now_ms, window_ms);
+        assert!(p.online);
+        assert_eq!(p.posts_in_window, 1);
+        assert_eq!(p.last_seen_ms, Some(now_ms - 30_000));
+        assert_eq!(p.window_secs, 60);
+    }
+
+    #[test]
+    fn agent_contact_evaluate_presence_offline_when_peer_outside_window() {
+        let now_ms: i64 = 1_700_000_000_000;
+        let window_ms: i64 = 60_000;
+        let msgs = vec![serde_json::json!({
+            "msg_type": "chat",
+            "sender_id": "peer123",
+            "ts_unix_ms": now_ms - 120_000, // 2min ago — outside window
+        })];
+        let p = evaluate_presence_msgs(&msgs, "peer123", now_ms, window_ms);
+        assert!(!p.online);
+        assert_eq!(p.posts_in_window, 0);
+        // last_seen still reports outside-window peer
+        assert_eq!(p.last_seen_ms, Some(now_ms - 120_000));
+    }
+
+    #[test]
+    fn agent_contact_evaluate_presence_skips_meta_msg_types() {
+        let now_ms: i64 = 1_700_000_000_000;
+        let window_ms: i64 = 60_000;
+        // peer has only meta msgs in window — should count as offline
+        let msgs = vec![
+            serde_json::json!({
+                "msg_type": "reaction",
+                "sender_id": "peer123",
+                "ts_unix_ms": now_ms - 10_000,
+            }),
+            serde_json::json!({
+                "msg_type": "topic_metadata",
+                "sender_id": "peer123",
+                "ts_unix_ms": now_ms - 5_000,
+            }),
+            serde_json::json!({
+                "msg_type": "receipt",
+                "sender_id": "peer123",
+                "ts_unix_ms": now_ms - 1_000,
+            }),
+        ];
+        let p = evaluate_presence_msgs(&msgs, "peer123", now_ms, window_ms);
+        assert!(!p.online);
+        assert_eq!(p.posts_in_window, 0);
+        assert_eq!(p.last_seen_ms, None);
+    }
+
+    #[test]
+    fn agent_contact_detect_ack_finds_post_after_send() {
+        let send_ts_ms: i64 = 1_700_000_000_000;
+        let msgs = vec![
+            // pre-send post — should NOT match
+            serde_json::json!({
+                "msg_type": "chat",
+                "sender_id": "peer123",
+                "ts_unix_ms": send_ts_ms - 100,
+            }),
+            // post-send post — SHOULD match
+            serde_json::json!({
+                "msg_type": "chat",
+                "sender_id": "peer123",
+                "ts_unix_ms": send_ts_ms + 500,
+            }),
+        ];
+        let ack = detect_ack_in_msgs_mcp(&msgs, "peer123", send_ts_ms);
+        assert_eq!(ack, Some(send_ts_ms + 500));
+    }
+
+    #[test]
+    fn agent_contact_detect_ack_returns_none_when_no_post_send_msgs() {
+        let send_ts_ms: i64 = 1_700_000_000_000;
+        let msgs = vec![
+            serde_json::json!({
+                "msg_type": "chat",
+                "sender_id": "peer123",
+                "ts_unix_ms": send_ts_ms - 100,
+            }),
+            // post-send but wrong sender — must NOT match
+            serde_json::json!({
+                "msg_type": "chat",
+                "sender_id": "other-peer",
+                "ts_unix_ms": send_ts_ms + 500,
+            }),
+        ];
+        let ack = detect_ack_in_msgs_mcp(&msgs, "peer123", send_ts_ms);
+        assert_eq!(ack, None);
+    }
+
+    #[test]
+    fn agent_contact_detect_ack_falls_back_to_ts_field() {
+        // Some hub builds emit `ts` instead of `ts_unix_ms`. Match either.
+        let send_ts_ms: i64 = 1_700_000_000_000;
+        let msgs = vec![serde_json::json!({
+            "msg_type": "chat",
+            "sender_id": "peer123",
+            "ts": send_ts_ms + 200, // ← `ts` only, no `ts_unix_ms`
+        })];
+        let ack = detect_ack_in_msgs_mcp(&msgs, "peer123", send_ts_ms);
+        assert_eq!(ack, Some(send_ts_ms + 200));
     }
 
     // === parse_signal tests ===
