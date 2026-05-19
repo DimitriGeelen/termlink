@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1705: termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T06:28:33Z
+# ============================================================================
+
+task_id: T-1705
+task_name: "termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T06:20:17Z
+completed: 2026-05-19T06:28:20Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-19T08:28:16+02:00
+last_commit: 2026-05-19T08:28:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  doctor — identity check warns on shared FP (drives T-1700 from diagnostic path)
+
+# Key outcomes
+outcomes:
+  - "`cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` groups live sessions by `metadata.identity_fingerprint` and emits a `warn` named `identity` when 2+ sessions share any FP — implemented at section \"7b. Identity attribution\""
+  - "Message lists the shared FP short (8 chars) and the count of sessions sharing it; names `--identity-key (T-1700)` so the operator has a copy-pasteable next step — live output: `12 sessions share 1 identity FP [d1993c2c×12] — pass --identity-key at register for per-agent identity (T-1700)`"
+  - "Emits `pass` named `identity` when no sessions share an FP, OR when there are <2 sessions with FPs at all — `pass` branch with `no shared identities (N session(s) with FP)` message"
+  - "Sessions without `identity_fingerprint` (pre-T-1436) do not contribute to any FP group and do not silently pass-or-fail — `group_sessions_by_identity` excludes them via `if let Some(fp)` filter, asserted by test `group_sessions_by_identity_absent_fp_excluded`"
+  - "Unit test for the pure grouping helper `group_sessions_by_identity`: (a) all-unique returns no shared groups, (b) host-shared returns one group with N members, (c) absent FP excluded — 3 tests added"
+  - "`cargo test -p termlink --bins commands::infrastructure` passes (existing + new tests) — 23/23 ok"
+  - "Live smoke on .107: `./target/release/termlink doctor` shows the new `identity` warn line — verified above"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-1705-termlink-doctor-shared-identity-check-dr.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T08:28:16"
+    action: "T-1705: doctor — identity check warns on shared FP (drives T-1700 from diagnostic path)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 2
+  lines_added: 239
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1705-termlink-doctor-shared-identity-check-dr.md
+generated_by: context-agent-hybrid

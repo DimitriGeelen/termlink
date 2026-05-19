@@ -4,16 +4,16 @@ name: "termlink doctor: shared-identity check (drives T-1700 adoption from diagn
 description: >
   termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-05-19T06:20:17Z
-last_update: 2026-05-19T06:20:17Z
-date_finished: null
+last_update: 2026-05-19T06:28:20Z
+date_finished: 2026-05-19T06:28:20Z
 ---
 
 # T-1705: termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)
@@ -115,3 +115,20 @@ cargo test -p termlink --bins commands::infrastructure 2>&1 | tail -5 | grep -E 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1705-termlink-doctor-shared-identity-check-dr.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-52085e7f
+- **Timestamp:** 2026-05-19T06:28:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` groups live sessions by `metadata.identity_fingerprint` and emits a `warn` named `identity` when 2+ sessions share any FP — impleme
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/infrastructure.rs in: `cmd_doctor` in `crates/termlink-cli/src/commands/infrastructure.rs` groups live sessions by `metadata.identity_fingerprint` and emits a `warn` named `
+
+### 2026-05-19T06:28:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
