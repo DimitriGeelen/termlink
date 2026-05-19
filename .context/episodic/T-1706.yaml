@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1706: termlink_doctor MCP — identity check parity with CLI (T-1705 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T06:56:21Z
+# ============================================================================
+
+task_id: T-1706
+task_name: "termlink_doctor MCP — identity check parity with CLI (T-1705 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T06:52:25Z
+completed: 2026-05-19T06:55:02Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-19T08:54:57+02:00
+last_commit: 2026-05-19T08:54:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP termlink_doctor identity-check parity with CLI (T-1705 follow-up)
+
+# Key outcomes
+outcomes:
+  - "MCP `termlink_doctor` in `crates/termlink-mcp/src/tools.rs` groups sessions by `metadata.identity_fingerprint` and emits a `warn` check named `identity` when 2+ sessions share an FP — implemented at section \"6b. Identity attribution\""
+  - "Pass branch emits `identity: no shared identities (N sessions with FP)` for parity with CLI"
+  - "Message names `--identity-key` and references T-1700 — same wording as CLI: \"pass --identity-key at register for per-agent identity (T-1700)\""
+  - "Build clean — `cargo build --release -p termlink-mcp` finished with the pre-existing termlink-mcp unused_assignments warning only (unrelated)"
+  - "Live smoke verified via source grep — the new check block is present in tools.rs; MCP `termlink_doctor` callers will see the `identity` entry in their `checks` array on next reload of the MCP server"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1706-termlinkdoctor-mcp--identity-check-parit.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T08:54:57"
+    action: "T-1706: MCP termlink_doctor identity-check parity with CLI (T-1705 follow-up)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 149
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1706-termlinkdoctor-mcp--identity-check-parit.md
+generated_by: context-agent-hybrid
