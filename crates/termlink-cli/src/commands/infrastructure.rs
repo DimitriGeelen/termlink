@@ -555,6 +555,34 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
+    // 7b. Identity attribution — T-1705 (G-056 follow-up).
+    //
+    // Sibling to T-1704's `whoami` hint. Groups live sessions by
+    // identity_fingerprint and surfaces the shared-host case (PL-166)
+    // from the diagnostic path. Operators who never run whoami but do
+    // run doctor when something feels wrong land on the same hint.
+    // Pre-T-1436 sessions (no identity_fingerprint) are excluded from
+    // grouping rather than bundled into a phantom "no-FP" group.
+    {
+        let groups = group_sessions_by_identity(&sessions);
+        let shared: Vec<_> = groups.iter().filter(|(_, names)| names.len() >= 2).collect();
+        if shared.is_empty() {
+            let with_fp: usize = groups.iter().map(|(_, n)| n.len()).sum();
+            check!("identity", pass, format!("no shared identities ({with_fp} session(s) with FP)"));
+        } else {
+            let total_shared: usize = shared.iter().map(|(_, n)| n.len()).sum();
+            let groups_desc: Vec<_> = shared.iter().map(|(fp, names)| {
+                let short_fp = &fp[..8.min(fp.len())];
+                format!("{}×{}", short_fp, names.len())
+            }).collect();
+            check!("identity", warn, format!(
+                "{total_shared} sessions share {} identity FP [{}] — pass --identity-key at register for per-agent identity (T-1700)",
+                shared.len(),
+                groups_desc.join(", ")
+            ));
+        }
+    }
+
     // 8. Version + MCP tools
     let version = env!("CARGO_PKG_VERSION");
     let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");
@@ -1423,6 +1451,23 @@ fn is_self_hub_address(address: &str) -> bool {
     false
 }
 
+/// T-1705: group live sessions by their `metadata.identity_fingerprint`,
+/// excluding sessions without an FP (pre-T-1436). Returns a Vec of
+/// `(fp, names)` so iteration order is stable for the doctor message.
+/// Pure function — testable without spinning up a real hub.
+fn group_sessions_by_identity(
+    sessions: &[termlink_session::registration::Registration],
+) -> Vec<(String, Vec<String>)> {
+    use std::collections::BTreeMap;
+    let mut by_fp: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for s in sessions {
+        if let Some(fp) = s.metadata.identity_fingerprint.as_deref() {
+            by_fp.entry(fp.to_string()).or_default().push(s.display_name.clone());
+        }
+    }
+    by_fp.into_iter().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::audit_secret_cache;
@@ -2006,5 +2051,82 @@ mod tests {
 
             let _ = fs::remove_dir_all(&runtime_dir);
         }
+    }
+
+    // T-1705: group_sessions_by_identity. Build Registrations via JSON
+    // deserialize (same pattern as metadata.rs tests) so we don't depend
+    // on private constructors.
+    fn make_reg(id: &str, display_name: &str, identity_fp: Option<&str>)
+        -> termlink_session::registration::Registration
+    {
+        let id_field = identity_fp
+            .map(|fp| format!(r#","identity_fingerprint":"{fp}""#))
+            .unwrap_or_default();
+        let json = format!(
+            r#"{{
+                "version": 1,
+                "id": "{id}",
+                "display_name": "{display_name}",
+                "pid": 12345,
+                "uid": 0,
+                "addr": {{ "type": "unix", "path": "/tmp/test.sock" }},
+                "created_at": "2026-05-01T17:00:00Z",
+                "heartbeat_at": "2026-05-01T17:00:00Z",
+                "state": "ready",
+                "capabilities": [],
+                "roles": [],
+                "tags": [],
+                "metadata": {{ "cwd": "/tmp"{id_field} }}
+            }}"#
+        );
+        serde_json::from_str(&json).expect("Registration JSON shape valid in test")
+    }
+
+    #[test]
+    fn group_sessions_by_identity_all_unique_no_shared() {
+        let sessions = vec![
+            make_reg("tl-a0000000001", "alpha", Some("aaaaaaaaaaaaaaaa")),
+            make_reg("tl-b0000000002", "beta",  Some("bbbbbbbbbbbbbbbb")),
+            make_reg("tl-c0000000003", "gamma", Some("cccccccccccccccc")),
+        ];
+        let groups = super::group_sessions_by_identity(&sessions);
+        let shared: Vec<_> = groups.iter().filter(|(_, n)| n.len() >= 2).collect();
+        assert!(
+            shared.is_empty(),
+            "unique FPs must produce no shared groups; got {:?}",
+            groups
+        );
+        assert_eq!(groups.len(), 3, "every FP-bearing session must appear in its own group");
+    }
+
+    #[test]
+    fn group_sessions_by_identity_host_shared_one_group() {
+        let host_fp = "d1993c2c3ec44c94";
+        let sessions = vec![
+            make_reg("tl-h0000000001", "framework-agent", Some(host_fp)),
+            make_reg("tl-h0000000002", "termlink-agent",  Some(host_fp)),
+            make_reg("tl-h0000000003", "cohort-agent",    Some(host_fp)),
+            make_reg("tl-o0000000004", "unrelated",       Some("ffffffffffffffff")),
+        ];
+        let groups = super::group_sessions_by_identity(&sessions);
+        let shared: Vec<_> = groups.iter().filter(|(_, n)| n.len() >= 2).collect();
+        assert_eq!(shared.len(), 1, "exactly one shared group expected; got {:?}", groups);
+        let (fp, names) = shared[0];
+        assert_eq!(fp, host_fp);
+        assert_eq!(names.len(), 3, "three co-resident agents share the host FP");
+    }
+
+    #[test]
+    fn group_sessions_by_identity_absent_fp_excluded() {
+        let sessions = vec![
+            make_reg("tl-l0000000001", "legacy-1", None),
+            make_reg("tl-l0000000002", "legacy-2", None),
+            make_reg("tl-n0000000003", "modern",   Some("d1993c2c3ec44c94")),
+        ];
+        let groups = super::group_sessions_by_identity(&sessions);
+        // The two None-FP sessions must not coalesce into a phantom "no-FP" bucket
+        // and must not contribute to any group.
+        assert_eq!(groups.len(), 1, "only the FP-bearing session forms a group; got {:?}", groups);
+        assert_eq!(groups[0].1.len(), 1, "modern session is alone in its FP");
     }
 }
