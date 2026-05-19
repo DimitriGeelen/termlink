@@ -133,6 +133,131 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// T-1707: 5-minute active-traffic threshold for cut-readiness verdict.
+/// Mirrors `ACTIVE_TRAFFIC_THRESHOLD_SECS` in termlink-cli's remote.rs.
+const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
+
+/// T-1707: aggregate per-hub `legacy_usage` payloads into a fleet-wide
+/// T-1166 cut-readiness verdict. Parallel implementation of CLI's
+/// `compute_cut_readiness_verdict` (remote.rs) — see G-057/PL-167 for
+/// why MCP and CLI doctor diverge in shared logic. Pure function so the
+/// verdict cases are unit-testable without a hub.
+///
+/// Returns a JSON object with: verdict, window_days, total_legacy_fleet,
+/// hubs_clean, hubs_with_traffic, hubs_unsupported, hubs_no_audit.
+fn aggregate_legacy_summary(
+    hub_results: &[serde_json::Value],
+    window_days: u64,
+) -> serde_json::Value {
+    let mut total_legacy_fleet: u64 = 0;
+    let mut hubs_unsupported: Vec<String> = Vec::new();
+    let mut hubs_no_audit: Vec<String> = Vec::new();
+    let mut hubs_with_traffic: Vec<(String, u64, u128)> = Vec::new();
+    let mut hubs_clean: Vec<String> = Vec::new();
+
+    for h in hub_results {
+        let name = h
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let Some(lu) = h.get("legacy_usage") else {
+            continue;
+        };
+        if lu.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
+            hubs_unsupported.push(name);
+            continue;
+        }
+        if lu.get("audit_present").and_then(|v| v.as_bool()) == Some(false) {
+            hubs_no_audit.push(name);
+            continue;
+        }
+        let count = lu.get("total_legacy").and_then(|v| v.as_u64()).unwrap_or(0);
+        total_legacy_fleet += count;
+        if count > 0 {
+            let last_ts = lu
+                .get("last_legacy_ts_ms")
+                .and_then(|v| v.as_u64())
+                .map(|t| t as u128)
+                .unwrap_or(0);
+            hubs_with_traffic.push((name, count, last_ts));
+        } else {
+            hubs_clean.push(name);
+        }
+    }
+
+    let now_ms: u128 = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let verdict = compute_legacy_verdict(
+        &hubs_with_traffic,
+        &hubs_unsupported,
+        &hubs_no_audit,
+        &hubs_clean,
+        now_ms,
+    );
+
+    let hubs_with_traffic_json: Vec<serde_json::Value> = hubs_with_traffic
+        .iter()
+        .map(|(h, c, ts)| {
+            serde_json::json!({
+                "hub": h,
+                "count": c,
+                "last_legacy_ts_ms": *ts as u64,
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "verdict": verdict,
+        "window_days": window_days,
+        "total_legacy_fleet": total_legacy_fleet,
+        "hubs_clean": hubs_clean,
+        "hubs_with_traffic": hubs_with_traffic_json,
+        "hubs_unsupported": hubs_unsupported,
+        "hubs_no_audit": hubs_no_audit,
+    })
+}
+
+/// T-1707: cut-readiness verdict — mirror of CLI's compute_cut_readiness_verdict.
+/// CUT-READY: no traffic, no unsupported.
+/// CUT-READY-DECAYING: traffic exists but stale (>5 min since last call) AND no unmeasurable hubs.
+/// WAIT: live caller within last 5 min on ≥1 hub.
+/// UNCERTAIN: ≥1 hub unmeasurable (pre-T-1432 or no audit yet), or zero reachable hubs.
+fn compute_legacy_verdict(
+    hubs_with_traffic: &[(String, u64, u128)],
+    hubs_unsupported: &[String],
+    hubs_no_audit: &[String],
+    hubs_clean: &[String],
+    now_ms: u128,
+) -> &'static str {
+    let any_active = hubs_with_traffic.iter().any(|(_, _, last_ts)| {
+        *last_ts > 0
+            && now_ms > *last_ts
+            && (now_ms - *last_ts) / 1000 < ACTIVE_TRAFFIC_THRESHOLD_SECS as u128
+    });
+    let any_traffic = !hubs_with_traffic.is_empty();
+    let any_uncertain = !hubs_unsupported.is_empty() || !hubs_no_audit.is_empty();
+    let any_clean = !hubs_clean.is_empty();
+
+    if any_active {
+        "WAIT"
+    } else if any_traffic {
+        if any_uncertain {
+            "UNCERTAIN"
+        } else {
+            "CUT-READY-DECAYING"
+        }
+    } else if any_uncertain {
+        "UNCERTAIN"
+    } else if any_clean {
+        "CUT-READY"
+    } else {
+        "UNCERTAIN"
+    }
+}
+
 /// Helper: convert days-since-Unix-epoch to UTC YYYY-MM-DD string.
 /// No chrono dep — uses civil-from-days algorithm (Howard Hinnant, public domain).
 fn epoch_days_to_ymd(days: i64) -> String {
@@ -1890,10 +2015,21 @@ pub struct DeregisterParams {
 pub struct TofuListParams {}
 
 // T-1039: Fleet doctor params
+// T-1707: optional legacy-usage probe (MCP parity for CLI `--legacy-usage`,
+// T-1432). Drives T-1166 cut readiness from the MCP layer; closes the
+// G-057/PL-167 silent-strip on this tool.
 #[derive(Deserialize, JsonSchema)]
 pub struct FleetDoctorParams {
     /// Timeout per hub in seconds (default: 10)
     pub timeout: Option<u64>,
+    /// Opt-in: probe each hub's `hub.legacy_usage` Tier-A RPC and
+    /// aggregate a fleet-wide cut-readiness verdict. Default false —
+    /// when omitted, output shape is unchanged for existing callers.
+    /// T-1707 (MCP parity for CLI `--legacy-usage`, T-1432).
+    pub legacy_usage: Option<bool>,
+    /// Look-back window in days for the legacy-usage probe (default 7,
+    /// clamped 1..=90). Ignored when `legacy_usage` is unset/false.
+    pub legacy_window_days: Option<u64>,
 }
 
 // T-1102: Fleet status params
@@ -6860,7 +6996,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures."
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -6874,6 +7010,8 @@ impl TermLinkTools {
 
         let timeout_secs = p.timeout.unwrap_or(10);
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let legacy_usage = p.legacy_usage.unwrap_or(false);
+        let legacy_window_days = p.legacy_window_days.unwrap_or(7).clamp(1, 90);
         let mut hub_results: Vec<serde_json::Value> = Vec::new();
         let mut pass_count: u32 = 0;
         let mut fail_count: u32 = 0;
@@ -6891,10 +7029,40 @@ impl TermLinkTools {
             ).await;
 
             match result {
-                Ok(Ok(_client)) => {
+                Ok(Ok(mut client)) => {
                     let latency = connect_start.elapsed().as_millis();
                     pass_count += 1;
-                    hub_results.push(serde_json::json!({"hub": name, "address": address, "status": "ok", "latency_ms": latency}));
+                    let mut hub_obj = serde_json::json!({
+                        "hub": name,
+                        "address": address,
+                        "status": "ok",
+                        "latency_ms": latency,
+                    });
+                    // T-1707: optional per-hub legacy_usage probe — mirrors CLI's
+                    // T-1432 behavior. Pre-T-1432 hubs return method-not-found
+                    // and we record audit_unsupported with an upgrade hint.
+                    if legacy_usage {
+                        let lu_result = client
+                            .call(
+                                "hub.legacy_usage",
+                                serde_json::json!("mcp-fleet-doctor-legacy"),
+                                serde_json::json!({
+                                    "window_seconds": legacy_window_days * 86400,
+                                }),
+                            )
+                            .await;
+                        let lu_value = match lu_result {
+                            Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => r.result,
+                            _ => serde_json::json!({
+                                "audit_unsupported": true,
+                                "hint": "hub predates T-1432 (hub.legacy_usage) — upgrade to >=0.9.1640 to measure cut-readiness on this host",
+                            }),
+                        };
+                        if let Some(obj) = hub_obj.as_object_mut() {
+                            obj.insert("legacy_usage".to_string(), lu_value);
+                        }
+                    }
+                    hub_results.push(hub_obj);
                 }
                 Ok(Err(err_json)) => {
                     fail_count += 1;
@@ -6907,11 +7075,28 @@ impl TermLinkTools {
             }
         }
 
-        serde_json::to_string_pretty(&serde_json::json!({
+        // T-1707: aggregate fleet-wide cut-readiness verdict from per-hub
+        // legacy_usage payloads. Logic mirrors CLI's
+        // `compute_cut_readiness_verdict` in remote.rs — replicated inline
+        // (G-057 pattern: MCP and CLI doctor have parallel implementations;
+        // shared logic across crates is not yet the convention here).
+        let legacy_summary = if legacy_usage {
+            Some(aggregate_legacy_summary(&hub_results, legacy_window_days))
+        } else {
+            None
+        };
+
+        let mut response = serde_json::json!({
             "ok": fail_count == 0,
             "hubs": hub_results,
-            "summary": {"total": hub_results.len(), "pass": pass_count, "fail": fail_count},
-        })).unwrap_or_else(json_err)
+            "summary": {"total": pass_count + fail_count, "pass": pass_count, "fail": fail_count},
+        });
+        if let Some(ls) = legacy_summary
+            && let Some(obj) = response.as_object_mut()
+        {
+            obj.insert("legacy_summary".to_string(), ls);
+        }
+        serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
 
     // === Fleet history (T-1687: MCP parity for T-1671 + T-1686) ===
@@ -16414,6 +16599,132 @@ mod tests {
         let json = serde_json::json!({"timeout": 30});
         let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.timeout, Some(30));
+    }
+
+    // === Fleet doctor legacy-usage tests (T-1707) ===
+
+    #[test]
+    fn fleet_doctor_params_with_legacy_usage() {
+        let json = serde_json::json!({"legacy_usage": true, "legacy_window_days": 14});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.legacy_usage, Some(true));
+        assert_eq!(p.legacy_window_days, Some(14));
+    }
+
+    #[test]
+    fn fleet_doctor_params_legacy_fields_optional() {
+        // Existing callers (pre-T-1707) must continue to parse with no
+        // change. Same JSON shape as fleet_doctor_params_defaults.
+        let json = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert!(p.legacy_usage.is_none());
+        assert!(p.legacy_window_days.is_none());
+    }
+
+    #[test]
+    fn fleet_doctor_verdict_cut_ready_when_all_hubs_clean() {
+        let v = compute_legacy_verdict(&[], &[], &[], &["h1".into(), "h2".into()], 1_000_000);
+        assert_eq!(v, "CUT-READY");
+    }
+
+    #[test]
+    fn fleet_doctor_verdict_decaying_when_traffic_is_stale() {
+        let now_ms: u128 = 1_000_000_000;
+        // last call was >5 min ago (in ms terms: 5*60*1000 = 300_000)
+        let stale_ts = now_ms - 600_000;
+        let with_traffic = vec![("h1".into(), 3u64, stale_ts)];
+        let v = compute_legacy_verdict(&with_traffic, &[], &[], &["h2".into()], now_ms);
+        assert_eq!(v, "CUT-READY-DECAYING");
+    }
+
+    #[test]
+    fn fleet_doctor_verdict_wait_when_traffic_is_recent() {
+        let now_ms: u128 = 1_000_000_000;
+        // last call within the 5-min threshold
+        let recent_ts = now_ms - 60_000;
+        let with_traffic = vec![("h1".into(), 1u64, recent_ts)];
+        let v = compute_legacy_verdict(&with_traffic, &[], &[], &[], now_ms);
+        assert_eq!(v, "WAIT");
+    }
+
+    #[test]
+    fn fleet_doctor_verdict_uncertain_when_any_unsupported() {
+        // Some hub predates T-1432 → can't measure → verdict UNCERTAIN
+        // even if all the measurable hubs are clean.
+        let v = compute_legacy_verdict(
+            &[],
+            &["legacy-hub".into()],
+            &[],
+            &["h1".into()],
+            1_000_000,
+        );
+        assert_eq!(v, "UNCERTAIN");
+    }
+
+    #[test]
+    fn fleet_doctor_verdict_uncertain_when_no_reachable_hubs() {
+        let v = compute_legacy_verdict(&[], &[], &[], &[], 1_000_000);
+        assert_eq!(v, "UNCERTAIN");
+    }
+
+    #[test]
+    fn fleet_doctor_aggregate_legacy_summary_shape() {
+        // One clean hub, one with stale traffic, one unsupported.
+        let hub_results = vec![
+            serde_json::json!({
+                "hub": "clean-hub",
+                "legacy_usage": {"audit_present": true, "total_legacy": 0}
+            }),
+            serde_json::json!({
+                "hub": "traffic-hub",
+                "legacy_usage": {
+                    "audit_present": true,
+                    "total_legacy": 5,
+                    "last_legacy_ts_ms": 1u64,  // ancient — stale
+                }
+            }),
+            serde_json::json!({
+                "hub": "old-hub",
+                "legacy_usage": {"audit_unsupported": true}
+            }),
+        ];
+        let summary = aggregate_legacy_summary(&hub_results, 7);
+        assert_eq!(summary["window_days"], 7);
+        assert_eq!(summary["total_legacy_fleet"], 5);
+        assert_eq!(
+            summary["hubs_clean"].as_array().unwrap().len(),
+            1,
+            "expected one clean hub in summary"
+        );
+        assert_eq!(
+            summary["hubs_with_traffic"].as_array().unwrap().len(),
+            1,
+            "expected one with-traffic hub"
+        );
+        assert_eq!(
+            summary["hubs_unsupported"].as_array().unwrap().len(),
+            1,
+            "expected one unsupported hub"
+        );
+        // ancient last_ts → not active → DECAYING (mixed with unsupported → UNCERTAIN)
+        assert_eq!(summary["verdict"], "UNCERTAIN");
+    }
+
+    #[test]
+    fn fleet_doctor_aggregate_skips_hubs_without_legacy_usage_block() {
+        // Hubs that failed connectivity have no legacy_usage field — they
+        // must be excluded from the aggregation (no double-counting).
+        let hub_results = vec![
+            serde_json::json!({"hub": "failed-hub", "status": "timeout"}),
+            serde_json::json!({
+                "hub": "ok-hub",
+                "legacy_usage": {"audit_present": true, "total_legacy": 0}
+            }),
+        ];
+        let summary = aggregate_legacy_summary(&hub_results, 7);
+        assert_eq!(summary["hubs_clean"].as_array().unwrap().len(), 1);
+        assert_eq!(summary["total_legacy_fleet"], 0);
+        assert_eq!(summary["verdict"], "CUT-READY");
     }
 
     // === Hub restart params tests (T-1040) ===
