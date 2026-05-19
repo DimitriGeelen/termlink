@@ -2279,6 +2279,25 @@ pub struct FleetDoctorParams {
     pub topic_durability: Option<bool>,
 }
 
+// T-1712 (G-057 punch-list #3): doctor params — strict opt-in.
+#[derive(Deserialize, JsonSchema)]
+pub struct DoctorParams {
+    /// T-1712: when true, the `ok` rollup field treats warnings as failures
+    /// (mirrors CLI `--strict` exit-code semantics: exit(1) when
+    /// `fail > 0 || (strict && warn > 0)`). Default false. Agents gating
+    /// "is the environment healthy enough to proceed?" should set this when
+    /// they want zero-tolerance for advisory warnings (stale sessions,
+    /// orphaned sockets, shared-host identity warnings).
+    pub strict: Option<bool>,
+}
+
+// T-1712: pure rollup function for the strict verdict — testable without a
+// real environment. Mirrors `fail_count > 0 || (strict && warn_count > 0)`
+// exit gate in CLI infrastructure.rs.
+pub(crate) fn doctor_ok_rollup(fail_count: u32, warn_count: u32, strict: bool) -> bool {
+    !(fail_count > 0 || (strict && warn_count > 0))
+}
+
 // T-1102: Fleet status params
 #[derive(Deserialize, JsonSchema)]
 pub struct FleetStatusParams {
@@ -3460,9 +3479,9 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_doctor",
-        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, dispatch manifest, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations."
+        description = "Run health checks on the TermLink environment. Returns a structured JSON report with pass/warn/fail status for: runtime directory, sessions directory, session liveness, hub status, orphaned sockets, dispatch manifest, and version. Use this to diagnose connectivity or infrastructure issues before attempting operations. T-1712: pass `strict: true` to elevate warnings into the `ok` rollup verdict (parity with CLI `--strict` exit-code semantics — for agents that want zero-tolerance gating)."
     )]
-    async fn termlink_doctor(&self) -> String {
+    async fn termlink_doctor(&self, Parameters(p): Parameters<DoctorParams>) -> String {
         use termlink_session::{discovery, liveness};
 
         let mut checks: Vec<serde_json::Value> = Vec::new();
@@ -3648,7 +3667,15 @@ impl TermLinkTools {
         let version = env!("CARGO_PKG_VERSION");
         check!("version", pass, format!("termlink-mcp {version}"));
 
+        // T-1712: top-level `ok` rollup with strict semantics matching CLI
+        // `--strict` exit-code gate. The `strict` echo field tells the caller
+        // which mode was applied (helps when the param was defaulted).
+        let strict = p.strict.unwrap_or(false);
+        let ok = doctor_ok_rollup(fail_count, warn_count, strict);
+
         let result = serde_json::json!({
+            "ok": ok,
+            "strict": strict,
             "checks": checks,
             "summary": {
                 "pass": pass_count,
@@ -18184,6 +18211,48 @@ not-json
         let p: FleetStatusParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.verbose, Some(true));
         assert_eq!(p.timeout, Some(5));
+    }
+
+    // === T-1712 (G-057 punch-list #3): doctor strict rollup ===
+
+    #[test]
+    fn doctor_params_defaults_when_omitted() {
+        let json = serde_json::json!({});
+        let p: DoctorParams = serde_json::from_value(json).unwrap();
+        assert!(p.strict.is_none());
+    }
+
+    #[test]
+    fn doctor_params_accepts_strict_true() {
+        let json = serde_json::json!({"strict": true});
+        let p: DoctorParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.strict, Some(true));
+    }
+
+    #[test]
+    fn doctor_ok_rollup_clean_environment_is_ok() {
+        // No fails, no warns → ok regardless of strict.
+        assert!(doctor_ok_rollup(0, 0, false));
+        assert!(doctor_ok_rollup(0, 0, true));
+    }
+
+    #[test]
+    fn doctor_ok_rollup_fails_dominate_regardless_of_strict() {
+        // fail > 0 → never ok, regardless of strict or warns.
+        assert!(!doctor_ok_rollup(1, 0, false));
+        assert!(!doctor_ok_rollup(1, 0, true));
+        assert!(!doctor_ok_rollup(1, 5, false));
+        assert!(!doctor_ok_rollup(1, 5, true));
+    }
+
+    #[test]
+    fn doctor_ok_rollup_warn_only_strict_changes_verdict() {
+        // Non-strict + warns → still ok (matches CLI exit code 0).
+        assert!(doctor_ok_rollup(0, 1, false));
+        assert!(doctor_ok_rollup(0, 10, false));
+        // Strict + warns → not ok (matches CLI exit code 1).
+        assert!(!doctor_ok_rollup(0, 1, true));
+        assert!(!doctor_ok_rollup(0, 10, true));
     }
 
     // T-1694: ChannelPostParams metadata field — deserialization + JSON shape.
