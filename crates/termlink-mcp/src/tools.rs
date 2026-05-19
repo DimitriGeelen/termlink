@@ -2277,6 +2277,24 @@ pub struct FleetDoctorParams {
     /// /tmp/termlink-0), the structural cause of PL-021 (identity rotates
     /// on reboot). T-1709 (MCP parity for CLI `--topic-durability`, T-1446).
     pub topic_durability: Option<bool>,
+    /// T-1713 (G-057 punch-list #4): when true, after the normal doctor
+    /// sweep, classify each hub's current state and emit an
+    /// `auto_heal_preview` object describing what `fleet reauth
+    /// --bootstrap-from auto` WOULD fire — without spawning any heal
+    /// subprocesses. MCP parity for CLI `--auto-heal --dry-run` (T-1684).
+    ///
+    /// Live `--auto-heal` is deliberately NOT exposed via MCP (one-shot
+    /// MCP calls give the caller no way to oversee a fire-and-forget
+    /// subprocess). Preview-only is safe by construction: classifies
+    /// state, lists triggers + skip-no-anchor + no-action, fires nothing.
+    ///
+    /// Gates on declared `bootstrap_from` per profile (R2 rule). Without
+    /// `include_pin_check=true`, only the auth-mismatch path can fire —
+    /// surfaced via `missing_pin_check_warning` in the response (mirrors
+    /// CLI T-1683 stderr info hint).
+    ///
+    /// Default false to preserve the existing response shape.
+    pub auto_heal_preview: Option<bool>,
 }
 
 // T-1712 (G-057 punch-list #3): doctor params — strict opt-in.
@@ -2296,6 +2314,157 @@ pub struct DoctorParams {
 // exit gate in CLI infrastructure.rs.
 pub(crate) fn doctor_ok_rollup(fail_count: u32, warn_count: u32, strict: bool) -> bool {
     !(fail_count > 0 || (strict && warn_count > 0))
+}
+
+// T-1713: auto-heal preview classifier helpers (G-057 punch-list #4).
+//
+// Three pure helpers replicate the CLI's auto-heal classification logic
+// inline in MCP (same G-057 parallel-implementation pattern as T-1710 /
+// T-1711 / T-1712 — the project doesn't yet have a shared libcli crate
+// for these primitives). All three are testable without infrastructure.
+
+/// T-1713: mirror of CLI `auth_mismatch_class` in remote.rs:5168. Returns
+/// `Some("auth-mismatch")` for HMAC failures, `Some("tofu-violation")`
+/// for cert-fingerprint changes, `None` for other / non-auth errors.
+pub(crate) fn auth_mismatch_class_mcp(msg: &str) -> Option<&'static str> {
+    if msg.contains("invalid signature") || msg.contains("Token validation failed") {
+        Some("auth-mismatch")
+    } else if msg.contains("TOFU VIOLATION") || msg.contains("fingerprint changed") {
+        Some("tofu-violation")
+    } else {
+        None
+    }
+}
+
+/// T-1713: mirror of CLI `derive_watch_conn` in remote.rs:5189. Given a
+/// hub_obj from `fleet doctor` output, returns the effective conn-state
+/// class ("ok" / "error" / "timeout" / "auth-mismatch" / "tofu-violation").
+/// The status field stays "error" in JSON output — this remapping is the
+/// in-memory class the auto-heal gate compares against.
+pub(crate) fn derive_watch_conn_mcp(hub: &serde_json::Value) -> String {
+    let raw = hub
+        .get("status")
+        .and_then(|s| s.as_str())
+        .unwrap_or("unknown");
+    if raw == "error" {
+        let err_msg = hub
+            .get("error")
+            .and_then(|s| s.as_str())
+            .unwrap_or_else(|| {
+                // T-1713: when error is an object (e.g. structured json_err),
+                // serialize-and-search the JSON form. Mirrors how CLI handles
+                // its anyhow chain via {:#} formatting.
+                ""
+            });
+        // T-1713: error may be JSON-encoded (an object). Probe the
+        // serialized representation when the field isn't a string.
+        let probe: String = if !err_msg.is_empty() {
+            err_msg.to_string()
+        } else {
+            hub.get("error")
+                .map(|v| v.to_string())
+                .unwrap_or_default()
+        };
+        match auth_mismatch_class_mcp(&probe) {
+            Some(class) => class.to_string(),
+            None => raw.to_string(),
+        }
+    } else {
+        raw.to_string()
+    }
+}
+
+/// T-1713: classification of a single hub for auto-heal preview purposes.
+/// `pin_status` is the pin_check.status field ("match" / "drift" / "no-pin"
+/// / "probe-fail") or `None` when include_pin_check was off. `conn` is the
+/// output of `derive_watch_conn_mcp`. `has_bootstrap_from` is whether the
+/// hub profile declares `bootstrap_from` in hubs.toml.
+///
+/// Mirrors CLI T-1681 OR-gate (cert-drift OR auth-mismatch) plus the R2
+/// gate (must declare anchor). PL-021's "both rotate" case maps to
+/// `Trigger::Both`. The CLI dedups one heal per hub per cycle — same here.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) enum AutoHealAction {
+    NoAction,                            // clean — no fire
+    WouldFire(AutoHealTrigger),          // anchor declared, would fire reauth
+    SkipNoAnchor(AutoHealTrigger),       // trigger fires but no bootstrap_from
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum AutoHealTrigger {
+    PinDrift,       // pin_status=="drift" only
+    AuthMismatch,   // conn=="auth-mismatch" only
+    Both,           // PL-021's BOTH-rotate signature
+}
+
+impl AutoHealTrigger {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            AutoHealTrigger::PinDrift => "pin-drift",
+            AutoHealTrigger::AuthMismatch => "auth-mismatch",
+            AutoHealTrigger::Both => "both",
+        }
+    }
+}
+
+pub(crate) fn classify_auto_heal_preview(
+    pin_status: Option<&str>,
+    conn: &str,
+    has_bootstrap_from: bool,
+) -> AutoHealAction {
+    let pin_drift = pin_status == Some("drift");
+    let auth_mismatch = conn == "auth-mismatch";
+    let trigger = match (pin_drift, auth_mismatch) {
+        (true, true) => Some(AutoHealTrigger::Both),
+        (true, false) => Some(AutoHealTrigger::PinDrift),
+        (false, true) => Some(AutoHealTrigger::AuthMismatch),
+        (false, false) => None,
+    };
+    match trigger {
+        None => AutoHealAction::NoAction,
+        Some(t) if has_bootstrap_from => AutoHealAction::WouldFire(t),
+        Some(t) => AutoHealAction::SkipNoAnchor(t),
+    }
+}
+
+/// T-1713: read `bootstrap_from` value per profile from `~/.termlink/hubs.toml`.
+/// Returns a map from profile name to the declared anchor string. Profiles
+/// without `bootstrap_from` are absent from the map. Mirrors the ad-hoc
+/// TOML parser in `resolve_hub_profile` — keeps MCP free of the toml crate
+/// for this single field. Missing/unreadable file → empty map (caller treats
+/// every profile as no-anchor).
+pub(crate) fn read_bootstrap_from_map() -> std::collections::HashMap<String, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return std::collections::HashMap::new(),
+    };
+    let mut out: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let prefix = "[hubs.";
+    let mut current: Option<String> = None;
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with(prefix) && t.ends_with(']') {
+            current = Some(t[prefix.len()..t.len() - 1].to_string());
+            continue;
+        }
+        if t.starts_with('[') {
+            // entered an unrelated section
+            current = None;
+            continue;
+        }
+        if let Some(ref name) = current
+            && let Some((key, val)) = t.split_once('=')
+            && key.trim() == "bootstrap_from"
+        {
+            let val = val.trim().trim_matches('"');
+            if !val.is_empty() {
+                out.insert(name.clone(), val.to_string());
+            }
+        }
+    }
+    out
 }
 
 // T-1102: Fleet status params
@@ -7329,6 +7498,8 @@ impl TermLinkTools {
         let legacy_window_days = p.legacy_window_days.unwrap_or(7).clamp(1, 90);
         let include_pin_check = p.include_pin_check.unwrap_or(false);
         let topic_durability = p.topic_durability.unwrap_or(false);
+        // T-1713 (G-057 punch-list #4): auto-heal preview opt-in.
+        let auto_heal_preview = p.auto_heal_preview.unwrap_or(false);
         let mut hub_results: Vec<serde_json::Value> = Vec::new();
         let mut pass_count: u32 = 0;
         let mut fail_count: u32 = 0;
@@ -7526,6 +7697,75 @@ impl TermLinkTools {
                 "bus_state_summary".to_string(),
                 aggregate_bus_state_summary(&hub_results),
             );
+        }
+        // T-1713: emit auto_heal_preview (MCP parity for CLI T-1684 dry-run).
+        // Pure classification — no heal subprocesses spawned. Gates on
+        // declared bootstrap_from per profile (R2). Same OR-gate as CLI
+        // T-1681 (cert-drift OR auth-mismatch). One classification per hub;
+        // PL-021's "both rotate" case dedups via Trigger::Both.
+        if auto_heal_preview
+            && let Some(obj) = response.as_object_mut()
+        {
+            let anchors = read_bootstrap_from_map();
+            let mut would_fire: Vec<serde_json::Value> = Vec::new();
+            let mut skipped_no_anchor: Vec<serde_json::Value> = Vec::new();
+            let mut no_action: Vec<serde_json::Value> = Vec::new();
+            for hub in &hub_results {
+                let name = hub
+                    .get("hub")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("?")
+                    .to_string();
+                let pin_status = hub
+                    .get("pin_check")
+                    .and_then(|pc| pc.get("status"))
+                    .and_then(|s| s.as_str());
+                let conn = derive_watch_conn_mcp(hub);
+                let has_anchor = anchors.contains_key(&name);
+                match classify_auto_heal_preview(pin_status, &conn, has_anchor) {
+                    AutoHealAction::NoAction => {
+                        no_action.push(serde_json::json!({
+                            "hub": name,
+                            "conn": conn,
+                            "pin_status": pin_status,
+                        }));
+                    }
+                    AutoHealAction::WouldFire(t) => {
+                        would_fire.push(serde_json::json!({
+                            "hub": name,
+                            "trigger": t.as_str(),
+                            "action": format!(
+                                "termlink fleet reauth {} --bootstrap-from auto",
+                                name
+                            ),
+                            "bootstrap_from": anchors.get(&name),
+                        }));
+                    }
+                    AutoHealAction::SkipNoAnchor(t) => {
+                        skipped_no_anchor.push(serde_json::json!({
+                            "hub": name,
+                            "trigger": t.as_str(),
+                            "hint": "declare bootstrap_from in hubs.toml or pass an explicit source",
+                        }));
+                    }
+                }
+            }
+            let total_would_fire = would_fire.len();
+            let preview = serde_json::json!({
+                "would_fire": would_fire,
+                "skipped_no_anchor": skipped_no_anchor,
+                "no_action": no_action,
+                "total_would_fire": total_would_fire,
+                // T-1713: mirrors CLI T-1683 stderr info hint. Without
+                // include_pin_check=true, the cert-drift path can't fire,
+                // so this is a meaningful gap signal to the agent.
+                "missing_pin_check_warning": !include_pin_check,
+                "header": format!(
+                    "Auto-heal: would fire {} (dry-run, T-1713 preview)",
+                    total_would_fire
+                ),
+            });
+            obj.insert("auto_heal_preview".to_string(), preview);
         }
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
@@ -18313,5 +18553,178 @@ not-json
         let v = serde_json::to_value(&md).unwrap();
         assert_eq!(v.get("thread").and_then(|x| x.as_str()), Some("T-1694"));
         assert!(v.is_object(), "metadata must serialize as JSON object for hub-side parse");
+    }
+
+    // === T-1713 (G-057 punch-list #4): auto_heal_preview classifier tests ===
+
+    #[test]
+    fn fleet_doctor_params_defaults_when_auto_heal_preview_omitted() {
+        // Verify the new optional param doesn't break existing callers.
+        let raw = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(raw).unwrap();
+        assert_eq!(p.auto_heal_preview, None);
+    }
+
+    #[test]
+    fn fleet_doctor_params_accepts_auto_heal_preview_true() {
+        let raw = serde_json::json!({"auto_heal_preview": true});
+        let p: FleetDoctorParams = serde_json::from_value(raw).unwrap();
+        assert_eq!(p.auto_heal_preview, Some(true));
+    }
+
+    #[test]
+    fn auth_mismatch_class_mcp_detects_invalid_signature() {
+        assert_eq!(
+            auth_mismatch_class_mcp("Cannot connect: invalid signature"),
+            Some("auth-mismatch")
+        );
+    }
+
+    #[test]
+    fn auth_mismatch_class_mcp_detects_token_validation_failed() {
+        assert_eq!(
+            auth_mismatch_class_mcp("error: Token validation failed for hub"),
+            Some("auth-mismatch")
+        );
+    }
+
+    #[test]
+    fn auth_mismatch_class_mcp_detects_tofu_violation() {
+        assert_eq!(
+            auth_mismatch_class_mcp("TLS handshake: TOFU VIOLATION on hub.cert"),
+            Some("tofu-violation")
+        );
+    }
+
+    #[test]
+    fn auth_mismatch_class_mcp_detects_fingerprint_changed() {
+        assert_eq!(
+            auth_mismatch_class_mcp("fingerprint changed: was sha256:a was sha256:b"),
+            Some("tofu-violation")
+        );
+    }
+
+    #[test]
+    fn auth_mismatch_class_mcp_returns_none_for_generic_errors() {
+        assert_eq!(auth_mismatch_class_mcp("connection refused"), None);
+        assert_eq!(auth_mismatch_class_mcp("timeout after 10s"), None);
+        assert_eq!(auth_mismatch_class_mcp(""), None);
+    }
+
+    #[test]
+    fn derive_watch_conn_mcp_passes_ok_through() {
+        let hub = serde_json::json!({"status": "ok"});
+        assert_eq!(derive_watch_conn_mcp(&hub), "ok");
+    }
+
+    #[test]
+    fn derive_watch_conn_mcp_classifies_auth_error_as_auth_mismatch() {
+        let hub = serde_json::json!({
+            "status": "error",
+            "error": "Cannot connect: invalid signature in HMAC token",
+        });
+        assert_eq!(derive_watch_conn_mcp(&hub), "auth-mismatch");
+    }
+
+    #[test]
+    fn derive_watch_conn_mcp_classifies_tofu_error() {
+        let hub = serde_json::json!({
+            "status": "error",
+            "error": "TLS: TOFU VIOLATION — hub cert rotated",
+        });
+        assert_eq!(derive_watch_conn_mcp(&hub), "tofu-violation");
+    }
+
+    #[test]
+    fn derive_watch_conn_mcp_keeps_unclassified_error_as_error() {
+        let hub = serde_json::json!({
+            "status": "error",
+            "error": "connection refused at 192.168.10.122:9100",
+        });
+        assert_eq!(derive_watch_conn_mcp(&hub), "error");
+    }
+
+    #[test]
+    fn derive_watch_conn_mcp_passes_timeout_through() {
+        let hub = serde_json::json!({"status": "timeout"});
+        assert_eq!(derive_watch_conn_mcp(&hub), "timeout");
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_clean_state_is_no_action() {
+        assert_eq!(
+            classify_auto_heal_preview(Some("match"), "ok", true),
+            AutoHealAction::NoAction
+        );
+        // Also clean when pin_check absent and conn ok.
+        assert_eq!(
+            classify_auto_heal_preview(None, "ok", true),
+            AutoHealAction::NoAction
+        );
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_pin_drift_with_anchor_fires() {
+        let action = classify_auto_heal_preview(Some("drift"), "ok", true);
+        assert_eq!(action, AutoHealAction::WouldFire(AutoHealTrigger::PinDrift));
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_auth_mismatch_with_anchor_fires() {
+        let action = classify_auto_heal_preview(Some("match"), "auth-mismatch", true);
+        assert_eq!(
+            action,
+            AutoHealAction::WouldFire(AutoHealTrigger::AuthMismatch)
+        );
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_both_triggers_dedup_to_both() {
+        // PL-021's "BOTH rotate" case — one classification with Trigger::Both
+        // (not two separate fires).
+        let action = classify_auto_heal_preview(Some("drift"), "auth-mismatch", true);
+        assert_eq!(action, AutoHealAction::WouldFire(AutoHealTrigger::Both));
+        if let AutoHealAction::WouldFire(t) = action {
+            assert_eq!(t.as_str(), "both");
+        }
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_no_anchor_skips_with_trigger() {
+        // Triggered but no bootstrap_from → SkipNoAnchor with the original
+        // trigger preserved (so the hint can be specific).
+        assert_eq!(
+            classify_auto_heal_preview(Some("drift"), "ok", false),
+            AutoHealAction::SkipNoAnchor(AutoHealTrigger::PinDrift)
+        );
+        assert_eq!(
+            classify_auto_heal_preview(None, "auth-mismatch", false),
+            AutoHealAction::SkipNoAnchor(AutoHealTrigger::AuthMismatch)
+        );
+        assert_eq!(
+            classify_auto_heal_preview(Some("drift"), "auth-mismatch", false),
+            AutoHealAction::SkipNoAnchor(AutoHealTrigger::Both)
+        );
+    }
+
+    #[test]
+    fn classify_auto_heal_preview_no_pin_or_probe_fail_is_not_drift() {
+        // Only pin_status=="drift" counts as the cert-drift trigger.
+        // no-pin and probe-fail should NOT trigger an auto-heal preview.
+        assert_eq!(
+            classify_auto_heal_preview(Some("no-pin"), "ok", true),
+            AutoHealAction::NoAction
+        );
+        assert_eq!(
+            classify_auto_heal_preview(Some("probe-fail"), "ok", true),
+            AutoHealAction::NoAction
+        );
+    }
+
+    #[test]
+    fn auto_heal_trigger_as_str_round_trip() {
+        assert_eq!(AutoHealTrigger::PinDrift.as_str(), "pin-drift");
+        assert_eq!(AutoHealTrigger::AuthMismatch.as_str(), "auth-mismatch");
+        assert_eq!(AutoHealTrigger::Both.as_str(), "both");
     }
 }
