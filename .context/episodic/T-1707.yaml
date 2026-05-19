@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1707: termlink_fleet_doctor MCP — add --legacy-usage parity with CLI (drives T-1166 cut readiness from MCP)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T07:18:24Z
+# ============================================================================
+
+task_id: T-1707
+task_name: "termlink_fleet_doctor MCP — add --legacy-usage parity with CLI (drives T-1166 cut readiness from MCP)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T07:13:53Z
+completed: 2026-05-19T07:18:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-19T09:18:07+02:00
+last_commit: 2026-05-19T09:18:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_doctor MCP — add legacy_usage / legacy_window_days for T-1166 cut-readiness verdict from MCP (G-057/PL-167 parity with CLI T-1432)
+
+# Key outcomes
+outcomes:
+  - "`FleetDoctorParams` gains `legacy_usage: Option<bool>` (default false) and `legacy_window_days: Option<u64>` (default 7, clamped 1..=90)"
+  - "When `legacy_usage = true`: for each successfully-connected hub, call `hub.legacy_usage` with `{\"window_seconds\": days * 86400}`. Method-not-found / RPC error → per-hub `legacy_usage = {audit_unsupported: true, hint: \"...\"}`. Success → per-hub `legacy_usage = <result>`."
+  - "When `legacy_usage = true`: top-level response gains `legacy_summary` with `{verdict, window_days, total_legacy_fleet, hubs_clean, hubs_with_traffic, hubs_unsupported, hubs_no_audit}`. Verdict computed identically to CLI: CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN (5-min active-traffic threshold)."
+  - "When `legacy_usage = false` (default): response shape is byte-identical to pre-T-1707 (no behavior change for existing callers)"
+  - "Tool description string updated to mention `--legacy-usage` option and link to T-1166"
+  - "Unit tests cover: verdict computation (CUT-READY / DECAYING / WAIT / UNCERTAIN cases), params shape with/without legacy fields, `legacy_window_days` clamp behavior"
+  - "`cargo build -p termlink-mcp` clean; no clippy warnings introduced"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1707-termlinkfleetdoctor-mcp--add---legacy-us.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T09:18:07"
+    action: "T-1707: termlink_fleet_doctor MCP — add legacy_usage / legacy_window_days for T-1166 cut-readiness verdict from MCP (G-057/PL-167 parity with CLI T-1432)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, fleet-doctor, T-1166, T-1432, G-057, PL-167]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 460
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1707-termlinkfleetdoctor-mcp--add---legacy-us.md
+generated_by: context-agent-hybrid

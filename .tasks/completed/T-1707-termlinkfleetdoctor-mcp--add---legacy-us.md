@@ -4,7 +4,7 @@ name: "termlink_fleet_doctor MCP — add --legacy-usage parity with CLI (drives 
 description: >
   termlink_fleet_doctor MCP — add --legacy-usage parity with CLI (drives T-1166 cut readiness from MCP)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [mcp, fleet-doctor, T-1166, T-1432, G-057, PL-167]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1432, T-1166, T-1692, T-1706]
 created: 2026-05-19T07:13:53Z
-last_update: 2026-05-19T07:13:53Z
-date_finished: null
+last_update: 2026-05-19T07:18:11Z
+date_finished: 2026-05-19T07:18:11Z
 ---
 
 # T-1707: termlink_fleet_doctor MCP — add --legacy-usage parity with CLI (drives T-1166 cut readiness from MCP)
@@ -141,3 +141,15 @@ cargo test -p termlink-mcp --lib tests::fleet_doctor 2>&1 | tail -5 | grep -qE "
 - **Behavior:** opt-in `legacy_usage` param triggers per-hub `hub.legacy_usage` RPC; aggregation produces `legacy_summary` keyed by verdict. Default (no param) shape is byte-identical to pre-T-1707.
 - **Tests:** 11/0/0 (5 pre-existing + 6 new under `tests::fleet_doctor`). Verdict cases covered: CUT-READY (clean), CUT-READY-DECAYING (stale traffic), WAIT (active traffic), UNCERTAIN (unsupported), UNCERTAIN (zero hubs).
 - **Pattern:** G-057/PL-167 parallel-implementation matched T-1706 (MCP doctor identity check). CLI and MCP doctor remain separate compilation units; shared logic replicated rather than cross-crate dep.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-966d81f8
+- **Timestamp:** 2026-05-19T07:18:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-19T07:18:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
