@@ -3214,6 +3214,38 @@ impl TermLinkTools {
             }
         }
 
+        // 6b. Identity attribution — T-1706 (parity with CLI doctor T-1705).
+        // Groups sessions by identity_fingerprint; warns when 2+ co-resident
+        // sessions share an FP (PL-166 / G-056 shared-host condition). MCP
+        // callers (LLM agents) now see the same hint as `termlink doctor`.
+        // Excludes pre-T-1436 sessions (no identity_fingerprint) from grouping.
+        {
+            use std::collections::BTreeMap;
+            let mut by_fp: BTreeMap<String, usize> = BTreeMap::new();
+            for s in &sessions {
+                if let Some(fp) = s.metadata.identity_fingerprint.as_deref() {
+                    *by_fp.entry(fp.to_string()).or_insert(0) += 1;
+                }
+            }
+            let shared: Vec<(&String, &usize)> =
+                by_fp.iter().filter(|(_, n)| **n >= 2).collect();
+            if shared.is_empty() {
+                let with_fp: usize = by_fp.values().sum();
+                check!("identity", pass, format!("no shared identities ({with_fp} session(s) with FP)"));
+            } else {
+                let total_shared: usize = shared.iter().map(|(_, n)| **n).sum();
+                let groups_desc: Vec<_> = shared.iter().map(|(fp, n)| {
+                    let short_fp = &fp[..8.min(fp.len())];
+                    format!("{}\u{00D7}{}", short_fp, n)
+                }).collect();
+                check!("identity", warn, format!(
+                    "{total_shared} sessions share {} identity FP [{}] — pass --identity-key at register for per-agent identity (T-1700)",
+                    shared.len(),
+                    groups_desc.join(", ")
+                ));
+            }
+        }
+
         // 7. Version
         let version = env!("CARGO_PKG_VERSION");
         check!("version", pass, format!("termlink-mcp {version}"));
