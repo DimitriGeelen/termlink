@@ -4,7 +4,7 @@ name: "termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T
 description: >
   termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050 parity for LLM agents)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [mcp, fleet-doctor, T-1446, G-050, PL-021, G-057, PL-167]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1446, T-1707, T-1708, T-1294, T-1296]
 created: 2026-05-19T07:32:45Z
-last_update: 2026-05-19T07:32:45Z
-date_finished: null
+last_update: 2026-05-19T07:35:53Z
+date_finished: 2026-05-19T07:35:53Z
 ---
 
 # T-1709: termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050 parity for LLM agents)
@@ -149,3 +149,15 @@ cargo test -p termlink-mcp --lib tests::fleet_doctor 2>&1 | tail -5 | grep -qE "
 - **Behavior:** opt-in `topic_durability` adds per-hub `bus_state` field AND top-level `bus_state_summary {verdict, hubs_durable, hubs_volatile, hubs_missing, hubs_unsupported}`. Verdict precedence: VOLATILE > UNCERTAIN > DURABLE. Default off → byte-identical to T-1708.
 - **Tests:** 28/0/0 under `tests::fleet_doctor` (20 prior + 8 new for topic_durability): durable, volatile-dominates, uncertain-on-missing-meta-db, uncertain-on-unsupported-only, skip-hubs-without-bus-state, empty-fleet, params shape.
 - **Fleet doctor MCP feature surface complete:** legacy_usage (T-1707) + include_pin_check (T-1708) + topic_durability (T-1709) — LLM agents now have full CLI parity for the three opt-in cut-readiness / rotation / durability diagnostics in a single call.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-26a80614
+- **Timestamp:** 2026-05-19T07:36:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-19T07:35:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
