@@ -243,6 +243,63 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// T-1715: parse a `termlink_agent_contact` `target` argument into
+/// `(name, optional_project)`. Mirrors `commands::agent::parse_contact_target`
+/// (CLI, T-1448 (b)). Accepts:
+///   - `<name>`            → (name, None)
+///   - `<name>:<project>`  → (name, Some(project))
+/// Rejects empty input, empty name, empty project, or multi-`:`.
+fn split_target_project(input: &str) -> Result<(String, Option<String>), String> {
+    if input.is_empty() {
+        return Err("target must not be empty".into());
+    }
+    let parts: Vec<&str> = input.split(':').collect();
+    match parts.as_slice() {
+        [name] => {
+            if name.is_empty() {
+                Err("target name must not be empty".into())
+            } else {
+                Ok(((*name).to_string(), None))
+            }
+        }
+        [name, project] => {
+            if name.is_empty() {
+                Err("target name (before ':') must not be empty".into())
+            } else if project.is_empty() {
+                Err("target project (after ':') must not be empty".into())
+            } else {
+                Ok(((*name).to_string(), Some((*project).to_string())))
+            }
+        }
+        _ => Err(format!(
+            "target may contain at most one ':' separator (got {} parts)",
+            parts.len()
+        )),
+    }
+}
+
+/// T-1715: canonical dm topic name. Mirrors `commands::channel::dm_topic`
+/// (CLI). Sorts the two fingerprints alphabetically so both ends compute
+/// the same string regardless of who initiates contact.
+fn dm_topic_canonical(my_fp: &str, peer_fp: &str) -> String {
+    let (a, b) = if my_fp <= peer_fp {
+        (my_fp, peer_fp)
+    } else {
+        (peer_fp, my_fp)
+    };
+    format!("dm:{a}:{b}")
+}
+
+/// T-1715: render a short preview of a message body for dry-run output.
+/// Truncates at `max_chars` with an ellipsis marker; preserves valid UTF-8.
+fn preview_body(s: &str, max_chars: usize) -> String {
+    if s.chars().count() <= max_chars {
+        return s.to_string();
+    }
+    let truncated: String = s.chars().take(max_chars).collect();
+    format!("{truncated}…")
+}
+
 /// T-1707: 5-minute active-traffic threshold for cut-readiness verdict.
 /// Mirrors `ACTIVE_TRAFFIC_THRESHOLD_SECS` in termlink-cli's remote.rs.
 const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
@@ -1053,6 +1110,43 @@ pub struct AgentPostParams {
     /// Optional project name. Stored as `metadata._project` / `from_project`.
     pub project: Option<String>,
     /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+/// T-1715: MCP-side parity for the `termlink agent contact` CLI verb (T-1429
+/// Phase-1 + Phase-2 partial). Targets a peer agent on its canonical
+/// `dm:<a>:<b>` topic. v1 scope: target / target_fp (mutually exclusive),
+/// message body, thread, dry_run, sender_id override. v2 will add
+/// require_online + ack_required (CLI ships these via T-1480 / T-1485 but
+/// they need extra wiring on the MCP side for the presence-probe / ack-poll
+/// loops).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentContactParams {
+    /// Peer session display name to contact. Resolved via local
+    /// `manager::find_session` to read the peer's identity_fingerprint
+    /// from `SessionMetadata` (T-1436). Optionally qualified with
+    /// `:project` to stamp `metadata.to_project=<project>` on the dm post
+    /// (T-1448 (b)). Mutually exclusive with `target_fp`; exactly one
+    /// required.
+    pub target: Option<String>,
+    /// Peer's identity fingerprint (hex, ≥8 chars). Cross-host bypass for
+    /// the local-only `session.discover` path — useful when the peer is on
+    /// a remote hub and not locally resolvable. Mutually exclusive with
+    /// `target`; exactly one required.
+    pub target_fp: Option<String>,
+    /// Message body. Required (no `file_path` shortcut in this MCP v1 —
+    /// MCP callers typically have the body inline).
+    pub message: String,
+    /// Optional task-id for `metadata._thread` routing per the agent-chat-arc
+    /// protocol canon (T-1430 topic doc). Vendored agents can group dm:*
+    /// messages by thread server-side without parsing the body.
+    pub thread: Option<String>,
+    /// If true, preview the resolved dm topic + metadata as JSON without
+    /// posting (mirrors CLI `--dry-run` / T-1478). Useful in CI or ops
+    /// validation to confirm name resolution + metadata stamping before
+    /// committing to a real post.
+    pub dry_run: Option<bool>,
+    /// Override sender_id (default: local identity fingerprint).
     pub sender_id: Option<String>,
 }
 
@@ -8604,6 +8698,183 @@ impl TermLinkTools {
                 Err(e) => json_err(format!("agent.post error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_contact",
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. v1 scope: presence/ack flags (--require-online/--ack-required from CLI T-1480/T-1485) deferred to v2."
+    )]
+    async fn termlink_agent_contact(
+        &self,
+        Parameters(p): Parameters<AgentContactParams>,
+    ) -> String {
+        use base64::Engine;
+
+        // Mutex validation: exactly one of target / target_fp required.
+        match (&p.target, &p.target_fp) {
+            (Some(_), Some(_)) => {
+                return json_err("specify either 'target' or 'target_fp', not both");
+            }
+            (None, None) => {
+                return json_err("must specify either 'target' (display name) or 'target_fp' (hex)");
+            }
+            _ => {}
+        }
+
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        // Parse positional target for `:project` suffix (T-1448 (b)).
+        // Mirrors `commands::agent::parse_contact_target` semantics.
+        let (target_name, to_project): (Option<String>, Option<String>) = if let Some(raw) = &p.target {
+            match split_target_project(raw) {
+                Ok((name, proj)) => (Some(name), proj),
+                Err(e) => return json_err(e),
+            }
+        } else {
+            (None, None)
+        };
+
+        // Resolve peer_fp: either trust target_fp directly (after hex
+        // validation), or look up via session.discover (local-only).
+        let peer_fp: String = if let Some(fp) = &p.target_fp {
+            if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+                return json_err(format!("target_fp must be hex (got {fp:?})"));
+            }
+            fp.clone()
+        } else {
+            let name = target_name.as_deref().expect("checked above");
+            let reg = match manager::find_session(name) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("session '{name}' not found: {e}")),
+            };
+            match reg.metadata.identity_fingerprint.clone() {
+                Some(fp) => fp,
+                None => return json_err(format!(
+                    "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Three recovery paths: (1) upgrade the peer's termlink binary and restart the session; (2) pass 'target_fp' (hex) directly; (3) use `termlink_channel_post` against agent-chat-arc with --mention to reach the peer broadcast-style."
+                )),
+            }
+        };
+
+        // Load identity (mirror of termlink_agent_post).
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let my_fp = identity.fingerprint().to_string();
+
+        // Compute canonical dm topic (mirror of commands::channel::dm_topic).
+        let topic = dm_topic_canonical(&my_fp, &peer_fp);
+
+        // Build metadata block.
+        let mut metadata = serde_json::Map::new();
+        if let Some(t) = &p.thread {
+            metadata.insert("_thread".to_string(), serde_json::Value::String(t.clone()));
+        }
+        if let Some(proj) = &to_project {
+            metadata.insert("to_project".to_string(), serde_json::Value::String(proj.clone()));
+        }
+
+        // Dry-run path: render preview JSON, no hub round-trip.
+        if p.dry_run.unwrap_or(false) {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "dry_run": true,
+                "topic": topic,
+                "peer_fp": peer_fp,
+                "my_fp": my_fp,
+                "metadata": metadata,
+                "would_post": {
+                    "msg_type": "chat",
+                    "body_preview": preview_body(&p.message, 80),
+                    "body_bytes": p.message.len(),
+                }
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        // Ensure dm topic exists (idempotent, retention=forever).
+        let create_result = termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CREATE,
+            serde_json::json!({"name": topic, "retention": {"kind": "forever"}}),
+        )
+        .await;
+        if let Err(e) = create_result {
+            return json_err(format!("channel.create transport: {e}"));
+        }
+
+        // Sign + post.
+        let msg_type = "chat";
+        let payload_bytes = p.message.as_bytes();
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &topic,
+            msg_type,
+            payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or(my_fp.clone());
+        let mut post_params = serde_json::json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+        });
+        if !metadata.is_empty()
+            && let Some(obj) = post_params.as_object_mut()
+        {
+            obj.insert("metadata".to_string(), serde_json::Value::Object(metadata));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            post_params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => {
+                    // Decorate hub's reply with topic + peer_fp for caller convenience.
+                    let mut envelope = serde_json::json!({
+                        "ok": true,
+                        "topic": topic,
+                        "peer_fp": peer_fp,
+                        "my_fp": my_fp,
+                    });
+                    if let Some(obj) = envelope.as_object_mut()
+                        && let Some(post_obj) = result.as_object()
+                    {
+                        for (k, v) in post_obj {
+                            obj.insert(k.clone(), v.clone());
+                        }
+                    }
+                    serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
+                }
+                Err(e) => json_err(format!("agent contact: channel.post error: {e}")),
+            },
+            Err(e) => json_err(format!("agent contact: RPC failed: {e}")),
         }
     }
 
@@ -16416,6 +16687,87 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-1715: agent_contact helper tests ===
+
+    #[test]
+    fn agent_contact_split_target_bare_name() {
+        let (name, proj) = split_target_project("ring20-management-agent").unwrap();
+        assert_eq!(name, "ring20-management-agent");
+        assert!(proj.is_none());
+    }
+
+    #[test]
+    fn agent_contact_split_target_with_project() {
+        let (name, proj) = split_target_project("alice:010-termlink").unwrap();
+        assert_eq!(name, "alice");
+        assert_eq!(proj.as_deref(), Some("010-termlink"));
+    }
+
+    #[test]
+    fn agent_contact_split_target_rejects_empty() {
+        assert!(split_target_project("").is_err());
+        assert!(split_target_project(":proj").is_err());
+        assert!(split_target_project("name:").is_err());
+        assert!(split_target_project("a:b:c").is_err());
+    }
+
+    #[test]
+    fn agent_contact_dm_topic_is_sorted_canonical() {
+        // my_fp < peer_fp — order preserved
+        assert_eq!(dm_topic_canonical("aaaa", "bbbb"), "dm:aaaa:bbbb");
+        // my_fp > peer_fp — order swapped to keep canonical
+        assert_eq!(dm_topic_canonical("bbbb", "aaaa"), "dm:aaaa:bbbb");
+        // Both ends always compute the same string regardless of who calls.
+        assert_eq!(
+            dm_topic_canonical("d1993c2c", "ffff0000"),
+            dm_topic_canonical("ffff0000", "d1993c2c"),
+        );
+    }
+
+    #[test]
+    fn agent_contact_preview_body_short_passthrough() {
+        assert_eq!(preview_body("hi", 80), "hi");
+        assert_eq!(preview_body("", 80), "");
+    }
+
+    #[test]
+    fn agent_contact_preview_body_truncates_with_ellipsis() {
+        let long = "a".repeat(200);
+        let prev = preview_body(&long, 80);
+        assert_eq!(prev.chars().count(), 81); // 80 chars + ellipsis
+        assert!(prev.ends_with('…'));
+    }
+
+    #[test]
+    fn agent_contact_params_minimal_message_only_target_fp() {
+        let json = serde_json::json!({
+            "target_fp": "deadbeefdeadbeef",
+            "message": "hello"
+        });
+        let p: AgentContactParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target_fp.as_deref(), Some("deadbeefdeadbeef"));
+        assert_eq!(p.message, "hello");
+        assert!(p.target.is_none());
+        assert!(p.thread.is_none());
+        assert!(p.dry_run.is_none());
+    }
+
+    #[test]
+    fn agent_contact_params_full_shape_with_all_optionals() {
+        let json = serde_json::json!({
+            "target": "alice:010-termlink",
+            "message": "smoke test",
+            "thread": "T-1715",
+            "dry_run": true,
+            "sender_id": "abcd1234"
+        });
+        let p: AgentContactParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target.as_deref(), Some("alice:010-termlink"));
+        assert_eq!(p.thread.as_deref(), Some("T-1715"));
+        assert_eq!(p.dry_run, Some(true));
+        assert_eq!(p.sender_id.as_deref(), Some("abcd1234"));
+    }
 
     // === parse_signal tests ===
 
