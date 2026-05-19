@@ -220,6 +220,72 @@ fn aggregate_legacy_summary(
     })
 }
 
+/// T-1709: aggregate G-050 audit-sweep verdict from per-hub `bus_state`
+/// payloads. Mirror of CLI's logic in remote.rs (search for
+/// `bus_state_summary_obj`). Pure fn so verdict precedence is testable.
+///
+/// Verdict rule: VOLATILE > UNCERTAIN > DURABLE.
+fn aggregate_bus_state_summary(hub_results: &[serde_json::Value]) -> serde_json::Value {
+    let mut hubs_durable: Vec<String> = Vec::new();
+    let mut hubs_volatile: Vec<(String, String)> = Vec::new();
+    let mut hubs_missing: Vec<(String, String)> = Vec::new();
+    let mut hubs_unsupported: Vec<String> = Vec::new();
+    for h in hub_results {
+        let name = h
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let Some(bs) = h.get("bus_state") else {
+            continue;
+        };
+        if bs.get("audit_unsupported").and_then(|v| v.as_bool()) == Some(true) {
+            hubs_unsupported.push(name);
+            continue;
+        }
+        let rd = bs
+            .get("runtime_dir")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let vol = bs
+            .get("runtime_dir_volatile")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let present = bs
+            .get("audit_present")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if vol {
+            hubs_volatile.push((name, rd));
+        } else if !present {
+            hubs_missing.push((name, rd));
+        } else {
+            hubs_durable.push(name);
+        }
+    }
+    let verdict = if !hubs_volatile.is_empty() {
+        "VOLATILE"
+    } else if !hubs_unsupported.is_empty() || !hubs_missing.is_empty() {
+        "UNCERTAIN"
+    } else if !hubs_durable.is_empty() {
+        "DURABLE"
+    } else {
+        "UNCERTAIN"
+    };
+    serde_json::json!({
+        "verdict": verdict,
+        "hubs_durable": hubs_durable,
+        "hubs_volatile": hubs_volatile.iter()
+            .map(|(n, r)| serde_json::json!({"hub": n, "runtime_dir": r}))
+            .collect::<Vec<_>>(),
+        "hubs_missing": hubs_missing.iter()
+            .map(|(n, r)| serde_json::json!({"hub": n, "runtime_dir": r}))
+            .collect::<Vec<_>>(),
+        "hubs_unsupported": hubs_unsupported,
+    })
+}
+
 /// T-1708: lookup pin_check tuple for `address` and inject it into the
 /// per-hub JSON object. Caller decides whether to invoke this based on the
 /// `include_pin_check` flag. Tuple shape mirrors fleet_verify so MCP
@@ -2095,6 +2161,12 @@ pub struct FleetDoctorParams {
     /// as `termlink_fleet_verify` so the two agree on rotation state.
     /// T-1708 (MCP parity for CLI `--include-pin-check`, T-1666).
     pub include_pin_check: Option<bool>,
+    /// Opt-in: probe each hub's `hub.bus_state` Tier-A RPC and aggregate
+    /// the G-050 durability verdict (DURABLE / VOLATILE / UNCERTAIN).
+    /// VOLATILE hubs have `runtime_dir` on a wipe-on-boot mount (e.g.
+    /// /tmp/termlink-0), the structural cause of PL-021 (identity rotates
+    /// on reboot). T-1709 (MCP parity for CLI `--topic-durability`, T-1446).
+    pub topic_durability: Option<bool>,
 }
 
 // T-1102: Fleet status params
@@ -7061,7 +7133,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-fail) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'."
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-fail) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'. Pass `topic_durability: true` (T-1709, MCP parity for CLI `--topic-durability`/T-1446) to also probe each hub's `hub.bus_state` and aggregate the G-050 durability verdict (DURABLE / VOLATILE / UNCERTAIN) in `bus_state_summary` — VOLATILE means the hub's runtime_dir lives on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -7078,6 +7150,7 @@ impl TermLinkTools {
         let legacy_usage = p.legacy_usage.unwrap_or(false);
         let legacy_window_days = p.legacy_window_days.unwrap_or(7).clamp(1, 90);
         let include_pin_check = p.include_pin_check.unwrap_or(false);
+        let topic_durability = p.topic_durability.unwrap_or(false);
         let mut hub_results: Vec<serde_json::Value> = Vec::new();
         let mut pass_count: u32 = 0;
         let mut fail_count: u32 = 0;
@@ -7174,6 +7247,27 @@ impl TermLinkTools {
                             obj.insert("legacy_usage".to_string(), lu_value);
                         }
                     }
+                    // T-1709: per-hub bus_state probe (G-050 durability audit).
+                    // Pre-T-1446 hubs return method-not-found → audit_unsupported.
+                    if topic_durability {
+                        let bs_result = client
+                            .call(
+                                "hub.bus_state",
+                                serde_json::json!("mcp-fleet-doctor-bus-state"),
+                                serde_json::json!({}),
+                            )
+                            .await;
+                        let bs_value = match bs_result {
+                            Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => r.result,
+                            _ => serde_json::json!({
+                                "audit_unsupported": true,
+                                "hint": "hub predates T-1446 (hub.bus_state) — upgrade to >=0.9.1717 to measure topic-durability on this host",
+                            }),
+                        };
+                        if let Some(obj) = hub_obj.as_object_mut() {
+                            obj.insert("bus_state".to_string(), bs_value);
+                        }
+                    }
                     // T-1708: pin_check is orthogonal to RPC connectivity —
                     // a hub can probe-fail on auth but TLS-handshake fine,
                     // or vice versa. Inject on every path.
@@ -7245,6 +7339,15 @@ impl TermLinkTools {
             && let Some(obj) = response.as_object_mut()
         {
             obj.insert("pin_check_summary".to_string(), ps);
+        }
+        // T-1709: aggregate G-050 audit-sweep verdict from per-hub bus_state.
+        if topic_durability
+            && let Some(obj) = response.as_object_mut()
+        {
+            obj.insert(
+                "bus_state_summary".to_string(),
+                aggregate_bus_state_summary(&hub_results),
+            );
         }
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
     }
@@ -16964,6 +17067,130 @@ mod tests {
         assert_eq!(pc["status"], "drift");
         assert_eq!(pc["wire"], "sha256:wire");
         assert_eq!(pc["pinned"], "sha256:pinned");
+    }
+
+    // === Fleet doctor topic-durability tests (T-1709) ===
+
+    #[test]
+    fn fleet_doctor_params_with_topic_durability() {
+        let json = serde_json::json!({"topic_durability": true});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic_durability, Some(true));
+    }
+
+    #[test]
+    fn fleet_doctor_params_topic_durability_optional() {
+        let json = serde_json::json!({});
+        let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
+        assert!(p.topic_durability.is_none());
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_verdict_durable_when_all_present_not_volatile() {
+        let hub_results = vec![
+            serde_json::json!({
+                "hub": "h1",
+                "bus_state": {
+                    "audit_present": true,
+                    "runtime_dir_volatile": false,
+                    "runtime_dir": "/var/lib/termlink",
+                }
+            }),
+            serde_json::json!({
+                "hub": "h2",
+                "bus_state": {
+                    "audit_present": true,
+                    "runtime_dir_volatile": false,
+                    "runtime_dir": "/var/lib/termlink",
+                }
+            }),
+        ];
+        let s = aggregate_bus_state_summary(&hub_results);
+        assert_eq!(s["verdict"], "DURABLE");
+        assert_eq!(s["hubs_durable"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_verdict_volatile_dominates() {
+        // VOLATILE beats UNCERTAIN beats DURABLE
+        let hub_results = vec![
+            serde_json::json!({
+                "hub": "good",
+                "bus_state": {"audit_present": true, "runtime_dir_volatile": false}
+            }),
+            serde_json::json!({
+                "hub": "old",
+                "bus_state": {"audit_unsupported": true}
+            }),
+            serde_json::json!({
+                "hub": "bad",
+                "bus_state": {
+                    "audit_present": true,
+                    "runtime_dir_volatile": true,
+                    "runtime_dir": "/tmp/termlink-0",
+                }
+            }),
+        ];
+        let s = aggregate_bus_state_summary(&hub_results);
+        assert_eq!(s["verdict"], "VOLATILE");
+        let vol = s["hubs_volatile"].as_array().unwrap();
+        assert_eq!(vol.len(), 1);
+        assert_eq!(vol[0]["hub"], "bad");
+        assert_eq!(vol[0]["runtime_dir"], "/tmp/termlink-0");
+        assert_eq!(s["hubs_unsupported"].as_array().unwrap().len(), 1);
+        assert_eq!(s["hubs_durable"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_verdict_uncertain_on_missing_meta_db() {
+        // audit_present=false (fresh runtime_dir, never posted) → UNCERTAIN.
+        let hub_results = vec![
+            serde_json::json!({
+                "hub": "fresh",
+                "bus_state": {
+                    "audit_present": false,
+                    "runtime_dir_volatile": false,
+                    "runtime_dir": "/var/lib/termlink",
+                }
+            }),
+        ];
+        let s = aggregate_bus_state_summary(&hub_results);
+        assert_eq!(s["verdict"], "UNCERTAIN");
+        assert_eq!(s["hubs_missing"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_verdict_uncertain_on_unsupported_only() {
+        let hub_results = vec![
+            serde_json::json!({
+                "hub": "ancient",
+                "bus_state": {"audit_unsupported": true}
+            }),
+        ];
+        let s = aggregate_bus_state_summary(&hub_results);
+        assert_eq!(s["verdict"], "UNCERTAIN");
+        assert_eq!(s["hubs_unsupported"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_skips_hubs_without_bus_state_block() {
+        // Hubs that failed connectivity have no bus_state — must not affect verdict.
+        let hub_results = vec![
+            serde_json::json!({"hub": "failed", "status": "timeout"}),
+            serde_json::json!({
+                "hub": "ok",
+                "bus_state": {"audit_present": true, "runtime_dir_volatile": false}
+            }),
+        ];
+        let s = aggregate_bus_state_summary(&hub_results);
+        assert_eq!(s["verdict"], "DURABLE");
+        assert_eq!(s["hubs_durable"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fleet_doctor_bus_state_verdict_uncertain_when_empty() {
+        let s = aggregate_bus_state_summary(&[]);
+        assert_eq!(s["verdict"], "UNCERTAIN");
     }
 
     #[test]
