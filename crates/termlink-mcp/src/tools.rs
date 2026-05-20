@@ -840,6 +840,35 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1733: pure helper — pre-order DFS over a parent→children map starting
+/// at `root`, returning (offset, depth) pairs. Mirror of CLI's `build_thread`
+/// (channel.rs:2330) one-to-one. Children visited in ascending offset order
+/// for deterministic output. Stops at `root`'s subtree; unrelated branches
+/// in the map are ignored. Pure — no I/O.
+fn build_thread_mcp(
+    parents: &std::collections::HashMap<u64, Vec<u64>>,
+    root: u64,
+) -> Vec<(u64, usize)> {
+    let mut out: Vec<(u64, usize)> = Vec::new();
+    fn visit(
+        parents: &std::collections::HashMap<u64, Vec<u64>>,
+        node: u64,
+        depth: usize,
+        out: &mut Vec<(u64, usize)>,
+    ) {
+        out.push((node, depth));
+        if let Some(children) = parents.get(&node) {
+            let mut sorted: Vec<u64> = children.clone();
+            sorted.sort_unstable();
+            for child in sorted {
+                visit(parents, child, depth + 1, out);
+            }
+        }
+    }
+    visit(parents, root, 0, &mut out);
+    out
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1922,6 +1951,18 @@ pub struct AgentThreadsParams {
     /// when set. Omitted = return every thread root with non-redacted
     /// replies.
     pub top: Option<usize>,
+}
+
+/// T-1733: parameters for `termlink_agent_thread` — read a full thread
+/// tree by root offset. MCP parity for the `termlink agent thread <ROOT>`
+/// CLI verb (T-1328). Companion to `termlink_agent_threads` (lists all
+/// roots) — once you've found an interesting root, fetch the conversation
+/// rooted there.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentThreadParams {
+    /// Offset of the thread root. Must match an existing envelope on
+    /// `agent-chat-arc` — otherwise the tool returns an error.
+    pub root: u64,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -10265,6 +10306,73 @@ impl TermLinkTools {
             "ok": true,
             "topic": topic,
             "threads": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_thread",
+        description = "Read the full conversation tree rooted at a specific offset on `agent-chat-arc` — MCP parity for the `termlink agent thread <ROOT>` CLI verb (T-1328). Companion read tool to `termlink_agent_threads` (T-1732, lists all roots): once an interesting root surfaces, fetch its tree. Walks the topic, indexes by offset, builds the parent→children map from `metadata.in_reply_to`, and runs a pre-order DFS rooted at the requested offset. Children are visited in ascending offset order for deterministic output. Returns `{ok, topic, root, thread: [{offset, depth, sender_id, msg_type, payload}, ...]}` with payload base64-decoded lossy. Errors if `root` does not exist in the topic. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_thread(
+        &self,
+        Parameters(p): Parameters<AgentThreadParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        // Root-exists check — match CLI's `bail!` behavior.
+        if !envelopes
+            .iter()
+            .any(|m| m.get("offset").and_then(|v| v.as_u64()) == Some(p.root))
+        {
+            return json_err(format!("Topic '{topic}' has no message at offset {}", p.root));
+        }
+        use std::collections::HashMap;
+        let mut by_off: HashMap<u64, &serde_json::Value> =
+            HashMap::with_capacity(envelopes.len());
+        let mut parents: HashMap<u64, Vec<u64>> = HashMap::new();
+        for env in &envelopes {
+            let Some(off) = env.get("offset").and_then(|v| v.as_u64()) else { continue };
+            by_off.insert(off, env);
+            if let Some(parent) = parent_offset_of_mcp(env) {
+                parents.entry(parent).or_default().push(off);
+            }
+        }
+        let order = build_thread_mcp(&parents, p.root);
+        let entries: Vec<serde_json::Value> = order
+            .iter()
+            .filter_map(|(off, depth)| {
+                let env = by_off.get(off)?;
+                let sender = env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let msg_type = env
+                    .get("msg_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let payload = decode_payload_lossy_mcp(env);
+                Some(serde_json::json!({
+                    "offset": off,
+                    "depth": depth,
+                    "sender_id": sender,
+                    "msg_type": msg_type,
+                    "payload": payload,
+                }))
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "root": p.root,
+            "thread": entries,
         }))
         .unwrap_or_else(json_err)
     }
@@ -19082,6 +19190,76 @@ mod tests {
         assert_eq!(parent_offset_of_mcp(&env_non_numeric), None);
         let env_no_meta = serde_json::json!({"offset": 1});
         assert_eq!(parent_offset_of_mcp(&env_no_meta), None);
+    }
+
+    // === T-1733 agent_thread tests ===
+
+    #[test]
+    fn agent_thread_empty_parents_returns_root_only() {
+        let parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        let out = build_thread_mcp(&parents, 42);
+        assert_eq!(out, vec![(42, 0)]);
+    }
+
+    #[test]
+    fn agent_thread_root_with_no_children_returns_root_only() {
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        parents.insert(99, vec![100]); // Unrelated branch
+        let out = build_thread_mcp(&parents, 42);
+        assert_eq!(out, vec![(42, 0)], "unrelated branches ignored");
+    }
+
+    #[test]
+    fn agent_thread_single_chain_depths_increment() {
+        // 1 → 2 → 3 → 4
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        parents.insert(1, vec![2]);
+        parents.insert(2, vec![3]);
+        parents.insert(3, vec![4]);
+        let out = build_thread_mcp(&parents, 1);
+        assert_eq!(out, vec![(1, 0), (2, 1), (3, 2), (4, 3)]);
+    }
+
+    #[test]
+    fn agent_thread_branching_preorder_depth() {
+        // 1 → [2 → 3, 4]
+        // Pre-order: 1, 2, 3, 4 — depth 0, 1, 2, 1
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        parents.insert(1, vec![2, 4]);
+        parents.insert(2, vec![3]);
+        let out = build_thread_mcp(&parents, 1);
+        assert_eq!(out, vec![(1, 0), (2, 1), (3, 2), (4, 1)]);
+    }
+
+    #[test]
+    fn agent_thread_children_sorted_ascending_offset() {
+        // 1 → [9, 2, 5] (insertion order) — must visit 2, 5, 9
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        parents.insert(1, vec![9, 2, 5]);
+        let out = build_thread_mcp(&parents, 1);
+        assert_eq!(out, vec![(1, 0), (2, 1), (5, 1), (9, 1)]);
+    }
+
+    #[test]
+    fn agent_thread_non_root_anchor_still_works() {
+        // 1 → 2 → 3. Call rooted at 2 — should return only 2 and 3.
+        let mut parents: std::collections::HashMap<u64, Vec<u64>> =
+            std::collections::HashMap::new();
+        parents.insert(1, vec![2]);
+        parents.insert(2, vec![3]);
+        let out = build_thread_mcp(&parents, 2);
+        assert_eq!(out, vec![(2, 0), (3, 1)]);
+    }
+
+    #[test]
+    fn agent_thread_params_deserializes() {
+        let p: AgentThreadParams = serde_json::from_value(serde_json::json!({"root": 42})).unwrap();
+        assert_eq!(p.root, 42);
     }
 
     // === parse_signal tests ===
