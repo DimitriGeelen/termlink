@@ -840,6 +840,101 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1735: one reaction row produced by `compute_reactions_of_mcp`. Mirror
+/// of CLI's `ReactionsOfRow` (channel.rs:4601). Field shape preserved
+/// one-to-one so the JSON envelope matches CLI `agent reactions-of --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReactionsOfRowMcp {
+    reaction_offset: u64,
+    parent_offset: u64,
+    emoji: String,
+    parent_payload: Option<String>,
+    ts: i64,
+}
+
+impl ReactionsOfRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "reaction_offset": self.reaction_offset,
+            "parent_offset": self.parent_offset,
+            "emoji": self.emoji,
+            "parent_payload": self.parent_payload,
+            "ts": self.ts,
+        })
+    }
+}
+
+/// T-1735: pure helper — list every active (non-redacted) reaction posted
+/// by `sender` on this topic, with the parent payload preview filled in.
+/// Mirror of CLI's `compute_reactions_of` (channel.rs:4631) one-to-one.
+///
+/// Filtering (preserved verbatim from CLI):
+/// - `msg_type == "reaction"` AND `sender_id == sender`
+/// - reaction's offset NOT in `redacted_offsets`
+/// - reaction must carry `metadata.in_reply_to` parseable as u64
+/// - empty emoji (lossy-decoded payload is empty) → drop
+///
+/// `parent_payload` is `Some` when the parent offset is present in the
+/// topic snapshot (even if redacted — its payload is still decoded). When
+/// absent from the snapshot entirely, it's `None`.
+///
+/// Sort: by reaction offset descending (most recent first). Pure — no I/O.
+fn compute_reactions_of_mcp(
+    envelopes: &[serde_json::Value],
+    sender: &str,
+) -> Vec<ReactionsOfRowMcp> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &serde_json::Value> =
+        HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut rows: Vec<ReactionsOfRowMcp> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let r_off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&r_off) {
+            continue;
+        }
+        let parent_offset = match parent_offset_of_mcp(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        let emoji = decode_payload_lossy_mcp(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let parent_payload = by_off
+            .get(&parent_offset)
+            .map(|p| decode_payload_lossy_mcp(p));
+        rows.push(ReactionsOfRowMcp {
+            reaction_offset: r_off,
+            parent_offset,
+            emoji,
+            parent_payload,
+            ts,
+        });
+    }
+    rows.sort_by(|a, b| b.reaction_offset.cmp(&a.reaction_offset));
+    rows
+}
+
 /// T-1734: one row in the replies-of view. Mirror of CLI's `RepliesOfRow`
 /// (channel.rs:5064). Field shape preserved one-to-one so the JSON envelope
 /// matches CLI `agent replies-of --json`.
@@ -2076,6 +2171,18 @@ pub struct AgentThreadParams {
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentRepliesOfParams {
     /// Identity fingerprint of the sender whose replies to enumerate.
+    /// Omit to default to the caller's local identity.
+    pub sender: Option<String>,
+}
+
+/// T-1735: parameters for `termlink_agent_reactions_of` — list every
+/// active reaction posted by a given sender on `agent-chat-arc`. MCP
+/// parity for the `termlink agent reactions-of [SENDER]` CLI verb
+/// (T-1362). When `sender` is omitted, defaults to the caller's local
+/// Identity fingerprint — answers "what have I reacted to?".
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentReactionsOfParams {
+    /// Identity fingerprint of the sender whose reactions to enumerate.
     /// Omit to default to the caller's local identity.
     pub sender: Option<String>,
 }
@@ -10536,6 +10643,52 @@ impl TermLinkTools {
             "topic": topic,
             "sender": sender,
             "replies": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_reactions_of",
+        description = "List every active (non-redacted) reaction posted by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent reactions-of [SENDER]` CLI verb (T-1362). Filters: msg_type==reaction, sender match, drop redacted reaction offsets, require parent offset, drop empty emoji. Each row carries the reaction's offset, its parent's offset, the emoji string (lossy-decoded), an optional `parent_payload` preview (`None` when parent absent from the topic snapshot, `Some(...)` otherwise), and `ts`. When `sender` is omitted, defaults to the caller's local Identity fingerprint — answers 'what have I reacted to?'. Returns `{ok, topic, sender, reactions: [{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted by `reaction_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_reactions_of(
+        &self,
+        Parameters(p): Parameters<AgentReactionsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let sender = match p.sender {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let rows = compute_reactions_of_mcp(&envelopes, &sender);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(ReactionsOfRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "sender": sender,
+            "reactions": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -19580,6 +19733,164 @@ mod tests {
         let p2: AgentRepliesOfParams =
             serde_json::from_value(serde_json::json!({"sender": "alice"})).unwrap();
         assert_eq!(p2.sender.as_deref(), Some("alice"));
+    }
+
+    // === T-1735 agent_reactions_of tests ===
+
+    #[test]
+    fn agent_reactions_of_empty_input() {
+        let rows = compute_reactions_of_mcp(&[], "alice");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_reactions_of_single_reaction_happy_path() {
+        // Parent (offset 1), reaction (offset 2, emoji 👍).
+        // payload_b64 of "👍" is "8J+RjQ=="
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+                "payload_b64": "cGFyZW50",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "reaction", "sender_id": "alice",
+                "ts_unix_ms": 500_i64,
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reaction_offset, 2);
+        assert_eq!(rows[0].parent_offset, 1);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].parent_payload.as_deref(), Some("parent"));
+        assert_eq!(rows[0].ts, 500);
+    }
+
+    #[test]
+    fn agent_reactions_of_redacted_reaction_dropped() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "reaction", "sender_id": "alice",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "redaction", "sender_id": "alice",
+                "metadata": {"redacts": "2"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "redacted reaction must be dropped");
+    }
+
+    #[test]
+    fn agent_reactions_of_non_reaction_msg_types_filtered() {
+        // Alice's text post with in_reply_to must NOT appear.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "alice",
+                "payload_b64": "aGVsbG8=",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "non-reaction msg-types must be filtered");
+    }
+
+    #[test]
+    fn agent_reactions_of_empty_emoji_dropped() {
+        // Reaction with no payload_b64 (lossy-decode = "") must be dropped.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "reaction", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "empty emoji must be dropped");
+    }
+
+    #[test]
+    fn agent_reactions_of_parent_absent_yields_none_parent_payload() {
+        // Reaction (offset 2) targets a parent that doesn't exist in the snapshot.
+        let envs = vec![serde_json::json!({
+            "offset": 2, "msg_type": "reaction", "sender_id": "alice",
+            "payload_b64": "8J+RjQ==",
+            "metadata": {"in_reply_to": "999"},
+        })];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].parent_offset, 999);
+        assert!(
+            rows[0].parent_payload.is_none(),
+            "parent_payload None when parent absent"
+        );
+    }
+
+    #[test]
+    fn agent_reactions_of_sort_descending_by_reaction_offset() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "reaction", "sender_id": "alice",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 8, "msg_type": "reaction", "sender_id": "alice",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 11, "msg_type": "reaction", "sender_id": "alice",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].reaction_offset, 11);
+        assert_eq!(rows[1].reaction_offset, 8);
+        assert_eq!(rows[2].reaction_offset, 5);
+    }
+
+    #[test]
+    fn agent_reactions_of_other_senders_excluded() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "reaction", "sender_id": "bob",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_reactions_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "only `sender` reactions count");
+    }
+
+    #[test]
+    fn agent_reactions_of_params_deserializes() {
+        let p1: AgentReactionsOfParams =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.sender.is_none());
+        let p2: AgentReactionsOfParams =
+            serde_json::from_value(serde_json::json!({"sender": "bob"})).unwrap();
+        assert_eq!(p2.sender.as_deref(), Some("bob"));
     }
 
     // === parse_signal tests ===
