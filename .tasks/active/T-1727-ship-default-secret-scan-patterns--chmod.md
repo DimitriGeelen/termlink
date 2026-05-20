@@ -1,36 +1,40 @@
 ---
-id: T-1725
-name: "Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)"
+id: T-1727
+name: "Ship default .secret-scan-patterns + chmod +x secret-scan.sh upstream (T-1725 follow-up)"
 description: >
-  Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)
+  Channel-1 upstream fix: framework ships secret-scan.sh + installer but no default pattern catalogue; result is silently-no-op hooks. Also chmod +x missing.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-05-20T10:18:48Z
-last_update: 2026-05-20T10:19:32Z
+created: 2026-05-20T18:42:17Z
+last_update: 2026-05-20T18:44:13Z
 date_finished: null
 ---
 
-# T-1725: Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)
+# T-1727: Ship default .secret-scan-patterns + chmod +x secret-scan.sh upstream (T-1725 follow-up)
 
 ## Context
 
-The T-1695 leak (commit 15c19f22 added a `github_pat_…` value to `.onedev-buildspec.yml` and merged into main) was eventually removed via destructive history rewrite — but the framework already ships a `secret-scan.sh` at `.agentic-framework/agents/git/lib/secret-scan.sh` whose entire purpose is to catch this class of leak pre-commit. Either the hook isn't installed in this project's `.git/hooks/pre-commit`, OR it is installed but its pattern set doesn't match `github_pat_` (the fine-grained PAT prefix introduced after the patterns were authored).
+T-1725 verification surfaced two upstream framework defects:
 
-This task verifies which of the two failed and closes the gap so the next PAT leak attempt is blocked at commit-time.
+1. **No default pattern catalogue.** `.agentic-framework/agents/git/lib/secret-scan.sh` ships with `_secret_scan_config_dir` that looks for `.secret-scan-patterns` at project root or under `.agentic-framework/`. Neither exists in any consumer or the framework itself. Result: every consumer's pre-commit hook silently no-ops (`secret-scan: no patterns file (...)`). T-1844 installer is wired correctly but the catalogue side of the contract is missing.
+2. **Scanner not executable.** `.agentic-framework/agents/git/lib/secret-scan.sh` ships as `-rw-r--r--`. The pre-commit hook tests `[ -x "$SCANNER" ]` and falls open with `scanner not found at $SCANNER (skipping)` when the bit is missing. T-1666-era housekeeping chmod'd many scripts but missed this one (it's invoked as a sourced subcommand by `git.sh`, not directly by `fw`).
+
+Both defects make the T-1844 secret-scan hook useless out-of-the-box. T-1725 fixed it at the consumer (`/opt/termlink`); this task closes it upstream so every other consumer gets coverage on `fw git install-hooks`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Read `.git/hooks/pre-commit` and confirm whether it invokes `.agentic-framework/agents/git/lib/secret-scan.sh` (or equivalent). If not installed, run `fw git install-hooks` and re-verify
-- [ ] Read `secret-scan.sh` pattern list; confirm `github_pat_[A-Za-z0-9_]{82}` (or equivalent regex covering the fine-grained PAT prefix) is in the pattern set. If missing, propose patch upstream to the framework repo (`/opt/999-AEF`) via Channel-1 dispatch
-- [ ] Negative test: stage a file containing `github_pat_TESTTESTTEST...` (82-char fake), attempt `git commit`, observe the hook blocks. Unstage and rm the test file after
-- [ ] Document outcome in Updates section — installed + covers pattern → close; gap found → file follow-up against framework repo
+- [ ] Add `.agentic-framework/.secret-scan-patterns` to `/opt/999-AEF` (TSV catalogue covering at minimum: github_pat_finegrained, ghp_/gho_/ghu_/ghs_/ghr_, sk-ant-, AKIA, SSH PRIVATE KEY header, xox[baprs]). Copy from `/opt/termlink/.secret-scan-patterns` as the seed.
+- [ ] Add `chmod +x agents/git/lib/secret-scan.sh` to `lib/build.sh` (or wherever T-1666 housekeeping lives), AND fix the executable bit on the in-tree file.
+- [ ] Verify upstream: clone fresh, run `fw git install-hooks`, attempt commit with `github_pat_` + 82 chars → confirm blocked.
+- [ ] Channel-1 dispatch the change from `/opt/termlink` (per `workflow_channel1_upstream_mirror` memory: --workdir, `onedev` not `origin`, verify after).
+- [ ] Tighten the "scanner missing" hook message — say "not executable" when the file exists but `! -x`, distinguish from "not found" when the file is absent. Reduces diagnostic loop for the next consumer hitting this.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,11 +125,11 @@ This task verifies which of the two failed and closes the gap so the next PAT le
 
 ## Updates
 
-### 2026-05-20T10:18:48Z — task-created [task-create-agent]
+### 2026-05-20T18:42:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1725-verify-project-pre-commit-hook-runs-secr.md
+- **Output:** /opt/termlink/.tasks/active/T-1727-ship-default-secret-scan-patterns--chmod.md
 - **Context:** Initial task creation
 
-### 2026-05-20T10:19:32Z — status-update [task-update-agent]
-- **Change:** status: started-work → captured
-- **Change:** horizon: now → next
+### 2026-05-20T18:44:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
