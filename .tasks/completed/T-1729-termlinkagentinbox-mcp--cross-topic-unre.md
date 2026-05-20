@@ -4,16 +4,16 @@ name: "termlink_agent_inbox MCP — cross-topic unread digest parity with CLI (T
 description: >
   termlink_agent_inbox MCP — cross-topic unread digest parity with CLI (T-1553)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T19:37:37Z
-last_update: 2026-05-20T19:37:37Z
-date_finished: null
+last_update: 2026-05-20T19:45:54Z
+date_finished: 2026-05-20T19:45:54Z
 ---
 
 # T-1729: termlink_agent_inbox MCP — cross-topic unread digest parity with CLI (T-1553)
@@ -120,3 +120,20 @@ cargo test --release -p termlink-mcp agent_inbox
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1729-termlinkagentinbox-mcp--cross-topic-unre.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-12117041
+- **Timestamp:** 2026-05-20T19:50:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `AgentInboxParams` struct defined in `crates/termlink-mcp/src/tools.rs` — parameter-less (mirrors CLI which only has `--hub`/`--json`; MCP defaults to local hub, JSON-only output). Doc-comment cites T
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-mcp/src/tools.rs in: `AgentInboxParams` struct defined in `crates/termlink-mcp/src/tools.rs` — parameter-less (mirrors CLI which only has `--hub`/`--json`; MCP defaults to`
+
+### 2026-05-20T19:45:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
