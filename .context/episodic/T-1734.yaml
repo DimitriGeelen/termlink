@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1734: termlink_agent_replies_of MCP — list all replies by a given sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T21:40:02Z
+# ============================================================================
+
+task_id: T-1734
+task_name: "termlink_agent_replies_of MCP — list all replies by a given sender"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T21:36:31Z
+completed: 2026-05-20T21:39:45Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_replies_of_mcp` ported alongside existing `*_mcp` helpers; preserves filters (sender match, drop redacted reply offset, drop msg_type=reaction, require non-null parent), best-effort parent_sender/parent_payload when parent absent or redacted, sort by `reply_offset` descending"
+  - "`RepliesOfRowMcp` struct + `to_json_mcp` mirror CLI's `RepliesOfRow` (`reply_offset`, `parent_offset`, `parent_sender`, `parent_payload`, `reply_payload`, `ts_ms`)"
+  - "`AgentRepliesOfParams { sender: Option<String> }` and `termlink_agent_replies_of` tool method added; sender defaults to caller's local Identity fingerprint when omitted (load via `Identity::load_or_create_default`)"
+  - "Returns `{ok, topic, sender, replies: [...]}` JSON"
+  - "≥6 new unit tests in `tools::tests` covering: empty input, single reply happy path, redacted reply dropped, reactions filtered out, parent redacted → empty parent_payload, sort by reply_offset descending"
+  - "`cargo build -p termlink-mcp` clean (no new warnings beyond pre-existing `cur_run_end`)"
+  - "`cargo test -p termlink-mcp` passes (all new tests + no regressions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1734-termlinkagentrepliesof-mcp--list-all-rep.md
+generated_by: context-agent-hybrid

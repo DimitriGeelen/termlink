@@ -840,6 +840,109 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1734: one row in the replies-of view. Mirror of CLI's `RepliesOfRow`
+/// (channel.rs:5064). Field shape preserved one-to-one so the JSON envelope
+/// matches CLI `agent replies-of --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RepliesOfRowMcp {
+    reply_offset: u64,
+    parent_offset: u64,
+    parent_sender: String,
+    parent_payload: String,
+    reply_payload: String,
+    ts_ms: i64,
+}
+
+impl RepliesOfRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "reply_offset": self.reply_offset,
+            "parent_offset": self.parent_offset,
+            "parent_sender": self.parent_sender,
+            "parent_payload": self.parent_payload,
+            "reply_payload": self.reply_payload,
+            "ts_ms": self.ts_ms,
+        })
+    }
+}
+
+/// T-1734: pure helper — list every reply envelope by `sender`. Mirror of
+/// CLI's `compute_replies_of` (channel.rs:5102) one-to-one.
+///
+/// A "reply" is an envelope where `metadata.in_reply_to` parses as a u64
+/// AND `msg_type != "reaction"`. Reactions also carry `in_reply_to` (T-1314)
+/// but are a different aggregate — see `compute_reactions_of` for that view.
+///
+/// Filters (preserved verbatim from CLI):
+/// - `sender_id == sender`
+/// - parent offset present (via `parent_offset_of_mcp`)
+/// - reply offset NOT in `redacted_offsets`
+/// - `msg_type != "reaction"`
+///
+/// `parent_sender` / `parent_payload` are best-effort: empty strings when
+/// the parent offset is absent from the topic snapshot OR itself redacted.
+///
+/// Sort: `reply_offset` descending (most recent first). Pure — no I/O.
+fn compute_replies_of_mcp(
+    envelopes: &[serde_json::Value],
+    sender: &str,
+) -> Vec<RepliesOfRowMcp> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_off: HashMap<u64, &serde_json::Value> =
+        HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<RepliesOfRowMcp> = Vec::new();
+    for env in envelopes {
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        if env.get("msg_type").and_then(|v| v.as_str()) == Some("reaction") {
+            continue;
+        }
+        let parent = match parent_offset_of_mcp(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        let (parent_sender, parent_payload) = match by_off.get(&parent) {
+            Some(p) if !redacted.contains(&parent) => (
+                p.get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                decode_payload_lossy_mcp(p),
+            ),
+            _ => (String::new(), String::new()),
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(RepliesOfRowMcp {
+            reply_offset: off,
+            parent_offset: parent,
+            parent_sender,
+            parent_payload,
+            reply_payload: decode_payload_lossy_mcp(env),
+            ts_ms: ts,
+        });
+    }
+    rows.sort_by(|a, b| b.reply_offset.cmp(&a.reply_offset));
+    rows
+}
+
 /// T-1733: pure helper — pre-order DFS over a parent→children map starting
 /// at `root`, returning (offset, depth) pairs. Mirror of CLI's `build_thread`
 /// (channel.rs:2330) one-to-one. Children visited in ascending offset order
@@ -1963,6 +2066,18 @@ pub struct AgentThreadParams {
     /// Offset of the thread root. Must match an existing envelope on
     /// `agent-chat-arc` — otherwise the tool returns an error.
     pub root: u64,
+}
+
+/// T-1734: parameters for `termlink_agent_replies_of` — list every reply
+/// by a given sender on `agent-chat-arc`. MCP parity for the
+/// `termlink agent replies-of [SENDER]` CLI verb (T-1370). When `sender`
+/// is omitted, defaults to the caller's local Identity fingerprint —
+/// answers "show me everything I've replied to".
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentRepliesOfParams {
+    /// Identity fingerprint of the sender whose replies to enumerate.
+    /// Omit to default to the caller's local identity.
+    pub sender: Option<String>,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -10373,6 +10488,54 @@ impl TermLinkTools {
             "topic": topic,
             "root": p.root,
             "thread": entries,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_replies_of",
+        description = "List every reply by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent replies-of [SENDER]` CLI verb (T-1370). A 'reply' is an envelope whose `metadata.in_reply_to` parses as a u64 AND whose `msg_type != \"reaction\"` (reactions also carry in_reply_to but are a different aggregate). Filters: sender_id match, drop redacted reply offsets, require parent offset. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty strings when the parent is absent from the topic snapshot or itself redacted. When `sender` is omitted, defaults to the caller's local Identity fingerprint (answers 'show me everything I've replied to'). Returns `{ok, topic, sender, replies: [{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}, ...]}` sorted by `reply_offset` descending (most recent first). NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_replies_of(
+        &self,
+        Parameters(p): Parameters<AgentRepliesOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        // Default sender to caller's local Identity fingerprint, matching
+        // CLI's `load_identity_or_create` fallback (channel.rs:5168).
+        let sender = match p.sender {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let rows = compute_replies_of_mcp(&envelopes, &sender);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(RepliesOfRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "sender": sender,
+            "replies": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -19260,6 +19423,163 @@ mod tests {
     fn agent_thread_params_deserializes() {
         let p: AgentThreadParams = serde_json::from_value(serde_json::json!({"root": 42})).unwrap();
         assert_eq!(p.root, 42);
+    }
+
+    // === T-1734 agent_replies_of tests ===
+
+    #[test]
+    fn agent_replies_of_empty_input() {
+        let rows = compute_replies_of_mcp(&[], "alice");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_replies_of_single_reply_happy_path() {
+        // Parent (offset 1) by bob, reply (offset 2) by alice.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+                "payload_b64": "cGFyZW50",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 200_i64, "payload_b64": "cmVwbHk=",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_offset, 2);
+        assert_eq!(rows[0].parent_offset, 1);
+        assert_eq!(rows[0].parent_sender, "bob");
+        assert_eq!(rows[0].parent_payload, "parent");
+        assert_eq!(rows[0].reply_payload, "reply");
+        assert_eq!(rows[0].ts_ms, 200);
+    }
+
+    #[test]
+    fn agent_replies_of_redacted_reply_dropped() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "redaction", "sender_id": "alice",
+                "metadata": {"redacts": "2"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "redacted reply must be dropped");
+    }
+
+    #[test]
+    fn agent_replies_of_reactions_filtered_out() {
+        // Reactions carry in_reply_to too, but are a different aggregate.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "reaction", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "reactions must not appear in replies-of");
+    }
+
+    #[test]
+    fn agent_replies_of_parent_redacted_yields_empty_parent_fields() {
+        // Reply (offset 2) is fine; parent (offset 1) was redacted by offset 3.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+                "payload_b64": "cGFyZW50",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "alice",
+                "payload_b64": "cmVwbHk=",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "redaction", "sender_id": "bob",
+                "metadata": {"redacts": "1"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1, "reply itself survives");
+        assert_eq!(rows[0].reply_offset, 2);
+        assert_eq!(rows[0].parent_offset, 1);
+        assert_eq!(rows[0].parent_sender, "", "parent_sender blanked when redacted");
+        assert_eq!(rows[0].parent_payload, "", "parent_payload blanked when redacted");
+    }
+
+    #[test]
+    fn agent_replies_of_sort_descending_by_reply_offset() {
+        // Alice's three replies arrive at offsets 5, 8, 11. Expect order: 11, 8, 5.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "bob",
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "text", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 8, "msg_type": "text", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 11, "msg_type": "text", "sender_id": "alice",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].reply_offset, 11);
+        assert_eq!(rows[1].reply_offset, 8);
+        assert_eq!(rows[2].reply_offset, 5);
+    }
+
+    #[test]
+    fn agent_replies_of_non_reply_envelopes_excluded() {
+        // Alice has a top-level post (no in_reply_to) — must NOT appear in replies-of.
+        let envs = vec![serde_json::json!({
+            "offset": 5, "msg_type": "text", "sender_id": "alice",
+        })];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "top-level post must not count as a reply");
+    }
+
+    #[test]
+    fn agent_replies_of_other_senders_excluded() {
+        // Bob's reply must not appear when querying for alice.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "only `sender` rows count");
+    }
+
+    #[test]
+    fn agent_replies_of_params_deserializes() {
+        // sender optional
+        let p1: AgentRepliesOfParams =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.sender.is_none());
+        let p2: AgentRepliesOfParams =
+            serde_json::from_value(serde_json::json!({"sender": "alice"})).unwrap();
+        assert_eq!(p2.sender.as_deref(), Some("alice"));
     }
 
     // === parse_signal tests ===
