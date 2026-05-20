@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1503: agent post <text> — focus-aware chat-arc post verb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:21:41Z
+# ============================================================================
+
+task_id: T-1503
+task_name: "agent post <text> — focus-aware chat-arc post verb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-04T22:11:38Z
+completed: 2026-05-20T13:20:50Z
+duration_days: 16
+updates_count: 2
+first_commit: 2026-05-05T00:18:05+02:00
+last_commit: 2026-05-05T00:18:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent post — focus-aware chat-arc write verb (work-completed, G-054 workaround)
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::Post` variant: positional `text` (required), `--thread <T>` (optional override), `--project <P>` (optional override), `--msg-type <T>` (default \"note\"), `--hub <H>`, `--json`"
+  - "`cmd_agent_post` resolves --thread from `.context/working/focus.yaml::current_task` if not provided"
+  - "`cmd_agent_post` resolves --project from `.framework.yaml::project_name` if not provided"
+  - "If both auto-resolves fail (no focus, no framework yaml), task succeeds anyway (just doesn't add the metadata) — defensive"
+  - "Posts to `agent-chat-arc` topic via existing channel post path"
+  - "Empty text bails with operator-friendly error (not silent post)"
+  - "JSON envelope (when --json): {ok, topic, msg_type, thread, project, ts_ms, offset}"
+  - "Text mode: prints \"Posted to agent-chat-arc thread=T-XXX project=Y — offset=N, ts=ms\""
+  - "main.rs propagates new value through AgentAction::Post dispatch"
+  - "`cargo build --release -p termlink` clean"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1503-agent-post-text--focus-aware-chat-arc-po.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T00:18:05"
+    action: "T-1503: agent post — focus-aware chat-arc write verb (work-completed, G-054 workaround)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 22509 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22509
+  commits: 1
+  files_changed: 4
+  lines_added: 271
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1503-agent-post-text--focus-aware-chat-arc-po.md
+generated_by: context-agent-hybrid

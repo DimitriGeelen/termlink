@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1585: termlink_agent_pinned_by + termlink_agent_starred_by — per-curator pin/star views MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:32Z
+# ============================================================================
+
+task_id: T-1585
+task_name: "termlink_agent_pinned_by + termlink_agent_starred_by — per-curator pin/star views MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T18:37:42Z
+completed: 2026-05-05T18:44:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T20:44:42+02:00
+last_commit: 2026-05-05T20:44:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_pinned_by + termlink_agent_starred_by — per-curator views
+
+# Key outcomes
+outcomes:
+  - "New `AgentPinnedByParams` struct (sender_id Option<String>)"
+  - "New `AgentStarredByParams` struct (sender_id Option<String>)"
+  - "New `termlink_agent_pinned_by` tool method walks topic + filters pin by sender + reduces latest-wins"
+  - "New `termlink_agent_starred_by` tool method walks topic + filters star by sender + reduces latest-wins"
+  - "Both default sender_id to caller's local Identity"
+  - "pinned_by filters to action=\"pin\" (excludes unpin); starred_by filters to star=\"true\" (excludes false)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=116 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1585-termlinkagentpinnedby--termlinkagentstar.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T20:44:42"
+    action: "T-1585: termlink_agent_pinned_by + termlink_agent_starred_by — per-curator views"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 316
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1585-termlinkagentpinnedby--termlinkagentstar.md
+generated_by: context-agent-hybrid

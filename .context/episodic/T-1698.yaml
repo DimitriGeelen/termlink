@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1698: Auto-heal infrastructure dormant — no bootstrap_from declared on any profile (T-1680..T-1689 not wired)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T21:19:41Z
+# ============================================================================
+
+task_id: T-1698
+task_name: "Auto-heal infrastructure dormant — no bootstrap_from declared on any profile (T-1680..T-1689 not wired)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T18:51:09Z
+completed: 2026-05-18T21:19:39Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-18T20:55:26+02:00
+last_commit: 2026-05-18T23:07:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file inception — auto-heal infrastructure dormant (no bootstrap_from declared, T-1680..T-1689 not wired). add ## Recommendation section to task body (GO Path 1). record GO decision in task body + gate-compliant Recommendation format
+
+# Key outcomes
+outcomes:
+  - "Sweep `~/.termlink/hubs.toml` profiles, confirm `bootstrap_from` count = 0 and document each profile's reachability (SSH-from-.107 results captured in body) — see `docs/reports/T-1698-auto-heal-dormancy-inception.md` § Reachability matrix"
+  - "Evaluate all four paths above against R2 (out-of-band rule) and termlink fleet ops reality (operator-driven .107 + 4 field hubs). Output: shortlist with rationale — Path Analysis section: Path 1 R2-clean (operator-bound); Path 2/3 fail R2 (chicken-and-egg in disguise); Path 4 honest interim"
+  - "Produce a Go/No-Go recommendation for ONE path, tagged in `## Recommendation` per inception convention — Path 1 (ssh:) with Path 4 (scope-out) as interim"
+  - "Surface the finding to the operator on chat-arc with a copy-pasteable runbook for the chosen path — posted chat-arc:1599, _thread=T-1698"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1698-auto-heal-dormancy-inception.md"
+  - ".tasks/active/T-1698-auto-heal-infrastructure-dormant--no-boo.md"
+  - ".tasks/completed/T-1692-mcp-channelpost-metadata-exposure--close.md"
+  - ".tasks/completed/T-1693-per-agent-ed25519-signing-identity-on-sh.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-18T20:55:26"
+    action: "T-1698: file inception — auto-heal infrastructure dormant (no bootstrap_from declared, T-1680..T-1689 not wired)"
+  - time: "2026-05-18T22:58:10"
+    action: "T-1698: add ## Recommendation section to task body (GO Path 1)"
+  - time: "2026-05-18T23:07:13"
+    action: "T-1698: record GO decision in task body + gate-compliant Recommendation format"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 148 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 148
+  commits: 3
+  files_changed: 3
+  lines_added: 377
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1698-auto-heal-infrastructure-dormant--no-boo.md
+generated_by: context-agent-hybrid

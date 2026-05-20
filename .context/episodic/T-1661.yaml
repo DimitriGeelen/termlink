@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1661: MCP exposure for fleet verify — parity with fleet_status/fleet_doctor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T17:49:59Z
+# ============================================================================
+
+task_id: T-1661
+task_name: "MCP exposure for fleet verify — parity with fleet_status/fleet_doctor"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T17:46:11Z
+completed: 2026-05-17T17:49:53Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T19:49:48+02:00
+last_commit: 2026-05-17T19:49:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_verify MCP tool — parity with fleet_status/fleet_doctor
+
+# Key outcomes
+outcomes:
+  - "`termlink_fleet_verify` MCP tool added in `crates/termlink-mcp/src/tools.rs`"
+  - "Tool description: short, action-oriented, names the rollup verdicts (\"match / drift / no-pin / probe-fail … drift dominates … detect rotation BEFORE auth-bearing workloads fail\")"
+  - "Params struct `FleetVerifyParams { exit_on_drift_only: Option<bool> }`"
+  - "Implementation:"
+  - "`cargo check -p termlink-mcp` succeeds (clean, 12s; pre-existing `cur_run_end` warning unrelated)"
+  - "`cargo build --release -p termlink-mcp` succeeds (1m 08s)"
+  - "Sanity check: tool registers in the MCP server — grep confirms `name = \"termlink_fleet_verify\"` attribute under a `#[tool(...)]` block at lines matching the impl. Implementation mirrors CLI's `cmd_fleet_verify` (T-1660) logic byte-for-byte; runtime behavior already validated by T-1660 live smoke against 5 hubs."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1661-mcp-exposure-for-fleet-verify--parity-wi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T19:49:48"
+    action: "T-1661: termlink_fleet_verify MCP tool — parity with fleet_status/fleet_doctor"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, G-011, rotation-protocol, mcp, fleet]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 248
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1661-mcp-exposure-for-fleet-verify--parity-wi.md
+generated_by: context-agent-hybrid

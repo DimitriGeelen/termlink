@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1686: fleet history --include-heals — merge heal.log events into the rotation history view
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T06:33:17Z
+# ============================================================================
+
+task_id: T-1686
+task_name: "fleet history --include-heals — merge heal.log events into the rotation history view"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T06:28:59Z
+completed: 2026-05-18T06:33:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-18T08:32:57+02:00
+last_commit: 2026-05-18T08:32:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet history --include-heals — merge heal.log into the rotation view
+
+# Key outcomes
+outcomes:
+  - "`--include-heals` flag added to `fleet history` clap variant"
+  - "Reads heal.log when present; gracefully skips when absent (rotation_path.exists() gate relaxed when --include-heals)"
+  - "Time-ordered output: entries sorted by `ts` when --include-heals"
+  - "Text mode renders heal entries: `<ts>  <hub>  HEAL/<mode> trigger=<t> action=<a>`"
+  - "JSON mode tags each entry with `event_type: \"rotation\" | \"heal\"`"
+  - "`--hub` filter respects both event sources (verified live with synthetic heal.log)"
+  - "Summary footer shows rotation/heal counts per hub when `--include-heals` (e.g. `ring20-management        rotation= 0  heal= 1`)"
+  - "Without `--include-heals`: output matches T-1671 exact format (verified — 3 events from existing rotation.log render identically before/after)"
+  - "`cargo check -p termlink` passes clean"
+  - "Smoke: synthesized 2-entry heal.log, ran all four modes (no flag, --include-heals, --hub filter, --json) — output as designed for each. State restored."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1686-fleet-history---include-heals--merge-hea.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-18T08:32:57"
+    action: "T-1686: fleet history --include-heals — merge heal.log into the rotation view"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 314
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1686-fleet-history---include-heals--merge-hea.md
+generated_by: context-agent-hybrid

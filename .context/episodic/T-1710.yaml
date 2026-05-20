@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1710: termlink_fleet_history MCP — add analyze (PL-021 flap detection parity with CLI T-1690, G-057 punch-list #1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T12:14:15Z
+# ============================================================================
+
+task_id: T-1710
+task_name: "termlink_fleet_history MCP — add analyze (PL-021 flap detection parity with CLI T-1690, G-057 punch-list #1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T12:07:01Z
+completed: 2026-05-19T12:14:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-19T14:13:58+02:00
+last_commit: 2026-05-19T14:13:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_history MCP — add analyze (PL-021 flap detection parity with CLI T-1690, G-057 punch-list #1)
+
+# Key outcomes
+outcomes:
+  - "`FleetHistoryParams` gains `analyze: Option<bool>` field with rustdoc"
+  - "Tool description string explicitly mentions `analyze` + PL-021 detection"
+  - "When `analyze=true`, handler short-circuits BEFORE chronological listing path and returns the per-hub flap report (parity with CLI T-1690 JSON shape: `{ok, since_days, hub_filter, log_path, hubs[], pl021_candidates}`)"
+  - "Pure-function `analyze_pl021_mcp(&[entries]) -> Vec<HubFlapReport>` reimplements T-1690's classifier inline (G-057 convention — CLI's `analyze_pl021` is `pub(crate)`, not reachable from termlink-mcp crate)"
+  - "Unit tests cover all 5 verdicts (`clean`/`cert-only`/`secret-only`/`single-double-rotation`/`pl021-candidate`) + cross-hub isolation + recovery-transition-not-counted"
+  - "`cargo build -p termlink-mcp` passes (no new warnings introduced)"
+  - "All existing `tests::fleet_doctor` and `tests::fleet_history` tests still pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1710-termlinkfleethistory-mcp--add-analyze-pl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T14:13:58"
+    action: "T-1710: termlink_fleet_history MCP — add analyze (PL-021 flap detection parity with CLI T-1690, G-057 punch-list #1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 686
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1710-termlinkfleethistory-mcp--add-analyze-pl.md
+generated_by: context-agent-hybrid

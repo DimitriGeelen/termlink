@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1664: episodic generator emits invalid YAML on backslash in AC text
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T18:56:31Z
+# ============================================================================
+
+task_id: T-1664
+task_name: "episodic generator emits invalid YAML on backslash in AC text"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T18:40:58Z
+completed: 2026-05-17T18:56:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T20:55:10+02:00
+last_commit: 2026-05-17T20:55:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  episodic generator — escape backslashes before quotes (file follow-up T-1665 for upstream sync)
+
+# Key outcomes
+outcomes:
+  - "All three quote-escape sites in `.agentic-framework/agents/context/lib/episodic.sh` (lines 288, 304, 361) prepend a backslash-escape pass before the quote-escape pass. **Verified 2026-05-17:** sites 288 (outcomes), 304 (challenges), 361 (git_timeline) all now do `sed 's/\\\\/\\\\\\\\/g' | sed 's/\"/\\\\\"/g'`. Comment at site 288 documents the escape-order invariant for future editors."
+  - "Upstream propagation is tracked separately as **T-1665** (operator-owned). This task ships the load-bearing consumer-side fix; T-1665 lands the identical patch in `/opt/999-AEF/agents/context/lib/episodic.sh` from a host where that path is accessible. Dispatch from this container exited with `FATAL: cd /opt/999-AEF failed`, confirming the path isn't reachable from here — filing as a follow-up rather than blocking T-1664 closure is the correct decomposition (one bug = one task; upstream propagation is operator-coordination work, not generator-code work)."
+  - "Regression smoke: regenerate T-1663's episodic via `.agentic-framework/agents/context/context.sh generate-episodic T-1663` and confirm `python3 -c \"import yaml; yaml.safe_load(open('.context/episodic/T-1663.yaml'))\"` exits 0 — proves the fix handles the original failure case. **Verified 2026-05-17:** regen succeeded, 5 outcomes loaded; line 32 now contains `\\\\|` (valid YAML) instead of the original `\\|` that crashed the parser."
+  - "Synthetic regression: write a one-shot test where an AC text contains `\\|`, `\\\\`, `\\n` literals; generate episodic; YAML parses clean. **Verified 2026-05-17:** synthetic task fixture at `/tmp/synth-test/.tasks/completed/T-9999-synthetic.md` with three ACs (regex pipe `grep \"a\\|b\\|c\"`, double backslash `\"C:\\\\foo\\\\bar\"`, mixed `awk '/\\|/'`); episodic generated; `yaml.safe_load` returned dict with 3 outcomes intact."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1663.yaml"
+  - ".tasks/active/T-1664-episodic-generator-emits-invalid-yaml-on.md"
+  - ".tasks/active/T-1665-t-1664-follow-up-propagate-episodic-gene.md"
+  - ".tasks/completed/T-1663-mcp-parity-for-hub-probe--tofu-verify-pr.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T20:55:10"
+    action: "T-1664: episodic generator — escape backslashes before quotes (file follow-up T-1665 for upstream sync)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 4
+  lines_added: 337
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1664-episodic-generator-emits-invalid-yaml-on.md
+generated_by: context-agent-hybrid

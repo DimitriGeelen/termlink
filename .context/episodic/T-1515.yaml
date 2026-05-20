@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1515: agent emoji-stats — fleet-wide emoji reaction counts on chat-arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:22:59Z
+# ============================================================================
+
+task_id: T-1515
+task_name: "agent emoji-stats — fleet-wide emoji reaction counts on chat-arc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T07:50:08Z
+completed: 2026-05-05T07:55:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T09:55:37+02:00
+last_commit: 2026-05-05T09:55:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent emoji-stats — lifetime emoji aggregates on chat-arc (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::EmojiStats { by_sender, top, hub, json }` variant in cli.rs"
+  - "main.rs dispatch arm calling `cmd_channel_emoji_stats(\"agent-chat-arc\", by_sender, top, hub, json)`"
+  - "`cargo build --release --bin termlink` clean"
+  - "`agent emoji-stats --help` shows `--by-sender` / `--top` / `--hub` / `--json`"
+  - "Live smoke text: `agent emoji-stats` renders `{emoji × count (N reactor(s))}` rows"
+  - "Live smoke JSON: `agent emoji-stats --json` returns parseable JSON array"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1515-agent-emoji-stats--fleet-wide-emoji-reac.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T09:55:37"
+    action: "T-1515: agent emoji-stats — lifetime emoji aggregates on chat-arc (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 153
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1515-agent-emoji-stats--fleet-wide-emoji-reac.md
+generated_by: context-agent-hybrid

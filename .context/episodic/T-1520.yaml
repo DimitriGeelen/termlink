@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1520: agent peers — fleet directory of every chat-arc participant
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:02Z
+# ============================================================================
+
+task_id: T-1520
+task_name: "agent peers — fleet directory of every chat-arc participant"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T08:15:25Z
+completed: 2026-05-05T08:20:43Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T10:20:44+02:00
+last_commit: 2026-05-05T10:20:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent peers — lifetime fleet directory of chat-arc participants (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::Peers { include_meta, as_of, hub, json }` variant in cli.rs"
+  - "main.rs dispatch arm calling `cmd_channel_members(\"agent-chat-arc\", include_meta, as_of, hub, json)`"
+  - "`cargo build --release --bin termlink` clean"
+  - "`agent peers --help` shows `--include-meta` / `--as-of` / `--hub` / `--json`"
+  - "Live smoke text: `agent peers` renders `<sender_id>  posts=<n>  first=<ts>  last=<ts>` rows"
+  - "Live smoke JSON: `agent peers --json` returns parseable envelope with `members` array"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1520-agent-peers--fleet-directory-of-every-ch.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T10:20:44"
+    action: "T-1520: agent peers — lifetime fleet directory of chat-arc participants (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 157
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1520-agent-peers--fleet-directory-of-every-ch.md
+generated_by: context-agent-hybrid

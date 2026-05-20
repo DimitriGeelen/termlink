@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1611: termlink_agent_top_pinners + termlink_agent_top_starrers — most-active curators leaderboards MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:48Z
+# ============================================================================
+
+task_id: T-1611
+task_name: "termlink_agent_top_pinners + termlink_agent_top_starrers — most-active curators leaderboards MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T07:27:11Z
+completed: 2026-05-06T07:34:28Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-06T09:34:22+02:00
+last_commit: 2026-05-06T09:34:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_top_pinners + termlink_agent_top_starrers — Wave 67
+
+# Key outcomes
+outcomes:
+  - "New `AgentTopPinnersParams` struct (limit Option<u64>)"
+  - "New `AgentTopStarrersParams` struct (limit Option<u64>)"
+  - "New `termlink_agent_top_pinners` walks topic + filters msg_type=pin + per-sender (count, max-ts) tally + sort desc"
+  - "New `termlink_agent_top_starrers` walks topic + filters msg_type=star + per-sender (count, max-ts) tally + sort desc"
+  - "Both default limit=20, capped at 200"
+  - "Both return total + returned + leaderboard"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=168 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1611-termlinkagenttoppinners--termlinkagentto.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T09:34:22"
+    action: "T-1611: termlink_agent_top_pinners + termlink_agent_top_starrers — Wave 67"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 239
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1611-termlinkagenttoppinners--termlinkagentto.md
+generated_by: context-agent-hybrid

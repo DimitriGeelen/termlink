@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1575: termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:26Z
+# ============================================================================
+
+task_id: T-1575
+task_name: "termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T16:43:14Z
+completed: 2026-05-05T16:51:59Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T18:49:26+02:00
+last_commit: 2026-05-05T18:49:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentOnThreadParams` struct (root_offset u64, limit Option<u64>)"
+  - "New `AgentReactionsParams` struct (offset u64)"
+  - "New `termlink_agent_on_thread` tool method that walks topic + builds parent→children index + BFS-collects descendants from root"
+  - "New `termlink_agent_reactions` tool method that walks topic + filters msg_type=reaction with metadata.in_reply_to=offset + decodes emoji"
+  - "on_thread returns JSON array sorted ts asc (chronological); reactions returns JSON array sorted ts desc (newest-first)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=96 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1575-termlinkagentonthread--termlinkagentreac.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T18:49:26"
+    action: "T-1575: termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 2
+  lines_added: 304
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1575-termlinkagentonthread--termlinkagentreac.md
+generated_by: context-agent-hybrid

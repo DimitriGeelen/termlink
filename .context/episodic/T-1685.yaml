@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1685: heal.log audit trail — fire-and-forget auto-heal needs a record
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-18T06:28:28Z
+# ============================================================================
+
+task_id: T-1685
+task_name: "heal.log audit trail — fire-and-forget auto-heal needs a record"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T06:24:51Z
+completed: 2026-05-18T06:28:17Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-18T08:28:10+02:00
+last_commit: 2026-05-18T08:28:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  heal.log audit trail for --auto-heal
+
+# Key outcomes
+outcomes:
+  - "`append_heal_log(hub, mode, trigger, action, bootstrap_from)` helper added immediately above `append_rotation_log` with matching shape + best-effort error handling"
+  - "Single-shot path: fire/dry-run/skip-no-anchor all append one entry (verified live)"
+  - "Watch path: same three cases all append entries via the transition handler; rotation.log calls untouched"
+  - "Write failures emit to stderr (`heal.log write failed (...)`) without crashing"
+  - "`cargo check -p termlink` passes clean"
+  - "Smoke (dry-run with anchor): `{\"action\":\"dry-run\",\"bootstrap_from\":\"file:/tmp/fake-anchor\",\"hub\":\"ring20-dashboard\",\"mode\":\"one-shot\",\"trigger\":\"cert-drift\",\"ts\":\"2026-05-18T06:27:03Z\"}`"
+  - "Smoke (skip-no-anchor): `{\"action\":\"skipped-no-anchor\",\"bootstrap_from\":null,\"hub\":\"ring20-dashboard\",\"mode\":\"one-shot\",\"trigger\":\"cert-drift\",\"ts\":\"2026-05-18T06:27:29Z\"}`"
+  - "State restored after smoke (known_hubs + hubs.toml + heal.log)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1685-heallog-audit-trail--fire-and-forget-aut.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-18T08:28:10"
+    action: "T-1685: heal.log audit trail for --auto-heal"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 242
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1685-heallog-audit-trail--fire-and-forget-aut.md
+generated_by: context-agent-hybrid

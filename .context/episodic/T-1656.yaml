@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1656: hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T14:07:46Z
+# ============================================================================
+
+task_id: T-1656
+task_name: "hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T13:55:46Z
+completed: 2026-05-17T14:07:22Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T16:07:13+02:00
+last_commit: 2026-05-17T16:07:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub export-secret — read-live alternative to IP-keyed cache (G-011 R3 facet 2)
+
+# Key outcomes
+outcomes:
+  - "`HubAction::ExportSecret` variant added to `cli.rs` enum + dispatched in main.rs"
+  - "`cmd_hub_export_secret(out, json)` reads from `hub_secret_path()` (live runtime_dir/hub.secret), prints hex to stdout (live-smoke: exported hex sha256 = live-file sha256)"
+  - "`--out <path>` flag: write hex to file with chmod 600 (live-smoke: 64-byte file at mode 0o600, diff vs live = identical)"
+  - "`--json` flag: prints `{\"path\":\"<live-path>\",\"hex\":\"<value>\",\"bytes\":<len>}` for scripting (live-smoke: `{\"bytes\":32,\"hex\":\"b307...\",\"path\":\"/var/lib/termlink/hub.secret\"}`)"
+  - "Error path: when live secret file missing → exit non-zero with message \"no hub.secret at <path> — is the hub running?\" (live-smoke with TERMLINK_RUNTIME_DIR=/tmp/no-hub-here-xyz: exit=1, message exact)"
+  - "Unit test: `export_secret_reads_live_not_cache` — stages stale cache (bbbb...) + different live secret (aaaa...) under env-lock; verifies --out captured content == LIVE"
+  - "Unit test: `export_secret_missing_live_errors` — no live file under staged TERMLINK_RUNTIME_DIR; verifies cmd returns Err with both \"no hub.secret\" and \"is the hub running?\" substrings"
+  - "`cargo test -p termlink --bin termlink -- export_secret` passes (2/2)"
+  - "`cargo check --workspace` passes"
+  - "Commit with T-1656 prefix (3db9581f)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1656-hub-export-secret--read-live-alternative.md"
+  - ".tasks/completed/T-1655-tag-12-genuinely-standalone-fabric-cards.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T16:07:13"
+    action: "T-1656: hub export-secret — read-live alternative to IP-keyed cache (G-011 R3 facet 2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 5
+  lines_added: 353
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1656-hub-export-secret--read-live-alternative.md
+generated_by: context-agent-hybrid

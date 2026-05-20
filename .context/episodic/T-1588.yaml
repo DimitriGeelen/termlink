@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1588: termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:34Z
+# ============================================================================
+
+task_id: T-1588
+task_name: "termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T19:26:48Z
+completed: 2026-05-05T19:33:48Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T21:33:41+02:00
+last_commit: 2026-05-05T21:33:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentThreadsByParams` struct (sender_id Option<String>, limit Option<u64>)"
+  - "New `AgentSilentSendersParams` struct (window_days Option<u64>, limit Option<u64>)"
+  - "New `termlink_agent_threads_by` walks topic + filters root posts by sender_id + counts descendants"
+  - "New `termlink_agent_silent_senders` walks topic + finds senders with last-post older than window"
+  - "threads_by defaults sender_id to caller's local Identity"
+  - "silent_senders default window_days=14"
+  - "silent_senders excludes senders never posted (only ever-posted, now-quiet)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=122 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1588-termlinkagentthreadsby--termlinkagentsil.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T21:33:41"
+    action: "T-1588: termlink_agent_threads_by + termlink_agent_silent_senders — sender-started thread roots + quiet-peer detection MCP read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 334
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1588-termlinkagentthreadsby--termlinkagentsil.md
+generated_by: context-agent-hybrid

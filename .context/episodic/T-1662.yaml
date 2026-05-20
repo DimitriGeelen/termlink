@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1662: Document rotation-protocol detection verbs in CLAUDE.md
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T18:24:50Z
+# ============================================================================
+
+task_id: T-1662
+task_name: "Document rotation-protocol detection verbs in CLAUDE.md"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T18:22:43Z
+completed: 2026-05-17T18:24:48Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T20:24:43+02:00
+last_commit: 2026-05-17T20:24:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  document rotation-protocol detection verbs in CLAUDE.md
+
+# Key outcomes
+outcomes:
+  - "CLAUDE.md \"Hub Auth Rotation Protocol\" section gains a \"Detection — primitive verbs\" subsection listing each of the six verbs (`hub export-secret`, `hub fingerprint`, `hub probe`, `tofu verify`, `fleet verify`, `termlink_fleet_verify` MCP) with one-line purpose + exit-code semantics for the script-friendly verbs. **Verified 2026-05-17:** CLAUDE.md:118 table with all six rows ships; exit codes `0/1/2/3` and `--exit-on-drift-only` documented inline."
+  - "Subsection placed BEFORE the existing \"Heal path — Tier-1\" so operators read detect→identify→heal in document order. **Verified 2026-05-17:** Detection at line 118, Heal Tier-1 at line 144."
+  - "Cert-vs-secret rotation coverage note included (PL-162 nuance): `fleet verify` detects CERT rotation; `fleet doctor` remains required for SECRET-only rotation; PL-021 \"both rotate\" is covered by either. **Verified 2026-05-17:** \"Coverage scope (PL-162)\" paragraph at CLAUDE.md:135 with the secret-only carve-out and the operator disagreement-resolution rule."
+  - "Each verb's one-line purpose matches its actual `--help` surface (verified via `./target/release/termlink <verb> --help` cross-check). **Verified 2026-05-17:** All five CLI verbs cross-checked against `target/release/termlink --help` output; phrasings derive from each verb's clap long-about."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - ".tasks/active/T-1662-document-rotation-protocol-detection-ver.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T20:24:43"
+    action: "T-1662: document rotation-protocol detection verbs in CLAUDE.md"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 159
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1662-document-rotation-protocol-detection-ver.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1567: termlink_agent_edit — MCP tool for chat-arc post editing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:22Z
+# ============================================================================
+
+task_id: T-1567
+task_name: "termlink_agent_edit — MCP tool for chat-arc post editing"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T13:39:52Z
+completed: 2026-05-05T13:46:20Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T15:46:20+02:00
+last_commit: 2026-05-05T15:46:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_edit — MCP tool for chat-arc post editing (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentEditParams` struct (offset, text, sender_id override)"
+  - "New `termlink_agent_edit` tool method (msg_type=\"edit\", payload=text, metadata.replaces=offset)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=83"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1567-termlinkagentedit--mcp-tool-for-chat-arc.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T15:46:20"
+    action: "T-1567: termlink_agent_edit — MCP tool for chat-arc post editing (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 300
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1567-termlinkagentedit--mcp-tool-for-chat-arc.md
+generated_by: context-agent-hybrid

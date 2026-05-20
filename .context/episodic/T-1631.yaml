@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1631: Fix G-082 upstream — episodic generator emits invalid YAML on tasks with ## Decisions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-11T11:24:42Z
+# ============================================================================
+
+task_id: T-1631
+task_name: "Fix G-082 upstream — episodic generator emits invalid YAML on tasks with ## Decisions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-11T11:07:29Z
+completed: 2026-05-11T11:24:40Z
+duration_days: 0
+updates_count: 5
+first_commit: 2026-05-11T13:10:01+02:00
+last_commit: 2026-05-11T13:24:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open upstream fix task for G-082 (episodic YAML emit) + deploy spec posted to .122 DM. G-082 fix shipped — 9/9 Agent ACs + PL-155 registered
+
+# Key outcomes
+outcomes:
+  - "Bug reproduced locally — symptom mutated from peer's report (current vendored copy no longer emits the trailing placeholder; instead silently merges duplicate keys). See `Updates 2026-05-11T11:14Z`. Real root cause: `lib/episodic.sh:125` `grep -v '^##'` greedily consumed `### ` H3 headings."
+  - "Fix written in `/opt/999-Agentic-Engineering-Framework/agents/context/lib/episodic.sh` — `grep -v '^##'` → `grep -v '^## '` (with trailing space) preserves H3 headings; downstream `^### ` handler now fires correctly. Upstream commit `7dedefca7` on `master` (note: actual path is `/opt/999-Agentic-Engineering-Framework`, my prior memory said `/opt/999-AEF` which was a stale alias)."
+  - "Post-generation YAML validation step added — `do_generate_episodic` now runs `python3 -c \"import yaml,sys; yaml.safe_load(open(sys.argv[1]))\" \"$episodic_file\"` after writing; exits 2 with operator-facing guidance if invalid. Upstream commit `7dedefca7`."
+  - "Test: synthetic task with 1 decision → episodic valid YAML, `decisions` is list of 1 mapping with proper chose/rationale/alternatives_rejected. Sandbox `/tmp/g082-sandbox/.context/episodic/T-G082-2.yaml`."
+  - "Test: synthetic task with 2 decisions → episodic valid YAML, `decisions` is list of 2 mappings each preserving its own fields (pre-fix: silently merged into single mapping). Sandbox `T-G082-1.yaml`."
+  - "Test: synthetic task with 0 decisions → episodic valid YAML, `decisions: null` (no spurious data, no regression). Sandbox `T-G082-0.yaml`."
+  - "Patch committed and pushed to upstream onedev remote — `7dedefca7` on `agentic-engineering-framework.git` (push range `3b5c566a8..7dedefca7  master -> master`)."
+  - "Local `/opt/termlink/.agentic-framework/agents/context/lib/episodic.sh` synced — vendored copy was edited first to verify the fix works, then mirrored upstream. Vendored sha and upstream sha now contain identical T-1631/G-082 markers."
+  - "Reply envelope posted on `framework:pickup` referencing `pickup_id=ring20-G-082-2026-05-05` — local hub offset 8, .122 hub offset 2. `msg_type=pickup-bug-fixed`, includes upstream sha `7dedefca7`, root-cause clarification (symptom mutation), and consumer-action steps (`git pull origin master` + regenerate corrupted episodics)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "G-082 fix shipped — 9/9 Agent ACs + PL-155 registered"
+    source: git-mined
+  - description: "open upstream fix task for G-082 (episodic YAML emit) + deploy spec posted to .122 DM"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1631-fix-g-082-upstream--episodic-generator-e.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-11T13:10:01"
+    action: "T-1631: open upstream fix task for G-082 (episodic YAML emit) + deploy spec posted to .122 DM"
+  - time: "2026-05-11T13:24:34"
+    action: "T-1631: G-082 fix shipped — 9/9 Agent ACs + PL-155 registered"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 2
+  lines_added: 160
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1631-fix-g-082-upstream--episodic-generator-e.md
+generated_by: context-agent-hybrid

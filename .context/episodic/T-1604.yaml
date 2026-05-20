@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1604: termlink_agent_co_posters + termlink_agent_daily_volume — co-thread peer affinity + per-day post volume histogram MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:43Z
+# ============================================================================
+
+task_id: T-1604
+task_name: "termlink_agent_co_posters + termlink_agent_daily_volume — co-thread peer affinity + per-day post volume histogram MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T05:58:10Z
+completed: 2026-05-06T06:06:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-06T08:06:01+02:00
+last_commit: 2026-05-06T08:06:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_co_posters + termlink_agent_daily_volume — Wave 60
+
+# Key outcomes
+outcomes:
+  - "New `AgentCoPostersParams` struct (sender_id String, limit Option<u64>)"
+  - "New `AgentDailyVolumeParams` struct (window_days Option<u64>)"
+  - "New `termlink_agent_co_posters` walks topic + builds offset→author + child→root maps + identifies threads target posted in + tallies other senders in those threads"
+  - "New `termlink_agent_daily_volume` walks topic + filters posts in window + buckets by UTC-day index + emits date_iso + count rows"
+  - "co_posters excludes target sender from leaderboard (no self-affinity)"
+  - "co_posters default limit=20, capped at 200"
+  - "daily_volume default window_days=14, capped at 90"
+  - "daily_volume returns sorted oldest-first with `total_posts` summary"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=154 (2 new)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1604-termlinkagentcoposters--termlinkagentdai.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T08:06:01"
+    action: "T-1604: termlink_agent_co_posters + termlink_agent_daily_volume — Wave 60"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 356
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1604-termlinkagentcoposters--termlinkagentdai.md
+generated_by: context-agent-hybrid

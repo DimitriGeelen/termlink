@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1599: termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:40Z
+# ============================================================================
+
+task_id: T-1599
+task_name: "termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T23:13:39Z
+completed: 2026-05-05T23:20:09Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-06T01:19:58+02:00
+last_commit: 2026-05-06T01:19:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentUserSummaryParams` struct (sender_id String)"
+  - "New `AgentFirstPostByParams` struct (sender_id String)"
+  - "New `termlink_agent_user_summary` walks topic + tallies posts/replies/threads/reactions + min/max ts + top reaction emoji"
+  - "New `termlink_agent_first_post_by` walks topic + filters by sender + finds min-ts post"
+  - "user_summary distinguishes posts (any msg_type=post by sender) from replies (post WITH in_reply_to) from threads_started (post WITHOUT in_reply_to)"
+  - "user_summary returns 0/null fields when sender never posted"
+  - "first_post_by returns null fields when sender never posted"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=144 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1599-termlinkagentusersummary--termlinkagentf.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T01:19:58"
+    action: "T-1599: termlink_agent_user_summary + termlink_agent_first_post_by — composite peer profile + earliest-post-by-sender MCP read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 336
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1599-termlinkagentusersummary--termlinkagentf.md
+generated_by: context-agent-hybrid

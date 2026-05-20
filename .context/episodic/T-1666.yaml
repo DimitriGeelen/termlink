@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1666: fleet doctor --include-pin-check — unify auth + cert rotation diagnostics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T19:22:39Z
+# ============================================================================
+
+task_id: T-1666
+task_name: "fleet doctor --include-pin-check — unify auth + cert rotation diagnostics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T18:57:27Z
+completed: 2026-05-17T19:16:50Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T21:16:44+02:00
+last_commit: 2026-05-17T21:16:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --include-pin-check — unify auth + cert rotation diagnostics
+
+# Key outcomes
+outcomes:
+  - "`FleetAction::Doctor` in `crates/termlink-cli/src/cli.rs` gains an `--include-pin-check` flag (off by default — additive). When set, fleet doctor additionally probes each hub via TLS and compares wire fingerprint to the stored TOFU pin. **Verified:** `./target/release/termlink fleet doctor --help` lists `--include-pin-check` with full doc text."
+  - "`cmd_fleet_doctor` in `crates/termlink-cli/src/commands/remote.rs` accepts the new parameter, runs probes in parallel per hub via `tokio::spawn(probe_cert(addr))` reusing the T-1660 pattern. **Verified:** new parameter `include_pin_check: bool` in signature; parallel probe block at remote.rs:~2737 populates `pin_checks: HashMap<String, PinCheck>` BEFORE the per-hub diagnostic loop; reuses `termlink_session::tofu::probe_cert` + `KnownHubStore` identically to T-1660."
+  - "Per-hub JSON output gains a `pin_check` object: `{status: \"match\"|\"drift\"|\"no-pin\"|\"probe-fail\", wire?: String, pinned?: String, error?: String}` ONLY when the flag is set. When not set, `pin_check` is absent (no schema change for default invocations). **Verified live 2026-05-17:** with flag set, ring20-management entry contained `pin_check: {error: null, pinned: \"sha256:22c19fed...d00d46\", status: \"match\", wire: \"sha256:22c19fed...d00d46\"}`; without flag set, `pin_check` field absent (no-op)."
+  - "Fleet-rollup JSON gains a `pin_check_summary` object with `{verdict, drift_count, no_pin_count, probe_fail_count, match_count}` ONLY when the flag is set. `verdict` mirrors `fleet verify`'s precedence: drift > probe-fail > no-pin > match. **Verified live 2026-05-17:** with flag set on a fleet of 5 (3 match, 1 no-pin, 1 probe-fail, 0 drift), `pin_check_summary` returned `{drift_count: 0, match_count: 3, no_pin_count: 1, probe_fail_count: 1, verdict: \"probe-fail\"}` — correct precedence (drift=0 → fall through to probe-fail)."
+  - "Plain-mode output appends a `Pin check: <verdict>` footer line at the end of the report when the flag is set; per-hub drift events emit a `[DRIFT] <name>: pin=<short-pinned> wire=<short-wire>` line under the hub's existing diagnostic. No noise added when pin status is \"match\" (keeps default-good output clean). **Verified live 2026-05-17:** stderr contained `Pin check: probe-fail (match=3, drift=0, no-pin=1, probe-fail=1)` footer; no per-hub drift lines emitted (drift=0). Heal hint lines also omitted when drift_hubs empty (per design)."
+  - "Cut-readiness verdict (`CUT-READY`/`WAIT`/`UNCERTAIN`) is unchanged by the pin-check axis. Pin drift does NOT downgrade cut-readiness; cut-readiness UNCERTAIN does NOT mask pin-check drift. The two verdicts coexist in JSON and plain output. **Verified:** pin_check_summary lives alongside legacy_summary in the top-level JSON; both axes are independent object keys. Cut-readiness verdict logic (line ~3014 onward) is unmodified — pin_check_summary insert block is BEFORE that section and does not touch the cut-readiness variables."
+  - "`cargo build --release -p termlink` succeeds. `cargo clippy -p termlink -- -D warnings` does not introduce new clippy violations in the touched file. **Verified:** build clean in 6m26s. Workspace clippy shows 23 pre-existing `collapsible_if` lints in termlink-mcp/src/tools.rs (unrelated to this change); cli.rs/main.rs/remote.rs touched files emit zero clippy diagnostics."
+  - "Live smoke against the fleet: `./target/release/termlink fleet doctor --include-pin-check --json` produces a JSON document with `pin_check_summary` showing the same verdict as `./target/release/termlink fleet verify --json` for the same fleet at the same moment. **Verified 2026-05-17:** fleet doctor reported `pin_check_summary.verdict=probe-fail`; reference `fleet verify --json` from the same session reported `verdict=probe-fail`. Per-hub status field also matches (ring20-management=match, laptop-141=probe-fail, etc.) — semantic parity confirmed."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1666-fleet-doctor---include-pin-check--unify-.md"
+  - ".tasks/completed/T-1664-episodic-generator-emits-invalid-yaml-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T21:16:44"
+    action: "T-1666: fleet doctor --include-pin-check — unify auth + cert rotation diagnostics"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 1
+  files_changed: 5
+  lines_added: 272
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1666-fleet-doctor---include-pin-check--unify-.md
+generated_by: context-agent-hybrid

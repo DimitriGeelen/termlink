@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1655: Tag 12 genuinely-standalone fabric cards to clear recurring 8x-WARN
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T13:54:06Z
+# ============================================================================
+
+task_id: T-1655
+task_name: "Tag 12 genuinely-standalone fabric cards to clear recurring 8x-WARN"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T13:43:59Z
+completed: 2026-05-17T13:51:55Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T15:51:43+02:00
+last_commit: 2026-05-17T15:51:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  tag 12 genuinely-standalone fabric cards — clear 8x-recurring WARN
+
+# Key outcomes
+outcomes:
+  - "All 12 zero-edge cards inspected; each classified as genuinely-standalone (all 12 had no source-tree imports — they are installer/operational/test/build-script artifacts)"
+  - "Tagged cards have `standalone: true` field added (boolean, top-level YAML)"
+  - "`fw audit` re-run; \"Fabric: N/122 cards have no edges\" WARN no longer fires — now `[PASS] Fabric edges: 110/110 cards enriched (0 without edges)`"
+  - "Cards tagged standalone are documented in their `purpose` field (10 had TODO placeholders; all updated with concrete one-line descriptions)"
+  - "Commit with T-1655 prefix (7987f1f0)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/crates-termlink-hub-build.yaml"
+  - ".fabric/components/crates-termlink-hub-tests-no_legacy_callers.yaml"
+  - ".fabric/components/install.yaml"
+  - ".fabric/components/scripts-chat-arc-multicast.yaml"
+  - ".fabric/components/scripts-check-mirror-freshness.yaml"
+  - ".fabric/components/scripts-check-vendored-arc-rollout.yaml"
+  - ".fabric/components/scripts-install-heartbeat-cron.yaml"
+  - ".fabric/components/scripts-watchdog.yaml"
+  - ".fabric/components/tests-test_g052_inception_decision_gate.yaml"
+  - ".fabric/components/tests-test_g054_completion_smoke.yaml"
+  - ".fabric/components/tests-test_t1628_task_verify_flags.yaml"
+  - ".fabric/components/transcripts-agent.yaml"
+  - ".tasks/active/T-1655-tag-12-genuinely-standalone-fabric-cards.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T15:51:43"
+    action: "T-1655: tag 12 genuinely-standalone fabric cards — clear 8x-recurring WARN"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 13
+  lines_added: 171
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1655-tag-12-genuinely-standalone-fabric-cards.md
+generated_by: context-agent-hybrid

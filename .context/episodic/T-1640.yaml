@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1640: Fix pgrep self-match in hub-binary-swap.sh — bracket trick
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-15T20:19:26Z
+# ============================================================================
+
+task_id: T-1640
+task_name: "Fix pgrep self-match in hub-binary-swap.sh — bracket trick"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-15T20:14:13Z
+completed: 2026-05-15T20:19:24Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-15T22:19:14+02:00
+last_commit: 2026-05-15T22:19:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bracket-trick pgrep patterns in hub deploy scripts
+
+# Key outcomes
+outcomes:
+  - "**A1** All `pgrep -f` and `pkill -f` patterns in `scripts/hub-binary-swap.sh` use the bracket trick (e.g. `'[t]ermlink hub start'` instead of `'termlink hub start'`) so the search pattern in the running shell's argv does not self-match. — 7 callsites converted."
+  - "**A2** Same applied to `scripts/fleet-deploy-binary.sh` (5 callsites converted: lines 102, 184, 198, 201, 224)."
+  - "**A3** Static test `tests/test_t1640_pgrep_self_match.sh` asserts every `pgrep -f` / `pkill -f` literal in both scripts uses a bracket-class prefix. — passes; fails if any callsite regresses."
+  - "**A4** Functional test: bug reproduced on decoy A (old pattern matches decoy PID), fix verified on decoy B (new pattern does NOT match the bracket-tricked decoy). — PASS in same test file."
+  - "**A5** `bash -n` clean on both scripts."
+  - "**A6** RCA section populated below (bug-class)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/fleet-deploy-binary.sh"
+  - "scripts/hub-binary-swap.sh"
+  - ".tasks/active/T-1640-fix-pgrep-self-match-in-hub-binary-swaps.md"
+  - "tests/test_t1640_pgrep_self_match.sh"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-15T22:19:14"
+    action: "T-1640: bracket-trick pgrep patterns in hub deploy scripts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, T-1438, hub-binary-swap, deploy-tooling]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 255
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1640-fix-pgrep-self-match-in-hub-binary-swaps.md
+generated_by: context-agent-hybrid

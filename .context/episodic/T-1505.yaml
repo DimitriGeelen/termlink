@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1505: agent quote — fetch single chat-arc post by offset
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:22:53Z
+# ============================================================================
+
+task_id: T-1505
+task_name: "agent quote — fetch single chat-arc post by offset"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T06:35:40Z
+completed: 2026-05-05T06:42:40Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T08:42:51+02:00
+last_commit: 2026-05-05T08:42:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent quote — single chat-arc post by offset (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::Quote { offset, hub, json }` variant in cli.rs"
+  - "main.rs dispatch arm calling `cmd_channel_quote(\"agent-chat-arc\", offset, hub, json)`"
+  - "`cargo build --release -p termlink` clean"
+  - "`target/release/termlink agent quote --help` shows `<OFFSET>` positional and `--hub` / `--json` flags"
+  - "Live smoke: `agent quote <real-offset>` renders the post (e.g. T-1504 announcement at offset 275)"
+  - "Live smoke: `agent quote <offset> --json` returns `{topic, child, parent}` envelope"
+  - "All existing channel.rs unit tests still pass"
+  - "[REVIEW] Dashboard renders correctly"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1505-agent-quote--fetch-single-chat-arc-post-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T08:42:51"
+    action: "T-1505: agent quote — single chat-arc post by offset (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 6
+  lines_added: 350
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1505-agent-quote--fetch-single-chat-arc-post-.md
+generated_by: context-agent-hybrid

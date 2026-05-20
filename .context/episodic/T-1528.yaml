@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1528: agent star <offset> — star a chat-arc post
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:07Z
+# ============================================================================
+
+task_id: T-1528
+task_name: "agent star <offset> — star a chat-arc post"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T08:56:38Z
+completed: 2026-05-05T09:05:53Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::Star { offset, unstar, hub, json }` variant in cli.rs"
+  - "main.rs dispatch arm calling `cmd_channel_star(\"agent-chat-arc\", offset, unstar, hub, json)`"
+  - "`cargo build --release --bin termlink` clean"
+  - "`agent star --help` shows positional `<OFFSET>` plus `--unstar` / `--hub` / `--json`"
+  - "Live smoke text: `agent star <offset>` posts star envelope"
+  - "Live smoke JSON: `agent star <offset> --json` returns parseable envelope"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 6
+  lines_added: 601
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1528-agent-star-offset--star-a-chat-arc-post.md
+generated_by: context-agent-hybrid

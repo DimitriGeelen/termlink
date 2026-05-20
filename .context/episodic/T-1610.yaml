@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1610: termlink_agent_recent_threads + termlink_agent_topic_summary — last-activity thread leaderboard + composite topic snapshot MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:47Z
+# ============================================================================
+
+task_id: T-1610
+task_name: "termlink_agent_recent_threads + termlink_agent_topic_summary — last-activity thread leaderboard + composite topic snapshot MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-06T07:13:50Z
+completed: 2026-05-06T07:21:23Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-06T09:21:16+02:00
+last_commit: 2026-05-06T09:21:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_recent_threads + termlink_agent_topic_summary — Wave 66
+
+# Key outcomes
+outcomes:
+  - "New `AgentRecentThreadsParams` struct (limit Option<u64>)"
+  - "New `AgentTopicSummaryParams` struct (no fields)"
+  - "New `termlink_agent_recent_threads` walks topic + builds parent→children + per-thread max(ts) + sorts by last_activity desc"
+  - "New `termlink_agent_topic_summary` walks topic once + composes 8 metrics + latest topic_metadata description"
+  - "recent_threads default limit=20, capped at 200"
+  - "recent_threads `mins_ago` derived from `(now_ms - last_activity_ts) / 60_000`"
+  - "topic_summary returns `{total_messages, by_msg_type, unique_senders, total_threads, max_thread_size, description, last_activity_ts, posts_24h}`"
+  - "topic_summary `description` defaults to empty string when no topic_metadata exists"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=166 (2 new)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1610-termlinkagentrecentthreads--termlinkagen.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T09:21:16"
+    action: "T-1610: termlink_agent_recent_threads + termlink_agent_topic_summary — Wave 66"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 380
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1610-termlinkagentrecentthreads--termlinkagen.md
+generated_by: context-agent-hybrid

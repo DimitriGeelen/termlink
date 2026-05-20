@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1681: Extend --auto-heal to fire on conn=auth-mismatch transitions — close PL-162 secret-only rotation gap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T22:47:49Z
+# ============================================================================
+
+task_id: T-1681
+task_name: "Extend --auto-heal to fire on conn=auth-mismatch transitions — close PL-162 secret-only rotation gap"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T22:39:06Z
+completed: 2026-05-17T22:47:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-18T00:47:40+02:00
+last_commit: 2026-05-18T00:47:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  --auto-heal also fires on conn=auth-mismatch (PL-162)
+
+# Key outcomes
+outcomes:
+  - "Auto-heal fires on `new_pin == \"drift\"` (existing T-1680 behavior preserved)"
+  - "Auto-heal also fires on `new_conn == \"auth-mismatch\"` AND `old_conn != \"auth-mismatch\"` (new path)"
+  - "Both gates share the R2 declared-bootstrap_from check (skip with same hint when absent)"
+  - "Both gates fire `fire_auto_heal` once per change cycle (deduplicated — combined OR-gate with single fire site)"
+  - "`cargo check --workspace` passes"
+  - "CLAUDE.md detection-verbs row for `--auto-heal` updated to note BOTH coverage paths; new \"Coverage of --auto-heal (T-1681)\" paragraph added under PL-162 section"
+  - "Live smoke: --watch --auto-heal --include-pin-check starts cleanly without panic, baseline cycle begins as expected"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-1681-extend---auto-heal-to-fire-on-connauth-m.md"
+  - ".tasks/completed/T-1680-fleet-doctor---watch---auto-heal-built-i.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-18T00:47:40"
+    action: "T-1681: --auto-heal also fires on conn=auth-mismatch (PL-162)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 4
+  lines_added: 175
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1681-extend---auto-heal-to-fire-on-connauth-m.md
+generated_by: context-agent-hybrid

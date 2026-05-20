@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1659: tofu verify <addr> — probe wire fingerprint, compare against KnownHubStore pin, report drift
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T15:56:11Z
+# ============================================================================
+
+task_id: T-1659
+task_name: "tofu verify <addr> — probe wire fingerprint, compare against KnownHubStore pin, report drift"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T15:46:52Z
+completed: 2026-05-17T15:56:01Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-17T17:55:55+02:00
+last_commit: 2026-05-17T17:55:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  tofu verify <addr> — probe wire vs pinned, deterministic exit codes
+
+# Key outcomes
+outcomes:
+  - "`TofuAction::Verify { host: String, json: bool }` added to `crates/termlink-cli/src/cli.rs`"
+  - "Dispatch wired in `crates/termlink-cli/src/main.rs`"
+  - "`cmd_tofu_verify(host, json)` in `crates/termlink-cli/src/commands/infrastructure.rs`:"
+  - "`cargo check -p termlink` succeeds (clean, 6s)"
+  - "Live smoke (4 scenarios):"
+  - "Drift path (exit 1) — code path mechanically obvious from the `wire == pin` match guard; not smoked because simulating requires mutating `~/.termlink/known_hubs` mid-test (would conflict with operator's actual store). The branch is exercised by future operator rotations naturally."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1659-tofu-verify-addr--probe-wire-fingerprint.md"
+  - ".tasks/completed/T-1658-hub-probe--tls-handshake-to-addr-print-r.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-17T17:55:55"
+    action: "T-1659: tofu verify <addr> — probe wire vs pinned, deterministic exit codes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, G-011, rotation-protocol, cli, tls, diagnostic]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 5
+  lines_added: 253
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1659-tofu-verify-addr--probe-wire-fingerprint.md
+generated_by: context-agent-hybrid

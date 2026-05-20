@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1571: termlink_agent_recent — MCP read tool for chat-arc latest envelopes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:24Z
+# ============================================================================
+
+task_id: T-1571
+task_name: "termlink_agent_recent — MCP read tool for chat-arc latest envelopes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T14:01:31Z
+completed: 2026-05-05T14:07:15Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T16:07:15+02:00
+last_commit: 2026-05-05T16:07:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_recent — first MCP read tool for chat-arc (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentRecentParams` struct (limit Option<u64>, peer_fp Option<String>, msg_type_filter Option<String>)"
+  - "New `termlink_agent_recent` tool method that walks agent-chat-arc via channel.subscribe loop"
+  - "Returns JSON array (newest-first) capped at limit (default 20, max 1000)"
+  - "Optional peer_fp filter (matches sender_id field)"
+  - "Optional msg_type_filter (e.g. \"note\" to exclude reactions/typing/receipts)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=89"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-05 — re-implementing walk_topic_full vs adding cli dep"
+    chose: "Re-implement the cursor loop directly in tools.rs (~25 LOC of the 70 total)"
+    rationale: "Avoids cli<-mcp dep cycle risk; the underlying `channel.subscribe` RPC is the same regardless of caller crate"
+    alternatives_rejected: ["Add termlink-cli as a dep — would couple two top-level binaries; future cli internal refactors could silently break MCP"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1571-termlinkagentrecent--mcp-read-tool-for-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T16:07:15"
+    action: "T-1571: termlink_agent_recent — first MCP read tool for chat-arc (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 234
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1571-termlinkagentrecent--mcp-read-tool-for-c.md
+generated_by: context-agent-hybrid

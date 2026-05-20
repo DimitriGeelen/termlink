@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1593: termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:37Z
+# ============================================================================
+
+task_id: T-1593
+task_name: "termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T21:55:44Z
+completed: 2026-05-05T22:02:47Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-06T00:02:40+02:00
+last_commit: 2026-05-06T00:02:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentFollowupsToParams` struct (sender_id String, limit Option<u64>)"
+  - "New `AgentHelpParams` struct (no fields)"
+  - "New `termlink_agent_followups_to` walks topic + identifies sender's posts + collects replies via in_reply_to"
+  - "New `termlink_agent_help` walks rmcp router + filters termlink_agent_* tools + sorts by name"
+  - "followups_to default limit=100, capped at 500"
+  - "help returns total count + sorted name+description pairs"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=132 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1593-termlinkagentfollowupsto--termlinkagenth.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-06T00:02:40"
+    action: "T-1593: termlink_agent_followups_to + termlink_agent_help — replies-to-a-sender + MCP surface introspection read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 2
+  lines_added: 262
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1593-termlinkagentfollowupsto--termlinkagenth.md
+generated_by: context-agent-hybrid

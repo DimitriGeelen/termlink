@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1714: termlink_fleet_doctor MCP — validate_anchors extension for auto_heal_preview
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T14:30:25Z
+# ============================================================================
+
+task_id: T-1714
+task_name: "termlink_fleet_doctor MCP — validate_anchors extension for auto_heal_preview"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T14:24:36Z
+completed: 2026-05-19T14:29:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-19T16:29:38+02:00
+last_commit: 2026-05-19T16:29:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_doctor MCP — validate_anchors extension for auto_heal_preview
+
+# Key outcomes
+outcomes:
+  - "`FleetDoctorParams` gains optional `validate_anchors: Option<bool>` with default false; response shape unchanged when unset"
+  - "When `auto_heal_preview=true AND validate_anchors=true`, exactly one `termlink fleet bootstrap-check --all --json` subprocess is invoked"
+  - "Each `would_fire[i]` gains `anchor_status` field with one of: `ok` / `no-anchor` / `fetch-fail` / `invalid-format` (mirrors CLI taxonomy from T-1688) — plus defensive `unknown` for missing-profile case"
+  - "On anchor errors, `anchor_error: <string>` is also injected per entry"
+  - "Response gains `auto_heal_preview.anchor_validation_summary: {validated, ok, broken}` count summary"
+  - "When `validate_anchors=true` but `auto_heal_preview=false`, the param is silently ignored (no surprise subprocess call) — anchor validation only makes sense WITHIN preview (gated by `let validate_anchors = auto_heal_preview && ...`)"
+  - "Subprocess failures (spawn-fail / timeout / non-JSON) degrade gracefully: response gains `auto_heal_preview.anchor_validation_error: <string>` but the preview itself is still returned"
+  - "Pure decoration helper `decorate_preview_with_anchors` testable without subprocess"
+  - "≥5 new unit tests: param deserialization (default + true), decoration of all 4 status branches, missing-anchor-key handling, empty-anchor-map graceful path — **delivered 10 tests** (199 passing total, was 189)"
+  - "All existing tests still pass (`cargo test -p termlink-mcp`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1714-termlinkfleetdoctor-mcp--validateanchors.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T16:29:38"
+    action: "T-1714: termlink_fleet_doctor MCP — validate_anchors extension for auto_heal_preview"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 500
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1714-termlinkfleetdoctor-mcp--validateanchors.md
+generated_by: context-agent-hybrid

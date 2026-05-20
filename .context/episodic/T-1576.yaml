@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1576: termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:26Z
+# ============================================================================
+
+task_id: T-1576
+task_name: "termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T16:54:05Z
+completed: 2026-05-05T17:03:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-03T00:56:45+02:00
+last_commit: 2026-05-05T18:59:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add Recommendation blocks to 3 NO-REC tasks (T-1419 GO, T-1442 GO with live spot-check, T-1435 GO answer-only) — frees human-review queue. termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)
+
+# Key outcomes
+outcomes:
+  - "New `AgentInfoParams` struct (empty)"
+  - "New `AgentPeersParams` struct (limit Option<u64>)"
+  - "New `termlink_agent_info` tool method that walks topic + aggregates summary"
+  - "New `termlink_agent_peers` tool method that walks topic + groups by sender_id"
+  - "info returns `{total, by_msg_type, unique_senders, last_activity_ts, description}`; peers returns `[{sender_id, post_count, last_post_ts}, ...]` sorted desc"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=98 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1419-api-usage---json-add-lastseeniso-per-leg.md"
+  - ".tasks/active/T-1435-identify--migrate-4919-weekly-inboxstatu.md"
+  - ".tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md"
+  - ".tasks/active/T-1576-termlinkagentinfo--termlinkagentpeers--o.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-03T00:56:45"
+    action: "T-1576: add Recommendation blocks to 3 NO-REC tasks (T-1419 GO, T-1442 GO with live spot-check, T-1435 GO answer-only) — frees human-review queue"
+  - time: "2026-05-05T18:59:58"
+    action: "T-1576: termlink_agent_info + termlink_agent_peers — orientation MCP read tools (topic snapshot + participant directory)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 5
+  lines_added: 329
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1576-termlinkagentinfo--termlinkagentpeers--o.md
+generated_by: context-agent-hybrid

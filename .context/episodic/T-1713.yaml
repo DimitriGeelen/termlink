@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1713: termlink_fleet_doctor MCP — add auto_heal_preview (dry-run shape, G-057 punch-list #4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-19T14:15:33Z
+# ============================================================================
+
+task_id: T-1713
+task_name: "termlink_fleet_doctor MCP — add auto_heal_preview (dry-run shape, G-057 punch-list #4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T14:09:38Z
+completed: 2026-05-19T14:14:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-19T16:14:41+02:00
+last_commit: 2026-05-19T16:14:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_doctor MCP — add auto_heal_preview (G-057 punch-list #4)
+
+# Key outcomes
+outcomes:
+  - "`FleetDoctorParams` gains optional `auto_heal_preview: Option<bool>` field with default false (response shape unchanged when unset)"
+  - "When `auto_heal_preview=true`, response gains `auto_heal_preview` object with `would_fire[]`, `skipped_no_anchor[]`, `no_action[]`, `total_would_fire`, and `header` fields"
+  - "Cert-drift trigger detected (pin_check.status==\"drift\") AND auth-mismatch trigger detected (status==error with auth-mismatch error class) — mirrors CLI T-1681 OR-gate"
+  - "Gates on declared `bootstrap_from` per profile (read from hubs.toml) — same R2 rule as CLI; profiles without anchors land in `skipped_no_anchor` with a hint"
+  - "When `auto_heal_preview=true` AND `include_pin_check=false`, response includes `missing_pin_check_warning: true` (only auth-mismatch path can fire) — mirrors CLI T-1683 stderr info hint"
+  - "Pure helpers `auth_mismatch_class_mcp`, `derive_watch_conn_mcp`, `classify_auto_heal_preview` testable without infrastructure"
+  - "≥7 new unit tests covering: param deserialization (default + true), auth-mismatch detection (≥3 cases), watch-conn derivation (≥2 cases), classifier branches (clean / pin-drift-with-anchor / auth-mismatch-with-anchor / both-triggers / no-anchor-skip) — **delivered 19 tests** (189 passing total, was 170)"
+  - "All existing tests still pass (`cargo test -p termlink-mcp`)"
+  - "G-057 parity convention documented in code comments referencing T-1710/T-1711/T-1712 precedent"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1713-termlinkfleetdoctor-mcp--add-autohealpre.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-19T16:14:41"
+    action: "T-1713: termlink_fleet_doctor MCP — add auto_heal_preview (G-057 punch-list #4)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 516
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1713-termlinkfleetdoctor-mcp--add-autohealpre.md
+generated_by: context-agent-hybrid

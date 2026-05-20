@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1586: termlink_agent_pinned_history + termlink_agent_starred_history — per-target pin/star audit log MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:32Z
+# ============================================================================
+
+task_id: T-1586
+task_name: "termlink_agent_pinned_history + termlink_agent_starred_history — per-target pin/star audit log MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T19:01:05Z
+completed: 2026-05-05T19:12:36Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T21:07:50+02:00
+last_commit: 2026-05-05T21:07:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_pinned_history + termlink_agent_starred_history — per-target pin/star audit log MCP read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentPinnedHistoryParams` struct (pin_target u64)"
+  - "New `AgentStarredHistoryParams` struct (star_target u64)"
+  - "New `termlink_agent_pinned_history` tool method walks topic + filters pin events by pin_target"
+  - "New `termlink_agent_starred_history` tool method walks topic + filters star events by star_target"
+  - "Both return chronologically sorted (oldest-first) audit log"
+  - "pinned_history extracts action (\"pin\"|\"unpin\") from metadata"
+  - "starred_history extracts star value (\"true\"|\"false\") from metadata"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=118 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1586-termlinkagentpinnedhistory--termlinkagen.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T21:07:50"
+    action: "T-1586: termlink_agent_pinned_history + termlink_agent_starred_history — per-target pin/star audit log MCP read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 2
+  lines_added: 273
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1586-termlinkagentpinnedhistory--termlinkagen.md
+generated_by: context-agent-hybrid

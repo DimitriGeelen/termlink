@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1572: termlink_agent_search — MCP read tool for chat-arc substring search
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:24Z
+# ============================================================================
+
+task_id: T-1572
+task_name: "termlink_agent_search — MCP read tool for chat-arc substring search"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T14:07:45Z
+completed: 2026-05-05T14:13:17Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T16:13:17+02:00
+last_commit: 2026-05-05T16:13:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_search — MCP read tool for chat-arc substring search (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentSearchParams` struct (query required, limit Option, peer_fp Option, msg_type_filter Option, case_sensitive Option)"
+  - "New `termlink_agent_search` tool method that walks + filters + returns matches (newest-first)"
+  - "Substring match against base64-decoded payload (utf8 lossy)"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=90"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1572-termlinkagentsearch--mcp-read-tool-for-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T16:13:17"
+    action: "T-1572: termlink_agent_search — MCP read tool for chat-arc substring search (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 232
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1572-termlinkagentsearch--mcp-read-tool-for-c.md
+generated_by: context-agent-hybrid

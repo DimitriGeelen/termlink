@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1680: fleet doctor --watch --auto-heal: built-in cert-drift auto-heal via declared bootstrap_from (T-1669 + T-1679 capstone)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-17T22:31:34Z
+# ============================================================================
+
+task_id: T-1680
+task_name: "fleet doctor --watch --auto-heal: built-in cert-drift auto-heal via declared bootstrap_from (T-1669 + T-1679 capstone)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-17T22:20:01Z
+completed: 2026-05-17T22:31:32Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-18T00:31:27+02:00
+last_commit: 2026-05-18T00:31:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doctor --watch --auto-heal — built-in cert-drift heal
+
+# Key outcomes
+outcomes:
+  - "`fleet doctor --watch --auto-heal` parses; `--auto-heal` requires `--watch` (clap `requires = \"watch\"` + runtime guard)"
+  - "In the change-detection loop, after fire_notify, when change kind is `transition` AND `new_pin == \"drift\"` AND profile has declared `bootstrap_from`, an internal heal subprocess is spawned (fire-and-forget — does NOT block the next watch cycle)"
+  - "Profile without declared `bootstrap_from`: NO heal attempted (R2 — anchor must be operator-declared); a one-line stderr hint explains why it was skipped"
+  - "Each heal logs one line to stderr at fire time"
+  - "`cargo check --workspace` passes"
+  - "CLAUDE.md detection-verbs table mentions `--auto-heal`; auto-heal recipe section promoted to recommend the built-in flag with the script form kept for custom-logic cases"
+  - "Live smoke: --help shows new flag; clap rejects `--auto-heal` without `--watch`; --watch --auto-heal runs without panic on local fleet"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "CLAUDE.md"
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1680-fleet-doctor---watch---auto-heal-built-i.md"
+  - ".tasks/completed/T-1679-fleet-reauth---all-drifted-bulk-heal-all.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-18T00:31:27"
+    action: "T-1680: fleet doctor --watch --auto-heal — built-in cert-drift heal"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 6
+  lines_added: 229
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1680-fleet-doctor---watch---auto-heal-built-i.md
+generated_by: context-agent-hybrid

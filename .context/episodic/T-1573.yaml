@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1573: termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:25Z
+# ============================================================================
+
+task_id: T-1573
+task_name: "termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T16:20:38Z
+completed: 2026-05-05T16:30:11Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T18:27:29+02:00
+last_commit: 2026-05-05T18:27:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views
+
+# Key outcomes
+outcomes:
+  - "New `AgentPinnedParams` struct (limit Option<u64>)"
+  - "New `AgentStarredParams` struct (peer_fp Option<String>, limit Option<u64>)"
+  - "New `termlink_agent_pinned` tool method that walks pin envelopes + dedupes by pin_target latest-wins + filters action=pin"
+  - "New `termlink_agent_starred` tool method that walks star envelopes + dedupes by (sender_id, star_target) latest-wins + filters star=true"
+  - "Both return JSON arrays (newest-first) with target offset, sender_id, ts_unix_ms"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=92 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1573-termlinkagentpinned--termlinkagentstarre.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T18:27:29"
+    action: "T-1573: termlink_agent_pinned + termlink_agent_starred — MCP read tools for chat-arc curation views"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 346
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1573-termlinkagentpinned--termlinkagentstarre.md
+generated_by: context-agent-hybrid

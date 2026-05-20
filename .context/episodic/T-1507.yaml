@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1507: agent reply offset text — threaded write verb on chat-arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:22:54Z
+# ============================================================================
+
+task_id: T-1507
+task_name: "agent reply offset text — threaded write verb on chat-arc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T06:52:40Z
+completed: 2026-05-05T06:58:44Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T08:58:45+02:00
+last_commit: 2026-05-05T08:58:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent reply <offset> <text> — threaded write verb on chat-arc (work-completed)
+
+# Key outcomes
+outcomes:
+  - "New `AgentAction::Reply { offset, text, thread, project, msg_type, hub, json }` variant in cli.rs"
+  - "main.rs dispatch arm calling `cmd_agent_reply`"
+  - "New `cmd_agent_reply` in agent.rs: resolves focus thread + framework project, calls `cmd_channel_post(..., reply_to=Some(offset), ...)`"
+  - "`cargo build --release -p termlink` clean"
+  - "`agent reply --help` shows `<OFFSET>` and `<TEXT>` positionals plus `--thread` / `--project` / `--msg-type` / `--hub` / `--json`"
+  - "Live smoke: reply to a real offset, then `agent quote <new-offset>` shows parent line"
+  - "Live smoke: `--json` returns the post envelope including new offset"
+  - "All existing tests still pass"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1507-agent-reply-offset-text--threaded-write-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T08:58:45"
+    action: "T-1507: agent reply <offset> <text> — threaded write verb on chat-arc (work-completed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 4
+  lines_added: 234
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1507-agent-reply-offset-text--threaded-write-.md
+generated_by: context-agent-hybrid

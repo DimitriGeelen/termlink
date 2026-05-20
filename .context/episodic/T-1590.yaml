@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1590: termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T13:23:35Z
+# ============================================================================
+
+task_id: T-1590
+task_name: "termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-05T19:51:32Z
+completed: 2026-05-05T19:57:52Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-05T21:57:47+02:00
+last_commit: 2026-05-05T21:57:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools
+
+# Key outcomes
+outcomes:
+  - "New `AgentEnvelopeParams` struct (offset u64)"
+  - "New `AgentWhoIsParams` struct (sender_id String)"
+  - "New `termlink_agent_envelope` walks topic + finds envelope at exact offset + base64-decodes payload"
+  - "New `termlink_agent_who_is` walks topic + filters by sender_id + extracts latest display_name + first/last seen + post count"
+  - "envelope returns null/error when offset not found"
+  - "who_is returns post_count=0 + null timestamps when sender_id never seen"
+  - "who_is extracts display_name from metadata.display_name when present"
+  - "`cargo build --release` clean"
+  - "MCP tool count increments to >=126 (2 new)"
+  - "`termlink version --json` reports the new mcp_tools count"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1590-termlinkagentenvelope--termlinkagentwhoi.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-05T21:57:47"
+    action: "T-1590: termlink_agent_envelope + termlink_agent_who_is — single-offset hydrate + fingerprint→display-name resolver MCP read tools"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 281
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1590-termlinkagentenvelope--termlinkagentwhoi.md
+generated_by: context-agent-hybrid
