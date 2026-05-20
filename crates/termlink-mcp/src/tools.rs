@@ -300,6 +300,40 @@ fn preview_body(s: &str, max_chars: usize) -> String {
     format!("{truncated}…")
 }
 
+/// T-1717: resolve `termlink_agent_contact`'s `message` / `body_file` pair
+/// into a single body `String`. Pure mirror of CLI's `resolve_contact_message`
+/// (commands/agent.rs:698, T-1646). Exactly one of `message` / `body_file`
+/// must be set; both-set or neither-set is an error. Empty file is rejected
+/// (refuse to post an empty message body).
+///
+/// File paths resolve relative to the MCP server's current working directory
+/// (`std::fs::read_to_string`). MCP clients should pass absolute paths when
+/// the cwd is ambiguous.
+fn resolve_message_or_file_mcp(
+    message: Option<&str>,
+    body_file: Option<&str>,
+) -> Result<String, String> {
+    match (message, body_file) {
+        (Some(_), Some(_)) => {
+            Err("specify exactly one of message or body_file, not both".to_string())
+        }
+        (None, None) => {
+            Err("specify exactly one of message <STRING> or body_file <PATH>".to_string())
+        }
+        (Some(m), None) => Ok(m.to_string()),
+        (None, Some(path)) => {
+            let body = std::fs::read_to_string(path)
+                .map_err(|e| format!("failed to read {path}: {e}"))?;
+            if body.is_empty() {
+                return Err(format!(
+                    "file {path} is empty — refusing to post empty message"
+                ));
+            }
+            Ok(body)
+        }
+    }
+}
+
 /// T-1716: presence signal — mirrors CLI's `PresenceCheck` minus the
 /// `to_json` helper (MCP renders the shape inline at the call site).
 #[derive(Debug, Clone)]
@@ -1266,9 +1300,18 @@ pub struct AgentContactParams {
     /// a remote hub and not locally resolvable. Mutually exclusive with
     /// `target`; exactly one required.
     pub target_fp: Option<String>,
-    /// Message body. Required (no `file_path` shortcut in this MCP v1 —
-    /// MCP callers typically have the body inline).
-    pub message: String,
+    /// Message body. Mutually exclusive with `body_file` (T-1717); exactly
+    /// one of `message` / `body_file` required. v1 callers that always set
+    /// `message` continue working unchanged (PL-172 byte-identical default).
+    pub message: Option<String>,
+    /// T-1717: path to a file whose contents become the message body. Mirror
+    /// of CLI `--file PATH` (T-1646, `commands::agent::resolve_contact_message`).
+    /// Mutually exclusive with `message`. Empty file rejected. Path resolves
+    /// against the MCP server's current working directory — pass an absolute
+    /// path when cwd is ambiguous. Useful for long-form structured payloads
+    /// (inception findings, RCAs, code reviews) that are awkward to inline
+    /// as a single JSON-escaped string at the MCP boundary.
+    pub body_file: Option<String>,
     /// Optional task-id for `metadata._thread` routing per the agent-chat-arc
     /// protocol canon (T-1430 topic doc). Vendored agents can group dm:*
     /// messages by thread server-side without parsing the body.
@@ -8854,7 +8897,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_contact",
-        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429 Phase-2). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. **Synchronous-engagement flags (T-1716):** `require_online=true` probes agent-chat-arc within `online_window_secs` (default 300, clamped [10, 86400]) before posting — fail-fast with `{ok: false, online_check, error}` if peer has zero posts in window (CLI exit-9 semantic). `ack_required=true` polls the dm topic at ~1s cadence up to `ack_timeout_secs` (default 60, clamped [5, 600]) for a non-meta peer reply — returns `ack: {received, ts_ms?, wait_secs}` on the success envelope (CLI exit-10 semantic mapped to `received=false`)."
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429 Phase-2). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. **Body sources (T-1717):** exactly one of `message` (inline string) / `body_file` (path read at the MCP server's cwd — mirror of CLI `--file PATH`, T-1646). Empty file rejected. **Synchronous-engagement flags (T-1716):** `require_online=true` probes agent-chat-arc within `online_window_secs` (default 300, clamped [10, 86400]) before posting — fail-fast with `{ok: false, online_check, error}` if peer has zero posts in window (CLI exit-9 semantic). `ack_required=true` polls the dm topic at ~1s cadence up to `ack_timeout_secs` (default 60, clamped [5, 600]) for a non-meta peer reply — returns `ack: {received, ts_ms?, wait_secs}` on the success envelope (CLI exit-10 semantic mapped to `received=false`)."
     )]
     async fn termlink_agent_contact(
         &self,
@@ -8872,6 +8915,16 @@ impl TermLinkTools {
             }
             _ => {}
         }
+
+        // T-1717: resolve message / body_file into a single body String.
+        // Mirror of CLI `resolve_contact_message` (commands/agent.rs:698).
+        let body = match resolve_message_or_file_mcp(
+            p.message.as_deref(),
+            p.body_file.as_deref(),
+        ) {
+            Ok(b) => b,
+            Err(e) => return json_err(format!("T-1717: {e}")),
+        };
 
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
@@ -8945,8 +8998,8 @@ impl TermLinkTools {
                 "metadata": metadata,
                 "would_post": {
                     "msg_type": "chat",
-                    "body_preview": preview_body(&p.message, 80),
-                    "body_bytes": p.message.len(),
+                    "body_preview": preview_body(&body, 80),
+                    "body_bytes": body.len(),
                 }
             }))
             .unwrap_or_else(json_err);
@@ -9013,7 +9066,7 @@ impl TermLinkTools {
 
         // Sign + post.
         let msg_type = "chat";
-        let payload_bytes = p.message.as_bytes();
+        let payload_bytes = body.as_bytes();
         let ts_unix_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -17002,10 +17055,12 @@ mod tests {
         });
         let p: AgentContactParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.target_fp.as_deref(), Some("deadbeefdeadbeef"));
-        assert_eq!(p.message, "hello");
+        assert_eq!(p.message.as_deref(), Some("hello"));
         assert!(p.target.is_none());
         assert!(p.thread.is_none());
         assert!(p.dry_run.is_none());
+        // T-1717: message Option-ified; body_file always Optional, default unset.
+        assert!(p.body_file.is_none());
     }
 
     #[test]
@@ -17155,6 +17210,79 @@ mod tests {
         })];
         let ack = detect_ack_in_msgs_mcp(&msgs, "peer123", send_ts_ms);
         assert_eq!(ack, Some(send_ts_ms + 200));
+    }
+
+    // === T-1717: body_file helper tests (message / body_file mutex) ===
+
+    #[test]
+    fn agent_contact_resolve_message_inline() {
+        let body = resolve_message_or_file_mcp(Some("hello"), None).unwrap();
+        assert_eq!(body, "hello");
+    }
+
+    #[test]
+    fn agent_contact_resolve_body_file_reads_content() {
+        let dir = std::env::temp_dir().join(format!(
+            "t-1717-body-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("body.txt");
+        std::fs::write(&path, "long-form body from disk\n").unwrap();
+        let body =
+            resolve_message_or_file_mcp(None, Some(path.to_str().unwrap())).unwrap();
+        assert_eq!(body, "long-form body from disk\n");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn agent_contact_resolve_rejects_both_set() {
+        let err =
+            resolve_message_or_file_mcp(Some("inline"), Some("/tmp/file")).unwrap_err();
+        assert!(err.contains("not both"), "got: {err}");
+    }
+
+    #[test]
+    fn agent_contact_resolve_rejects_neither_set() {
+        let err = resolve_message_or_file_mcp(None, None).unwrap_err();
+        assert!(err.contains("exactly one"), "got: {err}");
+    }
+
+    #[test]
+    fn agent_contact_resolve_rejects_empty_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "t-1717-empty-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("empty.txt");
+        std::fs::write(&path, "").unwrap();
+        let err = resolve_message_or_file_mcp(None, Some(path.to_str().unwrap()))
+            .unwrap_err();
+        assert!(err.contains("empty"), "got: {err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn agent_contact_resolve_propagates_missing_file_io_error() {
+        let err = resolve_message_or_file_mcp(
+            None,
+            Some("/nonexistent/path/that/should/not/exist-T-1717"),
+        )
+        .unwrap_err();
+        assert!(err.contains("failed to read"), "got: {err}");
+        assert!(err.contains("nonexistent"), "got: {err}");
+    }
+
+    #[test]
+    fn agent_contact_params_v3_body_file_deserializes() {
+        let json = serde_json::json!({
+            "target_fp": "deadbeefdeadbeef",
+            "body_file": "/path/to/long-report.md"
+        });
+        let p: AgentContactParams = serde_json::from_value(json).unwrap();
+        assert!(p.message.is_none());
+        assert_eq!(p.body_file.as_deref(), Some("/path/to/long-report.md"));
     }
 
     // === parse_signal tests ===
