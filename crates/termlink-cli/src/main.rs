@@ -650,12 +650,12 @@ async fn main() -> Result<()> {
             FleetAction::Doctor { json, timeout, legacy_usage, legacy_window_days, topic_durability, include_pin_check, diff, save_snapshot, exit_code_on_verdict, trend, trend_keep, top_callers, watch, notify, auto_heal, dry_run } => {
                 commands::remote::cmd_fleet_doctor(json, timeout, legacy_usage, legacy_window_days, topic_durability, include_pin_check, diff, save_snapshot, exit_code_on_verdict, trend, trend_keep, top_callers, watch, notify, auto_heal, dry_run).await
             }
-            FleetAction::Reauth { profile, bootstrap_from, all_drifted } => {
+            FleetAction::Reauth { profile, bootstrap_from, all_drifted, json } => {
                 if all_drifted {
                     commands::remote::cmd_fleet_reauth_all().await
                 } else {
                     match profile {
-                        Some(p) => commands::remote::cmd_fleet_reauth(&p, bootstrap_from.as_deref()),
+                        Some(p) => commands::remote::cmd_fleet_reauth(&p, bootstrap_from.as_deref(), json),
                         None => anyhow::bail!(
                             "fleet reauth: specify a profile name or --all-drifted (see --help)"
                         ),

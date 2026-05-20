@@ -5646,7 +5646,11 @@ fn render_fleet_reauth_plan(profile: &str, entry: &crate::config::HubEntry) -> S
 /// When `bootstrap_from` is `Some("file:PATH" | "ssh:HOST")`: fetches the
 /// new secret via the named out-of-band channel, validates it, backs up the
 /// existing secret file, and writes the new one at chmod 600 (T-1055, R2).
-pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> Result<()> {
+pub(crate) fn cmd_fleet_reauth(
+    profile: &str,
+    bootstrap_from: Option<&str>,
+    json: bool,
+) -> Result<()> {
     let config = crate::config::load_hubs_config();
     if config.hubs.is_empty() {
         anyhow::bail!(
@@ -5693,11 +5697,44 @@ pub(crate) fn cmd_fleet_reauth(profile: &str, bootstrap_from: Option<&str>) -> R
 
     match resolved.as_deref() {
         None => {
-            // Tier-1 behavior — print the heal incantation.
-            print!("{}", render_fleet_reauth_plan(profile, entry));
+            // Tier-1 behavior — print the heal incantation (or its JSON form).
+            let plan_text = render_fleet_reauth_plan(profile, entry);
+            if json {
+                let out = serde_json::json!({
+                    "ok": true,
+                    "profile": profile,
+                    "mode": "plan-only",
+                    "source": serde_json::Value::Null,
+                    "secret_file": entry.secret_file.clone(),
+                    "fingerprint_preview": serde_json::Value::Null,
+                    "plan_text": plan_text,
+                    "error": serde_json::Value::Null,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                print!("{plan_text}");
+            }
             Ok(())
         }
-        Some(source) => cmd_fleet_reauth_bootstrap(profile, entry, source),
+        Some(source) => {
+            let outcome = cmd_fleet_reauth_bootstrap(profile, entry, source)?;
+            if json {
+                let out = serde_json::json!({
+                    "ok": true,
+                    "profile": outcome.profile,
+                    "mode": "healed",
+                    "source": outcome.source,
+                    "secret_file": outcome.secret_file,
+                    "fingerprint_preview": outcome.fingerprint_preview,
+                    "plan_text": serde_json::Value::Null,
+                    "error": serde_json::Value::Null,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                print_reauth_outcome_human(&outcome);
+            }
+            Ok(())
+        }
     }
 }
 
@@ -5794,7 +5831,8 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
                 match entry.bootstrap_from.as_deref() {
                     Some(source) => {
                         match cmd_fleet_reauth_bootstrap(name, entry, source) {
-                            Ok(()) => {
+                            Ok(outcome) => {
+                                print_reauth_outcome_human(&outcome);
                                 rows.push((
                                     name.clone(),
                                     status,
@@ -6231,11 +6269,22 @@ pub(crate) fn cmd_fleet_bootstrap_check(
 
 /// T-1055 Tier-2 heal: fetch the new secret via the named out-of-band source,
 /// validate it, back up the existing file, and write the new one.
-fn cmd_fleet_reauth_bootstrap(
+/// T-1728: structured outcome from Tier-2 heal — lets the CLI render either
+/// human eprintln or JSON, and lets the MCP wrapper (`termlink_fleet_reauth`)
+/// emit a deterministic JSON shape without re-doing the heal.
+pub(crate) struct ReauthBootstrapOutcome {
+    pub profile: String,
+    pub address: String,
+    pub secret_file: String,
+    pub source: String,
+    pub fingerprint_preview: String,
+}
+
+pub(crate) fn cmd_fleet_reauth_bootstrap(
     profile: &str,
     entry: &crate::config::HubEntry,
     source: &str,
-) -> Result<()> {
+) -> Result<ReauthBootstrapOutcome> {
     let secret_file = match &entry.secret_file {
         Some(p) => p.clone(),
         None => anyhow::bail!(
@@ -6267,18 +6316,31 @@ fn cmd_fleet_reauth_bootstrap(
     }
     write_secret_file(&target, &hex)?;
 
-    // Success — echo the short fingerprint (first 12 chars) so the operator can
-    // confirm without leaking the full secret to terminal history.
+    // 12-char preview keeps full secret out of terminal history.
     let preview: String = hex.chars().take(12).collect();
+    Ok(ReauthBootstrapOutcome {
+        profile: profile.to_string(),
+        address: entry.address.clone(),
+        secret_file,
+        source: source.to_string(),
+        fingerprint_preview: preview,
+    })
+}
+
+/// Render the human-readable success summary for a Tier-2 heal. CLI calls
+/// this; MCP does not (it returns JSON via cmd_fleet_reauth's `--json` path).
+fn print_reauth_outcome_human(outcome: &ReauthBootstrapOutcome) {
     eprintln!("[OK] heal complete");
-    eprintln!("     profile:      {profile}");
-    eprintln!("     address:      {}", entry.address);
-    eprintln!("     secret file:  {secret_file}");
-    eprintln!("     bootstrap:    {source}");
-    eprintln!("     new secret:   {preview}… (first 12 of 64 hex chars)");
+    eprintln!("     profile:      {}", outcome.profile);
+    eprintln!("     address:      {}", outcome.address);
+    eprintln!("     secret file:  {}", outcome.secret_file);
+    eprintln!("     bootstrap:    {}", outcome.source);
+    eprintln!(
+        "     new secret:   {}… (first 12 of 64 hex chars)",
+        outcome.fingerprint_preview
+    );
     eprintln!();
     eprintln!("Verify with: termlink fleet doctor");
-    Ok(())
 }
 
 /// Read the hex secret from the named bootstrap source.

@@ -3102,6 +3102,36 @@ pub struct FleetBootstrapCheckParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1728: Fleet reauth params (MCP parity for `termlink fleet reauth`).
+// Single-profile heal RPC: writes the new HMAC secret to the profile's
+// `secret_file` using the named out-of-band trust anchor. Bulk
+// (`--all-drifted`) is intentionally NOT covered here — different
+// result-aggregation shape, follow-up task.
+//
+// Modes (selected by `bootstrap_from`):
+//   None              → Tier-1 plan-only (returns plan_text, no write)
+//   Some("auto")      → resolves to profile's declared bootstrap_from in
+//                       hubs.toml (T-1291); errors if undeclared
+//   Some("file:...")  → reads hex from the named file (R2-safe)
+//   Some("ssh:...")   → runs `ssh <host> -- sudo cat /var/lib/termlink/hub.secret`
+//                       (R2-safe; trust anchor is the ssh channel)
+//
+// Refuses sources with the `command:` scheme — Tier-2 explicitly excludes
+// arbitrary shell anchors (R2 security review pending). The MCP wrapper
+// must not be a loophole.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetReauthParams {
+    /// Hub profile name as configured in ~/.termlink/hubs.toml.
+    pub profile: String,
+    /// Out-of-band trust anchor. `None` = Tier-1 plan-only. `"auto"` =
+    /// resolve to profile's declared `bootstrap_from`. `file:<path>` or
+    /// `ssh:<host>` = explicit Tier-2 heal. `command:` scheme rejected.
+    pub bootstrap_from: Option<String>,
+    /// Bound the subprocess call (clamped 1..=120s). Default 10. Caps how
+    /// long an interactive `ssh:` anchor can hang the call.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1663: Hub probe params (single-host TLS fingerprint capture)
 #[derive(Deserialize, JsonSchema)]
 pub struct HubProbeParams {
@@ -8667,6 +8697,100 @@ impl TermLinkTools {
             }
             Err(parse_err) => json_err(format!(
                 "subprocess returned non-JSON output (exit={:?}): {parse_err}\nstdout: {}\nstderr: {}",
+                exit_code,
+                stdout.chars().take(300).collect::<String>(),
+                stderr.chars().take(300).collect::<String>()
+            )),
+        }
+    }
+
+    // === Fleet reauth (T-1728) — single-profile rotation heal RPC ===
+
+    #[tool(
+        name = "termlink_fleet_reauth",
+        description = "Single-profile rotation heal RPC — MCP parity for `termlink fleet reauth <profile>` (T-1054/T-1055/T-1291). Modes: omit `bootstrap_from` for Tier-1 plan-only (returns the SSH-read → file-write incantation as `plan_text`, no writes); pass `\"auto\"` to use the profile's declared `bootstrap_from` in hubs.toml; pass `file:<path>` or `ssh:<host>` for an explicit Tier-2 heal. The Tier-2 path fetches the new secret out-of-band, validates 64-char hex, backs up the existing secret_file to `.hex.bak`, atomically writes the new file at chmod 600, and returns a 12-char fingerprint preview. R2: `command:<shell>` scheme rejected (security review pending). Refuses profiles with inline `secret = ...` (must convert to `secret_file` first). Returns: `{ok, profile, mode, source, secret_file, fingerprint_preview, plan_text, error, exit_code}`."
+    )]
+    async fn termlink_fleet_reauth(
+        &self,
+        Parameters(p): Parameters<FleetReauthParams>,
+    ) -> String {
+        // R2: reject command: scheme explicitly (Tier-2 has the same exclusion).
+        if let Some(src) = p.bootstrap_from.as_deref() {
+            if src.starts_with("command:") {
+                return json_err(
+                    "bootstrap_from scheme `command:` rejected (R2 — arbitrary shell anchor requires explicit security review; not yet allowed). Use `file:<path>` or `ssh:<host>`.",
+                );
+            }
+        }
+
+        let timeout = p.timeout_secs.unwrap_or(10).clamp(1, 120);
+
+        // Resolve own binary path. `current_exe()` returns the running
+        // `termlink mcp` binary; same binary handles `fleet reauth --json`.
+        let exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => return json_err(format!("cannot resolve termlink binary path: {e}")),
+        };
+
+        let mut cmd = tokio::process::Command::new(&exe);
+        cmd.arg("fleet").arg("reauth").arg(&p.profile).arg("--json");
+        if let Some(src) = p.bootstrap_from.as_deref() {
+            cmd.arg("--bootstrap-from").arg(src);
+        }
+        cmd.kill_on_drop(true);
+        cmd.stdin(std::process::Stdio::null());
+
+        let fut = cmd.output();
+        let output = match tokio::time::timeout(std::time::Duration::from_secs(timeout), fut).await
+        {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+            Err(_) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "verdict": "timeout",
+                    "error": format!("timeout after {}s", timeout),
+                    "hint": "interactive ssh: anchors can hang the subprocess; raise timeout_secs or use a file: anchor",
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code();
+
+        // CLI --json emits the structured outcome to stdout. On non-zero
+        // exit (e.g. unknown profile, fetch failure, invalid hex) the CLI
+        // bails with anyhow::bail! BEFORE printing JSON — so stdout is
+        // empty and we surface the stderr as `error`.
+        if stdout.trim().is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "profile": p.profile,
+                "mode": serde_json::Value::Null,
+                "source": p.bootstrap_from,
+                "secret_file": serde_json::Value::Null,
+                "fingerprint_preview": serde_json::Value::Null,
+                "plan_text": serde_json::Value::Null,
+                "error": stderr.trim(),
+                "exit_code": exit_code.unwrap_or(-1),
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+            Ok(mut parsed) => {
+                if let Some(obj) = parsed.as_object_mut() {
+                    obj.insert(
+                        "exit_code".to_string(),
+                        serde_json::json!(exit_code.unwrap_or(-1)),
+                    );
+                }
+                serde_json::to_string_pretty(&parsed).unwrap_or_else(json_err)
+            }
+            Err(parse_err) => json_err(format!(
+                "subprocess returned non-JSON stdout (exit={:?}): {parse_err}\nstdout: {}\nstderr: {}",
                 exit_code,
                 stdout.chars().take(300).collect::<String>(),
                 stderr.chars().take(300).collect::<String>()
@@ -19641,6 +19765,50 @@ not-json
         assert_eq!(clamp(10), 10);
         assert_eq!(clamp(120), 120);
         assert_eq!(clamp(9999), 120);
+    }
+
+    // T-1728: termlink_fleet_reauth params + R2 guard.
+    #[test]
+    fn fleet_reauth_params_required_profile() {
+        // profile is required (no Option), bootstrap_from/timeout default to None.
+        let json = serde_json::json!({"profile": "ring20-management"});
+        let p: FleetReauthParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.profile, "ring20-management");
+        assert!(p.bootstrap_from.is_none());
+        assert!(p.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn fleet_reauth_params_accepts_auto_and_explicit() {
+        for src in ["auto", "file:/tmp/new.hex", "ssh:hub.example.com"] {
+            let json = serde_json::json!({"profile": "p", "bootstrap_from": src});
+            let p: FleetReauthParams = serde_json::from_value(json).unwrap();
+            assert_eq!(p.bootstrap_from.as_deref(), Some(src));
+        }
+    }
+
+    #[tokio::test]
+    async fn fleet_reauth_rejects_command_scheme() {
+        // R2 guard — command: scheme must be rejected at the tool boundary,
+        // not deferred to the subprocess (where it would error too, but the
+        // MCP arc must not become a Tier-2 loophole around the security
+        // review that excluded command: from cmd_fleet_reauth_bootstrap).
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_reauth(Parameters(FleetReauthParams {
+                profile: "ring20-management".to_string(),
+                bootstrap_from: Some("command:sudo cat /tmp/secret".to_string()),
+                timeout_secs: None,
+            }))
+            .await;
+        // json_err shape: {"ok": false, "error": "..."}
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["ok"], serde_json::Value::Bool(false));
+        let err = parsed["error"].as_str().unwrap_or("");
+        assert!(
+            err.contains("command:") && err.contains("R2"),
+            "expected R2 rejection of command: scheme; got: {err}"
+        );
     }
 
     #[tokio::test]

@@ -3323,6 +3323,15 @@ pub(crate) enum FleetAction {
         /// bootstrap_from are skipped with a hint pointing at Tier-1.
         #[arg(long = "all-drifted", conflicts_with = "profile")]
         all_drifted: bool,
+
+        /// T-1728: emit machine-readable JSON instead of the human-text plan
+        /// or eprintln summary. Same outcome shape that
+        /// `termlink_fleet_reauth` MCP returns: `{ok, profile, mode, source,
+        /// secret_file, fingerprint_preview, plan_text, error}`. Currently
+        /// honored on single-profile heals; bulk `--all-drifted` continues
+        /// to render the operator table (out of scope for T-1728).
+        #[arg(long)]
+        json: bool,
     },
 
     /// T-1660: probe every hub in ~/.termlink/hubs.toml and compare wire fingerprint vs pin

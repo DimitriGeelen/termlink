@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1728: termlink_fleet_reauth MCP — single-shot heal RPC (CLI parity, T-1054/T-1055/T-1291 culmination)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T18:56:47Z
+# ============================================================================
+
+task_id: T-1728
+task_name: "termlink_fleet_reauth MCP — single-shot heal RPC (CLI parity, T-1054/T-1055/T-1291 culmination)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T18:48:42Z
+completed: 2026-05-20T18:56:45Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`termlink_fleet_reauth(profile, bootstrap_from?)` MCP tool registered in `crates/termlink-mcp/src/tools.rs` with safe defaults (bootstrap_from=None → Tier-1 print-plan mode; \"auto\" → declared anchor lookup; \"file:...\"/\"ssh:...\" → explicit source)"
+  - "Implementation delegates to existing CLI logic (`cmd_fleet_reauth` for Tier-1, `cmd_fleet_reauth_bootstrap` for Tier-2) — no logic duplication; expose existing functions or extract pure helpers per PL-172 step 2"
+  - "Tool returns structured JSON: `{ok: bool, profile: string, mode: \"plan-only\"|\"healed\", source: string|null, secret_file: string|null, fingerprint_preview: string|null, error: string|null}` — fingerprint preview is the 12-char prefix per CLI's chmod 600 write path"
+  - "Refuses profiles with inline `secret = ...` (returns `ok=false, error=\"profile uses inline secret; convert to secret_file before heal\"`) — matches CLI's same check"
+  - "R2 enforced: command:<shell> bootstrap_from sources rejected (Tier-2 has explicit security exclusion; MCP must not be a loophole)"
+  - "Cargo build green: `cargo check -p termlink-mcp`"
+  - "Unit test: deserialization defaults for the params struct (bootstrap_from None) + an integration-style test that invokes against a temp HUBS_FILE with mock secret_file path"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1728-termlinkfleetreauth-mcp--single-shot-hea.md
+generated_by: context-agent-hybrid
