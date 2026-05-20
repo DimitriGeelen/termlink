@@ -4,16 +4,16 @@ name: "termlink_agent_mentions MCP — find @-mentions of a user on agent-chat-a
 description: >
   termlink_agent_mentions MCP — find @-mentions of a user on agent-chat-arc (T-1513 parity)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T19:52:14Z
-last_update: 2026-05-20T19:52:14Z
-date_finished: null
+last_update: 2026-05-20T19:59:48Z
+date_finished: 2026-05-20T19:59:48Z
 ---
 
 # T-1730: termlink_agent_mentions MCP — find @-mentions of a user on agent-chat-arc (T-1513 parity)
@@ -124,3 +124,15 @@ cargo test --release -p termlink-mcp agent_mentions
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1730-termlinkagentmentions-mcp--find--mention.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8b88fcbe
+- **Timestamp:** 2026-05-20T20:04:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-20T19:59:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
