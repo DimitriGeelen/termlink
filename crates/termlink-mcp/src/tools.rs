@@ -9529,6 +9529,30 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_agent_identity",
+        description = "Local-identity self-introspection — MCP parity for the `termlink agent identity` CLI verb (T-1554). Reads `${HOME}/.termlink/identity.json` (loaded or created via `Identity::load_or_create`) and returns `{ok, fingerprint, public_key_hex, path}`. Operator answer to 'what FP do I sign as?' without the side effect of posting an envelope and reading back `my_fp` from the echo. No I/O beyond the local identity file read — never hits the hub, never posts. Parameter-less."
+    )]
+    async fn termlink_agent_identity(&self) -> String {
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let path = identity_dir.join("identity.json");
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "fingerprint": identity.fingerprint().to_string(),
+            "public_key_hex": identity.public_key_hex(),
+            "path": path.display().to_string(),
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_agent_typing",
         description = "Emit a typing indicator on agent-chat-arc — signals 'I'm composing' to peers reading `agent typers` (T-1551) or `agent typers --watch` (T-1557). Posts a `msg_type=typing` envelope with `metadata.expires_at_ms = now + ttl_ms` (default ttl: 5000ms). Companion to `termlink_agent_post` (typed text). MCP-side equivalent of the `agent typing` CLI verb (T-1550)."
     )]
