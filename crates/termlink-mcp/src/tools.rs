@@ -511,6 +511,138 @@ fn compute_unread_rows_mcp(
     rows
 }
 
+/// T-1730: mirror of CLI's `mentions_match` (channel.rs:2701). Determines
+/// whether a `metadata.mentions` CSV contains `target`. Rules (per T-1333):
+/// - empty target → false
+/// - empty / all-blank CSV → false
+/// - `target == "*"` → true (matches any non-empty CSV — "anyone tagged at all")
+/// - CSV contains `*` → true (post tagged everyone — every specific subscriber matches)
+/// - else: literal-equality on trimmed parts
+fn mentions_match_mcp(csv: &str, target: &str) -> bool {
+    let target = target.trim();
+    if target.is_empty() {
+        return false;
+    }
+    let parts: Vec<&str> = csv.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    if parts.is_empty() {
+        return false;
+    }
+    if target == "*" {
+        return true;
+    }
+    if parts.contains(&"*") {
+        return true;
+    }
+    parts.contains(&target)
+}
+
+/// T-1730: mirror of CLI's `extract_mentions` (channel.rs:2722). Read
+/// `metadata.mentions` from an envelope, returning the CSV string if present.
+fn extract_mentions_mcp(env: &serde_json::Value) -> Option<String> {
+    env.get("metadata")
+        .and_then(|md| md.get("mentions"))
+        .and_then(|v| v.as_str())
+        .map(String::from)
+}
+
+/// T-1730: mirror of CLI's `decode_payload_lossy` (channel.rs:8518). Decode
+/// `payload_b64` to lossy UTF-8 string. Missing field → empty. Invalid
+/// base64 → empty (silent — CLI parity).
+fn decode_payload_lossy_mcp(env: &serde_json::Value) -> String {
+    use base64::Engine as _;
+    let b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
+    if b64.is_empty() {
+        return String::new();
+    }
+    match base64::engine::general_purpose::STANDARD.decode(b64) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => String::new(),
+    }
+}
+
+/// T-1730: mirror of CLI's `redacted_offsets`+`extract_redaction`
+/// (channel.rs:3213/3238). Collects target offsets from every
+/// `msg_type=redaction` envelope whose `metadata.redacts` parses as u64.
+fn redacted_offsets_mcp(msgs: &[serde_json::Value]) -> std::collections::HashSet<u64> {
+    msgs.iter()
+        .filter(|m| m.get("msg_type").and_then(|v| v.as_str()) == Some("redaction"))
+        .filter_map(|m| {
+            m.get("metadata")
+                .and_then(|md| md.get("redacts"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+        })
+        .collect()
+}
+
+/// T-1730: one row in the mentions-of view. Mirror of CLI's `MentionsOfRow`
+/// (channel.rs:5211). Field shape preserved one-to-one so JSON envelope is
+/// byte-identical with CLI `agent mentions --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MentionsOfRowMcp {
+    mention_offset: u64,
+    sender_id: String,
+    payload: String,
+    mentions_csv: String,
+    ts_ms: i64,
+}
+
+/// T-1730: pure helper — list every envelope on a topic that mentions
+/// `user` via `metadata.mentions` CSV, regardless of author. Mirror of
+/// CLI's `compute_mentions_of` (channel.rs:5243) one-to-one.
+///
+/// Filters (in order):
+/// - offset present (else skip)
+/// - offset NOT in `redacted_offsets_mcp(envelopes)`
+/// - msg_type NOT in `META_MSG_TYPES` (skip reaction/edit/redaction/topic_metadata/receipt)
+/// - `metadata.mentions` present
+/// - `mentions_match_mcp(csv, user)` is true
+///
+/// Sort: `mention_offset` descending. Pure — no I/O.
+fn compute_mentions_of_mcp(envelopes: &[serde_json::Value], user: &str) -> Vec<MentionsOfRowMcp> {
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut rows: Vec<MentionsOfRowMcp> = Vec::new();
+    for env in envelopes {
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        let csv = match extract_mentions_mcp(env) {
+            Some(s) => s,
+            None => continue,
+        };
+        if !mentions_match_mcp(&csv, user) {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(MentionsOfRowMcp {
+            mention_offset: off,
+            sender_id: sender,
+            payload: decode_payload_lossy_mcp(env),
+            mentions_csv: csv,
+            ts_ms: ts,
+        });
+    }
+    rows.sort_by(|a, b| b.mention_offset.cmp(&a.mention_offset));
+    rows
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1562,6 +1694,19 @@ pub struct AgentDmsParams {
 /// to its local hub and always returns JSON.)
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentInboxParams {}
+
+/// T-1730: parameters for `termlink_agent_mentions` — find @-mentions
+/// of a user on agent-chat-arc. MCP parity for the `termlink agent mentions
+/// <USER>` CLI verb (T-1513). Filters on the structured `metadata.mentions`
+/// CSV — distinct from `termlink_agent_search` which does substring match
+/// on the payload body.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentMentionsParams {
+    /// User identity, peer name, or thread tag to match against
+    /// `metadata.mentions`. Use `"*"` to match any non-empty CSV
+    /// ("anyone tagged at all"). Empty string is rejected with an error.
+    pub user: String,
+}
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
 /// MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks
@@ -9839,6 +9984,49 @@ impl TermLinkTools {
             "ok": true,
             "my_id": my_id,
             "unread_topics": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_mentions",
+        description = "Find every envelope on `agent-chat-arc` whose `metadata.mentions` CSV matches the named user — MCP parity for the `termlink agent mentions <USER>` CLI verb (T-1513). Distinct from `termlink_agent_search` (substring grep across payload): this verb filters on the structured `metadata.mentions` array — finds rows that *explicitly* tagged the user, regardless of body content. Pass `\"*\"` as user to match any non-empty mentions CSV (the 'anyone tagged at all?' query). Returns `{ok, topic: \"agent-chat-arc\", user, mentions: [{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...]}` sorted by descending offset (newest first). Skips redacted envelopes and meta msg-types (reaction/edit/redaction/topic_metadata/receipt). NO new RPC surface — walks the topic via `channel.subscribe` only."
+    )]
+    async fn termlink_agent_mentions(
+        &self,
+        Parameters(p): Parameters<AgentMentionsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let user = p.user.trim();
+        if user.is_empty() {
+            return json_err("user is required and must be non-empty (use \"*\" to match any tag)");
+        }
+
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let rows = compute_mentions_of_mcp(&envelopes, user);
+        let rows_json: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| serde_json::json!({
+                "mention_offset": r.mention_offset,
+                "sender_id": r.sender_id,
+                "payload": r.payload,
+                "mentions_csv": r.mentions_csv,
+                "ts_ms": r.ts_ms,
+            }))
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "user": user,
+            "mentions": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -18247,6 +18435,145 @@ mod tests {
         // AgentInboxParams is unit-struct-shaped — `{}` must deserialize.
         let parsed: Result<AgentInboxParams, _> = serde_json::from_value(serde_json::json!({}));
         assert!(parsed.is_ok(), "AgentInboxParams must deserialize from {{}}");
+    }
+
+    // === T-1730 agent_mentions tests ===
+
+    #[test]
+    fn agent_mentions_match_literal_hit() {
+        assert!(mentions_match_mcp("alice,bob,carol", "bob"));
+        assert!(mentions_match_mcp("alice", "alice"));
+        assert!(!mentions_match_mcp("alice,bob", "carol"));
+    }
+
+    #[test]
+    fn agent_mentions_match_star_target_matches_any_nonempty() {
+        assert!(mentions_match_mcp("alice", "*"));
+        assert!(mentions_match_mcp("alice,bob", "*"));
+        // empty CSV → still false (target=* means "anyone tagged at all", needs ≥1)
+        assert!(!mentions_match_mcp("", "*"));
+        assert!(!mentions_match_mcp("   ,  ", "*"));
+    }
+
+    #[test]
+    fn agent_mentions_match_star_in_csv_matches_every_target() {
+        assert!(mentions_match_mcp("*", "alice"));
+        assert!(mentions_match_mcp("alice,*", "bob"));
+        // empty target still rejected though
+        assert!(!mentions_match_mcp("*", ""));
+        assert!(!mentions_match_mcp("*", "   "));
+    }
+
+    #[test]
+    fn agent_mentions_extract_returns_none_on_missing_metadata() {
+        let env = serde_json::json!({"offset": 5, "msg_type": "text"});
+        assert_eq!(extract_mentions_mcp(&env), None);
+        // metadata present but no `mentions` key
+        let env2 = serde_json::json!({"metadata": {"thread": "T-1"}});
+        assert_eq!(extract_mentions_mcp(&env2), None);
+        // mentions present and a string
+        let env3 = serde_json::json!({"metadata": {"mentions": "alice,bob"}});
+        assert_eq!(extract_mentions_mcp(&env3).as_deref(), Some("alice,bob"));
+    }
+
+    #[test]
+    fn agent_mentions_compute_descending_offset_sort() {
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "text", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+            serde_json::json!({"offset": 7, "msg_type": "text", "sender_id": "c",
+                "metadata": {"mentions": "bob,carol"}}),
+            serde_json::json!({"offset": 3, "msg_type": "text", "sender_id": "b",
+                "metadata": {"mentions": "bob"}}),
+        ];
+        let rows = compute_mentions_of_mcp(&envs, "bob");
+        assert_eq!(rows.len(), 3);
+        // descending: 7, 3, 1
+        assert_eq!(rows[0].mention_offset, 7);
+        assert_eq!(rows[1].mention_offset, 3);
+        assert_eq!(rows[2].mention_offset, 1);
+    }
+
+    #[test]
+    fn agent_mentions_compute_skips_redacted_offsets() {
+        let envs = vec![
+            serde_json::json!({"offset": 5, "msg_type": "text", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+            // redaction targeting offset 5
+            serde_json::json!({"offset": 6, "msg_type": "redaction", "sender_id": "mod",
+                "metadata": {"redacts": "5"}}),
+            serde_json::json!({"offset": 8, "msg_type": "text", "sender_id": "b",
+                "metadata": {"mentions": "bob"}}),
+        ];
+        let rows = compute_mentions_of_mcp(&envs, "bob");
+        // offset 5 dropped (redacted); only offset 8 survives
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].mention_offset, 8);
+    }
+
+    #[test]
+    fn agent_mentions_compute_skips_meta_msg_types() {
+        let envs = vec![
+            // reaction with mentions metadata (synthetic) — must be skipped
+            serde_json::json!({"offset": 1, "msg_type": "reaction", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+            // edit — skipped
+            serde_json::json!({"offset": 2, "msg_type": "edit", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+            // text — kept
+            serde_json::json!({"offset": 3, "msg_type": "text", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+            // topic_metadata — skipped
+            serde_json::json!({"offset": 4, "msg_type": "topic_metadata", "sender_id": "a",
+                "metadata": {"mentions": "bob"}}),
+        ];
+        let rows = compute_mentions_of_mcp(&envs, "bob");
+        assert_eq!(rows.len(), 1, "only the text envelope should survive the meta filter");
+        assert_eq!(rows[0].mention_offset, 3);
+    }
+
+    #[test]
+    fn agent_mentions_compute_prefers_ts_unix_ms_over_ts() {
+        let envs = vec![
+            // both fields → ts_unix_ms wins
+            serde_json::json!({"offset": 1, "msg_type": "text", "sender_id": "a",
+                "ts_unix_ms": 1234567890_i64, "ts": 999_i64,
+                "metadata": {"mentions": "bob"}}),
+            // only ts → fallback
+            serde_json::json!({"offset": 2, "msg_type": "text", "sender_id": "b",
+                "ts": 9_876_543_210_i64,
+                "metadata": {"mentions": "bob"}}),
+        ];
+        let rows = compute_mentions_of_mcp(&envs, "bob");
+        // descending offset → 2, 1
+        assert_eq!(rows[0].ts_ms, 9_876_543_210);
+        assert_eq!(rows[1].ts_ms, 1_234_567_890);
+    }
+
+    #[test]
+    fn agent_mentions_params_deserialize_requires_user() {
+        let ok: Result<AgentMentionsParams, _> =
+            serde_json::from_value(serde_json::json!({"user": "alice"}));
+        assert!(ok.is_ok());
+        assert_eq!(ok.unwrap().user, "alice");
+
+        let missing: Result<AgentMentionsParams, _> = serde_json::from_value(serde_json::json!({}));
+        assert!(missing.is_err(), "user field is required");
+    }
+
+    #[test]
+    fn agent_mentions_decode_payload_lossy_handles_missing_and_invalid() {
+        // No payload_b64 → empty
+        let env = serde_json::json!({"offset": 1});
+        assert_eq!(decode_payload_lossy_mcp(&env), "");
+
+        // Valid b64 ("hello")
+        let env2 = serde_json::json!({"payload_b64": "aGVsbG8="});
+        assert_eq!(decode_payload_lossy_mcp(&env2), "hello");
+
+        // Invalid b64 → empty (silent — matches CLI)
+        let env3 = serde_json::json!({"payload_b64": "@@not-base64@@"});
+        assert_eq!(decode_payload_lossy_mcp(&env3), "");
     }
 
     // === parse_signal tests ===
