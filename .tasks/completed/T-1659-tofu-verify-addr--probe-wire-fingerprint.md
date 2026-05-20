@@ -4,16 +4,16 @@ name: "tofu verify <addr> — probe wire fingerprint, compare against KnownHubSt
 description: >
   tofu verify <addr> — probe wire fingerprint, compare against KnownHubStore pin, report drift
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, G-011, rotation-protocol, cli, tls, diagnostic]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-1658, T-1657, T-1656, T-1051, T-1052]
 created: 2026-05-17T15:46:52Z
-last_update: 2026-05-17T15:46:52Z
-date_finished: null
+last_update: 2026-05-17T15:56:01Z
+date_finished: 2026-05-17T15:56:01Z
 ---
 
 # T-1659: tofu verify <addr> — probe wire fingerprint, compare against KnownHubStore pin, report drift
@@ -155,3 +155,15 @@ grep -q "TofuAction::Verify" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1659-tofu-verify-addr--probe-wire-fingerprint.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-d87b14b1
+- **Timestamp:** 2026-05-17T15:56:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T15:56:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

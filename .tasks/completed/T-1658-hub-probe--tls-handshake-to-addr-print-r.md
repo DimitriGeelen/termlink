@@ -4,16 +4,16 @@ name: "hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre
 description: >
   hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no auth)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, G-011, rotation-protocol, cli, tls]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/tofu.rs]
 related_tasks: [T-1656, T-1657, T-1051, T-1052]
 created: 2026-05-17T15:35:26Z
-last_update: 2026-05-17T15:35:26Z
-date_finished: null
+last_update: 2026-05-17T15:46:00Z
+date_finished: 2026-05-17T15:46:00Z
 ---
 
 # T-1658: hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no auth)
@@ -164,3 +164,15 @@ grep -q "HubAction::Probe" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1658-hub-probe--tls-handshake-to-addr-print-r.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-1db04ccd
+- **Timestamp:** 2026-05-17T15:46:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T15:46:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "fleet doctor --auto-heal one-shot — heal without --watch (T-1680 ergono
 description: >
   fleet doctor --auto-heal one-shot — heal without --watch (T-1680 ergonomic extension)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-18T06:10:18Z
-last_update: 2026-05-18T06:10:18Z
-date_finished: null
+last_update: 2026-05-18T06:15:37Z
+date_finished: 2026-05-18T06:15:37Z
 ---
 
 # T-1683: fleet doctor --auto-heal one-shot — heal without --watch (T-1680 ergonomic extension)
@@ -147,3 +147,19 @@ cargo check -p termlink 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1683-fleet-doctor---auto-heal-one-shot--heal-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9e29c2fe
+- **Timestamp:** 2026-05-18T06:15:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-18T06:15:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

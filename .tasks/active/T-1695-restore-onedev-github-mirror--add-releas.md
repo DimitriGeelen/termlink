@@ -12,7 +12,7 @@ tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-05-18T20:24:55Z
+last_update: 2026-05-18T22:47:42Z
 date_finished: null
 ---
 

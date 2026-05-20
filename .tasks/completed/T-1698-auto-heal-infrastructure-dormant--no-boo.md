@@ -4,7 +4,7 @@ name: "Auto-heal infrastructure dormant — no bootstrap_from declared on any pr
 description: >
   Auto-heal infrastructure dormant — no bootstrap_from declared on any profile (T-1680..T-1689 not wired)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T18:51:09Z
-last_update: 2026-05-18T20:58:10Z
-date_finished: null
+last_update: 2026-05-18T21:19:39Z
+date_finished: 2026-05-18T21:19:39Z
 ---
 
 # T-1698: Auto-heal infrastructure dormant — no bootstrap_from declared on any profile (T-1680..T-1689 not wired)
@@ -164,10 +164,10 @@ grep -qE "^### Reachability matrix" docs/reports/T-1698-auto-heal-dormancy-incep
 ## Decision
 
 **Decision**: GO
-**Date**: 2026-05-18
-**Rationale**: Path 1 (ssh: anchors) selected — only R2-clean operational outcome for auto-heal (T-1680..T-1689). SSH-key wiring to .121/.122/.141 is operator-bound; Path 4 (Tier-1 manual reauth) is the interim default until keys exist. Paths 2/3 (warm-cache, remote-exec anchors) rejected on R2 analysis — the fetch channel shares its auth with the credential being rotated. Operator authorised via Watchtower 2026-05-18 (decision recorded — GO; side-effect rewrite of this section deferred pending gate-compliant **Recommendation:** body, now landed).
 
-Recorded manually here because the first Watchtower click on T-1698 GO predated the gate-compliant `## Recommendation` body — Watchtower's ledger captured the decision but the side-effect that writes this section aborted. Section format mirrors what `fw inception decide` would have written.
+**Rationale**: Path 1 is the only R2-clean operational outcome. The R2 rule (CLAUDE.md, "out-of-band trust anchor") requires the bootstrap source to be independent of the auth being healed. SSH auth ≠ termlink auth, so a termlink rotation doesn't kill the SSH fetch path. Paths 2 and 3 (warm-cache / native remote-exec anchors) fail R2 on analysis — the fetch channel shares its auth with the credential being rotated; the cache always holds the OLD secret post-rotation, which is precisely the value that's invalid. Path 4 is the right interim because it makes no false promise of auto-heal where it cannot actually work today; rotations are handled manually via `fleet reauth <profile>` (Tier-1, T-1054). Wiring SSH keys is a one-time operator action with broad benefit beyond termlink (general administration of the ring20 fleet).
+
+**Date**: 2026-05-18T21:19:39Z
 
 ## Updates
 
@@ -178,3 +178,26 @@ Recorded manually here because the first Watchtower click on T-1698 GO predated 
 
 ### 2026-05-18T18:52:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-18T21:19:39Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Path 1 is the only R2-clean operational outcome. The R2 rule (CLAUDE.md, "out-of-band trust anchor") requires the bootstrap source to be independent of the auth being healed. SSH auth ≠ termlink auth, so a termlink rotation doesn't kill the SSH fetch path. Paths 2 and 3 (warm-cache / native remote-exec anchors) fail R2 on analysis — the fetch channel shares its auth with the credential being rotated; the cache always holds the OLD secret post-rotation, which is precisely the value that's invalid. Path 4 is the right interim because it makes no false promise of auto-heal where it cannot actually work today; rotations are handled manually via `fleet reauth <profile>` (Tier-1, T-1054). Wiring SSH keys is a one-time operator action with broad benefit beyond termlink (general administration of the ring20 fleet).
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-52404986
+- **Timestamp:** 2026-05-18T21:19:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Sweep `~/.termlink/hubs.toml` profiles, confirm `bootstrap_from` count = 0 and document each profile's reachability (SSH-from-.107 results captured in body) — see `docs/reports/T-1698-auto-heal-dorman
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Sweep `~/.termlink/hubs.toml` profiles, confirm `bootstrap_from` count = 0 and document each profile's reachability (SSH-from-.107 results captured in`
+
+### 2026-05-18T21:19:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

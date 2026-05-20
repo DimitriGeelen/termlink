@@ -4,16 +4,16 @@ name: "termlink_fleet_doctor MCP — add auto_heal_preview (dry-run shape, G-057
 description: >
   termlink_fleet_doctor MCP — add auto_heal_preview (dry-run shape, G-057 punch-list #4)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-19T14:09:38Z
-last_update: 2026-05-19T14:09:38Z
-date_finished: null
+last_update: 2026-05-19T14:14:47Z
+date_finished: 2026-05-19T14:14:47Z
 ---
 
 # T-1713: termlink_fleet_doctor MCP — add auto_heal_preview (dry-run shape, G-057 punch-list #4)
@@ -101,3 +101,15 @@ grep -q "classify_auto_heal_preview" crates/termlink-mcp/src/tools.rs
 - **Tests:** 19 new tests, suite 170 → 189 passing, 0 failures.
 - **Build:** clean (one pre-existing `unused_assignments` warning at 14351, untouched).
 - **G-057 parity status:** punch-list items #1 (T-1710 fleet_history analyze), #2 (T-1711 fleet_status verbose), #3 (T-1712 doctor strict), #4 (this task, fleet_doctor auto_heal_preview) all shipped. Live `--auto-heal` deliberately NOT exposed via MCP — agents can preview but cannot fire from a one-shot RPC.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-ed200679
+- **Timestamp:** 2026-05-19T14:15:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-19T14:14:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

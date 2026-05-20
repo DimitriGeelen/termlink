@@ -4,16 +4,16 @@ name: "fleet reauth --all-drifted: bulk-heal all drifted profiles declaring boot
 description: >
   fleet reauth --all-drifted: bulk-heal all drifted profiles declaring bootstrap_from (T-1291 + T-1660 composition)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T22:09:42Z
-last_update: 2026-05-17T22:09:42Z
-date_finished: null
+last_update: 2026-05-17T22:18:39Z
+date_finished: 2026-05-17T22:18:39Z
 ---
 
 # T-1679: fleet reauth --all-drifted: bulk-heal all drifted profiles declaring bootstrap_from (T-1291 + T-1660 composition)
@@ -129,3 +129,15 @@ Implementation reuses `cmd_fleet_verify`'s parallel-probe pattern (lines 5130-51
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1679-fleet-reauth---all-drifted-bulk-heal-all.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-6d0e40d0
+- **Timestamp:** 2026-05-17T22:18:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T22:18:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

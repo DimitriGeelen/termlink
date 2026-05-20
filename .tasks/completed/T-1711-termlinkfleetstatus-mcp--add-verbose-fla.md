@@ -4,16 +4,16 @@ name: "termlink_fleet_status MCP — add verbose flag (per-hub session names, G-
 description: >
   termlink_fleet_status MCP — add verbose flag (per-hub session names, G-057 punch-list #2)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-19T12:15:22Z
-last_update: 2026-05-19T12:15:22Z
-date_finished: null
+last_update: 2026-05-19T12:18:55Z
+date_finished: 2026-05-19T12:18:55Z
 ---
 
 # T-1711: termlink_fleet_status MCP — add verbose flag (per-hub session names, G-057 punch-list #2)
@@ -128,3 +128,15 @@ grep -q "session_names" crates/termlink-mcp/src/tools.rs
   - `cargo build -p termlink-mcp` → `Finished` (only pre-existing unused_assignments warning, not my code)
   - `cargo test tests::fleet_status_params` → 3 passed; 0 failed
   - No regression risk for verbose=false / unset: same response shape as pre-T-1711.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-950420d3
+- **Timestamp:** 2026-05-19T12:19:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-19T12:18:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

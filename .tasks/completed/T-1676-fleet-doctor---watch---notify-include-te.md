@@ -4,16 +4,16 @@ name: "fleet doctor --watch --notify: include TERMLINK_WATCH_TS in env-var contr
 description: >
   fleet doctor --watch --notify: include TERMLINK_WATCH_TS in env-var contract (T-1669 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-17T21:20:37Z
-last_update: 2026-05-17T21:20:37Z
-date_finished: null
+last_update: 2026-05-17T21:42:32Z
+date_finished: 2026-05-17T21:42:32Z
 ---
 
 # T-1676: fleet doctor --watch --notify: include TERMLINK_WATCH_TS in env-var contract (T-1669 follow-up)
@@ -131,3 +131,15 @@ bash -c "grep -q 'TERMLINK_WATCH_TS' CLAUDE.md"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1676-fleet-doctor---watch---notify-include-te.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-710250b0
+- **Timestamp:** 2026-05-17T21:42:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T21:42:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

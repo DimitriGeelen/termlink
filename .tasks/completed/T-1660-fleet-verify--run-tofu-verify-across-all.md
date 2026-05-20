@@ -4,16 +4,16 @@ name: "fleet verify — run tofu verify across all hubs.toml profiles, exit non-
 description: >
   fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero on drift
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [auth, G-011, rotation-protocol, cli, tls, diagnostic, fleet]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-1659, T-1658, T-1657, T-1656]
 created: 2026-05-17T15:57:24Z
-last_update: 2026-05-17T15:57:24Z
-date_finished: null
+last_update: 2026-05-17T16:13:00Z
+date_finished: 2026-05-17T16:13:00Z
 ---
 
 # T-1660: fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero on drift
@@ -165,3 +165,20 @@ grep -q "FleetAction::Verify" crates/termlink-cli/src/main.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1660-fleet-verify--run-tofu-verify-across-all.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-ea6c72cc
+- **Timestamp:** 2026-05-17T16:13:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — Live smoke against this hub's `~/.termlink/hubs.toml` (5 profiles):
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Live smoke against this hub's `~/.termlink/hubs.toml` (5 profiles):`
+
+### 2026-05-17T16:13:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "Tag 12 genuinely-standalone fabric cards to clear recurring 8x-WARN"
 description: >
   Tag 12 genuinely-standalone fabric cards to clear recurring 8x-WARN
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T13:43:59Z
-last_update: 2026-05-17T13:43:59Z
-date_finished: null
+last_update: 2026-05-17T13:51:55Z
+date_finished: 2026-05-17T13:51:55Z
 ---
 
 # T-1655: Tag 12 genuinely-standalone fabric cards to clear recurring 8x-WARN
@@ -31,7 +31,7 @@ The audit's edge-counter (`audit.sh:658`) already supports `standalone: true` op
 - [x] Tagged cards have `standalone: true` field added (boolean, top-level YAML)
 - [x] `fw audit` re-run; "Fabric: N/122 cards have no edges" WARN no longer fires — now `[PASS] Fabric edges: 110/110 cards enriched (0 without edges)`
 - [x] Cards tagged standalone are documented in their `purpose` field (10 had TODO placeholders; all updated with concrete one-line descriptions)
-- [ ] Commit with T-1655 prefix
+- [x] Commit with T-1655 prefix (7987f1f0)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,3 +128,15 @@ python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.fabr
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1655-tag-12-genuinely-standalone-fabric-cards.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-13f7860b
+- **Timestamp:** 2026-05-17T13:54:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T13:51:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

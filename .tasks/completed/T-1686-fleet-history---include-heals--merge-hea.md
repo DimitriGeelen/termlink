@@ -4,16 +4,16 @@ name: "fleet history --include-heals — merge heal.log events into the rotation
 description: >
   fleet history --include-heals — merge heal.log events into the rotation history view
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-18T06:28:59Z
-last_update: 2026-05-18T06:28:59Z
-date_finished: null
+last_update: 2026-05-18T06:33:03Z
+date_finished: 2026-05-18T06:33:03Z
 ---
 
 # T-1686: fleet history --include-heals — merge heal.log events into the rotation history view
@@ -149,3 +149,15 @@ cargo check -p termlink 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1686-fleet-history---include-heals--merge-hea.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-698f9ebe
+- **Timestamp:** 2026-05-18T06:33:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-18T06:33:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

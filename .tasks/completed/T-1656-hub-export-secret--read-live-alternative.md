@@ -4,16 +4,16 @@ name: "hub export-secret — read-live alternative to cat ~/.termlink/secrets/<I
 description: >
   hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T13:55:46Z
-last_update: 2026-05-17T13:55:46Z
-date_finished: null
+last_update: 2026-05-17T14:07:22Z
+date_finished: 2026-05-17T14:07:22Z
 ---
 
 # T-1656: hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)
@@ -44,7 +44,7 @@ Reuses `termlink_hub::server::hub_secret_path()` which already resolves runtime_
 - [x] Unit test: `export_secret_missing_live_errors` — no live file under staged TERMLINK_RUNTIME_DIR; verifies cmd returns Err with both "no hub.secret" and "is the hub running?" substrings
 - [x] `cargo test -p termlink --bin termlink -- export_secret` passes (2/2)
 - [x] `cargo check --workspace` passes
-- [ ] Commit with T-1656 prefix
+- [x] Commit with T-1656 prefix (3db9581f)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -142,3 +142,22 @@ grep -q "ExportSecret" crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1656-hub-export-secret--read-live-alternative.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-80bde7b9
+- **Timestamp:** 2026-05-17T14:07:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — `cmd_hub_export_secret(out, json)` reads from `hub_secret_path()` (live runtime_dir/hub.secret), prints hex to stdout (live-smoke: exported hex sha256 = live-file sha256)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=runtime_dir/hub.secret in: `cmd_hub_export_secret(out, json)` reads from `hub_secret_path()` (live runtime_dir/hub.secret), prints hex to stdout (live-smoke: exported hex sha256`
+- **AC#4 (Agent)** — `--json` flag: prints `{"path":"<live-path>","hex":"<value>","bytes":<len>}` for scripting (live-smoke: `{"bytes":32,"hex":"b307...","path":"/var/lib/termlink/hub.secret"}`)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=var/lib/termlink/hub.secret in: `--json` flag: prints `{"path":"<live-path>","hex":"<value>","bytes":<len>}` for scripting (live-smoke: `{"bytes":32,"hex":"b307...","path":"/var/lib/`
+
+### 2026-05-17T14:07:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

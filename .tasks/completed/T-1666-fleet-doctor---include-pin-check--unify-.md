@@ -4,16 +4,16 @@ name: "fleet doctor --include-pin-check — unify auth + cert rotation diagnosti
 description: >
   fleet doctor --include-pin-check — unify auth + cert rotation diagnostics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T18:57:27Z
-last_update: 2026-05-17T18:57:27Z
-date_finished: null
+last_update: 2026-05-17T19:16:50Z
+date_finished: 2026-05-17T19:16:50Z
 ---
 
 # T-1666: fleet doctor --include-pin-check — unify auth + cert rotation diagnostics
@@ -136,3 +136,28 @@ cargo build --release -p termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1666-fleet-doctor---include-pin-check--unify-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-d4ec45fc
+- **Timestamp:** 2026-05-17T19:22:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `FleetAction::Doctor` in `crates/termlink-cli/src/cli.rs` gains an `--include-pin-check` flag (off by default — additive). When set, fleet doctor additionally probes each hub via TLS and compares wire
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/cli.rs in: `FleetAction::Doctor` in `crates/termlink-cli/src/cli.rs` gains an `--include-pin-check` flag (off by default — additive). When set, fleet doctor addi`
+- **AC#2 (Agent)** — `cmd_fleet_doctor` in `crates/termlink-cli/src/commands/remote.rs` accepts the new parameter, runs probes in parallel per hub via `tokio::spawn(probe_cert(addr))` reusing the T-1660 pattern. **Verifie
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/remote.rs in: `cmd_fleet_doctor` in `crates/termlink-cli/src/commands/remote.rs` accepts the new parameter, runs probes in parallel per hub via `tokio::spawn(probe_`
+- **AC#7 (Agent)** — `cargo build --release -p termlink` succeeds. `cargo clippy -p termlink -- -D warnings` does not introduce new clippy violations in the touched file. **Verified:** build clean in 6m26s. Workspace clip
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink-mcp/src/tools.rs in: `cargo build --release -p termlink` succeeds. `cargo clippy -p termlink -- -D warnings` does not introduce new clippy violations in the touched file. `
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet doctor`
+
+### 2026-05-17T19:16:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

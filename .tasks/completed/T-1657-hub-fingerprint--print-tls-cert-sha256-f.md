@@ -4,16 +4,16 @@ name: "hub fingerprint — print TLS cert sha256 fingerprint for peer verificati
 description: >
   hub fingerprint — print TLS cert sha256 fingerprint for peer verification (PL-021 ergonomics)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T14:25:44Z
-last_update: 2026-05-17T14:25:44Z
-date_finished: null
+last_update: 2026-05-17T14:36:11Z
+date_finished: 2026-05-17T14:36:11Z
 ---
 
 # T-1657: hub fingerprint — print TLS cert sha256 fingerprint for peer verification (PL-021 ergonomics)
@@ -40,7 +40,7 @@ Mirrors T-1656's "always read live, never cache" design — peer-verification ha
 - [x] `cargo test -p termlink --bin termlink -- fingerprint` passes (3/3 plus 1 unrelated)
 - [x] `cargo check --workspace` passes
 - [x] Live-smoke against local hub: output `sha256:d1bd50f5...` exactly matches `openssl x509 -noout -fingerprint -sha256` canonical form
-- [ ] Commit with T-1657 prefix
+- [x] Commit with T-1657 prefix (3c99d7fc)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,7 +69,7 @@ Mirrors T-1656's "always read live, never cache" design — peer-verification ha
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 cargo check --workspace
 cargo test -p termlink --bin termlink -- fingerprint
-grep -q "HubAction::Fingerprint" crates/termlink-cli/src/cli.rs
+grep -q "    Fingerprint {" crates/termlink-cli/src/cli.rs
 
 ## RCA
 
@@ -138,3 +138,20 @@ grep -q "HubAction::Fingerprint" crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1657-hub-fingerprint--print-tls-cert-sha256-f.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-63170ffe
+- **Timestamp:** 2026-05-17T14:36:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — Error path: missing cert → exit 1 with "no hub.cert.pem at /tmp/no-hub-xyz/hub.cert.pem — is the hub running?"
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tmp/no-hub-xyz/hub.cert in: Error path: missing cert → exit 1 with "no hub.cert.pem at /tmp/no-hub-xyz/hub.cert.pem — is the hub running?"`
+
+### 2026-05-17T14:36:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

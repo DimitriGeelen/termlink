@@ -4,16 +4,16 @@ name: "Migrate remaining 6 operator-facing connect_addr sites to connect_addr_wi
 description: >
   Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout (T-1677 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-17T21:57:34Z
-last_update: 2026-05-17T21:57:34Z
-date_finished: null
+last_update: 2026-05-17T22:06:49Z
+date_finished: 2026-05-17T22:06:49Z
 ---
 
 # T-1678: Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout (T-1677 follow-up)
@@ -121,3 +121,15 @@ bash -c "grep -q 'connect_addr_with_timeout' crates/termlink-mcp/src/tools.rs"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1678-migrate-remaining-6-operator-facing-conn.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-20867553
+- **Timestamp:** 2026-05-17T22:06:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T22:06:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

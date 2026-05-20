@@ -4,7 +4,7 @@ name: "T-1700 series archival — T-1701 episodic + T-1702 completion"
 description: >
   T-1700 series archival — T-1701 episodic + T-1702 completion
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T22:28:43Z
-last_update: 2026-05-18T22:28:43Z
-date_finished: null
+last_update: 2026-05-18T22:29:27Z
+date_finished: 2026-05-18T22:29:27Z
 ---
 
 # T-1703: T-1700 series archival — T-1701 episodic + T-1702 completion
@@ -30,9 +30,9 @@ T-1700 series fully archived.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.context/episodic/T-1701.yaml` committed
-- [ ] `.context/episodic/T-1702.yaml` committed
-- [ ] `.tasks/completed/T-1701-…` final state committed (post AC-tick edits)
+- [x] `.context/episodic/T-1701.yaml` committed (commit b0…archive)
+- [x] `.context/episodic/T-1702.yaml` committed
+- [x] `.tasks/completed/T-1701-…` final state committed (post AC-tick edits)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,3 +127,22 @@ T-1700 series fully archived.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1703-t-1700-series-archival--t-1701-episodic-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e931b06e
+- **Timestamp:** 2026-05-18T22:29:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `.context/episodic/T-1701.yaml` committed (commit b0…archive)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/episodic/T-1701.yaml in: `.context/episodic/T-1701.yaml` committed (commit b0…archive)`
+- **AC#2 (Agent)** — `.context/episodic/T-1702.yaml` committed
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/episodic/T-1702.yaml in: `.context/episodic/T-1702.yaml` committed`
+
+### 2026-05-18T22:29:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

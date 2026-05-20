@@ -4,16 +4,16 @@ name: "MCP channel_post metadata exposure — close envelope.metadata caller-ina
 description: >
   Cohort-agent ask (A). MCP termlink_channel_post does not accept a metadata parameter; envelope.metadata always emits empty even though the protocol carries it. Affects routing for any LLM consumer keying on metadata.thread/conversation_id. Recommend Shape 1 free-form metadata object.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-18T09:19:40Z
-last_update: 2026-05-18T09:27:25Z
-date_finished: null
+last_update: 2026-05-18T21:02:14Z
+date_finished: 2026-05-18T21:02:14Z
 ---
 
 # T-1692: MCP channel_post metadata exposure — close envelope.metadata caller-inaccessibility (cohort-agent ask A)
@@ -67,15 +67,15 @@ OUT: Audit-the-class punch list (separate task; this one stays focused).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -152,7 +152,26 @@ schema (thread, in_reply_to, mentions) and rejects unknown keys.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Confirmed gap with named consumer impact (cohort-agent n8n exec 7
+parked). Pure additive MCP-schema change, no protocol version bump, no
+breaking change to existing callers. Cohort-agent recommends Shape 1 (free-form
+object) — matches existing protocol design, lets contracts evolve independently,
+no schema lock-in at tool layer. Implementation likely <1 hour. Sibling audit
+task ("MCP-vs-protocol surface gap") is the class fix; this one closes the
+named instance.
+
+Evidence:
+- Cohort-agent letter (operator-relayed via chat-arc) — explicit ask, named consumer
+- chat-arc:350 — proves envelope.metadata is on-wire
+- chat-arc:351, 383 — Pen acks with empty envelope.metadata (the gap)
+- cohort_hub/n8n_event_match.py:42 (consumer-side, in different repo) — matcher keys on metadata fields
+- T-1560 (existing) — `termlink_agent_post` already accepts underscore-prefixed metadata keys; this task generalizes
+
+**Date**: 2026-05-18T21:02:13Z
 
 ## Updates
 
@@ -161,3 +180,36 @@ schema (thread, in_reply_to, mentions) and rejects unknown keys.
 
 ### 2026-05-18T09:27:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-18T21:02:13Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Confirmed gap with named consumer impact (cohort-agent n8n exec 7
+parked). Pure additive MCP-schema change, no protocol version bump, no
+breaking change to existing callers. Cohort-agent recommends Shape 1 (free-form
+object) — matches existing protocol design, lets contracts evolve independently,
+no schema lock-in at tool layer. Implementation likely <1 hour. Sibling audit
+task ("MCP-vs-protocol surface gap") is the class fix; this one closes the
+named instance.
+
+Evidence:
+- Cohort-agent letter (operator-relayed via chat-arc) — explicit ask, named consumer
+- chat-arc:350 — proves envelope.metadata is on-wire
+- chat-arc:351, 383 — Pen acks with empty envelope.metadata (the gap)
+- cohort_hub/n8n_event_match.py:42 (consumer-side, in different repo) — matcher keys on metadata fields
+- T-1560 (existing) — `termlink_agent_post` already accepts underscore-prefixed metadata keys; this task generalizes
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-cc17c6af
+- **Timestamp:** 2026-05-18T21:02:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-18T21:02:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

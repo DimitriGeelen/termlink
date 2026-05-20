@@ -4,7 +4,7 @@ name: "Fix T-1696 canary cron format — installed in user-crontab with /etc/cro
 description: >
   T-1696's release-mirror canary was installed in root's user crontab but uses /etc/cron.d/ system-cron syntax (USER field). cron parses 'root' as the first command token → 'root: command not found' → silent exit 127 → log file never written. Result: 67-commit OneDev→GitHub drift since 2026-05-18 went undetected for 2+ days, recreating the exact G-058 silent-failure pattern the canary was designed to prevent. Fix: move canary to /etc/cron.d/termlink-release-mirror-canary and strip the broken entry from root's user crontab.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [release, cron, G-058, bug, silent-fail]
 components: []
 related_tasks: [T-1695, T-1696]
 created: 2026-05-20T06:51:27Z
-last_update: 2026-05-20T06:51:27Z
-date_finished: null
+last_update: 2026-05-20T06:55:56Z
+date_finished: 2026-05-20T06:55:56Z
 ---
 
 # T-1721: Fix T-1696 canary cron format — installed in user-crontab with /etc/cron.d/ USER-field syntax (silent fail)
@@ -148,3 +148,15 @@ diff -q .context/cron/release-mirror-canary.crontab /etc/cron.d/termlink-release
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1721-fix-t-1696-canary-cron-format--installed.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-0927548e
+- **Timestamp:** 2026-05-20T06:55:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-20T06:55:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "Client::connect_addr_with_timeout primitive + migrate operator-facing rem
 description: >
   Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub sites (T-1675 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-05-17T21:47:53Z
-last_update: 2026-05-17T21:47:53Z
-date_finished: null
+last_update: 2026-05-17T21:56:47Z
+date_finished: 2026-05-17T21:56:47Z
 ---
 
 # T-1677: Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub sites (T-1675 follow-up)
@@ -116,3 +116,15 @@ cargo test -p termlink-session --lib connect_addr_with_timeout 2>&1 | grep -qE "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1677-clientconnectaddrwithtimeout-primitive--.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9a583a73
+- **Timestamp:** 2026-05-17T21:56:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-17T21:56:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

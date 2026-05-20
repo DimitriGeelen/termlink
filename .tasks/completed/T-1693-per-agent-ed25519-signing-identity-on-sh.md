@@ -4,7 +4,7 @@ name: "Per-agent ed25519 signing identity on shared hosts — provisioning + ses
 description: >
   Cohort-agent ask (B). T-1427 enforcement revealed all co-resident agents on .107 share one envelope-signing key (d1993c2c). Per-agent attribution is structurally impossible at envelope layer today. T-1159 already shipped per-session ed25519 keypair infra; this task designs the deployment+wiring model. Cohort recommends Shape 1 (agent-managed key files, per-project secrets dir, passed via --identity-key at termlink register). Independent from T-1448 (which was about disambiguation primitives); this one is about identity provisioning.
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T09:19:51Z
-last_update: 2026-05-18T09:19:51Z
-date_finished: null
+last_update: 2026-05-18T21:02:26Z
+date_finished: 2026-05-18T21:02:26Z
 ---
 
 # T-1693: Per-agent ed25519 signing identity on shared hosts — provisioning + session-time identity selection (cohort-agent ask B)
@@ -87,15 +87,15 @@ OUT: Multi-key TOFU policy redesign (lives in a follow-up if A4 disproven).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -192,9 +192,69 @@ from `(operator-master-key, agent-name)` via HKDF.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (after design phase) — but operator-prioritized AFTER T-1692
+per cohort-agent's letter ("(A) first, smaller and immediate consumer impact;
+(B) second, independent and larger").
+
+Rationale: Real structural gap with named implications (audit, multi-tenant
+trust, defence-in-depth). T-1159 already shipped the foundation; this task is
+the wiring model, not new crypto. Cohort recommends Shape 1 (agent-managed key
+files, no new hub infra) which preserves agent sovereignty and matches the
+existing project-local secrets convention. Rotation story is "regenerate +
+restart + TOFU history covers old envelopes" — minimum viable, acceptable for
+current threat model.
+
+Evidence:
+- T-1427 error -32014 — empirical proof that 9219671e was never an envelope identity
+- 19 historical envelopes labeled "Pen" all signed by d1993c2c (host)
+- T-1159 (completed) — keyring infrastructure exists; wiring is the gap
+- Cohort-agent's letter — explicit ask with full steel-man analysis
+- New concern G-XXX (this register) — "co-resident envelope identity undifferentiable"
+
+**Date**: 2026-05-18T21:02:26Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-05-18T21:02:26Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (after design phase) — but operator-prioritized AFTER T-1692
+per cohort-agent's letter ("(A) first, smaller and immediate consumer impact;
+(B) second, independent and larger").
+
+Rationale: Real structural gap with named implications (audit, multi-tenant
+trust, defence-in-depth). T-1159 already shipped the foundation; this task is
+the wiring model, not new crypto. Cohort recommends Shape 1 (agent-managed key
+files, no new hub infra) which preserves agent sovereignty and matches the
+existing project-local secrets convention. Rotation story is "regenerate +
+restart + TOFU history covers old envelopes" — minimum viable, acceptable for
+current threat model.
+
+Evidence:
+- T-1427 error -32014 — empirical proof that 9219671e was never an envelope identity
+- 19 historical envelopes labeled "Pen" all signed by d1993c2c (host)
+- T-1159 (completed) — keyring infrastructure exists; wiring is the gap
+- Cohort-agent's letter — explicit ask with full steel-man analysis
+- New concern G-XXX (this register) — "co-resident envelope identity undifferentiable"
+
+### 2026-05-18T21:02:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-f6e1cb5e
+- **Timestamp:** 2026-05-18T21:02:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-18T21:02:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
