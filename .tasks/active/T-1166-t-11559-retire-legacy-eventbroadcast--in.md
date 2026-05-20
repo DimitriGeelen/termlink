@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-19T21:45:23Z
+last_update: 2026-05-19T21:59:52Z
 date_finished: null
 ---
 
@@ -608,3 +608,15 @@ Field rollout stabilized. Three of four vendored hubs now have working hourly he
 - **Bake clock unchanged.** .122 gate **2026-05-19 21:50Z** (~7h45m out). .121 gate **2026-05-22 20:45Z** (~3d 7h out). Earliest defensible T-1415 promotion: **2026-05-22 20:45Z**.
 - **No regressions.** Pre-cut residue continues to age out monotonically; no new live callers detected. T-1415 source-cleanup remains gated on these two timestamps + a final clean fleet doctor.
 - **Version skew unchanged** (2 hubs on 0.9.2110, 2 on 0.9.2127). **.141 still DOWN** — outside scope.
+
+### 2026-05-20T05:50Z — bake telemetry refresh: ring20-management TRANSITIONED to clean (6→4 fleet-wide) [agent]
+
+- **Fresh `termlink fleet doctor --legacy-usage --json`:**
+  - Verdict still **CUT-READY-DECAYING** (no live callers in last 300s)
+  - Fleet-wide total: **4 legacy invocations** in 7d window — down 2 from prior snapshot (the 7d gate at 2026-05-19T21:50Z elapsed cleanly, both residue entries on ring20-management aged out)
+  - **`hubs_clean` now lists BOTH ring20 hubs:** `[ring20-dashboard, ring20-management]` — first time both ring20 hubs are simultaneously clean since cut started.
+  - Remaining residue: `local-test` 2 + `workstation-107-public` 2 — both reference caller `addr:192.168.10.122`, both stamped `last_ts_ms=1779092976839` → **2026-05-18T08:29:36Z**. 7d ageout: **2026-05-25T08:29Z** (~5d 3h out).
+- **Bake clock.** .122 gate (2026-05-19 21:50Z) **PASSED CLEANLY** — confirmed via the `hubs_clean` membership flip above. .121 gate **2026-05-22 20:45Z** (~2d 15h out). Earliest defensible T-1415 promotion remains: **2026-05-22 20:45Z** (capped by .121 not .122).
+- **What the remaining residue is.** Two pre-cut emits dated 2026-05-18T08:29Z routed through the `local-test` + `.107` hubs (which both keep an audit trail of legacy method dispatches). Caller traces to `.122` — consistent with prior snapshots; no new sources observed.
+- **Version skew unchanged** (2 hubs on 0.9.2110, 2 on 0.9.2127). **.141 still DOWN** — outside scope; planned re-pickup ~2026-05-26 per Option A (T-1457).
+- **No regressions.** Monotonic decay continues. T-1415 source-cleanup unblocked structurally; gated only on .121 clock + final clean fleet doctor.
