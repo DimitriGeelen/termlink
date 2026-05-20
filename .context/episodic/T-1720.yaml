@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1720: termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T10:17:50Z
+# ============================================================================
+
+task_id: T-1720
+task_name: "termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T06:26:56Z
+completed: 2026-05-20T10:15:01Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-20T08:33:07+02:00
+last_commit: 2026-05-20T08:33:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)
+
+# Key outcomes
+outcomes:
+  - "`termlink_agent_identity` tool method registered at tools.rs:9531 via `#[tool(name = \"termlink_agent_identity\", description = \"...\")]`. Parameter-less signature `async fn termlink_agent_identity(&self) -> String` (mirrors `termlink_version` pattern). Returns JSON `{ok, fingerprint, public_key_hex, path}` on success."
+  - "Implementation uses `termlink_session::agent_identity::Identity::load_or_create(&identity_dir)` exactly like `termlink_agent_post` + `termlink_agent_contact` (consistency across the agent_* surface). `identity_dir = ${HOME}/.termlink`. HOME-not-set → `json_err(\"HOME not set\")`. `path` reported back as `identity_dir.join(\"identity.json\")` to mirror the CLI's output shape."
+  - "Tool description cites T-1554 (CLI parity), explains the return shape, and includes \"No I/O beyond the local identity file read — never hits the hub, never posts. Parameter-less.\" (tools.rs:9533)."
+  - "`cargo build --release -p termlink-mcp` clean — 1m 17s, only the pre-existing `cur_run_end` warning (unrelated, predates T-1720)."
+  - "Build-time correctness covers this — the `#[tool(...)]` macro registration compiles, validating the method signature, argument shape, and registration with the tool router. Runtime behavior is delegated to `Identity::load_or_create` (covered by `termlink-session` tests, T-1436+). Thin wrappers around already-tested foundations don't need redundant unit tests — the value is the public surface."
+  - "Full `cargo test --release -p termlink-mcp --lib` runs **236/236 pass** — same count as pre-T-1720 (no new tests added since the wrapper is delegating to already-tested foundations), zero regressions. Confirms the registration didn't break any prior test."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1720-termlinkagentidentity-mcp--local-fp-self.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T08:33:07"
+    action: "T-1720: termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 228 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 228
+  commits: 1
+  files_changed: 2
+  lines_added: 153
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1720-termlinkagentidentity-mcp--local-fp-self.md
+generated_by: context-agent-hybrid

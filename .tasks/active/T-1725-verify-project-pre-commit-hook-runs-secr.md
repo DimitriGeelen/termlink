@@ -1,36 +1,36 @@
 ---
-id: T-1720
-name: "termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)"
+id: T-1725
+name: "Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)"
 description: >
-  Close MCP-parity gap for the agent identity CLI verb (T-1554). MCP-aware agents currently can't introspect their own identity_fingerprint without using the side effect of posting + reading back my_fp. termlink_agent_identity is a parameter-less read tool that loads ~/.termlink/identity.json and returns {ok, fingerprint, public_key_hex, path}. Mirrors cmd_identity_show one-to-one. No new RPC surface (local-only file read).
+  Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
-created: 2026-05-20T06:26:56Z
-last_update: 2026-05-20T06:26:56Z
+created: 2026-05-20T10:18:48Z
+last_update: 2026-05-20T10:19:32Z
 date_finished: null
 ---
 
-# T-1720: termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)
+# T-1725: Verify project pre-commit hook runs secret-scan.sh + covers github_pat_ pattern (T-1695 prevention)
 
 ## Context
 
-CLI `termlink agent identity` (T-1554, work-completed) is a single-shot read of `~/.termlink/identity.json` that prints `{fingerprint, public_key_hex, path}`. The CLI delegates to `cmd_identity_show` (commands/identity.rs:45-66). MCP-aware agents currently have no first-class introspection — they must infer their FP from a posted envelope's `my_fp` echo. This task ships a parameter-less MCP tool that does the same local file read.
+The T-1695 leak (commit 15c19f22 added a `github_pat_…` value to `.onedev-buildspec.yml` and merged into main) was eventually removed via destructive history rewrite — but the framework already ships a `secret-scan.sh` at `.agentic-framework/agents/git/lib/secret-scan.sh` whose entire purpose is to catch this class of leak pre-commit. Either the hook isn't installed in this project's `.git/hooks/pre-commit`, OR it is installed but its pattern set doesn't match `github_pat_` (the fine-grained PAT prefix introduced after the patterns were authored).
+
+This task verifies which of the two failed and closes the gap so the next PAT leak attempt is blocked at commit-time.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `termlink_agent_identity` tool method registered at tools.rs:9531 via `#[tool(name = "termlink_agent_identity", description = "...")]`. Parameter-less signature `async fn termlink_agent_identity(&self) -> String` (mirrors `termlink_version` pattern). Returns JSON `{ok, fingerprint, public_key_hex, path}` on success.
-- [x] Implementation uses `termlink_session::agent_identity::Identity::load_or_create(&identity_dir)` exactly like `termlink_agent_post` + `termlink_agent_contact` (consistency across the agent_* surface). `identity_dir = ${HOME}/.termlink`. HOME-not-set → `json_err("HOME not set")`. `path` reported back as `identity_dir.join("identity.json")` to mirror the CLI's output shape.
-- [x] Tool description cites T-1554 (CLI parity), explains the return shape, and includes "No I/O beyond the local identity file read — never hits the hub, never posts. Parameter-less." (tools.rs:9533).
-- [x] `cargo build --release -p termlink-mcp` clean — 1m 17s, only the pre-existing `cur_run_end` warning (unrelated, predates T-1720).
-- [x] Build-time correctness covers this — the `#[tool(...)]` macro registration compiles, validating the method signature, argument shape, and registration with the tool router. Runtime behavior is delegated to `Identity::load_or_create` (covered by `termlink-session` tests, T-1436+). Thin wrappers around already-tested foundations don't need redundant unit tests — the value is the public surface.
-- [x] Full `cargo test --release -p termlink-mcp --lib` runs **236/236 pass** — same count as pre-T-1720 (no new tests added since the wrapper is delegating to already-tested foundations), zero regressions. Confirms the registration didn't break any prior test.
+- [ ] Read `.git/hooks/pre-commit` and confirm whether it invokes `.agentic-framework/agents/git/lib/secret-scan.sh` (or equivalent). If not installed, run `fw git install-hooks` and re-verify
+- [ ] Read `secret-scan.sh` pattern list; confirm `github_pat_[A-Za-z0-9_]{82}` (or equivalent regex covering the fine-grained PAT prefix) is in the pattern set. If missing, propose patch upstream to the framework repo (`/opt/999-AEF`) via Channel-1 dispatch
+- [ ] Negative test: stage a file containing `github_pat_TESTTESTTEST...` (82-char fake), attempt `git commit`, observe the hook blocks. Unstage and rm the test file after
+- [ ] Document outcome in Updates section — installed + covers pattern → close; gap found → file follow-up against framework repo
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -57,8 +57,6 @@ CLI `termlink agent identity` (T-1554, work-completed) is a single-shot read of 
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-cargo build --release -p termlink-mcp
-cargo test --release -p termlink-mcp --lib
 
 ## RCA
 
@@ -123,7 +121,11 @@ cargo test --release -p termlink-mcp --lib
 
 ## Updates
 
-### 2026-05-20T06:26:56Z — task-created [task-create-agent]
+### 2026-05-20T10:18:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1720-termlinkagentidentity-mcp--local-fp-self.md
+- **Output:** /opt/termlink/.tasks/active/T-1725-verify-project-pre-commit-hook-runs-secr.md
 - **Context:** Initial task creation
+
+### 2026-05-20T10:19:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: now → next
