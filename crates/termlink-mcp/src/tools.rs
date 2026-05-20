@@ -840,6 +840,96 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1736: one row in the forwards-of view. Mirror of CLI's `ForwardOfRow`
+/// (channel.rs:4945). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ForwardOfRowMcp {
+    forward_offset: u64,
+    origin_topic: String,
+    origin_offset: u64,
+    origin_sender: String,
+    payload: String,
+    ts: i64,
+}
+
+impl ForwardOfRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "forward_offset": self.forward_offset,
+            "origin_topic": self.origin_topic,
+            "origin_offset": self.origin_offset,
+            "origin_sender": self.origin_sender,
+            "payload": self.payload,
+            "ts": self.ts,
+        })
+    }
+}
+
+/// T-1736: pure helper — read `metadata.forwarded_from` (as `<topic>:<u64>`)
+/// + `metadata.forwarded_sender`. Mirror of CLI's `extract_forward`
+/// (channel.rs:7644). Both fields must be present; topics may contain
+/// colons (e.g. `dm:a:b`) so split on the LAST colon. Returns
+/// `Some((origin_topic, origin_offset, origin_sender))` or `None`.
+fn extract_forward_mcp(env: &serde_json::Value) -> Option<(String, u64, String)> {
+    let md = env.get("metadata")?;
+    let from = md.get("forwarded_from").and_then(|v| v.as_str())?;
+    let sender = md
+        .get("forwarded_sender")
+        .and_then(|v| v.as_str())?
+        .to_string();
+    let (topic, off_str) = from.rsplit_once(':')?;
+    let off = off_str.parse::<u64>().ok()?;
+    Some((topic.to_string(), off, sender))
+}
+
+/// T-1736: pure helper — list every active forward envelope by `sender`.
+/// Mirror of CLI's `compute_forwards_of` (channel.rs:4981).
+///
+/// Filters (preserved verbatim from CLI):
+/// - `sender_id == sender` (the forwarder, not the original poster)
+/// - offset NOT in `redacted_offsets`
+/// - `extract_forward_mcp` succeeds (well-formed metadata pair)
+///
+/// Sort: `forward_offset` descending (most recent first). Pure — no I/O.
+fn compute_forwards_of_mcp(
+    envelopes: &[serde_json::Value],
+    sender: &str,
+) -> Vec<ForwardOfRowMcp> {
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut rows: Vec<ForwardOfRowMcp> = Vec::new();
+    for env in envelopes {
+        if env.get("sender_id").and_then(|v| v.as_str()) != Some(sender) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let (origin_topic, origin_offset, origin_sender) = match extract_forward_mcp(env) {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        rows.push(ForwardOfRowMcp {
+            forward_offset: off,
+            origin_topic,
+            origin_offset,
+            origin_sender,
+            payload: decode_payload_lossy_mcp(env),
+            ts,
+        });
+    }
+    rows.sort_by(|a, b| b.forward_offset.cmp(&a.forward_offset));
+    rows
+}
+
 /// T-1735: one reaction row produced by `compute_reactions_of_mcp`. Mirror
 /// of CLI's `ReactionsOfRow` (channel.rs:4601). Field shape preserved
 /// one-to-one so the JSON envelope matches CLI `agent reactions-of --json`.
@@ -2183,6 +2273,18 @@ pub struct AgentRepliesOfParams {
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentReactionsOfParams {
     /// Identity fingerprint of the sender whose reactions to enumerate.
+    /// Omit to default to the caller's local identity.
+    pub sender: Option<String>,
+}
+
+/// T-1736: parameters for `termlink_agent_forwards_of` — list every
+/// active forward envelope posted by a given sender on `agent-chat-arc`.
+/// MCP parity for the `termlink agent forwards-of [SENDER]` CLI verb
+/// (T-1367). When `sender` is omitted, defaults to the caller's local
+/// Identity fingerprint.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentForwardsOfParams {
+    /// Identity fingerprint of the sender whose forwards to enumerate.
     /// Omit to default to the caller's local identity.
     pub sender: Option<String>,
 }
@@ -10689,6 +10791,52 @@ impl TermLinkTools {
             "topic": topic,
             "sender": sender,
             "reactions": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_forwards_of",
+        description = "List every active (non-redacted) forward envelope posted by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent forwards-of [SENDER]` CLI verb (T-1367). A forward is identified by the metadata pair `forwarded_from = \"<origin-topic>:<origin-offset>\"` + `forwarded_sender = <fingerprint>`; both must be present and `forwarded_from` must parse on the LAST colon (topics may contain colons, e.g. `dm:a:b`). When `sender` is omitted, defaults to the caller's local Identity fingerprint. Returns `{ok, topic, sender, forwards: [{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}, ...]}` sorted by `forward_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_forwards_of(
+        &self,
+        Parameters(p): Parameters<AgentForwardsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let sender = match p.sender {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let rows = compute_forwards_of_mcp(&envelopes, &sender);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(ForwardOfRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "sender": sender,
+            "forwards": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -19889,6 +20037,152 @@ mod tests {
             serde_json::from_value(serde_json::json!({})).unwrap();
         assert!(p1.sender.is_none());
         let p2: AgentReactionsOfParams =
+            serde_json::from_value(serde_json::json!({"sender": "bob"})).unwrap();
+        assert_eq!(p2.sender.as_deref(), Some("bob"));
+    }
+
+    // === T-1736 agent_forwards_of tests ===
+
+    #[test]
+    fn agent_forwards_of_empty_input() {
+        let rows = compute_forwards_of_mcp(&[], "alice");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_forwards_of_extract_forward_missing_sender_returns_none() {
+        // forwarded_from present, forwarded_sender absent → None
+        let env = serde_json::json!({
+            "metadata": {"forwarded_from": "agent-chat-arc:42"}
+        });
+        assert!(extract_forward_mcp(&env).is_none());
+    }
+
+    #[test]
+    fn agent_forwards_of_extract_forward_missing_from_returns_none() {
+        let env = serde_json::json!({
+            "metadata": {"forwarded_sender": "bob"}
+        });
+        assert!(extract_forward_mcp(&env).is_none());
+    }
+
+    #[test]
+    fn agent_forwards_of_extract_forward_dm_topic_with_colons_splits_last() {
+        // dm:a:b:5 → topic=dm:a:b, offset=5
+        let env = serde_json::json!({
+            "metadata": {
+                "forwarded_from": "dm:fp_alice:fp_bob:5",
+                "forwarded_sender": "fp_alice",
+            }
+        });
+        let (topic, off, sender) = extract_forward_mcp(&env).unwrap();
+        assert_eq!(topic, "dm:fp_alice:fp_bob");
+        assert_eq!(off, 5);
+        assert_eq!(sender, "fp_alice");
+    }
+
+    #[test]
+    fn agent_forwards_of_extract_forward_non_numeric_offset_returns_none() {
+        let env = serde_json::json!({
+            "metadata": {
+                "forwarded_from": "agent-chat-arc:not-a-num",
+                "forwarded_sender": "bob",
+            }
+        });
+        assert!(extract_forward_mcp(&env).is_none());
+    }
+
+    #[test]
+    fn agent_forwards_of_single_forward_happy_path() {
+        let envs = vec![serde_json::json!({
+            "offset": 7, "msg_type": "chat", "sender_id": "alice",
+            "ts_unix_ms": 1234_i64,
+            "payload_b64": "Zm9yd2FyZGVk",
+            "metadata": {
+                "forwarded_from": "agent-chat-arc:3",
+                "forwarded_sender": "bob",
+            }
+        })];
+        let rows = compute_forwards_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].forward_offset, 7);
+        assert_eq!(rows[0].origin_topic, "agent-chat-arc");
+        assert_eq!(rows[0].origin_offset, 3);
+        assert_eq!(rows[0].origin_sender, "bob");
+        assert_eq!(rows[0].payload, "forwarded");
+        assert_eq!(rows[0].ts, 1234);
+    }
+
+    #[test]
+    fn agent_forwards_of_redacted_forward_dropped() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 7, "msg_type": "chat", "sender_id": "alice",
+                "metadata": {
+                    "forwarded_from": "agent-chat-arc:3",
+                    "forwarded_sender": "bob",
+                }
+            }),
+            serde_json::json!({
+                "offset": 8, "msg_type": "redaction", "sender_id": "alice",
+                "metadata": {"redacts": "7"},
+            }),
+        ];
+        let rows = compute_forwards_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "redacted forward must be dropped");
+    }
+
+    #[test]
+    fn agent_forwards_of_other_senders_excluded() {
+        let envs = vec![serde_json::json!({
+            "offset": 7, "msg_type": "chat", "sender_id": "bob",
+            "metadata": {
+                "forwarded_from": "agent-chat-arc:3",
+                "forwarded_sender": "carol",
+            }
+        })];
+        let rows = compute_forwards_of_mcp(&envs, "alice");
+        assert!(rows.is_empty(), "only `sender` forwards count");
+    }
+
+    #[test]
+    fn agent_forwards_of_sort_descending_by_forward_offset() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 5, "msg_type": "chat", "sender_id": "alice",
+                "metadata": {
+                    "forwarded_from": "agent-chat-arc:1",
+                    "forwarded_sender": "bob",
+                }
+            }),
+            serde_json::json!({
+                "offset": 11, "msg_type": "chat", "sender_id": "alice",
+                "metadata": {
+                    "forwarded_from": "agent-chat-arc:2",
+                    "forwarded_sender": "bob",
+                }
+            }),
+            serde_json::json!({
+                "offset": 8, "msg_type": "chat", "sender_id": "alice",
+                "metadata": {
+                    "forwarded_from": "agent-chat-arc:3",
+                    "forwarded_sender": "bob",
+                }
+            }),
+        ];
+        let rows = compute_forwards_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].forward_offset, 11);
+        assert_eq!(rows[1].forward_offset, 8);
+        assert_eq!(rows[2].forward_offset, 5);
+    }
+
+    #[test]
+    fn agent_forwards_of_params_deserializes() {
+        let p1: AgentForwardsOfParams =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.sender.is_none());
+        let p2: AgentForwardsOfParams =
             serde_json::from_value(serde_json::json!({"sender": "bob"})).unwrap();
         assert_eq!(p2.sender.as_deref(), Some("bob"));
     }

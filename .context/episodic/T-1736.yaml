@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1736: termlink_agent_forwards_of MCP — list forwards by a given sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T21:47:33Z
+# ============================================================================
+
+task_id: T-1736
+task_name: "termlink_agent_forwards_of MCP — list forwards by a given sender"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T21:44:38Z
+completed: 2026-05-20T21:47:16Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`extract_forward_mcp` ported alongside existing `*_mcp` helpers; returns `Some((topic, offset, sender))` only when BOTH `metadata.forwarded_from` and `metadata.forwarded_sender` are present and `forwarded_from` parses as `<topic>:<u64>` via `rsplit_once(':')`"
+  - "`compute_forwards_of_mcp` ported; preserves filters (sender match, drop redacted offsets, require successful `extract_forward_mcp`), sort by `forward_offset` descending"
+  - "`ForwardOfRowMcp` struct + `to_json_mcp` mirror CLI's `ForwardOfRow` (`forward_offset`, `origin_topic`, `origin_offset`, `origin_sender`, `payload`, `ts`)"
+  - "`AgentForwardsOfParams { sender: Option<String> }` and `termlink_agent_forwards_of` tool method added; sender defaults to caller's local Identity fingerprint when omitted"
+  - "Returns `{ok, topic, sender, forwards: [...]}` JSON"
+  - "≥6 new unit tests in `tools::tests` covering: empty input, single forward happy path, redacted forward dropped, missing `forwarded_sender` returns None, dm:* topic with internal colons parses correctly (last-colon split), sort by forward_offset descending, params deserialize"
+  - "`cargo build -p termlink-mcp` clean (no new warnings beyond pre-existing `cur_run_end`)"
+  - "`cargo test -p termlink-mcp` passes (all new tests + no regressions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1736-termlinkagentforwardsof-mcp--list-forwar.md
+generated_by: context-agent-hybrid
