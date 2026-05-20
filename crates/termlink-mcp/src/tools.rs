@@ -334,6 +334,83 @@ fn resolve_message_or_file_mcp(
     }
 }
 
+/// T-1719: filter a topic list down to DMs involving the caller's identity.
+/// Pure mirror of CLI's `dm_list_filter` (commands/channel.rs:1687). For each
+/// topic of shape `dm:<a>:<b>` where one side equals `my_id`, returns
+/// `(topic_name, peer_fp)` where `peer_fp` is the OTHER side. Topics not
+/// matching the dm:* pattern or not involving `my_id` are skipped.
+fn dm_list_filter_mcp(topics: &[String], my_id: &str) -> Vec<(String, String)> {
+    topics
+        .iter()
+        .filter_map(|name| {
+            let rest = name.strip_prefix("dm:")?;
+            let (a, b) = rest.split_once(':')?;
+            if a == my_id {
+                Some((name.clone(), b.to_string()))
+            } else if b == my_id {
+                Some((name.clone(), a.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// T-1719: count content envelopes whose `offset > up_to`. Skips meta msg
+/// types (reaction/edit/redaction/topic_metadata/receipt — same set as
+/// `META_MSG_TYPES`). Returns `(unread_count, first_unread_offset)`. Pure
+/// mirror of CLI's `count_unread` (commands/channel.rs:3042).
+fn count_unread_mcp(msgs: &[serde_json::Value], up_to: u64) -> (u64, Option<u64>) {
+    let mut count: u64 = 0;
+    let mut first: Option<u64> = None;
+    for m in msgs {
+        let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        if off <= up_to {
+            continue;
+        }
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        if first.is_none() {
+            first = Some(off);
+        }
+        count += 1;
+    }
+    (count, first)
+}
+
+/// T-1719: walk a topic exhaustively via paged `channel.subscribe`. Returns
+/// every envelope on the topic. Mirror of CLI's `walk_topic_full`
+/// (commands/channel.rs:8269). Same 1000-per-page convention.
+async fn walk_topic_full_mcp(
+    hub_socket: &std::path::Path,
+    topic: &str,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut all: Vec<serde_json::Value> = Vec::new();
+    let mut cursor: u64 = 0;
+    let limit: u64 = 1000;
+    loop {
+        let resp = termlink_session::client::rpc_call(
+            hub_socket,
+            termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+            serde_json::json!({"topic": topic, "cursor": cursor, "limit": limit}),
+        )
+        .await
+        .map_err(|e| format!("channel.subscribe RPC failed: {e}"))?;
+        let result = termlink_session::client::unwrap_result(resp)
+            .map_err(|e| format!("channel.subscribe error: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len();
+        all.extend(msgs);
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+        if (n as u64) < limit {
+            break;
+        }
+    }
+    Ok(all)
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1365,6 +1442,17 @@ pub struct AgentContactParams {
     /// T-1716: timeout (seconds) for `ack_required` poll. Clamped to [5, 600];
     /// default 60. Ignored when `ack_required` is false or unset.
     pub ack_timeout_secs: Option<u64>,
+}
+
+/// T-1719: parameters for `termlink_agent_dms` — DM topic directory.
+/// MCP parity for the `termlink agent dms` CLI verb (T-1552). Optionally
+/// includes unread counts per DM (T-1338 inbox view).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentDmsParams {
+    /// When true, also compute unread + first_unread per DM by calling
+    /// `channel.receipts` and walking the topic. When false (default),
+    /// returns only `{topic, peer}` rows. Default: false.
+    pub unread: Option<bool>,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -9306,6 +9394,136 @@ impl TermLinkTools {
             "last_seen": last_seen_human,
             "window_secs": window_secs,
             "posts_in_window": presence.posts_in_window,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_dms",
+        description = "List DM topics for the local identity — MCP parity for the `termlink agent dms` CLI verb (T-1552). Calls `channel.list`, filters to topics of shape `dm:<sorted_a>:<sorted_b>` where one side is the caller's identity_fingerprint. Returns `{ok, my_id, dms: [{topic, peer}, ...]}`. With `unread=true`, additionally computes per-DM unread + first_unread offset via `channel.receipts` (ack frontier) + `channel.subscribe` (paged walk for content envelopes); results sorted unread-first (stable). Operator-style answer to 'what conversations am I in?'. No new RPC surface — uses channel.list / channel.receipts / channel.subscribe only."
+    )]
+    async fn termlink_agent_dms(
+        &self,
+        Parameters(p): Parameters<AgentDmsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        // Load identity → my_id (fingerprint).
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let my_id = identity.fingerprint().to_string();
+
+        // channel.list — full catalog (no prefix filter, mirrors CLI).
+        let list_resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            serde_json::json!({}),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list RPC failed: {e}")),
+        };
+        let list_result = match termlink_session::client::unwrap_result(list_resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list error: {e}")),
+        };
+        let topic_names: Vec<String> = list_result["topics"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|t| t.get("name").and_then(|v| v.as_str()).map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let dms = dm_list_filter_mcp(&topic_names, &my_id);
+
+        let want_unread = p.unread.unwrap_or(false);
+
+        if !want_unread {
+            let rows: Vec<serde_json::Value> = dms
+                .iter()
+                .map(|(t, peer)| serde_json::json!({"topic": t, "peer": peer}))
+                .collect();
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "my_id": my_id,
+                "dms": rows,
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        // Unread mode — per-DM channel.receipts + walk_topic_full + count_unread.
+        let mut rows: Vec<serde_json::Value> = Vec::with_capacity(dms.len());
+        for (topic, peer) in &dms {
+            // channel.receipts → caller's ack frontier `up_to`.
+            let mut up_to: u64 = 0;
+            let receipts_resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_RECEIPTS,
+                serde_json::json!({"topic": topic}),
+            )
+            .await;
+            if let Ok(resp) = receipts_resp
+                && let Ok(r) = termlink_session::client::unwrap_result(resp)
+                && let Some(entries) = r["receipts"].as_array()
+            {
+                for entry in entries {
+                    if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id.as_str()) {
+                        up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                        break;
+                    }
+                }
+            }
+            // (Receipts failure → up_to stays 0 → all content counts as unread,
+            // matching CLI's conservative fallback.)
+
+            let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+                Ok(v) => v,
+                Err(e) => {
+                    // One DM's walk failed — surface per-row error rather than
+                    // aborting the whole tool call.
+                    rows.push(serde_json::json!({
+                        "topic": topic,
+                        "peer": peer,
+                        "unread": null,
+                        "first_unread": null,
+                        "error": e,
+                    }));
+                    continue;
+                }
+            };
+            let (unread, first_unread) = count_unread_mcp(&envelopes, up_to);
+            rows.push(serde_json::json!({
+                "topic": topic,
+                "peer": peer,
+                "unread": unread,
+                "first_unread": first_unread,
+            }));
+        }
+        // Stable sort: unread > 0 floats to top, original order preserved within groups.
+        rows.sort_by(|a, b| {
+            let a_unread = a.get("unread").and_then(|v| v.as_u64()).unwrap_or(0);
+            let b_unread = b.get("unread").and_then(|v| v.as_u64()).unwrap_or(0);
+            let a_has = if a_unread > 0 { 0u8 } else { 1 };
+            let b_has = if b_unread > 0 { 0u8 } else { 1 };
+            a_has.cmp(&b_has)
+        });
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "my_id": my_id,
+            "dms": rows,
         }))
         .unwrap_or_else(json_err)
     }
@@ -17498,6 +17716,84 @@ mod tests {
             format_last_seen_human(now, Some(now + 5_000)),
             "0s ago"
         );
+    }
+
+    // === T-1719: agent_dms helper + params tests ===
+
+    #[test]
+    fn agent_dms_filter_matches_caller_on_either_side() {
+        let my_id = "aaaa";
+        let topics = vec![
+            "dm:aaaa:bbbb".to_string(),  // my_id is `a` → peer=bbbb
+            "dm:cccc:aaaa".to_string(),  // my_id is `b` → peer=cccc
+            "dm:bbbb:cccc".to_string(),  // neither side is my_id → skip
+            "agent-chat-arc".to_string(), // not a dm topic → skip
+            "dm:malformed".to_string(),   // no second colon → skip
+        ];
+        let dms = dm_list_filter_mcp(&topics, my_id);
+        assert_eq!(dms.len(), 2);
+        assert_eq!(dms[0], ("dm:aaaa:bbbb".to_string(), "bbbb".to_string()));
+        assert_eq!(dms[1], ("dm:cccc:aaaa".to_string(), "cccc".to_string()));
+    }
+
+    #[test]
+    fn agent_dms_filter_returns_empty_when_no_match() {
+        let topics = vec![
+            "dm:aaaa:bbbb".to_string(),
+            "dm:cccc:dddd".to_string(),
+            "agent-chat-arc".to_string(),
+        ];
+        let dms = dm_list_filter_mcp(&topics, "ffff");
+        assert!(dms.is_empty());
+    }
+
+    #[test]
+    fn agent_dms_params_default_unread_is_unset() {
+        let json = serde_json::json!({});
+        let p: AgentDmsParams = serde_json::from_value(json).unwrap();
+        assert!(p.unread.is_none());
+    }
+
+    #[test]
+    fn agent_dms_params_explicit_unread_deserializes() {
+        let json = serde_json::json!({"unread": true});
+        let p: AgentDmsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.unread, Some(true));
+    }
+
+    #[test]
+    fn agent_dms_count_unread_skips_below_bound() {
+        let msgs = vec![
+            serde_json::json!({"offset": 5, "msg_type": "chat"}),
+            serde_json::json!({"offset": 10, "msg_type": "chat"}),
+            serde_json::json!({"offset": 15, "msg_type": "chat"}),
+        ];
+        // up_to=10 → 5 and 10 are read (5 < 10 and 10 ≤ 10), 15 is unread.
+        let (count, first) = count_unread_mcp(&msgs, 10);
+        assert_eq!(count, 1);
+        assert_eq!(first, Some(15));
+    }
+
+    #[test]
+    fn agent_dms_count_unread_skips_meta_types() {
+        let msgs = vec![
+            serde_json::json!({"offset": 11, "msg_type": "receipt"}),
+            serde_json::json!({"offset": 12, "msg_type": "reaction"}),
+            serde_json::json!({"offset": 13, "msg_type": "edit"}),
+            serde_json::json!({"offset": 14, "msg_type": "redaction"}),
+            serde_json::json!({"offset": 15, "msg_type": "topic_metadata"}),
+            serde_json::json!({"offset": 16, "msg_type": "chat"}),
+        ];
+        let (count, first) = count_unread_mcp(&msgs, 10);
+        assert_eq!(count, 1, "only one real content envelope");
+        assert_eq!(first, Some(16));
+    }
+
+    #[test]
+    fn agent_dms_count_unread_empty_returns_zero() {
+        let (count, first) = count_unread_mcp(&[], 0);
+        assert_eq!(count, 0);
+        assert!(first.is_none());
     }
 
     // === parse_signal tests ===
