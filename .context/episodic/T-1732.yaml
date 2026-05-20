@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1732: termlink_agent_threads MCP — list thread roots on agent-chat-arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T21:29:26Z
+# ============================================================================
+
+task_id: T-1732
+task_name: "termlink_agent_threads MCP — list thread roots on agent-chat-arc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T21:22:21Z
+completed: 2026-05-20T21:29:09Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`compute_threads_index_mcp` ported into tools.rs alongside existing `*_mcp` helpers; preserves redacted-root drop, redacted-reply drop, transitive BFS, sort-by-last_ts_ms-desc-then-offset-asc, drop rows with reply_count==0"
+  - "`parent_offset_of_mcp` helper ported (reads `metadata.in_reply_to` as string, parses u64)"
+  - "`ThreadIndexRowMcp` struct + `to_json_mcp` mirror CLI's `ThreadIndexRow` (`root_offset`, `reply_count`, `participants`, `last_ts_ms`, `root_payload`)"
+  - "`AgentThreadsParams { top: Option<usize> }` and `termlink_agent_threads` MCP tool method added; uses `walk_topic_full_mcp` on `agent-chat-arc`; returns `{ok, topic, threads: [...]}` JSON; honors optional `top` truncation"
+  - "≥6 new unit tests in `tools::tests` covering: empty input, single-root happy path, redacted root dropped, redacted reply dropped, multi-thread sort order, top truncation"
+  - "`cargo build -p termlink-mcp` clean (no new warnings beyond pre-existing `cur_run_end`)"
+  - "`cargo test -p termlink-mcp` passes (all new tests + no regressions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-20 — replace existing T-1574 `termlink_agent_threads` with T-1365 parity"
+    chose: "Delete the existing `termlink_agent_threads` MCP tool (T-1574, line ~17760) and its `AgentThreadsParams { limit }` struct; ship a fresh implementation backed by `compute_threads_index_mcp` matching CLI `agent threads` (T-1365) one-to-one."
+    rationale: "The T-1574 implementation was a pre-parity sketch — string `root_offset`, no participants count, no payload preview, no redaction handling, sort-by-last_reply_ts-only. The CLI's `compute_threads_index` is the canonical implementation (redacted-root drop, redacted-reply drop, transitive BFS, sort-by-last_ts_ms-desc-then-offset-asc). CLI parity is the whole point of T-1732. CLAUDE.md §Tone: \"Avoid backwards-compatibility hacks\" — keeping both creates two MCP surfaces with the same name, ambiguous for callers."
+    alternatives_rejected: [""]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1732-termlinkagentthreads-mcp--list-thread-ro.md
+generated_by: context-agent-hybrid

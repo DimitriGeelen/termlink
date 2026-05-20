@@ -706,6 +706,140 @@ fn compute_active_typers_mcp(
     rows
 }
 
+/// T-1732: pure helper — read `metadata.in_reply_to` as a u64. Mirror of
+/// CLI's `parent_offset_of` (channel.rs:7514). Returns `None` when absent
+/// or non-numeric. Both reactions and reply posts carry this key (T-1313/
+/// T-1314 contracts).
+fn parent_offset_of_mcp(env: &serde_json::Value) -> Option<u64> {
+    env.get("metadata")
+        .and_then(|md| md.get("in_reply_to"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse::<u64>().ok())
+}
+
+/// T-1732: one row in the threads index. Mirror of CLI's `ThreadIndexRow`
+/// (channel.rs:7010) — field shape preserved one-to-one so the JSON
+/// envelope matches CLI `agent threads --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ThreadIndexRowMcp {
+    root_offset: u64,
+    reply_count: usize,
+    participants: usize,
+    last_ts_ms: i64,
+    root_payload: Option<String>,
+}
+
+impl ThreadIndexRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "root_offset": self.root_offset,
+            "reply_count": self.reply_count,
+            "participants": self.participants,
+            "last_ts_ms": self.last_ts_ms,
+            "root_payload": self.root_payload,
+        })
+    }
+}
+
+/// T-1732: pure helper — index every thread on a topic walk. Mirror of
+/// CLI's `compute_threads_index` (channel.rs:7047) one-to-one.
+///
+/// Filtering rules (preserved verbatim from CLI):
+/// - root that is redacted → row dropped entirely
+/// - replies that are redacted → don't count toward reply_count or participants
+/// - thread with zero non-redacted replies → row dropped
+/// - non-numeric `in_reply_to` → reply ignored
+///
+/// Sort: `last_ts_ms` descending (most recently active first); ties break
+/// on `root_offset` ascending. Pure — no I/O.
+fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndexRowMcp> {
+    use std::collections::{HashMap, HashSet};
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut children: HashMap<u64, Vec<(u64, String, i64)>> = HashMap::new();
+    for env in envelopes {
+        let Some(off) = env.get("offset").and_then(|v| v.as_u64()) else { continue };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let Some(parent) = parent_offset_of_mcp(env) else { continue };
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        children.entry(parent).or_default().push((off, sender, ts));
+    }
+    let mut rows: Vec<ThreadIndexRowMcp> = Vec::new();
+    for (root_off, _) in children.iter().filter(|(off, _)| !redacted.contains(off)) {
+        let root_env = match by_off.get(root_off) {
+            Some(e) => *e,
+            None => continue,
+        };
+        let mut stack: Vec<u64> = vec![*root_off];
+        let mut seen: HashSet<u64> = HashSet::new();
+        seen.insert(*root_off);
+        let mut reply_count: usize = 0;
+        let mut participants: HashSet<String> = HashSet::new();
+        let root_sender = root_env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if !root_sender.is_empty() {
+            participants.insert(root_sender);
+        }
+        let mut last_ts: i64 = root_env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| root_env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        while let Some(parent) = stack.pop() {
+            if let Some(kids) = children.get(&parent) {
+                for (k_off, k_sender, k_ts) in kids {
+                    if !seen.insert(*k_off) {
+                        continue;
+                    }
+                    reply_count += 1;
+                    if !k_sender.is_empty() {
+                        participants.insert(k_sender.clone());
+                    }
+                    if *k_ts > last_ts {
+                        last_ts = *k_ts;
+                    }
+                    stack.push(*k_off);
+                }
+            }
+        }
+        if reply_count == 0 {
+            continue;
+        }
+        rows.push(ThreadIndexRowMcp {
+            root_offset: *root_off,
+            reply_count,
+            participants: participants.len(),
+            last_ts_ms: last_ts,
+            root_payload: Some(decode_payload_lossy_mcp(root_env)),
+        });
+    }
+    rows.sort_by(|a, b| {
+        b.last_ts_ms
+            .cmp(&a.last_ts_ms)
+            .then_with(|| a.root_offset.cmp(&b.root_offset))
+    });
+    rows
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1778,6 +1912,18 @@ pub struct AgentMentionsParams {
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentTypersParams {}
 
+/// T-1732: parameters for `termlink_agent_threads` — list thread roots on
+/// agent-chat-arc. MCP parity for the `termlink agent threads` CLI verb
+/// (T-1533). Optional `top` truncates the rendered list to the N most
+/// recently active threads (server-side enforced; clamped to 1..=500).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentThreadsParams {
+    /// Optional cap on the number of rows returned. Clamped to 1..=500
+    /// when set. Omitted = return every thread root with non-redacted
+    /// replies.
+    pub top: Option<usize>,
+}
+
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
 /// MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks
 /// `agent-chat-arc` for the named peer's recent activity, returns a
@@ -2431,12 +2577,6 @@ pub struct AgentReactionsParams {
 pub struct AgentQuoteParams {
     /// Offset of the chat-arc envelope to fetch.
     pub offset: u64,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct AgentThreadsParams {
-    /// Max thread roots to return. Default 100, capped at 1000.
-    pub limit: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -10098,6 +10238,38 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_agent_threads",
+        description = "List every thread root on `agent-chat-arc` — MCP parity for the `termlink agent threads` CLI verb (T-1533/T-1365). Returns one row per envelope that has at least one non-redacted reply, with `root_offset`, `reply_count` (transitive non-redacted descendants), `participants` (distinct sender_ids in the thread including root sender), `last_ts_ms` (max ts across the thread), and `root_payload` (lossy-decoded base64 preview of the root). Rows sorted by `last_ts_ms` descending (most recently active first); ties break on `root_offset` ascending for determinism. Redacted roots are dropped entirely; redacted replies don't count toward reply_count or participants. Optional `top` truncates to the N most recently active threads (clamped 1..=500). Use this as the operator's first command of a session to answer 'what conversations are alive on the fleet?'. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_threads(
+        &self,
+        Parameters(p): Parameters<AgentThreadsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let mut rows = compute_threads_index_mcp(&envelopes);
+        if let Some(n) = p.top {
+            let clamped = n.clamp(1, 500);
+            rows.truncate(clamped);
+        }
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(ThreadIndexRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "threads": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_agent_mentions",
         description = "Find every envelope on `agent-chat-arc` whose `metadata.mentions` CSV matches the named user — MCP parity for the `termlink agent mentions <USER>` CLI verb (T-1513). Distinct from `termlink_agent_search` (substring grep across payload): this verb filters on the structured `metadata.mentions` array — finds rows that *explicitly* tagged the user, regardless of body content. Pass `\"*\"` as user to match any non-empty mentions CSV (the 'anyone tagged at all?' query). Returns `{ok, topic: \"agent-chat-arc\", user, mentions: [{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...]}` sorted by descending offset (newest first). Skips redacted envelopes and meta msg-types (reaction/edit/redaction/topic_metadata/receipt). NO new RPC surface — walks the topic via `channel.subscribe` only."
     )]
@@ -17580,78 +17752,6 @@ impl TermLinkTools {
     }
 
     #[tool(
-        name = "termlink_agent_threads",
-        description = "List thread roots on agent-chat-arc — i.e. offsets that have been replied to. Walks the topic, scans every envelope's `metadata.in_reply_to`, aggregates by parent offset, and returns `[{root_offset, reply_count, last_reply_ts}, ...]` sorted by last_reply_ts desc. Surfaces conversation hot-spots so MCP-aware agents can see what's being discussed without dumping the full topic. MCP-side equivalent of `agent threads` (CLI T-1533). `limit` defaults to 100, max 1000."
-    )]
-    async fn termlink_agent_threads(
-        &self,
-        Parameters(p): Parameters<AgentThreadsParams>,
-    ) -> String {
-        let hub_socket = termlink_hub::server::hub_socket_path();
-        if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
-        }
-        let topic = "agent-chat-arc";
-        let limit = p.limit.unwrap_or(100).min(1000);
-        let mut all: Vec<serde_json::Value> = Vec::new();
-        let mut cursor: u64 = 0;
-        let page_limit: u64 = 1000;
-        loop {
-            let resp = match termlink_session::client::rpc_call(
-                &hub_socket,
-                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
-                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
-            )
-            .await
-            {
-                Ok(r) => r,
-                Err(e) => return json_err(format!("RPC call failed: {e}")),
-            };
-            let result = match termlink_session::client::unwrap_result(resp) {
-                Ok(r) => r,
-                Err(e) => return json_err(format!("Hub returned error: {e}")),
-            };
-            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
-            let n = msgs.len();
-            all.extend(msgs);
-            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
-            if (n as u64) < page_limit {
-                break;
-            }
-        }
-        // Aggregate parents-by-reply-count
-        let mut parents: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
-        for env in &all {
-            let parent = env.get("metadata")
-                .and_then(|m| m.get("in_reply_to"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            if parent.is_empty() { continue; }
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            let entry = parents.entry(parent.to_string()).or_insert((0, 0));
-            entry.0 += 1;
-            if ts > entry.1 { entry.1 = ts; }
-        }
-        let mut results: Vec<serde_json::Value> = parents
-            .into_iter()
-            .map(|(root, (count, last_ts))| serde_json::json!({
-                "root_offset": root,
-                "reply_count": count,
-                "last_reply_ts": last_ts,
-            }))
-            .collect();
-        results.sort_by(|a, b| {
-            let ta = a.get("last_reply_ts").and_then(|v| v.as_i64()).unwrap_or(0);
-            let tb = b.get("last_reply_ts").and_then(|v| v.as_i64()).unwrap_or(0);
-            tb.cmp(&ta)
-        });
-        results.truncate(limit as usize);
-        serde_json::to_string_pretty(&serde_json::Value::Array(results)).unwrap_or_else(json_err)
-    }
-
-    #[tool(
         name = "termlink_agent_pinned",
         description = "List currently pinned posts on agent-chat-arc. Walks pin envelopes via channel.subscribe, groups by `metadata.pin_target`, keeps the latest by ts, and returns only those whose final `action` is `pin` (i.e. not subsequently unpinned). Returns a JSON array sorted newest-first: `[{pin_target, sender_id, ts_unix_ms}, ...]`. MCP-side equivalent of `agent pinned` (CLI T-1517). Companion read tool to `termlink_agent_pin` (T-1564) — completes the curation surface."
     )]
@@ -18793,6 +18893,195 @@ mod tests {
         // Invalid b64 → empty (silent — matches CLI)
         let env3 = serde_json::json!({"payload_b64": "@@not-base64@@"});
         assert_eq!(decode_payload_lossy_mcp(&env3), "");
+    }
+
+    // === T-1732 agent_threads tests ===
+
+    #[test]
+    fn agent_threads_empty_input() {
+        let rows = compute_threads_index_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_threads_single_root_happy_path() {
+        // Root (offset 1) + one reply (offset 2). Expected: one row,
+        // reply_count=1, participants=2 (alice + bob), last_ts=200,
+        // root_payload="hi" (decoded from base64 "aGk=").
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 100_i64, "payload_b64": "aGk=",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let rows = compute_threads_index_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].root_offset, 1);
+        assert_eq!(rows[0].reply_count, 1);
+        assert_eq!(rows[0].participants, 2);
+        assert_eq!(rows[0].last_ts_ms, 200);
+        assert_eq!(rows[0].root_payload.as_deref(), Some("hi"));
+    }
+
+    #[test]
+    fn agent_threads_redacted_root_drops_row() {
+        // Root (offset 1) is redacted by offset 3. Reply (offset 2) survives,
+        // but with the root dropped the whole row must disappear.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 100_i64,
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "redaction", "sender_id": "alice",
+                "ts_unix_ms": 250_i64,
+                "metadata": {"redacts": "1"},
+            }),
+        ];
+        let rows = compute_threads_index_mcp(&envs);
+        assert!(
+            rows.is_empty(),
+            "redacted root must drop the row entirely"
+        );
+    }
+
+    #[test]
+    fn agent_threads_redacted_reply_excluded() {
+        // Root + two replies, but one reply is redacted. Expected: reply_count=1.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 100_i64, "payload_b64": "aGk=",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "text", "sender_id": "carol",
+                "ts_unix_ms": 300_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 4, "msg_type": "redaction", "sender_id": "carol",
+                "ts_unix_ms": 350_i64,
+                "metadata": {"redacts": "3"},
+            }),
+        ];
+        let rows = compute_threads_index_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_count, 1, "redacted reply must not count");
+        // Participants = alice (root) + bob (surviving reply) = 2.
+        // Carol's reply was redacted; carol must not be counted.
+        assert_eq!(rows[0].participants, 2);
+        // last_ts uses the surviving reply, not the redacted one.
+        assert_eq!(rows[0].last_ts_ms, 200);
+    }
+
+    #[test]
+    fn agent_threads_zero_replies_drops_row() {
+        // Root with no replies → no row (matches CLI: only rows with
+        // children, accumulated via the children map).
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "text", "sender_id": "alice",
+            "ts_unix_ms": 100_i64, "payload_b64": "aGk=",
+        })];
+        let rows = compute_threads_index_mcp(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_threads_multi_thread_sort_by_last_ts_desc() {
+        // Two threads — older root at offset 1 last_ts=500; newer root at
+        // offset 10 last_ts=2000. Expected order: thread 10 first, thread 1 second.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 100_i64,
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 500_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 10, "msg_type": "text", "sender_id": "carol",
+                "ts_unix_ms": 1000_i64,
+            }),
+            serde_json::json!({
+                "offset": 11, "msg_type": "text", "sender_id": "dave",
+                "ts_unix_ms": 2000_i64,
+                "metadata": {"in_reply_to": "10"},
+            }),
+        ];
+        let rows = compute_threads_index_mcp(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].root_offset, 10, "newer thread sorts first");
+        assert_eq!(rows[0].last_ts_ms, 2000);
+        assert_eq!(rows[1].root_offset, 1);
+        assert_eq!(rows[1].last_ts_ms, 500);
+    }
+
+    #[test]
+    fn agent_threads_tiebreak_by_offset_ascending() {
+        // Two threads with identical last_ts → tie breaks on root_offset ascending.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 10, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 50_i64,
+            }),
+            serde_json::json!({
+                "offset": 11, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"in_reply_to": "10"},
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "text", "sender_id": "carol",
+                "ts_unix_ms": 50_i64,
+            }),
+            serde_json::json!({
+                "offset": 6, "msg_type": "text", "sender_id": "dave",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"in_reply_to": "5"},
+            }),
+        ];
+        let rows = compute_threads_index_mcp(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].root_offset, 5, "lower root_offset wins ties");
+        assert_eq!(rows[1].root_offset, 10);
+    }
+
+    #[test]
+    fn agent_threads_params_deserializes() {
+        // top is optional
+        let p1: AgentThreadsParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.top.is_none());
+        let p2: AgentThreadsParams =
+            serde_json::from_value(serde_json::json!({"top": 5})).unwrap();
+        assert_eq!(p2.top, Some(5));
+    }
+
+    #[test]
+    fn agent_threads_parent_offset_of_mcp_parses_string_u64() {
+        let env_ok = serde_json::json!({"metadata": {"in_reply_to": "42"}});
+        assert_eq!(parent_offset_of_mcp(&env_ok), Some(42));
+        let env_missing = serde_json::json!({"metadata": {}});
+        assert_eq!(parent_offset_of_mcp(&env_missing), None);
+        let env_non_numeric = serde_json::json!({"metadata": {"in_reply_to": "not-a-num"}});
+        assert_eq!(parent_offset_of_mcp(&env_non_numeric), None);
+        let env_no_meta = serde_json::json!({"offset": 1});
+        assert_eq!(parent_offset_of_mcp(&env_no_meta), None);
     }
 
     // === parse_signal tests ===
