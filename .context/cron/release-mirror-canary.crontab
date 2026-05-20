@@ -1,5 +1,6 @@
 # T-1696 — release-pipeline mirror drift canary (G-058 prevention)
 # Source of truth: /opt/termlink/.context/cron/release-mirror-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-release-mirror-canary (USER field syntax — do NOT load into a user crontab)
 # Daily check that OneDev → GitHub mirror is alive (commits + latest tag).
 # Exit 1 from --quiet means drift; the log accumulates only when drift is
 # present, so an empty log is the healthy state. G-058 ran 16 days because
