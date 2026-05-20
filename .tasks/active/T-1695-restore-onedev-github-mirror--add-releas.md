@@ -277,3 +277,7 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 ### 2026-05-20T08:23:20Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** v2-PAT cycle ineffective despite operator action; agent failed to capture operator action in task on 2026-05-19, causing redundant re-prompt loop. Diagnostic moving to OneDev API + secret enumeration.
+
+### 2026-05-20T18:55:00Z — PL-175 captured (T-1724)
+- **Learning filed:** PL-175 added to `.context/project/learnings.yaml` — "Runtime-signature-alone RCA is unsafe when two failure modes produce identical runtime signatures." Source task: T-1695. Application: insist on UI logs before forming hypotheses.
+- **Reference:** Next session investigating a stuck/hung remote job with "no output, no error" should hit this learning via `fw work-on T-1695` related-knowledge lookup AND via `fw context add-learning` search.

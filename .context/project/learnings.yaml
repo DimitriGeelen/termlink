@@ -1977,3 +1977,10 @@ learnings:
   date: 2026-05-19
   context: Added via context agent
   application: TBD
+- id: PL-175
+  learning: 'PL-175: Runtime signature alone — a job stuck/hung with no error output — is NOT sufficient to form an RCA hypothesis when the system has two failure modes that produce identical runtime signatures. T-1695 burned ~2 hours diagnosing OneDev → GitHub mirror failure as "PAT missing Workflows scope" → "cache issue" → "v2 PAT" → "permission edit" → "regenerate", all on a problem that did not exist at the OneDev auth layer. Actual root cause: executor mismatch (`penelope-shell` executor on a build node that couldn''t satisfy it), visible only in the OneDev UI build log line `10:32:17 Pending resource allocation...`. The REST API had no log endpoint, so without UI access there was no diagnostic. Rule: when REST API has no log endpoint AND runtime signature alone is the only signal, INSIST on UI logs (or equivalent structured trace) BEFORE forming hypotheses. Wrong hypotheses are cheap to form and expensive to disprove — a single 30s glance at the UI build log would have collapsed 2 hours of theory-chasing. Apply: any time you''re forming an RCA hypothesis from "job is stuck, no error" alone, ask "what build/job log am I missing access to?" first.'
+  source: P-001
+  task: T-1695
+  date: 2026-05-20
+  context: Added via T-1724 from T-1695 RCA retrospective
+  application: 'Any agent diagnosing a stuck/hung remote job (CI, build queue, dispatch, mirror sync) where the only signal is "no output, no error": stop, demand UI log access (or operator-paste of the log), and form hypotheses only AFTER reading the log. Do NOT chain auth/permission/credential theories from runtime signature alone.'

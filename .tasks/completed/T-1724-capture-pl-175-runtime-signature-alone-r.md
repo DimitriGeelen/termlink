@@ -4,16 +4,16 @@ name: "Capture PL-175: runtime-signature-alone RCA is unsafe (T-1695 learning)"
 description: >
   Capture PL-175: runtime-signature-alone RCA is unsafe (T-1695 learning)
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-20T10:18:04Z
-last_update: 2026-05-20T10:18:42Z
-date_finished: null
+last_update: 2026-05-20T18:46:16Z
+date_finished: 2026-05-20T18:46:16Z
 ---
 
 # T-1724: Capture PL-175: runtime-signature-alone RCA is unsafe (T-1695 learning)
@@ -27,9 +27,9 @@ This task captures PL-175 as a structural learning so the next agent doesn't rep
 ## Acceptance Criteria
 
 ### Agent
-- [ ] PL-175 entry added to `.context/project/learnings.yaml` with: date_observed=2026-05-20, source_task=T-1695, source_pattern=P-001 (diagnostic discipline)
-- [ ] Body covers: (a) symptom — job hung with no error output, (b) wrong RCA path taken, (c) actual RCA — executor mismatch visible only in UI build log, (d) rule — when REST API has no log endpoint AND runtime signature alone is the only signal, INSIST on UI logs before forming hypotheses
-- [ ] Linked from T-1695 final Updates entry (so future agents reading the task arrive at the learning)
+- [x] PL-175 entry added to `.context/project/learnings.yaml` with: date_observed=2026-05-20, source_task=T-1695, source_pattern=P-001 (diagnostic discipline)
+- [x] Body covers: (a) symptom — job hung with no error output, (b) wrong RCA path taken, (c) actual RCA — executor mismatch visible only in UI build log, (d) rule — when REST API has no log endpoint AND runtime signature alone is the only signal, INSIST on UI logs before forming hypotheses
+- [x] Linked from T-1695 final Updates entry (so future agents reading the task arrive at the learning)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -59,19 +59,13 @@ This task captures PL-175 as a structural learning so the next agent doesn't rep
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** T-1695 burned ~2 hours diagnosing OneDev → GitHub mirror failure as PAT-scope / cache / token-version issues, when the actual cause was OneDev executor config (`penelope-shell` on a build node that couldn't satisfy it).
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The agent formed RCA hypotheses from runtime signature alone (`git push` returns success, no GitHub commits appear). That signature is identical for both "OneDev auth-401 to GitHub" and "OneDev build job stuck Pending resource allocation". Without UI log access (the REST API has no build-log endpoint on this OneDev version), no observable signal distinguishes the two — so hypotheses were unfalsifiable until the operator pasted UI log content.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** No protocol existed for "form RCA hypothesis only after reading authoritative log." The diagnostic ladder didn't include "first, demand log access" as a step. CLAUDE.md's Hypothesis-Driven Debugging rule (3-hypothesis cap before escalation) addresses *quantity* of hypotheses but not the *evidence quality* required to form them.
+
+**Prevention:** PL-175 codifies the rule. Apply at the start of any RCA flow where the only observable is "job stuck, no error" — stop, identify the missing log source, demand operator-paste (or UI access via Playwright/screenshot) before forming hypotheses. This is distinct from the fix itself (T-1695 closed with executor pin); PL-175 is the learning that prevents the next 2-hour theory-chase.
 
 ## Evolution
 
@@ -128,3 +122,25 @@ This task captures PL-175 as a structural learning so the next agent doesn't rep
 ### 2026-05-20T10:18:42Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
 - **Change:** horizon: now → next
+
+### 2026-05-20T18:44:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8e3496aa
+- **Timestamp:** 2026-05-20T18:46:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — PL-175 entry added to `.context/project/learnings.yaml` with: date_observed=2026-05-20, source_task=T-1695, source_pattern=P-001 (diagnostic discipline)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/project/learnings.yaml in: PL-175 entry added to `.context/project/learnings.yaml` with: date_observed=2026-05-20, source_task=T-1695, source_pattern=P-001 (diagnostic disciplin`
+
+### 2026-05-20T18:46:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** PL-175 captured to learnings.yaml; linked from T-1695 Updates; RCA section filled
