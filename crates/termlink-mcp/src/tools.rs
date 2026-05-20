@@ -643,6 +643,69 @@ fn compute_mentions_of_mcp(envelopes: &[serde_json::Value], user: &str) -> Vec<M
     rows
 }
 
+/// T-1731: structured row for one currently-active typer. Mirror of CLI's
+/// `TyperRow` (channel.rs:3331). Field shape preserved one-to-one so the
+/// JSON envelope matches CLI `agent typers --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TyperRowMcp {
+    sender_id: String,
+    expires_at_ms: i64,
+    ts: i64,
+}
+
+/// T-1731: pure helper — derive active typer list from a topic walk. Mirror
+/// of CLI's `compute_active_typers` (channel.rs:3359) one-to-one.
+///
+/// For each `msg_type=typing` envelope, keep only the LATEST per sender
+/// (latest in insertion order — envelopes arrive in offset order). After
+/// reduction, drop entries whose `expires_at_ms <= now_ms`. Returns rows
+/// sorted by `ts` descending (most-recently-active first); ties break on
+/// `sender_id` ascending for determinism.
+fn compute_active_typers_mcp(
+    envelopes: &[serde_json::Value],
+    now_ms: i64,
+) -> Vec<TyperRowMcp> {
+    use std::collections::HashMap;
+    let mut latest: HashMap<String, TyperRowMcp> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("typing") {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let expires_at_ms = env
+            .get("metadata")
+            .and_then(|md| md.get("expires_at_ms"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        latest.insert(
+            sender.clone(),
+            TyperRowMcp {
+                sender_id: sender,
+                expires_at_ms,
+                ts,
+            },
+        );
+    }
+    let mut rows: Vec<TyperRowMcp> = latest
+        .into_values()
+        .filter(|r| r.expires_at_ms > now_ms)
+        .collect();
+    rows.sort_by(|a, b| {
+        b.ts.cmp(&a.ts).then_with(|| a.sender_id.cmp(&b.sender_id))
+    });
+    rows
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1707,6 +1770,13 @@ pub struct AgentMentionsParams {
     /// ("anyone tagged at all"). Empty string is rejected with an error.
     pub user: String,
 }
+
+/// T-1731: parameters for `termlink_agent_typers` — list active typers
+/// on agent-chat-arc. MCP parity for the `termlink agent typers` CLI verb
+/// (T-1551). Parameter-less — topic is hardcoded `agent-chat-arc` and `now_ms`
+/// is read from `SystemTime::now()`. CLI's `--hub`/`--json` flags don't apply.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTypersParams {}
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
 /// MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks
@@ -9984,6 +10054,45 @@ impl TermLinkTools {
             "ok": true,
             "my_id": my_id,
             "unread_topics": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_typers",
+        description = "List active typers on `agent-chat-arc` — MCP parity for the `termlink agent typers` CLI verb (T-1551). Read companion to `termlink_agent_typing` (T-1550, write side): MCP agents can now both EMIT and READ typing indicators. Walks `agent-chat-arc`, runs `compute_active_typers_mcp` (latest typing envelope per sender, filtered by `metadata.expires_at_ms > now`), and returns rows sorted by `ts` descending (most-recently-active first) with `sender_id` alpha tie-break for determinism. Distinct from `termlink_agent_presence_now` (which infers presence from any-msg-type recency, not a TTL-honoring composition signal). Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic: \"agent-chat-arc\", now_ms, typers: [{sender_id, expires_at_ms, ts}, ...]}`. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_typers(
+        &self,
+        Parameters(_p): Parameters<AgentTypersParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let rows = compute_active_typers_mcp(&envelopes, now_ms);
+        let rows_json: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| serde_json::json!({
+                "sender_id": r.sender_id,
+                "expires_at_ms": r.expires_at_ms,
+                "ts": r.ts,
+            }))
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "now_ms": now_ms,
+            "typers": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -18559,6 +18668,116 @@ mod tests {
 
         let missing: Result<AgentMentionsParams, _> = serde_json::from_value(serde_json::json!({}));
         assert!(missing.is_err(), "user field is required");
+    }
+
+    // === T-1731 agent_typers tests ===
+
+    #[test]
+    fn agent_typers_empty_input() {
+        let rows = compute_active_typers_mcp(&[], 1000);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_typers_single_active_survives() {
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "typing", "sender_id": "alice",
+            "ts_unix_ms": 100_i64,
+            "metadata": {"expires_at_ms": "5000"}
+        })];
+        let rows = compute_active_typers_mcp(&envs, 1000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].expires_at_ms, 5000);
+        assert_eq!(rows[0].ts, 100);
+    }
+
+    #[test]
+    fn agent_typers_expired_dropped() {
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "typing", "sender_id": "alice",
+            "ts_unix_ms": 100_i64,
+            "metadata": {"expires_at_ms": "500"}
+        })];
+        // now > expires → drop
+        let rows = compute_active_typers_mcp(&envs, 1000);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_typers_latest_per_sender_wins() {
+        // Two typing envelopes from alice — later (offset=2) overwrites earlier.
+        // Earlier has expired ttl, later is still active. Latest-wins means
+        // alice's row survives the filter (uses the LATER expires_at_ms).
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "typing", "sender_id": "alice",
+                "ts_unix_ms": 100_i64,
+                "metadata": {"expires_at_ms": "500"}
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "typing", "sender_id": "alice",
+                "ts_unix_ms": 800_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+        ];
+        let rows = compute_active_typers_mcp(&envs, 1000);
+        assert_eq!(rows.len(), 1, "alice's later envelope overrides earlier");
+        assert_eq!(rows[0].expires_at_ms, 5000);
+        assert_eq!(rows[0].ts, 800);
+    }
+
+    #[test]
+    fn agent_typers_sort_ts_desc_alpha_tiebreak() {
+        // Three typers: bob (ts=200), alice (ts=200, ties with bob), carol (ts=300).
+        // Expected order: carol (highest ts), alice (alpha < bob), bob.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "typing", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "typing", "sender_id": "alice",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "typing", "sender_id": "carol",
+                "ts_unix_ms": 300_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+        ];
+        let rows = compute_active_typers_mcp(&envs, 1000);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].sender_id, "carol");
+        assert_eq!(rows[1].sender_id, "alice");
+        assert_eq!(rows[2].sender_id, "bob");
+    }
+
+    #[test]
+    fn agent_typers_skips_non_typing_msg_types() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "ts_unix_ms": 100_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "typing", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "metadata": {"expires_at_ms": "5000"}
+            }),
+        ];
+        let rows = compute_active_typers_mcp(&envs, 1000);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "bob");
+    }
+
+    #[test]
+    fn agent_typers_params_deserializes_from_empty_object() {
+        let parsed: Result<AgentTypersParams, _> = serde_json::from_value(serde_json::json!({}));
+        assert!(parsed.is_ok(), "AgentTypersParams must deserialize from {{}}");
     }
 
     #[test]
