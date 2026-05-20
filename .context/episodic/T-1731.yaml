@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1731: termlink_agent_typers MCP — list active typers on agent-chat-arc (T-1551 parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T20:16:44Z
+# ============================================================================
+
+task_id: T-1731
+task_name: "termlink_agent_typers MCP — list active typers on agent-chat-arc (T-1551 parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T20:05:24Z
+completed: 2026-05-20T20:12:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-20T22:12:08+02:00
+last_commit: 2026-05-20T22:12:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_typers MCP — read active typing indicators
+
+# Key outcomes
+outcomes:
+  - "`AgentTypersParams` struct defined in tools.rs — parameter-less (mirrors CLI which only has `--hub`/`--json`; MCP always uses local hub, always JSON). Doc-comment cites T-1551 (CLI parity) + T-1731."
+  - "Pure helper + struct ported into tools.rs:"
+  - "`termlink_agent_typers` tool method registered. Flow: hub_socket_path check → walk `agent-chat-arc` via existing `walk_topic_full_mcp` → compute `now_ms` from `SystemTime` → `compute_active_typers_mcp(&envelopes, now_ms)` → return `{ok, topic: \"agent-chat-arc\", now_ms, typers: [{sender_id, expires_at_ms, ts}, ...]}`. Empty result → `typers: []`, still `ok: true`. NO new RPC surface — only `channel.subscribe` via `walk_topic_full_mcp`."
+  - "Tool description cites T-1551 (CLI parity) + T-1550 sibling (write companion `termlink_agent_typing`), explains the 5s default TTL filter semantics, names hardcoded topic `agent-chat-arc`. Distinguishes from `termlink_agent_presence_now` (last-post recency)."
+  - "`cargo build --release -p termlink-mcp` clean — only the pre-existing `cur_run_end` warning."
+  - "**≥4** new unit tests under `tools::tests`: (a) empty input → []; (b) single active typer survives; (c) expired typer dropped; (d) latest-per-sender: later envelope from same sender overwrites earlier; (e) sort: ts descending, sender_id alpha tie-break; (f) `AgentTypersParams` deserialize from `{}`. All pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1731-termlinkagenttypers-mcp--list-active-typ.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T22:12:08"
+    action: "T-1731: termlink_agent_typers MCP — read active typing indicators"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 342
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1731-termlinkagenttypers-mcp--list-active-typ.md
+generated_by: context-agent-hybrid
