@@ -334,6 +334,29 @@ fn resolve_message_or_file_mcp(
     }
 }
 
+/// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
+/// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
+/// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
+/// `termlink_agent_ping` to populate the `last_seen` field on the envelope
+/// for symmetric output with the CLI verb.
+fn format_last_seen_human(now_ms: i64, last_seen_ms: Option<i64>) -> String {
+    match last_seen_ms {
+        None => "never".to_string(),
+        Some(ms) => {
+            let age_secs = ((now_ms - ms) / 1000).max(0);
+            if age_secs < 60 {
+                format!("{age_secs}s ago")
+            } else if age_secs < 3600 {
+                format!("{}m ago", age_secs / 60)
+            } else if age_secs < 86_400 {
+                format!("{}h ago", age_secs / 3600)
+            } else {
+                format!("{}d ago", age_secs / 86_400)
+            }
+        }
+    }
+}
+
 /// T-1716: presence signal — mirrors CLI's `PresenceCheck` minus the
 /// `to_json` helper (MCP renders the shape inline at the call site).
 #[derive(Debug, Clone)]
@@ -1342,6 +1365,25 @@ pub struct AgentContactParams {
     /// T-1716: timeout (seconds) for `ack_required` poll. Clamped to [5, 600];
     /// default 60. Ignored when `ack_required` is false or unset.
     pub ack_timeout_secs: Option<u64>,
+}
+
+/// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
+/// MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks
+/// `agent-chat-arc` for the named peer's recent activity, returns a
+/// presence envelope; never posts.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentPingParams {
+    /// Peer session display name. Resolved via local `manager::find_session`
+    /// to read `identity_fingerprint` from `SessionMetadata` (T-1436).
+    /// Mutually exclusive with `target_fp`; exactly one required.
+    pub target: Option<String>,
+    /// Peer's identity fingerprint (hex, ≥8 chars). Cross-host path —
+    /// skips the local session.discover. Mutually exclusive with `target`.
+    pub target_fp: Option<String>,
+    /// Window (seconds) for the presence check. Clamped to [10, 86400];
+    /// default 300 (5 min — covers a few missed heartbeats on a
+    /// 1/min-cadence peer). Same default + clamp as CLI.
+    pub window_secs: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -9184,6 +9226,88 @@ impl TermLinkTools {
         }
 
         serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_ping",
+        description = "Single-peer liveness probe — MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks `agent-chat-arc` for the peer's recent activity over `window_secs` (default 300, clamped [10, 86_400]); returns a presence envelope `{ok, target_or_fp, peer_fp, online, last_seen_ms, last_seen, window_secs, posts_in_window}`. NEVER posts — pure read. Companion to fleet-wide `termlink_agent_presence_now` / `termlink_agent_active_now`: those answer 'who's around?'; ping answers 'is THIS peer around?'. Mutually exclusive: exactly one of `target` (display name, resolved via local session.discover) / `target_fp` (hex, cross-host bypass). Reuses the T-1716 `fetch_topic_msgs_mcp` + `evaluate_presence_msgs` helpers — no new RPC surface."
+    )]
+    async fn termlink_agent_ping(
+        &self,
+        Parameters(p): Parameters<AgentPingParams>,
+    ) -> String {
+        // Mutex validation — same shape as agent_contact.
+        match (&p.target, &p.target_fp) {
+            (Some(_), Some(_)) => {
+                return json_err("specify either 'target' or 'target_fp', not both");
+            }
+            (None, None) => {
+                return json_err("must specify either 'target' (display name) or 'target_fp' (hex)");
+            }
+            _ => {}
+        }
+
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        // Resolve peer_fp: trust target_fp after hex validation, or look up
+        // via session.discover (local-only).
+        let display_target = match (&p.target, &p.target_fp) {
+            (Some(t), _) => t.clone(),
+            (None, Some(fp)) => fp.clone(),
+            _ => unreachable!("mutex above"),
+        };
+        let peer_fp: String = if let Some(fp) = &p.target_fp {
+            if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
+                return json_err(format!("target_fp must be hex (got {fp:?})"));
+            }
+            fp.clone()
+        } else {
+            let raw = p.target.as_deref().expect("checked above");
+            // Strip any `:project` suffix — for ping, project is ignored.
+            // (CLI `agent ping` doesn't accept `:project`; we mirror that.)
+            let name = raw.split(':').next().unwrap_or(raw);
+            let reg = match manager::find_session(name) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("session '{name}' not found: {e}")),
+            };
+            match reg.metadata.identity_fingerprint.clone() {
+                Some(fp) => fp,
+                None => return json_err(format!(
+                    "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Pass 'target_fp' (hex) directly to bypass session.discover."
+                )),
+            }
+        };
+
+        // Default + clamp window — mirror CLI default 300, [10, 86400].
+        let window_secs = p.window_secs.unwrap_or(300).clamp(10, 86_400);
+
+        // Probe agent-chat-arc.
+        let chat_arc_msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 500).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("agent-chat-arc probe failed: {e}")),
+        };
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let window_ms = (window_secs as i64).saturating_mul(1000);
+        let presence = evaluate_presence_msgs(&chat_arc_msgs, &peer_fp, now_ms, window_ms);
+        let last_seen_human = format_last_seen_human(now_ms, presence.last_seen_ms);
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "target_or_fp": display_target,
+            "peer_fp": peer_fp,
+            "online": presence.online,
+            "last_seen_ms": presence.last_seen_ms,
+            "last_seen": last_seen_human,
+            "window_secs": window_secs,
+            "posts_in_window": presence.posts_in_window,
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -17283,6 +17407,97 @@ mod tests {
         let p: AgentContactParams = serde_json::from_value(json).unwrap();
         assert!(p.message.is_none());
         assert_eq!(p.body_file.as_deref(), Some("/path/to/long-report.md"));
+    }
+
+    // === T-1718: agent_ping helper + params tests ===
+
+    #[test]
+    fn agent_ping_params_minimal_target_fp_only() {
+        let json = serde_json::json!({ "target_fp": "abcd1234abcd1234" });
+        let p: AgentPingParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target_fp.as_deref(), Some("abcd1234abcd1234"));
+        assert!(p.target.is_none());
+        assert!(p.window_secs.is_none()); // → default 300 applied at use-site
+    }
+
+    #[test]
+    fn agent_ping_params_with_explicit_window() {
+        let json = serde_json::json!({
+            "target": "ring20-management-agent",
+            "window_secs": 60
+        });
+        let p: AgentPingParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target.as_deref(), Some("ring20-management-agent"));
+        assert_eq!(p.window_secs, Some(60));
+        assert!(p.target_fp.is_none());
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_none_returns_never() {
+        assert_eq!(format_last_seen_human(1_700_000_000_000, None), "never");
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_seconds_bucket() {
+        let now = 1_700_000_000_000_i64;
+        // 30 seconds ago
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 30_000)),
+            "30s ago"
+        );
+        // 0 seconds (just now)
+        assert_eq!(format_last_seen_human(now, Some(now)), "0s ago");
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_minutes_bucket() {
+        let now = 1_700_000_000_000_i64;
+        // 5 minutes ago = 300_000ms
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 300_000)),
+            "5m ago"
+        );
+        // 59 minutes ago
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 59 * 60_000)),
+            "59m ago"
+        );
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_hours_bucket() {
+        let now = 1_700_000_000_000_i64;
+        // 2 hours ago
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 2 * 3_600_000)),
+            "2h ago"
+        );
+        // 23 hours ago
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 23 * 3_600_000)),
+            "23h ago"
+        );
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_days_bucket() {
+        let now = 1_700_000_000_000_i64;
+        // 5 days ago
+        assert_eq!(
+            format_last_seen_human(now, Some(now - 5 * 86_400_000)),
+            "5d ago"
+        );
+    }
+
+    #[test]
+    fn agent_ping_format_last_seen_clamps_negative_to_zero() {
+        // Defensive: if last_seen_ms > now_ms (clock skew), age clamps to 0
+        // so we render "0s ago" rather than a negative number.
+        let now = 1_700_000_000_000_i64;
+        assert_eq!(
+            format_last_seen_human(now, Some(now + 5_000)),
+            "0s ago"
+        );
     }
 
     // === parse_signal tests ===
