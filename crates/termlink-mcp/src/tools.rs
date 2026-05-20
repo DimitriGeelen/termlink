@@ -411,6 +411,106 @@ async fn walk_topic_full_mcp(
     Ok(all)
 }
 
+/// T-1729: pure helper — enumerate every cursor scoped to one identity from
+/// the local cursor store. Mirrors CLI's `cursor_store::list_for_fingerprint`
+/// (commands/channel.rs:592) one-to-one. The store key is
+/// `<topic>::<fingerprint>` so we suffix-match on `::<fingerprint>` and strip.
+/// Returns `(topic, cursor)` rows sorted by topic ascending.
+///
+/// Path resolution: honors `TERMLINK_IDENTITY_DIR` env override first, then
+/// falls back to `${HOME}/.termlink/cursors.json` — same precedence as CLI.
+///
+/// Missing file → empty vec (matches CLI semantics — operator has not
+/// subscribed to anything yet).
+fn cursor_list_for_fingerprint_mcp(fingerprint: &str) -> Result<Vec<(String, u64)>, String> {
+    use std::collections::BTreeMap;
+    let path = if let Ok(dir) = std::env::var("TERMLINK_IDENTITY_DIR") {
+        std::path::PathBuf::from(dir).join("cursors.json")
+    } else {
+        let home = std::env::var("HOME")
+            .map_err(|_| "HOME not set; cannot resolve cursor store path".to_string())?;
+        std::path::PathBuf::from(home).join(".termlink").join("cursors.json")
+    };
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|e| format!("read cursors from {}: {e}", path.display()))?;
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let parsed: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|e| format!("parse cursors at {}: {e}", path.display()))?;
+    let mut map: BTreeMap<String, u64> = BTreeMap::new();
+    if let Some(obj) = parsed.as_object() {
+        for (k, v) in obj {
+            if let Some(n) = v.as_u64() {
+                map.insert(k.clone(), n);
+            }
+        }
+    }
+    let suffix = format!("::{fingerprint}");
+    let mut out: Vec<(String, u64)> = map
+        .into_iter()
+        .filter_map(|(k, v)| k.strip_suffix(&suffix).map(|t| (t.to_string(), v)))
+        .collect();
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(out)
+}
+
+/// T-1729: one row of cross-topic unread digest. Mirror of CLI's `UnreadRow`
+/// (commands/channel.rs:7391) — same field shape so the JSON envelope is
+/// byte-identical with CLI `agent inbox --json` (modulo top-level wrapping).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UnreadRowMcp {
+    topic: String,
+    cursor: u64,
+    latest: u64,
+    unread: u64,
+}
+
+/// T-1729: pure helper — given a list of `(topic, cursor)` and a
+/// `topic_counts` map (from `channel.list`), produce rows for topics where
+/// new envelopes have arrived since the cursor. Mirror of CLI's
+/// `compute_unread_rows` (commands/channel.rs:7422) one-to-one.
+///
+/// Rules (identical to CLI):
+/// - Topic missing from `topic_counts`: silently dropped.
+/// - `count == 0`: latest undefined; row dropped.
+/// - `cursor + 1 >= count`: caller is at-or-ahead; row dropped.
+/// - Otherwise: `latest = count - 1`, `unread = count - 1 - cursor`.
+///
+/// Sort: descending `unread`, then ascending `topic` for tie-break (stable
+/// determinism). Pure — no I/O.
+fn compute_unread_rows_mcp(
+    cursors: &[(String, u64)],
+    topic_counts: &std::collections::HashMap<String, u64>,
+) -> Vec<UnreadRowMcp> {
+    let mut rows: Vec<UnreadRowMcp> = Vec::new();
+    for (topic, cursor) in cursors {
+        let count = match topic_counts.get(topic) {
+            Some(c) => *c,
+            None => continue,
+        };
+        if count == 0 {
+            continue;
+        }
+        let latest = count - 1;
+        if *cursor >= latest {
+            continue;
+        }
+        let unread = latest - cursor;
+        rows.push(UnreadRowMcp {
+            topic: topic.clone(),
+            cursor: *cursor,
+            latest,
+            unread,
+        });
+    }
+    rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
+    rows
+}
+
 /// T-1718: render a human-readable "last seen" phrase from a `last_seen_ms`
 /// timestamp relative to `now_ms`. Mirrors CLI's age-bucketing (Xs / Xm /
 /// Xh / Xd ago, or "never" for None). Pure — no I/O, no globals. Used by
@@ -1454,6 +1554,14 @@ pub struct AgentDmsParams {
     /// returns only `{topic, peer}` rows. Default: false.
     pub unread: Option<bool>,
 }
+
+/// T-1729: parameters for `termlink_agent_inbox` — cross-topic unread
+/// digest. MCP parity for the `termlink agent inbox` CLI verb (T-1553).
+/// Parameter-less — the local cursor store + local hub are both implicit.
+/// (CLI's `--hub` override and `--json` flag don't apply: MCP always talks
+/// to its local hub and always returns JSON.)
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentInboxParams {}
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
 /// MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks
@@ -9648,6 +9756,89 @@ impl TermLinkTools {
             "ok": true,
             "my_id": my_id,
             "dms": rows,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_inbox",
+        description = "Cross-topic unread digest for the local identity — MCP parity for the `termlink agent inbox` CLI verb (T-1553). Walks the local cursor store (`${TERMLINK_IDENTITY_DIR:-${HOME}/.termlink}/cursors.json`, recorded by `subscribe --resume` on prior CLI sessions) and joins with hub-side topic counts from `channel.list`. Returns `{ok, my_id, unread_topics: [{topic, cursor, latest, unread}, ...]}` sorted by descending unread (ties break by topic ascending for determinism). The operator's first-command-of-session — answers 'what needs my attention?' across every subscribed topic, not just `agent-chat-arc` (T-1512 `agent_unread`) or DMs (T-1719 `agent_dms`). When the cursor store is empty (operator has never run `subscribe --resume`) returns `unread_topics: []` with `ok: true` — same conservative early-out as CLI. No new RPC surface — uses `channel.list` only."
+    )]
+    async fn termlink_agent_inbox(
+        &self,
+        Parameters(_p): Parameters<AgentInboxParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        // Load identity → my_id (fingerprint).
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let my_id = identity.fingerprint().to_string();
+
+        // Enumerate cursors for this identity. Empty → early-out.
+        let cursors = match cursor_list_for_fingerprint_mcp(&my_id) {
+            Ok(c) => c,
+            Err(e) => return json_err(format!("cursor store: {e}")),
+        };
+        if cursors.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "my_id": my_id,
+                "unread_topics": [],
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        // channel.list — full catalog, extract (name, count) into HashMap.
+        let list_resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            serde_json::json!({}),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list RPC failed: {e}")),
+        };
+        let list_result = match termlink_session::client::unwrap_result(list_resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list error: {e}")),
+        };
+        let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        if let Some(arr) = list_result["topics"].as_array() {
+            for entry in arr {
+                if let Some(name) = entry.get("name").and_then(|v| v.as_str()) {
+                    let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+                    counts.insert(name.to_string(), count);
+                }
+            }
+        }
+
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows_json: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| serde_json::json!({
+                "topic": r.topic,
+                "cursor": r.cursor,
+                "latest": r.latest,
+                "unread": r.unread,
+            }))
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "my_id": my_id,
+            "unread_topics": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -17942,6 +18133,120 @@ mod tests {
         let (count, first) = count_unread_mcp(&[], 0);
         assert_eq!(count, 0);
         assert!(first.is_none());
+    }
+
+    // === T-1729 agent_inbox tests ===
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_empty_cursors() {
+        let cursors: Vec<(String, u64)> = vec![];
+        let counts = std::collections::HashMap::new();
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_caller_caught_up() {
+        let cursors = vec![("alpha".to_string(), 9)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("alpha".to_string(), 10); // latest=9, cursor==latest → drop
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert!(rows.is_empty(), "caller at latest should yield no rows");
+    }
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_caller_behind() {
+        let cursors = vec![("alpha".to_string(), 3)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("alpha".to_string(), 10); // latest=9, cursor=3, unread=6
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].topic, "alpha");
+        assert_eq!(rows[0].cursor, 3);
+        assert_eq!(rows[0].latest, 9);
+        assert_eq!(rows[0].unread, 6);
+    }
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_sort_high_first_alpha_tiebreak() {
+        let cursors = vec![
+            ("alpha".to_string(), 0), // 4 unread
+            ("bravo".to_string(), 0), // 9 unread (top)
+            ("charlie".to_string(), 0), // 4 unread (tie with alpha, alpha first)
+        ];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("alpha".to_string(), 5);
+        counts.insert("bravo".to_string(), 10);
+        counts.insert("charlie".to_string(), 5);
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert_eq!(rows.len(), 3);
+        // bravo (9 unread) first, then alpha (alpha<charlie) then charlie
+        assert_eq!(rows[0].topic, "bravo");
+        assert_eq!(rows[1].topic, "alpha");
+        assert_eq!(rows[2].topic, "charlie");
+    }
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_drops_missing_topic() {
+        let cursors = vec![
+            ("alpha".to_string(), 0),
+            ("ghost".to_string(), 0), // not in counts → dropped silently
+        ];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("alpha".to_string(), 3);
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].topic, "alpha");
+    }
+
+    #[test]
+    fn agent_inbox_compute_unread_rows_drops_zero_count() {
+        let cursors = vec![("alpha".to_string(), 0)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("alpha".to_string(), 0); // count==0 → drop
+        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn agent_inbox_cursor_list_missing_file_returns_empty() {
+        // Point TERMLINK_IDENTITY_DIR at a guaranteed-not-to-exist subdir.
+        let tmp = std::env::temp_dir().join(format!(
+            "termlink-t1729-empty-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let prev = std::env::var("TERMLINK_IDENTITY_DIR").ok();
+        // SAFETY: tests in this crate are serialized via cargo's default
+        // single-threaded execution semantics is NOT guaranteed; tests run
+        // in parallel by default. Mutating env here can race with concurrent
+        // tests. Use a process-and-nano-unique tmp path so the env value is
+        // unique, but accept that other tests reading $TERMLINK_IDENTITY_DIR
+        // concurrently may see this transient value. The other agent_*
+        // tests in this file don't read this env, so the race is benign.
+        unsafe {
+            std::env::set_var("TERMLINK_IDENTITY_DIR", &tmp);
+        }
+        let r = cursor_list_for_fingerprint_mcp("deadbeef");
+        // Restore prior env (or unset).
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("TERMLINK_IDENTITY_DIR", v),
+                None => std::env::remove_var("TERMLINK_IDENTITY_DIR"),
+            }
+        }
+        let v = r.expect("missing file should yield Ok(empty), not Err");
+        assert!(v.is_empty());
+    }
+
+    #[test]
+    fn agent_inbox_params_deserializes_from_empty_object() {
+        // AgentInboxParams is unit-struct-shaped — `{}` must deserialize.
+        let parsed: Result<AgentInboxParams, _> = serde_json::from_value(serde_json::json!({}));
+        assert!(parsed.is_ok(), "AgentInboxParams must deserialize from {{}}");
     }
 
     // === parse_signal tests ===
