@@ -4,16 +4,16 @@ name: "termlink_agent_contact MCP — parity with CLI (T-1429 phase-2 shipped)"
 description: >
   termlink_agent_contact MCP — parity with CLI (T-1429 phase-2 shipped)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-19T22:17:03Z
-last_update: 2026-05-19T22:33:23Z
-date_finished: null
+last_update: 2026-05-20T19:25:27Z
+date_finished: 2026-05-20T19:25:27Z
 ---
 
 # T-1715: termlink_agent_contact MCP — parity with CLI (T-1429 phase-2 shipped)
@@ -144,3 +144,20 @@ cargo test --release -p termlink-mcp agent_contact
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1715-termlinkagentcontact-mcp--parity-with-cl.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-b6c7355f
+- **Timestamp:** 2026-05-20T19:25:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `termlink_agent_contact` MCP tool exists in `crates/termlink-mcp/src/tools.rs` — registered via `#[tool(name = "termlink_agent_contact", description = "...")]` attribute (tools.rs:8648-8718 region)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-mcp/src/tools.rs in: `termlink_agent_contact` MCP tool exists in `crates/termlink-mcp/src/tools.rs` — registered via `#[tool(name = "termlink_agent_contact", description =`
+
+### 2026-05-20T19:25:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

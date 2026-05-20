@@ -4,16 +4,16 @@ name: "termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)"
 description: >
   Close the MCP-parity gap for the agent ping CLI verb (T-1487, work-completed). MCP-aware agents have access to fleet-wide presence (termlink_agent_active_now, termlink_agent_presence_now) but no targeted single-peer probe. termlink_agent_ping closes that gap, returning {online, last_seen_ms, last_seen_human, posts_in_window, window_secs} for one peer via the existing T-1716 evaluate_presence_msgs helper. Pure additive — no behavior change in existing tools.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T06:06:50Z
-last_update: 2026-05-20T06:06:50Z
-date_finished: null
+last_update: 2026-05-20T19:25:46Z
+date_finished: 2026-05-20T19:25:46Z
 ---
 
 # T-1718: termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)
@@ -128,3 +128,19 @@ cargo test --release -p termlink-mcp agent_ping
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1718-termlinkagentping-mcp--single-peer-liven.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-c7593a09
+- **Timestamp:** 2026-05-20T19:25:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet-wide`
+
+### 2026-05-20T19:25:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

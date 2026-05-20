@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1718: termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T19:25:48Z
+# ============================================================================
+
+task_id: T-1718
+task_name: "termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T06:06:50Z
+completed: 2026-05-20T19:25:46Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-20T08:15:09+02:00
+last_commit: 2026-05-20T08:15:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)
+
+# Key outcomes
+outcomes:
+  - "`AgentPingParams` struct defined at tools.rs:1347-1361 with: `target` (Option<String>), `target_fp` (Option<String>), `window_secs` (Option<u64>). Mutex matches CLI: exactly one of `target`/`target_fp` required — enforced in the tool method's opening match arm."
+  - "Pure helper `format_last_seen_human(now_ms: i64, last_seen_ms: Option<i64>) -> String` added at tools.rs:303-322 — mirrors CLI's age-bucketing (Xs / Xm / Xh / Xd ago, or \"never\" for None). Pure, no I/O. Defensive: negative ages (clock skew) clamp to 0 (test `agent_ping_format_last_seen_clamps_negative_to_zero`)."
+  - "`termlink_agent_ping` tool method registered at tools.rs:9231 via `#[tool(name = \"termlink_agent_ping\", description = \"...\")]`. Implementation flow: target/target_fp mutex → resolve peer_fp (validate hex OR session.discover) → `fetch_topic_msgs_mcp(\"agent-chat-arc\", 500)` → `evaluate_presence_msgs` over `window_ms` → return JSON `{ok, target_or_fp, peer_fp, online, last_seen_ms, last_seen, window_secs, posts_in_window}`. Bare-name targets with a `:project` suffix have project stripped (CLI ping ignores it)."
+  - "`window_secs` defaults to 300 (5 min, matches CLI) and clamps to [10, 86_400] — `p.window_secs.unwrap_or(300).clamp(10, 86_400)`. PL-172 byte-identity: unset is the same as explicit 300."
+  - "Tool description cites T-1487 (CLI parity) + T-1716 (helper reuse), explains return shape, distinguishes single-peer scope from fleet-wide `termlink_agent_presence_now` / `termlink_agent_active_now`. \"NEVER posts — pure read\" stated explicitly."
+  - "`cargo build --release -p termlink-mcp` clean — finished in 1m 09s, only the pre-existing `cur_run_end` warning (now at tools.rs:15252 due to upstream insertions, unrelated to T-1718)"
+  - "**8** new unit tests added — exceeded the ≥3 target. Coverage: params-minimal-target-fp (a), params-with-explicit-window (b), format_last_seen_human None→never (c), seconds-bucket (incl 0s edge), minutes-bucket (5m + 59m boundary), hours-bucket (2h + 23h boundary), days-bucket (5d), negative-age clamps to 0 (defensive). All 8 pass. The 22-test agent_contact suite also still passes — total 30 tests across the agent_contact + agent_ping suites."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1718-termlinkagentping-mcp--single-peer-liven.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T08:15:09"
+    action: "T-1718: termlink_agent_ping MCP — single-peer liveness probe (T-1487 parity)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 798 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 798
+  commits: 1
+  files_changed: 2
+  lines_added: 345
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1718-termlinkagentping-mcp--single-peer-liven.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1715: termlink_agent_contact MCP — parity with CLI (T-1429 phase-2 shipped)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T19:25:29Z
+# ============================================================================
+
+task_id: T-1715
+task_name: "termlink_agent_contact MCP — parity with CLI (T-1429 phase-2 shipped)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-19T22:17:03Z
+completed: 2026-05-20T19:25:27Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-05-20T00:33:23+02:00
+last_commit: 2026-05-20T00:33:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_contact MCP — parity with CLI agent contact verb (T-1429)
+
+# Key outcomes
+outcomes:
+  - "`termlink_agent_contact` MCP tool exists in `crates/termlink-mcp/src/tools.rs` — registered via `#[tool(name = \"termlink_agent_contact\", description = \"...\")]` attribute (tools.rs:8648-8718 region)"
+  - "`AgentContactParams` struct defined with: `target` (Option<String>), `target_fp` (Option<String>), `message` (String), `thread` (Option<String>), `dry_run` (Option<bool>), `sender_id` (Option<String>) — tools.rs:1060-1093"
+  - "Mutex validation: exactly one of `target` / `target_fp` is required — both or neither → JSON error response with clear message (handled in the early match block on `(&p.target, &p.target_fp)`)"
+  - "`target` resolution path: calls `manager::find_session(name)` and reads `reg.metadata.identity_fingerprint`; pre-T-1436 peer (no identity_fingerprint) → JSON error with three recovery hints matching CLI message (upgrade peer / target_fp / mention via channel_post)"
+  - "`target_fp` direct path: validates hex (len ≥ 8, all ascii_hexdigit); rejects invalid input with JSON error"
+  - "`:project` suffix on `target` parsed via `split_target_project` helper (tools.rs:248-279); resolves to `metadata.to_project=<project>` on the dm post (T-1448 (b))"
+  - "`dm:<sorted_a>:<sorted_b>` topic computed via `dm_topic_canonical` helper (tools.rs:281-291) — matches CLI canonical computation (`commands::channel::dm_topic` semantics, verified via `agent_contact_dm_topic_is_sorted_canonical` test asserting symmetric output regardless of caller order)"
+  - "Topic auto-create with `retention=forever` via `channel.create` RPC — idempotent, matches CLI Phase-1 behavior (live path only; dry-run skips)"
+  - "`--dry-run` returns preview JSON `{ok, dry_run: true, topic, peer_fp, my_fp, metadata, would_post: {msg_type, body_preview, body_bytes}}` without posting; no hub round-trip beyond identity load"
+  - "Live post path: signs envelope with local ed25519 identity (mirror of `termlink_agent_post`), posts via `channel.post` RPC with `msg_type=chat`, returns decorated JSON envelope `{ok, topic, peer_fp, my_fp, ...hub_post_result}`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1715-termlinkagentcontact-mcp--parity-with-cl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T00:33:23"
+    action: "T-1715: termlink_agent_contact MCP — parity with CLI agent contact verb (T-1429)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1268 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1268
+  commits: 1
+  files_changed: 2
+  lines_added: 498
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1715-termlinkagentcontact-mcp--parity-with-cl.md
+generated_by: context-agent-hybrid

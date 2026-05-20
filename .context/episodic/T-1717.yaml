@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1717: termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-1646)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T19:25:41Z
+# ============================================================================
+
+task_id: T-1717
+task_name: "termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-1646)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T05:56:02Z
+completed: 2026-05-20T19:25:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-20T08:05:23+02:00
+last_commit: 2026-05-20T08:05:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-1646)
+
+# Key outcomes
+outcomes:
+  - "`AgentContactParams` extended: `message` field changes from `String` (required) to `Option<String>`; new field `body_file: Option<String>` added (tools.rs:1269-1283). Doc-comments cite T-1717 + mutex semantics"
+  - "Pure helper `resolve_message_or_file_mcp(message: Option<&str>, body_file: Option<&str>) -> Result<String, String>` added at tools.rs:303-326 (just after `preview_body`) — returns `Err` strings matching CLI semantically (\"specify exactly one of message or body_file, not both\" / \"specify exactly one of message <STRING> or body_file <PATH>\" / \"file <PATH> is empty — refusing to post empty message\" / \"failed to read <PATH>: <io-error>\"). Empty body rejected; same as CLI."
+  - "`termlink_agent_contact` calls `resolve_message_or_file_mcp` after the target/target_fp mutex check (tools.rs:8893-8901); on error returns a `json_err` response with \"T-1717\" trace tag prepended. Pre-existing v1 callers passing only `message` continue to work — byte-identical to v2 behavior (PL-172) — `agent_contact_params_minimal_message_only_target_fp` test still passes."
+  - "`body_file` resolves relative to the MCP server's current working directory (mirrors CLI's `std::fs::read_to_string` behavior). Doc-comment on the `body_file` field (tools.rs:1276-1283) explicitly notes this and recommends absolute paths when cwd is ambiguous."
+  - "Mutex error JSON shape consistent with the existing target/target_fp mutex error JSON: `{\"ok\": false, \"error\": \"T-1717: ...\"}` returned via `json_err`. No panic, no unwrap on the file-read path — `std::fs::read_to_string` errors are mapped to a `String` via `map_err` and surfaced through `json_err`."
+  - "Tool description in `#[tool(...)]` attribute updated (tools.rs:8857) — now includes \"**Body sources (T-1717):** exactly one of `message` (inline string) / `body_file` (path read at the MCP server's cwd — mirror of CLI `--file PATH`, T-1646). Empty file rejected.\" No longer claims `--file` deferred."
+  - "`cargo build --release -p termlink-mcp` clean — finished in 1m 15s, only the pre-existing `cur_run_end` warning at tools.rs:15128 (unrelated, predates T-1717)"
+  - "**7** new unit tests added — exceeded the ≥4 target. Coverage: `resolve_message_inline` (a), `resolve_body_file_reads_content` (b), `resolve_rejects_both_set` (c), `resolve_rejects_neither_set` (d), `resolve_rejects_empty_file` (e), `resolve_propagates_missing_file_io_error` (bonus IO-error coverage), `params_v3_body_file_deserializes` (param-shape coverage). All 7 pass; the 15 pre-T-1717 tests on the suite also still pass. **22/22 pass** on `cargo test --release -p termlink-mcp agent_contact`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1717-termlinkagentcontact-mcp-v3--add-bodyfil.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T08:05:23"
+    action: "T-1717: termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-1646)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 809 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 809
+  commits: 1
+  files_changed: 2
+  lines_added: 267
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1717-termlinkagentcontact-mcp-v3--add-bodyfil.md
+generated_by: context-agent-hybrid

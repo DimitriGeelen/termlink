@@ -4,16 +4,16 @@ name: "termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-164
 description: >
   Close the remaining MCP-parity gap from T-1715/T-1716: the CLI's --file PATH flag (T-1646) was deferred in v1 because MCP callers typically have inline bodies. In practice, MCP-aware agents that generate long-form structured payloads (inception findings, RCAs, code reviews) need to point at a file on disk rather than inline the entire body through the MCP tool-result transport. This task adds a body_file parameter that mirrors CLI --file semantics one-to-one.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T05:56:02Z
-last_update: 2026-05-20T05:56:02Z
-date_finished: null
+last_update: 2026-05-20T19:25:39Z
+date_finished: 2026-05-20T19:25:39Z
 ---
 
 # T-1717: termlink_agent_contact MCP v3 — add body_file (CLI --file parity, T-1646)
@@ -129,3 +129,15 @@ cargo test --release -p termlink-mcp agent_contact
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1717-termlinkagentcontact-mcp-v3--add-bodyfil.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9d27036f
+- **Timestamp:** 2026-05-20T19:25:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-20T19:25:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

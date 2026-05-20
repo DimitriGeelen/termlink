@@ -4,16 +4,16 @@ name: "termlink_agent_contact MCP v2 — add require_online + ack_required (T-17
 description: >
   termlink_agent_contact MCP v2 — add require_online + ack_required (T-1715 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-19T22:36:17Z
-last_update: 2026-05-19T22:44:50Z
-date_finished: null
+last_update: 2026-05-20T19:25:33Z
+date_finished: 2026-05-20T19:25:33Z
 ---
 
 # T-1716: termlink_agent_contact MCP v2 — add require_online + ack_required (T-1715 follow-up)
@@ -131,3 +131,20 @@ cargo test --release -p termlink-mcp agent_contact
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1716-termlinkagentcontact-mcp-v2--add-require.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-31db1418
+- **Timestamp:** 2026-05-20T19:25:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#7 (Agent)** — `fetch_topic_msgs_mcp(hub_socket, topic, slice_size)` helper does `channel.list` + `channel.subscribe` round-trip — uses local hub_socket like `termlink_agent_post`; symmetric with CLI's `fetch_topic_
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=commands/channel.rs in: `fetch_topic_msgs_mcp(hub_socket, topic, slice_size)` helper does `channel.list` + `channel.subscribe` round-trip — uses local hub_socket like `termli`
+
+### 2026-05-20T19:25:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
