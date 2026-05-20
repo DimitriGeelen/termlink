@@ -22,11 +22,11 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// lib/ts/src/fw-util.ts
+// .agentic-framework/lib/ts/src/fw-util.ts
 var fs = __toESM(require("fs"));
 var path = __toESM(require("path"));
 
-// lib/ts/node_modules/js-yaml/dist/js-yaml.mjs
+// .agentic-framework/lib/ts/node_modules/js-yaml/dist/js-yaml.mjs
 function isNothing(subject) {
   return typeof subject === "undefined" || subject === null;
 }
@@ -2612,7 +2612,7 @@ var safeLoad = renamed("safeLoad", "load");
 var safeLoadAll = renamed("safeLoadAll", "loadAll");
 var safeDump = renamed("safeDump", "dump");
 
-// lib/ts/src/fw-util.ts
+// .agentic-framework/lib/ts/src/fw-util.ts
 function die(msg) {
   process.stderr.write(`fw-util: ${msg}
 `);
