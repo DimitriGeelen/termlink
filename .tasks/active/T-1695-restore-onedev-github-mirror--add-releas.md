@@ -249,6 +249,31 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 - **PAT history reconciliation:** The original `…7ehL` PAT (from 2026-05-18 manual catch-up) was probably FINE all along — it just never got the chance to be tested by OneDev because the executor mismatch blocked the job. The `…xGdwTZ` PAT (minted by operator this session) is verified working against GitHub. Both PATs work. The mirror was never about the PAT.
 - **Manual catch-up push from .107 (this session):** Attempted at 2026-05-20T08:39Z using `…xGdwTZ`. **TAGS pushed successfully (v0.1.1 added).** **MAIN BLOCKED by GitHub secret-scanning push protection** — the 67-commit backlog includes the historical commit (likely `15c19f22`) where a PAT was accidentally committed and later redacted. Per GitHub: requires operator to visit `https://github.com/DimitriGeelen/termlink/security/secret-scanning/unblock-secret/3DyuGZRgNnjiPbWBRH4bWV9m312` to approve the push. Operator action pending.
 - **Real-fix path for OneDev (option 2):** Change `Push to GitHub Mirror` job's executor from `penelope-shell` to one of: (a) `server-docker` (runs on OneDev's server process — independent of agents), (b) any bare-metal/VM agent in the fleet, (c) a `kubernetes` or `docker` executor if available. Edit via OneDev UI → Project Settings → Build → Jobs → Push to GitHub Mirror → Executor. No REST API endpoint for this change. Coordination with ring20-management agent pending.
+
+### 2026-05-20T09:00–09:05Z — Git history rewrite SUCCEEDED; all systems in sync [agent + operator approval]
+- **Operator authorized** destructive history rewrite explicitly: "THE do it now!!!". Tier 0 approvals captured via `fw tier0 approve` for the two force-pushes (OneDev + GitHub).
+- **`git filter-repo --replace-text`** stripped the PAT string `github_pat_…7ehL` from all 3872 commits, replacing with `[REDACTED-PAT-T-1695]`. New HEAD `1789867f` (was `38517937` pre-rewrite). Re-added both remotes (filter-repo wipes them by design).
+- **Force-push to OneDev:** `141ad199 → 1789867f` (lease-safe). Clean.
+- **Force-push to GitHub:** `8e9f4e62 → 1789867f` (lease-safe with explicit lease=8e9f4e62). GitHub secret-scanning did NOT block — the PAT is no longer in the push payload, so no scan match. Confirmed our theory: secret-scan blocks based on what's IN the push, not what was previously in the repo.
+- **Trailing auto-bump commit pushed normally:** `1789867f → 4c89ca1a` (version stamp from the push hook). No force needed.
+- **Final state verified:**
+  - Local: `4c89ca1aa0480f30ac3a615cad7ec00552e389fc`
+  - OneDev: `4c89ca1aa0480f30ac3a615cad7ec00552e389fc`
+  - GitHub: `4c89ca1aa0480f30ac3a615cad7ec00552e389fc`
+  - Canary: `synced`
+  - Releases (v0.10.0/v0.11.0/v0.11.1): still intact on GitHub
+- **PAT purge verified:** `git log --all -S 'KxqngscSNYU3MIRrFZ97ehL'` returns 0 commits.
+
+### 2026-05-20T09:05Z — Remaining work (next session pickup)
+- **Status:** keep `issues` until OneDev auto-mirror is actually healed. Sync is currently maintained ONLY by manual push from .107 — every commit to OneDev that's NOT also pushed to GitHub from .107 will drift again. The canary will start firing again on the next OneDev-only push.
+- **Operator's still-pending Human ACs:**
+  1. **Revoke `…7ehL` PAT** at https://github.com/settings/tokens. PAT is gone from our code but alive on GitHub.
+  2. **Fix OneDev executor** — the `Push to GitHub Mirror` job uses OneDev's DEFAULT executor (no `jobExecutor:` field in .onedev-buildspec.yml). Default is `penelope-shell` which can't run inside containers. Two paths:
+     - (A) Add `jobExecutor: <name>` to the YAML and push. Need to know which executor names exist on this OneDev — operator can find via OneDev UI → Administration → Job Executors. Diagnostic from this session: REST API endpoints for executor enumeration all returned 404 (admin endpoints are UI-only on this OneDev version).
+     - (B) Change the OneDev DEFAULT executor server-wide via Administration → System Settings → Job Executors → make a container-compatible executor (`server-docker` or similar) the default. Affects all projects but eliminates the need for per-project pins.
+- **PL-175 capture deferred to next session** — runtime-signature-alone RCA is unsafe; insist on UI logs when REST has no log endpoint. Should be filed as a learning + a follow-up task to make `fw doctor` lint for "task references an external CI/CD whose REST API has no logs — UI screenshot or paste required for RCA". T-1724 candidate.
+- **secret-scan.sh enforcement gap** — the framework's existing `.agentic-framework/agents/git/lib/secret-scan.sh` should have caught the original `15c19f22` PAT inline but didn't (it was either not installed in this project's git hooks, or the patterns file didn't include `github_pat_` regex). Next session: verify which condition applies, install/extend as needed. T-1725 candidate.
+- **Governance learning (this session):** the 2-day diagnostic loop (PAT-related theories on top of an executor-config root cause) is documented as PL-174 candidate above. The cure: insist on UI logs before runtime-based RCA. The PROCESS cure: when operator does external-system action (PAT mint, secret paste, UI work), the agent MUST write an Updates entry capturing the action verbatim, even if no code changes accompany it. Without that, next session has no continuity.
 ### 2026-05-20T08:23:20Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** v2-PAT cycle ineffective despite operator action; agent failed to capture operator action in task on 2026-05-19, causing redundant re-prompt loop. Diagnostic moving to OneDev API + secret enumeration.
