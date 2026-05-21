@@ -2675,6 +2675,48 @@ fn compute_ack_status_mcp(
     rows
 }
 
+/// T-1762: pure helper — given an offset→envelope map and a leaf offset,
+/// walk up the `metadata.in_reply_to` chain until reaching a root post
+/// (no parent recorded) or a missing parent (chain breaks).
+/// Returns the chain root→leaf order. Mirrors CLI `build_ancestors`
+/// (commands/channel.rs:2592) one-to-one — cycle-safe via visited set,
+/// depth-capped via `max_depth`. Used by `termlink_channel_ancestors`.
+///
+/// - If `leaf` is absent from the map, returns empty vec.
+/// - If the chain hits a cycle, stops at the cycle point (no re-emission).
+/// - If the chain hits a missing parent, stops at the last present envelope.
+fn compute_ancestors_mcp(
+    by_offset: &std::collections::HashMap<u64, &serde_json::Value>,
+    leaf: u64,
+    max_depth: usize,
+) -> Vec<u64> {
+    let mut chain: Vec<u64> = Vec::new();
+    let mut visited: std::collections::HashSet<u64> = std::collections::HashSet::new();
+    let mut current = leaf;
+    if !by_offset.contains_key(&current) {
+        return chain;
+    }
+    for _ in 0..max_depth {
+        if !visited.insert(current) {
+            break;
+        }
+        chain.push(current);
+        let Some(env) = by_offset.get(&current) else { break };
+        let parent = env
+            .get("metadata")
+            .and_then(|md| md.get("in_reply_to"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok());
+        let Some(p) = parent else { break };
+        if !by_offset.contains_key(&p) {
+            break;
+        }
+        current = p;
+    }
+    chain.reverse(); // root → leaf
+    chain
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -5211,6 +5253,16 @@ pub struct ChannelDescribeParams {
     pub description: String,
     /// Override sender_id (default: caller's identity fingerprint).
     pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelAncestorsParams {
+    /// Topic to walk for the reply chain.
+    pub topic: String,
+    /// Leaf offset — chain is built from this envelope back to root.
+    pub offset: u64,
+    /// Safety cap on chain depth. Default 100, clamped 1..=1024.
+    pub max_depth: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -14337,6 +14389,64 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_ancestors",
+        description = "Walk up the reply chain from an offset on any topic (not just agent-chat-arc) — MCP parity for the `termlink channel ancestors <topic> <offset>` CLI verb (T-1762 of T-1166). Builds an offset→envelope map by walking the topic, then chains via `metadata.in_reply_to` until reaching a root (no parent) or a missing-parent break. Returns `{ok, topic, leaf, ancestors: [{offset, sender_id, msg_type, ts, payload}, ...]}` ordered root-first → leaf-last. Cycle-safe (visited set) and depth-capped (`max_depth` default 100, clamped 1..=1024). Errors when the leaf offset is absent from the topic. Topic-flexible companion to `termlink_agent_ancestors` (chat-arc only). NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_ancestors(
+        &self,
+        Parameters(p): Parameters<ChannelAncestorsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(e),
+        };
+        let mut by_offset: std::collections::HashMap<u64, &serde_json::Value> =
+            std::collections::HashMap::with_capacity(envelopes.len());
+        for env in &envelopes {
+            if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+                by_offset.insert(off, env);
+            }
+        }
+        if !by_offset.contains_key(&p.offset) {
+            return json_err(format!(
+                "Topic '{}' has no envelope at offset {}",
+                p.topic, p.offset
+            ));
+        }
+        let max_depth = p.max_depth.unwrap_or(100).clamp(1, 1024) as usize;
+        let chain = compute_ancestors_mcp(&by_offset, p.offset, max_depth);
+        let entries: Vec<serde_json::Value> = chain
+            .iter()
+            .filter_map(|off| {
+                let m = by_offset.get(off)?;
+                let payload = decode_payload_lossy_mcp(m);
+                let ts = m
+                    .get("ts_unix_ms")
+                    .and_then(|v| v.as_i64())
+                    .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+                Some(serde_json::json!({
+                    "offset": off,
+                    "sender_id": m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?"),
+                    "msg_type": m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?"),
+                    "ts": ts,
+                    "payload": payload,
+                }))
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "leaf": p.offset,
+            "ancestors": entries,
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -24613,6 +24723,135 @@ YW\tJ
         });
         let p: ChannelDescribeParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.description, "");
+    }
+
+    // --- T-1762 channel_ancestors -------------------------------------------
+
+    fn reply_env_ancestors(offset: u64, parent: Option<u64>) -> serde_json::Value {
+        let mut md = serde_json::Map::new();
+        if let Some(p) = parent {
+            md.insert("in_reply_to".to_string(), serde_json::Value::String(p.to_string()));
+        }
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": format!("s{}", offset),
+            "msg_type": "post",
+            "metadata": serde_json::Value::Object(md),
+        })
+    }
+
+    #[test]
+    fn ancestors_linear_chain_returns_root_to_leaf() {
+        // 10 ← 11 ← 12 ← 13 (leaf)
+        let envs = vec![
+            reply_env_ancestors(10, None),
+            reply_env_ancestors(11, Some(10)),
+            reply_env_ancestors(12, Some(11)),
+            reply_env_ancestors(13, Some(12)),
+        ];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 13, 100);
+        assert_eq!(chain, vec![10, 11, 12, 13], "root-first order");
+    }
+
+    #[test]
+    fn ancestors_leaf_with_no_parent_returns_only_leaf() {
+        let envs = vec![reply_env_ancestors(42, None)];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 42, 100);
+        assert_eq!(chain, vec![42]);
+    }
+
+    #[test]
+    fn ancestors_missing_leaf_returns_empty() {
+        let envs = vec![reply_env_ancestors(10, None)];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 99, 100);
+        assert!(chain.is_empty(), "missing leaf yields empty chain");
+    }
+
+    #[test]
+    fn ancestors_cycle_stops_at_revisit() {
+        // 10 → 11 → 12 → 10 (cycle)
+        let envs = vec![
+            reply_env_ancestors(10, Some(12)),
+            reply_env_ancestors(11, Some(10)),
+            reply_env_ancestors(12, Some(11)),
+        ];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 12, 100);
+        // Walk: 12 → 11 → 10 → would revisit 12 — stops. Reversed: 10,11,12.
+        assert_eq!(chain, vec![10, 11, 12]);
+    }
+
+    #[test]
+    fn ancestors_max_depth_caps_chain() {
+        // Linear 5-deep chain, depth=3 yields only 3 elements (top 3 of walk).
+        let envs = vec![
+            reply_env_ancestors(1, None),
+            reply_env_ancestors(2, Some(1)),
+            reply_env_ancestors(3, Some(2)),
+            reply_env_ancestors(4, Some(3)),
+            reply_env_ancestors(5, Some(4)),
+        ];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 5, 3);
+        // Walk: 5 → 4 → 3 (cap). Reversed: 3,4,5.
+        assert_eq!(chain, vec![3, 4, 5]);
+    }
+
+    #[test]
+    fn ancestors_missing_parent_breaks_chain() {
+        // 11's parent is 10, but 10 isn't in the map.
+        let envs = vec![
+            reply_env_ancestors(11, Some(10)),
+            reply_env_ancestors(12, Some(11)),
+        ];
+        let map: std::collections::HashMap<u64, &serde_json::Value> = envs
+            .iter()
+            .map(|e| (e.get("offset").and_then(|v| v.as_u64()).unwrap(), e))
+            .collect();
+        let chain = compute_ancestors_mcp(&map, 12, 100);
+        // Walk: 12 → 11 → (10 not present, break). Reversed: 11, 12.
+        assert_eq!(chain, vec![11, 12]);
+    }
+
+    #[test]
+    fn channel_ancestors_params_deserialize() {
+        let json = serde_json::json!({
+            "topic": "dm:alice:bob",
+            "offset": 42_u64,
+        });
+        let p: ChannelAncestorsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.offset, 42);
+        assert!(p.max_depth.is_none());
+    }
+
+    #[test]
+    fn channel_ancestors_params_max_depth_override() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "offset": 100_u64,
+            "max_depth": 500_u64,
+        });
+        let p: ChannelAncestorsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.max_depth, Some(500));
     }
 
     #[test]
