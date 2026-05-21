@@ -2111,6 +2111,98 @@ fn compute_pin_history_mcp(envelopes: &[serde_json::Value]) -> Vec<PinHistoryRow
     rows
 }
 
+/// T-1753: one row in the chronological redaction audit log. Mirror of
+/// CLI's `RedactionRow` (channel.rs:5460). One row per `msg_type=redaction`
+/// envelope with a parseable target offset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RedactionRowMcp {
+    event_offset: u64,
+    target_offset: u64,
+    redactor_sender: String,
+    reason: Option<String>,
+    ts_ms: i64,
+    target_payload: Option<String>,
+}
+
+impl RedactionRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "event_offset": self.event_offset,
+            "target_offset": self.target_offset,
+            "redactor_sender": self.redactor_sender,
+            "reason": self.reason,
+            "ts_ms": self.ts_ms,
+            "target_payload": self.target_payload,
+        })
+    }
+}
+
+/// T-1753: pure helper — chronological audit of redaction events.
+/// Mirror of CLI's `compute_redactions` (channel.rs:5491).
+///
+/// One row per `msg_type=redaction` envelope with parseable
+/// `metadata.redacts`. Reason is best-effort (passed through if
+/// `metadata.reason` exists). `target_payload` is best-effort from the
+/// envelope set — `None` when target is missing.
+///
+/// Sort: `event_offset` ascending. Pure — no I/O.
+fn compute_redactions_mcp(envelopes: &[serde_json::Value]) -> Vec<RedactionRowMcp> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<RedactionRowMcp> = Vec::new();
+    for env in envelopes {
+        // Mirror of extract_redaction (channel.rs:3213) — inlined to avoid
+        // exporting a new MCP-side helper for one call site.
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("redaction") {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("redacts"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let reason = env
+            .get("metadata")
+            .and_then(|md| md.get("reason"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let target_payload = by_off.get(&target).map(|e| decode_payload_lossy_mcp(e));
+        rows.push(RedactionRowMcp {
+            event_offset: off,
+            target_offset: target,
+            redactor_sender: sender,
+            reason,
+            ts_ms: ts,
+            target_payload,
+        });
+    }
+    rows.sort_by(|a, b| a.event_offset.cmp(&b.event_offset));
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4581,6 +4673,12 @@ pub struct ChannelSnapshotParams {
     pub as_of_ms: i64,
     /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelRedactionsParams {
+    /// Topic to walk for redaction events.
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -20968,6 +21066,34 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_redactions",
+        description = "Chronological redaction audit log for an arbitrary topic — MCP parity for the `termlink channel redactions` CLI verb (T-1373, channel.rs:5529). One row per `msg_type=redaction` envelope with parseable `metadata.redacts`, sorted event_offset asc. Each row carries event offset, target offset, redactor, optional reason, timestamp, and (when target is in the envelope set) a preview of the redacted payload. Use case: moderation audit — what was retracted, by whom, when, and why. Returns `{ok, topic, rows: [{event_offset, target_offset, redactor_sender, reason, ts_ms, target_payload}], count}`. Pure read."
+    )]
+    async fn termlink_channel_redactions(
+        &self,
+        Parameters(p): Parameters<ChannelRedactionsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = compute_redactions_mcp(&envelopes);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(RedactionRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -22777,6 +22903,154 @@ YW\tJ
     fn pin_history_params_deserialize() {
         let json = serde_json::json!({"topic": "agent-chat-arc"});
         let p: ChannelPinHistoryParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+    }
+
+    // === T-1753: compute_redactions_mcp tests ===
+
+    fn redaction_env(
+        offset: u64,
+        sender: &str,
+        target: u64,
+        reason: Option<&str>,
+        ts: i64,
+    ) -> serde_json::Value {
+        let mut md = serde_json::json!({"redacts": target.to_string()});
+        if let Some(r) = reason {
+            md["reason"] = serde_json::json!(r);
+        }
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "redaction",
+            "ts_unix_ms": ts,
+            "metadata": md,
+        })
+    }
+
+    #[test]
+    fn redactions_empty_input() {
+        let rows = compute_redactions_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn redactions_single_with_reason() {
+        let envs = vec![
+            state_env(10, "alice", "text", "bad-msg", 100),
+            redaction_env(11, "mod", 10, Some("policy violation"), 200),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.event_offset, 11);
+        assert_eq!(r.target_offset, 10);
+        assert_eq!(r.redactor_sender, "mod");
+        assert_eq!(r.reason.as_deref(), Some("policy violation"));
+        assert_eq!(r.ts_ms, 200);
+        assert_eq!(r.target_payload.as_deref(), Some("bad-msg"));
+    }
+
+    #[test]
+    fn redactions_single_without_reason() {
+        let envs = vec![
+            state_env(10, "alice", "text", "msg", 100),
+            redaction_env(11, "mod", 10, None, 200),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].reason.is_none());
+    }
+
+    #[test]
+    fn redactions_sorted_by_event_offset() {
+        let envs = vec![
+            state_env(10, "alice", "text", "m1", 100),
+            state_env(20, "bob", "text", "m2", 110),
+            redaction_env(30, "mod", 10, None, 300),
+            redaction_env(15, "mod", 20, None, 200),
+            redaction_env(25, "mod", 10, None, 250),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].event_offset, 15);
+        assert_eq!(rows[1].event_offset, 25);
+        assert_eq!(rows[2].event_offset, 30);
+    }
+
+    #[test]
+    fn redactions_malformed_skipped() {
+        let envs = vec![
+            // missing metadata.redacts entirely
+            serde_json::json!({
+                "offset": 11,
+                "sender_id": "alice",
+                "msg_type": "redaction",
+                "ts_unix_ms": 100,
+                "metadata": {},
+            }),
+            // non-numeric redacts
+            serde_json::json!({
+                "offset": 12,
+                "sender_id": "alice",
+                "msg_type": "redaction",
+                "ts_unix_ms": 110,
+                "metadata": {"redacts": "not-a-number"},
+            }),
+            // no metadata block at all
+            serde_json::json!({
+                "offset": 13,
+                "sender_id": "alice",
+                "msg_type": "redaction",
+                "ts_unix_ms": 120,
+            }),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn redactions_non_redaction_msg_types_ignored() {
+        let envs = vec![
+            state_env(10, "alice", "text", "hi", 100),
+            state_edit_env(11, "alice", 10, "hi2", 110),
+            pin_env(12, "alice", 10, None, 120),
+            receipt_env(13, "bob", 10, 130),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn redactions_target_payload_none_when_target_missing() {
+        // Redaction references offset 999 which isn't in the envelope set.
+        let envs = vec![redaction_env(11, "mod", 999, None, 200)];
+        let rows = compute_redactions_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].target_payload.is_none());
+    }
+
+    #[test]
+    fn redactions_default_sender_when_missing_sender_id() {
+        let envs = vec![
+            state_env(10, "alice", "text", "msg", 100),
+            // redaction envelope with no sender_id at all
+            serde_json::json!({
+                "offset": 11,
+                "msg_type": "redaction",
+                "ts_unix_ms": 200,
+                "metadata": {"redacts": "10"},
+            }),
+        ];
+        let rows = compute_redactions_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].redactor_sender, "?");
+    }
+
+    #[test]
+    fn redactions_params_deserialize() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelRedactionsParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "agent-chat-arc");
     }
 

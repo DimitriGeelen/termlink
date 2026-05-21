@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1753: termlink_channel_redactions MCP — chronological redaction audit log
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T08:34:01Z
+# ============================================================================
+
+task_id: T-1753
+task_name: "termlink_channel_redactions MCP — chronological redaction audit log"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T08:30:52Z
+completed: 2026-05-21T08:33:44Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`RedactionRowMcp { event_offset, target_offset, redactor_sender, reason: Option<String>, ts_ms, target_payload: Option<String> }` + `to_json_mcp`."
+  - "Pure helper `compute_redactions_mcp(envelopes) -> Vec<RedactionRowMcp>` — walks msg_type=redaction envelopes with parseable metadata.redacts, captures optional metadata.reason, sender_id (default \"?\"), sorts event_offset asc. target_payload via decode_payload_lossy_mcp when target offset is in envelope set."
+  - "`ChannelRedactionsParams { topic }`."
+  - "`#[tool] termlink_channel_redactions` returns `{ok, topic, rows, count}`."
+  - "Tests cover: empty input, single redaction with reason, single redaction without reason, multiple redactions sorted event_offset asc, malformed (missing redacts / non-numeric) silently skipped, non-redaction msg_types ignored, target_payload populated when target present and None otherwise."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1753-termlinkchannelredactions-mcp--chronolog.md
+generated_by: context-agent-hybrid
