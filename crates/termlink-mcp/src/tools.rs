@@ -2377,6 +2377,106 @@ fn compute_full_topic_stats_mcp(envelopes: &[serde_json::Value]) -> FullTopicSta
     }
 }
 
+/// T-1758: one row in the currently-pinned set. Mirror of CLI's `PinRow`
+/// (channel.rs:3540). `payload` is filled from the original envelope at
+/// `target` if still present in the topic; `None` when the target is
+/// out-of-range (rare). Empty string when payload is non-utf8.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PinRowMcp {
+    target: u64,
+    pinned_by: String,
+    pinned_ts: i64,
+    payload: Option<String>,
+}
+
+impl PinRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "target": self.target,
+            "pinned_by": self.pinned_by,
+            "pinned_ts": self.pinned_ts,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1758: pure helper — compute the current pin set from a topic walk.
+/// Mirror of CLI's `compute_pinned_set` (channel.rs:3575) one-to-one.
+///
+/// Iterates `envelopes` in input order, applying each `msg_type=pin` envelope
+/// per its `metadata.action`:
+///   - `action=pin` (default)   → record (or update) PinRowMcp for the target
+///   - `action=unpin`           → remove the entry for the target
+///
+/// After the scan, the original envelope at each pinned target is looked up
+/// to fill `payload`. Sorted by `pinned_ts` descending (most-recently pinned
+/// first); ties break on `target` ascending for determinism.
+///
+/// Pure — no I/O.
+fn compute_pinned_set_mcp(envelopes: &[serde_json::Value]) -> Vec<PinRowMcp> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut active: HashMap<u64, PinRowMcp> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("pin_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let action = md.get("action").and_then(|v| v.as_str()).unwrap_or("pin");
+        if action == "unpin" {
+            active.remove(&target);
+            continue;
+        }
+        let pinned_by = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let pinned_ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        active.insert(
+            target,
+            PinRowMcp {
+                target,
+                pinned_by,
+                pinned_ts,
+                payload: None,
+            },
+        );
+    }
+    for row in active.values_mut() {
+        if let Some(orig) = by_off.get(&row.target) {
+            row.payload = Some(decode_payload_lossy_mcp(orig));
+        }
+    }
+    let mut rows: Vec<PinRowMcp> = active.into_values().collect();
+    rows.sort_by(|a, b| {
+        b.pinned_ts
+            .cmp(&a.pinned_ts)
+            .then_with(|| a.target.cmp(&b.target))
+    });
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4878,6 +4978,12 @@ pub struct ChannelUnreadParams {
     /// Sender fingerprint to compute unread for. Defaults to caller's
     /// local identity (`~/.termlink/identity.json`) when omitted.
     pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelPinnedParams {
+    /// Topic to enumerate the active pin set for.
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -21478,6 +21584,34 @@ impl TermLinkTools {
         })).unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_pinned",
+        description = "Currently-pinned set on an arbitrary topic with payload preview — MCP parity for the `termlink channel pinned <TOPIC>` CLI verb (T-1345, channel.rs:3643). Topic-flexible richer variant of `termlink_agent_pinned` (T-1517, chat-arc only, no payload). Walks pin envelopes in input order applying last-write-wins per `metadata.pin_target` (action=pin records, action=unpin removes), then enriches each row with `payload` from the original target envelope (Some(text) if target present, None if out-of-range). Sorted by `pinned_ts` desc, target asc tiebreak. Returns `{ok, topic, rows: [{target, pinned_by, pinned_ts, payload}, ...], count}`. Use case: agent navigation to high-signal posts. Pure read."
+    )]
+    async fn termlink_channel_pinned(
+        &self,
+        Parameters(p): Parameters<ChannelPinnedParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_pinned_set_mcp(&envelopes);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(PinRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -23686,6 +23820,120 @@ YW\tJ
         let p: ChannelUnreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "agent-chat-arc");
         assert_eq!(p.sender_id, None);
+    }
+
+    // === T-1758: compute_pinned_set_mcp tests ===
+
+    #[test]
+    fn pinned_set_empty_input() {
+        let rows = compute_pinned_set_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn pinned_set_single_pin_fills_payload() {
+        let envs = vec![
+            state_env(10, "alice", "post", "important", 100),
+            pin_env(11, "bob", 10, Some("pin"), 200),
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.target, 10);
+        assert_eq!(r.pinned_by, "bob");
+        assert_eq!(r.pinned_ts, 200);
+        assert_eq!(r.payload.as_deref(), Some("important"));
+    }
+
+    #[test]
+    fn pinned_set_default_action_is_pin() {
+        // No `action` in metadata → defaults to "pin" (same as CLI compute_pinned_set).
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            pin_env(11, "alice", 10, None, 200),
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn pinned_set_unpin_removes() {
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            pin_env(11, "alice", 10, Some("pin"), 200),
+            pin_env(12, "alice", 10, Some("unpin"), 300),
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert!(rows.is_empty(), "unpin should remove the entry");
+    }
+
+    #[test]
+    fn pinned_set_repin_after_unpin() {
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            pin_env(11, "alice", 10, Some("pin"), 200),
+            pin_env(12, "alice", 10, Some("unpin"), 300),
+            pin_env(13, "bob", 10, Some("pin"), 400),  // different actor re-pins
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].pinned_by, "bob");
+        assert_eq!(rows[0].pinned_ts, 400);
+    }
+
+    #[test]
+    fn pinned_set_sort_ts_desc_target_asc_tiebreak() {
+        let envs = vec![
+            state_env(10, "alice", "post", "a", 100),
+            state_env(20, "alice", "post", "b", 100),
+            state_env(30, "alice", "post", "c", 100),
+            // Same pinned_ts → tiebreak on target asc.
+            pin_env(11, "alice", 10, Some("pin"), 500),
+            pin_env(12, "alice", 20, Some("pin"), 500),
+            pin_env(13, "alice", 30, Some("pin"), 700),  // newest
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        // Sort: ts desc → 30 (ts=700) first, then 10, 20 (both ts=500, target asc).
+        assert_eq!(rows[0].target, 30);
+        assert_eq!(rows[1].target, 10);
+        assert_eq!(rows[2].target, 20);
+    }
+
+    #[test]
+    fn pinned_set_target_missing_yields_none_payload() {
+        // Pin envelope references a target not present in envelopes.
+        let envs = vec![
+            pin_env(11, "alice", 999, Some("pin"), 200),
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target, 999);
+        assert_eq!(rows[0].payload, None);
+    }
+
+    #[test]
+    fn pinned_set_skips_non_pin_msg_types() {
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            // reaction with pin_target shouldn't trigger
+            serde_json::json!({
+                "offset": 11,
+                "sender_id": "alice",
+                "msg_type": "reaction",
+                "ts_unix_ms": 200,
+                "metadata": {"pin_target": "10"},
+            }),
+        ];
+        let rows = compute_pinned_set_mcp(&envs);
+        assert!(rows.is_empty(), "non-pin msg_type must be ignored");
+    }
+
+    #[test]
+    fn channel_pinned_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:a:b"});
+        let p: ChannelPinnedParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:a:b");
     }
 
     #[test]

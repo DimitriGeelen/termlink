@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1758: termlink_channel_pinned MCP — current pin set with payload on arbitrary topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T10:11:17Z
+# ============================================================================
+
+task_id: T-1758
+task_name: "termlink_channel_pinned MCP — current pin set with payload on arbitrary topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T10:08:32Z
+completed: 2026-05-21T10:10:57Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`PinRowMcp { target, pinned_by, pinned_ts, payload: Option<String> }` struct + `compute_pinned_set_mcp` helper added (LWW per target: action=pin records, action=unpin removes; payload filled from original target envelope when present; sorted by pinned_ts desc, target asc tiebreak)"
+  - "`ChannelPinnedParams { topic: String }` params struct added"
+  - "`termlink_channel_pinned` `#[tool]` method added — walks topic, returns `{ok, topic, rows, count}`"
+  - "9 unit tests added covering: empty input, single pin fills payload, default action=pin, unpin removes, repin after unpin, sort order (ts desc/target asc tiebreak), missing-target → None payload, non-pin msg_type ignored, params deserialize"
+  - "`cargo build -p termlink-mcp` clean; 480 lib tests pass (471 → 480, +9)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1758-termlinkchannelpinned-mcp--current-pin-s.md
+generated_by: context-agent-hybrid
