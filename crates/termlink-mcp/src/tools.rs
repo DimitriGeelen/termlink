@@ -5924,6 +5924,12 @@ pub struct ChannelForwardsOfParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelTypingListParams {
+    /// Topic to walk for typing-presence (any topic, not just agent-chat-arc).
+    pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSearchParams {
     /// Topic to search (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15451,6 +15457,46 @@ impl TermLinkTools {
             "topic": p.topic,
             "sender": sender,
             "forwards": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_typing_list",
+        description = "List active typers on an arbitrary topic — MCP parity for `termlink channel typing-list <topic>` CLI verb (T-1773 of T-1166). Topic-flexible variant of `termlink_agent_typers` (hardcoded chat-arc). Reuses `compute_active_typers_mcp`: keeps the LATEST `msg_type=typing` envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Use case: typing-presence dashboards for DM channels (`dm:*`) or project topics — answers 'is anyone typing in this DM right now?'. Sort: `ts` descending (most-recently-active first); `sender_id` alpha tiebreak. Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic, now_ms, typers: [{sender_id, expires_at_ms, ts}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_typing_list(
+        &self,
+        Parameters(p): Parameters<ChannelTypingListParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let rows = compute_active_typers_mcp(&envelopes, now_ms);
+        let rows_json: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| serde_json::json!({
+                "sender_id": r.sender_id,
+                "expires_at_ms": r.expires_at_ms,
+                "ts": r.ts,
+            }))
+            .collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "now_ms": now_ms,
+            "typers": rows_json,
             "count": count,
         }))
         .unwrap_or_else(json_err)
@@ -26883,6 +26929,46 @@ YW\tJ
         assert!(p.case_sensitive.is_none());
         assert!(p.all.is_none());
         assert!(p.limit.is_none());
+    }
+
+    // --- T-1773 channel_typing_list -----------------------------------------
+
+    #[test]
+    fn channel_typing_list_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelTypingListParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+    }
+
+    #[test]
+    fn channel_typing_list_helper_keeps_unexpired() {
+        // Sanity check: one typing envelope with expires_at_ms in the future.
+        let now_ms: i64 = 1_000_000;
+        let envs = vec![serde_json::json!({
+            "offset": 10,
+            "sender_id": "alice",
+            "msg_type": "typing",
+            "ts_unix_ms": now_ms - 1000,
+            "metadata": {"expires_at_ms": (now_ms + 5000).to_string()},
+        })];
+        let rows = compute_active_typers_mcp(&envs, now_ms);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].expires_at_ms, now_ms + 5000);
+    }
+
+    #[test]
+    fn channel_typing_list_helper_drops_expired() {
+        let now_ms: i64 = 1_000_000;
+        let envs = vec![serde_json::json!({
+            "offset": 10,
+            "sender_id": "alice",
+            "msg_type": "typing",
+            "ts_unix_ms": now_ms - 10_000,
+            "metadata": {"expires_at_ms": (now_ms - 5000).to_string()},
+        })];
+        let rows = compute_active_typers_mcp(&envs, now_ms);
+        assert!(rows.is_empty(), "expired indicator dropped");
     }
 
     // --- T-1772 channel_forwards_of ----------------------------------------

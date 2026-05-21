@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1773: termlink_channel_typing_list MCP — topic-flexible active typers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T13:41:57Z
+# ============================================================================
+
+task_id: T-1773
+task_name: "termlink_channel_typing_list MCP — topic-flexible active typers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T13:40:02Z
+completed: 2026-05-21T13:41:55Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelTypingListParams { topic }` params struct."
+  - "`termlink_channel_typing_list` tool method registered, walks topic via `walk_topic_full_mcp`, reuses `compute_active_typers_mcp`, returns `{ok, topic, now_ms, typers: [...], count}`."
+  - "Unit tests: params deserialize, helper keeps unexpired, helper drops expired. (3 tests)"
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_typing_list` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1773-termlinkchanneltypinglist-mcp--topic-fle.md
+generated_by: context-agent-hybrid
