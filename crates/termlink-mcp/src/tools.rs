@@ -5526,6 +5526,19 @@ pub struct ChannelDigestParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelSnippetParams {
+    /// Topic to preview (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Target offset to center the snippet on. Must be a content msg_type
+    /// (post/chat/note) — meta types (reaction/edit/redaction/receipt/
+    /// topic_metadata) yield an error.
+    pub target: u64,
+    /// Number of content envelopes on each side of target. Default 3,
+    /// clamped 1..=50 (parity with agent_snippet).
+    pub lines: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -14782,6 +14795,43 @@ impl TermLinkTools {
             "pins_removed": d.pins_removed,
             "forwards_in": d.forwards_in,
             "recent_chats": d.recent_chats.iter().map(DigestChatMcp::to_json_mcp).collect::<Vec<_>>(),
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_snippet",
+        description = "Windowed content preview around an offset on any topic — MCP parity for `termlink channel snippet <topic> <OFFSET> [--lines N]` CLI verb (T-1765 of T-1166). Topic-flexible companion to `termlink_agent_snippet` (chat-arc only). Walks the topic, filters to content msg_types (post/chat/note), locates the target, returns up to `lines` envelopes on each side. `lines` defaults to 3, clamped 1..=50. Errors when the target offset is absent OR is a meta msg-type (reaction/edit/redaction/receipt/topic_metadata). Use this when you have an offset from a search/mention result on an arbitrary topic and want a small surrounding context block without dumping the whole topic. Returns `{ok, topic, target_offset, lines: [{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target row. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_snippet(
+        &self,
+        Parameters(p): Parameters<ChannelSnippetParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let lines = p.lines.unwrap_or(3).clamp(1, 50);
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let snippet = match compute_snippet_mcp(&envelopes, p.target, lines) {
+            Some(s) => s,
+            None => {
+                return json_err(format!(
+                    "Topic '{}' has no content envelope at offset {} (or it's a meta type)",
+                    p.topic, p.target
+                ));
+            }
+        };
+        let arr: Vec<serde_json::Value> =
+            snippet.iter().map(SnippetLineMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "target_offset": p.target,
+            "lines": arr,
         }))
         .unwrap_or_else(json_err)
     }
@@ -25513,6 +25563,28 @@ YW\tJ
         let p: ChannelDigestParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.since_mins, Some(30));
         assert_eq!(p.since_ms, Some(12345));
+    }
+
+    // --- T-1765 channel_snippet ---------------------------------------------
+
+    #[test]
+    fn channel_snippet_params_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "target": 42_u64});
+        let p: ChannelSnippetParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.target, 42);
+        assert!(p.lines.is_none());
+    }
+
+    #[test]
+    fn channel_snippet_params_with_lines() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "target": 100_u64,
+            "lines": 10_u64,
+        });
+        let p: ChannelSnippetParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.lines, Some(10));
     }
 
     #[test]
