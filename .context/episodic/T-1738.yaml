@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1738: termlink_agent_snippet MCP — windowed content preview around an offset
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T06:27:02Z
+# ============================================================================
+
+task_id: T-1738
+task_name: "termlink_agent_snippet MCP — windowed content preview around an offset"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T06:23:54Z
+completed: 2026-05-21T06:26:45Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`SnippetLineMcp` struct + `to_json_mcp` mirror CLI's `SnippetLine` (`offset`, `sender`, `payload`, `is_target`)"
+  - "`compute_snippet_mcp` ported; filters to content msg_types (`post`/`chat`/`note`), sorts content envelopes by offset asc, locates target idx, includes up to `lines` envelopes on each side (saturating-sub on lo, .min(len) on hi), returns `None` when target is absent OR is a meta type"
+  - "`AgentSnippetParams { target: u64, lines: Option<u64> }` and `termlink_agent_snippet` tool method added; defaults `lines` to 3; clamps to 1..=50 server-side; returns error JSON when target not found or is meta type"
+  - "Returns `{ok, topic, target_offset, lines: [{offset, sender, payload, is_target}, ...]}` JSON"
+  - "≥6 new unit tests in `tools::tests` covering: target in middle (window symmetric), target at start (truncated lo), target at end (truncated hi), target absent → None, target is meta type → None, params deserialize with + without lines, lines clamping"
+  - "`cargo build -p termlink-mcp` clean (no new warnings beyond pre-existing `cur_run_end`)"
+  - "`cargo test -p termlink-mcp` passes (all new tests + no regressions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1738-termlinkagentsnippet-mcp--windowed-conte.md
+generated_by: context-agent-hybrid

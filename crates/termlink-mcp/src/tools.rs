@@ -840,6 +840,76 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1738: one rendered line in a snippet block. Mirror of CLI's
+/// `SnippetLine` (channel.rs:4487). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SnippetLineMcp {
+    offset: u64,
+    sender: String,
+    payload: String,
+    is_target: bool,
+}
+
+impl SnippetLineMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "sender": self.sender,
+            "payload": self.payload,
+            "is_target": self.is_target,
+        })
+    }
+}
+
+/// T-1738: pure helper — pick the snippet window from a topic walk. Mirror
+/// of CLI's `compute_snippet` (channel.rs:4514) one-to-one.
+///
+/// Filters envelopes to content msg_types (`post`/`chat`/`note`) and skips
+/// meta types so the snippet stays focused. Locates the target offset,
+/// includes up to `lines` content envelopes on each side. Returns `None`
+/// when the target is not in `envelopes` or is itself a meta type. Pure
+/// — no I/O.
+fn compute_snippet_mcp(
+    envelopes: &[serde_json::Value],
+    target_offset: u64,
+    lines: u64,
+) -> Option<Vec<SnippetLineMcp>> {
+    let is_content = |env: &serde_json::Value| -> bool {
+        matches!(
+            env.get("msg_type").and_then(|v| v.as_str()),
+            Some("post") | Some("chat") | Some("note")
+        )
+    };
+    let mut content_envs: Vec<&serde_json::Value> =
+        envelopes.iter().filter(|e| is_content(e)).collect();
+    content_envs.sort_by_key(|e| e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0));
+
+    let target_idx = content_envs
+        .iter()
+        .position(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(target_offset))?;
+    let lines_usize = lines as usize;
+    let lo = target_idx.saturating_sub(lines_usize);
+    let hi = (target_idx + lines_usize + 1).min(content_envs.len());
+
+    let snippet: Vec<SnippetLineMcp> = content_envs[lo..hi]
+        .iter()
+        .map(|e| {
+            let off = e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            SnippetLineMcp {
+                offset: off,
+                sender: e
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .to_string(),
+                payload: decode_payload_lossy_mcp(e),
+                is_target: off == target_offset,
+            }
+        })
+        .collect();
+    Some(snippet)
+}
+
 /// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
 /// (channel.rs:6021). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2467,6 +2537,20 @@ pub struct AgentRelationsParams {
     /// Offset of the target envelope to introspect. Must exist on
     /// `agent-chat-arc` — otherwise the tool returns an error.
     pub target: u64,
+}
+
+/// T-1738: parameters for `termlink_agent_snippet` — windowed content
+/// preview centered on a target offset. MCP parity for the
+/// `termlink agent snippet <OFFSET> [--lines N]` CLI verb (T-1363).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentSnippetParams {
+    /// Target offset to center the snippet on. Must be a content msg_type
+    /// (`post`/`chat`/`note`) — meta types (reaction/edit/redaction/
+    /// receipt/topic_metadata) return an error.
+    pub target: u64,
+    /// Number of content envelopes to include on each side of the target.
+    /// Defaults to 3; clamped to 1..=50.
+    pub lines: Option<u64>,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -11060,6 +11144,44 @@ impl TermLinkTools {
             "reactions": r.reactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
             "edits": r.edits.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
             "redactions": r.redactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_snippet",
+        description = "Windowed content preview on `agent-chat-arc` — MCP parity for the `termlink agent snippet <OFFSET> [--lines N]` CLI verb (T-1363). Returns up to `lines` content envelopes on each side of the target (defaults to 3, clamped 1..=50), filtered to msg_types `post`/`chat`/`note` (skips meta types: reaction/edit/redaction/receipt/topic_metadata). Use this when you have an offset (e.g. from `termlink_agent_search` or `termlink_agent_mentions`) and want a small surrounding context block to read inline without dumping the whole topic. Errors when the target offset is absent OR is a meta msg-type. Returns `{ok, topic, target_offset, lines: [{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target row. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_snippet(
+        &self,
+        Parameters(p): Parameters<AgentSnippetParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let lines = p.lines.unwrap_or(3).clamp(1, 50);
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        let snippet = match compute_snippet_mcp(&envelopes, p.target, lines) {
+            Some(s) => s,
+            None => {
+                return json_err(format!(
+                    "Topic '{topic}' has no content envelope at offset {} (or it's a meta type)",
+                    p.target
+                ));
+            }
+        };
+        let arr: Vec<serde_json::Value> =
+            snippet.iter().map(SnippetLineMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "target_offset": p.target,
+            "lines": arr,
         }))
         .unwrap_or_else(json_err)
     }
@@ -20603,6 +20725,105 @@ mod tests {
         let p: AgentRelationsParams =
             serde_json::from_value(serde_json::json!({"target": 42})).unwrap();
         assert_eq!(p.target, 42);
+    }
+
+    // === T-1738 agent_snippet tests ===
+
+    fn snippet_envs() -> Vec<serde_json::Value> {
+        // 7 content envelopes at offsets 1, 3, 5, 7, 9, 11, 13 (gaps for meta).
+        // One reaction at offset 4 (meta, must be filtered).
+        vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "payload_b64": "b25l"}),
+            serde_json::json!({"offset": 3, "msg_type": "chat", "sender_id": "bob", "payload_b64": "dHdv"}),
+            serde_json::json!({"offset": 4, "msg_type": "reaction", "sender_id": "carol", "payload_b64": "8J+RjQ==", "metadata": {"in_reply_to": "3"}}),
+            serde_json::json!({"offset": 5, "msg_type": "note", "sender_id": "carol", "payload_b64": "dGhyZWU="}),
+            serde_json::json!({"offset": 7, "msg_type": "post", "sender_id": "dave", "payload_b64": "Zm91cg=="}),
+            serde_json::json!({"offset": 9, "msg_type": "chat", "sender_id": "eve", "payload_b64": "Zml2ZQ=="}),
+            serde_json::json!({"offset": 11, "msg_type": "post", "sender_id": "frank", "payload_b64": "c2l4"}),
+            serde_json::json!({"offset": 13, "msg_type": "chat", "sender_id": "grace", "payload_b64": "c2V2ZW4="}),
+        ]
+    }
+
+    #[test]
+    fn agent_snippet_target_in_middle_symmetric_window() {
+        // Target offset 7 (idx 3 in content list of length 7), lines=2 → idx 1..6 → offsets 3,5,7,9,11
+        let envs = snippet_envs();
+        let snip = compute_snippet_mcp(&envs, 7, 2).unwrap();
+        let offsets: Vec<u64> = snip.iter().map(|s| s.offset).collect();
+        assert_eq!(offsets, vec![3, 5, 7, 9, 11]);
+        // Target row marked.
+        let target = snip.iter().find(|s| s.is_target).unwrap();
+        assert_eq!(target.offset, 7);
+        assert_eq!(target.sender, "dave");
+        assert_eq!(target.payload, "four");
+    }
+
+    #[test]
+    fn agent_snippet_target_at_start_truncated_lo() {
+        // Target offset 1 (idx 0), lines=3 → lo saturates to 0, hi=min(4,7)=4 → offsets 1,3,5,7
+        let envs = snippet_envs();
+        let snip = compute_snippet_mcp(&envs, 1, 3).unwrap();
+        let offsets: Vec<u64> = snip.iter().map(|s| s.offset).collect();
+        assert_eq!(offsets, vec![1, 3, 5, 7]);
+        assert!(snip[0].is_target);
+    }
+
+    #[test]
+    fn agent_snippet_target_at_end_truncated_hi() {
+        // Target offset 13 (idx 6), lines=3 → lo=3, hi=min(10,7)=7 → offsets 7,9,11,13
+        let envs = snippet_envs();
+        let snip = compute_snippet_mcp(&envs, 13, 3).unwrap();
+        let offsets: Vec<u64> = snip.iter().map(|s| s.offset).collect();
+        assert_eq!(offsets, vec![7, 9, 11, 13]);
+        assert!(snip.last().unwrap().is_target);
+    }
+
+    #[test]
+    fn agent_snippet_target_absent_returns_none() {
+        let envs = snippet_envs();
+        assert!(compute_snippet_mcp(&envs, 999, 2).is_none());
+    }
+
+    #[test]
+    fn agent_snippet_target_is_meta_returns_none() {
+        // Offset 4 is a reaction (meta) — must not match.
+        let envs = snippet_envs();
+        assert!(compute_snippet_mcp(&envs, 4, 2).is_none());
+    }
+
+    #[test]
+    fn agent_snippet_lines_zero_returns_only_target() {
+        // lines=0 → lo=hi-1, single envelope = target.
+        let envs = snippet_envs();
+        let snip = compute_snippet_mcp(&envs, 7, 0).unwrap();
+        assert_eq!(snip.len(), 1);
+        assert_eq!(snip[0].offset, 7);
+        assert!(snip[0].is_target);
+    }
+
+    #[test]
+    fn agent_snippet_meta_envelopes_filtered_from_window() {
+        // Even when a meta envelope sits between content offsets, the
+        // content-only sort means it never appears in the snippet window.
+        let envs = snippet_envs();
+        let snip = compute_snippet_mcp(&envs, 5, 1).unwrap();
+        let offsets: Vec<u64> = snip.iter().map(|s| s.offset).collect();
+        // Window around 5 with lines=1 → content idx 1..4 → offsets 3,5,7
+        // (offset 4 = reaction is NOT included).
+        assert_eq!(offsets, vec![3, 5, 7]);
+    }
+
+    #[test]
+    fn agent_snippet_params_deserializes() {
+        // Without lines
+        let p1: AgentSnippetParams =
+            serde_json::from_value(serde_json::json!({"target": 42})).unwrap();
+        assert_eq!(p1.target, 42);
+        assert!(p1.lines.is_none());
+        // With lines
+        let p2: AgentSnippetParams =
+            serde_json::from_value(serde_json::json!({"target": 42, "lines": 10})).unwrap();
+        assert_eq!(p2.lines, Some(10));
     }
 
     // === parse_signal tests ===
