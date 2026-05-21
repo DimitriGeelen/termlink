@@ -6061,6 +6061,15 @@ pub struct ChannelPollEndParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelPollResultsParams {
+    /// Topic where the poll lives (any topic, not just agent-chat-arc).
+    /// Use `dm:a:b` for DM channels or project topics.
+    pub topic: String,
+    /// Offset of the originating `poll_start` envelope.
+    pub poll_id: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -7317,6 +7326,145 @@ pub(crate) fn parse_signal(name: &str) -> Option<i32> {
         "USR2" | "SIGUSR2" => Some(libc::SIGUSR2),
         _ => name.parse().ok(),
     }
+}
+
+/// T-1789: per-option tally row. Mirror of CLI's `PollOptionRow`
+/// (channel.rs:3945) one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PollOptionRowMcp {
+    label: String,
+    count: u64,
+    voters: Vec<String>,
+}
+
+/// T-1789: aggregated poll state. Mirror of CLI's `PollState`
+/// (channel.rs:3953) one-to-one. Field shape preserved so JSON envelope is
+/// byte-identical with CLI `channel poll results --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PollStateMcp {
+    poll_id: u64,
+    question: String,
+    options: Vec<PollOptionRowMcp>,
+    closed: bool,
+    total_votes: u64,
+}
+
+/// T-1789: pure helper — derive a poll's current state from a topic walk.
+/// Mirror of CLI's `compute_poll_state` (channel.rs:3969) one-to-one.
+///
+/// Locates the `poll_start` envelope at `poll_id`. Returns `None` if absent
+/// or wrong msg_type. Walks all `poll_vote` envelopes for that poll_id in
+/// offset order — latest vote per sender wins; an out-of-range choice index
+/// drops that voter. If a `poll_end` envelope exists for this poll_id, votes
+/// whose `ts` is strictly greater than the end ts are ignored, and `closed`
+/// is true. Pure — no I/O.
+fn compute_poll_state_mcp(envelopes: &[serde_json::Value], poll_id: u64) -> Option<PollStateMcp> {
+    let start = envelopes.iter().find(|e| {
+        e.get("offset").and_then(|v| v.as_u64()) == Some(poll_id)
+            && e.get("msg_type").and_then(|v| v.as_str()) == Some("poll_start")
+    })?;
+    let question = decode_payload_lossy_mcp(start);
+    let opts_str = start
+        .get("metadata")
+        .and_then(|m| m.get("poll_options"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let labels: Vec<String> = if opts_str.is_empty() {
+        Vec::new()
+    } else {
+        opts_str.split('|').map(|s| s.to_string()).collect()
+    };
+    if labels.len() < 2 {
+        return None;
+    }
+
+    let pid = poll_id.to_string();
+    let end_ts: Option<i64> = envelopes
+        .iter()
+        .filter(|e| {
+            e.get("msg_type").and_then(|v| v.as_str()) == Some("poll_end")
+                && e.get("metadata")
+                    .and_then(|m| m.get("poll_id"))
+                    .and_then(|v| v.as_str())
+                    == Some(pid.as_str())
+        })
+        .filter_map(|e| {
+            e.get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| e.get("ts").and_then(|v| v.as_i64()))
+        })
+        .min();
+    let closed = end_ts.is_some();
+
+    use std::collections::HashMap;
+    let mut latest: HashMap<String, (u64, i64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("poll_vote") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        if md.get("poll_id").and_then(|v| v.as_str()) != Some(pid.as_str()) {
+            continue;
+        }
+        let choice = match md
+            .get("poll_choice")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(c) => c,
+            None => continue,
+        };
+        if (choice as usize) >= labels.len() {
+            continue;
+        }
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if let Some(ets) = end_ts
+            && ts > ets
+        {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        latest.insert(sender, (choice, ts));
+    }
+
+    let mut option_rows: Vec<PollOptionRowMcp> = labels
+        .iter()
+        .map(|l| PollOptionRowMcp {
+            label: l.clone(),
+            count: 0,
+            voters: Vec::new(),
+        })
+        .collect();
+    let mut total: u64 = 0;
+    let mut by_choice: Vec<Vec<String>> = vec![Vec::new(); labels.len()];
+    for (sender, (choice, _ts)) in &latest {
+        by_choice[*choice as usize].push(sender.clone());
+        total += 1;
+    }
+    for (i, voters) in by_choice.into_iter().enumerate() {
+        let mut v = voters;
+        v.sort();
+        option_rows[i].count = v.len() as u64;
+        option_rows[i].voters = v;
+    }
+    Some(PollStateMcp {
+        poll_id,
+        question,
+        options: option_rows,
+        closed,
+        total_votes: total,
+    })
 }
 
 // T-1060: Forward-compat with rmcp-macros 1.4+
@@ -16603,6 +16751,52 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_poll_results",
+        description = "Aggregate poll tallies on an arbitrary topic — MCP parity for `termlink channel poll results <topic> <poll_id>` CLI verb (T-1789 of T-1166). Read-side completion of the poll lifecycle triad shipped in T-1788 (`channel_poll_start` / `_vote` / `_end`). Topic-flexible variant of `termlink_agent_poll_results` (hardcoded chat-arc). Walks the topic, locates `poll_start` at `poll_id`, replays `poll_vote` envelopes in offset order (latest vote per sender wins; out-of-range choices and votes whose ts > `poll_end` ts are dropped). Returns `{poll_id, question, options:[{label, count, voters[]}], closed, total_votes}` JSON — shape is byte-identical with the CLI's `--json` mode. Errors when no `poll_start` at the given offset (or when it's malformed: <2 options). Especially useful in DM channels (`dm:a:b`) or project topics where the hardcoded `agent_poll_results` cannot reach."
+    )]
+    async fn termlink_channel_poll_results(
+        &self,
+        Parameters(p): Parameters<ChannelPollResultsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(envs) => envs,
+            Err(e) => return json_err(format!("walk_topic_full failed: {e}")),
+        };
+        let state = match compute_poll_state_mcp(&envelopes, p.poll_id) {
+            Some(s) => s,
+            None => {
+                return json_err(format!(
+                    "Topic '{}' has no poll_start at offset {} (or it is malformed)",
+                    p.topic, p.poll_id
+                ));
+            }
+        };
+        let opts: Vec<serde_json::Value> = state
+            .options
+            .iter()
+            .map(|o| {
+                serde_json::json!({
+                    "label": o.label,
+                    "count": o.count,
+                    "voters": o.voters,
+                })
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "poll_id": state.poll_id,
+            "question": state.question,
+            "options": opts,
+            "closed": state.closed,
+            "total_votes": state.total_votes,
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -28658,6 +28852,262 @@ YW\tJ
         let json = serde_json::json!({"topic": "dm:alice:bob"});
         let r: Result<ChannelPollEndParams, _> = serde_json::from_value(json);
         assert!(r.is_err(), "poll_id is a required field");
+    }
+
+    // --- T-1789 channel_poll_results ---------------------------------------
+
+    fn poll_envelope(
+        offset: u64,
+        msg_type: &str,
+        sender_id: &str,
+        ts: i64,
+        metadata: serde_json::Value,
+        payload_b64: &str,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "msg_type": msg_type,
+            "sender_id": sender_id,
+            "ts_unix_ms": ts,
+            "metadata": metadata,
+            "payload_b64": payload_b64,
+        })
+    }
+
+    #[test]
+    fn channel_poll_results_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "poll_id": 42});
+        let p: ChannelPollResultsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.poll_id, 42);
+    }
+
+    #[test]
+    fn channel_poll_results_params_rejects_missing_topic() {
+        let json = serde_json::json!({"poll_id": 42});
+        let r: Result<ChannelPollResultsParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "topic is a required field");
+    }
+
+    #[test]
+    fn channel_poll_results_params_rejects_missing_poll_id() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let r: Result<ChannelPollResultsParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "poll_id is a required field");
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_returns_none_when_no_start() {
+        let envs: Vec<serde_json::Value> = Vec::new();
+        assert!(compute_poll_state_mcp(&envs, 42).is_none());
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_returns_none_when_start_has_one_option() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("solo?");
+        let envs = vec![poll_envelope(
+            42,
+            "poll_start",
+            "alice",
+            100,
+            serde_json::json!({"poll_options": "only"}),
+            &q,
+        )];
+        assert!(compute_poll_state_mcp(&envs, 42).is_none());
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_tallies_votes_open_poll() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("lunch?");
+        let envs = vec![
+            poll_envelope(
+                42,
+                "poll_start",
+                "alice",
+                100,
+                serde_json::json!({"poll_options": "pizza|sushi|salad"}),
+                &q,
+            ),
+            poll_envelope(
+                43,
+                "poll_vote",
+                "bob",
+                101,
+                serde_json::json!({"poll_id": "42", "poll_choice": "0"}),
+                "",
+            ),
+            poll_envelope(
+                44,
+                "poll_vote",
+                "carol",
+                102,
+                serde_json::json!({"poll_id": "42", "poll_choice": "1"}),
+                "",
+            ),
+            poll_envelope(
+                45,
+                "poll_vote",
+                "dave",
+                103,
+                serde_json::json!({"poll_id": "42", "poll_choice": "0"}),
+                "",
+            ),
+        ];
+        let state = compute_poll_state_mcp(&envs, 42).expect("state present");
+        assert_eq!(state.poll_id, 42);
+        assert_eq!(state.question, "lunch?");
+        assert_eq!(state.closed, false);
+        assert_eq!(state.total_votes, 3);
+        assert_eq!(state.options.len(), 3);
+        assert_eq!(state.options[0].label, "pizza");
+        assert_eq!(state.options[0].count, 2);
+        assert_eq!(state.options[0].voters, vec!["bob".to_string(), "dave".to_string()]);
+        assert_eq!(state.options[1].count, 1);
+        assert_eq!(state.options[1].voters, vec!["carol".to_string()]);
+        assert_eq!(state.options[2].count, 0);
+        assert!(state.options[2].voters.is_empty());
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_latest_vote_per_sender_wins() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("q?");
+        let envs = vec![
+            poll_envelope(
+                10,
+                "poll_start",
+                "alice",
+                100,
+                serde_json::json!({"poll_options": "a|b"}),
+                &q,
+            ),
+            // bob votes a first, then b — b wins.
+            poll_envelope(
+                11,
+                "poll_vote",
+                "bob",
+                101,
+                serde_json::json!({"poll_id": "10", "poll_choice": "0"}),
+                "",
+            ),
+            poll_envelope(
+                12,
+                "poll_vote",
+                "bob",
+                102,
+                serde_json::json!({"poll_id": "10", "poll_choice": "1"}),
+                "",
+            ),
+        ];
+        let state = compute_poll_state_mcp(&envs, 10).expect("state present");
+        assert_eq!(state.total_votes, 1);
+        assert_eq!(state.options[0].count, 0); // a → dropped
+        assert_eq!(state.options[1].count, 1); // b → wins
+        assert_eq!(state.options[1].voters, vec!["bob".to_string()]);
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_out_of_range_choice_drops_voter() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("q?");
+        let envs = vec![
+            poll_envelope(
+                5,
+                "poll_start",
+                "alice",
+                100,
+                serde_json::json!({"poll_options": "a|b"}),
+                &q,
+            ),
+            poll_envelope(
+                6,
+                "poll_vote",
+                "bob",
+                101,
+                serde_json::json!({"poll_id": "5", "poll_choice": "9"}),
+                "",
+            ),
+        ];
+        let state = compute_poll_state_mcp(&envs, 5).expect("state present");
+        assert_eq!(state.total_votes, 0);
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_closed_poll_drops_votes_after_end_ts() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("q?");
+        let envs = vec![
+            poll_envelope(
+                7,
+                "poll_start",
+                "alice",
+                100,
+                serde_json::json!({"poll_options": "a|b"}),
+                &q,
+            ),
+            // Pre-end vote — counts.
+            poll_envelope(
+                8,
+                "poll_vote",
+                "bob",
+                150,
+                serde_json::json!({"poll_id": "7", "poll_choice": "0"}),
+                "",
+            ),
+            // poll_end at ts=200.
+            poll_envelope(
+                9,
+                "poll_end",
+                "alice",
+                200,
+                serde_json::json!({"poll_id": "7"}),
+                "",
+            ),
+            // Post-end vote — must be dropped.
+            poll_envelope(
+                10,
+                "poll_vote",
+                "carol",
+                201,
+                serde_json::json!({"poll_id": "7", "poll_choice": "1"}),
+                "",
+            ),
+        ];
+        let state = compute_poll_state_mcp(&envs, 7).expect("state present");
+        assert!(state.closed);
+        assert_eq!(state.total_votes, 1);
+        assert_eq!(state.options[0].count, 1);
+        assert_eq!(state.options[0].voters, vec!["bob".to_string()]);
+        assert_eq!(state.options[1].count, 0);
+    }
+
+    #[test]
+    fn compute_poll_state_mcp_ignores_other_poll_ids() {
+        use base64::Engine as _;
+        let q = base64::engine::general_purpose::STANDARD.encode("q?");
+        let envs = vec![
+            poll_envelope(
+                3,
+                "poll_start",
+                "alice",
+                100,
+                serde_json::json!({"poll_options": "a|b"}),
+                &q,
+            ),
+            // Vote on a DIFFERENT poll id — should not appear in tally.
+            poll_envelope(
+                4,
+                "poll_vote",
+                "bob",
+                101,
+                serde_json::json!({"poll_id": "999", "poll_choice": "0"}),
+                "",
+            ),
+        ];
+        let state = compute_poll_state_mcp(&envs, 3).expect("state present");
+        assert_eq!(state.total_votes, 0);
     }
 
     // --- T-1787 channel_receipts -------------------------------------------
