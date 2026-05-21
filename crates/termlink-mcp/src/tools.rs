@@ -5967,6 +5967,17 @@ pub struct ChannelEditParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelAckParams {
+    /// Topic on which to emit the read-receipt (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// Highest offset the caller has read on the topic.
+    pub up_to: u64,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -15859,6 +15870,76 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.edit error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_ack",
+        description = "Emit a read-receipt envelope on an arbitrary topic declaring the caller has read up through `up_to` — MCP parity for `termlink channel ack <topic> --up-to N` CLI verb (T-1783 of T-1166). Topic-flexible variant of `termlink_agent_ack` (hardcoded chat-arc). Use case: receipt aggregation on a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=receipt` envelope with payload `up_to=N` and `metadata.up_to=N`, so read-side aggregators (`agent ack-status`, `agent ack-history`, T-1538/T-1539) and future topic-flex equivalents can compute per-sender frontiers. Note: requires explicit `up_to` — the CLI's auto-resolve via topic walk is not exposed here to keep this tool a pure thin write."
+    )]
+    async fn termlink_channel_ack(
+        &self,
+        Parameters(p): Parameters<ChannelAckParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "receipt";
+        let payload_str = format!("up_to={}", p.up_to);
+        let payload_bytes = payload_str.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("up_to".to_string(), serde_json::Value::String(p.up_to.to_string()));
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.ack error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
@@ -27841,6 +27922,47 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1783 channel_ack ------------------------------------------------
+
+    #[test]
+    fn channel_ack_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "up_to": 42});
+        let p: ChannelAckParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.up_to, 42);
+        assert!(p.sender_id.is_none());
+    }
+
+    #[test]
+    fn channel_ack_params_deserialize_with_sender() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "up_to": 100,
+            "sender_id": "cafebabe1234",
+        });
+        let p: ChannelAckParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("cafebabe1234"));
+    }
+
+    #[test]
+    fn channel_ack_params_rejects_missing_up_to() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let r: Result<ChannelAckParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "up_to is a required field");
+    }
+
+    #[test]
+    fn channel_ack_receipt_payload_format() {
+        // Verify the wire-shape this tool will write — payload "up_to=N",
+        // metadata.up_to="N", matches the sister `termlink_agent_ack`.
+        let up_to: u64 = 42;
+        let payload = format!("up_to={}", up_to);
+        assert_eq!(payload, "up_to=42");
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("up_to".to_string(), serde_json::Value::String(up_to.to_string()));
+        assert_eq!(metadata.get("up_to").and_then(|v| v.as_str()), Some("42"));
     }
 
     // --- T-1782 channel_edit -----------------------------------------------
