@@ -1715,6 +1715,104 @@ fn compute_state_since_mcp(
         .collect()
 }
 
+/// T-1749: one row of a snapshot diff. `change_kind` classifies the per-offset
+/// transition between two `compute_snapshot_mcp` views.
+/// Mirror of CLI's `DiffRow` (channel.rs:6580).
+///
+/// - `"added"`:     offset absent at `from`, present at `to`
+/// - `"removed"`:   present at `from`, absent at `to` (e.g. redaction landed)
+/// - `"edited"`:    present in both; payload text differs
+/// - `"unchanged"`: present in both; payload identical
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DiffRowMcp {
+    offset: u64,
+    change_kind: &'static str,
+    sender_id: String,
+    from_payload: Option<String>,
+    to_payload: Option<String>,
+}
+
+impl DiffRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "change_kind": self.change_kind,
+            "sender_id": self.sender_id,
+            "from_payload": self.from_payload,
+            "to_payload": self.to_payload,
+        })
+    }
+}
+
+/// T-1749: pure helper — typed diff between two snapshots.
+/// Mirror of CLI's `compute_snapshot_diff` (channel.rs:6612).
+///
+/// Pipeline:
+/// 1. from_rows = compute_snapshot_mcp(envelopes, from_ms, include_redacted)
+/// 2. to_rows   = compute_snapshot_mcp(envelopes, to_ms,   include_redacted)
+/// 3. union of offsets, classified per-offset
+///
+/// Sort: offset asc.
+///
+/// `from_ms == to_ms` produces all-`unchanged` rows. The caller decides
+/// whether to filter unchanged out (matches CLI's `include_unchanged` flag).
+fn compute_snapshot_diff_mcp(
+    envelopes: &[serde_json::Value],
+    from_ms: i64,
+    to_ms: i64,
+    include_redacted: bool,
+) -> Vec<DiffRowMcp> {
+    use std::collections::{BTreeSet, HashMap};
+    let from_rows = compute_snapshot_mcp(envelopes, from_ms, include_redacted);
+    let to_rows = compute_snapshot_mcp(envelopes, to_ms, include_redacted);
+    let from_map: HashMap<u64, &StateRowMcp> = from_rows.iter().map(|r| (r.offset, r)).collect();
+    let to_map: HashMap<u64, &StateRowMcp> = to_rows.iter().map(|r| (r.offset, r)).collect();
+    let mut all_offsets: BTreeSet<u64> = BTreeSet::new();
+    all_offsets.extend(from_map.keys());
+    all_offsets.extend(to_map.keys());
+    let mut rows: Vec<DiffRowMcp> = Vec::with_capacity(all_offsets.len());
+    for off in all_offsets {
+        let f = from_map.get(&off);
+        let t = to_map.get(&off);
+        let (kind, from_payload, to_payload, sender) = match (f, t) {
+            (None, Some(tr)) => (
+                "added",
+                None,
+                Some(tr.payload.clone()),
+                tr.sender_id.clone(),
+            ),
+            (Some(fr), None) => (
+                "removed",
+                Some(fr.payload.clone()),
+                None,
+                fr.sender_id.clone(),
+            ),
+            (Some(fr), Some(tr)) => {
+                let kind = if fr.payload == tr.payload {
+                    "unchanged"
+                } else {
+                    "edited"
+                };
+                (
+                    kind,
+                    Some(fr.payload.clone()),
+                    Some(tr.payload.clone()),
+                    tr.sender_id.clone(),
+                )
+            }
+            (None, None) => unreachable!("offset came from union of both maps"),
+        };
+        rows.push(DiffRowMcp {
+            offset: off,
+            change_kind: kind,
+            sender_id: sender,
+            from_payload,
+            to_payload,
+        });
+    }
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4185,6 +4283,21 @@ pub struct ChannelSnapshotParams {
     pub as_of_ms: i64,
     /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSnapshotDiffParams {
+    /// Topic to diff.
+    pub topic: String,
+    /// Lower snapshot cutoff (unix ms).
+    pub from_ms: i64,
+    /// Upper snapshot cutoff (unix ms). May equal `from_ms` (yields all-unchanged).
+    pub to_ms: i64,
+    /// If true, redacted rows surface as `[REDACTED]` in either side. Default false.
+    pub include_redacted: Option<bool>,
+    /// If true, include rows whose payload is identical between the two snapshots.
+    /// Default false — "what changed" view (matches CLI default).
+    pub include_unchanged: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -20406,6 +20519,43 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_snapshot_diff",
+        description = "Typed snapshot diff for an arbitrary topic — MCP parity for the `termlink channel snapshot-diff` CLI verb (T-1383, channel.rs:6672). Computes two snapshots (`from_ms`, `to_ms`) and classifies each offset as `added`/`removed`/`edited`/`unchanged`. Completes the incremental-state triplet: `channel_snapshot` (point-in-time) + `channel_state_since` (cursor delta) + `channel_snapshot_diff` (two-snapshot diff). Use case: change-log generation, audit, regression diagnosis. `include_unchanged` defaults false (matches CLI) — pass true to surface identical rows too. Returns `{ok, topic, from_ms, to_ms, include_redacted, include_unchanged, rows: [{offset, change_kind, sender_id, from_payload, to_payload}], count}`. Pure read."
+    )]
+    async fn termlink_channel_snapshot_diff(
+        &self,
+        Parameters(p): Parameters<ChannelSnapshotDiffParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let include_redacted = p.include_redacted.unwrap_or(false);
+        let include_unchanged = p.include_unchanged.unwrap_or(false);
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let mut rows = compute_snapshot_diff_mcp(&envelopes, p.from_ms, p.to_ms, include_redacted);
+        if !include_unchanged {
+            rows.retain(|r| r.change_kind != "unchanged");
+        }
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(DiffRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "from_ms": p.from_ms,
+            "to_ms": p.to_ms,
+            "include_redacted": include_redacted,
+            "include_unchanged": include_unchanged,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -21692,6 +21842,134 @@ YW\tJ
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.since_ms, 1234567890);
         assert_eq!(p.include_redacted, Some(true));
+    }
+
+    // === T-1749: compute_snapshot_diff_mcp tests ===
+
+    #[test]
+    fn snapshot_diff_empty_input_returns_empty() {
+        let rows = compute_snapshot_diff_mcp(&[], 0, 1000, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn snapshot_diff_added_row() {
+        // Row exists in to-snapshot (ts=200) but not in from-snapshot (cutoff 100).
+        let envs = vec![state_env(10, "alice", "text", "new-post", 150)];
+        let rows = compute_snapshot_diff_mcp(&envs, 100, 200, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.change_kind, "added");
+        assert_eq!(r.sender_id, "alice");
+        assert_eq!(r.from_payload, None);
+        assert_eq!(r.to_payload, Some("new-post".to_string()));
+    }
+
+    #[test]
+    fn snapshot_diff_removed_row_via_redaction() {
+        // Row visible at ts=200, then redacted at ts=400. With include_redacted=false,
+        // it disappears from the to-snapshot at ts=500.
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 200),
+            state_redact_env(11, "alice", 10, 400),
+        ];
+        let rows = compute_snapshot_diff_mcp(&envs, 300, 500, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.change_kind, "removed");
+        assert_eq!(r.from_payload, Some("secret".to_string()));
+        assert_eq!(r.to_payload, None);
+    }
+
+    #[test]
+    fn snapshot_diff_edited_row() {
+        // Row exists at both points but text changed via an edit.
+        let envs = vec![
+            state_env(10, "alice", "text", "v1", 100),
+            state_edit_env(11, "alice", 10, "v2", 300),
+        ];
+        let rows = compute_snapshot_diff_mcp(&envs, 200, 400, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.change_kind, "edited");
+        assert_eq!(r.from_payload, Some("v1".to_string()));
+        assert_eq!(r.to_payload, Some("v2".to_string()));
+    }
+
+    #[test]
+    fn snapshot_diff_unchanged_present_when_no_filter() {
+        // Row identical at both points — kind = "unchanged" (helper does not
+        // filter; the caller decides whether to keep unchanged rows).
+        let envs = vec![state_env(10, "alice", "text", "stable", 100)];
+        let rows = compute_snapshot_diff_mcp(&envs, 200, 300, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.change_kind, "unchanged");
+        assert_eq!(r.from_payload, Some("stable".to_string()));
+        assert_eq!(r.to_payload, Some("stable".to_string()));
+    }
+
+    #[test]
+    fn snapshot_diff_equal_endpoints_all_unchanged() {
+        // from_ms == to_ms → both snapshots identical → all rows classified
+        // "unchanged" (and then dropped if caller filters them out, but the
+        // pure helper doesn't filter).
+        let envs = vec![
+            state_env(10, "a", "text", "p1", 100),
+            state_env(11, "b", "text", "p2", 200),
+        ];
+        let rows = compute_snapshot_diff_mcp(&envs, 300, 300, false);
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|r| r.change_kind == "unchanged"));
+    }
+
+    #[test]
+    fn snapshot_diff_rows_sorted_by_offset() {
+        let envs = vec![
+            state_env(30, "c", "text", "c-msg", 100),
+            state_env(10, "a", "text", "a-msg", 100),
+            state_env(20, "b", "text", "b-msg", 100),
+        ];
+        let rows = compute_snapshot_diff_mcp(&envs, 200, 300, false);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].offset, 10);
+        assert_eq!(rows[1].offset, 20);
+        assert_eq!(rows[2].offset, 30);
+    }
+
+    #[test]
+    fn snapshot_diff_params_minimal_deserialize() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "from_ms": 100,
+            "to_ms": 200,
+        });
+        let p: ChannelSnapshotDiffParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.from_ms, 100);
+        assert_eq!(p.to_ms, 200);
+        assert_eq!(p.include_redacted, None);
+        assert_eq!(p.include_unchanged, None);
+    }
+
+    #[test]
+    fn snapshot_diff_params_full_deserialize() {
+        let json = serde_json::json!({
+            "topic": "dm:alice:bob",
+            "from_ms": 1000_i64,
+            "to_ms": 2000_i64,
+            "include_redacted": true,
+            "include_unchanged": true,
+        });
+        let p: ChannelSnapshotDiffParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.from_ms, 1000);
+        assert_eq!(p.to_ms, 2000);
+        assert_eq!(p.include_redacted, Some(true));
+        assert_eq!(p.include_unchanged, Some(true));
     }
 
     // === T-1730 agent_mentions tests ===

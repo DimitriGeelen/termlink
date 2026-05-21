@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1749: termlink_channel_snapshot_diff MCP — typed snapshot delta
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T08:17:10Z
+# ============================================================================
+
+task_id: T-1749
+task_name: "termlink_channel_snapshot_diff MCP — typed snapshot delta"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T08:13:10Z
+completed: 2026-05-21T08:16:53Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`DiffRowMcp` struct (offset, change_kind: String, sender_id, from_payload: Option<String>, to_payload: Option<String>) + `to_json_mcp` added."
+  - "Pure helper `compute_snapshot_diff_mcp(envelopes, from_ms, to_ms, include_redacted)` returns `Vec<DiffRowMcp>` with offset-asc rows classified `added`/`removed`/`edited`/`unchanged` exactly matching CLI semantics (channel.rs:6612)."
+  - "`ChannelSnapshotDiffParams { topic, from_ms, to_ms, include_redacted: Option<bool>, include_unchanged: Option<bool> }` exposed."
+  - "`#[tool] termlink_channel_snapshot_diff` returns `{ok, topic, from_ms, to_ms, include_redacted, include_unchanged, rows, count}`. `include_unchanged=false` (default) drops unchanged rows post-classify (matches CLI default)."
+  - "Unit tests cover: empty envelopes, added (absent at from, present at to), removed (present at from, absent at to), edited (different payload), unchanged-included-when-flag-set, unchanged-dropped-by-default, from_ms==to_ms produces all-unchanged then filtered to empty."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1749-termlinkchannelsnapshotdiff-mcp--typed-s.md
+generated_by: context-agent-hybrid
