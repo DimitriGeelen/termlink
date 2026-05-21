@@ -2675,6 +2675,89 @@ fn compute_ack_status_mcp(
     rows
 }
 
+/// T-1763: one row of the per-emoji breakdown for `compute_emoji_stats_mcp`.
+/// Mirrors CLI `EmojiStatRow` shape (commands/channel.rs:4367).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EmojiStatRowMcp {
+    pub emoji: String,
+    pub count: u64,
+    /// `(sender_id, per-sender count)` sorted by count desc, sender asc.
+    pub reactors: Vec<(String, u64)>,
+}
+
+impl EmojiStatRowMcp {
+    pub(crate) fn to_json_mcp(&self) -> serde_json::Value {
+        let reactors: Vec<serde_json::Value> = self
+            .reactors
+            .iter()
+            .map(|(s, c)| serde_json::json!({"sender_id": s, "count": c}))
+            .collect();
+        serde_json::json!({
+            "emoji": self.emoji,
+            "count": self.count,
+            "distinct_reactors": self.reactors.len(),
+            "reactors": reactors,
+        })
+    }
+}
+
+/// T-1763: pure helper — compute per-emoji + per-sender reaction stats from a
+/// topic walk. Mirrors CLI `compute_emoji_stats` (commands/channel.rs:4396).
+/// Filters to `msg_type=reaction`, skips redacted offsets via
+/// `redacted_offsets_mcp`, groups per (emoji, sender), sorts:
+///   - rows: count desc, emoji asc
+///   - reactors within a row: count desc, sender asc
+///
+/// Value-add over MCP's existing `termlink_agent_emoji_stats` (which inlines
+/// a simpler shape `{emoji, count, last_used_ts}` with NO redaction handling
+/// and NO per-sender breakdown). This helper restores parity with the CLI.
+fn compute_emoji_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<EmojiStatRowMcp> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_emoji: HashMap<String, HashMap<String, u64>> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let emoji = decode_payload_lossy_mcp(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *by_emoji
+            .entry(emoji)
+            .or_default()
+            .entry(sender)
+            .or_insert(0) += 1;
+    }
+    let mut rows: Vec<EmojiStatRowMcp> = by_emoji
+        .into_iter()
+        .map(|(emoji, reactors_map)| {
+            let count = reactors_map.values().sum();
+            let mut reactors: Vec<(String, u64)> = reactors_map.into_iter().collect();
+            reactors.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+            EmojiStatRowMcp {
+                emoji,
+                count,
+                reactors,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.emoji.cmp(&b.emoji)));
+    rows
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5263,6 +5346,14 @@ pub struct ChannelAncestorsParams {
     pub offset: u64,
     /// Safety cap on chain depth. Default 100, clamped 1..=1024.
     pub max_depth: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelEmojiStatsParams {
+    /// Topic to aggregate emoji reactions for (any topic, not just chat-arc).
+    pub topic: String,
+    /// If set, return only the top-N rows by count (after the count-desc sort).
+    pub top: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -14445,6 +14536,37 @@ impl TermLinkTools {
             "topic": p.topic,
             "leaf": p.offset,
             "ancestors": entries,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_emoji_stats",
+        description = "Per-emoji + per-sender reaction breakdown on any topic — MCP parity for `termlink channel emoji-stats <topic>` CLI verb (T-1763 of T-1166). Walks the topic, filters `msg_type=reaction`, SKIPS redacted reactions (`redacted_offsets_mcp`), groups by emoji AND by sender, then sorts rows by total count desc / emoji asc and reactors within each row by per-sender count desc / sender asc. Three value-adds over `termlink_agent_emoji_stats`: (1) topic-flexible (any DM/topic, not just chat-arc); (2) per-sender reactor breakdown (the `--by-sender` CLI flag baked in); (3) respects redactions — agent_emoji_stats silently counts retracted reactions. Returns `{ok, topic, total_distinct_emojis, rows: [{emoji, count, distinct_reactors, reactors: [{sender_id, count}, ...]}, ...]}`. Optional `top` truncates after the sort. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_emoji_stats(
+        &self,
+        Parameters(p): Parameters<ChannelEmojiStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(e),
+        };
+        let mut rows = compute_emoji_stats_mcp(&envelopes);
+        let total = rows.len();
+        if let Some(n) = p.top {
+            rows.truncate(n as usize);
+        }
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(EmojiStatRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "total_distinct_emojis": total,
+            "rows": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -24852,6 +24974,134 @@ YW\tJ
         });
         let p: ChannelAncestorsParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.max_depth, Some(500));
+    }
+
+    // --- T-1763 channel_emoji_stats -----------------------------------------
+
+    fn reaction_env_emoji_stats(offset: u64, sender: &str, emoji: &str) -> serde_json::Value {
+        use base64::Engine;
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "reaction",
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(emoji.as_bytes()),
+        })
+    }
+
+    fn redaction_env_emoji_stats(offset: u64, target: u64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": "redactor",
+            "msg_type": "redaction",
+            "metadata": {"redacts": target.to_string()},
+        })
+    }
+
+    #[test]
+    fn emoji_stats_empty_envelopes() {
+        let rows = compute_emoji_stats_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn emoji_stats_single_emoji_one_reactor() {
+        let envs = vec![reaction_env_emoji_stats(10, "alice", "👍")];
+        let rows = compute_emoji_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].count, 1);
+        assert_eq!(rows[0].reactors, vec![("alice".to_string(), 1)]);
+    }
+
+    #[test]
+    fn emoji_stats_multi_emoji_sorted_count_desc_then_emoji_asc() {
+        // 🎉: 3, 👍: 3, ❤️: 1. Ties on count → emoji asc means ❤️ < 👍 < 🎉 lexicographically?
+        // We'll use 'a' and 'b' for predictable lexicographic ordering instead.
+        let envs = vec![
+            reaction_env_emoji_stats(10, "alice", "a"),
+            reaction_env_emoji_stats(11, "bob", "a"),
+            reaction_env_emoji_stats(12, "carol", "a"),
+            reaction_env_emoji_stats(13, "alice", "b"),
+            reaction_env_emoji_stats(14, "bob", "b"),
+            reaction_env_emoji_stats(15, "carol", "b"),
+            reaction_env_emoji_stats(16, "alice", "c"),
+        ];
+        let rows = compute_emoji_stats_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        // a and b tie at 3 — emoji asc puts a before b
+        assert_eq!(rows[0].emoji, "a");
+        assert_eq!(rows[0].count, 3);
+        assert_eq!(rows[1].emoji, "b");
+        assert_eq!(rows[1].count, 3);
+        assert_eq!(rows[2].emoji, "c");
+        assert_eq!(rows[2].count, 1);
+    }
+
+    #[test]
+    fn emoji_stats_reactors_sorted_count_desc_then_sender_asc() {
+        // emoji "x": alice ×3, bob ×3, carol ×1. Ties → sender asc.
+        let envs = vec![
+            reaction_env_emoji_stats(10, "alice", "x"),
+            reaction_env_emoji_stats(11, "alice", "x"),
+            reaction_env_emoji_stats(12, "alice", "x"),
+            reaction_env_emoji_stats(13, "bob", "x"),
+            reaction_env_emoji_stats(14, "bob", "x"),
+            reaction_env_emoji_stats(15, "bob", "x"),
+            reaction_env_emoji_stats(16, "carol", "x"),
+        ];
+        let rows = compute_emoji_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reactors, vec![
+            ("alice".to_string(), 3), // alice < bob lexicographically
+            ("bob".to_string(), 3),
+            ("carol".to_string(), 1),
+        ]);
+    }
+
+    #[test]
+    fn emoji_stats_skips_redacted_reactions() {
+        // Reaction at offset 10 is redacted; reaction at offset 11 is not.
+        let envs = vec![
+            reaction_env_emoji_stats(10, "alice", "👍"),
+            reaction_env_emoji_stats(11, "bob", "👍"),
+            redaction_env_emoji_stats(20, 10),
+        ];
+        let rows = compute_emoji_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 1, "only bob's non-redacted reaction counts");
+        assert_eq!(rows[0].reactors, vec![("bob".to_string(), 1)]);
+    }
+
+    #[test]
+    fn emoji_stats_row_to_json_shape() {
+        let row = EmojiStatRowMcp {
+            emoji: "🎉".to_string(),
+            count: 5,
+            reactors: vec![("alice".to_string(), 3), ("bob".to_string(), 2)],
+        };
+        let j = row.to_json_mcp();
+        assert_eq!(j.get("emoji").and_then(|v| v.as_str()), Some("🎉"));
+        assert_eq!(j.get("count").and_then(|v| v.as_u64()), Some(5));
+        assert_eq!(j.get("distinct_reactors").and_then(|v| v.as_u64()), Some(2));
+        let reactors = j.get("reactors").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(reactors.len(), 2);
+        assert_eq!(reactors[0].get("sender_id").and_then(|v| v.as_str()), Some("alice"));
+        assert_eq!(reactors[0].get("count").and_then(|v| v.as_u64()), Some(3));
+    }
+
+    #[test]
+    fn channel_emoji_stats_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelEmojiStatsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.top.is_none());
+    }
+
+    #[test]
+    fn channel_emoji_stats_params_with_top() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "top": 10_u64});
+        let p: ChannelEmojiStatsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.top, Some(10));
     }
 
     #[test]
