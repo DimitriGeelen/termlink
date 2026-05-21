@@ -5955,6 +5955,18 @@ pub struct ChannelThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelEditParams {
+    /// Topic on which to emit the edit (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Offset of the post being edited.
+    pub offset: u64,
+    /// New post content. Replaces the original at render time.
+    pub text: String,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -15781,6 +15793,75 @@ impl TermLinkTools {
             "thread": entries,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_edit",
+        description = "Edit a post by offset on an arbitrary topic — MCP parity for `termlink channel edit <topic> <offset> <text>` CLI verb (T-1782 of T-1166). Topic-flexible variant of `termlink_agent_edit` (hardcoded chat-arc). Use case: revise a post in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=edit` envelope with payload=`text.into_bytes()` (the new content) and `metadata.replaces=<offset>`. Append-only — the original envelope stays in the topic; reader-side aggregators (e.g. `agent edits-of` / future `channel edits-of`) decide whether to render the collapsed view. Returns the raw `channel.post` result envelope on success."
+    )]
+    async fn termlink_channel_edit(
+        &self,
+        Parameters(p): Parameters<ChannelEditParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "edit";
+        let payload_bytes = p.text.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("replaces".to_string(), serde_json::Value::String(p.offset.to_string()));
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.edit error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
     }
 
     #[tool(
@@ -27760,6 +27841,36 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1782 channel_edit -----------------------------------------------
+
+    #[test]
+    fn channel_edit_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "offset": 42, "text": "fixed"});
+        let p: ChannelEditParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.offset, 42);
+        assert_eq!(p.text, "fixed");
+    }
+
+    #[test]
+    fn channel_edit_params_deserialize_with_sender() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "offset": 1,
+            "text": "v2",
+            "sender_id": "deadbeef0123",
+        });
+        let p: ChannelEditParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    #[test]
+    fn channel_edit_params_rejects_missing_text() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "offset": 1});
+        let r: Result<ChannelEditParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "text is a required field");
     }
 
     // --- T-1781 channel_redact ---------------------------------------------
