@@ -5539,6 +5539,15 @@ pub struct ChannelSnippetParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelReactionsOfParams {
+    /// Topic to walk for reactions (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Sender to filter reactions by. Defaults to caller's local Identity
+    /// fingerprint when omitted (most common "my reactions" query).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -14832,6 +14841,47 @@ impl TermLinkTools {
             "topic": p.topic,
             "target_offset": p.target,
             "lines": arr,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_reactions_of",
+        description = "Per-sender reaction history with parent-post preview on any topic — MCP parity for `termlink channel reactions-of <topic> [--sender ID]` CLI verb (T-1766 of T-1166). Walks the topic, filters `msg_type=reaction` by `sender_id`, skips redacted reactions, attaches parent_payload preview. Three value-adds over `termlink_agent_reactions_by` (chat-arc only): (1) topic-flexible (any DM/topic); (2) richer row shape with `parent_payload` — agent_reactions_by has none; (3) respects redactions — agent_reactions_by silently includes retracted reactions. `sender_id` defaults to caller's local Identity fingerprint when omitted (most common 'my reactions' query). Returns `{ok, topic, sender_id, rows: [{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted newest-first. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_reactions_of(
+        &self,
+        Parameters(p): Parameters<ChannelReactionsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let sender_id = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_reactions_of_mcp(&envelopes, &sender_id);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(ReactionsOfRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "sender_id": sender_id,
+            "rows": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -25585,6 +25635,26 @@ YW\tJ
         });
         let p: ChannelSnippetParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.lines, Some(10));
+    }
+
+    // --- T-1766 channel_reactions_of ----------------------------------------
+
+    #[test]
+    fn channel_reactions_of_params_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelReactionsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.sender_id.is_none());
+    }
+
+    #[test]
+    fn channel_reactions_of_params_with_sender() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "sender_id": "deadbeef0123",
+        });
+        let p: ChannelReactionsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
     }
 
     #[test]
