@@ -3079,13 +3079,13 @@ pub struct AgentStatsParams {
 /// MCP parity for the `termlink agent overview` CLI verb (T-1495).
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentOverviewParams {
-    /// Window in seconds. Default 86400 (24h); clamped 60..=604800
-    /// (1m..7d). Envelopes older than `now - window_secs` are dropped
-    /// from in-window counts.
+    /// Window in seconds. Default 3600 (1h, matches CLI); clamped
+    /// 60..=604800 (1m..7d). Envelopes older than `now - window_secs`
+    /// are dropped from in-window counts.
     pub window_secs: Option<u64>,
-    /// Per-section truncation. Default 10; clamped 1..=50. Applied to
-    /// each of `peers`, `projects`, and `recent_posts` independently;
-    /// each is sorted then truncated to this many rows.
+    /// Per-section truncation. Default 5 (matches CLI); clamped 1..=50.
+    /// Applied to each of `peers`, `projects`, and `recent_posts`
+    /// independently; each is sorted then truncated to this many rows.
     pub top: Option<usize>,
 }
 
@@ -3095,12 +3095,13 @@ pub struct AgentOverviewParams {
 /// `termlink_agent_recent_window` (which is single-peer).
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentTimelineParams {
-    /// Max posts to return. Default 30; clamped 1..=500. Posts are kept
-    /// newest-N after chrono asc sort, so output remains in chronological
-    /// reading order.
+    /// Max posts to return. Default 50 (matches CLI); clamped 1..=500.
+    /// Posts are kept newest-N after chrono asc sort, so output remains
+    /// in chronological reading order.
     pub n: Option<usize>,
-    /// Window in seconds. Default 86400 (24h); clamped 60..=604800 (1m..7d).
-    /// Posts older than `now - window_secs` are dropped.
+    /// Window in seconds. Default 3600 (1h, matches CLI); clamped
+    /// 60..=604800 (1m..7d). Posts older than `now - window_secs` are
+    /// dropped.
     pub window_secs: Option<u64>,
     /// Optional thread filter — only return posts where
     /// `metadata.thread` (or legacy `metadata._thread`) equals this value.
@@ -11751,7 +11752,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_timeline",
-        description = "Fleet-wide chronological log of recent posts on `agent-chat-arc` — MCP parity for the `termlink agent timeline` CLI verb (T-1500). Returns up to `n` (default 30, clamped 1..=500) content envelopes from within the last `window_secs` (default 86400, clamped 60..=604800) sorted chronologically ascending (oldest first; natural reading flow). Meta types (reaction/edit/redaction/topic_metadata/receipt) are always excluded. Optional filters AND-compose: `filter_thread` (matches `metadata.thread` or `metadata._thread`), `filter_project` (matches `metadata.from_project`), `filter_msg_types` (allowlist applied after meta exclusion), `filter_grep` (case-insensitive substring against rendered content). Content is truncated at 200 chars with `…` suffix. Use this when you want a 'tail -f for the fleet' view — companion to `termlink_agent_recent_window` (single-peer) and `termlink_agent_on_thread` (single-thread). Returns `{ok, verb, window_secs, n, filter_*, posts: [{offset, ts_ms, peer_fp, msg_type, content, thread, project}, ...]}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+        description = "Fleet-wide chronological log of recent posts on `agent-chat-arc` — MCP parity for the `termlink agent timeline` CLI verb (T-1500). Returns up to `n` (default 50, clamped 1..=500) content envelopes from within the last `window_secs` (default 3600, clamped 60..=604800) sorted chronologically ascending (oldest first; natural reading flow). Meta types (reaction/edit/redaction/topic_metadata/receipt) are always excluded. Optional filters AND-compose: `filter_thread` (matches `metadata.thread` or `metadata._thread`), `filter_project` (matches `metadata.from_project`), `filter_msg_types` (allowlist applied after meta exclusion), `filter_grep` (case-insensitive substring against rendered content). Content is truncated at 200 chars with `…` suffix. Use this when you want a 'tail -f for the fleet' view — companion to `termlink_agent_recent_window` (single-peer) and `termlink_agent_on_thread` (single-thread). Returns `{ok, verb, window_secs, n, filter_*, posts: [{offset, ts_ms, peer_fp, msg_type, content, thread, project}, ...]}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
     )]
     async fn termlink_agent_timeline(
         &self,
@@ -11761,8 +11762,8 @@ impl TermLinkTools {
         if !hub_socket.exists() {
             return json_err("Hub is not running (no socket found)");
         }
-        let clamped_n = p.n.unwrap_or(30).clamp(1, 500);
-        let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
+        let clamped_n = p.n.unwrap_or(50).clamp(1, 500);
+        let clamped_window_secs = p.window_secs.unwrap_or(3_600).clamp(60, 604_800);
         let msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 1000).await {
             Ok(m) => m,
             Err(e) => return json_err(format!("fetch agent-chat-arc: {e}")),
@@ -11889,7 +11890,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_overview",
-        description = "Composite fleet digest on `agent-chat-arc` — MCP parity for the `termlink agent overview` CLI verb (T-1495). One round-trip; three sections in one envelope: (1) `peers` — fleet presence sorted by in-window posts desc, with `top_project` per peer; (2) `projects` — by-project aggregation with `top_peer_fp` and `distinct_peers`; (3) `recent_posts` — last N content posts chronologically. Use this as a single-shot 'first look' at the fleet: who's active, what they're working on, what was just said. Defaults: window=86400s (24h, clamped 60..=604800), top=10 (clamped 1..=50). META msg_types (reaction/edit/redaction/topic_metadata/receipt) excluded throughout. Untagged posts excluded from `projects` (project IS the key) but counted in `peers` and `recent_posts`. Returns `{ok, verb, window_secs, top, peers, projects, recent_posts, total_peers, total_projects}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only, with a wider 2000-envelope slice for fleet coverage."
+        description = "Composite fleet digest on `agent-chat-arc` — MCP parity for the `termlink agent overview` CLI verb (T-1495). One round-trip; three sections in one envelope: (1) `peers` — fleet presence sorted by in-window posts desc, with `top_project` per peer; (2) `projects` — by-project aggregation with `top_peer_fp` and `distinct_peers`; (3) `recent_posts` — last N content posts chronologically. Use this as a single-shot 'first look' at the fleet: who's active, what they're working on, what was just said. Defaults: window=3600s (1h, clamped 60..=604800), top=5 (clamped 1..=50). META msg_types (reaction/edit/redaction/topic_metadata/receipt) excluded throughout. Untagged posts excluded from `projects` (project IS the key) but counted in `peers` and `recent_posts`. Returns `{ok, verb, window_secs, top, peers, projects, recent_posts, total_peers, total_projects}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only, with a wider 2000-envelope slice for fleet coverage."
     )]
     async fn termlink_agent_overview(
         &self,
@@ -11899,8 +11900,8 @@ impl TermLinkTools {
         if !hub_socket.exists() {
             return json_err("Hub is not running (no socket found)");
         }
-        let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
-        let clamped_top = p.top.unwrap_or(10).clamp(1, 50);
+        let clamped_window_secs = p.window_secs.unwrap_or(3_600).clamp(60, 604_800);
+        let clamped_top = p.top.unwrap_or(5).clamp(1, 50);
         // Wider slice (2000) than stats/timeline — overview wants enough
         // fleet coverage for both presence and recent posts.
         let msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 2000).await {
