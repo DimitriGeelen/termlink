@@ -86,20 +86,92 @@ After spikes, classify the gap as (a)/(b)/(c)/(d) and write the recommendation i
 
 ## Findings
 
-<!-- Filled in as exploration progresses. Each spike produces a finding subsection. -->
+### Spike 1 — re-count under quiet conditions (CONFIRMED A-1, partially confirmed A-4)
 
-### Spike 1 — re-count under quiet conditions
+Commands used: `termlink channel list --json` on `.107` (local) and `--hub 192.168.10.122:9100` on `.122`. Both queried within ~30 seconds, no live posters intervening.
 
-<!-- to be filled when spike runs -->
+| Hub | `agent-chat-arc` count | Retention | Delta vs PL-176 |
+|---|---|---|---|
+| .107 (this host) | 1804 | forever | +4 since 1800 |
+| .122 (ring20-management) | 490 | forever | +4 since 486 |
+| **Gap** | **1314** | — | **stable** (no growth) |
 
-### Spike 2 — chat-arc-vs-other comparison
+**A-1 CONFIRMED.** The disparity is real, not measurement artefact at the count level. **A-4 PARTIAL.** The gap is **stable in absolute terms**, not actively widening — both hubs gained the same 4 messages. This is inconsistent with "federation is currently broken" (which would grow the gap monotonically); more consistent with "federation never existed but two hubs happen to receive the same volume of new posts independently".
 
-<!-- to be filled when spike runs -->
+### Spike 2 — chat-arc-vs-other comparison (FALSIFIED A-2)
 
-### Spike 3 — federation pairing audit
+Commands used: `comm -12` on sorted topic names + per-topic `count` join via Python script.
 
-<!-- to be filled when spike runs -->
+Topic-count summary:
+- `.107`: **1143 topics**, mostly local activity + test artefacts
+- `.122`: **43 topics**, much smaller volume
+- **Intersection: only 12 topics**, mostly high-volume coordination topics
+
+Per-shared-topic delta (`.107 - .122`), sorted by absolute delta:
+
+| .107 | .122 | delta | topic |
+|---|---|---|---|
+| 1804 | 490 | **+1314** | agent-chat-arc |
+| 533 | 11 | **+522** | broadcast:global |
+| 112 | 1 | **+111** | channel:learnings |
+| 21 | 8 | +13 | framework:pickup |
+| 20 | 27 | **−7** | dm:9219671e…:d1993c2c… |
+| 7 | 1 | +6 | routing:lint |
+| 9 | 6 | +3 | multi-agent-e2e-10679 (and 4 others) |
+| 6 | 6 | 0 | multi-agent-e2e-7274 |
+
+Also: **31 topics exist ONLY on .122** — test artefacts (xhub-bidir-B-*, xhub-post-*, xhub-real-*, t1443-cross-host-smoke-*, cross-hub-probe-*) plus two DM topics `dm:33df8954…:ring20-management-agent` and `dm:9219671e…:9219671e…`. These topics were never reflected back to .107.
+
+**A-2 FALSIFIED.** Chat-arc is **not chat-arc-specific** — multiple high-volume topics show massive deltas (broadcast:global +522, channel:learnings +111). And one DM topic goes the OTHER way. The pattern is **systemic across all topics**, not a chat-arc bug.
+
+### Spike 3 — federation pairing audit (REVEALS THE STRUCTURAL TRUTH)
+
+Two sub-investigations:
+
+**3a. Connectivity & version health:** `termlink fleet doctor --include-pin-check` on .107 reports all 5 configured hubs reachable, all PASS, pins OK. Version skew detected (one hub on 0.9.0, two on 0.9.2110, two on 0.9.2127) — but this is operational hygiene, not federation specifically.
+
+**3b. Federation code path:** `grep -rn` across `crates/termlink-hub/src/` and `crates/termlink-protocol/src/` for `federat`, `peer_subscribe`, `cross_hub`, `topic_replic`, `inter_hub`, `hub.peer`, `hub.subscribe` (channel-flavored). **Result: no inter-hub channel-topic replication primitive exists in the codebase.**
+
+The only `forward_to_*` paths in `router.rs` (1649: `forward_to_target`, 2844: `forward_to_remote_session_via_tcp`) operate at the SESSION level — routing an RPC from one hub to a session on another hub. They don't replicate channel-topic state between hubs.
+
+**3c. Smoking-gun evidence — offset 486 on .122 chat-arc.** Read directly via `termlink channel subscribe agent-chat-arc --cursor 484 --limit 6 --hub 192.168.10.122:9100`. The envelope is a PROBE message from cohort-agent stating:
+
+> "Both hubs running independent agent-chat-arc topics (.107=1800 msgs, .122=486 msgs) — **they don't auto-federate**. Will follow with brand bundle in next post if this lands. Every cohort→ring20 message can be `remote_call channel.post`'d into .122 from now on, no operator-relay needed."
+
+The cohort-agent had **already determined this** during T-209 / T-1438 work on 2026-05-21 — channel topics with the same name on different hubs are **independent**. Cross-hub coordination happens at the CLIENT level: a client uses `--hub <addr>` or `remote_call channel.post` to push the same message into multiple hubs.
+
+**A-3 FALSIFIED (the wrong way).** Not "subscriptions are healthy" but "subscriptions don't exist as a concept for channel topics". There is no peer-subscription state to be healthy or unhealthy.
+
+## Diagnosis: H-d (refined) — the FRAMING was wrong, not the federation
+
+**The "federation gap" is not a code bug or operational drift.** PL-176's framing rested on a false premise: that channel topics auto-federate between hubs. They do not. TermLink hubs maintain independent topic storage. Topics with the same name on different hubs are unrelated state — the way two unrelated databases happen to have a table named `users`.
+
+The "DM federation" PL-176 observed working **also wasn't federation** — it was the cohort-agent (and other actors) manually cross-posting via `remote_call channel.post`. PL-176's diagnostic comparison (chat-arc disparity vs DM apparent-sync) compared **inconsistent cross-posting** (chat-arc, lower fraction explicitly cross-posted) against **consistent cross-posting** (DMs, cohort-agent always cross-posts).
+
+The 1314-message gap on chat-arc reflects:
+- Messages posted directly to .107's hub (by clients connected to .107) without being cross-posted to .122
+- Messages posted directly to .122's hub (by clients connected to .122) without being cross-posted to .107
+- Plus a smaller fraction of messages that WERE cross-posted (which appear on both)
+
+There is no "fix" in the federation path because there is no federation path.
+
+## Implications for T-1166
+
+T-1166's retirement of `event.broadcast` / `inbox.push` / `file.send/receive` is **not blocked by G-060** under this corrected diagnosis. The legacy primitives being retired were ALSO single-hub (event.broadcast was hub-local). Channel topics replace them at parity — same single-hub semantics, much richer primitive set (now with full MCP parity per T-1789 + T-1790 + PL-177).
+
+The retirement story is sound. What G-060 actually reveals is a **mental-model gap**: when the cohort agent and others assumed channel topics federate, they built (correct) workarounds via `remote_call channel.post` cross-posting, but the assumption persisted in observations like PL-176. The structural risk is that future agents (and humans) might make the same wrong assumption.
 
 ## Final recommendation
 
-<!-- Replaces the filing-time DEFER with a fully-evidenced GO/NO-GO/DEFER citing the spikes. -->
+**Recommendation: DEFER with G-060 reframe** (not the originally-anticipated "DEFER pending more evidence"). The original GO/NO-GO/DEFER axes don't apply because the framing was wrong.
+
+**Concretely propose three follow-up tasks (none of them T-1166 blockers):**
+
+1. **Downgrade G-060** from `severity: high, type: gap` to `severity: low, type: documentation-gap` (or close entirely with a learning capturing the refined framing).
+2. **Documentation task** (small, scoped): add a section to `docs/operations/` or `CLAUDE.md` stating "channel topics are per-hub; cross-hub message visibility requires explicit `--hub <addr>` posting or `remote_call channel.post`. Topics with the same name on different hubs are independent state."
+3. **Optional inception** (separate, much larger): does the fleet WANT automatic inter-hub channel-topic federation? Concrete benefits (cleaner agent UX) vs costs (significantly more state-sync complexity, consistency models, conflict resolution). NOT decided here — a future architectural question.
+
+T-1166 retirement cuts can proceed without waiting on any of the three. The MCP-parity arc closure (T-1789 / T-1790 / PL-177) remains sufficient justification for retiring the legacy primitives.
+
+**Update PL-176** to correct the framing: DM topics also don't auto-federate; the apparent sync was cohort-agent cross-posting. Add the diagnostic recipe: `comm -12` on `termlink channel list` topic names from both hubs, compare counts per shared topic, look for the cross-posting pattern in envelope sender_ids.
+

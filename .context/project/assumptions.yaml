@@ -123,36 +123,56 @@ assumptions:
 - id: A-015
   statement: The 1800 vs 486 chat-arc count disparity between .107 and .122 is real,
     not a measurement artefact
-  status: untested
+  status: validated
   validation_method: TBD
-  evidence: []
+  evidence:
+  - outcome: 'Spike 1 confirmed: .107=1804, .122=490, gap=1314 — disparity reproduces
+      exactly. PL-176 figures (1800/486, gap=1314) match within +4 each hub.'
+    date: '2026-05-21'
   linked_task: T-1791
   created: '2026-05-21'
-  resolved_date: null
+  resolved_date: '2026-05-21'
 - id: A-016
   statement: The disparity is chat-arc-specific (other topics on both hubs do not
     show comparable shape)
-  status: untested
+  status: validated
   validation_method: TBD
-  evidence: []
+  evidence:
+  - outcome: 'Spike 2 FALSIFIES this assumption: chat-arc is not the outlier. broadcast:global=+522,
+      channel:learnings=+111, framework:pickup=+13, plus 31 topics exist only on .122
+      and one DM topic goes the other way (.122 has 7 more than .107). Pattern is
+      systemic across all topics, not chat-arc-specific.'
+    date: '2026-05-21'
   linked_task: T-1791
   created: '2026-05-21'
-  resolved_date: null
+  resolved_date: '2026-05-21'
 - id: A-017
   statement: Both hubs nominally agree they are peers (the federation subscription
     is in place)
-  status: untested
+  status: validated
   validation_method: TBD
-  evidence: []
+  evidence:
+  - outcome: 'Spike 3 FALSIFIES the underlying premise — there is no inter-hub channel-topic
+      federation primitive in the codebase. grep -rn for federat/peer_subscribe/cross_hub/topic_replic/inter_hub
+      across termlink-hub + termlink-protocol returns 0 matches. router.rs forward_to_*
+      is session-level RPC routing, not channel state replication. Smoking-gun: offset
+      486 on .122 chat-arc is a cohort-agent probe explicitly stating ''they don''t
+      auto-federate'' (2026-05-21).'
+    date: '2026-05-21'
   linked_task: T-1791
   created: '2026-05-21'
-  resolved_date: null
+  resolved_date: '2026-05-21'
 - id: A-018
   statement: If federation is currently broken, the disparity is monotonically growing
     (not converging under low traffic)
-  status: untested
+  status: validated
   validation_method: TBD
-  evidence: []
+  evidence:
+  - outcome: 'Spike 1 falsifies: the gap is stable in absolute terms (1314 before
+      and after; both hubs grew by 4). Not consistent with ''federation actively broken''
+      — consistent with ''no federation exists, two hubs independently receive new
+      posts at similar rates from clients connected to each''.'
+    date: '2026-05-21'
   linked_task: T-1791
   created: '2026-05-21'
-  resolved_date: null
+  resolved_date: '2026-05-21'
