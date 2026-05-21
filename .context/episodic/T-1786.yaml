@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1786: termlink_channel_forward MCP — re-post envelope across topics (T-1166 wedge, NEW verb)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T17:32:34Z
+# ============================================================================
+
+task_id: T-1786
+task_name: "termlink_channel_forward MCP — re-post envelope across topics (T-1166 wedge, NEW verb)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T17:30:22Z
+completed: 2026-05-21T17:32:16Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelForwardParams` struct exposes `src_topic`, `offset`, `dst_topic`, optional `sender_id`"
+  - "`termlink_channel_forward` tool method walks src via `CHANNEL_SUBSCRIBE`, extracts payload+msg_type+original_sender, posts to dst via `CHANNEL_POST` with `metadata.forwarded_from=src:N` + `metadata.forwarded_sender=<original>`"
+  - "Implementation mirrors CLI `cmd_channel_forward` semantics (forwarder is sender on record — NOT a faithful relay)"
+  - "Returns clear error if source envelope at offset not found"
+  - "Description doc references T-1786 + T-1166 + the no-sister-MCP note + the G-060 motivation"
+  - "Unit tests: params deserialize + metadata-shape sanity matching CLI `build_forward_metadata`"
+  - "`cargo build -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp --lib` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1786-termlinkchannelforward-mcp--re-post-enve.md
+generated_by: context-agent-hybrid

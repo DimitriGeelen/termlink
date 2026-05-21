@@ -6005,6 +6005,19 @@ pub struct ChannelQuoteParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelForwardParams {
+    /// Topic to read the envelope from.
+    pub src_topic: String,
+    /// Offset of the envelope on `src_topic` to forward.
+    pub offset: u64,
+    /// Topic to re-post the envelope onto. Forwarder (caller identity)
+    /// becomes the sender of record — this is NOT a faithful relay.
+    pub dst_topic: String,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -16109,6 +16122,113 @@ impl TermLinkTools {
             "parent": parent_json,
         });
         serde_json::to_string_pretty(&body).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_forward",
+        description = "Re-post an envelope from one topic to another — MCP parity for `termlink channel forward <src> <offset> <dst>` CLI verb (T-1786 of T-1166). NEW MCP verb (no `termlink_agent_forward` sister — forward inherently requires a destination topic, so it's topic-flex by nature). Walks `src_topic` via channel.subscribe, finds the envelope at `offset`, then posts a new envelope on `dst_topic` with the same msg_type and payload, signed by the forwarder's identity (NOT a faithful relay — the forwarder becomes the sender on record). Metadata records `forwarded_from=<src_topic>:<offset>` and `forwarded_sender=<original_sender_id>` for trace-back. Especially relevant post-G-060 (agent-chat-arc federation gap) — operators can forward chat-arc posts to project/DM topics that DO federate."
+    )]
+    async fn termlink_channel_forward(
+        &self,
+        Parameters(p): Parameters<ChannelForwardParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.src_topic).await {
+            Ok(envs) => envs,
+            Err(e) => return json_err(format!("walk_topic_full failed on src: {e}")),
+        };
+        let src_env = match envelopes
+            .iter()
+            .find(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(p.offset))
+        {
+            Some(e) => e,
+            None => {
+                return json_err(format!(
+                    "Source topic '{}' has no envelope at offset {}",
+                    p.src_topic, p.offset
+                ));
+            }
+        };
+        let original_sender = src_env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let original_msg_type = src_env
+            .get("msg_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("post")
+            .to_string();
+        let src_payload_b64 = src_env
+            .get("payload_b64")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let payload_bytes = base64::engine::general_purpose::STANDARD
+            .decode(src_payload_b64)
+            .unwrap_or_default();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.dst_topic,
+            &original_msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "forwarded_from".to_string(),
+            serde_json::Value::String(format!("{}:{}", p.src_topic, p.offset)),
+        );
+        metadata.insert(
+            "forwarded_sender".to_string(),
+            serde_json::Value::String(original_sender),
+        );
+        let params = serde_json::json!({
+            "topic": p.dst_topic,
+            "msg_type": original_msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.forward error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
     }
 
     #[tool(
@@ -28088,6 +28208,67 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1786 channel_forward --------------------------------------------
+
+    #[test]
+    fn channel_forward_params_deserialize_minimal() {
+        let json = serde_json::json!({
+            "src_topic": "agent-chat-arc",
+            "offset": 1785,
+            "dst_topic": "dm:alice:bob",
+        });
+        let p: ChannelForwardParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.src_topic, "agent-chat-arc");
+        assert_eq!(p.offset, 1785);
+        assert_eq!(p.dst_topic, "dm:alice:bob");
+        assert!(p.sender_id.is_none());
+    }
+
+    #[test]
+    fn channel_forward_params_deserialize_with_sender() {
+        let json = serde_json::json!({
+            "src_topic": "agent-chat-arc",
+            "offset": 1,
+            "dst_topic": "channel:project:010-termlink",
+            "sender_id": "abc123",
+        });
+        let p: ChannelForwardParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn channel_forward_params_rejects_missing_dst_topic() {
+        let json = serde_json::json!({"src_topic": "agent-chat-arc", "offset": 1});
+        let r: Result<ChannelForwardParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "dst_topic is a required field");
+    }
+
+    #[test]
+    fn channel_forward_metadata_format_matches_cli() {
+        // Verify the wire-shape — matches CLI build_forward_metadata
+        // (channel.rs:3440): forwarded_from=<src>:<offset>, forwarded_sender=<id>.
+        let src_topic = "agent-chat-arc";
+        let offset: u64 = 1785;
+        let original_sender = "deadbeef0123";
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "forwarded_from".to_string(),
+            serde_json::Value::String(format!("{}:{}", src_topic, offset)),
+        );
+        metadata.insert(
+            "forwarded_sender".to_string(),
+            serde_json::Value::String(original_sender.to_string()),
+        );
+        assert_eq!(
+            metadata.get("forwarded_from").and_then(|v| v.as_str()),
+            Some("agent-chat-arc:1785")
+        );
+        assert_eq!(
+            metadata.get("forwarded_sender").and_then(|v| v.as_str()),
+            Some("deadbeef0123")
+        );
     }
 
     // --- T-1785 channel_quote ----------------------------------------------
