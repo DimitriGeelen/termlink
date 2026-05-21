@@ -4864,6 +4864,14 @@ pub struct ChannelTopicStatsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelRelationsParams {
+    /// Topic that contains the target offset.
+    pub topic: String,
+    /// Offset of the envelope whose relations should be aggregated.
+    pub target: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -21343,6 +21351,46 @@ impl TermLinkTools {
         serde_json::to_string_pretty(&out).unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_relations",
+        description = "Unified per-target relations report on an arbitrary topic — MCP parity for the `termlink channel relations <TOPIC> <OFFSET>` CLI verb (T-1378, channel.rs:6181). Topic-flexible variant of `termlink_agent_relations` (which is hardcoded to agent-chat-arc). Matrix Client API `/relations/{eventId}` analogue: consolidates replies, reactions, edits, and redactions for a single target offset. Forwards are excluded (cross-topic, see `termlink_agent_forwards_of` per-sender). Each list filters out relation envelopes whose own offset is in the redaction set, and is sorted ts_ms ascending with offset ascending tiebreak. `target_sender` / `target_payload` come from the target envelope if present. Errors when target is absent from the topic (matches CLI bail + agent_relations parity). Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}` where each list contains `{offset, sender_id, ts_ms, payload}` entries (redaction payload = `metadata.reason`). Pure read."
+    )]
+    async fn termlink_channel_relations(
+        &self,
+        Parameters(p): Parameters<ChannelRelationsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        if !envelopes
+            .iter()
+            .any(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(p.target))
+        {
+            return json_err(format!(
+                "Topic '{}' has no envelope at offset {}",
+                p.topic, p.target
+            ));
+        }
+        let r = compute_relations_mcp(&envelopes, p.target);
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "target_offset": r.target_offset,
+            "target_sender": r.target_sender,
+            "target_payload": r.target_payload,
+            "replies": r.replies.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "reactions": r.reactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "edits": r.edits.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "redactions": r.redactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -23514,6 +23562,25 @@ YW\tJ
         let json = serde_json::json!({"topic": "agent-chat-arc"});
         let p: ChannelTopicStatsParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "agent-chat-arc");
+    }
+
+    // === T-1756: ChannelRelationsParams tests (helper itself is shared with
+    // T-1737 agent_relations — see those tests for compute_relations_mcp
+    // semantic coverage). ===
+
+    #[test]
+    fn channel_relations_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:a:b", "target": 42});
+        let p: ChannelRelationsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:a:b");
+        assert_eq!(p.target, 42);
+    }
+
+    #[test]
+    fn channel_relations_params_rejects_missing_target() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: Result<ChannelRelationsParams, _> = serde_json::from_value(json);
+        assert!(p.is_err(), "target field is required");
     }
 
     #[test]
