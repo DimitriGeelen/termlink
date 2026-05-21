@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1768: termlink_channel_edit_stats MCP — topic-wide edit count rollup
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T13:23:56Z
+# ============================================================================
+
+task_id: T-1768
+task_name: "termlink_channel_edit_stats MCP — topic-wide edit count rollup"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T13:19:33Z
+completed: 2026-05-21T13:23:54Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`EditStatsRowMcp` struct + `to_json_mcp()` mirrors CLI `EditStatsRow` 1:1 (target_offset, target_sender, target_payload, edit_count, latest_editor, latest_ts_ms)."
+  - "`compute_edit_stats_mcp(envelopes)` pure helper matches CLI semantics: skips redacted edits, skips redacted targets, latest_editor/latest_ts_ms tracks the most-recent surviving edit, sort = edit_count desc / target_offset asc tiebreak."
+  - "`termlink_channel_edit_stats` tool method registered, walks topic via `walk_topic_full_mcp`, returns `{ok, topic, rows, count}`."
+  - "`ChannelEditStatsParams { topic }` params struct."
+  - "Unit tests cover: empty topic → empty rows; one edit → count 1; multiple edits same target → count N + latest_editor reflects newest; redacted edit excluded; redacted target dropped entirely; sort by edit_count desc. (12 tests, all pass)"
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp compute_edit_stats_mcp` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1768-termlinkchanneleditstats-mcp--topic-wide.md
+generated_by: context-agent-hybrid

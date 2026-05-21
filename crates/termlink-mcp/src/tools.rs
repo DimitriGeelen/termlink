@@ -2998,6 +2998,124 @@ fn compute_reactions_on_mcp(
     rows
 }
 
+/// T-1768: one row of the topic-wide edit-stats rollup. Mirrors CLI
+/// `EditStatsRow` shape (commands/channel.rs:5671).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EditStatsRowMcp {
+    pub target_offset: u64,
+    pub target_sender: String,
+    pub target_payload: String,
+    pub edit_count: u64,
+    pub latest_editor: String,
+    pub latest_ts_ms: i64,
+}
+
+impl EditStatsRowMcp {
+    pub(crate) fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "target_offset": self.target_offset,
+            "target_sender": self.target_sender,
+            "target_payload": self.target_payload,
+            "edit_count": self.edit_count,
+            "latest_editor": self.latest_editor,
+            "latest_ts_ms": self.latest_ts_ms,
+        })
+    }
+}
+
+/// T-1768: pure helper — topic-wide edit count summary. Mirrors CLI
+/// `compute_edit_stats` (commands/channel.rs:5710).
+///
+/// One row per target offset that has at least one non-redacted edit.
+/// Filters:
+/// - edits with non-numeric `metadata.replaces` → ignored
+/// - edits whose own offset is redacted → not counted
+/// - targets that are themselves redacted → row dropped entirely
+///
+/// `latest_editor` / `latest_ts_ms` reflect the most recent surviving edit
+/// (max ts among non-redacted edits; offset asc tiebreak).
+///
+/// Sort: edit_count desc, target_offset asc tiebreak.
+fn compute_edit_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<EditStatsRowMcp> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    // target -> (count, latest_editor, latest_ts, latest_offset for tiebreak)
+    let mut by_target: HashMap<u64, (u64, String, i64, u64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        if redacted.contains(&target) {
+            continue;
+        }
+        let editor = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = by_target
+            .entry(target)
+            .or_insert((0, String::new(), i64::MIN, 0));
+        entry.0 += 1;
+        if ts > entry.2 || (ts == entry.2 && off > entry.3) {
+            entry.1 = editor;
+            entry.2 = ts;
+            entry.3 = off;
+        }
+    }
+    let mut rows: Vec<EditStatsRowMcp> = by_target
+        .into_iter()
+        .filter_map(|(target, (count, latest_editor, latest_ts, _))| {
+            let target_env = by_off.get(&target)?;
+            Some(EditStatsRowMcp {
+                target_offset: target,
+                target_sender: target_env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                target_payload: decode_payload_lossy_mcp(target_env),
+                edit_count: count,
+                latest_editor,
+                latest_ts_ms: latest_ts,
+            })
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.edit_count
+            .cmp(&a.edit_count)
+            .then_with(|| a.target_offset.cmp(&b.target_offset))
+    });
+    rows
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5635,6 +5753,12 @@ pub struct ChannelReactionsOnParams {
     pub topic: String,
     /// Target offset whose reactions are being aggregated.
     pub target: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelEditStatsParams {
+    /// Topic to walk for edit-stats (any topic, not just agent-chat-arc).
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -15001,6 +15125,35 @@ impl TermLinkTools {
             "target": p.target,
             "total_count": total_count,
             "rows": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_edit_stats",
+        description = "Topic-wide edit count summary for an arbitrary topic — MCP parity for `termlink channel edit-stats <topic>` CLI verb (T-1768 of T-1166). Completes the audit-trio at MCP layer: pin_history (T-1372) + redactions (T-1373) + edit_stats (T-1375). One row per target offset that has at least one non-redacted edit. Filters: edits with non-numeric `metadata.replaces` ignored; edits whose own offset is redacted not counted; targets that are themselves redacted dropped entirely. `latest_editor` / `latest_ts_ms` reflect the most recent surviving edit (max ts; offset asc tiebreak). Sort: edit_count desc, target_offset asc tiebreak. Use case: forensic queries — which posts churned the most, who's editing what. Returns `{ok, topic, rows: [{target_offset, target_sender, target_payload, edit_count, latest_editor, latest_ts_ms}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_edit_stats(
+        &self,
+        Parameters(p): Parameters<ChannelEditStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_edit_stats_mcp(&envelopes);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(EditStatsRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "rows": rows_json,
+            "count": count,
         }))
         .unwrap_or_else(json_err)
     }
@@ -25908,6 +26061,183 @@ YW\tJ
         assert_eq!(j.get("count").and_then(|v| v.as_u64()), Some(5));
         let senders = j.get("senders").and_then(|v| v.as_array()).unwrap();
         assert_eq!(senders.len(), 2);
+    }
+
+    // --- T-1768 channel_edit_stats ------------------------------------------
+
+    #[test]
+    fn compute_edit_stats_mcp_empty_envelopes() {
+        let rows = compute_edit_stats_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_one_edit_counts_one() {
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "alice", 10, "v1", 200),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 10);
+        assert_eq!(rows[0].target_sender, "alice");
+        assert_eq!(rows[0].target_payload, "v0", "preview is the ORIGINAL payload");
+        assert_eq!(rows[0].edit_count, 1);
+        assert_eq!(rows[0].latest_editor, "alice");
+        assert_eq!(rows[0].latest_ts_ms, 200);
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_multi_edit_latest_editor_wins() {
+        // Three edits on target 10: bob writes v1 at t=200, carol writes v2 at t=300,
+        // alice writes v3 at t=250 (out of order). Latest (max ts) = carol.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "bob", 10, "v1", 200),
+            state_edit_env(30, "carol", 10, "v2", 300),
+            state_edit_env(40, "alice", 10, "v3", 250),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].edit_count, 3);
+        assert_eq!(rows[0].latest_editor, "carol", "latest by ts wins");
+        assert_eq!(rows[0].latest_ts_ms, 300);
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_offset_tiebreak_when_ts_equal() {
+        // Two edits same ts: offset asc tiebreak → higher offset wins.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "bob", 10, "v1", 200),
+            state_edit_env(30, "carol", 10, "v2", 200),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows[0].edit_count, 2);
+        assert_eq!(rows[0].latest_editor, "carol", "higher offset wins on ts tie");
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_redacted_edit_not_counted() {
+        // bob's edit at offset 20 is redacted — count drops to 1, latest = alice.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "bob", 10, "v1", 200),
+            state_edit_env(30, "alice", 10, "v2", 300),
+            state_redact_env(40, "mod", 20, 350),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].edit_count, 1, "redacted edit excluded");
+        assert_eq!(rows[0].latest_editor, "alice");
+        assert_eq!(rows[0].latest_ts_ms, 300);
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_redacted_target_dropped() {
+        // Target 10 itself is redacted — row drops out entirely.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "bob", 10, "v1", 200),
+            state_redact_env(30, "mod", 10, 250),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert!(rows.is_empty(), "redacted target drops row");
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_sort_count_desc() {
+        // Three targets: 10 has 3 edits, 20 has 1 edit, 30 has 2 edits.
+        // Expected order: 10 (3), 30 (2), 20 (1).
+        let envs = vec![
+            state_env(10, "a", "text", "v0", 100),
+            state_env(20, "a", "text", "v0", 100),
+            state_env(30, "a", "text", "v0", 100),
+            state_edit_env(40, "x", 10, "e", 200),
+            state_edit_env(41, "x", 10, "e", 201),
+            state_edit_env(42, "x", 10, "e", 202),
+            state_edit_env(43, "x", 20, "e", 200),
+            state_edit_env(44, "x", 30, "e", 200),
+            state_edit_env(45, "x", 30, "e", 201),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].target_offset, 10);
+        assert_eq!(rows[0].edit_count, 3);
+        assert_eq!(rows[1].target_offset, 30);
+        assert_eq!(rows[1].edit_count, 2);
+        assert_eq!(rows[2].target_offset, 20);
+        assert_eq!(rows[2].edit_count, 1);
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_offset_tiebreak_on_count() {
+        // Two targets with same edit_count → target_offset asc tiebreak.
+        let envs = vec![
+            state_env(10, "a", "text", "v0", 100),
+            state_env(20, "a", "text", "v0", 100),
+            state_edit_env(30, "x", 20, "e", 200),
+            state_edit_env(31, "x", 10, "e", 200),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].target_offset, 10, "lower offset first on count tie");
+        assert_eq!(rows[1].target_offset, 20);
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_non_numeric_replaces_ignored() {
+        // metadata.replaces is non-numeric — edit silently ignored, target gets no row.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            serde_json::json!({
+                "offset": 20,
+                "sender_id": "bob",
+                "msg_type": "edit",
+                "ts_unix_ms": 200,
+                "payload_b64": state_b64("v1"),
+                "metadata": {"replaces": "not-a-number"},
+            }),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert!(rows.is_empty(), "non-numeric replaces ignored");
+    }
+
+    #[test]
+    fn compute_edit_stats_mcp_target_not_in_envelope_set_dropped() {
+        // Edit references target 99 which isn't in the envelope set — filter_map drops it.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(20, "bob", 99, "v1", 200),
+        ];
+        let rows = compute_edit_stats_mcp(&envs);
+        assert!(rows.is_empty(), "edit targeting missing offset filtered out");
+    }
+
+    #[test]
+    fn channel_edit_stats_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelEditStatsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+    }
+
+    #[test]
+    fn edit_stats_row_to_json_shape() {
+        let row = EditStatsRowMcp {
+            target_offset: 42,
+            target_sender: "alice".to_string(),
+            target_payload: "hello".to_string(),
+            edit_count: 3,
+            latest_editor: "bob".to_string(),
+            latest_ts_ms: 1234,
+        };
+        let j = row.to_json_mcp();
+        assert_eq!(j.get("target_offset").and_then(|v| v.as_u64()), Some(42));
+        assert_eq!(j.get("target_sender").and_then(|v| v.as_str()), Some("alice"));
+        assert_eq!(j.get("target_payload").and_then(|v| v.as_str()), Some("hello"));
+        assert_eq!(j.get("edit_count").and_then(|v| v.as_u64()), Some(3));
+        assert_eq!(j.get("latest_editor").and_then(|v| v.as_str()), Some("bob"));
+        assert_eq!(j.get("latest_ts_ms").and_then(|v| v.as_i64()), Some(1234));
     }
 
     #[test]
