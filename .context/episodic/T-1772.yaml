@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1772: termlink_channel_forwards_of MCP — topic-flexible forwards filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T13:39:13Z
+# ============================================================================
+
+task_id: T-1772
+task_name: "termlink_channel_forwards_of MCP — topic-flexible forwards filter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T13:37:10Z
+completed: 2026-05-21T13:39:11Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelForwardsOfParams { topic, sender_id?: Option<String> }` params struct."
+  - "`termlink_channel_forwards_of` tool method registered, walks topic via `walk_topic_full_mcp`, reuses `compute_forwards_of_mcp`, returns `{ok, topic, sender, forwards: [...], count}`."
+  - "`sender_id` defaults to caller's local Identity fingerprint when omitted (same fallback as `agent_forwards_of`)."
+  - "Unit test: params struct deserializes correctly with and without `sender_id`; helper-wires-through sanity check verifying parse-on-LAST-colon origin extraction. (3 tests)"
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_forwards_of` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1772-termlinkchannelforwardsof-mcp--topic-fle.md
+generated_by: context-agent-hybrid

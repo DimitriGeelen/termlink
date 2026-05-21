@@ -5915,6 +5915,15 @@ pub struct ChannelMentionsOfParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelForwardsOfParams {
+    /// Topic to walk for forwards (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Sender to filter forwards by. Defaults to caller's local Identity
+    /// fingerprint when omitted (most common "my forwards" query).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelSearchParams {
     /// Topic to search (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15395,6 +15404,53 @@ impl TermLinkTools {
             "topic": p.topic,
             "user": user,
             "mentions": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_forwards_of",
+        description = "List every active (non-redacted) forward envelope posted by a given sender on an arbitrary topic — MCP parity for `termlink channel forwards-of <topic> [SENDER]` CLI verb (T-1772 of T-1166). Topic-flexible variant of `termlink_agent_forwards_of` (hardcoded chat-arc). Reuses the same `compute_forwards_of_mcp` helper — semantics identical: a forward is identified by the metadata pair `forwarded_from = \"<origin-topic>:<origin-offset>\"` + `forwarded_sender = <fingerprint>`; both must be present and `forwarded_from` parses on the LAST colon (topics may contain colons, e.g. `dm:a:b`). When `sender_id` is omitted, defaults to caller's local Identity fingerprint. Use case: cross-topic propagation tracing scoped to a sender on any topic — answers 'which posts have I forwarded out of this DM channel?'. Returns `{ok, topic, sender, forwards: [{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}, ...], count}` sorted by `forward_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_forwards_of(
+        &self,
+        Parameters(p): Parameters<ChannelForwardsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let sender = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_forwards_of_mcp(&envelopes, &sender);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(ForwardOfRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "sender": sender,
+            "forwards": rows_json,
             "count": count,
         }))
         .unwrap_or_else(json_err)
@@ -26827,6 +26883,46 @@ YW\tJ
         assert!(p.case_sensitive.is_none());
         assert!(p.all.is_none());
         assert!(p.limit.is_none());
+    }
+
+    // --- T-1772 channel_forwards_of ----------------------------------------
+
+    #[test]
+    fn channel_forwards_of_params_deserialize_without_sender() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelForwardsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.sender_id.is_none(), "defaults to local identity");
+    }
+
+    #[test]
+    fn channel_forwards_of_params_deserialize_with_sender() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "sender_id": "deadbeef0123"});
+        let p: ChannelForwardsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    #[test]
+    fn channel_forwards_of_helper_wires_through_correctly() {
+        // Sanity: helper reuse — one forward envelope produces one row.
+        let envs = vec![serde_json::json!({
+            "offset": 20,
+            "sender_id": "alice",
+            "msg_type": "text",
+            "ts_unix_ms": 200,
+            "payload_b64": state_b64("forwarded text"),
+            "metadata": {
+                "forwarded_from": "dm:bob:carol:42",
+                "forwarded_sender": "bobfp",
+            },
+        })];
+        let rows = compute_forwards_of_mcp(&envs, "alice");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].forward_offset, 20);
+        // parse-on-LAST-colon: origin_topic = "dm:bob:carol", origin_offset = 42
+        assert_eq!(rows[0].origin_topic, "dm:bob:carol");
+        assert_eq!(rows[0].origin_offset, 42);
+        assert_eq!(rows[0].origin_sender, "bobfp");
     }
 
     #[test]
