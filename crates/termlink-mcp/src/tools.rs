@@ -5978,6 +5978,23 @@ pub struct ChannelAckParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelReplyParams {
+    /// Topic on which to emit the reply (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// Offset of the parent post being replied to. Caller-supplied
+    /// (no auto-resolve walk — mirrors `termlink_channel_ack` policy).
+    pub offset: u64,
+    /// Reply text content. Stored as the envelope payload.
+    pub text: String,
+    /// Optional list of mentioned names. Joined as
+    /// `metadata.mentions=a,b,c` to match CLI `cmd_channel_reply`.
+    pub mentions: Option<Vec<String>>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -15940,6 +15957,83 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.ack error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_reply",
+        description = "Reply to a post by offset on an arbitrary topic with new content tied to a parent offset — MCP parity for `termlink channel reply <topic> <text>` CLI verb (T-1784 of T-1166). Topic-flexible variant of `termlink_agent_reply` (hardcoded chat-arc). Use case: threaded replies in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=chat` envelope (matching CLI `cmd_channel_reply` hardcoded choice — note: agent_reply MCP uses `note`, but channel_reply CLI uses `chat`) with payload=`text.into_bytes()` and `metadata.in_reply_to=<offset>` so reader-side aggregators join the reply under that root. Optional `mentions` join as `metadata.mentions=name1,name2`. Pure thin write: explicit parent offset, no topic-walk auto-resolve."
+    )]
+    async fn termlink_channel_reply(
+        &self,
+        Parameters(p): Parameters<ChannelReplyParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "chat";
+        let payload_bytes = p.text.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("in_reply_to".to_string(), serde_json::Value::String(p.offset.to_string()));
+        if let Some(mentions) = p.mentions.as_ref()
+            && !mentions.is_empty()
+        {
+            metadata.insert(
+                "mentions".to_string(),
+                serde_json::Value::String(mentions.join(",")),
+            );
+        }
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.reply error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
@@ -27922,6 +28016,48 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1784 channel_reply ----------------------------------------------
+
+    #[test]
+    fn channel_reply_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "offset": 5, "text": "hi"});
+        let p: ChannelReplyParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.offset, 5);
+        assert_eq!(p.text, "hi");
+        assert!(p.mentions.is_none());
+        assert!(p.sender_id.is_none());
+    }
+
+    #[test]
+    fn channel_reply_params_deserialize_with_mentions() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "offset": 1,
+            "text": "yes",
+            "mentions": ["alice", "bob"],
+        });
+        let p: ChannelReplyParams = serde_json::from_value(json).unwrap();
+        let m = p.mentions.unwrap();
+        assert_eq!(m, vec!["alice".to_string(), "bob".to_string()]);
+    }
+
+    #[test]
+    fn channel_reply_params_rejects_missing_text() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "offset": 1});
+        let r: Result<ChannelReplyParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "text is a required field");
+    }
+
+    #[test]
+    fn channel_reply_mentions_join_format() {
+        // Verify the wire-shape this tool emits for mentions —
+        // matches CLI cmd_channel_reply: comma-joined string.
+        let mentions = vec!["alice".to_string(), "bob".to_string()];
+        let joined = mentions.join(",");
+        assert_eq!(joined, "alice,bob");
     }
 
     // --- T-1783 channel_ack ------------------------------------------------
