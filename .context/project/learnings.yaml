@@ -1991,3 +1991,10 @@ learnings:
   date: 2026-05-21
   context: Added via context agent
   application: TBD
+- id: PL-177
+  learning: "T-1166 MCP-parity arc structurally complete after T-1789 + T-1790. All channel_* CLI verbs either have a direct MCP wedge or are intentionally skipped: channel_inbox = redundant with agent_inbox (cross-topic by construction, not chat-arc-only — T-1553); channel_dm = redundant with agent_contact (high-level wrapper that computes dm_topic + ensures + describes + posts); channel_dm_list = redundant with agent_dms. Selection criterion for any future channel_* MCP candidate: does it offer value the closest agent_* MCP cannot? If no, skip."
+  source: P-001
+  task: T-1166
+  date: 2026-05-21
+  context: Added via context agent
+  application: TBD

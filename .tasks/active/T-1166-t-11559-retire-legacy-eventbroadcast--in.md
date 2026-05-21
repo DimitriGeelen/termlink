@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-20T10:20:10Z
+last_update: 2026-05-21T15:42:03Z
 date_finished: null
 ---
 
