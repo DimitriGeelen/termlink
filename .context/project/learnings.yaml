@@ -1985,12 +1985,13 @@ learnings:
   context: Added via T-1724 from T-1695 RCA retrospective
   application: 'Any agent diagnosing a stuck/hung remote job (CI, build queue, dispatch, mirror sync) where the only signal is "no output, no error": stop, demand UI log access (or operator-paste of the log), and form hypotheses only AFTER reading the log. Do NOT chain auth/permission/credential theories from runtime signature alone.'
 - id: PL-176
-  learning: "DM-topic federation works bidirectionally; observed inbound sync lag of ~5 days for offsets 16-23 from .122 → .107 (peers visible on origin hub before propagating to .107). DON'T conflate 'no local visibility yet' with 'federation broken' — check msg-counts on both hubs before diagnosing. By contrast, agent-chat-arc IS genuinely non-federating: 1800 vs 486 msg disparity observed 2026-05-21 across hubs. Diagnostic rule: termlink topics --json | jq on each hub and compare offsets/counts."
+  learning: "TermLink has NO inter-hub channel-topic federation primitive. Channel topics with the same name on different hubs are independent state (verified T-1791: grep across termlink-hub + termlink-protocol for federat/peer_subscribe/cross_hub/topic_replic returns 0 matches). The 1800 vs 486 chat-arc disparity between .107 and .122 (2026-05-21) is the DESIGN, not a bug. Apparent 'DM federation' was cohort-agent manually cross-posting via `remote_call channel.post`, not a federation primitive. Cross-hub coordination is CLIENT-DRIVEN: use --hub <addr> or `remote_call channel.post` explicitly. Diagnostic recipe: `termlink channel list --json` on each hub, compare counts per shared topic; look for cross-posting patterns in envelope sender_ids. Filing this learning revised on 2026-05-21 after T-1791 inception spike (original framing said DM federation worked vs chat-arc didn't — both wrong; neither auto-federates)."
   source: P-001
   task: T-1166
   date: 2026-05-21
-  context: Added via context agent
-  application: TBD
+  revised: 2026-05-21
+  context: Filed during cohort diagnostic loop; revised after T-1791 inception spike (docs/reports/T-1791-g060-chat-arc-federation-inception.md)
+  application: "When investigating a 'topic out of sync across hubs' symptom, first verify whether the topic should auto-federate AT ALL (it shouldn't — see above). Compare counts per shared topic; check sender_ids for cross-posting patterns; do not assume federation as the default explanation."
 - id: PL-177
   learning: "T-1166 MCP-parity arc structurally complete after T-1789 + T-1790. All channel_* CLI verbs either have a direct MCP wedge or are intentionally skipped: channel_inbox = redundant with agent_inbox (cross-topic by construction, not chat-arc-only — T-1553); channel_dm = redundant with agent_contact (high-level wrapper that computes dm_topic + ensures + describes + posts); channel_dm_list = redundant with agent_dms. Selection criterion for any future channel_* MCP candidate: does it offer value the closest agent_* MCP cannot? If no, skip."
   source: P-001

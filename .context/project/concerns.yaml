@@ -3,20 +3,21 @@
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
 - id: G-060
-  type: gap
-  title: "agent-chat-arc topic does NOT federate across hubs — 1800 vs 486 msg disparity observed 2026-05-21 (PL-176)"
-  description: "Counter to historical assumption that 'agent-chat-arc is the canonical bus, all hubs see the same content', empirical msg-count check on 2026-05-21 showed .107 carries ~1800 envelopes on agent-chat-arc while a peer hub (cohort's observation) carries ~486. That's a ~1314-msg out-of-sync window. DM topics (`dm:a:b`) federate correctly with measurable inbound sync lag (~5d observed for offsets 16–23 from .122 → .107), but agent-chat-arc is structurally not federating at the same depth. Implication for T-1166: the legacy event.broadcast retirement assumed chat-arc as the canonical replacement bus for cross-host agent comms. If chat-arc isn't federating, any agent reading 'recent chat-arc activity' from .107 misses ~73% of fleet posts. PL-176 captures the diagnostic; this gap captures the structural claim that needs fixing/decision."
-  spec_reference: "PL-176 (federation correction); T-1166 (chat-arc as canonical bus); T-1217/T-1219 federation design; G-051 (channel:learnings federation, related)"
-  severity: high
+  type: documentation-gap
+  title: "Per-hub channel-topic semantics not documented — agents/operators may assume auto-federation that does not exist (PL-176 reframed by T-1791)"
+  description: "Originally filed as a high-severity federation bug (1800 vs 486 chat-arc msg disparity between .107 and .122). T-1791 inception (DEFER 2026-05-21) reproduced the disparity and ran 3 read-only diagnostic spikes, converging on a result outside the original hypothesis matrix: **TermLink has no inter-hub channel-topic federation primitive**. grep -rn for federat/peer_subscribe/cross_hub/topic_replic across termlink-hub + termlink-protocol returns 0 matches. router.rs forward_to_* is session-level RPC routing, not channel state replication. Smoking-gun: offset 486 on .122 chat-arc is a cohort-agent probe from 2026-05-21 stating 'they don't auto-federate'. The 1800 vs 486 disparity is the DESIGN — channel topics with the same name on different hubs are independent state. PL-176's apparent 'DM federation works' was cohort-agent manually cross-posting via remote_call channel.post, not a federation primitive. The remaining gap is documentation: the per-hub semantics should be stated explicitly so future agents/operators don't repeat the false-assumption diagnostic loop."
+  spec_reference: "T-1791 inception (docs/reports/T-1791-g060-chat-arc-federation-inception.md); PL-176 (federation correction, needs follow-up update); T-1166 MCP-parity arc (NOT blocked by this gap)"
+  severity: low
   trigger_fired: true
-  trigger_event: "2026-05-21T17:30Z cohort coordination thread — operator/peer correction to prior diagnostic. Observation: msg-count disparity on agent-chat-arc across hubs (1800 vs 486) is large enough that any read-side aggregator on .107 misses majority of fleet posts. DM federation, which had been suspected, works correctly — the gap is purely on chat-arc."
+  trigger_event: "2026-05-21T17:30Z cohort coordination thread observation; T-1791 inception 2026-05-21 reproduced + reframed."
   detection_lag_days: 0
-  what_works_now: "DM topics federate correctly (with inbound sync lag). Hub-to-hub topology, identity propagation, and TLS/TOFU paths are functional. The gap is specific to high-volume open topics (agent-chat-arc) — not to the federation stack as a whole."
-  what_remains: "(1) Reproduce the count disparity with `termlink topics --json` on each hub side-by-side and document the exact baseline; (2) RCA: is this a one-shot sync that ran once and then stopped, a subscriber/replication policy mismatch, a hub.toml federation-config drift, or a deliberate exclusion? (3) Decide: should agent-chat-arc federate fully (raises bandwidth concerns), or do we accept a 'view per hub' topology where the read-side aggregators must explicitly multi-source? (4) For T-1166: if chat-arc doesn't federate, the legacy event.broadcast retirement needs a federation-aware replacement plan documented BEFORE the cut, not after."
-  mitigation_candidate: "Short-term: pin the exact disparity (counts per hub, freshest envelope ts per hub) so it's reproducible. Medium-term: file an inception task to RCA + decide on policy. The decision is structural — fix federation OR accept multi-source reads OR retire chat-arc in favor of explicit per-hub topics."
+  what_works_now: "Channel topics work correctly per-hub. Cross-hub coordination via --hub <addr> or remote_call channel.post works correctly when used explicitly. T-1166 MCP-parity arc closure (T-1789/T-1790/PL-177) is unaffected and sufficient — channel topics replace legacy event.broadcast (also single-hub) at parity."
+  what_remains: "(1) Documentation task to add explicit per-hub semantics + cross-posting recipe to docs/operations/ or CLAUDE.md. (2) Update PL-176 with corrected framing + diagnostic recipe. (3) Optional larger inception: does the fleet WANT auto-federation? Concrete benefits vs significant state-sync complexity, consistency models, conflict resolution. NOT decided in T-1791."
+  mitigation_candidate: "Documentation alone closes the operator-facing gap. No code work required unless follow-up #3 (auto-federation inception) decides GO."
   status: watching
   created: 2026-05-21
-  related_tasks: [T-1166]
+  reframed: 2026-05-21T19:00Z
+  related_tasks: [T-1166, T-1791]
   related_learnings: [PL-176]
 
 - id: G-059
