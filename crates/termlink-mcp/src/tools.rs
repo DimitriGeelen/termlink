@@ -910,6 +910,165 @@ fn compute_snippet_mcp(
     Some(snippet)
 }
 
+/// T-1739: one post in the recent/timeline view. Mirror of CLI's
+/// `RecentPost` (channel.rs:1243). Field shape preserved one-to-one
+/// so JSON envelope is byte-identical with CLI `agent timeline --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RecentPostMcp {
+    offset: u64,
+    ts_ms: i64,
+    peer_fp: String,
+    msg_type: String,
+    content: String,
+    thread: Option<String>,
+    project: Option<String>,
+}
+
+impl RecentPostMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "ts_ms": self.ts_ms,
+            "peer_fp": self.peer_fp,
+            "msg_type": self.msg_type,
+            "content": self.content,
+            "thread": self.thread,
+            "project": self.project,
+        })
+    }
+}
+
+/// T-1739: pure helper — extract last N non-meta posts from `msgs` with
+/// optional peer/thread/project/msg_type/grep filters. Mirror of CLI's
+/// `extract_recent_posts` (channel.rs:1284). All four filters are
+/// independent and AND-composed when set. Returns posts in chrono asc
+/// order (oldest first; natural reading flow). Caps content at 200
+/// chars (suffix `…` if truncated). Untagged posts fail any tag filter
+/// that's set. Grep is case-insensitive.
+///
+/// META = ["reaction", "edit", "redaction", "topic_metadata", "receipt"]
+/// — always excluded before any allowlist filter runs (so `edit` etc.
+/// cannot be re-introduced via `filter_msg_types`).
+///
+/// Content extraction fallback chain matches CLI exactly:
+///   1. `payload_b64` (base64 → UTF-8) — REAL wire envelopes
+///   2. `payload.text` — historical
+///   3. `payload` as &str — historical
+///   4. `payload.to_string()` — last-resort raw JSON
+fn extract_recent_posts_mcp(
+    msgs: &[serde_json::Value],
+    n: usize,
+    window_ms: i64,
+    now_ms: i64,
+    filter_peer_fp: Option<&str>,
+    filter_thread: Option<&str>,
+    filter_project: Option<&str>,
+    filter_msg_types: Option<&[&str]>,
+    filter_grep: Option<&str>,
+) -> Vec<RecentPostMcp> {
+    use base64::Engine as _;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    const CONTENT_CAP: usize = 200;
+    let cutoff = now_ms - window_ms;
+    let grep_lower: Option<String> = filter_grep
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase());
+    let mut hits: Vec<RecentPostMcp> = Vec::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        if let Some(allowed) = filter_msg_types {
+            if !allowed.contains(&mt) {
+                continue;
+            }
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender.is_empty() {
+            continue;
+        }
+        if let Some(want) = filter_peer_fp {
+            if sender != want {
+                continue;
+            }
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff {
+            continue;
+        }
+        let project = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let thread = m
+            .get("metadata")
+            .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        if let Some(want) = filter_thread {
+            if thread.as_deref() != Some(want) {
+                continue;
+            }
+        }
+        if let Some(want) = filter_project {
+            if project.as_deref() != Some(want) {
+                continue;
+            }
+        }
+        let content_raw = m
+            .get("payload_b64")
+            .and_then(|v| v.as_str())
+            .and_then(|b64| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(b64)
+                    .ok()
+                    .and_then(|bytes| String::from_utf8(bytes).ok())
+            })
+            .or_else(|| {
+                m.get("payload")
+                    .and_then(|p| p.get("text"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            })
+            .or_else(|| m.get("payload").and_then(|p| p.as_str()).map(String::from))
+            .or_else(|| m.get("payload").map(|p| p.to_string()))
+            .unwrap_or_default();
+        let content = if content_raw.chars().count() > CONTENT_CAP {
+            let truncated: String = content_raw.chars().take(CONTENT_CAP).collect();
+            format!("{truncated}…")
+        } else {
+            content_raw
+        };
+        if let Some(needle) = grep_lower.as_deref() {
+            if !content.to_lowercase().contains(needle) {
+                continue;
+            }
+        }
+        let offset = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        hits.push(RecentPostMcp {
+            offset,
+            ts_ms: ts,
+            peer_fp: sender.to_string(),
+            msg_type: mt.to_string(),
+            content,
+            thread,
+            project,
+        });
+    }
+    hits.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms));
+    if hits.len() > n {
+        let drop = hits.len() - n;
+        hits.drain(0..drop);
+    }
+    hits
+}
+
 /// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
 /// (channel.rs:6021). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2551,6 +2710,33 @@ pub struct AgentSnippetParams {
     /// Number of content envelopes to include on each side of the target.
     /// Defaults to 3; clamped to 1..=50.
     pub lines: Option<u64>,
+}
+
+/// T-1739: parameters for `termlink_agent_timeline` — chronological fleet
+/// log of recent posts on `agent-chat-arc`. MCP parity for the
+/// `termlink agent timeline` CLI verb (T-1500). Fleet-wide companion to
+/// `termlink_agent_recent_window` (which is single-peer).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentTimelineParams {
+    /// Max posts to return. Default 30; clamped 1..=500. Posts are kept
+    /// newest-N after chrono asc sort, so output remains in chronological
+    /// reading order.
+    pub n: Option<usize>,
+    /// Window in seconds. Default 86400 (24h); clamped 60..=604800 (1m..7d).
+    /// Posts older than `now - window_secs` are dropped.
+    pub window_secs: Option<u64>,
+    /// Optional thread filter — only return posts where
+    /// `metadata.thread` (or legacy `metadata._thread`) equals this value.
+    pub filter_thread: Option<String>,
+    /// Optional project filter — only return posts where
+    /// `metadata.from_project` equals this value.
+    pub filter_project: Option<String>,
+    /// Optional msg_type allowlist (e.g. `["post", "chat"]`). Applied
+    /// AFTER meta exclusion so `edit`/`reaction`/etc. cannot be
+    /// re-introduced via the filter. Empty array = no filter.
+    pub filter_msg_types: Option<Vec<String>>,
+    /// Optional case-insensitive substring grep against rendered content.
+    pub filter_grep: Option<String>,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -11184,6 +11370,97 @@ impl TermLinkTools {
             "lines": arr,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_timeline",
+        description = "Fleet-wide chronological log of recent posts on `agent-chat-arc` — MCP parity for the `termlink agent timeline` CLI verb (T-1500). Returns up to `n` (default 30, clamped 1..=500) content envelopes from within the last `window_secs` (default 86400, clamped 60..=604800) sorted chronologically ascending (oldest first; natural reading flow). Meta types (reaction/edit/redaction/topic_metadata/receipt) are always excluded. Optional filters AND-compose: `filter_thread` (matches `metadata.thread` or `metadata._thread`), `filter_project` (matches `metadata.from_project`), `filter_msg_types` (allowlist applied after meta exclusion), `filter_grep` (case-insensitive substring against rendered content). Content is truncated at 200 chars with `…` suffix. Use this when you want a 'tail -f for the fleet' view — companion to `termlink_agent_recent_window` (single-peer) and `termlink_agent_on_thread` (single-thread). Returns `{ok, verb, window_secs, n, filter_*, posts: [{offset, ts_ms, peer_fp, msg_type, content, thread, project}, ...]}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+    )]
+    async fn termlink_agent_timeline(
+        &self,
+        Parameters(p): Parameters<AgentTimelineParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let clamped_n = p.n.unwrap_or(30).clamp(1, 500);
+        let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
+        let msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 1000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("fetch agent-chat-arc: {e}")),
+        };
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+        // Borrow Vec<String> as &[&str] for the helper.
+        let msg_type_owned: Option<Vec<String>> = p
+            .filter_msg_types
+            .as_ref()
+            .filter(|v| !v.is_empty())
+            .cloned();
+        let msg_type_refs: Option<Vec<&str>> = msg_type_owned
+            .as_ref()
+            .map(|v| v.iter().map(String::as_str).collect());
+        let posts = extract_recent_posts_mcp(
+            &msgs,
+            clamped_n,
+            window_ms,
+            now_ms,
+            None,
+            p.filter_thread.as_deref(),
+            p.filter_project.as_deref(),
+            msg_type_refs.as_deref(),
+            p.filter_grep.as_deref(),
+        );
+        let posts_json: Vec<serde_json::Value> =
+            posts.iter().map(RecentPostMcp::to_json_mcp).collect();
+        let mut out = serde_json::Map::new();
+        out.insert("ok".to_string(), serde_json::Value::Bool(true));
+        out.insert(
+            "verb".to_string(),
+            serde_json::Value::String("agent.timeline".to_string()),
+        );
+        out.insert(
+            "window_secs".to_string(),
+            serde_json::Value::from(clamped_window_secs),
+        );
+        out.insert("n".to_string(), serde_json::Value::from(clamped_n));
+        if let Some(t) = p.filter_thread.as_deref() {
+            out.insert(
+                "filter_thread".to_string(),
+                serde_json::Value::String(t.to_string()),
+            );
+        }
+        if let Some(pr) = p.filter_project.as_deref() {
+            out.insert(
+                "filter_project".to_string(),
+                serde_json::Value::String(pr.to_string()),
+            );
+        }
+        if let Some(types) = msg_type_owned.as_ref() {
+            out.insert(
+                "filter_msg_types".to_string(),
+                serde_json::Value::Array(
+                    types
+                        .iter()
+                        .map(|t| serde_json::Value::String(t.clone()))
+                        .collect(),
+                ),
+            );
+        }
+        if let Some(g) = p.filter_grep.as_deref() {
+            if !g.is_empty() {
+                out.insert(
+                    "filter_grep".to_string(),
+                    serde_json::Value::String(g.to_string()),
+                );
+            }
+        }
+        out.insert("posts".to_string(), serde_json::Value::Array(posts_json));
+        serde_json::to_string_pretty(&serde_json::Value::Object(out)).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -20824,6 +21101,318 @@ mod tests {
         let p2: AgentSnippetParams =
             serde_json::from_value(serde_json::json!({"target": 42, "lines": 10})).unwrap();
         assert_eq!(p2.lines, Some(10));
+    }
+
+    // === T-1739 agent_timeline tests ===
+
+    /// Build a synthetic chat-arc message slice. `now_ms` is the reference time;
+    /// posts are placed at ts = now_ms - offset_secs*1000 so all are inside any
+    /// reasonable window. Mixes content + meta types + multiple peers/projects/threads.
+    fn timeline_envs(now_ms: i64) -> Vec<serde_json::Value> {
+        use base64::Engine as _;
+        let b64 = |s: &str| base64::engine::general_purpose::STANDARD.encode(s.as_bytes());
+        vec![
+            // 5 min ago: alice posts on thread T-1 / project foo
+            serde_json::json!({
+                "offset": 100, "msg_type": "post", "sender_id": "alice",
+                "ts_unix_ms": now_ms - 300_000,
+                "payload_b64": b64("hello from alice"),
+                "metadata": {"thread": "T-1", "from_project": "foo"},
+            }),
+            // 4 min ago: bob chats on thread T-2 / project bar
+            serde_json::json!({
+                "offset": 101, "msg_type": "chat", "sender_id": "bob",
+                "ts_unix_ms": now_ms - 240_000,
+                "payload_b64": b64("Bob says HI"),
+                "metadata": {"thread": "T-2", "from_project": "bar"},
+            }),
+            // 3 min ago: carol REACTS — META, must be excluded.
+            serde_json::json!({
+                "offset": 102, "msg_type": "reaction", "sender_id": "carol",
+                "ts_unix_ms": now_ms - 180_000,
+                "payload_b64": b64("👍"),
+                "metadata": {"in_reply_to": "100"},
+            }),
+            // 2 min ago: carol note on T-1 / foo
+            serde_json::json!({
+                "offset": 103, "msg_type": "note", "sender_id": "carol",
+                "ts_unix_ms": now_ms - 120_000,
+                "payload_b64": b64("note from carol about widgets"),
+                "metadata": {"thread": "T-1", "from_project": "foo"},
+            }),
+            // 1 min ago: dave post (no tags)
+            serde_json::json!({
+                "offset": 104, "msg_type": "post", "sender_id": "dave",
+                "ts_unix_ms": now_ms - 60_000,
+                "payload_b64": b64("dave naked"),
+            }),
+            // empty sender — must be skipped.
+            serde_json::json!({
+                "offset": 105, "msg_type": "post", "sender_id": "",
+                "ts_unix_ms": now_ms - 30_000,
+                "payload_b64": b64("ghost"),
+            }),
+        ]
+    }
+
+    #[test]
+    fn timeline_meta_excluded() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        let posts = extract_recent_posts_mcp(&envs, 50, 600_000, now, None, None, None, None, None);
+        // 4 content posts (alice/bob/carol-note/dave); reaction excluded; empty-sender excluded.
+        assert_eq!(posts.len(), 4);
+        let senders: Vec<&str> = posts.iter().map(|p| p.peer_fp.as_str()).collect();
+        assert!(!senders.contains(&"carol-react") && !senders.iter().any(|s| s.is_empty()));
+        // No reaction msg_type in output.
+        assert!(posts.iter().all(|p| p.msg_type != "reaction"));
+    }
+
+    #[test]
+    fn timeline_chrono_asc_sort() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        let posts = extract_recent_posts_mcp(&envs, 50, 600_000, now, None, None, None, None, None);
+        // Oldest first.
+        let ts_vals: Vec<i64> = posts.iter().map(|p| p.ts_ms).collect();
+        let mut sorted = ts_vals.clone();
+        sorted.sort();
+        assert_eq!(ts_vals, sorted);
+        // First should be alice (oldest), last should be dave (newest content).
+        assert_eq!(posts.first().unwrap().peer_fp, "alice");
+        assert_eq!(posts.last().unwrap().peer_fp, "dave");
+    }
+
+    #[test]
+    fn timeline_filter_thread() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            600_000,
+            now,
+            None,
+            Some("T-1"),
+            None,
+            None,
+            None,
+        );
+        // alice + carol-note (both on T-1); bob/dave excluded.
+        assert_eq!(posts.len(), 2);
+        let senders: Vec<&str> = posts.iter().map(|p| p.peer_fp.as_str()).collect();
+        assert_eq!(senders, vec!["alice", "carol"]);
+    }
+
+    #[test]
+    fn timeline_filter_project() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            600_000,
+            now,
+            None,
+            None,
+            Some("bar"),
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].peer_fp, "bob");
+    }
+
+    #[test]
+    fn timeline_filter_msg_types_allowlist() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        // Only "post" — alice + dave.
+        let allowed = vec!["post"];
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            600_000,
+            now,
+            None,
+            None,
+            None,
+            Some(&allowed),
+            None,
+        );
+        assert_eq!(posts.len(), 2);
+        let senders: Vec<&str> = posts.iter().map(|p| p.peer_fp.as_str()).collect();
+        assert_eq!(senders, vec!["alice", "dave"]);
+    }
+
+    #[test]
+    fn timeline_filter_msg_types_cannot_resurrect_meta() {
+        // Allowlist with "reaction" must still exclude reactions (META wins).
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        let allowed = vec!["reaction"];
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            600_000,
+            now,
+            None,
+            None,
+            None,
+            Some(&allowed),
+            None,
+        );
+        assert_eq!(posts.len(), 0);
+    }
+
+    #[test]
+    fn timeline_filter_grep_case_insensitive() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        // "hi" (lowercase) matches "Bob says HI".
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            600_000,
+            now,
+            None,
+            None,
+            None,
+            None,
+            Some("hi"),
+        );
+        // Should match bob ("HI") and alice ("hello" contains "h" + "i"? No — needs substring).
+        // "hello from alice" — has no "hi" substring. Only bob.
+        let senders: Vec<&str> = posts.iter().map(|p| p.peer_fp.as_str()).collect();
+        assert!(senders.contains(&"bob"));
+        assert!(!senders.contains(&"alice"));
+    }
+
+    #[test]
+    fn timeline_window_cutoff_drops_old() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        // 90-second window: only dave (60s ago) qualifies; alice/bob/carol are older.
+        let posts = extract_recent_posts_mcp(&envs, 50, 90_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].peer_fp, "dave");
+    }
+
+    #[test]
+    fn timeline_last_n_keeps_newest() {
+        let now = 1_700_000_000_000_i64;
+        let envs = timeline_envs(now);
+        // n=2 should keep the 2 newest of 4 = carol + dave (chrono asc preserved).
+        let posts = extract_recent_posts_mcp(&envs, 2, 600_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 2);
+        assert_eq!(posts[0].peer_fp, "carol");
+        assert_eq!(posts[1].peer_fp, "dave");
+    }
+
+    #[test]
+    fn timeline_content_truncation_at_200_chars() {
+        let now = 1_700_000_000_000_i64;
+        use base64::Engine as _;
+        let long = "x".repeat(300);
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "post", "sender_id": "alice",
+            "ts_unix_ms": now - 1000,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(long.as_bytes()),
+        })];
+        let posts = extract_recent_posts_mcp(&envs, 50, 60_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 1);
+        // 200 "x" + "…"
+        assert!(posts[0].content.ends_with("…"));
+        assert_eq!(posts[0].content.chars().count(), 201);
+    }
+
+    #[test]
+    fn timeline_payload_text_fallback_when_no_b64() {
+        // historical envelope shape: payload.text instead of payload_b64
+        let now = 1_700_000_000_000_i64;
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "post", "sender_id": "alice",
+            "ts_unix_ms": now - 1000,
+            "payload": {"text": "from payload.text"},
+        })];
+        let posts = extract_recent_posts_mcp(&envs, 50, 60_000, now, None, None, None, None, None);
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].content, "from payload.text");
+    }
+
+    #[test]
+    fn timeline_legacy_thread_metadata_key() {
+        // Some test/historical envelopes use `metadata._thread` not `metadata.thread`.
+        let now = 1_700_000_000_000_i64;
+        use base64::Engine as _;
+        let b64 = |s: &str| base64::engine::general_purpose::STANDARD.encode(s.as_bytes());
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "post", "sender_id": "alice",
+            "ts_unix_ms": now - 1000,
+            "payload_b64": b64("legacy"),
+            "metadata": {"_thread": "T-legacy"},
+        })];
+        let posts = extract_recent_posts_mcp(
+            &envs,
+            50,
+            60_000,
+            now,
+            None,
+            Some("T-legacy"),
+            None,
+            None,
+            None,
+        );
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0].thread.as_deref(), Some("T-legacy"));
+    }
+
+    #[test]
+    fn timeline_recent_post_to_json_shape() {
+        // Round-trip a known post and verify JSON keys.
+        let p = RecentPostMcp {
+            offset: 42,
+            ts_ms: 1_700_000_000_000,
+            peer_fp: "alice".into(),
+            msg_type: "post".into(),
+            content: "hi".into(),
+            thread: Some("T-1".into()),
+            project: Some("foo".into()),
+        };
+        let j = p.to_json_mcp();
+        assert_eq!(j["offset"], 42);
+        assert_eq!(j["peer_fp"], "alice");
+        assert_eq!(j["msg_type"], "post");
+        assert_eq!(j["content"], "hi");
+        assert_eq!(j["thread"], "T-1");
+        assert_eq!(j["project"], "foo");
+    }
+
+    #[test]
+    fn agent_timeline_params_deserializes() {
+        // All optional — empty object OK.
+        let p1: AgentTimelineParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.n.is_none());
+        assert!(p1.window_secs.is_none());
+        // Full payload.
+        let p2: AgentTimelineParams = serde_json::from_value(serde_json::json!({
+            "n": 10,
+            "window_secs": 3600,
+            "filter_thread": "T-42",
+            "filter_project": "termlink",
+            "filter_msg_types": ["post", "chat"],
+            "filter_grep": "todo"
+        }))
+        .unwrap();
+        assert_eq!(p2.n, Some(10));
+        assert_eq!(p2.window_secs, Some(3600));
+        assert_eq!(p2.filter_thread.as_deref(), Some("T-42"));
+        assert_eq!(p2.filter_project.as_deref(), Some("termlink"));
+        assert_eq!(
+            p2.filter_msg_types,
+            Some(vec!["post".to_string(), "chat".to_string()])
+        );
+        assert_eq!(p2.filter_grep.as_deref(), Some("todo"));
     }
 
     // === parse_signal tests ===

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1739: termlink_agent_timeline MCP — chronological fleet log
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T06:51:58Z
+# ============================================================================
+
+task_id: T-1739
+task_name: "termlink_agent_timeline MCP — chronological fleet log"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T06:47:14Z
+completed: 2026-05-21T06:51:55Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`extract_recent_posts_mcp` + `RecentPostMcp` ported in `crates/termlink-mcp/src/tools.rs` — mirrors CLI semantics (META exclusion, filters AND-composed, chrono asc sort, last-N keep, 200-char content cap, payload_b64+text+&str+raw fallback chain)"
+  - "`termlink_agent_timeline` MCP tool method added with params: `n` (default 30, clamped 1..=500), `window_secs` (default 86400, clamped 60..=604800), `filter_thread`, `filter_project`, `filter_msg_types` (Vec<String>), `filter_grep` — all optional"
+  - "Tool returns `{ok, verb, window_secs, n, filter_*, posts: [...]}` JSON with one entry per post including offset/ts_ms/peer_fp/msg_type/content/thread/project"
+  - "Unit tests cover: meta exclusion, peer-implicit (no peer filter — fleet-wide), thread filter, project filter, msg_types allowlist, grep case-insensitive, window cutoff, last-N keep with chrono-asc sort, content truncation, payload_b64 decode"
+  - "`cargo build -p termlink-mcp` clean (no new warnings)"
+  - "`cargo test -p termlink-mcp` all pass with new tests"
+  - "Existing tools.rs tests still pass (no regressions in 99-test baseline)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1739-termlinkagenttimeline-mcp--chronological.md
+generated_by: context-agent-hybrid
