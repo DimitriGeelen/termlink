@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1788: termlink_channel_poll family MCP — topic-flexible poll lifecycle (T-1166 wedge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T17:41:54Z
+# ============================================================================
+
+task_id: T-1788
+task_name: "termlink_channel_poll family MCP — topic-flexible poll lifecycle (T-1166 wedge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T17:39:16Z
+completed: 2026-05-21T17:41:35Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelPollStartParams` exposes `topic`, `question`, `options: Vec<String>`, optional `sender_id`"
+  - "`ChannelPollVoteParams` exposes `topic`, `poll_id`, `choice`, optional `sender_id`"
+  - "`ChannelPollEndParams` exposes `topic`, `poll_id`, optional `sender_id`"
+  - "`termlink_channel_poll_start` posts `msg_type=poll_start` with payload=question, `metadata.poll_options=a|b|c`, validates ≥2 options + no `|` in labels"
+  - "`termlink_channel_poll_vote` posts `msg_type=poll_vote` with `metadata.poll_id` + `metadata.poll_choice`"
+  - "`termlink_channel_poll_end` posts `msg_type=poll_end` with `metadata.poll_id`"
+  - "Description docs reference T-1788 + T-1166 + sister agent_poll_* MCPs"
+  - "Unit tests per verb: params deserialize + sanity for metadata shape + poll_start option validation"
+  - "`cargo build -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp --lib` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1788-termlinkchannelpoll-family-mcp--topic-fl.md
+generated_by: context-agent-hybrid

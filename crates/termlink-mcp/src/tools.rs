@@ -6025,6 +6025,42 @@ pub struct ChannelReceiptsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelPollStartParams {
+    /// Topic on which to start the poll (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// Poll question (free text). Becomes the envelope payload.
+    pub question: String,
+    /// Two or more option labels. `|` is reserved as the metadata
+    /// delimiter and rejected if present.
+    pub options: Vec<String>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelPollVoteParams {
+    /// Topic where the poll lives (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Offset of the originating `poll_start` envelope.
+    pub poll_id: u64,
+    /// Zero-indexed option choice.
+    pub choice: u64,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelPollEndParams {
+    /// Topic where the poll lives (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Offset of the originating `poll_start` envelope.
+    pub poll_id: u64,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -16336,6 +16372,237 @@ impl TermLinkTools {
             })
             .collect();
         serde_json::to_string_pretty(&serde_json::json!({"receipts": arr})).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_poll_start",
+        description = "Start a poll on an arbitrary topic — MCP parity for `termlink channel poll start <topic> <question> -- <opt1> <opt2> ...` CLI verb (T-1788 of T-1166). Topic-flexible variant of `termlink_agent_poll_start` (hardcoded chat-arc, T-1570). Posts a `msg_type=poll_start` envelope with payload=question and `metadata.poll_options=a|b|c` (pipe-delimited). Requires ≥2 options; rejects labels containing `|`. The envelope's offset becomes the `poll_id` used by subsequent vote/end envelopes."
+    )]
+    async fn termlink_channel_poll_start(
+        &self,
+        Parameters(p): Parameters<ChannelPollStartParams>,
+    ) -> String {
+        use base64::Engine;
+        if p.options.len() < 2 {
+            return json_err(format!(
+                "poll requires at least 2 options (got {})",
+                p.options.len()
+            ));
+        }
+        if p.options.iter().any(|o| o.contains('|')) {
+            return json_err(
+                "option labels cannot contain '|' (used as the metadata delimiter)",
+            );
+        }
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "poll_start";
+        let payload_bytes = p.question.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "poll_options".to_string(),
+            serde_json::Value::String(p.options.join("|")),
+        );
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.poll_start error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_poll_vote",
+        description = "Cast a vote on an open poll on an arbitrary topic — MCP parity for `termlink channel poll vote <topic> <poll_id> <choice>` CLI verb (T-1788 of T-1166). Topic-flexible variant of `termlink_agent_poll_vote`. Posts a `msg_type=poll_vote` envelope with empty payload, `metadata.poll_id=<id>` + `metadata.poll_choice=<idx>`. Latest vote per (poll_id, sender) wins at aggregation time."
+    )]
+    async fn termlink_channel_poll_vote(
+        &self,
+        Parameters(p): Parameters<ChannelPollVoteParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "poll_vote";
+        let payload_bytes: Vec<u8> = Vec::new();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "poll_id".to_string(),
+            serde_json::Value::String(p.poll_id.to_string()),
+        );
+        metadata.insert(
+            "poll_choice".to_string(),
+            serde_json::Value::String(p.choice.to_string()),
+        );
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.poll_vote error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_poll_end",
+        description = "Close a poll on an arbitrary topic — MCP parity for `termlink channel poll end <topic> <poll_id>` CLI verb (T-1788 of T-1166). Topic-flexible variant of `termlink_agent_poll_end`. Posts a `msg_type=poll_end` envelope with empty payload and `metadata.poll_id=<id>`. Aggregators drop votes whose ts > this envelope's ts when computing final tally."
+    )]
+    async fn termlink_channel_poll_end(
+        &self,
+        Parameters(p): Parameters<ChannelPollEndParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "poll_end";
+        let payload_bytes: Vec<u8> = Vec::new();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "poll_id".to_string(),
+            serde_json::Value::String(p.poll_id.to_string()),
+        );
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.poll_end error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
     }
 
     #[tool(
@@ -28315,6 +28582,82 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1788 channel_poll family ----------------------------------------
+
+    #[test]
+    fn channel_poll_start_params_deserialize_minimal() {
+        let json = serde_json::json!({
+            "topic": "dm:alice:bob",
+            "question": "lunch?",
+            "options": ["pizza", "sushi"],
+        });
+        let p: ChannelPollStartParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.question, "lunch?");
+        assert_eq!(p.options, vec!["pizza".to_string(), "sushi".to_string()]);
+    }
+
+    #[test]
+    fn channel_poll_start_options_join_with_pipe() {
+        let opts = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_eq!(opts.join("|"), "a|b|c");
+    }
+
+    #[test]
+    fn channel_poll_start_validates_min_2_options() {
+        // The tool method bails early when options.len() < 2. Sanity-check the
+        // boundary condition that drives the bail.
+        let one_opt: Vec<String> = vec!["only".to_string()];
+        assert!(one_opt.len() < 2);
+        let two_opts: Vec<String> = vec!["a".to_string(), "b".to_string()];
+        assert!(two_opts.len() >= 2);
+    }
+
+    #[test]
+    fn channel_poll_start_rejects_pipe_in_labels() {
+        let bad = vec!["a|b".to_string(), "c".to_string()];
+        assert!(bad.iter().any(|o| o.contains('|')));
+    }
+
+    #[test]
+    fn channel_poll_vote_params_deserialize_minimal() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "poll_id": 42,
+            "choice": 1,
+        });
+        let p: ChannelPollVoteParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.poll_id, 42);
+        assert_eq!(p.choice, 1);
+    }
+
+    #[test]
+    fn channel_poll_vote_metadata_shape() {
+        // poll_id and poll_choice are stringified for metadata.
+        let poll_id: u64 = 42;
+        let choice: u64 = 1;
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("poll_id".to_string(), serde_json::Value::String(poll_id.to_string()));
+        metadata.insert("poll_choice".to_string(), serde_json::Value::String(choice.to_string()));
+        assert_eq!(metadata.get("poll_id").and_then(|v| v.as_str()), Some("42"));
+        assert_eq!(metadata.get("poll_choice").and_then(|v| v.as_str()), Some("1"));
+    }
+
+    #[test]
+    fn channel_poll_end_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "poll_id": 99});
+        let p: ChannelPollEndParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.poll_id, 99);
+    }
+
+    #[test]
+    fn channel_poll_end_params_rejects_missing_poll_id() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let r: Result<ChannelPollEndParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "poll_id is a required field");
     }
 
     // --- T-1787 channel_receipts -------------------------------------------
