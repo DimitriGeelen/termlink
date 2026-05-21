@@ -1639,6 +1639,31 @@ fn summarize_members_as_of_mcp(
     summarize_members_mcp(&filtered, include_meta)
 }
 
+/// T-1747: point-in-time canonical state. Mirror of CLI's `compute_snapshot`
+/// (channel.rs). Filters envelopes by ts<=as_of_ms then delegates to
+/// `compute_state_mcp`. Envelopes missing a timestamp are treated as ts=0
+/// (always included for as_of >= 0; never excluded by the upper bound).
+/// Pure — no I/O.
+fn compute_snapshot_mcp(
+    envelopes: &[serde_json::Value],
+    as_of_ms: i64,
+    include_redacted: bool,
+) -> Vec<StateRowMcp> {
+    let filtered: Vec<serde_json::Value> = envelopes
+        .iter()
+        .filter(|env| {
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ts <= as_of_ms
+        })
+        .cloned()
+        .collect();
+    compute_state_mcp(&filtered, include_redacted)
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4097,6 +4122,17 @@ pub struct ChannelStateParams {
     pub topic: String,
     /// If true, redacted rows surface with `payload="[REDACTED]"` and
     /// `is_redacted=true`. Default false (redacted rows are dropped entirely).
+    pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSnapshotParams {
+    /// Topic to snapshot.
+    pub topic: String,
+    /// Snapshot cutoff (unix ms). Envelopes with ts > as_of_ms are excluded;
+    /// edits/redactions after this point do not influence the result.
+    pub as_of_ms: i64,
+    /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
 }
 
@@ -20215,6 +20251,37 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_channel_snapshot",
+        description = "Point-in-time canonical state of an arbitrary topic — MCP parity for the `termlink channel snapshot` CLI verb (T-1378). Sister to `termlink_channel_state` but with a ts<=as_of_ms cutoff: envelopes after `as_of_ms` are excluded, so edits/redactions after that timestamp don't influence the result. Use for historical state queries — 'what did this topic say AT time X' for audit, replay, regression diagnosis, or agent reasoning over past conversations. Returns the same `{ok, topic, as_of_ms, include_redacted, rows, count}` shape as channel_state with as_of_ms surfaced. Pure read."
+    )]
+    async fn termlink_channel_snapshot(
+        &self,
+        Parameters(p): Parameters<ChannelSnapshotParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let include_redacted = p.include_redacted.unwrap_or(false);
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = compute_snapshot_mcp(&envelopes, p.as_of_ms, include_redacted);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(StateRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "as_of_ms": p.as_of_ms,
+            "include_redacted": include_redacted,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_channel_state",
         description = "Canonical content-row state of an arbitrary topic — MCP parity for the `termlink channel state` CLI verb (T-1376, channel.rs:5971). One row per content envelope (meta types skipped), edits collapsed to latest-wins by (ts_ms, offset), redactions either dropped (default) or surfaced as `[REDACTED]` (when `include_redacted=true`). Sister to `termlink_agent_state` but for ANY topic, and with row-level granularity (one StateRow per content message) rather than the curated digest. Returns `{ok, topic, include_redacted, rows: [{offset, sender_id, payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}], count}`. Pure read — no posts."
     )]
@@ -21109,6 +21176,78 @@ YW\tJ
         assert_eq!(p.topic, "agent-chat-arc");
         assert_eq!(p.include_meta, Some(true));
         assert_eq!(p.as_of_ms, Some(1234567890));
+    }
+
+    // === T-1747: compute_snapshot_mcp tests ===
+
+    #[test]
+    fn compute_snapshot_filters_out_envelopes_after_cutoff() {
+        let envs = vec![
+            state_env(10, "a", "text", "early", 100),
+            state_env(11, "a", "text", "late", 500),
+        ];
+        // Cutoff=300 — only the early row survives.
+        let rows = compute_snapshot_mcp(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 10);
+        assert_eq!(rows[0].payload, "early");
+    }
+
+    #[test]
+    fn compute_snapshot_includes_envelope_at_exact_cutoff() {
+        // ts<=as_of_ms — the boundary is inclusive.
+        let envs = vec![state_env(10, "a", "text", "boundary", 300)];
+        let rows = compute_snapshot_mcp(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "boundary");
+    }
+
+    #[test]
+    fn compute_snapshot_envelope_without_ts_treated_as_zero() {
+        // Defensive: missing ts → treated as ts=0, so always included for
+        // as_of_ms >= 0.
+        let envs = vec![serde_json::json!({
+            "offset": 10,
+            "sender_id": "a",
+            "msg_type": "text",
+            "payload_b64": state_b64("no-ts"),
+        })];
+        let rows = compute_snapshot_mcp(&envs, 1000, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "no-ts");
+    }
+
+    #[test]
+    fn compute_snapshot_integrates_with_edit_collapse() {
+        // Edit collapse runs over the filtered set: if the latest edit happens
+        // AFTER the cutoff, only earlier edits (or the original) survive.
+        let envs = vec![
+            state_env(10, "a", "text", "v1", 100),
+            state_edit_env(11, "a", 10, "v2-early", 200),
+            state_edit_env(12, "a", 10, "v3-late", 600),
+        ];
+        // Cutoff=300 — the late edit is excluded.
+        let rows = compute_snapshot_mcp(&envs, 300, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, "v2-early");
+        assert!(rows[0].is_edited);
+        assert_eq!(rows[0].edit_count, 1);
+    }
+
+    #[test]
+    fn compute_snapshot_empty_when_cutoff_predates_everything() {
+        let envs = vec![state_env(10, "a", "text", "post", 1000)];
+        let rows = compute_snapshot_mcp(&envs, 500, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn channel_snapshot_params_minimal() {
+        let json = serde_json::json!({"topic": "foo", "as_of_ms": 12345});
+        let p: ChannelSnapshotParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "foo");
+        assert_eq!(p.as_of_ms, 12345);
+        assert_eq!(p.include_redacted, None);
     }
 
     #[test]
