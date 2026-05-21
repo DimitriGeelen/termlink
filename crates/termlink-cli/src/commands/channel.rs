@@ -1590,6 +1590,14 @@ async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
 /// T-1319: DM shorthand. Resolves canonical `dm:<a>:<b>` topic from caller
 /// identity + peer; in read mode opens with `--resume --reactions`; in
 /// `--send` mode posts to the topic; `--topic-only` short-circuits.
+///
+/// MCP-PARITY SKIP (PL-177, T-1166 arc closure): no `termlink_channel_dm`
+/// MCP tool is exposed. `termlink_agent_contact` is the high-level wrapper —
+/// it computes `dm_topic`, ensures the channel, describes it, and posts in
+/// one call, so a direct `channel_dm` wedge would offer agents nothing the
+/// `agent_contact` tool cannot. Selection criterion for any future
+/// `channel_*` MCP candidate: does it offer value the closest `agent_*` MCP
+/// cannot? If no, skip.
 pub(crate) async fn cmd_channel_dm(
     peer: &str,
     send: Option<&str>,
@@ -1705,6 +1713,11 @@ fn dm_list_filter(topics: &[String], my_id: &str) -> Vec<(String, String)> {
 /// `channel.list` (no prefix), filters to `dm:<a>:<b>` where one side is
 /// the caller, prints `<topic>  (peer=<other-fp>)`. Empty result prints a
 /// hint to stderr and exits 0.
+///
+/// MCP-PARITY SKIP (PL-177, T-1166 arc closure): no `termlink_channel_dm_list`
+/// MCP tool is exposed. `termlink_agent_dms` already enumerates the caller's
+/// DM topics for agent callers, so a direct `channel_dm_list` wedge would be
+/// redundant. See `cmd_channel_dm` for the full skip criterion.
 pub(crate) async fn cmd_channel_dm_list(
     unread: bool,
     hub: Option<&str>,
@@ -7449,6 +7462,12 @@ pub(crate) fn compute_unread_rows(
 }
 
 /// T-1358: render the cross-topic unread inbox.
+///
+/// MCP-PARITY SKIP (PL-177, T-1166 arc closure): no `termlink_channel_inbox`
+/// MCP tool is exposed. `termlink_agent_inbox` (T-1553) is cross-topic by
+/// construction — not chat-arc-only — so it already covers the agent-facing
+/// need a `channel_inbox` wedge would serve. See `cmd_channel_dm` for the
+/// full skip criterion.
 pub(crate) async fn cmd_channel_inbox(
     hub: Option<&str>,
     json_output: bool,
