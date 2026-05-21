@@ -5924,6 +5924,15 @@ pub struct ChannelForwardsOfParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelRepliesOfParams {
+    /// Topic to walk for replies (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Sender to filter replies by. Defaults to caller's local Identity
+    /// fingerprint when omitted (most common "my replies" query).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelTypingListParams {
     /// Topic to walk for typing-presence (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15458,6 +15467,51 @@ impl TermLinkTools {
             "sender": sender,
             "forwards": rows_json,
             "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_replies_of",
+        description = "List every reply by a given sender on an arbitrary topic — MCP parity for `termlink channel replies-of <topic> [SENDER]` CLI verb (T-1774 of T-1166). Topic-flexible variant of `termlink_agent_replies_of` (hardcoded chat-arc). Reuses `compute_replies_of_mcp` — semantics identical: a 'reply' is an envelope whose `metadata.in_reply_to` parses as u64 AND whose `msg_type != \"reaction\"` (reactions also carry in_reply_to but are a different aggregate). Filters: sender_id match, drop redacted reply offsets, require parent offset. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty strings when the parent is absent or itself redacted. When `sender_id` is omitted, defaults to caller's local Identity fingerprint. Use case: 'show me everything I've replied to in this DM channel.' Returns `{ok, topic, sender, replies: [{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}, ...]}` sorted by `reply_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_replies_of(
+        &self,
+        Parameters(p): Parameters<ChannelRepliesOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let sender = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_replies_of_mcp(&envelopes, &sender);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(RepliesOfRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "sender": sender,
+            "replies": rows_json,
         }))
         .unwrap_or_else(json_err)
     }
@@ -27009,6 +27063,45 @@ YW\tJ
         assert_eq!(rows[0].origin_topic, "dm:bob:carol");
         assert_eq!(rows[0].origin_offset, 42);
         assert_eq!(rows[0].origin_sender, "bobfp");
+    }
+
+    // --- T-1774 channel_replies_of -----------------------------------------
+
+    #[test]
+    fn channel_replies_of_params_deserialize_without_sender() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelRepliesOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.sender_id.is_none(), "defaults to local identity");
+    }
+
+    #[test]
+    fn channel_replies_of_params_deserialize_with_sender() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "sender_id": "deadbeef0123"});
+        let p: ChannelRepliesOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    #[test]
+    fn channel_replies_of_helper_wires_through_correctly() {
+        // Sanity: helper reuse — sender's reply to parent yields one row.
+        let envs = vec![
+            state_env(10, "alice", "text", "parent post", 100),
+            serde_json::json!({
+                "offset": 20,
+                "sender_id": "bob",
+                "msg_type": "text",
+                "ts_unix_ms": 200,
+                "payload_b64": state_b64("i agree"),
+                "metadata": {"in_reply_to": "10"},
+            }),
+        ];
+        let rows = compute_replies_of_mcp(&envs, "bob");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_offset, 20);
+        assert_eq!(rows[0].parent_offset, 10);
+        assert_eq!(rows[0].parent_sender, "alice");
     }
 
     #[test]
