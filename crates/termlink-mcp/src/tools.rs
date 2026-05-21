@@ -2589,6 +2589,92 @@ fn compute_starred_set_mcp(
     rows
 }
 
+/// T-1760: one row in the per-sender ack-status dashboard. Mirror of CLI's
+/// `AckStatusRow` (channel.rs:7184). `up_to=None` for members who posted
+/// but never emitted a receipt (the "ghost lurker" case — surfaced with
+/// lag=latest+1 so they sort to the top of the pending list).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AckStatusRowMcp {
+    sender_id: String,
+    up_to: Option<u64>,
+    latest: u64,
+    lag: u64,
+    receipt_ts: i64,
+}
+
+impl AckStatusRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "sender_id": self.sender_id,
+            "up_to": self.up_to,
+            "latest": self.latest,
+            "lag": self.lag,
+            "ts": self.receipt_ts,
+        })
+    }
+}
+
+/// T-1760: pure helper — compute the per-sender ack-status rows. Mirror of
+/// CLI's `compute_ack_status` (channel.rs:7216) one-to-one.
+///
+/// Inputs:
+/// - `envelopes`: full topic walk (used to extract member set)
+/// - `receipts`: latest receipt per sender, as `(sender_id -> (up_to, ts))`
+/// - `latest_offset`: max offset in the topic
+///
+/// Rows:
+/// - Senders with a receipt: `up_to=Some(U)`, `lag=max(0, latest-U)`
+/// - Senders who posted content but never acked: `up_to=None`, `lag=latest+1`
+///   (ranks them above ackers in the pending list — surfaces ghost lurkers).
+///
+/// Members are the UNION of envelope senders (anyone with sender_id, even
+/// reaction-only "lurkers") AND receipt-only senders. Sort: lag descending;
+/// sender_id ascending tiebreak. Pure — no I/O.
+fn compute_ack_status_mcp(
+    envelopes: &[serde_json::Value],
+    receipts: &std::collections::HashMap<String, (u64, i64)>,
+    latest_offset: u64,
+) -> Vec<AckStatusRowMcp> {
+    use std::collections::HashSet;
+    let mut members: HashSet<String> = HashSet::new();
+    for env in envelopes {
+        if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+            members.insert(s.to_string());
+        }
+    }
+    for sender in receipts.keys() {
+        members.insert(sender.clone());
+    }
+    let mut rows: Vec<AckStatusRowMcp> = members
+        .into_iter()
+        .map(|sender_id| match receipts.get(&sender_id) {
+            Some((up_to, ts)) => {
+                let lag = latest_offset.saturating_sub(*up_to);
+                AckStatusRowMcp {
+                    sender_id,
+                    up_to: Some(*up_to),
+                    latest: latest_offset,
+                    lag,
+                    receipt_ts: *ts,
+                }
+            }
+            None => AckStatusRowMcp {
+                sender_id,
+                up_to: None,
+                latest: latest_offset,
+                lag: latest_offset + 1,
+                receipt_ts: 0,
+            },
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.lag
+            .cmp(&a.lag)
+            .then_with(|| a.sender_id.cmp(&b.sender_id))
+    });
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -5106,6 +5192,15 @@ pub struct ChannelStarredParams {
     /// user's stars (cross-room view). When set, returns only that user's
     /// stars (personal bookmark view).
     pub caller_fp: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelAckStatusParams {
+    /// Topic to compute per-sender ack status for.
+    pub topic: String,
+    /// If true, return only senders with lag > 0 (omit caught-up members).
+    /// Default false (return everyone).
+    pub pending_only: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -21764,6 +21859,83 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_ack_status",
+        description = "Per-sender ack-status dashboard on an arbitrary topic — MCP parity for the `termlink channel ack-status <TOPIC> [--pending]` CLI verb (T-1361, channel.rs:7266). Value-add over `termlink_agent_ack_status` (chat-arc only, ackers only): surfaces ghost lurkers (members who posted but never acked) with `up_to=None` and `lag=latest+1`, includes a `lag` field per sender, and supports `pending_only` filter to focus on members who aren't caught up. Members = union of envelope senders + receipt-only senders. Sort: lag desc, sender_id asc tiebreak. Returns `{ok, topic, latest_offset, rows: [{sender_id, up_to, latest, lag, ts}, ...], count}`. Use case: coordination ('who do I need to wait for'), staleness audits. Pure read."
+    )]
+    async fn termlink_channel_ack_status(
+        &self,
+        Parameters(p): Parameters<ChannelAckStatusParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        if envelopes.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "topic": p.topic,
+                "latest_offset": 0,
+                "rows": [],
+                "count": 0,
+            })).unwrap_or_else(json_err);
+        }
+        let latest_offset = envelopes
+            .iter()
+            .filter_map(|e| e.get("offset").and_then(|v| v.as_u64()))
+            .max()
+            .unwrap_or(0);
+        // Derive receipts from envelope walk (sender -> (max up_to, ts at max).
+        let mut receipts: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        for env in &envelopes {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            let sender = match env.get("sender_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => continue,
+            };
+            let up_to = match env
+                .get("metadata")
+                .and_then(|m| m.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .or_else(|| env.get("metadata").and_then(|m| m.get("up_to")).and_then(|v| v.as_u64()))
+            {
+                Some(v) => v,
+                None => continue,
+            };
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let entry = receipts.entry(sender).or_insert((0, 0));
+            if up_to > entry.0 {
+                entry.0 = up_to;
+                entry.1 = ts;
+            }
+        }
+        let mut rows = compute_ack_status_mcp(&envelopes, &receipts, latest_offset);
+        if p.pending_only.unwrap_or(false) {
+            rows.retain(|r| r.lag > 0);
+        }
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(AckStatusRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "latest_offset": latest_offset,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -24215,6 +24387,117 @@ YW\tJ
         let json_scoped = serde_json::json!({"topic": "agent-chat-arc", "caller_fp": "d1993c2c"});
         let p_scoped: ChannelStarredParams = serde_json::from_value(json_scoped).unwrap();
         assert_eq!(p_scoped.caller_fp.as_deref(), Some("d1993c2c"));
+    }
+
+    // === T-1760: compute_ack_status_mcp tests ===
+
+    #[test]
+    fn ack_status_mcp_empty_topic_no_receipts() {
+        let receipts: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
+        let rows = compute_ack_status_mcp(&[], &receipts, 0);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn ack_status_mcp_single_member_caught_up() {
+        let envs = vec![state_env(10, "alice", "post", "x", 100)];
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("alice".to_string(), (10u64, 200i64));
+        let rows = compute_ack_status_mcp(&envs, &receipts, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].up_to, Some(10));
+        assert_eq!(rows[0].lag, 0);
+    }
+
+    #[test]
+    fn ack_status_mcp_member_without_receipt_full_unread() {
+        let envs = vec![state_env(10, "alice", "post", "x", 100)];
+        let receipts = std::collections::HashMap::new();
+        let rows = compute_ack_status_mcp(&envs, &receipts, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].up_to, None);
+        assert_eq!(rows[0].lag, 11); // latest + 1
+    }
+
+    #[test]
+    fn ack_status_mcp_mixed_lag_sort_order() {
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            state_env(11, "bob", "post", "x", 200),
+            state_env(12, "carol", "post", "x", 300),
+        ];
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("alice".to_string(), (12u64, 400i64));  // caught up
+        receipts.insert("bob".to_string(), (10u64, 500i64));    // lag 2
+        // carol: no receipt → lag = 13 (latest+1)
+        let rows = compute_ack_status_mcp(&envs, &receipts, 12);
+        assert_eq!(rows.len(), 3);
+        // Sorted by lag desc: carol(lag=13), bob(lag=2), alice(lag=0)
+        assert_eq!(rows[0].sender_id, "carol");
+        assert_eq!(rows[0].lag, 13);
+        assert_eq!(rows[1].sender_id, "bob");
+        assert_eq!(rows[1].lag, 2);
+        assert_eq!(rows[2].sender_id, "alice");
+        assert_eq!(rows[2].lag, 0);
+    }
+
+    #[test]
+    fn ack_status_mcp_sender_tiebreak_on_equal_lag() {
+        let envs = vec![
+            state_env(10, "bob", "post", "x", 100),
+            state_env(11, "alice", "post", "x", 200),
+            state_env(12, "carol", "post", "x", 300),
+        ];
+        let receipts = std::collections::HashMap::new();
+        let rows = compute_ack_status_mcp(&envs, &receipts, 12);
+        assert_eq!(rows.len(), 3);
+        // All lag=13 → sender_id asc: alice, bob, carol
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[1].sender_id, "bob");
+        assert_eq!(rows[2].sender_id, "carol");
+    }
+
+    #[test]
+    fn ack_status_mcp_includes_receipt_only_sender() {
+        // dave never posted but emitted a receipt — must surface in roster.
+        let envs = vec![state_env(10, "alice", "post", "x", 100)];
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("alice".to_string(), (10u64, 200i64));
+        receipts.insert("dave".to_string(), (5u64, 300i64));
+        let rows = compute_ack_status_mcp(&envs, &receipts, 10);
+        assert_eq!(rows.len(), 2);
+        let dave_row = rows.iter().find(|r| r.sender_id == "dave").unwrap();
+        assert_eq!(dave_row.up_to, Some(5));
+        assert_eq!(dave_row.lag, 5);
+    }
+
+    #[test]
+    fn ack_status_mcp_ack_ahead_of_latest_clamped() {
+        // Defensive: if receipt up_to > latest_offset, lag must clamp to 0
+        // (uses saturating_sub).
+        let envs = vec![state_env(10, "alice", "post", "x", 100)];
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("alice".to_string(), (999u64, 200i64));
+        let rows = compute_ack_status_mcp(&envs, &receipts, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].lag, 0);
+    }
+
+    #[test]
+    fn channel_ack_status_params_deserialize() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "pending_only": true});
+        let p: ChannelAckStatusParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.pending_only, Some(true));
+    }
+
+    #[test]
+    fn channel_ack_status_params_pending_only_optional() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelAckStatusParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.pending_only, None);
     }
 
     #[test]

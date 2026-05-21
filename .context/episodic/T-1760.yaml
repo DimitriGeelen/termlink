@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1760: termlink_channel_ack_status MCP — per-sender lag with non-ackers surfaced
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T10:19:10Z
+# ============================================================================
+
+task_id: T-1760
+task_name: "termlink_channel_ack_status MCP — per-sender lag with non-ackers surfaced"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T10:16:18Z
+completed: 2026-05-21T10:18:51Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`AckStatusRowMcp { sender_id, up_to: Option<u64>, latest, lag, receipt_ts }` struct + `compute_ack_status_mcp(envelopes, receipts, latest_offset)` helper added (members = union of senders + receipt-only; non-ackers get up_to=None and lag=latest+1; sort lag desc, sender asc tiebreak)"
+  - "`ChannelAckStatusParams { topic: String, pending_only: Option<bool> }` params struct added"
+  - "`termlink_channel_ack_status` `#[tool]` method added — walks topic, derives receipts inline (sender → max up_to), computes rows, filters by pending_only when true, returns `{ok, topic, latest_offset, rows, count}`"
+  - "9 unit tests covering: empty topic, single caught-up, non-acker (full unread), mixed lag sort, sender asc tiebreak on equal lag, receipt-only sender, ack-ahead clamping, params with/without pending_only"
+  - "`cargo build -p termlink-mcp` clean; 497 lib tests pass (488 → 497)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1760-termlinkchannelackstatus-mcp--per-sender.md
+generated_by: context-agent-hybrid
