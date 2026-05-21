@@ -4676,6 +4676,14 @@ pub struct ChannelSnapshotParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelThreadsParams {
+    /// Topic to index threads for.
+    pub topic: String,
+    /// If set, return only the first N rows (post-sort, most-recent first).
+    pub top: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -21094,6 +21102,38 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_threads",
+        description = "Thread roots index for an arbitrary topic — MCP parity for the `termlink channel threads` CLI verb (T-1365, channel.rs:7138). Returns one row per thread root (any envelope that another envelope replies to via `metadata.in_reply_to`) with reply_count (non-redacted descendants, transitive), distinct participants, last_ts (max ts across thread), and root payload preview. Filters: redacted roots dropped, redacted replies don't count, threads with zero non-redacted replies dropped, non-numeric `in_reply_to` ignored. Sort: last_ts desc (most-recently-active first), root_offset asc tiebreak. Optional `top` truncates to the N most-recent threads. Use case: agent navigation, thread digest, conversation discovery. Returns `{ok, topic, top, rows, count}`. Pure read."
+    )]
+    async fn termlink_channel_threads(
+        &self,
+        Parameters(p): Parameters<ChannelThreadsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let mut rows = compute_threads_index_mcp(&envelopes);
+        if let Some(n) = p.top {
+            rows.truncate(n as usize);
+        }
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(ThreadIndexRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "top": p.top,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -23052,6 +23092,25 @@ YW\tJ
         let json = serde_json::json!({"topic": "agent-chat-arc"});
         let p: ChannelRedactionsParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "agent-chat-arc");
+    }
+
+    // === T-1754: ChannelThreadsParams tests (helper itself is shared with
+    // T-1732 agent_threads — see those tests for compute_threads_index_mcp /
+    // parent_offset_of_mcp coverage). ===
+
+    #[test]
+    fn threads_params_minimal_deserialize() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelThreadsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.top, None);
+    }
+
+    #[test]
+    fn threads_params_with_top_deserialize() {
+        let json = serde_json::json!({"topic": "dm:a:b", "top": 5});
+        let p: ChannelThreadsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.top, Some(5));
     }
 
     #[test]
