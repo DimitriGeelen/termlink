@@ -1160,6 +1160,263 @@ fn summarize_chat_arc_stats_mcp(
     }
 }
 
+/// T-1741: one row in the fleet-presence summary. Mirror of CLI's
+/// `FleetPeerRow` (channel.rs:985). Field shape preserved one-to-one
+/// so JSON envelope is byte-identical with CLI `agent presence --json`
+/// / `agent overview --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FleetPeerRowMcp {
+    peer_fp: String,
+    last_seen_ms: Option<i64>,
+    posts: u64,
+    top_project: Option<String>,
+}
+
+impl FleetPeerRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "peer_fp": self.peer_fp,
+            "last_seen_ms": self.last_seen_ms,
+            "posts": self.posts,
+            "top_project": self.top_project,
+        })
+    }
+}
+
+/// T-1741: pure helper — aggregate non-meta msgs by `sender_id` within
+/// the window, returning one row per peer. Mirror of CLI's
+/// `summarize_fleet_presence` (channel.rs:1016).
+///
+/// Drops:
+/// - META msg_types (reaction/edit/redaction/topic_metadata/receipt)
+/// - empty `sender_id`
+/// - peers with 0 in-window posts (last_seen alone doesn't qualify them)
+///
+/// `filter_project`: when Some(p), only posts whose
+/// `metadata.from_project == p` count. Untagged posts fail.
+/// `filter_thread`: when Some(t), only posts whose `metadata._thread ==
+/// t` count. AND-composes with `filter_project`.
+///
+/// `top_project` is the most-frequently-stamped `from_project` across
+/// the peer's in-window posts (alphabetic tie-break). None when the
+/// peer's posts had no `from_project`.
+///
+/// Sort: posts desc, peer_fp asc.
+fn summarize_fleet_presence_mcp(
+    msgs: &[serde_json::Value],
+    now_ms: i64,
+    window_ms: i64,
+    filter_project: Option<&str>,
+    filter_thread: Option<&str>,
+) -> Vec<FleetPeerRowMcp> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    struct Acc {
+        last_seen: Option<i64>,
+        posts: u64,
+        projects: HashMap<String, u64>,
+    }
+    let mut by_peer: HashMap<String, Acc> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let from_project = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str());
+        if let Some(want) = filter_project {
+            if from_project != Some(want) {
+                continue;
+            }
+        }
+        if let Some(want) = filter_thread {
+            let from_thread = m
+                .get("metadata")
+                .and_then(|md| md.get("_thread"))
+                .and_then(|v| v.as_str());
+            if from_thread != Some(want) {
+                continue;
+            }
+        }
+        let acc = by_peer.entry(sender).or_insert(Acc {
+            last_seen: None,
+            posts: 0,
+            projects: HashMap::new(),
+        });
+        acc.last_seen = Some(acc.last_seen.map_or(ts, |b| b.max(ts)));
+        if ts >= cutoff {
+            acc.posts += 1;
+            if let Some(p) = from_project {
+                *acc.projects.entry(p.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut rows: Vec<FleetPeerRowMcp> = by_peer
+        .into_iter()
+        .filter(|(_, acc)| acc.posts > 0)
+        .map(|(peer_fp, acc)| {
+            let top_project = if acc.projects.is_empty() {
+                None
+            } else {
+                let mut v: Vec<(String, u64)> = acc.projects.into_iter().collect();
+                v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                Some(v.into_iter().next().unwrap().0)
+            };
+            FleetPeerRowMcp {
+                peer_fp,
+                last_seen_ms: acc.last_seen,
+                posts: acc.posts,
+                top_project,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.posts.cmp(&a.posts).then_with(|| a.peer_fp.cmp(&b.peer_fp)));
+    rows
+}
+
+/// T-1741: one row in the by-project aggregation view. Mirror of CLI's
+/// `FleetProjectRow` (channel.rs:1111). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FleetProjectRowMcp {
+    project: String,
+    posts: u64,
+    distinct_peers: u64,
+    top_peer_fp: Option<String>,
+    last_seen_ms: Option<i64>,
+}
+
+impl FleetProjectRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "project": self.project,
+            "posts": self.posts,
+            "distinct_peers": self.distinct_peers,
+            "top_peer_fp": self.top_peer_fp,
+            "last_seen_ms": self.last_seen_ms,
+        })
+    }
+}
+
+/// T-1741: pure helper — aggregate non-meta msgs by `from_project`
+/// within the window. Mirror of CLI's `summarize_fleet_by_project`
+/// (channel.rs:1145).
+///
+/// Drops:
+/// - META msg_types
+/// - empty `sender_id`
+/// - UNTAGGED posts (no `from_project` or empty) — project IS the key,
+///   so untagged can never appear in by-project view (unconditional,
+///   independent of filter_project)
+/// - posts older than `cutoff`
+///
+/// `filter_project` / `filter_thread`: AND-compose with filters as in
+/// `summarize_fleet_presence_mcp`.
+///
+/// `top_peer_fp` is the peer who posted the most on this project
+/// (alphabetic tie-break). `distinct_peers` counts unique sender_ids.
+///
+/// Sort: posts desc, project asc.
+fn summarize_fleet_by_project_mcp(
+    msgs: &[serde_json::Value],
+    now_ms: i64,
+    window_ms: i64,
+    filter_project: Option<&str>,
+    filter_thread: Option<&str>,
+) -> Vec<FleetProjectRowMcp> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    struct Acc {
+        posts: u64,
+        last_seen: Option<i64>,
+        peers: HashMap<String, u64>,
+    }
+    let mut by_project: HashMap<String, Acc> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let from_project = match m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+        {
+            Some(p) if !p.is_empty() => p.to_string(),
+            _ => continue,
+        };
+        if let Some(want) = filter_project {
+            if from_project != want {
+                continue;
+            }
+        }
+        if let Some(want) = filter_thread {
+            let from_thread = m
+                .get("metadata")
+                .and_then(|md| md.get("_thread"))
+                .and_then(|v| v.as_str());
+            if from_thread != Some(want) {
+                continue;
+            }
+        }
+        if ts < cutoff {
+            continue;
+        }
+        let acc = by_project.entry(from_project).or_insert(Acc {
+            posts: 0,
+            last_seen: None,
+            peers: HashMap::new(),
+        });
+        acc.posts += 1;
+        acc.last_seen = Some(acc.last_seen.map_or(ts, |b| b.max(ts)));
+        *acc.peers.entry(sender).or_insert(0) += 1;
+    }
+    let mut rows: Vec<FleetProjectRowMcp> = by_project
+        .into_iter()
+        .map(|(project, acc)| {
+            let top_peer_fp = if acc.peers.is_empty() {
+                None
+            } else {
+                let mut v: Vec<(String, u64)> =
+                    acc.peers.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                Some(v.into_iter().next().unwrap().0)
+            };
+            let distinct_peers = acc.peers.len() as u64;
+            FleetProjectRowMcp {
+                project,
+                posts: acc.posts,
+                distinct_peers,
+                top_peer_fp,
+                last_seen_ms: acc.last_seen,
+            }
+        })
+        .collect();
+    rows.sort_by(|a, b| b.posts.cmp(&a.posts).then_with(|| a.project.cmp(&b.project)));
+    rows
+}
+
 /// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
 /// (channel.rs:6021). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2814,6 +3071,21 @@ pub struct AgentStatsParams {
     /// Per-bucket truncation. Default 10; clamped 1..=100. Each of
     /// by_msg_type / by_peer / by_project / by_thread is sorted desc
     /// by count + asc by key, then truncated to this many rows.
+    pub top: Option<usize>,
+}
+
+/// T-1741: parameters for `termlink_agent_overview` — composite fleet
+/// digest combining presence (by peer) + by-project + recent posts.
+/// MCP parity for the `termlink agent overview` CLI verb (T-1495).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentOverviewParams {
+    /// Window in seconds. Default 86400 (24h); clamped 60..=604800
+    /// (1m..7d). Envelopes older than `now - window_secs` are dropped
+    /// from in-window counts.
+    pub window_secs: Option<u64>,
+    /// Per-section truncation. Default 10; clamped 1..=50. Applied to
+    /// each of `peers`, `projects`, and `recent_posts` independently;
+    /// each is sorted then truncated to this many rows.
     pub top: Option<usize>,
 }
 
@@ -11611,6 +11883,62 @@ impl TermLinkTools {
             "by_peer": mk_pairs(&stats.by_peer),
             "by_project": mk_pairs(&stats.by_project),
             "by_thread": mk_pairs(&stats.by_thread),
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_overview",
+        description = "Composite fleet digest on `agent-chat-arc` — MCP parity for the `termlink agent overview` CLI verb (T-1495). One round-trip; three sections in one envelope: (1) `peers` — fleet presence sorted by in-window posts desc, with `top_project` per peer; (2) `projects` — by-project aggregation with `top_peer_fp` and `distinct_peers`; (3) `recent_posts` — last N content posts chronologically. Use this as a single-shot 'first look' at the fleet: who's active, what they're working on, what was just said. Defaults: window=86400s (24h, clamped 60..=604800), top=10 (clamped 1..=50). META msg_types (reaction/edit/redaction/topic_metadata/receipt) excluded throughout. Untagged posts excluded from `projects` (project IS the key) but counted in `peers` and `recent_posts`. Returns `{ok, verb, window_secs, top, peers, projects, recent_posts, total_peers, total_projects}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only, with a wider 2000-envelope slice for fleet coverage."
+    )]
+    async fn termlink_agent_overview(
+        &self,
+        Parameters(p): Parameters<AgentOverviewParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
+        let clamped_top = p.top.unwrap_or(10).clamp(1, 50);
+        // Wider slice (2000) than stats/timeline — overview wants enough
+        // fleet coverage for both presence and recent posts.
+        let msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("fetch agent-chat-arc: {e}")),
+        };
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+        let peer_rows = summarize_fleet_presence_mcp(&msgs, now_ms, window_ms, None, None);
+        let project_rows = summarize_fleet_by_project_mcp(&msgs, now_ms, window_ms, None, None);
+        let recent = extract_recent_posts_mcp(
+            &msgs,
+            clamped_top,
+            window_ms,
+            now_ms,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+        let total_peers = peer_rows.len();
+        let total_projects = project_rows.len();
+        let display_peers = &peer_rows[..peer_rows.len().min(clamped_top)];
+        let display_projects = &project_rows[..project_rows.len().min(clamped_top)];
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "verb": "agent.overview",
+            "window_secs": clamped_window_secs,
+            "top": clamped_top,
+            "peers": display_peers.iter().map(FleetPeerRowMcp::to_json_mcp).collect::<Vec<_>>(),
+            "projects": display_projects.iter().map(FleetProjectRowMcp::to_json_mcp).collect::<Vec<_>>(),
+            "recent_posts": recent.iter().map(RecentPostMcp::to_json_mcp).collect::<Vec<_>>(),
+            "total_peers": total_peers,
+            "total_projects": total_projects,
         }))
         .unwrap_or_else(json_err)
     }
@@ -21702,6 +22030,192 @@ mod tests {
         let p2: AgentStatsParams =
             serde_json::from_value(serde_json::json!({"window_secs": 3600, "top": 5})).unwrap();
         assert_eq!(p2.window_secs, Some(3600));
+        assert_eq!(p2.top, Some(5));
+    }
+
+    // === T-1741 agent_overview tests ===
+
+    fn fleet_mcp_envs(now_ms: i64) -> Vec<serde_json::Value> {
+        vec![
+            // alice on foo, T-1 — 3 posts in window.
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 1000, "metadata": {"from_project": "foo", "_thread": "T-1"}}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 900, "metadata": {"from_project": "foo", "_thread": "T-1"}}),
+            serde_json::json!({"offset": 3, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 800, "metadata": {"from_project": "foo", "_thread": "T-1"}}),
+            // bob on bar, T-2 — 2 posts in window.
+            serde_json::json!({"offset": 4, "msg_type": "chat", "sender_id": "bob", "ts_unix_ms": now_ms - 700, "metadata": {"from_project": "bar", "_thread": "T-2"}}),
+            serde_json::json!({"offset": 5, "msg_type": "chat", "sender_id": "bob", "ts_unix_ms": now_ms - 600, "metadata": {"from_project": "bar", "_thread": "T-2"}}),
+            // carol on foo — 1 post.
+            serde_json::json!({"offset": 6, "msg_type": "post", "sender_id": "carol", "ts_unix_ms": now_ms - 500, "metadata": {"from_project": "foo", "_thread": "T-3"}}),
+            // dave untagged (no project, no thread) — counted in presence + recent, NOT in by_project.
+            serde_json::json!({"offset": 7, "msg_type": "note", "sender_id": "dave", "ts_unix_ms": now_ms - 400}),
+            // META — must be excluded everywhere.
+            serde_json::json!({"offset": 8, "msg_type": "reaction", "sender_id": "eve", "ts_unix_ms": now_ms - 300}),
+            // Out-of-window posts (older than 2000ms) — alice's stale chat. Last_seen
+            // updated but doesn't count toward `posts`.
+            serde_json::json!({"offset": 9, "msg_type": "post", "sender_id": "frank", "ts_unix_ms": now_ms - 10_000, "metadata": {"from_project": "old"}}),
+        ]
+    }
+
+    #[test]
+    fn fleet_presence_mcp_basic_sort_and_zero_drop() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        let rows = summarize_fleet_presence_mcp(&envs, now, 2_000, None, None);
+        // alice(3 in-window) + bob(2) + carol(1) + dave(1). frank had 0 in-window → dropped.
+        // META reaction (eve) doesn't generate an Acc at all.
+        assert_eq!(rows.len(), 4);
+        // posts desc, then peer_fp asc on tie.
+        let order: Vec<(&str, u64)> = rows
+            .iter()
+            .map(|r| (r.peer_fp.as_str(), r.posts))
+            .collect();
+        assert_eq!(
+            order,
+            vec![("alice", 3), ("bob", 2), ("carol", 1), ("dave", 1)]
+        );
+    }
+
+    #[test]
+    fn fleet_presence_mcp_top_project_tie_break() {
+        // alice has 2 posts on "foo" and 2 on "bar" — alphabetic tie-break ⇒ "bar".
+        let now = 1_700_000_000_000_i64;
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 100, "metadata": {"from_project": "foo"}}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 90, "metadata": {"from_project": "foo"}}),
+            serde_json::json!({"offset": 3, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 80, "metadata": {"from_project": "bar"}}),
+            serde_json::json!({"offset": 4, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 70, "metadata": {"from_project": "bar"}}),
+        ];
+        let rows = summarize_fleet_presence_mcp(&envs, now, 600_000, None, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].top_project.as_deref(), Some("bar"));
+    }
+
+    #[test]
+    fn fleet_presence_mcp_filter_project_excludes_untagged() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        // filter=foo — only alice + carol qualify; dave untagged → fails filter.
+        let rows = summarize_fleet_presence_mcp(&envs, now, 2_000, Some("foo"), None);
+        let names: Vec<&str> = rows.iter().map(|r| r.peer_fp.as_str()).collect();
+        assert_eq!(names, vec!["alice", "carol"]);
+    }
+
+    #[test]
+    fn fleet_presence_mcp_filter_thread_and_compose() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        // filter project=foo AND thread=T-1 → only alice.
+        let rows = summarize_fleet_presence_mcp(&envs, now, 2_000, Some("foo"), Some("T-1"));
+        let names: Vec<&str> = rows.iter().map(|r| r.peer_fp.as_str()).collect();
+        assert_eq!(names, vec!["alice"]);
+    }
+
+    #[test]
+    fn fleet_presence_mcp_meta_excluded() {
+        let now = 1_700_000_000_000_i64;
+        // META envelope with sender that has no other posts — must NOT appear.
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 100}),
+            serde_json::json!({"offset": 2, "msg_type": "reaction", "sender_id": "bob", "ts_unix_ms": now - 50}),
+        ];
+        let rows = summarize_fleet_presence_mcp(&envs, now, 600_000, None, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].peer_fp, "alice");
+    }
+
+    #[test]
+    fn fleet_by_project_mcp_basic_and_untagged_excluded() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        let rows = summarize_fleet_by_project_mcp(&envs, now, 2_000, None, None);
+        // foo (alice×3 + carol×1 = 4), bar (bob×2 = 2). dave untagged → excluded.
+        // frank's "old" project is out-of-window → excluded.
+        let order: Vec<(&str, u64, u64)> = rows
+            .iter()
+            .map(|r| (r.project.as_str(), r.posts, r.distinct_peers))
+            .collect();
+        assert_eq!(order, vec![("foo", 4, 2), ("bar", 2, 1)]);
+    }
+
+    #[test]
+    fn fleet_by_project_mcp_top_peer_tie_break() {
+        // foo has alice(2) + bob(2) — alphabetic ⇒ alice.
+        let now = 1_700_000_000_000_i64;
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 100, "metadata": {"from_project": "foo"}}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 90, "metadata": {"from_project": "foo"}}),
+            serde_json::json!({"offset": 3, "msg_type": "post", "sender_id": "bob", "ts_unix_ms": now - 80, "metadata": {"from_project": "foo"}}),
+            serde_json::json!({"offset": 4, "msg_type": "post", "sender_id": "bob", "ts_unix_ms": now - 70, "metadata": {"from_project": "foo"}}),
+        ];
+        let rows = summarize_fleet_by_project_mcp(&envs, now, 600_000, None, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].top_peer_fp.as_deref(), Some("alice"));
+        assert_eq!(rows[0].distinct_peers, 2);
+    }
+
+    #[test]
+    fn fleet_by_project_mcp_filter_project_and_thread() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        // filter project=foo + thread=T-1 ⇒ only alice's 3 posts on foo.
+        let rows = summarize_fleet_by_project_mcp(&envs, now, 2_000, Some("foo"), Some("T-1"));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].project, "foo");
+        assert_eq!(rows[0].posts, 3);
+        assert_eq!(rows[0].distinct_peers, 1);
+        assert_eq!(rows[0].top_peer_fp.as_deref(), Some("alice"));
+    }
+
+    #[test]
+    fn fleet_by_project_mcp_window_cutoff_drops() {
+        let now = 1_700_000_000_000_i64;
+        let envs = fleet_mcp_envs(now);
+        // 50ms window: only carol(-500ms ago)/dave(-400)/frank... wait dave untagged.
+        // Actually 50ms is shorter than all envelope ages — everyone drops.
+        let rows = summarize_fleet_by_project_mcp(&envs, now, 50, None, None);
+        assert_eq!(rows.len(), 0);
+    }
+
+    #[test]
+    fn fleet_peer_row_to_json_shape() {
+        let r = FleetPeerRowMcp {
+            peer_fp: "alice".into(),
+            last_seen_ms: Some(1_700_000_000_000),
+            posts: 3,
+            top_project: Some("foo".into()),
+        };
+        let j = r.to_json_mcp();
+        assert_eq!(j["peer_fp"], "alice");
+        assert_eq!(j["last_seen_ms"], 1_700_000_000_000_i64);
+        assert_eq!(j["posts"], 3);
+        assert_eq!(j["top_project"], "foo");
+    }
+
+    #[test]
+    fn fleet_project_row_to_json_shape() {
+        let r = FleetProjectRowMcp {
+            project: "foo".into(),
+            posts: 4,
+            distinct_peers: 2,
+            top_peer_fp: Some("alice".into()),
+            last_seen_ms: Some(1_700_000_000_000),
+        };
+        let j = r.to_json_mcp();
+        assert_eq!(j["project"], "foo");
+        assert_eq!(j["posts"], 4);
+        assert_eq!(j["distinct_peers"], 2);
+        assert_eq!(j["top_peer_fp"], "alice");
+        assert_eq!(j["last_seen_ms"], 1_700_000_000_000_i64);
+    }
+
+    #[test]
+    fn agent_overview_params_deserializes() {
+        let p1: AgentOverviewParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.window_secs.is_none());
+        assert!(p1.top.is_none());
+        let p2: AgentOverviewParams =
+            serde_json::from_value(serde_json::json!({"window_secs": 600, "top": 5})).unwrap();
+        assert_eq!(p2.window_secs, Some(600));
         assert_eq!(p2.top, Some(5));
     }
 

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1741: termlink_agent_overview MCP — composite fleet digest
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T07:10:01Z
+# ============================================================================
+
+task_id: T-1741
+task_name: "termlink_agent_overview MCP — composite fleet digest"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T07:06:20Z
+completed: 2026-05-21T07:09:59Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`FleetPeerRowMcp` struct + `summarize_fleet_presence_mcp` helper ported to `crates/termlink-mcp/src/tools.rs` — mirrors CLI: META exclusion, empty-sender skip, filter_project/filter_thread AND-compose (latter via `metadata._thread`), drop peers with 0 in-window posts, sort by posts desc + peer_fp asc, top_project tie-break alphabetic"
+  - "`FleetProjectRowMcp` struct + `summarize_fleet_by_project_mcp` helper ported — mirrors CLI: META exclusion, empty-sender skip, UNTAGGED posts always excluded (project IS the key), filter_project/filter_thread AND-compose, sort by posts desc + project asc, top_peer tie-break alphabetic"
+  - "`termlink_agent_overview` MCP tool method composing presence + by_project + recent (via `extract_recent_posts_mcp`); params: `window_secs` (default 86400, clamped 60..=604800), `top` (default 10, clamped 1..=50) — both optional"
+  - "Tool returns `{ok, verb, window_secs, top, peers: [...], projects: [...], recent_posts: [...], total_peers, total_projects}` JSON; peers/projects truncated to top-N"
+  - "Unit tests cover: META exclusion (both helpers), filter_project AND filter_thread paths, untagged-post drop (by_project), zero-post peer drop (presence), top-N sort order + tie-break, top_project tie-break in presence, top_peer tie-break in by_project, JSON shape"
+  - "`cargo build -p termlink-mcp` clean (no new warnings)"
+  - "`cargo test -p termlink-mcp` all pass with new tests + no regressions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1741-termlinkagentoverview-mcp--composite-fle.md
+generated_by: context-agent-hybrid
