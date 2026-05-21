@@ -840,6 +840,175 @@ fn compute_threads_index_mcp(envelopes: &[serde_json::Value]) -> Vec<ThreadIndex
     rows
 }
 
+/// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
+/// (channel.rs:6021). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RelationItemMcp {
+    offset: u64,
+    sender_id: String,
+    ts_ms: i64,
+    payload: String,
+}
+
+impl RelationItemMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "ts_ms": self.ts_ms,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1737: unified per-offset relations report. Mirror of CLI's
+/// `RelationsReport` (channel.rs:6045). Matrix Client API
+/// `/relations/{eventId}` analogue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RelationsReportMcp {
+    target_offset: u64,
+    target_sender: String,
+    target_payload: String,
+    replies: Vec<RelationItemMcp>,
+    reactions: Vec<RelationItemMcp>,
+    edits: Vec<RelationItemMcp>,
+    redactions: Vec<RelationItemMcp>,
+}
+
+/// T-1737: pure helper — build the unified relations report for `target`.
+/// Mirror of CLI's `compute_relations` (channel.rs:6065) one-to-one.
+///
+/// Partitions relation envelopes into four lists by msg_type + metadata:
+/// - `edit` whose `metadata.replaces` parses as u64 AND == target → edits
+/// - `redaction` whose `metadata.redacts` == target → redactions
+///   (payload = `metadata.reason` if present, else empty)
+/// - `reaction` whose `metadata.in_reply_to` == target → reactions
+/// - anything else whose `metadata.in_reply_to` == target → replies
+///
+/// Relation envelopes whose OWN offset is in the redaction set are
+/// excluded (redacted reactions/replies don't surface). The target itself
+/// does NOT need to be present — when absent, `target_sender` and
+/// `target_payload` are empty strings.
+///
+/// Each list is sorted ts_ms ascending with offset ascending tiebreak.
+/// Pure — no I/O.
+fn compute_relations_mcp(
+    envelopes: &[serde_json::Value],
+    target: u64,
+) -> RelationsReportMcp {
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut replies: Vec<RelationItemMcp> = Vec::new();
+    let mut reactions: Vec<RelationItemMcp> = Vec::new();
+    let mut edits: Vec<RelationItemMcp> = Vec::new();
+    let mut redactions_list: Vec<RelationItemMcp> = Vec::new();
+    let mut target_sender = String::new();
+    let mut target_payload = String::new();
+    for env in envelopes {
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if off == target {
+            target_sender = env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            target_payload = decode_payload_lossy_mcp(env);
+        }
+        if redacted.contains(&off) {
+            continue;
+        }
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        match mt {
+            "edit" => {
+                if let Some(replaces) = env
+                    .get("metadata")
+                    .and_then(|md| md.get("replaces"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    && replaces == target
+                {
+                    edits.push(RelationItemMcp {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy_mcp(env),
+                    });
+                }
+            }
+            "redaction" => {
+                if let Some(redacts) = env
+                    .get("metadata")
+                    .and_then(|md| md.get("redacts"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    && redacts == target
+                {
+                    let reason = env
+                        .get("metadata")
+                        .and_then(|md| md.get("reason"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    redactions_list.push(RelationItemMcp {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: reason,
+                    });
+                }
+            }
+            "reaction" => {
+                if parent_offset_of_mcp(env) == Some(target) {
+                    reactions.push(RelationItemMcp {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy_mcp(env),
+                    });
+                }
+            }
+            _ => {
+                if parent_offset_of_mcp(env) == Some(target) {
+                    replies.push(RelationItemMcp {
+                        offset: off,
+                        sender_id: sender,
+                        ts_ms: ts,
+                        payload: decode_payload_lossy_mcp(env),
+                    });
+                }
+            }
+        }
+    }
+    let sort_fn = |a: &RelationItemMcp, b: &RelationItemMcp| {
+        a.ts_ms.cmp(&b.ts_ms).then_with(|| a.offset.cmp(&b.offset))
+    };
+    replies.sort_by(sort_fn);
+    reactions.sort_by(sort_fn);
+    edits.sort_by(sort_fn);
+    redactions_list.sort_by(sort_fn);
+    RelationsReportMcp {
+        target_offset: target,
+        target_sender,
+        target_payload,
+        replies,
+        reactions,
+        edits,
+        redactions: redactions_list,
+    }
+}
+
 /// T-1736: one row in the forwards-of view. Mirror of CLI's `ForwardOfRow`
 /// (channel.rs:4945). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2287,6 +2456,17 @@ pub struct AgentForwardsOfParams {
     /// Identity fingerprint of the sender whose forwards to enumerate.
     /// Omit to default to the caller's local identity.
     pub sender: Option<String>,
+}
+
+/// T-1737: parameters for `termlink_agent_relations` — unified per-target
+/// relations report (replies + reactions + edits + redactions). MCP parity
+/// for the `termlink agent relations <OFFSET>` CLI verb (T-1381). Matrix
+/// `/relations/{eventId}` analogue.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentRelationsParams {
+    /// Offset of the target envelope to introspect. Must exist on
+    /// `agent-chat-arc` — otherwise the tool returns an error.
+    pub target: u64,
 }
 
 /// T-1718: parameters for `termlink_agent_ping` — single-peer liveness probe.
@@ -10837,6 +11017,49 @@ impl TermLinkTools {
             "topic": topic,
             "sender": sender,
             "forwards": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_relations",
+        description = "Unified per-target relations report on `agent-chat-arc` — MCP parity for the `termlink agent relations <OFFSET>` CLI verb (T-1381). Matrix Client API `/relations/{eventId}` analogue: consolidates the four canonical relation types (replies, reactions, edits, redactions) for a single target offset. Forwards are excluded (cross-topic, requires multi-topic walk — see `termlink_agent_forwards_of` for per-sender listing). Each list filters out relation envelopes whose own offset is in the redaction set, and is sorted ts_ms ascending with offset ascending tiebreak. `target_sender` / `target_payload` come from the target envelope if present (otherwise empty strings). Errors when `target` is not present in the topic snapshot. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}` where each list contains `{offset, sender_id, ts_ms, payload}` entries (redaction payload = `metadata.reason`). NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_agent_relations(
+        &self,
+        Parameters(p): Parameters<AgentRelationsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let topic = "agent-chat-arc";
+        let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({topic}): {e}")),
+        };
+        // Refuse if the target isn't present — matches CLI's bail! to spare
+        // the caller a confusing empty report on a typo'd offset.
+        if !envelopes
+            .iter()
+            .any(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(p.target))
+        {
+            return json_err(format!(
+                "Topic '{topic}' has no envelope at offset {}",
+                p.target
+            ));
+        }
+        let r = compute_relations_mcp(&envelopes, p.target);
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": topic,
+            "target_offset": r.target_offset,
+            "target_sender": r.target_sender,
+            "target_payload": r.target_payload,
+            "replies": r.replies.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "reactions": r.reactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "edits": r.edits.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
+            "redactions": r.redactions.iter().map(RelationItemMcp::to_json_mcp).collect::<Vec<_>>(),
         }))
         .unwrap_or_else(json_err)
     }
@@ -20185,6 +20408,201 @@ mod tests {
         let p2: AgentForwardsOfParams =
             serde_json::from_value(serde_json::json!({"sender": "bob"})).unwrap();
         assert_eq!(p2.sender.as_deref(), Some("bob"));
+    }
+
+    // === T-1737 agent_relations tests ===
+
+    #[test]
+    fn agent_relations_empty_input() {
+        let r = compute_relations_mcp(&[], 42);
+        assert_eq!(r.target_offset, 42);
+        assert_eq!(r.target_sender, "");
+        assert_eq!(r.target_payload, "");
+        assert!(r.replies.is_empty());
+        assert!(r.reactions.is_empty());
+        assert!(r.edits.is_empty());
+        assert!(r.redactions.is_empty());
+    }
+
+    #[test]
+    fn agent_relations_target_absent_yields_empty_target_fields() {
+        // Reaction targets offset 42 but offset 42 itself isn't present.
+        let envs = vec![serde_json::json!({
+            "offset": 5, "msg_type": "reaction", "sender_id": "alice",
+            "ts_unix_ms": 100_i64,
+            "payload_b64": "8J+RjQ==",
+            "metadata": {"in_reply_to": "42"},
+        })];
+        let r = compute_relations_mcp(&envs, 42);
+        assert_eq!(r.target_sender, "", "no target → empty target_sender");
+        assert_eq!(r.target_payload, "");
+        assert_eq!(r.reactions.len(), 1, "reaction still surfaces");
+        assert_eq!(r.reactions[0].offset, 5);
+    }
+
+    #[test]
+    fn agent_relations_all_four_types_in_one_shot() {
+        // Target at offset 1. Reply at 2, reaction at 3, edit at 4, redaction at 5.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+                "payload_b64": "aGVsbG8=",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 200_i64,
+                "payload_b64": "cmVwbHk=",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "reaction", "sender_id": "carol",
+                "ts_unix_ms": 300_i64,
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 4, "msg_type": "edit", "sender_id": "alice",
+                "ts_unix_ms": 400_i64,
+                "payload_b64": "aGVsbG8gd29ybGQ=",
+                "metadata": {"replaces": "1"},
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "redaction", "sender_id": "alice",
+                "ts_unix_ms": 500_i64,
+                "metadata": {"redacts": "1", "reason": "typo"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert_eq!(r.target_offset, 1);
+        assert_eq!(r.target_sender, "alice");
+        assert_eq!(r.target_payload, "hello");
+        assert_eq!(r.replies.len(), 1);
+        assert_eq!(r.replies[0].offset, 2);
+        assert_eq!(r.replies[0].payload, "reply");
+        assert_eq!(r.reactions.len(), 1);
+        assert_eq!(r.reactions[0].offset, 3);
+        assert_eq!(r.reactions[0].payload, "👍");
+        assert_eq!(r.edits.len(), 1);
+        assert_eq!(r.edits[0].offset, 4);
+        assert_eq!(r.edits[0].payload, "hello world");
+        assert_eq!(r.redactions.len(), 1);
+        assert_eq!(r.redactions[0].offset, 5);
+        assert_eq!(r.redactions[0].payload, "typo", "reason populates payload");
+    }
+
+    #[test]
+    fn agent_relations_redaction_without_reason_yields_empty_payload() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "redaction", "sender_id": "alice",
+                "metadata": {"redacts": "1"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert_eq!(r.redactions.len(), 1);
+        assert_eq!(r.redactions[0].payload, "", "no reason → empty payload");
+    }
+
+    #[test]
+    fn agent_relations_edit_replaces_mismatch_filtered() {
+        // Edit targets a different offset — must not show up in target=1's edits.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 99, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 3, "msg_type": "edit", "sender_id": "alice",
+                "metadata": {"replaces": "99"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert!(r.edits.is_empty(), "edit pointing elsewhere must filter");
+    }
+
+    #[test]
+    fn agent_relations_reaction_pointing_elsewhere_filtered() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "reaction", "sender_id": "bob",
+                "payload_b64": "8J+RjQ==",
+                "metadata": {"in_reply_to": "99"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert!(r.reactions.is_empty());
+    }
+
+    #[test]
+    fn agent_relations_relation_redacted_self_excluded() {
+        // A reply pointing at target=1, then redacted by offset 5.
+        // Reply must NOT appear in r.replies.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 2, "msg_type": "text", "sender_id": "bob",
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "redaction", "sender_id": "bob",
+                "metadata": {"redacts": "2"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert!(
+            r.replies.is_empty(),
+            "redacted reply must not surface in relations"
+        );
+        // The redaction targets the reply (offset 2), not the target (offset 1),
+        // so r.redactions should also be empty.
+        assert!(r.redactions.is_empty(), "redaction of a reply is not a redaction of the target");
+    }
+
+    #[test]
+    fn agent_relations_sort_ts_asc_offset_tiebreak() {
+        // Three replies: same ts, offsets 9, 5, 7 — expect order 5, 7, 9.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "msg_type": "text", "sender_id": "alice",
+            }),
+            serde_json::json!({
+                "offset": 9, "msg_type": "text", "sender_id": "bob",
+                "ts_unix_ms": 100_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 5, "msg_type": "text", "sender_id": "carol",
+                "ts_unix_ms": 100_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+            serde_json::json!({
+                "offset": 7, "msg_type": "text", "sender_id": "dave",
+                "ts_unix_ms": 100_i64,
+                "metadata": {"in_reply_to": "1"},
+            }),
+        ];
+        let r = compute_relations_mcp(&envs, 1);
+        assert_eq!(r.replies.len(), 3);
+        assert_eq!(r.replies[0].offset, 5);
+        assert_eq!(r.replies[1].offset, 7);
+        assert_eq!(r.replies[2].offset, 9);
+    }
+
+    #[test]
+    fn agent_relations_params_deserializes() {
+        let p: AgentRelationsParams =
+            serde_json::from_value(serde_json::json!({"target": 42})).unwrap();
+        assert_eq!(p.target, 42);
     }
 
     // === parse_signal tests ===

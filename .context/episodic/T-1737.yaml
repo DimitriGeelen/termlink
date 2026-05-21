@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1737: termlink_agent_relations MCP — unified relations report (replies + reactions + edits + redactions)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T06:21:16Z
+# ============================================================================
+
+task_id: T-1737
+task_name: "termlink_agent_relations MCP — unified relations report (replies + reactions + edits + redactions)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T06:17:39Z
+completed: 2026-05-21T06:20:59Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`RelationItemMcp` + `RelationsReportMcp` structs mirror CLI's `RelationItem` and `RelationsReport` one-to-one"
+  - "`compute_relations_mcp` ported; preserves four-way partition (edit→replaces, redaction→redacts, reaction→in_reply_to, else→in_reply_to as reply), filters relation envelopes whose own offset is in the redaction set, captures `target_sender` / `target_payload` from the target row when present (else empty strings), sorts each list ts_ms asc + offset asc tiebreak"
+  - "`AgentRelationsParams { target: u64 }` and `termlink_agent_relations` tool method added; walks `agent-chat-arc` via `walk_topic_full_mcp`; returns error JSON when target offset is not present in the snapshot"
+  - "Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}` JSON"
+  - "≥7 new unit tests in `tools::tests` covering: empty input, target-not-present yields empty target fields but still returns report, all four relation types in one shot, redaction list captures `metadata.reason` as payload, edit `replaces` mismatch filtered, reaction with `in_reply_to` not pointing at target filtered, sort by ts_ms ascending with offset tiebreak, params deserialize"
+  - "`cargo build -p termlink-mcp` clean (no new warnings beyond pre-existing `cur_run_end`)"
+  - "`cargo test -p termlink-mcp` passes (all new tests + no regressions)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1737-termlinkagentrelations-mcp--unified-rela.md
+generated_by: context-agent-hybrid
