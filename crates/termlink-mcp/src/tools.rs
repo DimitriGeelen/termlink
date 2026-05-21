@@ -3116,6 +3116,118 @@ fn compute_edit_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<EditStatsRowMc
     rows
 }
 
+/// T-1769: one row of the per-target reply rollup. Mirrors CLI
+/// `QuoteStatsRow` shape (commands/channel.rs:6254).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct QuoteStatsRowMcp {
+    pub target_offset: u64,
+    pub target_sender: String,
+    pub target_payload: String,
+    pub reply_count: u64,
+    pub distinct_repliers: Vec<String>,
+    pub latest_reply_ts_ms: i64,
+}
+
+impl QuoteStatsRowMcp {
+    pub(crate) fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "target_offset": self.target_offset,
+            "target_sender": self.target_sender,
+            "target_payload": self.target_payload,
+            "reply_count": self.reply_count,
+            "distinct_repliers": self.distinct_repliers,
+            "latest_reply_ts_ms": self.latest_reply_ts_ms,
+        })
+    }
+}
+
+/// T-1769: pure helper — per-target reply rollup. Mirrors CLI
+/// `compute_quote_stats` (commands/channel.rs:6287).
+///
+/// One row per target offset that has at least one surviving reply.
+/// Filters:
+/// - replies are envelopes with parseable `metadata.in_reply_to` AND
+///   `msg_type != "reaction"` (reactions are not replies)
+/// - reply offsets that are themselves redacted are excluded
+/// - target offsets that are themselves redacted drop their row entirely
+///
+/// `distinct_repliers` is sorted-asc (BTreeSet → Vec).
+/// Sort: reply_count desc, target_offset asc tiebreak.
+fn compute_quote_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<QuoteStatsRowMcp> {
+    use std::collections::{BTreeSet, HashMap};
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    // target -> (count, BTreeSet<sender>, latest_ts)
+    let mut by_target: HashMap<u64, (u64, BTreeSet<String>, i64)> = HashMap::new();
+    for env in envelopes {
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if mt == "reaction" {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let parent = match parent_offset_of_mcp(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = by_target
+            .entry(parent)
+            .or_insert((0, BTreeSet::new(), i64::MIN));
+        entry.0 += 1;
+        entry.1.insert(sender);
+        if ts > entry.2 {
+            entry.2 = ts;
+        }
+    }
+    let mut rows: Vec<QuoteStatsRowMcp> = by_target
+        .into_iter()
+        .filter_map(|(target, (count, repliers, latest_ts))| {
+            if redacted.contains(&target) {
+                return None;
+            }
+            let target_env = by_off.get(&target)?;
+            Some(QuoteStatsRowMcp {
+                target_offset: target,
+                target_sender: target_env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                target_payload: decode_payload_lossy_mcp(target_env),
+                reply_count: count,
+                distinct_repliers: repliers.into_iter().collect(),
+                latest_reply_ts_ms: latest_ts,
+            })
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.reply_count
+            .cmp(&a.reply_count)
+            .then_with(|| a.target_offset.cmp(&b.target_offset))
+    });
+    rows
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5758,6 +5870,12 @@ pub struct ChannelReactionsOnParams {
 #[derive(Deserialize, JsonSchema)]
 pub struct ChannelEditStatsParams {
     /// Topic to walk for edit-stats (any topic, not just agent-chat-arc).
+    pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelQuoteStatsParams {
+    /// Topic to walk for quote-stats (any topic, not just agent-chat-arc).
     pub topic: String,
 }
 
@@ -15148,6 +15266,35 @@ impl TermLinkTools {
         let rows = compute_edit_stats_mcp(&envelopes);
         let rows_json: Vec<serde_json::Value> =
             rows.iter().map(EditStatsRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_quote_stats",
+        description = "Per-target reply rollup for an arbitrary topic — MCP parity for `termlink channel quote-stats <topic>` CLI verb (T-1769 of T-1166). One row per target offset that has at least one surviving reply. Filters: reactions (`msg_type=reaction`) are not replies and skipped; replies with no parseable `metadata.in_reply_to` ignored; redacted reply offsets excluded; redacted targets drop their row entirely. `distinct_repliers` is sorted ascending (BTreeSet dedup). Sort: reply_count desc, target_offset asc tiebreak. Companion to `termlink_channel_edit_stats` (T-1768): edit_stats answers 'which posts churned most', quote_stats answers 'which posts started conversations'. Returns `{ok, topic, rows: [{target_offset, target_sender, target_payload, reply_count, distinct_repliers: [sender_id, ...], latest_reply_ts_ms}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_quote_stats(
+        &self,
+        Parameters(p): Parameters<ChannelQuoteStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_quote_stats_mcp(&envelopes);
+        let rows_json: Vec<serde_json::Value> =
+            rows.iter().map(QuoteStatsRowMcp::to_json_mcp).collect();
         let count = rows_json.len();
         serde_json::to_string_pretty(&serde_json::json!({
             "ok": true,
@@ -26238,6 +26385,187 @@ YW\tJ
         assert_eq!(j.get("edit_count").and_then(|v| v.as_u64()), Some(3));
         assert_eq!(j.get("latest_editor").and_then(|v| v.as_str()), Some("bob"));
         assert_eq!(j.get("latest_ts_ms").and_then(|v| v.as_i64()), Some(1234));
+    }
+
+    // --- T-1769 channel_quote_stats -----------------------------------------
+
+    fn reply_env_quote(offset: u64, sender: &str, parent: u64, payload: &str, ts: i64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "text",
+            "ts_unix_ms": ts,
+            "payload_b64": state_b64(payload),
+            "metadata": {"in_reply_to": parent.to_string()},
+        })
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_empty_envelopes() {
+        let rows = compute_quote_stats_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_one_reply_counts_one() {
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            reply_env_quote(20, "bob", 10, "r1", 200),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 10);
+        assert_eq!(rows[0].target_sender, "alice");
+        assert_eq!(rows[0].target_payload, "root");
+        assert_eq!(rows[0].reply_count, 1);
+        assert_eq!(rows[0].distinct_repliers, vec!["bob"]);
+        assert_eq!(rows[0].latest_reply_ts_ms, 200);
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_distinct_repliers_sorted_asc() {
+        // Three distinct repliers to target 10, posted in mixed order — output BTreeSet asc.
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            reply_env_quote(20, "carol", 10, "r1", 200),
+            reply_env_quote(21, "bob", 10, "r2", 300),
+            reply_env_quote(22, "alice", 10, "r3", 400),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_count, 3);
+        assert_eq!(
+            rows[0].distinct_repliers,
+            vec!["alice", "bob", "carol"],
+            "BTreeSet → sorted ascending"
+        );
+        assert_eq!(rows[0].latest_reply_ts_ms, 400, "max ts wins");
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_repeat_replier_counted_distinct_once() {
+        // bob replies twice to target 10 — reply_count=2, distinct_repliers=["bob"].
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            reply_env_quote(20, "bob", 10, "r1", 200),
+            reply_env_quote(21, "bob", 10, "r2", 300),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows[0].reply_count, 2);
+        assert_eq!(rows[0].distinct_repliers, vec!["bob"], "replier dedup");
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_redacted_reply_excluded() {
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            reply_env_quote(20, "bob", 10, "r1", 200),
+            reply_env_quote(21, "carol", 10, "r2", 300),
+            state_redact_env(30, "mod", 20, 350),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows[0].reply_count, 1, "bob's redacted reply excluded");
+        assert_eq!(rows[0].distinct_repliers, vec!["carol"]);
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_redacted_target_drops_row() {
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            reply_env_quote(20, "bob", 10, "r1", 200),
+            state_redact_env(30, "mod", 10, 250),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert!(rows.is_empty(), "redacted target drops row");
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_reaction_not_counted_as_reply() {
+        // A reaction also carries in_reply_to but is NOT a reply.
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            serde_json::json!({
+                "offset": 20,
+                "sender_id": "bob",
+                "msg_type": "reaction",
+                "ts_unix_ms": 200,
+                "payload_b64": state_b64("👍"),
+                "metadata": {"in_reply_to": "10"},
+            }),
+            reply_env_quote(21, "carol", 10, "real reply", 300),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reply_count, 1, "reaction skipped, only real reply counts");
+        assert_eq!(rows[0].distinct_repliers, vec!["carol"]);
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_sort_count_desc_then_offset_asc() {
+        // Target 10 has 1 reply; target 20 has 3 replies; target 30 has 3 replies.
+        // Sort: 20 (3), 30 (3), 10 (1).
+        let envs = vec![
+            state_env(10, "a", "text", "v0", 100),
+            state_env(20, "a", "text", "v0", 100),
+            state_env(30, "a", "text", "v0", 100),
+            reply_env_quote(40, "x", 10, "r", 200),
+            reply_env_quote(41, "x", 20, "r", 200),
+            reply_env_quote(42, "y", 20, "r", 201),
+            reply_env_quote(43, "z", 20, "r", 202),
+            reply_env_quote(44, "x", 30, "r", 300),
+            reply_env_quote(45, "y", 30, "r", 301),
+            reply_env_quote(46, "z", 30, "r", 302),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].target_offset, 20);
+        assert_eq!(rows[0].reply_count, 3);
+        assert_eq!(rows[1].target_offset, 30, "offset asc tiebreak on count=3");
+        assert_eq!(rows[2].target_offset, 10);
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_target_not_in_set_dropped() {
+        // Reply targets offset 99 which isn't in the envelope set — drops out.
+        let envs = vec![reply_env_quote(20, "bob", 99, "r", 200)];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert!(rows.is_empty(), "reply to missing target dropped");
+    }
+
+    #[test]
+    fn compute_quote_stats_mcp_no_parent_metadata_ignored() {
+        // Envelope without in_reply_to — not a reply.
+        let envs = vec![
+            state_env(10, "alice", "text", "root", 100),
+            state_env(20, "bob", "text", "standalone", 200),
+        ];
+        let rows = compute_quote_stats_mcp(&envs);
+        assert!(rows.is_empty(), "no in_reply_to → not a reply");
+    }
+
+    #[test]
+    fn channel_quote_stats_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelQuoteStatsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+    }
+
+    #[test]
+    fn quote_stats_row_to_json_shape() {
+        let row = QuoteStatsRowMcp {
+            target_offset: 42,
+            target_sender: "alice".to_string(),
+            target_payload: "hello".to_string(),
+            reply_count: 5,
+            distinct_repliers: vec!["bob".to_string(), "carol".to_string()],
+            latest_reply_ts_ms: 1234,
+        };
+        let j = row.to_json_mcp();
+        assert_eq!(j.get("target_offset").and_then(|v| v.as_u64()), Some(42));
+        assert_eq!(j.get("reply_count").and_then(|v| v.as_u64()), Some(5));
+        let repliers = j.get("distinct_repliers").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(repliers.len(), 2);
+        assert_eq!(j.get("latest_reply_ts_ms").and_then(|v| v.as_i64()), Some(1234));
     }
 
     #[test]
