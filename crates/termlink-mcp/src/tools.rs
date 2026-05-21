@@ -1547,6 +1547,98 @@ fn compute_state_mcp(envelopes: &[serde_json::Value], include_redacted: bool) ->
     rows
 }
 
+/// T-1746: per-sender membership row. Mirror of CLI's `MemberRow`
+/// (channel.rs:2454). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MemberRowMcp {
+    sender_id: String,
+    posts: u64,
+    first_ts: Option<i64>,
+    last_ts: Option<i64>,
+}
+
+impl MemberRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "sender_id": self.sender_id,
+            "posts": self.posts,
+            "first_ts": self.first_ts,
+            "last_ts": self.last_ts,
+        })
+    }
+}
+
+/// T-1746: pure helper — group envelopes by sender_id and accumulate
+/// post-count + first/last ts. Mirror of CLI `summarize_members`
+/// (channel.rs:2476). Returns rows sorted by last_ts desc (None last_ts
+/// sorts last; sender_id tiebreak via BTreeMap stable ordering).
+/// Skips meta envelopes (META_MSG_TYPES) unless `include_meta` is true.
+/// Empty sender_ids are skipped (defensive).
+fn summarize_members_mcp(msgs: &[serde_json::Value], include_meta: bool) -> Vec<MemberRowMcp> {
+    use std::collections::BTreeMap;
+    let mut acc: BTreeMap<String, MemberRowMcp> = BTreeMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if !include_meta && META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let ts_opt = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+        let entry = acc.entry(sender.clone()).or_insert_with(|| MemberRowMcp {
+            sender_id: sender,
+            posts: 0,
+            first_ts: None,
+            last_ts: None,
+        });
+        entry.posts += 1;
+        if let Some(ts) = ts_opt {
+            entry.first_ts = Some(entry.first_ts.map_or(ts, |a| a.min(ts)));
+            entry.last_ts = Some(entry.last_ts.map_or(ts, |a| a.max(ts)));
+        }
+    }
+    let mut rows: Vec<MemberRowMcp> = acc.into_values().collect();
+    rows.sort_by(|a, b| match (a.last_ts, b.last_ts) {
+        (Some(av), Some(bv)) => bv.cmp(&av),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    rows
+}
+
+/// T-1746: pure helper — same as `summarize_members_mcp` but pre-filters
+/// envelopes by `ts <= as_of_ms`. Mirror of CLI `summarize_members_as_of`
+/// (channel.rs:2520). Envelopes missing a timestamp are treated as ts=0.
+/// When `as_of_ms` is None, behaves identically to summarize_members_mcp.
+fn summarize_members_as_of_mcp(
+    msgs: &[serde_json::Value],
+    include_meta: bool,
+    as_of_ms: Option<i64>,
+) -> Vec<MemberRowMcp> {
+    let Some(cutoff) = as_of_ms else {
+        return summarize_members_mcp(msgs, include_meta);
+    };
+    let filtered: Vec<serde_json::Value> = msgs
+        .iter()
+        .filter(|env| {
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            ts <= cutoff
+        })
+        .cloned()
+        .collect();
+    summarize_members_mcp(&filtered, include_meta)
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4006,6 +4098,20 @@ pub struct ChannelStateParams {
     /// If true, redacted rows surface with `payload="[REDACTED]"` and
     /// `is_redacted=true`. Default false (redacted rows are dropped entirely).
     pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelMembersParams {
+    /// Topic to summarize membership for.
+    pub topic: String,
+    /// If true, count meta envelopes (reaction/edit/redaction/topic_metadata/
+    /// receipt) toward each sender's post count. Default false — those are
+    /// system traffic, not "messages".
+    pub include_meta: Option<bool>,
+    /// Historical snapshot: only count envelopes with `ts_unix_ms <= as_of_ms`.
+    /// Useful for "who was active up until time X". Envelopes without a ts
+    /// are treated as ts=0 (always included). If omitted, no cutoff applied.
+    pub as_of_ms: Option<i64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -20078,6 +20184,37 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_channel_members",
+        description = "Per-sender activity summary for an arbitrary topic — MCP parity for the `termlink channel members` CLI verb (T-1341, channel.rs:2544). Groups envelopes by `sender_id`, accumulates post count + first/last timestamps. Returns rows sorted last_ts-desc (None last_ts sorts last). Sister to `termlink_agent_peers` (which is hardcoded to agent-chat-arc and has a 3-field row); this works on ANY topic and returns the 4-field MemberRow including first_ts. Supports `include_meta` (count meta envelopes too, default false) and `as_of_ms` (historical cutoff). Returns `{ok, topic, include_meta, as_of_ms, members: [{sender_id, posts, first_ts, last_ts}], count}`. Pure read — no posts."
+    )]
+    async fn termlink_channel_members(
+        &self,
+        Parameters(p): Parameters<ChannelMembersParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let include_meta = p.include_meta.unwrap_or(false);
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = summarize_members_as_of_mcp(&envelopes, include_meta, p.as_of_ms);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(MemberRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "include_meta": include_meta,
+            "as_of_ms": p.as_of_ms,
+            "members": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_channel_state",
         description = "Canonical content-row state of an arbitrary topic — MCP parity for the `termlink channel state` CLI verb (T-1376, channel.rs:5971). One row per content envelope (meta types skipped), edits collapsed to latest-wins by (ts_ms, offset), redactions either dropped (default) or surfaced as `[REDACTED]` (when `include_redacted=true`). Sister to `termlink_agent_state` but for ANY topic, and with row-level granularity (one StateRow per content message) rather than the curated digest. Returns `{ok, topic, include_redacted, rows: [{offset, sender_id, payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}], count}`. Pure read — no posts."
     )]
@@ -20834,6 +20971,144 @@ YW\tJ
         let rows = compute_state_mcp(&envs, false);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].offset, 13);
+    }
+
+    // === T-1746: summarize_members_mcp helper tests ===
+
+    fn member_env(sender: &str, msg_type: &str, ts: i64) -> serde_json::Value {
+        serde_json::json!({
+            "sender_id": sender,
+            "msg_type": msg_type,
+            "ts_unix_ms": ts,
+        })
+    }
+
+    #[test]
+    fn summarize_members_empty_returns_empty() {
+        let rows = summarize_members_mcp(&[], false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn summarize_members_multi_sender_accumulates_first_last_ts() {
+        let envs = vec![
+            member_env("alice", "text", 100),
+            member_env("alice", "text", 300),
+            member_env("alice", "text", 200),
+            member_env("bob", "text", 150),
+        ];
+        let rows = summarize_members_mcp(&envs, false);
+        assert_eq!(rows.len(), 2);
+        // alice: posts=3, first=100, last=300
+        let alice = rows.iter().find(|r| r.sender_id == "alice").unwrap();
+        assert_eq!(alice.posts, 3);
+        assert_eq!(alice.first_ts, Some(100));
+        assert_eq!(alice.last_ts, Some(300));
+        let bob = rows.iter().find(|r| r.sender_id == "bob").unwrap();
+        assert_eq!(bob.posts, 1);
+        assert_eq!(bob.first_ts, Some(150));
+        assert_eq!(bob.last_ts, Some(150));
+        // Sort: alice (last_ts=300) before bob (last_ts=150).
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[1].sender_id, "bob");
+    }
+
+    #[test]
+    fn summarize_members_meta_skipped_by_default() {
+        let envs = vec![
+            member_env("alice", "text", 100),
+            member_env("alice", "reaction", 200),
+            member_env("alice", "edit", 300),
+            member_env("alice", "topic_metadata", 400),
+        ];
+        let rows = summarize_members_mcp(&envs, false);
+        // Only the one content envelope counts.
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posts, 1);
+        assert_eq!(rows[0].last_ts, Some(100));
+    }
+
+    #[test]
+    fn summarize_members_include_meta_counts_everything() {
+        let envs = vec![
+            member_env("alice", "text", 100),
+            member_env("alice", "reaction", 200),
+            member_env("alice", "edit", 300),
+        ];
+        let rows = summarize_members_mcp(&envs, true);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posts, 3);
+        assert_eq!(rows[0].last_ts, Some(300));
+    }
+
+    #[test]
+    fn summarize_members_skips_empty_sender_id() {
+        let envs = vec![
+            member_env("", "text", 100),
+            member_env("alice", "text", 200),
+        ];
+        let rows = summarize_members_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+    }
+
+    #[test]
+    fn summarize_members_handles_envelope_without_ts() {
+        let envs = vec![serde_json::json!({"sender_id": "alice", "msg_type": "text"})];
+        let rows = summarize_members_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].posts, 1);
+        assert_eq!(rows[0].first_ts, None);
+        assert_eq!(rows[0].last_ts, None);
+    }
+
+    #[test]
+    fn summarize_members_as_of_filters_by_ts_cutoff() {
+        let envs = vec![
+            member_env("alice", "text", 100),
+            member_env("alice", "text", 200),
+            member_env("alice", "text", 500),
+            member_env("bob", "text", 600),
+        ];
+        // Cutoff=300 → alice has 2 posts (100, 200), bob has 0 (600 > 300).
+        let rows = summarize_members_as_of_mcp(&envs, false, Some(300));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].posts, 2);
+        assert_eq!(rows[0].last_ts, Some(200));
+    }
+
+    #[test]
+    fn summarize_members_as_of_none_equivalent_to_summarize_members() {
+        let envs = vec![
+            member_env("alice", "text", 100),
+            member_env("bob", "text", 200),
+        ];
+        let a = summarize_members_mcp(&envs, false);
+        let b = summarize_members_as_of_mcp(&envs, false, None);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn channel_members_params_minimal_topic_only() {
+        let json = serde_json::json!({"topic": "foo"});
+        let p: ChannelMembersParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "foo");
+        assert_eq!(p.include_meta, None);
+        assert_eq!(p.as_of_ms, None);
+    }
+
+    #[test]
+    fn channel_members_params_with_all_options() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "include_meta": true,
+            "as_of_ms": 1234567890,
+        });
+        let p: ChannelMembersParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.include_meta, Some(true));
+        assert_eq!(p.as_of_ms, Some(1234567890));
     }
 
     #[test]
