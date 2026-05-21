@@ -5955,6 +5955,19 @@ pub struct ChannelThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelMentionsParams {
+    /// User tag to match. Defaults to caller's local Identity fingerprint
+    /// when omitted. Pass `"*"` to match any non-empty mentions CSV.
+    pub target: Option<String>,
+    /// Optional prefix filter for `channel.list`. When set, only topics
+    /// starting with this prefix are scanned. Use `dm:` to scope to DMs.
+    pub prefix: Option<String>,
+    /// Soft cap on hit count. `0` = unlimited. Default: 100. Iteration
+    /// short-circuits across topics once the cap is reached.
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelTypingListParams {
     /// Topic to walk for typing-presence (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15713,6 +15726,117 @@ impl TermLinkTools {
             "topic": p.topic,
             "root": p.root,
             "thread": entries,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_mentions",
+        description = "Cross-topic mentions search — find every envelope mentioning `target` across ALL topics (optionally prefix-filtered). MCP parity for `termlink channel mentions` CLI verb (T-1777 of T-1166). **Distinct from `termlink_channel_mentions_of`**: that walks ONE topic; this walks the FLEET. Value-add: lets an MCP agent answer 'where am I mentioned anywhere?' — including DM topics it has not yet subscribed to. Defaults `target` to caller's local Identity fingerprint when omitted. Mention matching uses T-1333 rules (`*` wildcard on either side, literal-equality on parts). Skips META msg-types (receipt/reaction/redaction/edit/topic_metadata). Iterates topics from `channel.list` (optional `prefix` filter — e.g. `dm:` to scope to DMs); `limit` default 100, `0` = unlimited, short-circuits across topics once reached. Returns `{ok, target, prefix, hits: [{topic, offset, sender_id, ts, msg_type, payload, mentions}, ...], count}` — each hit carries its source topic. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+    )]
+    async fn termlink_channel_mentions(
+        &self,
+        Parameters(p): Parameters<ChannelMentionsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let target = match p.target {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                let identity =
+                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    {
+                        Ok(i) => i,
+                        Err(e) => return json_err(format!("identity load: {e}")),
+                    };
+                identity.fingerprint().to_string()
+            }
+        };
+        let list_params = match &p.prefix {
+            Some(pfx) => serde_json::json!({"prefix": pfx}),
+            None => serde_json::json!({}),
+        };
+        let list_resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            list_params,
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list RPC failed: {e}")),
+        };
+        let list_result = match termlink_session::client::unwrap_result(list_resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list error: {e}")),
+        };
+        let topic_names: Vec<String> = list_result["topics"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|t| t.get("name").and_then(|v| v.as_str()).map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+        let limit = p.limit.unwrap_or(100);
+        let mut hits: Vec<serde_json::Value> = Vec::new();
+        'topic_loop: for topic in &topic_names {
+            let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
+                Ok(v) => v,
+                Err(_) => continue, // single-topic failure must not poison the fleet sweep
+            };
+            for env in &envelopes {
+                let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+                if META.contains(&mt) {
+                    continue;
+                }
+                let csv = match extract_mentions_mcp(env) {
+                    Some(s) => s,
+                    None => continue,
+                };
+                if !mentions_match_mcp(&csv, &target) {
+                    continue;
+                }
+                let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                let sender = env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let ts = env
+                    .get("ts_unix_ms")
+                    .and_then(|v| v.as_i64())
+                    .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+                let payload = decode_payload_lossy_mcp(env);
+                hits.push(serde_json::json!({
+                    "topic": topic,
+                    "offset": offset,
+                    "sender_id": sender,
+                    "ts": ts,
+                    "msg_type": mt,
+                    "payload": payload,
+                    "mentions": csv,
+                }));
+                if limit > 0 && hits.len() as u64 >= limit {
+                    break 'topic_loop;
+                }
+            }
+        }
+        let count = hits.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "target": target,
+            "prefix": p.prefix,
+            "hits": hits,
+            "count": count,
         }))
         .unwrap_or_else(json_err)
     }
@@ -27300,6 +27424,39 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1777 channel_mentions (cross-topic) ------------------------------
+
+    #[test]
+    fn channel_mentions_params_deserialize_all_defaults() {
+        let json = serde_json::json!({});
+        let p: ChannelMentionsParams = serde_json::from_value(json).unwrap();
+        assert!(p.target.is_none(), "target defaults to local identity");
+        assert!(p.prefix.is_none(), "no prefix → scan all topics");
+        assert!(p.limit.is_none(), "limit defaults at call time (100)");
+    }
+
+    #[test]
+    fn channel_mentions_params_deserialize_with_target() {
+        let json = serde_json::json!({"target": "deadbeef0123"});
+        let p: ChannelMentionsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target.as_deref(), Some("deadbeef0123"));
+    }
+
+    #[test]
+    fn channel_mentions_params_deserialize_with_prefix_and_limit() {
+        let json = serde_json::json!({"prefix": "dm:", "limit": 50});
+        let p: ChannelMentionsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.prefix.as_deref(), Some("dm:"));
+        assert_eq!(p.limit, Some(50));
+    }
+
+    #[test]
+    fn channel_mentions_params_deserialize_wildcard_target() {
+        let json = serde_json::json!({"target": "*"});
+        let p: ChannelMentionsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target.as_deref(), Some("*"));
     }
 
     #[test]
