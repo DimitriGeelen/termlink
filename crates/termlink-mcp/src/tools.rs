@@ -2916,6 +2916,88 @@ fn compute_digest_mcp(envelopes: &[serde_json::Value], since_ms: i64) -> DigestS
     }
 }
 
+/// T-1767: one row of the per-target reaction rollup. Mirrors CLI
+/// `ReactionsOnRow` shape (commands/channel.rs:5569).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReactionsOnRowMcp {
+    pub emoji: String,
+    pub count: u64,
+    pub senders: Vec<String>,
+}
+
+impl ReactionsOnRowMcp {
+    pub(crate) fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "emoji": self.emoji,
+            "count": self.count,
+            "senders": self.senders,
+        })
+    }
+}
+
+/// T-1767: pure helper — per-target reaction rollup. Mirrors CLI
+/// `compute_reactions_on` (commands/channel.rs:5594).
+///
+/// Filters envelopes: msg_type=reaction, NOT redacted, parent_offset_of
+/// matches target, non-empty emoji. Aggregates by emoji:
+/// - `count` = total reactions (repeat-tap counts — alice 👍 twice = 2)
+/// - `senders` = deduplicated set, sorted ascending
+///
+/// Sort: count desc, emoji asc tiebreak.
+///
+/// CLI-parity fix vs existing `termlink_agent_reaction_summary` (T-1577)
+/// which has two divergences: (a) no redaction handling; (b) sets
+/// `count = senders.len()` (distinct senders) instead of total reactions.
+fn compute_reactions_on_mcp(
+    envelopes: &[serde_json::Value],
+    target: u64,
+) -> Vec<ReactionsOnRowMcp> {
+    use std::collections::{BTreeSet, HashMap};
+    let redacted = redacted_offsets_mcp(envelopes);
+    let mut by_emoji: HashMap<String, (u64, BTreeSet<String>)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("reaction") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let parent = match parent_offset_of_mcp(env) {
+            Some(p) => p,
+            None => continue,
+        };
+        if parent != target {
+            continue;
+        }
+        let emoji = decode_payload_lossy_mcp(env);
+        if emoji.is_empty() {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let entry = by_emoji.entry(emoji).or_insert_with(|| (0, BTreeSet::new()));
+        entry.0 += 1;
+        entry.1.insert(sender);
+    }
+    let mut rows: Vec<ReactionsOnRowMcp> = by_emoji
+        .into_iter()
+        .map(|(emoji, (count, senders))| ReactionsOnRowMcp {
+            emoji,
+            count,
+            senders: senders.into_iter().collect(),
+        })
+        .collect();
+    rows.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.emoji.cmp(&b.emoji)));
+    rows
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5545,6 +5627,14 @@ pub struct ChannelReactionsOfParams {
     /// Sender to filter reactions by. Defaults to caller's local Identity
     /// fingerprint when omitted (most common "my reactions" query).
     pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelReactionsOnParams {
+    /// Topic to walk for the rollup (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Target offset whose reactions are being aggregated.
+    pub target: u64,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -14881,6 +14971,35 @@ impl TermLinkTools {
             "ok": true,
             "topic": p.topic,
             "sender_id": sender_id,
+            "rows": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_reactions_on",
+        description = "Per-target reaction rollup on any topic — MCP parity for `termlink channel reactions-on <topic> <OFFSET>` CLI verb (T-1767 of T-1166). Walks the topic, filters `msg_type=reaction` whose `metadata.in_reply_to==target` and that are not redacted, groups by emoji. `count` is the total reactions (repeat-tap counts — alice 👍 twice = 2). `senders` is deduplicated, sorted ascending. Sort: count desc, emoji asc. Three value-adds over `termlink_agent_reaction_summary`: (1) topic-flexible (any DM/topic); (2) respects redactions — agent_reaction_summary silently counts retracted reactions; (3) CLI-parity count semantics — agent_reaction_summary's count=distinct-senders, this one's count=total-reactions (preserves repeat-tap signal). Returns `{ok, topic, target, total_count, rows: [{emoji, count, senders: [sender_id, ...]}, ...]}`. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_reactions_on(
+        &self,
+        Parameters(p): Parameters<ChannelReactionsOnParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_reactions_on_mcp(&envelopes, p.target);
+        let total_count: u64 = rows.iter().map(|r| r.count).sum();
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(ReactionsOnRowMcp::to_json_mcp).collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "target": p.target,
+            "total_count": total_count,
             "rows": rows_json,
         }))
         .unwrap_or_else(json_err)
@@ -25655,6 +25774,140 @@ YW\tJ
         });
         let p: ChannelReactionsOfParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    // --- T-1767 channel_reactions_on ----------------------------------------
+
+    fn reaction_env_on(offset: u64, sender: &str, emoji: &str, parent: u64) -> serde_json::Value {
+        use base64::Engine;
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "reaction",
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(emoji.as_bytes()),
+            "metadata": {"in_reply_to": parent.to_string()},
+        })
+    }
+
+    fn redaction_env_on(offset: u64, target: u64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": "redactor",
+            "msg_type": "redaction",
+            "metadata": {"redacts": target.to_string()},
+        })
+    }
+
+    #[test]
+    fn reactions_on_empty_envelopes() {
+        let rows = compute_reactions_on_mcp(&[], 10);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn reactions_on_single_reaction() {
+        let envs = vec![reaction_env_on(20, "alice", "👍", 10)];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+        assert_eq!(rows[0].count, 1);
+        assert_eq!(rows[0].senders, vec!["alice"]);
+    }
+
+    #[test]
+    fn reactions_on_repeat_tap_increments_count_dedups_sender() {
+        // alice 👍 twice — count=2, senders=["alice"] (deduplicated)
+        let envs = vec![
+            reaction_env_on(20, "alice", "👍", 10),
+            reaction_env_on(21, "alice", "👍", 10),
+        ];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 2, "repeat-tap captured by count");
+        assert_eq!(rows[0].senders, vec!["alice"], "sender dedup");
+    }
+
+    #[test]
+    fn reactions_on_skips_redacted_reactions() {
+        let envs = vec![
+            reaction_env_on(20, "alice", "👍", 10),
+            reaction_env_on(21, "bob", "👍", 10),
+            redaction_env_on(30, 20),
+        ];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 1, "alice's redacted reaction excluded");
+        assert_eq!(rows[0].senders, vec!["bob"]);
+    }
+
+    #[test]
+    fn reactions_on_multi_emoji_sorted_count_desc_emoji_asc() {
+        // target=10. emoji "a": 3 reactions, "b": 3 reactions, "c": 1 reaction.
+        let envs = vec![
+            reaction_env_on(20, "alice", "a", 10),
+            reaction_env_on(21, "bob", "a", 10),
+            reaction_env_on(22, "carol", "a", 10),
+            reaction_env_on(23, "alice", "b", 10),
+            reaction_env_on(24, "bob", "b", 10),
+            reaction_env_on(25, "carol", "b", 10),
+            reaction_env_on(26, "alice", "c", 10),
+        ];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 3);
+        // a, b tie at 3 — emoji asc → a before b
+        assert_eq!(rows[0].emoji, "a");
+        assert_eq!(rows[1].emoji, "b");
+        assert_eq!(rows[2].emoji, "c");
+    }
+
+    #[test]
+    fn reactions_on_ignores_other_targets() {
+        let envs = vec![
+            reaction_env_on(20, "alice", "👍", 10),
+            reaction_env_on(21, "bob", "👍", 99),  // different target
+        ];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].senders, vec!["alice"]);
+    }
+
+    #[test]
+    fn reactions_on_drops_empty_emoji() {
+        // empty payload (no payload_b64 → decode yields empty)
+        let envs = vec![
+            serde_json::json!({
+                "offset": 20,
+                "sender_id": "alice",
+                "msg_type": "reaction",
+                "metadata": {"in_reply_to": "10"},
+            }),
+            reaction_env_on(21, "bob", "👍", 10),
+        ];
+        let rows = compute_reactions_on_mcp(&envs, 10);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].emoji, "👍");
+    }
+
+    #[test]
+    fn channel_reactions_on_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "target": 42_u64});
+        let p: ChannelReactionsOnParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.target, 42);
+    }
+
+    #[test]
+    fn reactions_on_row_to_json_shape() {
+        let row = ReactionsOnRowMcp {
+            emoji: "🎉".to_string(),
+            count: 5,
+            senders: vec!["alice".to_string(), "bob".to_string()],
+        };
+        let j = row.to_json_mcp();
+        assert_eq!(j.get("emoji").and_then(|v| v.as_str()), Some("🎉"));
+        assert_eq!(j.get("count").and_then(|v| v.as_u64()), Some(5));
+        let senders = j.get("senders").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(senders.len(), 2);
     }
 
     #[test]
