@@ -5880,6 +5880,15 @@ pub struct ChannelQuoteStatsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelMentionsOfParams {
+    /// Topic to walk for mentions (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// User to filter mentions by. Pass `"*"` to match any non-empty
+    /// mentions CSV (the "anyone tagged at all?" query). Empty rejected.
+    pub user: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -15300,6 +15309,48 @@ impl TermLinkTools {
             "ok": true,
             "topic": p.topic,
             "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_mentions_of",
+        description = "Find every envelope on an arbitrary topic whose `metadata.mentions` CSV matches the named user — MCP parity for `termlink channel mentions-of <topic> <USER>` CLI verb (T-1770 of T-1166). Topic-flexible variant of `termlink_agent_mentions` (hardcoded chat-arc). Reuses the same `compute_mentions_of_mcp` helper — semantics are identical (T-1333 matching rules: empty target rejected; literal-equality on parts; `target == \"*\"` matches any non-empty csv; csv containing `*` matches any specific target). Skips redacted envelopes and meta msg-types (reaction/edit/redaction/topic_metadata/receipt). Use case: per-user mention queries on `dm:*` topics or project-specific topics — answers 'where did Bob tag me on this DM channel?'. Returns `{ok, topic, user, mentions: [{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...], count}` sorted by descending offset (newest first). NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_mentions_of(
+        &self,
+        Parameters(p): Parameters<ChannelMentionsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let user = p.user.trim();
+        if user.is_empty() {
+            return json_err("user is required and must be non-empty (use \"*\" to match any tag)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_mentions_of_mcp(&envelopes, user);
+        let rows_json: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| serde_json::json!({
+                "mention_offset": r.mention_offset,
+                "sender_id": r.sender_id,
+                "payload": r.payload,
+                "mentions_csv": r.mentions_csv,
+                "ts_ms": r.ts_ms,
+            }))
+            .collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "user": user,
+            "mentions": rows_json,
             "count": count,
         }))
         .unwrap_or_else(json_err)
@@ -26566,6 +26617,42 @@ YW\tJ
         let repliers = j.get("distinct_repliers").and_then(|v| v.as_array()).unwrap();
         assert_eq!(repliers.len(), 2);
         assert_eq!(j.get("latest_reply_ts_ms").and_then(|v| v.as_i64()), Some(1234));
+    }
+
+    // --- T-1770 channel_mentions_of -----------------------------------------
+
+    #[test]
+    fn channel_mentions_of_params_deserialize_literal_user() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "user": "carol"});
+        let p: ChannelMentionsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.user, "carol");
+    }
+
+    #[test]
+    fn channel_mentions_of_params_deserialize_wildcard_user() {
+        // T-1333 rule: "*" matches any non-empty mentions CSV.
+        let json = serde_json::json!({"topic": "proj:foo", "user": "*"});
+        let p: ChannelMentionsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.user, "*");
+    }
+
+    #[test]
+    fn channel_mentions_of_helper_wires_through_correctly() {
+        // Sanity: helper reuse — single mention envelope produces single row.
+        let envs = vec![serde_json::json!({
+            "offset": 10,
+            "sender_id": "alice",
+            "msg_type": "text",
+            "ts_unix_ms": 100,
+            "payload_b64": state_b64("hey bob check this"),
+            "metadata": {"mentions": "bob"},
+        })];
+        let rows = compute_mentions_of_mcp(&envs, "bob");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].mention_offset, 10);
+        assert_eq!(rows[0].sender_id, "alice");
+        assert_eq!(rows[0].mentions_csv, "bob");
     }
 
     #[test]
