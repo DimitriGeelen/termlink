@@ -349,6 +349,19 @@ freshness, so operators can confirm they're running the version that has
 these commands) → T-1291 (declarative `bootstrap_from` per profile +
 `--bootstrap-from auto`, lowers the floor on every heal). T-1058 added
 this documentation.
+
+### Channel Topic Semantics — Per-Hub State (G-060 / T-1791 / T-1792)
+
+TermLink hubs maintain **independent** channel-topic storage. A topic named
+`agent-chat-arc` on hub A and `agent-chat-arc` on hub B are unrelated state.
+There is no inter-hub federation primitive. Cross-hub visibility requires
+explicit, client-driven cross-posting via `termlink channel post --hub <addr>`
+or `termlink remote call <peer> channel.post`. A non-zero count delta between
+hubs for a shared-name topic is **expected**, not a bug — it just means
+different posters used different hubs. See
+[`docs/operations/channel-topic-semantics.md`](docs/operations/channel-topic-semantics.md)
+for the full diagnostic recipe and implications for T-1166 retirement.
+
 ## Core Principle
 
 **Nothing gets done without a task.** This is enforced structurally by the framework, not by agent discipline.
