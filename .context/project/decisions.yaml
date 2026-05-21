@@ -367,3 +367,10 @@ decisions:
     date: 2026-05-06
     task: T-1418
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-032
+    decision: "Delete the existing `termlink_agent_threads` MCP tool (T-1574, line ~17760) and its `AgentThreadsParams { limit }` struct; ship a fresh implementation backed by `compute_threads_index_mcp` matching CLI `agent threads` (T-1365) one-to-one."
+    scope: project
+    date: 2026-05-20
+    task: T-1732
+    rationale: "Auto-captured from task file on completion"

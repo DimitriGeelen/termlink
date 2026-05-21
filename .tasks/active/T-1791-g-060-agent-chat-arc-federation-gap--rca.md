@@ -75,15 +75,15 @@ Output: a written diagnosis classifying the gap as one of (a) federation logic b
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -162,7 +162,12 @@ What G-060 actually reveals is a mental-model gap that should be closed via docu
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: TermLink has no inter-hub channel-topic federation primitive (T-1791 spikes: grep
+  returns 0 matches). 1800 vs 486 disparity is by design. T-1166 NOT blocked. 4 follow-ups committed in dc8ca1a05.
+
+**Date**: 2026-05-21T20:12:07Z
 
 ## Updates
 
@@ -171,3 +176,9 @@ What G-060 actually reveals is a mental-model gap that should be closed via docu
 
 ### 2026-05-21T18:57:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-21T20:12:07Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** TermLink has no inter-hub channel-topic federation primitive (T-1791 spikes: grep
+  returns 0 matches). 1800 vs 486 disparity is by design. T-1166 NOT blocked. 4 follow-ups committed in dc8ca1a05.
