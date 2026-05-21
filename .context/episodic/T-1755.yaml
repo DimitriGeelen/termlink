@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1755: termlink_channel_topic_stats MCP — full-topic aggregate stats
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T10:00:13Z
+# ============================================================================
+
+task_id: T-1755
+task_name: "termlink_channel_topic_stats MCP — full-topic aggregate stats"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T09:54:58Z
+completed: 2026-05-21T10:00:11Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`FullTopicStatsMcp` struct + `compute_full_topic_stats_mcp` helper added to tools.rs (mirrors CLI semantics: excludes redacted offsets from non-redaction counters, counts redaction envelopes specially, last-write-wins pin state, top-N sorted desc-count name-asc tiebreak truncated to 5)"
+  - "`ChannelTopicStatsParams { topic: String }` params struct added"
+  - "`termlink_channel_topic_stats` `#[tool]` method added — pages topic envelopes via fetch_topic_msgs_mcp, returns `{ok, topic, ...stats}` JSON"
+  - "11 unit tests added covering: empty input, single post, mixed msg_types, redaction exclusion of non-redaction counters, pin/unpin LWW, pin/unpin/pin LWW, top-senders truncation @ 5, distinct-emoji aggregation, thread-root set dedup, json shape, params deserialize"
+  - "`cargo build -p termlink-mcp` succeeds (clean except pre-existing `cur_run_end` warning); 467 lib tests pass (was 456, +11)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1755-termlinkchanneltopicstats-mcp--full-topi.md
+generated_by: context-agent-hybrid
