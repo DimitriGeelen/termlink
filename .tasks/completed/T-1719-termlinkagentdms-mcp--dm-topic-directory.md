@@ -4,16 +4,16 @@ name: "termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)"
 description: >
   Close MCP-parity gap for the agent dms CLI verb (T-1552). MCP-aware agents currently cannot enumerate their DM topics — they have to call termlink_channel_list and filter manually. This task ships termlink_agent_dms with basic mode (topic+peer rows) AND unread mode (per-DM channel.receipts probe + content envelope walk). Mirrors cmd_channel_dm_list one-to-one. No new RPC surface — uses existing channel.list + channel.receipts + channel.subscribe.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T06:16:58Z
-last_update: 2026-05-20T06:16:58Z
-date_finished: null
+last_update: 2026-05-20T19:34:09Z
+date_finished: 2026-05-20T19:34:09Z
 ---
 
 # T-1719: termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)
@@ -128,3 +128,15 @@ cargo test --release -p termlink-mcp agent_dms
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1719-termlinkagentdms-mcp--dm-topic-directory.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8ffa171f
+- **Timestamp:** 2026-05-20T19:35:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-20T19:34:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

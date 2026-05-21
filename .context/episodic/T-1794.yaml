@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1794: PL-177 skip-rationale docstrings on channel_inbox / channel_dm / channel_dm_list
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T22:56:30Z
+# ============================================================================
+
+task_id: T-1794
+task_name: "PL-177 skip-rationale docstrings on channel_inbox / channel_dm / channel_dm_list"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T22:54:03Z
+completed: 2026-05-21T22:56:17Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-22T00:56:14+02:00
+last_commit: 2026-05-22T00:56:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PL-177 skip-rationale docstrings on channel_dm/dm_list/inbox
+
+# Key outcomes
+outcomes:
+  - "`cmd_channel_dm` doc comment names PL-177 + the `agent_contact` supersedence + the selection criterion"
+  - "`cmd_channel_dm_list` doc comment names PL-177 + the `agent_dms` supersedence"
+  - "`cmd_channel_inbox` doc comment names PL-177 + the `agent_inbox` supersedence"
+  - "`cargo check -p termlink` passes (no compile regression from docstring edits)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - ".tasks/active/T-1794-pl-177-skip-rationale-docstrings-on-chan.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-22T00:56:14"
+    action: "T-1794: PL-177 skip-rationale docstrings on channel_dm/dm_list/inbox"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 124
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1794-pl-177-skip-rationale-docstrings-on-chan.md
+generated_by: context-agent-hybrid

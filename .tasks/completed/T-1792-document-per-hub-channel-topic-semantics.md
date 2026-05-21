@@ -4,7 +4,7 @@ name: "Document per-hub channel-topic semantics — close G-060 (T-1791 follow-u
 description: >
   Add explicit documentation that channel topics are per-hub; cross-hub message visibility requires explicit --hub <addr> posting or remote_call channel.post. Topics with the same name on different hubs are independent state. Close the operator-facing portion of G-060.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [docs, G-060, T-1791]
 components: []
 related_tasks: [T-1791, T-1166]
 created: 2026-05-21T19:14:24Z
-last_update: 2026-05-21T22:29:11Z
-date_finished: null
+last_update: 2026-05-21T22:30:57Z
+date_finished: 2026-05-21T22:30:57Z
 ---
 
 # T-1792: Document per-hub channel-topic semantics — close G-060 (T-1791 follow-up #2)
@@ -110,3 +110,15 @@ grep -q "channel-topic-semantics" CLAUDE.md
 ### 2026-05-21T22:29:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9a70453f
+- **Timestamp:** 2026-05-21T22:30:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-21T22:30:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
