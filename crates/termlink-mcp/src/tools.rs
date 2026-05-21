@@ -1417,6 +1417,136 @@ fn summarize_fleet_by_project_mcp(
     rows
 }
 
+/// T-1745: one canonical-state row. Mirror of CLI's `StateRow`
+/// (channel.rs:5834). Field shape preserved one-to-one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StateRowMcp {
+    offset: u64,
+    sender_id: String,
+    payload: String,
+    is_edited: bool,
+    edit_count: u64,
+    latest_edit_ts_ms: i64,
+    ts_ms: i64,
+    is_redacted: bool,
+}
+
+impl StateRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "payload": self.payload,
+            "is_edited": self.is_edited,
+            "edit_count": self.edit_count,
+            "latest_edit_ts_ms": self.latest_edit_ts_ms,
+            "ts_ms": self.ts_ms,
+            "is_redacted": self.is_redacted,
+        })
+    }
+}
+
+/// T-1745: pure helper — build the canonical content-row state of a topic.
+/// Mirror of CLI's `compute_state` (channel.rs:5881) one-to-one.
+///
+/// One row per content envelope (META_MSG_TYPES skipped), in offset-asc order.
+/// Edits collapse to latest-wins (max ts_ms, offset tiebreak; redacted edits
+/// excluded from the count and from latest-selection). Redactions either drop
+/// the row (when `include_redacted=false`, default) or surface it with payload
+/// `"[REDACTED]"` and `is_redacted=true`.
+///
+/// `ts_ms` is always the original content row's timestamp (not the latest
+/// edit's). Use `latest_edit_ts_ms` to know when the current text was written.
+/// Pure — no I/O. Reads `ts_unix_ms` first, falls back to `ts` for legacy
+/// envelopes (matching CLI exactly).
+fn compute_state_mcp(envelopes: &[serde_json::Value], include_redacted: bool) -> Vec<StateRowMcp> {
+    use std::collections::HashMap;
+    let redacted = redacted_offsets_mcp(envelopes);
+    // target -> (latest_ts, latest_offset, latest_text, count)
+    let mut edits: HashMap<u64, (i64, u64, String, u64)> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let text = decode_payload_lossy_mcp(env);
+        let entry = edits
+            .entry(target)
+            .or_insert((i64::MIN, 0, String::new(), 0));
+        entry.3 += 1;
+        if ts > entry.0 || (ts == entry.0 && off > entry.1) {
+            entry.0 = ts;
+            entry.1 = off;
+            entry.2 = text;
+        }
+    }
+    let mut rows: Vec<StateRowMcp> = Vec::new();
+    for env in envelopes {
+        let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META_MSG_TYPES.contains(&mt) {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let is_red = redacted.contains(&off);
+        if is_red && !include_redacted {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let original_payload = decode_payload_lossy_mcp(env);
+        let (payload, is_edited, edit_count, latest_edit_ts) = if is_red {
+            ("[REDACTED]".to_string(), false, 0u64, 0i64)
+        } else if let Some((latest_ts, _, text, count)) = edits.get(&off) {
+            (text.clone(), true, *count, *latest_ts)
+        } else {
+            (original_payload, false, 0u64, 0i64)
+        };
+        rows.push(StateRowMcp {
+            offset: off,
+            sender_id: sender,
+            payload,
+            is_edited,
+            edit_count,
+            latest_edit_ts_ms: latest_edit_ts,
+            ts_ms: ts,
+            is_redacted: is_red,
+        });
+    }
+    rows.sort_by_key(|r| r.offset);
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -3866,6 +3996,16 @@ pub struct ChannelListParams {
 pub struct ChannelQueueStatusParams {
     /// Optional path to the queue sqlite file. Defaults to `~/.termlink/outbound.sqlite`.
     pub queue_path: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelStateParams {
+    /// Topic to read canonical content state from (e.g. "agent-chat-arc",
+    /// "dm:<a>:<b>", or any custom topic).
+    pub topic: String,
+    /// If true, redacted rows surface with `payload="[REDACTED]"` and
+    /// `is_redacted=true`. Default false (redacted rows are dropped entirely).
+    pub include_redacted: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -19937,6 +20077,36 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_state",
+        description = "Canonical content-row state of an arbitrary topic — MCP parity for the `termlink channel state` CLI verb (T-1376, channel.rs:5971). One row per content envelope (meta types skipped), edits collapsed to latest-wins by (ts_ms, offset), redactions either dropped (default) or surfaced as `[REDACTED]` (when `include_redacted=true`). Sister to `termlink_agent_state` but for ANY topic, and with row-level granularity (one StateRow per content message) rather than the curated digest. Returns `{ok, topic, include_redacted, rows: [{offset, sender_id, payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}], count}`. Pure read — no posts."
+    )]
+    async fn termlink_channel_state(
+        &self,
+        Parameters(p): Parameters<ChannelStateParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let include_redacted = p.include_redacted.unwrap_or(false);
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = compute_state_mcp(&envelopes, include_redacted);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(StateRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "include_redacted": include_redacted,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -20485,6 +20655,204 @@ YW\tJ
             fingerprint,
             "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+
+    // (back to T-1743 params tests)
+
+    // === T-1745: compute_state_mcp helper tests ===
+
+    fn state_b64(s: &str) -> String {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD.encode(s.as_bytes())
+    }
+
+    fn state_env(offset: u64, sender: &str, msg_type: &str, payload: &str, ts: i64) -> serde_json::Value {
+        // Envelopes carry their payload as payload_b64 (T-1336 wire contract),
+        // matching how decode_payload_lossy_mcp/CLI both decode.
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": msg_type,
+            "ts_unix_ms": ts,
+            "payload_b64": state_b64(payload),
+        })
+    }
+
+    fn state_edit_env(offset: u64, sender: &str, replaces: u64, new_text: &str, ts: i64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "edit",
+            "ts_unix_ms": ts,
+            "payload_b64": state_b64(new_text),
+            "metadata": {"replaces": replaces.to_string()},
+        })
+    }
+
+    fn state_redact_env(offset: u64, sender: &str, redacts: u64, ts: i64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "redaction",
+            "ts_unix_ms": ts,
+            "metadata": {"redacts": redacts.to_string()},
+        })
+    }
+
+    #[test]
+    fn compute_state_empty_input_returns_empty() {
+        let rows = compute_state_mcp(&[], false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn compute_state_single_plain_content_row() {
+        let envs = vec![state_env(10, "alice", "text", "hello", 100)];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.sender_id, "alice");
+        assert_eq!(r.payload, "hello");
+        assert!(!r.is_edited);
+        assert_eq!(r.edit_count, 0);
+        assert_eq!(r.latest_edit_ts_ms, 0);
+        assert_eq!(r.ts_ms, 100);
+        assert!(!r.is_redacted);
+    }
+
+    #[test]
+    fn compute_state_single_edit_collapses_to_latest_text() {
+        let envs = vec![
+            state_env(10, "alice", "text", "v1", 100),
+            state_edit_env(11, "alice", 10, "v2", 200),
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        // Only one content row (the edit is meta — not surfaced as its own row).
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.payload, "v2");
+        assert!(r.is_edited);
+        assert_eq!(r.edit_count, 1);
+        assert_eq!(r.latest_edit_ts_ms, 200);
+        // ts_ms is the ORIGINAL content row's ts, not the edit's.
+        assert_eq!(r.ts_ms, 100);
+    }
+
+    #[test]
+    fn compute_state_latest_edit_wins_by_ts_then_offset() {
+        // Two edits with the same ts; the higher offset wins per the tiebreak rule.
+        let envs = vec![
+            state_env(10, "alice", "text", "v1", 100),
+            state_edit_env(11, "alice", 10, "early", 300),
+            state_edit_env(13, "alice", 10, "late", 300),
+            state_edit_env(12, "alice", 10, "later-ts", 500),
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        // ts=500 wins over ts=300 regardless of offset.
+        assert_eq!(rows[0].payload, "later-ts");
+        assert_eq!(rows[0].edit_count, 3);
+        assert_eq!(rows[0].latest_edit_ts_ms, 500);
+    }
+
+    #[test]
+    fn compute_state_redacted_dropped_when_include_redacted_false() {
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 100),
+            state_env(11, "bob", "text", "visible", 110),
+            state_redact_env(12, "alice", 10, 200),
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 11);
+        assert_eq!(rows[0].payload, "visible");
+    }
+
+    #[test]
+    fn compute_state_redacted_surfaced_as_placeholder_when_include_redacted_true() {
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 100),
+            state_redact_env(11, "alice", 10, 200),
+        ];
+        let rows = compute_state_mcp(&envs, true);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.payload, "[REDACTED]");
+        assert!(r.is_redacted);
+        // Redacted rows do NOT carry edit metadata even if edits existed.
+        assert!(!r.is_edited);
+        assert_eq!(r.edit_count, 0);
+    }
+
+    #[test]
+    fn compute_state_redacted_edit_excluded_from_count() {
+        // An edit pointing at a non-redacted parent BUT the edit itself was
+        // redacted → should NOT contribute to edit_count or latest_edit_ts_ms.
+        let envs = vec![
+            state_env(10, "alice", "text", "v1", 100),
+            state_edit_env(11, "alice", 10, "v2", 200),
+            state_redact_env(12, "alice", 11, 300), // redact the edit itself
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        // Parent text remains the ORIGINAL — the only edit was redacted out.
+        assert_eq!(r.payload, "v1");
+        assert!(!r.is_edited);
+        assert_eq!(r.edit_count, 0);
+    }
+
+    #[test]
+    fn compute_state_rows_sorted_by_offset() {
+        // Insertion order shouldn't matter — output is always offset-asc.
+        let envs = vec![
+            state_env(30, "c", "text", "third", 300),
+            state_env(10, "a", "text", "first", 100),
+            state_env(20, "b", "text", "second", 200),
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].offset, 10);
+        assert_eq!(rows[1].offset, 20);
+        assert_eq!(rows[2].offset, 30);
+    }
+
+    #[test]
+    fn compute_state_meta_types_excluded_from_rows() {
+        // META_MSG_TYPES = ["reaction", "edit", "redaction", "topic_metadata", "receipt"]
+        // — none should appear as content rows.
+        let envs = vec![
+            state_env(10, "a", "reaction", "👍", 100),
+            state_env(11, "a", "receipt", "ack", 110),
+            state_env(12, "a", "topic_metadata", "desc", 120),
+            state_env(13, "a", "text", "content", 130),
+        ];
+        let rows = compute_state_mcp(&envs, false);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].offset, 13);
+    }
+
+    #[test]
+    fn channel_state_params_minimal_topic_only() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelStateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.include_redacted, None);
+    }
+
+    #[test]
+    fn channel_state_params_with_include_redacted() {
+        let json = serde_json::json!({
+            "topic": "dm:a:b",
+            "include_redacted": true,
+        });
+        let p: ChannelStateParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:a:b");
+        assert_eq!(p.include_redacted, Some(true));
     }
 
     // (back to T-1743 params tests)
