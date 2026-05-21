@@ -1898,6 +1898,125 @@ fn compute_ack_history_mcp(
     rows
 }
 
+/// T-1751: one row in the edits-of report (either the original target or
+/// one of its edits). Mirror of CLI's `EditRow` (channel.rs:6862).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EditRowMcp {
+    offset: u64,
+    sender_id: String,
+    ts_ms: i64,
+    payload: String,
+}
+
+impl EditRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "ts_ms": self.ts_ms,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1751: edits-of report — the original target plus its chronological
+/// edit history. Mirror of CLI's `EditsOfReport` (channel.rs:6883).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EditsOfReportMcp {
+    original: EditRowMcp,
+    edits: Vec<EditRowMcp>,
+}
+
+impl EditsOfReportMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        let edits_json: Vec<serde_json::Value> =
+            self.edits.iter().map(EditRowMcp::to_json_mcp).collect();
+        serde_json::json!({
+            "original": self.original.to_json_mcp(),
+            "edits": edits_json,
+        })
+    }
+}
+
+/// T-1751: pure helper — build the edit history for `target` in `envelopes`.
+/// Mirror of CLI's `compute_edits_of` (channel.rs:6902).
+///
+/// Returns `None` when:
+/// - the target offset is not present, OR
+/// - the target itself is in the redacted-offsets set
+///
+/// Otherwise returns a report whose `original` is the target's row, and
+/// `edits` is the chronological list of `msg_type=edit` envelopes whose
+/// `metadata.replaces == target`. Sort: ts_ms asc, edit-offset asc tiebreak.
+///
+/// Filters (each silently drops):
+/// - non-numeric `metadata.replaces`
+/// - redacted edit offsets
+/// - edits referencing other targets
+fn compute_edits_of_mcp(
+    envelopes: &[serde_json::Value],
+    target: u64,
+) -> Option<EditsOfReportMcp> {
+    let redacted = redacted_offsets_mcp(envelopes);
+    if redacted.contains(&target) {
+        return None;
+    }
+    let target_env = envelopes
+        .iter()
+        .find(|e| e.get("offset").and_then(|v| v.as_u64()) == Some(target))?;
+    let original = EditRowMcp {
+        offset: target,
+        sender_id: target_env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string(),
+        ts_ms: target_env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| target_env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0),
+        payload: decode_payload_lossy_mcp(target_env),
+    };
+    let mut edits: Vec<EditRowMcp> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("edit") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        if redacted.contains(&off) {
+            continue;
+        }
+        let replaces = env
+            .get("metadata")
+            .and_then(|md| md.get("replaces"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok());
+        if replaces != Some(target) {
+            continue;
+        }
+        edits.push(EditRowMcp {
+            offset: off,
+            sender_id: env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            ts_ms: env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0),
+            payload: decode_payload_lossy_mcp(env),
+        });
+    }
+    edits.sort_by(|a, b| a.ts_ms.cmp(&b.ts_ms).then_with(|| a.offset.cmp(&b.offset)));
+    Some(EditsOfReportMcp { original, edits })
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4368,6 +4487,14 @@ pub struct ChannelSnapshotParams {
     pub as_of_ms: i64,
     /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelEditsOfParams {
+    /// Topic that contains the target offset.
+    pub topic: String,
+    /// Offset to fetch edit history for.
+    pub target: u64,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -20679,6 +20806,40 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_edits_of",
+        description = "Chronological edit history for one target offset on an arbitrary topic — MCP parity for the `termlink channel edits-of` CLI verb (T-1366, channel.rs:6964). Returns the ORIGINAL post plus the full list of `msg_type=edit` envelopes that replace it, sorted ts_ms asc (offset tiebreak). Distinct from `channel_state` (which collapses to latest-wins) — this exposes the full evolution. Use case: audit how a message changed over time, regression diagnosis, conversation forensics. Returns `{ok, topic, target, found: true, report: {original, edits}}` when target exists and is not redacted; `{ok, topic, target, found: false}` otherwise (matches CLI's `None` result). Pure read."
+    )]
+    async fn termlink_channel_edits_of(
+        &self,
+        Parameters(p): Parameters<ChannelEditsOfParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        match compute_edits_of_mcp(&envelopes, p.target) {
+            Some(report) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "topic": p.topic,
+                "target": p.target,
+                "found": true,
+                "report": report.to_json_mcp(),
+            })),
+            None => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "topic": p.topic,
+                "target": p.target,
+                "found": false,
+            })),
+        }
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -22222,6 +22383,147 @@ YW\tJ
         let p: ChannelAckHistoryParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:a:b");
         assert_eq!(p.user, Some("alice".to_string()));
+    }
+
+    // === T-1751: compute_edits_of_mcp tests ===
+
+    #[test]
+    fn edits_of_empty_input_returns_none() {
+        let report = compute_edits_of_mcp(&[], 10);
+        assert!(report.is_none());
+    }
+
+    #[test]
+    fn edits_of_target_missing_returns_none() {
+        let envs = vec![state_env(20, "alice", "text", "other", 100)];
+        let report = compute_edits_of_mcp(&envs, 10);
+        assert!(report.is_none());
+    }
+
+    #[test]
+    fn edits_of_target_present_no_edits() {
+        let envs = vec![state_env(10, "alice", "text", "original", 100)];
+        let report = compute_edits_of_mcp(&envs, 10).expect("target present");
+        assert_eq!(report.original.offset, 10);
+        assert_eq!(report.original.sender_id, "alice");
+        assert_eq!(report.original.payload, "original");
+        assert_eq!(report.original.ts_ms, 100);
+        assert!(report.edits.is_empty());
+    }
+
+    #[test]
+    fn edits_of_multiple_edits_sorted_by_ts_then_offset() {
+        // Edits at same ts must tiebreak by edit offset asc.
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(13, "alice", 10, "late-ts", 300),
+            state_edit_env(11, "alice", 10, "early-low-off", 200),
+            state_edit_env(12, "alice", 10, "early-hi-off", 200),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10).expect("target present");
+        assert_eq!(report.original.payload, "v0");
+        assert_eq!(report.edits.len(), 3);
+        assert_eq!(report.edits[0].payload, "early-low-off");
+        assert_eq!(report.edits[0].offset, 11);
+        assert_eq!(report.edits[1].payload, "early-hi-off");
+        assert_eq!(report.edits[1].offset, 12);
+        assert_eq!(report.edits[2].payload, "late-ts");
+        assert_eq!(report.edits[2].offset, 13);
+    }
+
+    #[test]
+    fn edits_of_redacted_target_returns_none() {
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 100),
+            state_redact_env(11, "alice", 10, 200),
+            state_edit_env(12, "alice", 10, "v2", 150),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10);
+        // Even though edits exist, target is redacted out → None.
+        assert!(report.is_none());
+    }
+
+    #[test]
+    fn edits_of_edits_for_other_targets_excluded() {
+        let envs = vec![
+            state_env(10, "alice", "text", "target", 100),
+            state_env(20, "bob", "text", "other", 100),
+            state_edit_env(11, "alice", 10, "for-target", 200),
+            state_edit_env(21, "bob", 20, "for-other", 200),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10).expect("target present");
+        assert_eq!(report.edits.len(), 1);
+        assert_eq!(report.edits[0].payload, "for-target");
+    }
+
+    #[test]
+    fn edits_of_redacted_edit_dropped() {
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(11, "alice", 10, "v1", 200),
+            state_edit_env(12, "alice", 10, "v2", 300),
+            // Redact the second edit — it should disappear from history,
+            // but the target remains intact (redaction targets offset 12, not 10).
+            state_redact_env(13, "alice", 12, 400),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10).expect("target present");
+        assert_eq!(report.edits.len(), 1);
+        assert_eq!(report.edits[0].offset, 11);
+        assert_eq!(report.edits[0].payload, "v1");
+    }
+
+    #[test]
+    fn edits_of_malformed_replaces_ignored() {
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            // valid edit
+            state_edit_env(11, "alice", 10, "good", 200),
+            // edit with non-numeric metadata.replaces
+            serde_json::json!({
+                "offset": 12,
+                "sender_id": "alice",
+                "msg_type": "edit",
+                "ts_unix_ms": 250,
+                "payload_b64": state_b64("bad"),
+                "metadata": {"replaces": "not-a-number"},
+            }),
+            // edit with no metadata.replaces at all
+            serde_json::json!({
+                "offset": 13,
+                "sender_id": "alice",
+                "msg_type": "edit",
+                "ts_unix_ms": 260,
+                "payload_b64": state_b64("alsobad"),
+            }),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10).expect("target present");
+        assert_eq!(report.edits.len(), 1);
+        assert_eq!(report.edits[0].payload, "good");
+    }
+
+    #[test]
+    fn edits_of_params_deserialize() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "target": 42});
+        let p: ChannelEditsOfParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.target, 42);
+    }
+
+    #[test]
+    fn edits_of_report_json_shape() {
+        let envs = vec![
+            state_env(10, "alice", "text", "v0", 100),
+            state_edit_env(11, "alice", 10, "v1", 200),
+        ];
+        let report = compute_edits_of_mcp(&envs, 10).unwrap();
+        let j = report.to_json_mcp();
+        assert!(j.get("original").is_some());
+        assert!(j.get("edits").is_some());
+        let edits = j.get("edits").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(edits.len(), 1);
+        let orig = j.get("original").unwrap();
+        assert_eq!(orig.get("offset").and_then(|v| v.as_u64()), Some(10));
+        assert_eq!(orig.get("payload").and_then(|v| v.as_str()), Some("v0"));
     }
 
     // === T-1730 agent_mentions tests ===

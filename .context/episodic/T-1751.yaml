@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1751: termlink_channel_edits_of MCP — chronological edit history for a target offset
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T08:25:44Z
+# ============================================================================
+
+task_id: T-1751
+task_name: "termlink_channel_edits_of MCP — chronological edit history for a target offset"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T08:21:46Z
+completed: 2026-05-21T08:25:26Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`EditRowMcp { offset, sender_id, ts_ms, payload }` + `to_json_mcp`."
+  - "`EditsOfReportMcp { original: EditRowMcp, edits: Vec<EditRowMcp> }` + `to_json_mcp` (shape: `{original, edits}`)."
+  - "Pure helper `compute_edits_of_mcp(envelopes, target: u64) -> Option<EditsOfReportMcp>`. Returns `None` if target missing or in `redacted_offsets_mcp` set. Edits sorted ts_ms asc then offset asc tiebreak. Filters: non-numeric metadata.replaces ignored, redacted edit offsets dropped, edits targeting other offsets ignored."
+  - "`ChannelEditsOfParams { topic, target: u64 }`."
+  - "`#[tool] termlink_channel_edits_of` returns `{ok, topic, target, found: bool, report?: {original, edits}}` (or `{ok, topic, target, found: false}` when target missing/redacted)."
+  - "Tests cover: empty input, target missing, target present with no edits, target present with multiple edits sorted by ts then offset, redacted target → None, edit pointing at OTHER target excluded, edit referencing missing target ignored, malformed metadata.replaces ignored, edit that is itself redacted dropped."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1751-termlinkchanneleditsof-mcp--chronologica.md
+generated_by: context-agent-hybrid
