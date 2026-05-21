@@ -2017,6 +2017,100 @@ fn compute_edits_of_mcp(
     Some(EditsOfReportMcp { original, edits })
 }
 
+/// T-1752: one row in the pin/unpin event log. Mirror of CLI's
+/// `PinHistoryRow` (channel.rs:5325). Unlike a pinned-set snapshot (LWW),
+/// the history preserves every toggle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PinHistoryRowMcp {
+    event_offset: u64,
+    action: String, // "pin" or "unpin"
+    target_offset: u64,
+    actor_sender: String,
+    ts_ms: i64,
+    target_payload: Option<String>,
+}
+
+impl PinHistoryRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "event_offset": self.event_offset,
+            "action": self.action,
+            "target_offset": self.target_offset,
+            "actor_sender": self.actor_sender,
+            "ts_ms": self.ts_ms,
+            "target_payload": self.target_payload,
+        })
+    }
+}
+
+/// T-1752: pure helper — chronological audit log of pin/unpin events.
+/// Mirror of CLI's `compute_pin_history` (channel.rs:5363).
+///
+/// Filters:
+/// - `msg_type == "pin"`
+/// - `metadata.pin_target` parses as u64 (malformed silently skipped)
+///
+/// Action: `metadata.action` literal ("pin" / "unpin"). Default + unknown
+/// values normalize to "pin". `target_payload` is populated from the
+/// envelope at `target_offset` when present; `None` otherwise (target may
+/// be outside the snapshot, redacted, or itself a meta envelope).
+///
+/// Sort: `event_offset` ascending (chronological). Pure — no I/O.
+fn compute_pin_history_mcp(envelopes: &[serde_json::Value]) -> Vec<PinHistoryRowMcp> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut rows: Vec<PinHistoryRowMcp> = Vec::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("pin") {
+            continue;
+        }
+        let off = match env.get("offset").and_then(|v| v.as_u64()) {
+            Some(o) => o,
+            None => continue,
+        };
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("pin_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let action = md.get("action").and_then(|v| v.as_str()).unwrap_or("pin");
+        let action = if action == "unpin" { "unpin" } else { "pin" };
+        let actor = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let target_payload = by_off.get(&target).map(|e| decode_payload_lossy_mcp(e));
+        rows.push(PinHistoryRowMcp {
+            event_offset: off,
+            action: action.to_string(),
+            target_offset: target,
+            actor_sender: actor,
+            ts_ms: ts,
+            target_payload,
+        });
+    }
+    rows.sort_by(|a, b| a.event_offset.cmp(&b.event_offset));
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4487,6 +4581,12 @@ pub struct ChannelSnapshotParams {
     pub as_of_ms: i64,
     /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelPinHistoryParams {
+    /// Topic to walk for pin/unpin events.
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -20840,6 +20940,34 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_pin_history",
+        description = "Chronological pin/unpin event log for an arbitrary topic — MCP parity for the `termlink channel pin-history` CLI verb (T-1372, channel.rs:5422). Returns every pin/unpin event in offset order — distinct from a pinned-set snapshot (LWW collapse). Each row carries the event offset, action (`pin`/`unpin`), target offset, actor sender, timestamp, and (when target is in the envelope set) the target's decoded payload preview. Use case: forensic queries — who pinned what when, was it ever undone, by whom. Returns `{ok, topic, rows: [{event_offset, action, target_offset, actor_sender, ts_ms, target_payload}], count}`. Pure read."
+    )]
+    async fn termlink_channel_pin_history(
+        &self,
+        Parameters(p): Parameters<ChannelPinHistoryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = compute_pin_history_mcp(&envelopes);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(PinHistoryRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -22507,6 +22635,149 @@ YW\tJ
         let p: ChannelEditsOfParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "agent-chat-arc");
         assert_eq!(p.target, 42);
+    }
+
+    // === T-1752: compute_pin_history_mcp tests ===
+
+    fn pin_env(
+        offset: u64,
+        actor: &str,
+        target: u64,
+        action: Option<&str>,
+        ts: i64,
+    ) -> serde_json::Value {
+        let mut md = serde_json::json!({"pin_target": target.to_string()});
+        if let Some(a) = action {
+            md["action"] = serde_json::json!(a);
+        }
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": actor,
+            "msg_type": "pin",
+            "ts_unix_ms": ts,
+            "metadata": md,
+        })
+    }
+
+    #[test]
+    fn pin_history_empty_input() {
+        let rows = compute_pin_history_mcp(&[]);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn pin_history_single_pin_default_action() {
+        // No `action` in metadata → defaults to "pin".
+        let envs = vec![
+            state_env(10, "alice", "text", "target-msg", 100),
+            pin_env(11, "alice", 10, None, 200),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.event_offset, 11);
+        assert_eq!(r.action, "pin");
+        assert_eq!(r.target_offset, 10);
+        assert_eq!(r.actor_sender, "alice");
+        assert_eq!(r.ts_ms, 200);
+        assert_eq!(r.target_payload.as_deref(), Some("target-msg"));
+    }
+
+    #[test]
+    fn pin_history_unpin_action_recognized() {
+        let envs = vec![
+            state_env(10, "alice", "text", "msg", 100),
+            pin_env(11, "alice", 10, Some("unpin"), 300),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].action, "unpin");
+    }
+
+    #[test]
+    fn pin_history_unknown_action_normalizes_to_pin() {
+        let envs = vec![
+            state_env(10, "alice", "text", "msg", 100),
+            pin_env(11, "alice", 10, Some("not-a-valid-action"), 300),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].action, "pin");
+    }
+
+    #[test]
+    fn pin_history_sorted_by_event_offset() {
+        let envs = vec![
+            state_env(10, "alice", "text", "msg", 100),
+            pin_env(30, "bob", 10, Some("pin"), 300),
+            pin_env(20, "alice", 10, Some("unpin"), 200),
+            pin_env(40, "carol", 10, Some("unpin"), 400),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].event_offset, 20);
+        assert_eq!(rows[1].event_offset, 30);
+        assert_eq!(rows[2].event_offset, 40);
+    }
+
+    #[test]
+    fn pin_history_malformed_pin_target_skipped() {
+        let envs = vec![
+            // missing pin_target entirely
+            serde_json::json!({
+                "offset": 11,
+                "sender_id": "alice",
+                "msg_type": "pin",
+                "ts_unix_ms": 100,
+                "metadata": {},
+            }),
+            // non-numeric pin_target
+            serde_json::json!({
+                "offset": 12,
+                "sender_id": "alice",
+                "msg_type": "pin",
+                "ts_unix_ms": 110,
+                "metadata": {"pin_target": "not-a-number"},
+            }),
+            // pin without any metadata block at all
+            serde_json::json!({
+                "offset": 13,
+                "sender_id": "alice",
+                "msg_type": "pin",
+                "ts_unix_ms": 120,
+            }),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn pin_history_non_pin_msg_types_ignored() {
+        let envs = vec![
+            state_env(10, "alice", "text", "hi", 100),
+            state_edit_env(11, "alice", 10, "hi2", 110),
+            state_redact_env(12, "alice", 10, 120),
+            receipt_env(13, "bob", 10, 130),
+        ];
+        let rows = compute_pin_history_mcp(&envs);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn pin_history_target_payload_none_when_target_missing() {
+        // Pin event references offset 999 which isn't in the snapshot.
+        let envs = vec![pin_env(11, "alice", 999, None, 200)];
+        let rows = compute_pin_history_mcp(&envs);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_offset, 999);
+        assert!(rows[0].target_payload.is_none());
+    }
+
+    #[test]
+    fn pin_history_params_deserialize() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelPinHistoryParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
     }
 
     #[test]

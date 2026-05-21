@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1752: termlink_channel_pin_history MCP — pin/unpin event log
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T08:29:54Z
+# ============================================================================
+
+task_id: T-1752
+task_name: "termlink_channel_pin_history MCP — pin/unpin event log"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T08:26:41Z
+completed: 2026-05-21T08:29:36Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`PinHistoryRowMcp { event_offset, action: String, target_offset, actor_sender, ts_ms, target_payload: Option<String> }` + `to_json_mcp`."
+  - "Pure helper `compute_pin_history_mcp(envelopes) -> Vec<PinHistoryRowMcp>` matches CLI semantics: only `msg_type=pin` with parseable `metadata.pin_target`, action is \"pin\" or \"unpin\" (default+unknown → \"pin\"), target_payload decoded when target offset is in the envelope set, sort event_offset asc."
+  - "`ChannelPinHistoryParams { topic }`."
+  - "`#[tool] termlink_channel_pin_history` returns `{ok, topic, rows, count}`."
+  - "Tests cover: empty input, single pin, multiple events sorted by event_offset, unpin action recognized, unknown action normalized to \"pin\", malformed (missing/non-numeric pin_target) skipped, non-pin msg_types ignored, target_payload populated when target present and None otherwise."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp` passes."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1752-termlinkchannelpinhistory-mcp--pinunpin-.md
+generated_by: context-agent-hybrid
