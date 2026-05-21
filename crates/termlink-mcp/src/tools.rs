@@ -5933,6 +5933,19 @@ pub struct ChannelRepliesOfParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelTypingEmitParams {
+    /// Topic on which to emit typing indicator (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// TTL in milliseconds. `metadata.expires_at_ms = now_ms + ttl_ms`.
+    /// Default: 5000ms. Peers reading `channel typing-list` filter expired
+    /// indicators automatically.
+    pub ttl_ms: Option<u64>,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelTypingListParams {
     /// Topic to walk for typing-presence (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15554,6 +15567,77 @@ impl TermLinkTools {
             "count": count,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_typing_emit",
+        description = "Emit a typing indicator on an arbitrary topic — MCP parity for `termlink channel typing-emit <topic>` CLI verb (T-1775 of T-1166). Topic-flexible variant of `termlink_agent_typing` (hardcoded chat-arc). Write companion to T-1773 (`termlink_channel_typing_list` read side) — closes the typing read+write loop at the channel-flex layer. Use case: signal 'I'm composing' to peers in a DM channel (`dm:a:b`) or project topic. Builds a `msg_type=typing` envelope with empty payload, `metadata.expires_at_ms = now_ms + ttl_ms` (default 5000ms), signs via local identity, POSTs via `channel.post` RPC. Peers reading `channel typing-list` filter expired indicators automatically. Returns the raw `channel.post` result envelope on success."
+    )]
+    async fn termlink_channel_typing_emit(
+        &self,
+        Parameters(p): Parameters<ChannelTypingEmitParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "typing";
+        let ttl_ms = p.ttl_ms.unwrap_or(5000);
+        let payload_bytes: Vec<u8> = Vec::new();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let expires_at_ms = ts_unix_ms + (ttl_ms as i64);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("expires_at_ms".to_string(), serde_json::Value::from(expires_at_ms));
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.typing-emit error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
     }
 
     #[tool(
@@ -27102,6 +27186,33 @@ YW\tJ
         assert_eq!(rows[0].reply_offset, 20);
         assert_eq!(rows[0].parent_offset, 10);
         assert_eq!(rows[0].parent_sender, "alice");
+    }
+
+    // --- T-1775 channel_typing_emit ----------------------------------------
+
+    #[test]
+    fn channel_typing_emit_params_deserialize_topic_only() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelTypingEmitParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.ttl_ms.is_none(), "ttl defaults at call time (5000ms)");
+        assert!(p.sender_id.is_none(), "sender defaults to local identity");
+    }
+
+    #[test]
+    fn channel_typing_emit_params_deserialize_with_ttl() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "ttl_ms": 10000});
+        let p: ChannelTypingEmitParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.ttl_ms, Some(10000));
+    }
+
+    #[test]
+    fn channel_typing_emit_params_deserialize_with_sender_override() {
+        let json = serde_json::json!({"topic": "project:t-1166", "sender_id": "deadbeef0123"});
+        let p: ChannelTypingEmitParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "project:t-1166");
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
     }
 
     #[test]
