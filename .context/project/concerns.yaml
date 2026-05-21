@@ -14,10 +14,12 @@ concerns:
   what_works_now: "Channel topics work correctly per-hub. Cross-hub coordination via --hub <addr> or remote_call channel.post works correctly when used explicitly. T-1166 MCP-parity arc closure (T-1789/T-1790/PL-177) is unaffected and sufficient — channel topics replace legacy event.broadcast (also single-hub) at parity."
   what_remains: "(1) Documentation task to add explicit per-hub semantics + cross-posting recipe to docs/operations/ or CLAUDE.md. (2) Update PL-176 with corrected framing + diagnostic recipe. (3) Optional larger inception: does the fleet WANT auto-federation? Concrete benefits vs significant state-sync complexity, consistency models, conflict resolution. NOT decided in T-1791."
   mitigation_candidate: "Documentation alone closes the operator-facing gap. No code work required unless follow-up #3 (auto-federation inception) decides GO."
-  status: watching
+  status: closed
   created: 2026-05-21
   reframed: 2026-05-21T19:00Z
-  related_tasks: [T-1166, T-1791]
+  closed: 2026-05-22
+  resolution: "T-1792 shipped docs/operations/channel-topic-semantics.md + CLAUDE.md pointer with the per-hub-truth, client-driven cross-posting recipe, diagnostic command, and T-1166 implication. PL-176 already reframed in cross-session memory 2026-05-21. T-1793 optional auto-federation inception parked at horizon=later (revisit 2026-08-21). Prevention now exists in two discoverable surfaces: future agents hitting per-hub-topic confusion will find the canonical answer before re-running the false-federation diagnostic loop."
+  related_tasks: [T-1166, T-1791, T-1792, T-1793]
   related_learnings: [PL-176]
 
 - id: G-059
