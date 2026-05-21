@@ -1664,6 +1664,57 @@ fn compute_snapshot_mcp(
     compute_state_mcp(&filtered, include_redacted)
 }
 
+/// T-1748: incremental canonical state — rows whose last-change ts >= `since_ms`.
+/// Mirror of CLI's `compute_state_since` (channel.rs:6489) one-to-one.
+///
+/// "Last change" = max(`ts_ms`, `latest_edit_ts_ms`, redact_ts). The redact_ts
+/// map is built in a separate pass over `msg_type="redaction"` envelopes
+/// (target = metadata.redacts, ts = ts_unix_ms with ts fallback) before
+/// delegating to `compute_state_mcp`. A row with no edits/redactions falls
+/// back to `ts_ms`. Pure — no I/O.
+///
+/// Use case: agents poll for incremental topic deltas using their last-seen
+/// wall-clock cursor instead of refetching full state every cycle.
+fn compute_state_since_mcp(
+    envelopes: &[serde_json::Value],
+    since_ms: i64,
+    include_redacted: bool,
+) -> Vec<StateRowMcp> {
+    use std::collections::HashMap;
+    let mut redact_ts: HashMap<u64, i64> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("redaction") {
+            continue;
+        }
+        let target = match env
+            .get("metadata")
+            .and_then(|md| md.get("redacts"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let entry = redact_ts.entry(target).or_insert(i64::MIN);
+        if ts > *entry {
+            *entry = ts;
+        }
+    }
+    let rows = compute_state_mcp(envelopes, include_redacted);
+    rows.into_iter()
+        .filter(|r| {
+            let red = redact_ts.get(&r.offset).copied().unwrap_or(i64::MIN);
+            let last_change = r.ts_ms.max(r.latest_edit_ts_ms).max(red);
+            last_change >= since_ms
+        })
+        .collect()
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4132,6 +4183,19 @@ pub struct ChannelSnapshotParams {
     /// Snapshot cutoff (unix ms). Envelopes with ts > as_of_ms are excluded;
     /// edits/redactions after this point do not influence the result.
     pub as_of_ms: i64,
+    /// If true, redacted rows surface as `[REDACTED]`. Default false.
+    pub include_redacted: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelStateSinceParams {
+    /// Topic to read incremental state from.
+    pub topic: String,
+    /// Wall-clock cursor (unix ms). Rows whose last-change ts (max of original
+    /// ts, latest edit ts, latest redaction ts) is >= since_ms are returned.
+    /// Use `0` to fetch all rows (equivalent to `channel_state`); use the
+    /// largest `ts_ms`/`latest_edit_ts_ms` from a previous call to continue.
+    pub since_ms: i64,
     /// If true, redacted rows surface as `[REDACTED]`. Default false.
     pub include_redacted: Option<bool>,
 }
@@ -20311,6 +20375,37 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_state_since",
+        description = "Incremental canonical state of an arbitrary topic since a wall-clock cursor — MCP parity for the `termlink channel state-since` CLI verb (T-1382, channel.rs:6530). Returns only rows whose last-change ts (max of original ts, latest edit ts, latest redaction ts) is >= `since_ms`. Enables agents to fetch state deltas — pass the largest `ts_ms`/`latest_edit_ts_ms` from a previous response as next `since_ms` for cursor sync. Sister to `termlink_channel_state` (full state) and `termlink_channel_snapshot` (point-in-time). Returns `{ok, topic, since_ms, include_redacted, rows, count}` with the same row shape as channel_state. Pure read — no posts."
+    )]
+    async fn termlink_channel_state_since(
+        &self,
+        Parameters(p): Parameters<ChannelStateSinceParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let include_redacted = p.include_redacted.unwrap_or(false);
+        let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("topic '{}' probe failed: {e}", p.topic)),
+        };
+        let rows = compute_state_since_mcp(&envelopes, p.since_ms, include_redacted);
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(StateRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "since_ms": p.since_ms,
+            "include_redacted": include_redacted,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -21474,6 +21569,129 @@ YW\tJ
         // AgentInboxParams is unit-struct-shaped — `{}` must deserialize.
         let parsed: Result<AgentInboxParams, _> = serde_json::from_value(serde_json::json!({}));
         assert!(parsed.is_ok(), "AgentInboxParams must deserialize from {{}}");
+    }
+
+    // === T-1748: compute_state_since_mcp tests ===
+
+    #[test]
+    fn state_since_empty_input_returns_empty() {
+        let rows = compute_state_since_mcp(&[], 0, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn state_since_all_rows_stale_returns_empty() {
+        // All envelope ts strictly less than since_ms — nothing returned.
+        let envs = vec![
+            state_env(10, "alice", "text", "old1", 100),
+            state_env(11, "bob", "text", "old2", 200),
+        ];
+        let rows = compute_state_since_mcp(&envs, 500, false);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn state_since_all_rows_fresh_returns_full_state() {
+        // since_ms=0 — every row's last_change >= 0, returns full state.
+        let envs = vec![
+            state_env(10, "alice", "text", "msg1", 100),
+            state_env(11, "bob", "text", "msg2", 200),
+        ];
+        let rows = compute_state_since_mcp(&envs, 0, false);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].offset, 10);
+        assert_eq!(rows[1].offset, 11);
+    }
+
+    #[test]
+    fn state_since_boundary_inclusive_at_cutoff() {
+        // ts == since_ms must be INCLUDED (the filter is `>=`).
+        let envs = vec![
+            state_env(10, "alice", "text", "exact", 500),
+            state_env(11, "bob", "text", "before", 499),
+            state_env(12, "carol", "text", "after", 501),
+        ];
+        let rows = compute_state_since_mcp(&envs, 500, false);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].offset, 10);
+        assert_eq!(rows[0].payload, "exact");
+        assert_eq!(rows[1].offset, 12);
+        assert_eq!(rows[1].payload, "after");
+    }
+
+    #[test]
+    fn state_since_includes_row_via_latest_edit_ts() {
+        // Original ts < since_ms, but a later edit pushes last_change forward.
+        let envs = vec![
+            state_env(10, "alice", "text", "v1", 100),
+            state_edit_env(11, "alice", 10, "v2", 600),
+        ];
+        let rows = compute_state_since_mcp(&envs, 500, false);
+        // Row is included because latest_edit_ts_ms=600 >= 500.
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert_eq!(r.payload, "v2");
+        assert!(r.is_edited);
+        assert_eq!(r.latest_edit_ts_ms, 600);
+        // ts_ms remains the original.
+        assert_eq!(r.ts_ms, 100);
+    }
+
+    #[test]
+    fn state_since_includes_row_via_redact_ts() {
+        // Row's original ts is stale, but a recent redaction lands on it —
+        // include_redacted=true should surface it (the redaction "changed" it).
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 100),
+            state_redact_env(11, "alice", 10, 700),
+        ];
+        let rows = compute_state_since_mcp(&envs, 500, true);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.offset, 10);
+        assert!(r.is_redacted);
+        assert_eq!(r.payload, "[REDACTED]");
+    }
+
+    #[test]
+    fn state_since_redact_ts_filters_when_include_redacted_false() {
+        // Same as above, but include_redacted=false — the row is dropped at
+        // the compute_state_mcp stage before filter ever sees it.
+        let envs = vec![
+            state_env(10, "alice", "text", "secret", 100),
+            state_env(11, "bob", "text", "visible", 110),
+            state_redact_env(12, "alice", 10, 700),
+        ];
+        let rows = compute_state_since_mcp(&envs, 500, false);
+        // The redacted row is dropped entirely. The visible bob row has ts=110
+        // which is < since_ms=500 and no edits/redactions, so it's also filtered.
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn state_since_params_minimal_deserialize() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "since_ms": 0,
+        });
+        let p: ChannelStateSinceParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.since_ms, 0);
+        assert_eq!(p.include_redacted, None);
+    }
+
+    #[test]
+    fn state_since_params_full_deserialize() {
+        let json = serde_json::json!({
+            "topic": "dm:alice:bob",
+            "since_ms": 1234567890_i64,
+            "include_redacted": true,
+        });
+        let p: ChannelStateSinceParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.since_ms, 1234567890);
+        assert_eq!(p.include_redacted, Some(true));
     }
 
     // === T-1730 agent_mentions tests ===

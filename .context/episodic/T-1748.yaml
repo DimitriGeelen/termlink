@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1748: termlink_channel_state_since MCP — incremental cursor sync
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T08:12:06Z
+# ============================================================================
+
+task_id: T-1748
+task_name: "termlink_channel_state_since MCP — incremental cursor sync"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T08:07:17Z
+completed: 2026-05-21T08:11:48Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Pure helper `compute_state_since_mcp(envelopes, since_ms, include_redacted) -> Vec<StateRowMcp>` added to `crates/termlink-mcp/src/tools.rs` — semantics match CLI's `compute_state_since`: filter rows where `max(ts_ms, latest_edit_ts_ms, redact_ts) >= since_ms`."
+  - "`ChannelStateSinceParams { topic, since_ms, include_redacted: Option<bool> }` params struct exposed."
+  - "`#[tool] termlink_channel_state_since` method returns `{ok, topic, since_ms, include_redacted, rows, count}`."
+  - "Unit tests cover: empty envelopes, all-stale (returns empty), all-fresh (returns full), boundary cutoff (since_ms equals row ts), edited row included via latest_edit_ts_ms, redacted row included via redact_ts, include_redacted=false hides redacted payload."
+  - "`cargo build -p termlink-mcp` is clean (no new warnings)."
+  - "`cargo test -p termlink-mcp` passes (new tests included)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1748-termlinkchannelstatesince-mcp--increment.md
+generated_by: context-agent-hybrid
