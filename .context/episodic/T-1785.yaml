@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1785: termlink_channel_quote MCP — topic-flexible quote-with-parent read (T-1166 wedge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T17:29:38Z
+# ============================================================================
+
+task_id: T-1785
+task_name: "termlink_channel_quote MCP — topic-flexible quote-with-parent read (T-1166 wedge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T17:27:20Z
+completed: 2026-05-21T17:29:18Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelQuoteParams` struct exposes `topic`, `offset`"
+  - "`termlink_channel_quote` tool method walks topic via `CHANNEL_SUBSCRIBE`, returns JSON `{topic, child, parent}` where parent is the envelope at `metadata.in_reply_to` (or null)"
+  - "Each child/parent render includes: offset, sender_id, msg_type, ts, decoded payload (lossy)"
+  - "Description doc references T-1785 + T-1166 + divergence note vs sister `termlink_agent_quote`"
+  - "Unit tests: params deserialize + helper sanity (parent resolution from in_reply_to)"
+  - "`cargo build -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp --lib` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1785-termlinkchannelquote-mcp--topic-flexible.md
+generated_by: context-agent-hybrid

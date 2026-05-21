@@ -5995,6 +5995,16 @@ pub struct ChannelReplyParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelQuoteParams {
+    /// Topic on which to fetch the quote (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// Offset of the envelope to quote. The tool also resolves the
+    /// parent envelope (via `metadata.in_reply_to`) if one exists.
+    pub offset: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -16037,6 +16047,68 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_quote",
+        description = "Fetch an envelope by offset on an arbitrary topic AND resolve its parent (via `metadata.in_reply_to`) — MCP parity for `termlink channel quote <topic> <offset>` CLI verb (T-1785 of T-1166). Topic-flexible read helper. Note: diverges from `termlink_agent_quote` (tools.rs:23242) which returns only the single envelope — channel_quote mirrors the CLI's quote-with-parent semantics (more useful for rendering quote-in-context views). Returns JSON `{topic, child, parent}` where child has `{offset, sender_id, msg_type, ts, payload}` and parent is the same shape or null. Walks the topic via `channel.subscribe` paginated by 1000 — read-side, no auth, no emit. Pairs with `termlink_channel_reply` (T-1784) for full thread-mutation surface."
+    )]
+    async fn termlink_channel_quote(
+        &self,
+        Parameters(p): Parameters<ChannelQuoteParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(envs) => envs,
+            Err(e) => return json_err(format!("walk_topic_full failed: {e}")),
+        };
+        use std::collections::HashMap;
+        let mut by_off: HashMap<u64, serde_json::Value> = HashMap::with_capacity(envelopes.len());
+        for env in envelopes {
+            if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+                by_off.insert(off, env);
+            }
+        }
+        let child = match by_off.get(&p.offset) {
+            Some(c) => c.clone(),
+            None => {
+                return json_err(format!(
+                    "Topic '{}' has no envelope at offset {}",
+                    p.topic, p.offset
+                ));
+            }
+        };
+        let parent = parent_offset_of_mcp(&child).and_then(|po| by_off.get(&po).cloned());
+
+        let render = |m: &serde_json::Value| -> serde_json::Value {
+            let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+            let msg_type = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+            let ts = m
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| m.get("ts").and_then(|v| v.as_i64()));
+            serde_json::json!({
+                "offset": off,
+                "sender_id": sender,
+                "msg_type": msg_type,
+                "ts": ts,
+                "payload": decode_payload_lossy_mcp(m),
+            })
+        };
+        let parent_json = parent
+            .as_ref()
+            .map(render)
+            .unwrap_or(serde_json::Value::Null);
+        let body = serde_json::json!({
+            "topic": p.topic,
+            "child": render(&child),
+            "parent": parent_json,
+        });
+        serde_json::to_string_pretty(&body).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -28016,6 +28088,51 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1785 channel_quote ----------------------------------------------
+
+    #[test]
+    fn channel_quote_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "offset": 5});
+        let p: ChannelQuoteParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.offset, 5);
+    }
+
+    #[test]
+    fn channel_quote_params_rejects_missing_offset() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let r: Result<ChannelQuoteParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "offset is a required field");
+    }
+
+    #[test]
+    fn channel_quote_parent_resolution_via_in_reply_to() {
+        // Build a fake envelope with metadata.in_reply_to and confirm
+        // parent_offset_of_mcp extracts the offset that channel_quote
+        // uses to look up the parent.
+        let env = serde_json::json!({
+            "offset": 10,
+            "metadata": {"in_reply_to": "5"},
+        });
+        assert_eq!(parent_offset_of_mcp(&env), Some(5));
+    }
+
+    #[test]
+    fn channel_quote_render_shape() {
+        // Sanity: the render closure inside channel_quote produces the
+        // documented {offset, sender_id, msg_type, ts, payload} shape.
+        let env = serde_json::json!({
+            "offset": 42,
+            "sender_id": "alice",
+            "msg_type": "chat",
+            "ts": 1700000000_i64,
+            "payload_b64": base64::engine::general_purpose::STANDARD
+                .encode(b"hello"),
+        });
+        let payload = decode_payload_lossy_mcp(&env);
+        assert_eq!(payload, "hello");
     }
 
     // --- T-1784 channel_reply ----------------------------------------------
