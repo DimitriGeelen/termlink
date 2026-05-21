@@ -2477,6 +2477,118 @@ fn compute_pinned_set_mcp(envelopes: &[serde_json::Value]) -> Vec<PinRowMcp> {
     rows
 }
 
+/// T-1759: one row in the currently-starred set. Mirror of CLI's `StarRow`
+/// (channel.rs:3708). Like pins but keyed by `(sender_id, target)` because
+/// stars are personal bookmarks (each user can star a post independently),
+/// not a shared curation surface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StarRowMcp {
+    target: u64,
+    starred_by: String,
+    starred_ts: i64,
+    payload: Option<String>,
+}
+
+impl StarRowMcp {
+    fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "target": self.target,
+            "starred_by": self.starred_by,
+            "starred_ts": self.starred_ts,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1759: pure helper — compute the current star set from a topic walk.
+/// Mirror of CLI's `compute_starred_set` (channel.rs:3741) one-to-one.
+///
+/// Iterates `envelopes` in input order, applying each `msg_type=star`
+/// envelope per its `metadata.star` flag, keyed by `(sender_id, star_target)`:
+///   - `star=true` (default)   → record/update StarRowMcp
+///   - `star=false`            → remove the entry
+///
+/// When `caller` is `Some(fp)`, only stars by that fingerprint are returned
+/// (use case: "what have I starred"). When `caller` is `None`, all users'
+/// stars are returned (use case: "what's interesting to the room").
+///
+/// After the scan, the original envelope at each starred target is looked
+/// up to fill `payload`. Sorted by `starred_ts` desc; ties break on
+/// `(target, starred_by)` asc for determinism. Pure — no I/O.
+fn compute_starred_set_mcp(
+    envelopes: &[serde_json::Value],
+    caller: Option<&str>,
+) -> Vec<StarRowMcp> {
+    use std::collections::HashMap;
+    let mut by_off: HashMap<u64, &serde_json::Value> = HashMap::with_capacity(envelopes.len());
+    for env in envelopes {
+        if let Some(off) = env.get("offset").and_then(|v| v.as_u64()) {
+            by_off.insert(off, env);
+        }
+    }
+    let mut active: HashMap<(String, u64), StarRowMcp> = HashMap::new();
+    for env in envelopes {
+        if env.get("msg_type").and_then(|v| v.as_str()) != Some("star") {
+            continue;
+        }
+        let md = match env.get("metadata") {
+            Some(m) => m,
+            None => continue,
+        };
+        let target = match md
+            .get("star_target")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            Some(t) => t,
+            None => continue,
+        };
+        let star_flag = md.get("star").and_then(|v| v.as_str()).unwrap_or("true");
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        if let Some(fp) = caller
+            && sender != fp
+        {
+            continue;
+        }
+        let key = (sender.clone(), target);
+        if star_flag == "false" {
+            active.remove(&key);
+            continue;
+        }
+        let starred_ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        active.insert(
+            key,
+            StarRowMcp {
+                target,
+                starred_by: sender,
+                starred_ts,
+                payload: None,
+            },
+        );
+    }
+    for row in active.values_mut() {
+        if let Some(orig) = by_off.get(&row.target) {
+            row.payload = Some(decode_payload_lossy_mcp(orig));
+        }
+    }
+    let mut rows: Vec<StarRowMcp> = active.into_values().collect();
+    rows.sort_by(|a, b| {
+        b.starred_ts
+            .cmp(&a.starred_ts)
+            .then_with(|| a.target.cmp(&b.target))
+            .then_with(|| a.starred_by.cmp(&b.starred_by))
+    });
+    rows
+}
+
 /// T-1744: parse the first CERTIFICATE block in a PEM string and return its
 /// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
 /// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
@@ -4984,6 +5096,16 @@ pub struct ChannelUnreadParams {
 pub struct ChannelPinnedParams {
     /// Topic to enumerate the active pin set for.
     pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelStarredParams {
+    /// Topic to enumerate the active star set for.
+    pub topic: String,
+    /// Optional fingerprint to scope results to. When omitted, returns every
+    /// user's stars (cross-room view). When set, returns only that user's
+    /// stars (personal bookmark view).
+    pub caller_fp: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -21612,6 +21734,36 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_starred",
+        description = "Currently-starred set on an arbitrary topic with payload preview — MCP parity for the `termlink channel starred <TOPIC> [--all]` CLI verb (T-1354, channel.rs:3817). Topic-flexible richer variant of `termlink_agent_starred` (chat-arc only, no payload). Stars are personal bookmarks keyed by `(sender_id, star_target)` — each user can star a post independently. Default scope is 'all users' (cross-room view); pass `caller_fp` to scope to one fingerprint (personal bookmark view). LWW per (sender, target): star=true records, star=false removes. Payload filled from original target envelope (Some if present, None if out-of-range). Sorted by starred_ts desc, target asc, starred_by asc tiebreak. Returns `{ok, topic, scope, rows: [{target, starred_by, starred_ts, payload}, ...], count}`. Pure read."
+    )]
+    async fn termlink_channel_starred(
+        &self,
+        Parameters(p): Parameters<ChannelStarredParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let rows = compute_starred_set_mcp(&envelopes, p.caller_fp.as_deref());
+        let rows_json: Vec<serde_json::Value> = rows.iter().map(StarRowMcp::to_json_mcp).collect();
+        let count = rows_json.len();
+        let scope = if p.caller_fp.is_some() { "caller" } else { "all" };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "scope": scope,
+            "rows": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -23934,6 +24086,135 @@ YW\tJ
         let json = serde_json::json!({"topic": "dm:a:b"});
         let p: ChannelPinnedParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:a:b");
+    }
+
+    // === T-1759: compute_starred_set_mcp tests ===
+
+    fn star_env(
+        offset: u64,
+        actor: &str,
+        target: u64,
+        star_flag: Option<&str>,
+        ts: i64,
+    ) -> serde_json::Value {
+        let mut md = serde_json::json!({"star_target": target.to_string()});
+        if let Some(f) = star_flag {
+            md["star"] = serde_json::json!(f);
+        }
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": actor,
+            "msg_type": "star",
+            "ts_unix_ms": ts,
+            "metadata": md,
+        })
+    }
+
+    #[test]
+    fn starred_set_empty_input() {
+        let rows = compute_starred_set_mcp(&[], None);
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn starred_set_single_star_fills_payload() {
+        let envs = vec![
+            state_env(10, "alice", "post", "important", 100),
+            star_env(11, "bob", 10, Some("true"), 200),
+        ];
+        let rows = compute_starred_set_mcp(&envs, None);
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert_eq!(r.target, 10);
+        assert_eq!(r.starred_by, "bob");
+        assert_eq!(r.starred_ts, 200);
+        assert_eq!(r.payload.as_deref(), Some("important"));
+    }
+
+    #[test]
+    fn starred_set_default_flag_is_true() {
+        // No `star` metadata → defaults to "true".
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            star_env(11, "alice", 10, None, 200),
+        ];
+        let rows = compute_starred_set_mcp(&envs, None);
+        assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn starred_set_unstar_removes_only_callers_row() {
+        // Alice stars 10, bob stars 10 (same target, distinct rows).
+        // Then alice unstars — bob's row survives.
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            star_env(11, "alice", 10, Some("true"), 200),
+            star_env(12, "bob", 10, Some("true"), 300),
+            star_env(13, "alice", 10, Some("false"), 400),
+        ];
+        let rows = compute_starred_set_mcp(&envs, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].starred_by, "bob");
+    }
+
+    #[test]
+    fn starred_set_caller_filter_isolates_user() {
+        let envs = vec![
+            state_env(10, "alice", "post", "x", 100),
+            star_env(11, "alice", 10, Some("true"), 200),
+            star_env(12, "bob", 10, Some("true"), 300),
+        ];
+        let alice_rows = compute_starred_set_mcp(&envs, Some("alice"));
+        assert_eq!(alice_rows.len(), 1);
+        assert_eq!(alice_rows[0].starred_by, "alice");
+        let bob_rows = compute_starred_set_mcp(&envs, Some("bob"));
+        assert_eq!(bob_rows.len(), 1);
+        assert_eq!(bob_rows[0].starred_by, "bob");
+        let no_one = compute_starred_set_mcp(&envs, Some("carol"));
+        assert!(no_one.is_empty());
+    }
+
+    #[test]
+    fn starred_set_target_missing_yields_none_payload() {
+        let envs = vec![
+            star_env(11, "alice", 999, Some("true"), 200),
+        ];
+        let rows = compute_starred_set_mcp(&envs, None);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload, None);
+    }
+
+    #[test]
+    fn starred_set_sort_ts_desc_target_asc_starred_by_asc() {
+        let envs = vec![
+            state_env(10, "alice", "post", "a", 100),
+            state_env(20, "alice", "post", "b", 100),
+            // Same ts → tiebreak on target asc.
+            star_env(11, "alice", 10, Some("true"), 500),
+            star_env(12, "bob", 20, Some("true"), 500),
+            star_env(13, "alice", 20, Some("true"), 500),
+            // Highest ts → first.
+            star_env(14, "bob", 10, Some("true"), 700),
+        ];
+        let rows = compute_starred_set_mcp(&envs, None);
+        assert_eq!(rows.len(), 4);
+        // ts=700 (bob,10) first; then ts=500 ordered by (target asc, starred_by asc):
+        // (alice,10), (alice,20), (bob,20).
+        assert_eq!((rows[0].starred_by.as_str(), rows[0].target), ("bob", 10));
+        assert_eq!((rows[1].starred_by.as_str(), rows[1].target), ("alice", 10));
+        assert_eq!((rows[2].starred_by.as_str(), rows[2].target), ("alice", 20));
+        assert_eq!((rows[3].starred_by.as_str(), rows[3].target), ("bob", 20));
+    }
+
+    #[test]
+    fn channel_starred_params_deserialize_both_modes() {
+        let json_all = serde_json::json!({"topic": "agent-chat-arc"});
+        let p_all: ChannelStarredParams = serde_json::from_value(json_all).unwrap();
+        assert_eq!(p_all.caller_fp, None);
+
+        let json_scoped = serde_json::json!({"topic": "agent-chat-arc", "caller_fp": "d1993c2c"});
+        let p_scoped: ChannelStarredParams = serde_json::from_value(json_scoped).unwrap();
+        assert_eq!(p_scoped.caller_fp.as_deref(), Some("d1993c2c"));
     }
 
     #[test]

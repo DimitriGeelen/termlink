@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1759: termlink_channel_starred MCP — current star set with payload on arbitrary topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T10:15:09Z
+# ============================================================================
+
+task_id: T-1759
+task_name: "termlink_channel_starred MCP — current star set with payload on arbitrary topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T10:12:16Z
+completed: 2026-05-21T10:14:48Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`StarRowMcp { target, starred_by, starred_ts, payload: Option<String> }` struct + `compute_starred_set_mcp(envelopes, caller: Option<&str>)` helper added (LWW per (sender, target): star=true records, star=false removes; caller=None returns all, caller=Some(fp) filters to that fingerprint; payload filled from original; sorted by starred_ts desc, target asc, starred_by asc tiebreak)"
+  - "`ChannelStarredParams { topic: String, caller_fp: Option<String> }` params struct added (omitted=all-users; explicit fp=that user only)"
+  - "`termlink_channel_starred` `#[tool]` method added — walks topic, returns `{ok, topic, scope, rows, count}`"
+  - "8 unit tests covering: empty input, single star fills payload, default star=true, unstar removes only caller's row (not bob's same-target star), caller filter isolates user, missing-target → None payload, sort order (ts desc/target asc/starred_by asc), params with/without caller_fp"
+  - "`cargo build -p termlink-mcp` clean; 488 lib tests pass (480 → 488)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1759-termlinkchannelstarred-mcp--current-star.md
+generated_by: context-agent-hybrid
