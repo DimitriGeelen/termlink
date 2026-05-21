@@ -2758,6 +2758,164 @@ fn compute_emoji_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<EmojiStatRowM
     rows
 }
 
+/// T-1764: one rendered "recent chat" row in a digest summary.
+/// Mirrors CLI `DigestChat` (commands/channel.rs:4149).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DigestChatMcp {
+    pub offset: u64,
+    pub sender_id: String,
+    pub ts: i64,
+    pub payload: String,
+}
+
+impl DigestChatMcp {
+    pub(crate) fn to_json_mcp(&self) -> serde_json::Value {
+        serde_json::json!({
+            "offset": self.offset,
+            "sender_id": self.sender_id,
+            "ts": self.ts,
+            "payload": self.payload,
+        })
+    }
+}
+
+/// T-1764: period summary for a topic. Mirrors CLI `DigestSummary`
+/// (commands/channel.rs:4136).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DigestSummaryMcp {
+    pub since_ms: i64,
+    pub posts: u64,
+    pub distinct_senders: u64,
+    pub top_senders: Vec<(String, u64)>,
+    pub top_reactions: Vec<(String, u64)>,
+    pub pins_added: u64,
+    pub pins_removed: u64,
+    pub forwards_in: u64,
+    pub recent_chats: Vec<DigestChatMcp>,
+}
+
+/// T-1764: pure helper — compute a digest from a topic walk + lower bound.
+///
+/// Mirrors CLI `compute_digest` (commands/channel.rs:4169) one-to-one:
+/// - Filters envelopes to `ts >= since_ms` (drops missing ts defensively).
+/// - `posts`: count of `msg_type=post|chat|note` (content types).
+/// - `distinct_senders`: unique sender_id across ALL in-window envelopes.
+/// - `top_senders`: top 3 by content-post count (count desc, sender asc tie-break).
+/// - `top_reactions`: top 3 reaction payloads (count desc, emoji asc tie-break).
+/// - `pins_added` / `pins_removed`: count pin/unpin events (metadata.action).
+/// - `forwards_in`: envelopes with `metadata.forwarded_from`.
+/// - `recent_chats`: last 3 content posts by offset, oldest-first within the slice.
+fn compute_digest_mcp(envelopes: &[serde_json::Value], since_ms: i64) -> DigestSummaryMcp {
+    use std::collections::{HashMap, HashSet};
+    let in_window = |env: &serde_json::Value| -> Option<i64> {
+        env.get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .filter(|t| *t >= since_ms)
+    };
+    let is_content = |env: &serde_json::Value| -> bool {
+        matches!(
+            env.get("msg_type").and_then(|v| v.as_str()),
+            Some("post") | Some("chat") | Some("note")
+        )
+    };
+
+    let mut posts: u64 = 0;
+    let mut sender_counts: HashMap<String, u64> = HashMap::new();
+    let mut all_senders: HashSet<String> = HashSet::new();
+    let mut reaction_counts: HashMap<String, u64> = HashMap::new();
+    let mut pins_added: u64 = 0;
+    let mut pins_removed: u64 = 0;
+    let mut forwards_in: u64 = 0;
+    let mut content_envs: Vec<&serde_json::Value> = Vec::new();
+
+    for env in envelopes {
+        if in_window(env).is_none() {
+            continue;
+        }
+        if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+            all_senders.insert(s.to_string());
+        }
+        if env
+            .get("metadata")
+            .and_then(|m| m.get("forwarded_from"))
+            .is_some()
+        {
+            forwards_in += 1;
+        }
+        match env.get("msg_type").and_then(|v| v.as_str()) {
+            Some("pin") => {
+                let action = env
+                    .get("metadata")
+                    .and_then(|m| m.get("action"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("pin");
+                if action == "unpin" {
+                    pins_removed += 1;
+                } else {
+                    pins_added += 1;
+                }
+            }
+            Some("reaction") => {
+                let payload = decode_payload_lossy_mcp(env);
+                if !payload.is_empty() {
+                    *reaction_counts.entry(payload).or_insert(0) += 1;
+                }
+            }
+            _ => {}
+        }
+        if is_content(env) {
+            posts += 1;
+            content_envs.push(env);
+            if let Some(s) = env.get("sender_id").and_then(|v| v.as_str()) {
+                *sender_counts.entry(s.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let mut top_senders: Vec<(String, u64)> = sender_counts.into_iter().collect();
+    top_senders.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_senders.truncate(3);
+
+    let mut top_reactions: Vec<(String, u64)> = reaction_counts.into_iter().collect();
+    top_reactions.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_reactions.truncate(3);
+
+    content_envs.sort_by_key(|e| e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0));
+    let recent_chats: Vec<DigestChatMcp> = content_envs
+        .iter()
+        .rev()
+        .take(3)
+        .rev()
+        .map(|e| DigestChatMcp {
+            offset: e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0),
+            sender_id: e
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            ts: e
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| e.get("ts").and_then(|v| v.as_i64()))
+                .unwrap_or(0),
+            payload: decode_payload_lossy_mcp(e),
+        })
+        .collect();
+
+    DigestSummaryMcp {
+        since_ms,
+        posts,
+        distinct_senders: all_senders.len() as u64,
+        top_senders,
+        top_reactions,
+        pins_added,
+        pins_removed,
+        forwards_in,
+        recent_chats,
+    }
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5354,6 +5512,17 @@ pub struct ChannelEmojiStatsParams {
     pub topic: String,
     /// If set, return only the top-N rows by count (after the count-desc sort).
     pub top: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelDigestParams {
+    /// Topic to summarize (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Window in minutes back from now. Mutex with since_ms — if both set,
+    /// since_ms wins. If neither set, defaults to 60 minutes.
+    pub since_mins: Option<i64>,
+    /// Absolute lower bound in unix ms. Wins over since_mins.
+    pub since_ms: Option<i64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -14567,6 +14736,52 @@ impl TermLinkTools {
             "topic": p.topic,
             "total_distinct_emojis": total,
             "rows": rows_json,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_digest",
+        description = "Period summary for any topic — MCP parity for `termlink channel digest <topic>` (T-1764 of T-1166). Walks the topic, filters envelopes whose `ts >= since_ms` (or last 60 minutes by default), and computes seven counts plus rendered recent chats. Strict superset of `termlink_agent_digest` (chat-arc only, missing 5 of the 7 metrics). Returns `{ok, topic, since_ms, posts, distinct_senders, top_senders: [{sender_id, count}, ...], top_reactions: [{emoji, count}, ...], pins_added, pins_removed, forwards_in, recent_chats: [{offset, sender_id, ts, payload}, ...]}`. `posts` counts content msg_types only (post/chat/note); `distinct_senders` covers all in-window envelopes. Top-3 cap on senders and reactions, recent_chats shows last 3 by offset. `since_ms` (absolute unix ms) wins over `since_mins` (window from now). NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_digest(
+        &self,
+        Parameters(p): Parameters<ChannelDigestParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let now_ms: i64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let since_ms: i64 = match (p.since_ms, p.since_mins) {
+            (Some(ms), _) => ms,
+            (None, Some(mins)) => now_ms - mins * 60_000,
+            (None, None) => now_ms - 60 * 60_000,
+        };
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(e),
+        };
+        let d = compute_digest_mcp(&envelopes, since_ms);
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "since_ms": d.since_ms,
+            "posts": d.posts,
+            "distinct_senders": d.distinct_senders,
+            "top_senders": d.top_senders.iter()
+                .map(|(s, c)| serde_json::json!({"sender_id": s, "count": c}))
+                .collect::<Vec<_>>(),
+            "top_reactions": d.top_reactions.iter()
+                .map(|(r, c)| serde_json::json!({"emoji": r, "count": c}))
+                .collect::<Vec<_>>(),
+            "pins_added": d.pins_added,
+            "pins_removed": d.pins_removed,
+            "forwards_in": d.forwards_in,
+            "recent_chats": d.recent_chats.iter().map(DigestChatMcp::to_json_mcp).collect::<Vec<_>>(),
         }))
         .unwrap_or_else(json_err)
     }
@@ -25102,6 +25317,202 @@ YW\tJ
         let json = serde_json::json!({"topic": "agent-chat-arc", "top": 10_u64});
         let p: ChannelEmojiStatsParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.top, Some(10));
+    }
+
+    // --- T-1764 channel_digest ----------------------------------------------
+
+    fn content_env_digest(offset: u64, sender: &str, ts: i64, msg_type: &str, payload: &str) -> serde_json::Value {
+        use base64::Engine;
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": msg_type,
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload.as_bytes()),
+        })
+    }
+
+    fn pin_env_digest(offset: u64, sender: &str, ts: i64, action: &str, target: u64) -> serde_json::Value {
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "pin",
+            "ts_unix_ms": ts,
+            "metadata": {"pin_target": target.to_string(), "action": action},
+        })
+    }
+
+    fn reaction_env_digest(offset: u64, sender: &str, ts: i64, emoji: &str) -> serde_json::Value {
+        use base64::Engine;
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "reaction",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(emoji.as_bytes()),
+        })
+    }
+
+    fn forward_env_digest(offset: u64, sender: &str, ts: i64, payload: &str, source: &str) -> serde_json::Value {
+        use base64::Engine;
+        serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "msg_type": "post",
+            "ts_unix_ms": ts,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload.as_bytes()),
+            "metadata": {"forwarded_from": source},
+        })
+    }
+
+    #[test]
+    fn digest_empty_envelopes() {
+        let d = compute_digest_mcp(&[], 1000);
+        assert_eq!(d.posts, 0);
+        assert_eq!(d.distinct_senders, 0);
+        assert!(d.top_senders.is_empty());
+        assert!(d.top_reactions.is_empty());
+        assert_eq!(d.pins_added, 0);
+        assert_eq!(d.pins_removed, 0);
+        assert_eq!(d.forwards_in, 0);
+        assert!(d.recent_chats.is_empty());
+    }
+
+    #[test]
+    fn digest_filters_out_of_window_envelopes() {
+        let envs = vec![
+            content_env_digest(10, "alice", 500, "post", "old"),  // before window
+            content_env_digest(11, "bob", 1500, "post", "in"),    // in window
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.posts, 1);
+        assert_eq!(d.recent_chats.len(), 1);
+        assert_eq!(d.recent_chats[0].sender_id, "bob");
+    }
+
+    #[test]
+    fn digest_counts_posts_chat_note_as_content_excludes_meta() {
+        let envs = vec![
+            content_env_digest(10, "alice", 1500, "post", "p"),
+            content_env_digest(11, "alice", 1500, "chat", "c"),
+            content_env_digest(12, "alice", 1500, "note", "n"),
+            // Below should NOT count as posts
+            reaction_env_digest(13, "alice", 1500, "👍"),
+            pin_env_digest(14, "alice", 1500, "pin", 10),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.posts, 3, "post/chat/note count, meta excluded");
+        // But distinct_senders counts all in-window envelopes
+        assert_eq!(d.distinct_senders, 1);
+    }
+
+    #[test]
+    fn digest_top_senders_sorted_truncated_to_3() {
+        let envs = vec![
+            content_env_digest(1, "alice", 1500, "post", "x"),
+            content_env_digest(2, "alice", 1500, "post", "x"),
+            content_env_digest(3, "alice", 1500, "post", "x"),
+            content_env_digest(4, "bob", 1500, "post", "x"),
+            content_env_digest(5, "bob", 1500, "post", "x"),
+            content_env_digest(6, "carol", 1500, "post", "x"),
+            content_env_digest(7, "dave", 1500, "post", "x"),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.top_senders.len(), 3, "capped at 3");
+        assert_eq!(d.top_senders[0], ("alice".to_string(), 3));
+        assert_eq!(d.top_senders[1], ("bob".to_string(), 2));
+        // carol and dave tie at 1; lexicographic asc → carol
+        assert_eq!(d.top_senders[2], ("carol".to_string(), 1));
+    }
+
+    #[test]
+    fn digest_pins_added_vs_removed() {
+        let envs = vec![
+            pin_env_digest(10, "alice", 1500, "pin", 5),
+            pin_env_digest(11, "alice", 1500, "pin", 6),
+            pin_env_digest(12, "alice", 1500, "unpin", 5),
+            // Default action when unspecified is treated as "pin"
+            serde_json::json!({
+                "offset": 13,
+                "sender_id": "bob",
+                "msg_type": "pin",
+                "ts_unix_ms": 1500,
+                "metadata": {"pin_target": "7"},
+            }),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.pins_added, 3);
+        assert_eq!(d.pins_removed, 1);
+    }
+
+    #[test]
+    fn digest_top_reactions_sorted_truncated_to_3() {
+        let envs = vec![
+            reaction_env_digest(1, "alice", 1500, "a"),
+            reaction_env_digest(2, "alice", 1500, "a"),
+            reaction_env_digest(3, "alice", 1500, "a"),
+            reaction_env_digest(4, "bob", 1500, "b"),
+            reaction_env_digest(5, "bob", 1500, "b"),
+            reaction_env_digest(6, "carol", 1500, "c"),
+            reaction_env_digest(7, "dave", 1500, "d"),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.top_reactions.len(), 3);
+        assert_eq!(d.top_reactions[0], ("a".to_string(), 3));
+        assert_eq!(d.top_reactions[1], ("b".to_string(), 2));
+        assert_eq!(d.top_reactions[2], ("c".to_string(), 1)); // c < d lexicographically
+    }
+
+    #[test]
+    fn digest_forwards_in_counts_metadata_forwarded_from() {
+        let envs = vec![
+            content_env_digest(10, "alice", 1500, "post", "regular"),
+            forward_env_digest(11, "bob", 1500, "fwd", "dm:carol:dave/5"),
+            forward_env_digest(12, "carol", 1500, "fwd", "agent-chat-arc/100"),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.forwards_in, 2);
+        // Forwarded posts are still content msg_type=post — they count as posts too
+        assert_eq!(d.posts, 3);
+    }
+
+    #[test]
+    fn digest_recent_chats_keeps_last_3_by_offset() {
+        let envs = vec![
+            content_env_digest(1, "alice", 1500, "post", "p1"),
+            content_env_digest(2, "alice", 1500, "post", "p2"),
+            content_env_digest(3, "alice", 1500, "post", "p3"),
+            content_env_digest(4, "alice", 1500, "post", "p4"),
+            content_env_digest(5, "alice", 1500, "post", "p5"),
+        ];
+        let d = compute_digest_mcp(&envs, 1000);
+        assert_eq!(d.recent_chats.len(), 3);
+        // last 3 in offset asc order = p3, p4, p5
+        assert_eq!(d.recent_chats[0].offset, 3);
+        assert_eq!(d.recent_chats[0].payload, "p3");
+        assert_eq!(d.recent_chats[2].offset, 5);
+        assert_eq!(d.recent_chats[2].payload, "p5");
+    }
+
+    #[test]
+    fn channel_digest_params_defaults_to_none() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelDigestParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.since_mins.is_none());
+        assert!(p.since_ms.is_none());
+    }
+
+    #[test]
+    fn channel_digest_params_with_both_overrides() {
+        let json = serde_json::json!({
+            "topic": "agent-chat-arc",
+            "since_mins": 30_i64,
+            "since_ms": 12345_i64,
+        });
+        let p: ChannelDigestParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.since_mins, Some(30));
+        assert_eq!(p.since_ms, Some(12345));
     }
 
     #[test]
