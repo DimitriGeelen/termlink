@@ -1417,6 +1417,35 @@ fn summarize_fleet_by_project_mcp(
     rows
 }
 
+/// T-1744: parse the first CERTIFICATE block in a PEM string and return its
+/// sha256:<hex> fingerprint. Mirror of CLI cmd_hub_fingerprint's PEM parsing
+/// + base64-decode + cert_fingerprint chain (infrastructure.rs:946-969).
+/// Pure — no filesystem access.
+///
+/// Returns Err with a human-readable message if the PEM is malformed.
+/// Defensive: handles concatenated certs (uses first only), filters whitespace
+/// from base64 body, and reports the failing stage in the error message.
+fn parse_first_cert_block_to_fingerprint(pem: &str) -> Result<String, String> {
+    use base64::Engine;
+    let begin_marker = "-----BEGIN CERTIFICATE-----";
+    let end_marker = "-----END CERTIFICATE-----";
+    let start = pem
+        .find(begin_marker)
+        .ok_or_else(|| "no CERTIFICATE block in PEM".to_string())?;
+    let end = pem
+        .find(end_marker)
+        .ok_or_else(|| "malformed CERTIFICATE block (no END marker)".to_string())?;
+    if end <= start + begin_marker.len() {
+        return Err("malformed CERTIFICATE block (END before BEGIN body)".to_string());
+    }
+    let body = &pem[start + begin_marker.len()..end];
+    let b64: String = body.chars().filter(|c| !c.is_whitespace()).collect();
+    let der = base64::engine::general_purpose::STANDARD
+        .decode(b64.as_bytes())
+        .map_err(|e| format!("base64-decode failed: {e}"))?;
+    Ok(termlink_session::tofu::cert_fingerprint(&der))
+}
+
 /// T-1743: shape raw `event.subscribe` events from the `agent.request` topic
 /// into the same JSON the CLI's `cmd_agent_listen --json` produces. Pure — no
 /// I/O. Mirror of agent.rs:278-287.
@@ -9504,6 +9533,74 @@ impl TermLinkTools {
                 ]
             } else { vec![] },
         })).unwrap_or_else(json_err)
+    }
+
+    // === Hub fingerprint + export-secret (T-1744) — local rotation primitives ===
+
+    #[tool(
+        name = "termlink_hub_fingerprint",
+        description = "Read the LOCAL hub's TLS leaf-cert fingerprint — MCP parity for the `termlink hub fingerprint` CLI verb (T-1657). Pure read-only: opens `<runtime_dir>/hub.cert.pem`, extracts the first CERTIFICATE block, decodes DER, returns `{ok, path, fingerprint}` in canonical `sha256:<hex>` form. Companion to `termlink_hub_probe` (remote TLS-probe over the wire): this one reads the LOCAL file. Use to answer 'what fingerprint should peers pin for my hub?' from an agent co-located with the hub, without shelling out. Returns `{ok: false, error, path}` if the hub isn't running (no cert file)."
+    )]
+    async fn termlink_hub_fingerprint(&self) -> String {
+        let cert_path = termlink_hub::tls::hub_cert_path();
+        let pem = match std::fs::read_to_string(&cert_path) {
+            Ok(s) => s,
+            Err(e) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "path": cert_path.display().to_string(),
+                    "fingerprint": serde_json::Value::Null,
+                    "error": format!("no hub.cert.pem at {} — is the hub running? ({e})", cert_path.display()),
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+        match parse_first_cert_block_to_fingerprint(&pem) {
+            Ok(fingerprint) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "path": cert_path.display().to_string(),
+                "fingerprint": fingerprint,
+                "error": serde_json::Value::Null,
+            }))
+            .unwrap_or_else(json_err),
+            Err(e) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "path": cert_path.display().to_string(),
+                "fingerprint": serde_json::Value::Null,
+                "error": format!("parse failed for {}: {e}", cert_path.display()),
+            }))
+            .unwrap_or_else(json_err),
+        }
+    }
+
+    #[tool(
+        name = "termlink_hub_export_secret",
+        description = "Read the LOCAL hub's HMAC secret from the AUTHORITATIVE live file — MCP parity for the `termlink hub export-secret` CLI verb (T-1656). Reads `<runtime_dir>/hub.secret` directly (R3 — NEVER the IP-keyed `~/.termlink/secrets/<ip>.hex` cache, which goes stale across hub restarts). Returns `{ok, path, hex, bytes}` where `hex` is the trimmed 64-char hex secret. Use as the authoritative source when sharing your hub's secret with a peer during heal-after-rotation handoff. Caller is responsible for chmod 600 and out-of-band transport — this verb does not write any file. Returns `{ok: false, error, path}` if the hub isn't running (no secret file)."
+    )]
+    async fn termlink_hub_export_secret(&self) -> String {
+        let live_path = termlink_hub::server::hub_secret_path();
+        match std::fs::read_to_string(&live_path) {
+            Ok(raw) => {
+                let hex = raw.trim().to_string();
+                let bytes = hex.len() / 2;
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "path": live_path.display().to_string(),
+                    "hex": hex,
+                    "bytes": bytes,
+                    "error": serde_json::Value::Null,
+                }))
+                .unwrap_or_else(json_err)
+            }
+            Err(e) => serde_json::to_string_pretty(&serde_json::json!({
+                "ok": false,
+                "path": live_path.display().to_string(),
+                "hex": serde_json::Value::Null,
+                "bytes": serde_json::Value::Null,
+                "error": format!("no hub.secret at {} — is the hub running? ({e})", live_path.display()),
+            }))
+            .unwrap_or_else(json_err),
+        }
     }
 
     // === Hub probe (T-1663) — single-host TLS fingerprint, no auth required ===
@@ -20326,6 +20423,71 @@ mod tests {
         assert_eq!(p.since, None);
         assert_eq!(p.timeout_ms, None);
     }
+
+    // === T-1744: hub_fingerprint helper tests ===
+
+    #[test]
+    fn parse_cert_valid_pem_returns_sha256_fingerprint() {
+        // A 3-byte payload (b"abc") base64-encodes to "YWJj" which is a valid
+        // (if not meaningful as DER) cert body. The helper doesn't validate
+        // DER structure — it just sha256s the bytes and prefixes "sha256:".
+        let pem = "\
+-----BEGIN CERTIFICATE-----
+YWJj
+-----END CERTIFICATE-----
+";
+        let fingerprint = parse_first_cert_block_to_fingerprint(pem).unwrap();
+        // sha256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+        assert_eq!(
+            fingerprint,
+            "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn parse_cert_missing_begin_marker_returns_err() {
+        let pem = "no markers at all";
+        let err = parse_first_cert_block_to_fingerprint(pem).unwrap_err();
+        assert!(err.contains("no CERTIFICATE block"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_cert_missing_end_marker_returns_err() {
+        let pem = "-----BEGIN CERTIFICATE-----\nYWJj\n";
+        let err = parse_first_cert_block_to_fingerprint(pem).unwrap_err();
+        assert!(err.contains("no END marker"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_cert_garbage_base64_returns_err() {
+        let pem = "\
+-----BEGIN CERTIFICATE-----
+!!!not-base64!!!
+-----END CERTIFICATE-----
+";
+        let err = parse_first_cert_block_to_fingerprint(pem).unwrap_err();
+        assert!(err.contains("base64-decode failed"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_cert_handles_whitespace_in_body() {
+        // PEM bodies are line-wrapped at 64 chars. The helper must strip ALL
+        // whitespace (newlines, spaces, tabs) before base64-decoding.
+        let pem = "\
+-----BEGIN CERTIFICATE-----
+YW\tJ
+\n   j
+-----END CERTIFICATE-----
+";
+        let fingerprint = parse_first_cert_block_to_fingerprint(pem).unwrap();
+        // Same input ("abc") as the valid test → same fingerprint.
+        assert_eq!(
+            fingerprint,
+            "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    // (back to T-1743 params tests)
 
     #[test]
     fn agent_listen_params_with_cursor_and_timeout() {
