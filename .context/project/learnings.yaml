@@ -1984,3 +1984,10 @@ learnings:
   date: 2026-05-20
   context: Added via T-1724 from T-1695 RCA retrospective
   application: 'Any agent diagnosing a stuck/hung remote job (CI, build queue, dispatch, mirror sync) where the only signal is "no output, no error": stop, demand UI log access (or operator-paste of the log), and form hypotheses only AFTER reading the log. Do NOT chain auth/permission/credential theories from runtime signature alone.'
+- id: PL-176
+  learning: "DM-topic federation works bidirectionally; observed inbound sync lag of ~5 days for offsets 16-23 from .122 → .107 (peers visible on origin hub before propagating to .107). DON'T conflate 'no local visibility yet' with 'federation broken' — check msg-counts on both hubs before diagnosing. By contrast, agent-chat-arc IS genuinely non-federating: 1800 vs 486 msg disparity observed 2026-05-21 across hubs. Diagnostic rule: termlink topics --json | jq on each hub and compare offsets/counts."
+  source: P-001
+  task: T-1166
+  date: 2026-05-21
+  context: Added via context agent
+  application: TBD
