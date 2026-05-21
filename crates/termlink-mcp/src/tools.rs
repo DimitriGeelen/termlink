@@ -5955,6 +5955,19 @@ pub struct ChannelThreadParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelReactParams {
+    /// Topic on which to emit the reaction (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+    /// Offset of the parent post being reacted to.
+    pub offset: u64,
+    /// Reaction emoji or short string (e.g. "👍", "👀", "ack").
+    pub emoji: String,
+    /// Override sender_id (default: identity fingerprint).
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelMentionsParams {
     /// User tag to match. Defaults to caller's local Identity fingerprint
     /// when omitted. Pass `"*"` to match any non-empty mentions CSV.
@@ -15728,6 +15741,75 @@ impl TermLinkTools {
             "thread": entries,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_react",
+        description = "Emit a reaction envelope on an arbitrary topic, tied to a parent post offset — MCP parity for `termlink channel react <topic> <offset> <emoji>` (add path) CLI verb (T-1778 of T-1166). Topic-flexible variant of `termlink_agent_react` (hardcoded chat-arc). Use case: react to a post in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=reaction` envelope with payload=emoji (UTF-8 bytes) and `metadata.in_reply_to=<offset>`. **Add-only scope** (matches `agent_react`); reaction removal (walk topic → find matching reaction → emit redaction) is a separate follow-up. Returns the raw `channel.post` result envelope on success."
+    )]
+    async fn termlink_channel_react(
+        &self,
+        Parameters(p): Parameters<ChannelReactParams>,
+    ) -> String {
+        use base64::Engine;
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let msg_type = "reaction";
+        let payload_bytes = p.emoji.into_bytes();
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return json_err("HOME not set"),
+        };
+        let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+            Ok(i) => i,
+            Err(e) => return json_err(format!("identity load: {e}")),
+        };
+        let ts_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let signed = termlink_protocol::control::channel::canonical_sign_bytes(
+            &p.topic,
+            msg_type,
+            &payload_bytes,
+            None,
+            ts_unix_ms,
+        );
+        let sig = identity.sign(&signed);
+        let mut sig_hex = String::with_capacity(128);
+        for b in sig.to_bytes() {
+            use std::fmt::Write;
+            let _ = write!(&mut sig_hex, "{b:02x}");
+        }
+        let sender_id = p.sender_id.unwrap_or_else(|| identity.fingerprint().to_string());
+        let mut metadata = serde_json::Map::new();
+        metadata.insert("in_reply_to".to_string(), serde_json::Value::String(p.offset.to_string()));
+        let params = serde_json::json!({
+            "topic": p.topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(&payload_bytes),
+            "ts": ts_unix_ms,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": identity.public_key_hex(),
+            "signature_hex": sig_hex,
+            "metadata": serde_json::Value::Object(metadata),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_POST,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.react error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
     }
 
     #[tool(
@@ -27424,6 +27506,37 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1778 channel_react ----------------------------------------------
+
+    #[test]
+    fn channel_react_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "offset": 42, "emoji": "👍"});
+        let p: ChannelReactParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.offset, 42);
+        assert_eq!(p.emoji, "👍");
+        assert!(p.sender_id.is_none(), "defaults to local identity");
+    }
+
+    #[test]
+    fn channel_react_params_deserialize_with_sender() {
+        let json = serde_json::json!({
+            "topic": "project:t-1166",
+            "offset": 7,
+            "emoji": "ack",
+            "sender_id": "deadbeef0123",
+        });
+        let p: ChannelReactParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    #[test]
+    fn channel_react_params_rejects_missing_emoji() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "offset": 1});
+        let r: Result<ChannelReactParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "emoji is a required field");
     }
 
     // --- T-1777 channel_mentions (cross-topic) ------------------------------
