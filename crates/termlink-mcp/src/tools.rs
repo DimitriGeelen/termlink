@@ -1417,6 +1417,37 @@ fn summarize_fleet_by_project_mcp(
     rows
 }
 
+/// T-1743: shape raw `event.subscribe` events from the `agent.request` topic
+/// into the same JSON the CLI's `cmd_agent_listen --json` produces. Pure — no
+/// I/O. Mirror of agent.rs:278-287.
+///
+/// Each input event is `{"seq": N, "payload": {AgentRequest fields...}}` (the
+/// envelope produced by event.subscribe). We project out `{seq, from, action,
+/// request_id, params, timeout_secs}` so MCP consumers get a stable shape
+/// instead of having to dig through nested envelope JSON. Each output element
+/// also carries `"ok": true` matching the CLI's `--json` per-line convention.
+///
+/// Events whose `payload` is missing or non-object are still emitted (with
+/// null fields) — we preserve the upstream count so callers can use
+/// `events.len()` for empty-batch detection without doing a separate count.
+fn shape_agent_request_events_mcp(events: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    events
+        .iter()
+        .map(|event| {
+            let payload = &event["payload"];
+            serde_json::json!({
+                "ok": true,
+                "seq": event["seq"],
+                "from": payload["from"],
+                "action": payload["action"],
+                "request_id": payload["request_id"],
+                "params": payload["params"],
+                "timeout_secs": payload["timeout_secs"],
+            })
+        })
+        .collect()
+}
+
 /// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
 /// (channel.rs:6021). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -4076,6 +4107,19 @@ pub struct EventSubscribeParams {
     pub since: Option<u64>,
     /// Maximum events to return (default 100). Ignored in hub-aggregator mode.
     pub max_events: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentListenParams {
+    /// Session ID or display name whose event bus to listen on.
+    pub target: String,
+    /// Optional cursor — only return events with seq > since. Use the
+    /// `next_seq` from the previous call to iterate without gaps or dupes.
+    pub since: Option<u64>,
+    /// Subscribe timeout in milliseconds. Default 1000, clamped [100, 30_000].
+    /// One-shot polling pattern: the server blocks up to this long waiting for
+    /// agent.request events, then returns whatever it has (possibly empty).
+    pub timeout_ms: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -11176,6 +11220,59 @@ impl TermLinkTools {
             "posts_in_window": presence.posts_in_window,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_listen",
+        description = "One-shot polling wrapper around `event.subscribe(topic=agent.request)` — MCP parity for the `termlink agent listen --json` CLI verb. Closes the agent.rs CLI surface gap (S-2026-0521 handover). Streaming-style loops don't fit MCP's request/response model; instead each call performs ONE subscribe iteration: pass optional `since` cursor + `timeout_ms`, get back `{ok, target, agent_topic, events, next_seq}` where `events` is a list of `{ok, seq, from, action, request_id, params, timeout_secs}` shapes matching CLI `--json` output. Iterate by passing the returned `next_seq` as the next `since`. Empty `events` array is normal (no requests in the timeout window). Target resolution: session ID or display name via `manager::find_session`."
+    )]
+    async fn termlink_agent_listen(
+        &self,
+        Parameters(p): Parameters<AgentListenParams>,
+    ) -> String {
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "target": p.target,
+                    "error": format!("session '{}' not found: {e}", p.target),
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+
+        let timeout_ms = p.timeout_ms.unwrap_or(1_000).clamp(100, 30_000);
+        let topic = termlink_protocol::events::agent_topic::REQUEST;
+
+        let mut params = serde_json::json!({
+            "topic": topic,
+            "timeout_ms": timeout_ms,
+        });
+        if let Some(since) = p.since {
+            params["since"] = serde_json::json!(since);
+        }
+
+        match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let empty: Vec<serde_json::Value> = Vec::new();
+                    let events_raw = result["events"].as_array().unwrap_or(&empty);
+                    let shaped = shape_agent_request_events_mcp(events_raw);
+                    let next_seq = result["next_seq"].as_u64();
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "target": p.target,
+                        "agent_topic": topic,
+                        "events": shaped,
+                        "next_seq": next_seq,
+                    }))
+                    .unwrap_or_else(json_err)
+                }
+                Err(e) => json_err(e),
+            },
+            Err(e) => json_err(format!("connection failed: {e}")),
+        }
     }
 
     #[tool(
@@ -20127,6 +20224,120 @@ mod tests {
             format_last_seen_human(now, Some(now + 5_000)),
             "0s ago"
         );
+    }
+
+    // === T-1743: agent_listen — shape helper + params tests ===
+
+    #[test]
+    fn shape_agent_request_events_empty_input_returns_empty() {
+        let shaped = shape_agent_request_events_mcp(&[]);
+        assert!(shaped.is_empty());
+    }
+
+    #[test]
+    fn shape_agent_request_events_single_full_event() {
+        let events = vec![serde_json::json!({
+            "seq": 42,
+            "payload": {
+                "from": "agent-a",
+                "action": "query.status",
+                "request_id": "01HXYZ123",
+                "params": {"key": "value"},
+                "timeout_secs": 30,
+            }
+        })];
+        let shaped = shape_agent_request_events_mcp(&events);
+        assert_eq!(shaped.len(), 1);
+        assert_eq!(shaped[0]["ok"], serde_json::json!(true));
+        assert_eq!(shaped[0]["seq"], serde_json::json!(42));
+        assert_eq!(shaped[0]["from"], serde_json::json!("agent-a"));
+        assert_eq!(shaped[0]["action"], serde_json::json!("query.status"));
+        assert_eq!(shaped[0]["request_id"], serde_json::json!("01HXYZ123"));
+        assert_eq!(shaped[0]["params"], serde_json::json!({"key": "value"}));
+        assert_eq!(shaped[0]["timeout_secs"], serde_json::json!(30));
+    }
+
+    #[test]
+    fn shape_agent_request_events_missing_payload_fields_become_null() {
+        // Defensive: a partial AgentRequest payload (e.g. timeout_secs absent
+        // per the skip_serializing_if rule) must still surface as a shaped
+        // event with the missing fields as JSON null — not a hard error.
+        let events = vec![serde_json::json!({
+            "seq": 7,
+            "payload": {
+                "from": "agent-b",
+                "action": "ping",
+                "request_id": "01HXYZ456",
+                "params": {},
+                // timeout_secs intentionally absent
+            }
+        })];
+        let shaped = shape_agent_request_events_mcp(&events);
+        assert_eq!(shaped.len(), 1);
+        assert_eq!(shaped[0]["from"], serde_json::json!("agent-b"));
+        assert!(shaped[0]["timeout_secs"].is_null());
+    }
+
+    #[test]
+    fn shape_agent_request_events_preserves_order() {
+        // event.subscribe returns events in seq order; shape MUST preserve that
+        // (consumers rely on chronological ordering when iterating).
+        let events = vec![
+            serde_json::json!({
+                "seq": 10,
+                "payload": {"from": "a", "action": "x", "request_id": "r1", "params": {}}
+            }),
+            serde_json::json!({
+                "seq": 11,
+                "payload": {"from": "b", "action": "y", "request_id": "r2", "params": {}}
+            }),
+            serde_json::json!({
+                "seq": 12,
+                "payload": {"from": "c", "action": "z", "request_id": "r3", "params": {}}
+            }),
+        ];
+        let shaped = shape_agent_request_events_mcp(&events);
+        assert_eq!(shaped.len(), 3);
+        assert_eq!(shaped[0]["seq"], serde_json::json!(10));
+        assert_eq!(shaped[1]["seq"], serde_json::json!(11));
+        assert_eq!(shaped[2]["seq"], serde_json::json!(12));
+        assert_eq!(shaped[0]["from"], serde_json::json!("a"));
+        assert_eq!(shaped[2]["from"], serde_json::json!("c"));
+    }
+
+    #[test]
+    fn shape_agent_request_events_missing_payload_object_does_not_panic() {
+        // Defensive: if an upstream emits an event without a `payload`
+        // (shouldn't happen, but the helper must be robust), we still produce
+        // one shaped row with null fields rather than panicking.
+        let events = vec![serde_json::json!({"seq": 99})];
+        let shaped = shape_agent_request_events_mcp(&events);
+        assert_eq!(shaped.len(), 1);
+        assert_eq!(shaped[0]["seq"], serde_json::json!(99));
+        assert!(shaped[0]["from"].is_null());
+        assert!(shaped[0]["action"].is_null());
+    }
+
+    #[test]
+    fn agent_listen_params_minimal_target_only() {
+        let json = serde_json::json!({"target": "claude-dev"});
+        let p: AgentListenParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "claude-dev");
+        assert_eq!(p.since, None);
+        assert_eq!(p.timeout_ms, None);
+    }
+
+    #[test]
+    fn agent_listen_params_with_cursor_and_timeout() {
+        let json = serde_json::json!({
+            "target": "agent-1",
+            "since": 100,
+            "timeout_ms": 5000,
+        });
+        let p: AgentListenParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.target, "agent-1");
+        assert_eq!(p.since, Some(100));
+        assert_eq!(p.timeout_ms, Some(5000));
     }
 
     // === T-1719: agent_dms helper + params tests ===
