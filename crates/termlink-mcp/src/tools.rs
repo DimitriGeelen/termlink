@@ -4872,6 +4872,15 @@ pub struct ChannelRelationsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelUnreadParams {
+    /// Topic to count unread envelopes on.
+    pub topic: String,
+    /// Sender fingerprint to compute unread for. Defaults to caller's
+    /// local identity (`~/.termlink/identity.json`) when omitted.
+    pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactionsParams {
     /// Topic to walk for redaction events.
     pub topic: String,
@@ -21391,6 +21400,84 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    #[tool(
+        name = "termlink_channel_unread",
+        description = "Unread-envelope count on an arbitrary topic — MCP parity for `termlink channel unread <TOPIC> [--sender]` CLI verb (T-1329, channel.rs:3063). Topic-flexible variant of `termlink_agent_unread` (hardcoded chat-arc). Walks the full topic, derives `ack_up_to` as the largest `metadata.up_to` of any `msg_type=receipt` envelope filtered by sender_id (LWW max), then counts non-receipt offsets > ack_up_to. Defaults `sender_id` to caller's local identity fingerprint (`~/.termlink/identity.json`) — answers 'am I caught up on this DM/channel'. Returns `{ok, topic, sender_id, ack_up_to, total, unread_count, first_unread, last_offset}`. `first_unread` is the smallest offset > ack_up_to; `last_offset` is the topic's max offset. Useful for inbox-style status checks per-topic. Pure read."
+    )]
+    async fn termlink_channel_unread(
+        &self,
+        Parameters(p): Parameters<ChannelUnreadParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let target_sender = match p.sender_id {
+            Some(s) => s,
+            None => {
+                let home = match std::env::var("HOME") {
+                    Ok(h) => h,
+                    Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
+                };
+                let identity_dir = std::path::PathBuf::from(home).join(".termlink");
+                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                    Ok(i) => i.fingerprint().to_string(),
+                    Err(e) => return json_err(format!("identity load: {e}")),
+                }
+            }
+        };
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        // Derive ack_up_to from receipt envelopes filtered by sender (LWW max).
+        let mut ack_up_to: u64 = 0;
+        for env in &envelopes {
+            if env.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            if env.get("sender_id").and_then(|v| v.as_str()) != Some(target_sender.as_str()) {
+                continue;
+            }
+            let up_to = env.get("metadata")
+                .and_then(|m| m.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .or_else(|| env.get("metadata").and_then(|m| m.get("up_to")).and_then(|v| v.as_u64()))
+                .unwrap_or(0);
+            if up_to > ack_up_to {
+                ack_up_to = up_to;
+            }
+        }
+        // Count unread + locate first_unread + last_offset.
+        let total = envelopes.len() as u64;
+        let mut unread_count: u64 = 0;
+        let mut first_unread: Option<u64> = None;
+        let mut last_offset: u64 = 0;
+        for env in &envelopes {
+            let off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            if off > last_offset {
+                last_offset = off;
+            }
+            if off > ack_up_to {
+                unread_count += 1;
+                if first_unread.map_or(true, |f| off < f) {
+                    first_unread = Some(off);
+                }
+            }
+        }
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "sender_id": target_sender,
+            "ack_up_to": ack_up_to,
+            "total": total,
+            "unread_count": unread_count,
+            "first_unread": first_unread,
+            "last_offset": last_offset,
+        })).unwrap_or_else(json_err)
+    }
+
 }
 
 #[cfg(test)]
@@ -23581,6 +23668,24 @@ YW\tJ
         let json = serde_json::json!({"topic": "agent-chat-arc"});
         let p: Result<ChannelRelationsParams, _> = serde_json::from_value(json);
         assert!(p.is_err(), "target field is required");
+    }
+
+    // === T-1757: ChannelUnreadParams tests ===
+
+    #[test]
+    fn channel_unread_params_with_sender_id() {
+        let json = serde_json::json!({"topic": "dm:a:b", "sender_id": "d1993c2c"});
+        let p: ChannelUnreadParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:a:b");
+        assert_eq!(p.sender_id.as_deref(), Some("d1993c2c"));
+    }
+
+    #[test]
+    fn channel_unread_params_without_sender_id_defaults_to_none() {
+        let json = serde_json::json!({"topic": "agent-chat-arc"});
+        let p: ChannelUnreadParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.sender_id, None);
     }
 
     #[test]

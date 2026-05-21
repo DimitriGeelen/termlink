@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1757: termlink_channel_unread MCP — unread count on arbitrary topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T10:07:25Z
+# ============================================================================
+
+task_id: T-1757
+task_name: "termlink_channel_unread MCP — unread count on arbitrary topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T10:04:57Z
+completed: 2026-05-21T10:07:23Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelUnreadParams { topic: String, sender_id: Option<String> }` params struct added"
+  - "`termlink_channel_unread` `#[tool]` method added — walks full topic, derives ack_up_to from receipt envelopes filtered by sender_id (LWW max), counts offsets > ack_up_to, returns `{ok, topic, sender_id, ack_up_to, total, unread_count, first_unread, last_offset}`"
+  - "sender_id defaults to local identity fingerprint when omitted (matches CLI + agent_unread)"
+  - "2 unit tests covering params shape (with/without sender_id)"
+  - "`cargo build -p termlink-mcp` clean; 471 lib tests pass (469 → 471)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1757-termlinkchannelunread-mcp--unread-count-.md
+generated_by: context-agent-hybrid
