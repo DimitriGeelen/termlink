@@ -5946,6 +5946,15 @@ pub struct ChannelTypingEmitParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelThreadParams {
+    /// Topic to read the thread from (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Offset of the thread root. Must match an existing envelope on the
+    /// topic — otherwise the tool returns an error.
+    pub root: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelTypingListParams {
     /// Topic to walk for typing-presence (any topic, not just agent-chat-arc).
     pub topic: String,
@@ -15638,6 +15647,74 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_thread",
+        description = "Read the full conversation tree rooted at a specific offset on an arbitrary topic — MCP parity for `termlink channel thread <topic> <ROOT>` CLI verb (T-1776 of T-1166). Topic-flexible variant of `termlink_agent_thread` (hardcoded chat-arc). Use case: read a reply tree on a DM channel (`dm:a:b`) or project topic. Walks the topic, indexes envelopes by offset, builds parent→children map from `metadata.in_reply_to`, runs pre-order DFS rooted at the requested offset (children visited in ascending offset order for deterministic output). Reuses `build_thread_mcp`, `parent_offset_of_mcp`, `decode_payload_lossy_mcp`. Errors with CLI-parity message when `root` is absent from the topic. Returns `{ok, topic, root, thread: [{offset, depth, sender_id, msg_type, payload}, ...]}` with payload base64-decoded lossy. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_thread(
+        &self,
+        Parameters(p): Parameters<ChannelThreadParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        if !envelopes
+            .iter()
+            .any(|m| m.get("offset").and_then(|v| v.as_u64()) == Some(p.root))
+        {
+            return json_err(format!(
+                "Topic '{}' has no message at offset {}",
+                p.topic, p.root
+            ));
+        }
+        use std::collections::HashMap;
+        let mut by_off: HashMap<u64, &serde_json::Value> =
+            HashMap::with_capacity(envelopes.len());
+        let mut parents: HashMap<u64, Vec<u64>> = HashMap::new();
+        for env in &envelopes {
+            let Some(off) = env.get("offset").and_then(|v| v.as_u64()) else { continue };
+            by_off.insert(off, env);
+            if let Some(parent) = parent_offset_of_mcp(env) {
+                parents.entry(parent).or_default().push(off);
+            }
+        }
+        let order = build_thread_mcp(&parents, p.root);
+        let entries: Vec<serde_json::Value> = order
+            .iter()
+            .filter_map(|(off, depth)| {
+                let env = by_off.get(off)?;
+                let sender = env
+                    .get("sender_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let msg_type = env
+                    .get("msg_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?");
+                let payload = decode_payload_lossy_mcp(env);
+                Some(serde_json::json!({
+                    "offset": off,
+                    "depth": depth,
+                    "sender_id": sender,
+                    "msg_type": msg_type,
+                    "payload": payload,
+                }))
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "root": p.root,
+            "thread": entries,
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -27213,6 +27290,35 @@ YW\tJ
         let p: ChannelTypingEmitParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "project:t-1166");
         assert_eq!(p.sender_id.as_deref(), Some("deadbeef0123"));
+    }
+
+    // --- T-1776 channel_thread ---------------------------------------------
+
+    #[test]
+    fn channel_thread_params_deserialize() {
+        let json = serde_json::json!({"topic": "dm:alice:bob", "root": 42});
+        let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert_eq!(p.root, 42);
+    }
+
+    #[test]
+    fn channel_thread_build_thread_dfs_order_deterministic() {
+        // Sanity: build_thread_mcp visits children in ascending offset order.
+        // Tree:    10
+        //         /  \
+        //        20   30
+        //       /
+        //      40
+        use std::collections::HashMap;
+        let mut parents: HashMap<u64, Vec<u64>> = HashMap::new();
+        parents.insert(10, vec![30, 20]); // insertion order intentionally reversed
+        parents.insert(20, vec![40]);
+        let order = build_thread_mcp(&parents, 10);
+        let offsets: Vec<u64> = order.iter().map(|(o, _)| *o).collect();
+        let depths: Vec<usize> = order.iter().map(|(_, d)| *d).collect();
+        assert_eq!(offsets, vec![10, 20, 40, 30], "DFS, ascending children");
+        assert_eq!(depths, vec![0, 1, 2, 1]);
     }
 
     #[test]
