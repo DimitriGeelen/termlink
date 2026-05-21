@@ -6070,6 +6070,17 @@ pub struct ChannelPollResultsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelInfoParams {
+    /// Topic for which to synthesize a summary (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels or project topics.
+    pub topic: String,
+    /// Optional lower bound in unix-ms — when set, description / senders /
+    /// receipts are computed only over messages with `ts >= since`. Total
+    /// `count` stays unbounded so operator can see "12 of 23 in last hour".
+    pub since: Option<i64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -7465,6 +7476,64 @@ fn compute_poll_state_mcp(envelopes: &[serde_json::Value], poll_id: u64) -> Opti
         closed,
         total_votes: total,
     })
+}
+
+/// T-1790: pure helper — return references to envelopes with `ts >= since`.
+/// Mirror of CLI's `filter_msgs_since` (channel.rs:2185, T-1331). Bound is
+/// inclusive; envelopes lacking a `ts` field are excluded.
+fn filter_msgs_since_mcp(msgs: &[serde_json::Value], since: i64) -> Vec<&serde_json::Value> {
+    msgs.iter()
+        .filter(|m| {
+            m.get("ts")
+                .and_then(|v| v.as_i64())
+                .map(|t| t >= since)
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
+/// T-1790: pure helper — sender_id → post_count, sorted descending by count
+/// with sender_id ascending as tiebreak. Mirror of CLI's `summarize_senders`
+/// (channel.rs:2767). Excludes meta msg_types (reaction, edit, redaction,
+/// topic_metadata, receipt) — only counts content posts.
+fn summarize_senders_mcp(msgs: &[serde_json::Value]) -> Vec<(String, u64)> {
+    use std::collections::HashMap;
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let mut counts: HashMap<String, u64> = HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        *counts.entry(sender).or_insert(0) += 1;
+    }
+    let mut entries: Vec<(String, u64)> = counts.into_iter().collect();
+    entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    entries
+}
+
+/// T-1790: pure helper — most recent `(ts_ms, description)` across
+/// `msg_type=topic_metadata` envelopes. Mirror of CLI's `latest_description`
+/// (channel.rs:3190, T-1323). Returns None if no topic_metadata envelopes
+/// carry a `metadata.description` field.
+fn latest_description_mcp(msgs: &[serde_json::Value]) -> Option<(u64, String)> {
+    msgs.iter()
+        .filter(|m| m.get("msg_type").and_then(|v| v.as_str()) == Some("topic_metadata"))
+        .filter_map(|m| {
+            let ts = m.get("ts_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+            let desc = m
+                .get("metadata")
+                .and_then(|md| md.get("description"))
+                .and_then(|v| v.as_str())
+                .map(String::from)?;
+            Some((ts, desc))
+        })
+        .max_by_key(|(ts, _)| *ts)
 }
 
 // T-1060: Forward-compat with rmcp-macros 1.4+
@@ -16797,6 +16866,141 @@ impl TermLinkTools {
             "total_votes": state.total_votes,
         }))
         .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_info",
+        description = "Synthesized topic view for an arbitrary topic — MCP parity for `termlink channel info <topic> [--since <ms>]` CLI verb (T-1790 of T-1166, T-1324). Single-shot summary: retention, count, latest description, top senders, latest read-receipt per sender. Topic-flexible by construction — no hardcoded `agent_info` sister exists. Use case: get a quick overview of a DM channel (`dm:a:b`), project topic, or any non-chat-arc room without composing CHANNEL_LIST + walk + filter manually. With `since` (unix-ms), description/senders/receipts are computed only over messages whose `ts >= since` (count stays unbounded — operator sees \"12 of 23 in last hour\"). Returns `{topic, retention:{kind, value}, count, description, senders:[{sender_id, posts}], receipts:[{sender_id, up_to, ts_unix_ms}]}` plus `{since, posts_since}` when bounded. Shape byte-identical with CLI `--json` mode."
+    )]
+    async fn termlink_channel_info(
+        &self,
+        Parameters(p): Parameters<ChannelInfoParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        // CHANNEL_LIST with the topic name as exact prefix → retention + count.
+        let list_resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            serde_json::json!({"prefix": p.topic}),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("RPC call failed (channel.list): {e}")),
+        };
+        let list_result = match termlink_session::client::unwrap_result(list_resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("Hub returned error for channel.list: {e}")),
+        };
+        let topics = list_result["topics"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let entry = match topics
+            .into_iter()
+            .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(p.topic.as_str()))
+        {
+            Some(e) => e,
+            None => return json_err(format!("Topic '{}' not found", p.topic)),
+        };
+        let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+        let retention_kind = entry["retention"]["kind"]
+            .as_str()
+            .unwrap_or("?")
+            .to_string();
+        let retention_value = entry["retention"].get("value").and_then(|v| v.as_u64());
+
+        // Single full walk.
+        let all_msgs = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(msgs) => msgs,
+            Err(e) => return json_err(format!("walk_topic_full failed: {e}")),
+        };
+
+        // T-1331: bound the slice when --since is set.
+        let bounded: Vec<serde_json::Value> = match p.since {
+            Some(s) => filter_msgs_since_mcp(&all_msgs, s)
+                .into_iter()
+                .cloned()
+                .collect(),
+            None => Vec::new(),
+        };
+        let view: &[serde_json::Value] = match p.since {
+            Some(_) => &bounded,
+            None => &all_msgs,
+        };
+        let posts_since = p.since.map(|_| view.len() as u64);
+        let description = latest_description_mcp(view).map(|(_, d)| d);
+        let senders = summarize_senders_mcp(view);
+
+        // Latest receipt per sender (mirror channel_receipts walker).
+        use std::collections::HashMap;
+        struct Rcpt {
+            up_to: u64,
+            ts: i64,
+        }
+        let mut receipts: HashMap<String, Rcpt> = HashMap::new();
+        for m in view {
+            if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                continue;
+            }
+            let Some(sender) = m
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+            else {
+                continue;
+            };
+            let Some(up_to) = m
+                .get("metadata")
+                .and_then(|md| md.get("up_to"))
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+            else {
+                continue;
+            };
+            let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+            match receipts.get(&sender) {
+                Some(prev) if prev.ts > ts => {}
+                Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+                _ => {
+                    receipts.insert(sender, Rcpt { up_to, ts });
+                }
+            }
+        }
+
+        let senders_json: Vec<serde_json::Value> = senders
+            .iter()
+            .map(|(s, n)| serde_json::json!({"sender_id": s, "posts": n}))
+            .collect();
+        let receipts_json: Vec<serde_json::Value> = {
+            let mut entries: Vec<(&String, &Rcpt)> = receipts.iter().collect();
+            entries.sort_by(|a, b| a.0.cmp(b.0));
+            entries
+                .iter()
+                .map(|(s, r)| {
+                    serde_json::json!({"sender_id": s, "up_to": r.up_to, "ts_unix_ms": r.ts})
+                })
+                .collect()
+        };
+        let mut obj = serde_json::json!({
+            "topic": p.topic,
+            "retention": {
+                "kind": retention_kind,
+                "value": retention_value,
+            },
+            "count": count,
+            "description": description,
+            "senders": senders_json,
+            "receipts": receipts_json,
+        });
+        if let (Some(s), Some(ps), Some(map)) = (p.since, posts_since, obj.as_object_mut()) {
+            map.insert("since".to_string(), serde_json::json!(s));
+            map.insert("posts_since".to_string(), serde_json::json!(ps));
+        }
+        serde_json::to_string_pretty(&obj).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -29108,6 +29312,135 @@ YW\tJ
         ];
         let state = compute_poll_state_mcp(&envs, 3).expect("state present");
         assert_eq!(state.total_votes, 0);
+    }
+
+    // --- T-1790 channel_info ----------------------------------------------
+
+    #[test]
+    fn channel_info_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelInfoParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+        assert!(p.since.is_none());
+    }
+
+    #[test]
+    fn channel_info_params_accepts_since() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "since": 1700000000000_i64});
+        let p: ChannelInfoParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.since, Some(1700000000000));
+    }
+
+    #[test]
+    fn channel_info_params_rejects_missing_topic() {
+        let json = serde_json::json!({});
+        let r: Result<ChannelInfoParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "topic is a required field");
+    }
+
+    #[test]
+    fn filter_msgs_since_mcp_inclusive_bound() {
+        let msgs = vec![
+            serde_json::json!({"ts": 99, "msg_type": "chat"}),
+            serde_json::json!({"ts": 100, "msg_type": "chat"}),
+            serde_json::json!({"ts": 101, "msg_type": "chat"}),
+        ];
+        let kept = filter_msgs_since_mcp(&msgs, 100);
+        assert_eq!(kept.len(), 2);
+        assert_eq!(kept[0]["ts"].as_i64(), Some(100));
+        assert_eq!(kept[1]["ts"].as_i64(), Some(101));
+    }
+
+    #[test]
+    fn filter_msgs_since_mcp_empty_input() {
+        let msgs: Vec<serde_json::Value> = Vec::new();
+        assert!(filter_msgs_since_mcp(&msgs, 0).is_empty());
+    }
+
+    #[test]
+    fn filter_msgs_since_mcp_missing_ts_excluded() {
+        // Envelopes lacking `ts` are dropped (defensive).
+        let msgs = vec![
+            serde_json::json!({"msg_type": "chat"}),
+            serde_json::json!({"ts": 50, "msg_type": "chat"}),
+        ];
+        let kept = filter_msgs_since_mcp(&msgs, 0);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0]["ts"].as_i64(), Some(50));
+    }
+
+    #[test]
+    fn summarize_senders_mcp_counts_only_content_msgs() {
+        let msgs = vec![
+            serde_json::json!({"msg_type": "chat", "sender_id": "alice"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "alice"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "bob"}),
+            // Meta msg_types — must NOT count.
+            serde_json::json!({"msg_type": "reaction", "sender_id": "bob"}),
+            serde_json::json!({"msg_type": "edit", "sender_id": "carol"}),
+            serde_json::json!({"msg_type": "redaction", "sender_id": "alice"}),
+            serde_json::json!({"msg_type": "topic_metadata", "sender_id": "dave"}),
+            serde_json::json!({"msg_type": "receipt", "sender_id": "eve"}),
+        ];
+        let summary = summarize_senders_mcp(&msgs);
+        assert_eq!(summary.len(), 2);
+        assert_eq!(summary[0], ("alice".to_string(), 2));
+        assert_eq!(summary[1], ("bob".to_string(), 1));
+    }
+
+    #[test]
+    fn summarize_senders_mcp_sorts_desc_with_alpha_tiebreak() {
+        let msgs = vec![
+            serde_json::json!({"msg_type": "chat", "sender_id": "zara"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "alice"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "alice"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "bob"}),
+            serde_json::json!({"msg_type": "chat", "sender_id": "bob"}),
+        ];
+        let summary = summarize_senders_mcp(&msgs);
+        // Counts: alice=2, bob=2, zara=1. Tie: alice < bob alphabetically.
+        assert_eq!(summary[0], ("alice".to_string(), 2));
+        assert_eq!(summary[1], ("bob".to_string(), 2));
+        assert_eq!(summary[2], ("zara".to_string(), 1));
+    }
+
+    #[test]
+    fn latest_description_mcp_picks_latest_ts_ms() {
+        let msgs = vec![
+            serde_json::json!({
+                "msg_type": "topic_metadata",
+                "ts_ms": 100u64,
+                "metadata": {"description": "first"},
+            }),
+            serde_json::json!({
+                "msg_type": "topic_metadata",
+                "ts_ms": 200u64,
+                "metadata": {"description": "second"},
+            }),
+            serde_json::json!({
+                "msg_type": "topic_metadata",
+                "ts_ms": 150u64,
+                "metadata": {"description": "middle"},
+            }),
+        ];
+        let (ts, desc) = latest_description_mcp(&msgs).expect("description present");
+        assert_eq!(ts, 200);
+        assert_eq!(desc, "second");
+    }
+
+    #[test]
+    fn latest_description_mcp_returns_none_when_no_topic_metadata() {
+        let msgs = vec![
+            serde_json::json!({"msg_type": "chat", "metadata": {"description": "wrong type"}}),
+            serde_json::json!({"msg_type": "topic_metadata"}),  // no description
+        ];
+        assert!(latest_description_mcp(&msgs).is_none());
+    }
+
+    #[test]
+    fn latest_description_mcp_empty_returns_none() {
+        let msgs: Vec<serde_json::Value> = Vec::new();
+        assert!(latest_description_mcp(&msgs).is_none());
     }
 
     // --- T-1787 channel_receipts -------------------------------------------
