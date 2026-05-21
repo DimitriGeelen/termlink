@@ -1069,6 +1069,97 @@ fn extract_recent_posts_mcp(
     hits
 }
 
+/// T-1740: chat-arc activity stats over a window. Mirror of CLI's
+/// `ChatArcStats` (channel.rs:1426). Field shape preserved one-to-one
+/// so JSON envelope is byte-identical with CLI `agent stats --json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ChatArcStatsMcp {
+    total: usize,
+    by_msg_type: Vec<(String, usize)>,
+    by_peer: Vec<(String, usize)>,
+    by_project: Vec<(String, usize)>,
+    by_thread: Vec<(String, usize)>,
+}
+
+/// T-1740: pure helper — summarize chat-arc activity inside a window.
+/// Mirror of CLI's `summarize_chat_arc_stats` (channel.rs:1434).
+///
+/// Drops:
+/// - META msg_types (reaction/edit/redaction/topic_metadata/receipt)
+/// - empty `sender_id`
+/// - envelopes with `ts < cutoff` OR `ts > now_ms` (future-clock safety)
+///
+/// Buckets each surviving envelope into by_msg_type, by_peer,
+/// by_project, by_thread (latter two skip envelopes lacking the
+/// `metadata.from_project` / `metadata.thread`+`metadata._thread`
+/// keys — the same fallback pair `extract_recent_posts_mcp` uses).
+///
+/// Sort within each bucket: desc by count, asc by key (stable
+/// tie-break).
+fn summarize_chat_arc_stats_mcp(
+    msgs: &[serde_json::Value],
+    now_ms: i64,
+    window_ms: i64,
+) -> ChatArcStatsMcp {
+    const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+    let cutoff = now_ms - window_ms;
+    let mut total = 0usize;
+    let mut mt_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut peer_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    let mut project_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    let mut thread_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for m in msgs {
+        let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+        if META.contains(&mt) {
+            continue;
+        }
+        let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
+        if sender.is_empty() {
+            continue;
+        }
+        let ts = m
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff || ts > now_ms {
+            continue;
+        }
+        total += 1;
+        *mt_counts.entry(mt.to_string()).or_insert(0) += 1;
+        *peer_counts.entry(sender.to_string()).or_insert(0) += 1;
+        if let Some(p) = m
+            .get("metadata")
+            .and_then(|md| md.get("from_project"))
+            .and_then(|v| v.as_str())
+        {
+            *project_counts.entry(p.to_string()).or_insert(0) += 1;
+        }
+        if let Some(t) = m
+            .get("metadata")
+            .and_then(|md| md.get("thread").or_else(|| md.get("_thread")))
+            .and_then(|v| v.as_str())
+        {
+            *thread_counts.entry(t.to_string()).or_insert(0) += 1;
+        }
+    }
+    fn sort_buckets_mcp(map: std::collections::HashMap<String, usize>) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = map.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+    ChatArcStatsMcp {
+        total,
+        by_msg_type: sort_buckets_mcp(mt_counts),
+        by_peer: sort_buckets_mcp(peer_counts),
+        by_project: sort_buckets_mcp(project_counts),
+        by_thread: sort_buckets_mcp(thread_counts),
+    }
+}
+
 /// T-1737: one entry in a relations list. Mirror of CLI's `RelationItem`
 /// (channel.rs:6021). Field shape preserved one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2710,6 +2801,20 @@ pub struct AgentSnippetParams {
     /// Number of content envelopes to include on each side of the target.
     /// Defaults to 3; clamped to 1..=50.
     pub lines: Option<u64>,
+}
+
+/// T-1740: parameters for `termlink_agent_stats` — activity-summary
+/// digest over the chat-arc within a time window. MCP parity for the
+/// `termlink agent stats` CLI verb (T-1504).
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentStatsParams {
+    /// Window in seconds. Default 86400 (24h); clamped 60..=604800
+    /// (1m..7d). Envelopes older than `now - window_secs` are dropped.
+    pub window_secs: Option<u64>,
+    /// Per-bucket truncation. Default 10; clamped 1..=100. Each of
+    /// by_msg_type / by_peer / by_project / by_thread is sorted desc
+    /// by count + asc by key, then truncated to this many rows.
+    pub top: Option<usize>,
 }
 
 /// T-1739: parameters for `termlink_agent_timeline` — chronological fleet
@@ -11461,6 +11566,53 @@ impl TermLinkTools {
         }
         out.insert("posts".to_string(), serde_json::Value::Array(posts_json));
         serde_json::to_string_pretty(&serde_json::Value::Object(out)).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_agent_stats",
+        description = "Chat-arc activity stats over a time window — MCP parity for the `termlink agent stats` CLI verb (T-1504). Returns counts grouped four ways: by_msg_type (post/chat/note/...), by_peer (sender_id), by_project (metadata.from_project), by_thread (metadata.thread, accepts legacy _thread). Each bucket sorted desc by count + asc by key (stable tie-break) and truncated to `top`. Excludes META msg_types (reaction/edit/redaction/topic_metadata/receipt) and envelopes lacking sender_id; window cutoff drops `ts < now - window_secs` and future-clock `ts > now_ms`. Use this for 'who's talking, about what, where' digests — feeds dashboards or quick health checks. Returns `{ok, verb, window_secs, top, total, by_msg_type, by_peer, by_project, by_thread}` where each bucket is `[{key, count}, ...]`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+    )]
+    async fn termlink_agent_stats(
+        &self,
+        Parameters(p): Parameters<AgentStatsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
+        let clamped_top = p.top.unwrap_or(10).clamp(1, 100);
+        let msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 1000).await {
+            Ok(m) => m,
+            Err(e) => return json_err(format!("fetch agent-chat-arc: {e}")),
+        };
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        let window_ms = (clamped_window_secs as i64).saturating_mul(1000);
+        let stats = summarize_chat_arc_stats_mcp(&msgs, now_ms, window_ms);
+        let mk_pairs = |v: &[(String, usize)]| -> serde_json::Value {
+            let truncated: Vec<&(String, usize)> = v.iter().take(clamped_top).collect();
+            serde_json::Value::Array(
+                truncated
+                    .iter()
+                    .map(|(k, c)| serde_json::json!({"key": k, "count": c}))
+                    .collect(),
+            )
+        };
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "verb": "agent.stats",
+            "window_secs": clamped_window_secs,
+            "top": clamped_top,
+            "total": stats.total,
+            "by_msg_type": mk_pairs(&stats.by_msg_type),
+            "by_peer": mk_pairs(&stats.by_peer),
+            "by_project": mk_pairs(&stats.by_project),
+            "by_thread": mk_pairs(&stats.by_thread),
+        }))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -21413,6 +21565,144 @@ mod tests {
             Some(vec!["post".to_string(), "chat".to_string()])
         );
         assert_eq!(p2.filter_grep.as_deref(), Some("todo"));
+    }
+
+    // === T-1740 agent_stats tests ===
+
+    fn stats_mcp_envs(now_ms: i64) -> Vec<serde_json::Value> {
+        vec![
+            // 3 posts from alice on project foo / thread T-1
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 100, "metadata": {"thread": "T-1", "from_project": "foo"}}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 90, "metadata": {"thread": "T-1", "from_project": "foo"}}),
+            serde_json::json!({"offset": 3, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now_ms - 80, "metadata": {"thread": "T-1", "from_project": "foo"}}),
+            // 2 chats from bob on T-2 / foo
+            serde_json::json!({"offset": 4, "msg_type": "chat", "sender_id": "bob", "ts_unix_ms": now_ms - 70, "metadata": {"thread": "T-2", "from_project": "foo"}}),
+            serde_json::json!({"offset": 5, "msg_type": "chat", "sender_id": "bob", "ts_unix_ms": now_ms - 60, "metadata": {"thread": "T-2", "from_project": "foo"}}),
+            // 1 note from carol on project bar / no thread
+            serde_json::json!({"offset": 6, "msg_type": "note", "sender_id": "carol", "ts_unix_ms": now_ms - 50, "metadata": {"from_project": "bar"}}),
+            // META — must be excluded.
+            serde_json::json!({"offset": 7, "msg_type": "reaction", "sender_id": "dave", "ts_unix_ms": now_ms - 40}),
+            serde_json::json!({"offset": 8, "msg_type": "edit", "sender_id": "dave", "ts_unix_ms": now_ms - 30}),
+            // empty sender — must be excluded.
+            serde_json::json!({"offset": 9, "msg_type": "post", "sender_id": "", "ts_unix_ms": now_ms - 20}),
+        ]
+    }
+
+    #[test]
+    fn stats_mcp_total_and_meta_exclusion() {
+        let now = 1_700_000_000_000_i64;
+        let envs = stats_mcp_envs(now);
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        // 6 content envelopes (alice×3 + bob×2 + carol×1); reaction/edit/empty excluded.
+        assert_eq!(stats.total, 6);
+    }
+
+    #[test]
+    fn stats_mcp_by_peer_sort_desc_count() {
+        let now = 1_700_000_000_000_i64;
+        let envs = stats_mcp_envs(now);
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        // alice(3) > bob(2) > carol(1)
+        let peers: Vec<(&str, usize)> =
+            stats.by_peer.iter().map(|(k, c)| (k.as_str(), *c)).collect();
+        assert_eq!(peers, vec![("alice", 3), ("bob", 2), ("carol", 1)]);
+    }
+
+    #[test]
+    fn stats_mcp_by_msg_type_sort() {
+        let now = 1_700_000_000_000_i64;
+        let envs = stats_mcp_envs(now);
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        // post(3) > chat(2) > note(1); reaction/edit absent.
+        let mts: Vec<(&str, usize)> = stats
+            .by_msg_type
+            .iter()
+            .map(|(k, c)| (k.as_str(), *c))
+            .collect();
+        assert_eq!(mts, vec![("post", 3), ("chat", 2), ("note", 1)]);
+    }
+
+    #[test]
+    fn stats_mcp_by_project_and_thread() {
+        let now = 1_700_000_000_000_i64;
+        let envs = stats_mcp_envs(now);
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        // foo(5) > bar(1)
+        let projects: Vec<(&str, usize)> = stats
+            .by_project
+            .iter()
+            .map(|(k, c)| (k.as_str(), *c))
+            .collect();
+        assert_eq!(projects, vec![("foo", 5), ("bar", 1)]);
+        // T-1(3) > T-2(2); carol's note had no thread → not counted.
+        let threads: Vec<(&str, usize)> = stats
+            .by_thread
+            .iter()
+            .map(|(k, c)| (k.as_str(), *c))
+            .collect();
+        assert_eq!(threads, vec![("T-1", 3), ("T-2", 2)]);
+    }
+
+    #[test]
+    fn stats_mcp_window_cutoff_drops_old() {
+        let now = 1_700_000_000_000_i64;
+        let envs = stats_mcp_envs(now);
+        // Window of 75ms: drops envelopes older than 75ms ago.
+        // Surviving: offset 4 (-70), 5 (-60), 6 (-50). Total = 3.
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 75);
+        assert_eq!(stats.total, 3);
+        assert!(stats.by_peer.iter().any(|(k, _)| k == "bob"));
+        assert!(!stats.by_peer.iter().any(|(k, _)| k == "alice"));
+    }
+
+    #[test]
+    fn stats_mcp_future_clock_dropped() {
+        let now = 1_700_000_000_000_i64;
+        // Single envelope with ts in the future → must be dropped.
+        let envs = vec![serde_json::json!({
+            "offset": 1, "msg_type": "post", "sender_id": "alice",
+            "ts_unix_ms": now + 10_000,
+        })];
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        assert_eq!(stats.total, 0);
+    }
+
+    #[test]
+    fn stats_mcp_tie_break_asc_key() {
+        let now = 1_700_000_000_000_i64;
+        // Two peers with same count → keys sorted ascending alphabetically.
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "zara", "ts_unix_ms": now - 10}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 5}),
+        ];
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        let keys: Vec<&str> = stats.by_peer.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(keys, vec!["alice", "zara"]);
+    }
+
+    #[test]
+    fn stats_mcp_legacy_underscore_thread_key() {
+        let now = 1_700_000_000_000_i64;
+        let envs = vec![
+            serde_json::json!({"offset": 1, "msg_type": "post", "sender_id": "alice", "ts_unix_ms": now - 10, "metadata": {"_thread": "T-legacy"}}),
+            serde_json::json!({"offset": 2, "msg_type": "post", "sender_id": "bob", "ts_unix_ms": now - 5, "metadata": {"thread": "T-new"}}),
+        ];
+        let stats = summarize_chat_arc_stats_mcp(&envs, now, 600_000);
+        // Both threads counted; legacy `_thread` accepted.
+        let threads: Vec<&str> = stats.by_thread.iter().map(|(k, _)| k.as_str()).collect();
+        assert!(threads.contains(&"T-legacy"));
+        assert!(threads.contains(&"T-new"));
+    }
+
+    #[test]
+    fn agent_stats_params_deserializes() {
+        let p1: AgentStatsParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(p1.window_secs.is_none());
+        assert!(p1.top.is_none());
+        let p2: AgentStatsParams =
+            serde_json::from_value(serde_json::json!({"window_secs": 3600, "top": 5})).unwrap();
+        assert_eq!(p2.window_secs, Some(3600));
+        assert_eq!(p2.top, Some(5));
     }
 
     // === parse_signal tests ===
