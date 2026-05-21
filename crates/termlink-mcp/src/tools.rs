@@ -3228,6 +3228,32 @@ fn compute_quote_stats_mcp(envelopes: &[serde_json::Value]) -> Vec<QuoteStatsRow
     rows
 }
 
+/// T-1771: pure helper — payload matcher. Mirrors CLI `payload_matches`
+/// (commands/channel.rs:8493). When `regex=true`, compiles the pattern
+/// (with `(?i)` prefix if case-insensitive); otherwise falls back to
+/// substring match (lowercased on both sides if case-insensitive).
+fn payload_matches_mcp(
+    text: &str,
+    pattern: &str,
+    regex: bool,
+    case_sensitive: bool,
+) -> Result<bool, String> {
+    if regex {
+        let effective = if case_sensitive {
+            pattern.to_string()
+        } else {
+            format!("(?i){pattern}")
+        };
+        let re = ::regex::Regex::new(&effective)
+            .map_err(|e| format!("invalid regex pattern '{pattern}': {e}"))?;
+        Ok(re.is_match(text))
+    } else if case_sensitive {
+        Ok(text.contains(pattern))
+    } else {
+        Ok(text.to_lowercase().contains(&pattern.to_lowercase()))
+    }
+}
+
 /// T-1762: pure helper — given an offset→envelope map and a leaf offset,
 /// walk up the `metadata.in_reply_to` chain until reaching a root post
 /// (no parent recorded) or a missing parent (chain breaks).
@@ -5886,6 +5912,24 @@ pub struct ChannelMentionsOfParams {
     /// User to filter mentions by. Pass `"*"` to match any non-empty
     /// mentions CSV (the "anyone tagged at all?" query). Empty rejected.
     pub user: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSearchParams {
+    /// Topic to search (any topic, not just agent-chat-arc).
+    pub topic: String,
+    /// Pattern to match (substring or regex per `regex` flag).
+    pub pattern: String,
+    /// When true, interpret `pattern` as a regular expression
+    /// (compiled with `(?i)` prefix if `case_sensitive=false`). Default: false.
+    pub regex: Option<bool>,
+    /// When true, match case-sensitively. Default: false.
+    pub case_sensitive: Option<bool>,
+    /// When true, include meta msg-types (receipt/reaction/redaction/edit/
+    /// topic_metadata) in the search. Default: false (skip meta).
+    pub all: Option<bool>,
+    /// Cap on returned hits. `0` means unlimited. Default: 100, max 1000.
+    pub limit: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -15351,6 +15395,88 @@ impl TermLinkTools {
             "topic": p.topic,
             "user": user,
             "mentions": rows_json,
+            "count": count,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_channel_search",
+        description = "Pattern-search any topic for envelopes whose payload matches — MCP parity for `termlink channel search <topic> <pattern>` CLI verb (T-1771 of T-1166). Four value-adds over `termlink_agent_search`: (1) topic-flexibility (any topic, not just agent-chat-arc); (2) regex support — set `regex=true` to compile `pattern` as a regular expression (with `(?i)` prefix when `case_sensitive=false`); (3) `all=true` includes meta msg-types (receipt/reaction/redaction/edit/topic_metadata) which are normally skipped; (4) richer row shape with `msg_type` exposed. Fail-fast: invalid regex returns error before any topic walk. Limit: `0` = unlimited, default 100, max 1000. Iterates envelopes in offset order; stops once `limit` is reached. Returns `{ok, topic, pattern, regex, case_sensitive, all, hits: [{offset, sender_id, ts, msg_type, payload}, ...], count}`. Empty payloads (missing or undecodable `payload_b64`) are always filtered. NO new RPC surface — uses `channel.subscribe` only."
+    )]
+    async fn termlink_channel_search(
+        &self,
+        Parameters(p): Parameters<ChannelSearchParams>,
+    ) -> String {
+        const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let regex = p.regex.unwrap_or(false);
+        let case_sensitive = p.case_sensitive.unwrap_or(false);
+        let all = p.all.unwrap_or(false);
+        let limit = p.limit.unwrap_or(100).min(1000);
+        // Fail-fast: validate regex once up-front before any RPC.
+        if regex {
+            let effective = if case_sensitive {
+                p.pattern.clone()
+            } else {
+                format!("(?i){}", p.pattern)
+            };
+            if let Err(e) = ::regex::Regex::new(&effective) {
+                return json_err(format!("invalid regex pattern '{}': {e}", p.pattern));
+            }
+        }
+        let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+            Ok(v) => v,
+            Err(e) => return json_err(format!("walk_topic_full({}): {e}", p.topic)),
+        };
+        let mut hits: Vec<serde_json::Value> = Vec::new();
+        for env in &envelopes {
+            let mt = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
+            if !all && META.contains(&mt) {
+                continue;
+            }
+            let payload = decode_payload_lossy_mcp(env);
+            if payload.is_empty() {
+                continue;
+            }
+            match payload_matches_mcp(&payload, &p.pattern, regex, case_sensitive) {
+                Ok(true) => {}
+                Ok(false) => continue,
+                Err(e) => return json_err(e),
+            }
+            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = env
+                .get("sender_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let ts = env
+                .get("ts_unix_ms")
+                .and_then(|v| v.as_i64())
+                .or_else(|| env.get("ts").and_then(|v| v.as_i64()));
+            hits.push(serde_json::json!({
+                "offset": offset,
+                "sender_id": sender,
+                "ts": ts,
+                "msg_type": mt,
+                "payload": payload,
+            }));
+            if limit > 0 && hits.len() as u64 >= limit {
+                break;
+            }
+        }
+        let count = hits.len();
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "topic": p.topic,
+            "pattern": p.pattern,
+            "regex": regex,
+            "case_sensitive": case_sensitive,
+            "all": all,
+            "hits": hits,
             "count": count,
         }))
         .unwrap_or_else(json_err)
@@ -26653,6 +26779,71 @@ YW\tJ
         assert_eq!(rows[0].mention_offset, 10);
         assert_eq!(rows[0].sender_id, "alice");
         assert_eq!(rows[0].mentions_csv, "bob");
+    }
+
+    // --- T-1771 channel_search ----------------------------------------------
+
+    #[test]
+    fn payload_matches_mcp_substring_case_insensitive_default() {
+        assert!(payload_matches_mcp("Hello World", "hello", false, false).unwrap());
+        assert!(payload_matches_mcp("Hello World", "WORLD", false, false).unwrap());
+        assert!(!payload_matches_mcp("hello world", "xyz", false, false).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_mcp_substring_case_sensitive() {
+        assert!(payload_matches_mcp("Hello World", "Hello", false, true).unwrap());
+        assert!(!payload_matches_mcp("Hello World", "hello", false, true).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_mcp_regex_simple() {
+        assert!(payload_matches_mcp("error: timeout", r"error:\s+\w+", true, false).unwrap());
+        assert!(!payload_matches_mcp("ok", r"error:\s+\w+", true, false).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_mcp_regex_case_insensitive_via_prefix() {
+        // case_sensitive=false → (?i) prefix injected automatically.
+        assert!(payload_matches_mcp("ERROR", "error", true, false).unwrap());
+        assert!(!payload_matches_mcp("ERROR", "error", true, true).unwrap());
+    }
+
+    #[test]
+    fn payload_matches_mcp_invalid_regex_errors() {
+        let result = payload_matches_mcp("text", "[unclosed", true, false);
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(msg.contains("invalid regex"), "got: {msg}");
+    }
+
+    #[test]
+    fn channel_search_params_deserialize_defaults() {
+        let json = serde_json::json!({"topic": "agent-chat-arc", "pattern": "needle"});
+        let p: ChannelSearchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "agent-chat-arc");
+        assert_eq!(p.pattern, "needle");
+        assert!(p.regex.is_none());
+        assert!(p.case_sensitive.is_none());
+        assert!(p.all.is_none());
+        assert!(p.limit.is_none());
+    }
+
+    #[test]
+    fn channel_search_params_deserialize_with_all_flags() {
+        let json = serde_json::json!({
+            "topic": "dm:x:y",
+            "pattern": r"\bERR\b",
+            "regex": true,
+            "case_sensitive": true,
+            "all": true,
+            "limit": 50,
+        });
+        let p: ChannelSearchParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.regex, Some(true));
+        assert_eq!(p.case_sensitive, Some(true));
+        assert_eq!(p.all, Some(true));
+        assert_eq!(p.limit, Some(50));
     }
 
     #[test]

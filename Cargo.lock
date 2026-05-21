@@ -1659,6 +1659,7 @@ dependencies = [
  "anyhow",
  "base64",
  "libc",
+ "regex",
  "rmcp",
  "schemars",
  "serde",

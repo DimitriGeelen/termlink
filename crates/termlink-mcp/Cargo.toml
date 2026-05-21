@@ -19,6 +19,7 @@ libc = { workspace = true }
 
 base64 = { workspace = true }
 sha2 = { workspace = true }
+regex = { workspace = true }
 
 termlink-protocol = { workspace = true }
 termlink-session = { workspace = true }
