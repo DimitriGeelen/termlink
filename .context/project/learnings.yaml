@@ -1998,4 +1998,4 @@ learnings:
   task: T-1166
   date: 2026-05-21
   context: Added via context agent
-  application: TBD
+  application: "T-1794 (2026-05-22) inlined the skip rationale as MCP-PARITY SKIP docstrings on cmd_channel_dm / cmd_channel_dm_list / cmd_channel_inbox so a future 'should I wedge this?' investigation finds the answer at the CLI handler via grep/hover. The selection criterion lives in cmd_channel_dm's doc comment."
