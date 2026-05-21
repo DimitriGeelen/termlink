@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1787: termlink_channel_receipts MCP — topic-flexible read-receipt aggregator (T-1166 wedge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T17:36:36Z
+# ============================================================================
+
+task_id: T-1787
+task_name: "termlink_channel_receipts MCP — topic-flexible read-receipt aggregator (T-1166 wedge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T17:34:07Z
+completed: 2026-05-21T17:36:15Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelReceiptsParams` struct exposes `topic`"
+  - "`termlink_channel_receipts` tool method calls `CHANNEL_RECEIPTS` RPC fast-path, falls back to walker on -32601"
+  - "Walker fallback filters `msg_type=receipt`, extracts `metadata.up_to`, applies latest-wins-by-ts dedup per sender"
+  - "Returns JSON `{receipts: [...]}` sorted by sender_id"
+  - "Description doc references T-1787 + T-1166 + the channel_ack pair note + fast-path/fallback"
+  - "Unit tests: params deserialize + walker-dedup logic sanity (latest-ts wins, ties broken by higher up_to)"
+  - "`cargo build -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp --lib` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1787-termlinkchannelreceipts-mcp--topic-flexi.md
+generated_by: context-agent-hybrid

@@ -6018,6 +6018,13 @@ pub struct ChannelForwardParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelReceiptsParams {
+    /// Topic on which to aggregate read-frontiers (any topic, not just
+    /// agent-chat-arc). Use `dm:a:b` for DM channels.
+    pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct ChannelRedactParams {
     /// Topic on which to emit the redaction (any topic, not just
     /// agent-chat-arc).
@@ -16229,6 +16236,106 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_receipts",
+        description = "Aggregate read-receipt frontiers (latest `up_to` per sender) on an arbitrary topic — MCP parity for `termlink channel receipts <topic>` CLI verb (T-1787 of T-1166). Natural read-side pair to `termlink_channel_ack` (T-1783, write-side). Prefers hub's `channel.receipts` RPC fast-path (T-1329 server-side aggregator); falls back to walker (channel.subscribe paginated + filter msg_type=receipt + latest-wins-by-ts dedup) when hub returns -32601 method-not-found. Returns `{receipts: [{sender_id, up_to, ts_unix_ms}, ...]}` sorted by sender_id. Topic-flex by construction — works on agent-chat-arc, DM channels, project topics."
+    )]
+    async fn termlink_channel_receipts(
+        &self,
+        Parameters(p): Parameters<ChannelReceiptsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        use std::collections::HashMap;
+        struct Receipt {
+            up_to: u64,
+            ts: i64,
+        }
+        let mut latest: HashMap<String, Receipt> = HashMap::new();
+        let mut fall_back_to_walker = false;
+
+        // Fast-path: hub's channel.receipts RPC.
+        let server_resp = termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_RECEIPTS,
+            serde_json::json!({"topic": p.topic}),
+        )
+        .await;
+        match server_resp {
+            Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
+                if let Some(arr) = r.result["receipts"].as_array() {
+                    for entry in arr {
+                        let sender = match entry.get("sender_id").and_then(|v| v.as_str()) {
+                            Some(s) => s.to_string(),
+                            None => continue,
+                        };
+                        let up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let ts = entry.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+                        latest.insert(sender, Receipt { up_to, ts });
+                    }
+                }
+            }
+            Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) if e.error.code == -32601 => {
+                fall_back_to_walker = true;
+            }
+            Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                return json_err(format!(
+                    "Hub returned error for channel.receipts: JSON-RPC error {}: {}",
+                    e.error.code, e.error.message
+                ));
+            }
+            Err(e) => return json_err(format!("RPC call failed: {e}")),
+        }
+
+        // Walker fallback for old hubs.
+        if fall_back_to_walker {
+            let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
+                Ok(envs) => envs,
+                Err(e) => return json_err(format!("walk_topic_full failed: {e}")),
+            };
+            for m in &envelopes {
+                if m.get("msg_type").and_then(|v| v.as_str()) != Some("receipt") {
+                    continue;
+                }
+                let sender = match m.get("sender_id").and_then(|v| v.as_str()) {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+                let up_to = m
+                    .get("metadata")
+                    .and_then(|md| md.get("up_to"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok());
+                let Some(up_to) = up_to else { continue };
+                let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
+                match latest.get(&sender) {
+                    Some(prev) if prev.ts > ts => {}
+                    Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+                    _ => {
+                        latest.insert(sender, Receipt { up_to, ts });
+                    }
+                }
+            }
+        }
+
+        let mut entries: Vec<(String, &Receipt)> =
+            latest.iter().map(|(k, v)| (k.clone(), v)).collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0));
+        let arr: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|(s, r)| {
+                serde_json::json!({
+                    "sender_id": s,
+                    "up_to": r.up_to,
+                    "ts_unix_ms": r.ts,
+                })
+            })
+            .collect();
+        serde_json::to_string_pretty(&serde_json::json!({"receipts": arr})).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -28208,6 +28315,78 @@ YW\tJ
         let p: ChannelThreadParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.topic, "dm:alice:bob");
         assert_eq!(p.root, 42);
+    }
+
+    // --- T-1787 channel_receipts -------------------------------------------
+
+    #[test]
+    fn channel_receipts_params_deserialize_minimal() {
+        let json = serde_json::json!({"topic": "dm:alice:bob"});
+        let p: ChannelReceiptsParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.topic, "dm:alice:bob");
+    }
+
+    #[test]
+    fn channel_receipts_params_rejects_missing_topic() {
+        let json = serde_json::json!({});
+        let r: Result<ChannelReceiptsParams, _> = serde_json::from_value(json);
+        assert!(r.is_err(), "topic is a required field");
+    }
+
+    #[test]
+    fn channel_receipts_walker_dedup_latest_ts_wins() {
+        // Verify the dedup logic the walker fallback uses:
+        // for the same sender, latest ts wins; ties broken by higher up_to.
+        use std::collections::HashMap;
+        struct Receipt { up_to: u64, ts: i64 }
+        let mut latest: HashMap<String, Receipt> = HashMap::new();
+
+        // First write: sender=alice, up_to=5, ts=100.
+        latest.insert("alice".to_string(), Receipt { up_to: 5, ts: 100 });
+        // Second write: same sender, later ts → should override.
+        let (new_up_to, new_ts): (u64, i64) = (10, 200);
+        match latest.get("alice") {
+            Some(prev) if prev.ts > new_ts => {}
+            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
+            _ => {
+                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
+            }
+        }
+        let r = latest.get("alice").unwrap();
+        assert_eq!(r.up_to, 10);
+        assert_eq!(r.ts, 200);
+    }
+
+    #[test]
+    fn channel_receipts_walker_dedup_tie_breaks_on_higher_up_to() {
+        // Same ts but higher up_to → wins.
+        use std::collections::HashMap;
+        struct Receipt { up_to: u64, ts: i64 }
+        let mut latest: HashMap<String, Receipt> = HashMap::new();
+        latest.insert("alice".to_string(), Receipt { up_to: 5, ts: 100 });
+        let (new_up_to, new_ts): (u64, i64) = (8, 100);
+        match latest.get("alice") {
+            Some(prev) if prev.ts > new_ts => {}
+            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
+            _ => {
+                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
+            }
+        }
+        let r = latest.get("alice").unwrap();
+        assert_eq!(r.up_to, 8);
+        assert_eq!(r.ts, 100);
+
+        // Same ts AND same up_to → does NOT override (prev wins).
+        let (new_up_to, new_ts): (u64, i64) = (8, 100);
+        match latest.get("alice") {
+            Some(prev) if prev.ts > new_ts => {}
+            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
+            _ => {
+                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
+            }
+        }
+        let r = latest.get("alice").unwrap();
+        assert_eq!(r.up_to, 8); // unchanged
     }
 
     // --- T-1786 channel_forward --------------------------------------------
