@@ -104,6 +104,28 @@ clamp its cursor math to the cap, or it reads the wrong window.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** Root cause identified and fixed at the shared fetch layer
+(`fetch_topic_msgs` clamps the effective slice to the hub's 1000-per-page
+cap so the cursor stays tail-anchored). The fix is scoped, reversible, and
+corrects four verbs that all shared the bug (on-thread, overview, presence,
+presence --by-project). Live-verified on a populated hub; regression tests
+added and passing.
+
+**Evidence:**
+- Live: `on-thread T-1438` 0 → 50 posts, matches `timeline --thread T-1438`
+  (50); `agent presence` empty → 1 active peer (rebuilt `target/debug/termlink`)
+- Tests: 3 `fetch_topic_tail_cursor_*` tests pass (`cargo test -p termlink
+  --bins fetch_topic_tail_cursor` → 3 passed)
+- Build: `cargo build -p termlink` succeeds; completion gate Verification 2/2
+- RCA in this task file; root cause = single-page fetch vs hub `limit.min(1000)`
+  at `crates/termlink-hub/src/channel.rs:553`
+- Follow-up T-1796 (deeper-history pagination) parked; the deeper-walk intent
+  behind the original 2000 slices is tracked there
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
