@@ -14,6 +14,9 @@ Thumbs.db
 # Telemetry (raw session data, not committed)
 .context/telemetry/
 
+# Tier-0 approval ledger — resolved-*.yaml may embed command_preview with secrets (T-1799)
+.context/approvals/
+
 # Framework symlink (machine-specific)
 .agentic-framework
 
