@@ -4,16 +4,16 @@ name: "Repair broken bin-test compilation — cmd_fleet_reauth test calls stale 
 description: >
   Repair broken bin-test compilation — cmd_fleet_reauth test calls stale 2-arg arity
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-22T07:01:30Z
-last_update: 2026-05-22T07:01:30Z
-date_finished: null
+last_update: 2026-05-22T07:04:27Z
+date_finished: 2026-05-22T07:04:27Z
 ---
 
 # T-1797: Repair broken bin-test compilation — cmd_fleet_reauth test calls stale 2-arg arity
@@ -109,3 +109,15 @@ project's verification convention.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1797-repair-broken-bin-test-compilation--cmdf.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-d98f28ec
+- **Timestamp:** 2026-05-22T07:04:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-22T07:04:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

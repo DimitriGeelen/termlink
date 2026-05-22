@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1719: termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-20T19:35:20Z
+# ============================================================================
+
+task_id: T-1719
+task_name: "termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-20T06:16:58Z
+completed: 2026-05-20T19:34:09Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-20T08:25:55+02:00
+last_commit: 2026-05-20T08:25:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)
+
+# Key outcomes
+outcomes:
+  - "`AgentDmsParams` struct defined at tools.rs:1347-1356 with `unread: Option<bool>` (default false). Doc-comment cites T-1552 (CLI parity) + T-1719."
+  - "Pure helper `dm_list_filter_mcp` shipped at tools.rs:327-343 — mirror of CLI's `dm_list_filter` one-to-one. Bonus helpers `count_unread_mcp` (tools.rs:349-368, mirrors `count_unread`) and `walk_topic_full_mcp` (tools.rs:371-396, mirrors `walk_topic_full`) also shipped for the unread mode."
+  - "`termlink_agent_dms` tool method registered at tools.rs:9401. Flow shipped: load identity → `channel.list` (full catalog) → `dm_list_filter_mcp` → if `unread=false`: return `{ok, my_id, dms: [{topic, peer}, ...]}`; if `unread=true`: per-DM `channel.receipts` (ack frontier) + `walk_topic_full_mcp` + `count_unread_mcp` → return `{ok, my_id, dms: [{topic, peer, unread, first_unread}, ...]}` sorted unread-first. Per-DM walk failure produces a per-row `{..., error: \"...\"}` without aborting the whole tool call (graceful degradation)."
+  - "Sort semantic matches CLI: unread topics float to top (stable within group). Implemented via `rows.sort_by(|a, b| { ... a_has.cmp(&b_has) })` with the `(unread > 0) ? 0 : 1` key (tools.rs ~9519). Rust's `sort_by` is stable, so original order is preserved within each (unread > 0) / (unread == 0) group — matches CLI's `sort_dm_inbox` (channel.rs:1811)."
+  - "Tool description cites T-1552 (CLI parity), explains the channel.list filter, lists both return shapes (basic + unread), and ends with \"No new RPC surface — uses channel.list / channel.receipts / channel.subscribe only.\" (tools.rs:9403)."
+  - "`cargo build --release -p termlink-mcp` clean — finished in 1m 11s, only the pre-existing `cur_run_end` warning (now at tools.rs:15470 due to upstream insertions, unrelated to T-1719)."
+  - "**7** new unit tests added — exceeded ≥3 target. Coverage: dm_list_filter_mcp-matches-either-side (a), dm_list_filter_mcp-empty-when-no-match (b), params-default-unread-unset + params-explicit-unread (c), count_unread_mcp-skips-below-bound, count_unread_mcp-skips-meta-types, count_unread_mcp-empty-returns-zero. All 7 pass. The 22-test agent_contact + 8-test agent_ping suites also still pass. Full `cargo test --release -p termlink-mcp --lib` runs **236 tests, 236 passed, 0 failed**."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1719-termlinkagentdms-mcp--dm-topic-directory.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-20T08:25:55"
+    action: "T-1719: termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 797 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 797
+  commits: 1
+  files_changed: 2
+  lines_added: 426
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1719-termlinkagentdms-mcp--dm-topic-directory.md
+generated_by: context-agent-hybrid

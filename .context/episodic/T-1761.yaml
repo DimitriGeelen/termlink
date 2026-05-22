@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1761: termlink_channel_describe MCP — set arbitrary-topic description (T-1166 wedge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T12:22:04Z
+# ============================================================================
+
+task_id: T-1761
+task_name: "termlink_channel_describe MCP — set arbitrary-topic description (T-1166 wedge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T12:19:21Z
+completed: 2026-05-21T12:22:02Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelDescribeParams { topic: String, description: String, sender_id: Option<String> }` struct defined (tools.rs:5207)"
+  - "`termlink_channel_describe` tool method posts `msg_type=topic_metadata` envelope to the supplied topic (not hardcoded) (tools.rs:14272)"
+  - "Identity loaded from `$HOME/.termlink` via `Identity::load_or_create`; canonical_sign over (topic, msg_type, payload, ts)"
+  - "sender_id defaults to local Identity fingerprint when not supplied"
+  - "metadata.description carries the description text"
+  - "3 params unit tests (deserialize, sender_id override, empty description) — all pass"
+  - "`cargo build -p termlink-mcp` clean (only pre-existing cur_run_end warning)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [termlink, mcp, t-1166]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1761-termlinkchanneldescribe-mcp--set-arbitra.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1780: termlink_channel_star MCP — topic-flexible star/unstar emit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T15:37:06Z
+# ============================================================================
+
+task_id: T-1780
+task_name: "termlink_channel_star MCP — topic-flexible star/unstar emit"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T15:34:53Z
+completed: 2026-05-21T15:36:52Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelStarParams { topic: String, offset: u64, unstar: Option<bool>, sender_id: Option<String> }` params struct."
+  - "`termlink_channel_star` tool method registered. Builds `msg_type=star` envelope with empty payload, `metadata.star_target=<offset>`, `metadata.star=\"true\"|\"false\"`, signs via local identity, POSTs via `CHANNEL_POST` RPC. Mirrors `termlink_agent_star` at tools.rs:14724 with caller-supplied topic."
+  - "Unit test: params struct deserializes minimal + with unstar + with sender override (3 tests)."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_star_params` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1780-termlinkchannelstar-mcp--topic-flexible-.md
+generated_by: context-agent-hybrid

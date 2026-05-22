@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1777: termlink_channel_mentions MCP — cross-topic mentions search (fleet-wide)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T15:28:48Z
+# ============================================================================
+
+task_id: T-1777
+task_name: "termlink_channel_mentions MCP — cross-topic mentions search (fleet-wide)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T15:26:13Z
+completed: 2026-05-21T15:28:34Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelMentionsParams { target: Option<String>, prefix: Option<String>, limit: Option<u64> }` params struct."
+  - "`termlink_channel_mentions` tool method registered. Calls `channel.list` (with optional `prefix`), iterates topics, walks each via `walk_topic_full_mcp`, skips META msg-types (`receipt`/`reaction`/`redaction`/`edit`/`topic_metadata`), filters via `extract_mentions_mcp` + `mentions_match_mcp`. Defaults `target` to caller's local Identity fingerprint. `limit` defaults to 100; 0 = unlimited. Per-topic walk_topic_full failures don't poison the fleet sweep (continue)."
+  - "Returns `{ok, target, prefix, hits: [{topic, offset, sender_id, ts, msg_type, payload, mentions}, ...], count}` — cross-topic shape (each hit carries its source topic)."
+  - "Unit test: params struct deserializes with all combinations (defaults / target / prefix / limit / wildcard) — 4 tests."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_mentions_params` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1777-termlinkchannelmentions-mcp--cross-topic.md
+generated_by: context-agent-hybrid

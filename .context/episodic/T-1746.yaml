@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1746: termlink_channel_members MCP — per-sender activity for arbitrary topic (T-1166 MCP-parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T07:54:30Z
+# ============================================================================
+
+task_id: T-1746
+task_name: "termlink_channel_members MCP — per-sender activity for arbitrary topic (T-1166 MCP-parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T07:51:40Z
+completed: 2026-05-21T07:54:28Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`MemberRowMcp` struct + `to_json_mcp` — 4-field one-to-one mirror of CLI MemberRow"
+  - "Pure helpers `summarize_members_mcp` + `summarize_members_as_of_mcp` — placed near compute_state_mcp"
+  - "`ChannelMembersParams { topic, include_meta?, as_of_ms? }`"
+  - "`termlink_channel_members` tool method — fetch_topic_msgs_mcp(topic, 2000) + helper, returns `{ok, topic, include_meta, as_of_ms, members, count}`"
+  - "10 unit tests added (8 helper, 2 params): empty, multi-sender accumulation, meta-skipped-by-default, include_meta=true, empty-sender-id-skipped, no-ts handling, as_of cutoff, as_of=None equivalence"
+  - "`cargo build -p termlink-mcp` clean"
+  - "`cargo test -p termlink-mcp` 383 → 393 passing, 0 regressions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1746-termlinkchannelmembers-mcp--per-sender-a.md
+generated_by: context-agent-hybrid

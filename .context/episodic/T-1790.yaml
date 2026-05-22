@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1790: termlink_channel_info MCP — topic-flexible synthesized topic view (T-1166 wedge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T18:27:28Z
+# ============================================================================
+
+task_id: T-1790
+task_name: "termlink_channel_info MCP — topic-flexible synthesized topic view (T-1166 wedge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T18:23:00Z
+completed: 2026-05-21T18:26:42Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelInfoParams { topic: String, since: Option<i64> }` struct added."
+  - "`filter_msgs_since_mcp`, `summarize_senders_mcp`, `latest_description_mcp` ported as private helpers — semantically equivalent to CLI originals."
+  - "`termlink_channel_info` tool method registered: CHANNEL_LIST for retention/count, paginated CHANNEL_SUBSCRIBE walk, optional `--since` bounding on description/senders/receipts."
+  - "Tool description references T-1790 + MCP parity for `termlink channel info <topic>`, notes \"Topic-flexible variant\" (no hardcoded chat-arc sister exists)."
+  - "At least 4 unit tests covering: filter_msgs_since_mcp (bound inclusivity), summarize_senders_mcp (meta exclusion), latest_description_mcp (latest wins), ChannelInfoParams JSON parse."
+  - "`cargo build -p termlink-mcp` succeeds."
+  - "`cargo test -p termlink-mcp` succeeds (full crate suite)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, T-1166, channel]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1790-termlinkchannelinfo-mcp--topic-flexible-.md
+generated_by: context-agent-hybrid

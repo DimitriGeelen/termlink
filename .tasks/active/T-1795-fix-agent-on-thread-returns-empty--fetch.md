@@ -4,16 +4,16 @@ name: "Fix agent on-thread returns empty — fetch_topic_msgs reads oldest page 
 description: >
   Fix agent on-thread returns empty — fetch_topic_msgs reads oldest page when slice_size exceeds hub 1000 cap
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-22T06:52:27Z
-last_update: 2026-05-22T06:52:27Z
-date_finished: null
+last_update: 2026-05-22T07:06:08Z
+date_finished: 2026-05-22T07:06:08Z
 ---
 
 # T-1795: Fix agent on-thread returns empty — fetch_topic_msgs reads oldest page when slice_size exceeds hub 1000 cap
@@ -153,3 +153,20 @@ added and passing.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1795-fix-agent-on-thread-returns-empty--fetch.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-0d9caeb6
+- **Timestamp:** 2026-05-22T07:06:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Regression test added in `crates/termlink-cli/src/commands/channel.rs` covering: slice_size > page-cap must produce a tail-anchored cursor (not 0 when count > cap) — 3 `fetch_topic_tail_cursor_*` test
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/channel.rs in: Regression test added in `crates/termlink-cli/src/commands/channel.rs` covering: slice_size > page-cap must produce a tail-anchored cursor (not 0 when`
+
+### 2026-05-22T07:06:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1747: termlink_channel_snapshot MCP — point-in-time state of arbitrary topic (T-1166 MCP-parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T07:58:11Z
+# ============================================================================
+
+task_id: T-1747
+task_name: "termlink_channel_snapshot MCP — point-in-time state of arbitrary topic (T-1166 MCP-parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T07:55:51Z
+completed: 2026-05-21T07:58:09Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Pure helper `compute_snapshot_mcp` — filters by ts<=as_of_ms then delegates to compute_state_mcp"
+  - "`ChannelSnapshotParams { topic, as_of_ms, include_redacted? }`"
+  - "`termlink_channel_snapshot` tool method — fetch + helper, returns `{ok, topic, as_of_ms, include_redacted, rows, count}`"
+  - "6 unit tests: filters-after-cutoff, inclusive-at-cutoff, no-ts-treated-as-zero, integrates-with-edit-collapse, empty-when-cutoff-predates, params-minimal"
+  - "`cargo build -p termlink-mcp` clean"
+  - "`cargo test -p termlink-mcp` 393 → 399 passing, 0 regressions"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1747-termlinkchannelsnapshot-mcp--point-in-ti.md
+generated_by: context-agent-hybrid

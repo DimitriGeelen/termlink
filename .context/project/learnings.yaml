@@ -1999,3 +1999,17 @@ learnings:
   date: 2026-05-21
   context: Added via context agent
   application: "T-1794 (2026-05-22) inlined the skip rationale as MCP-PARITY SKIP docstrings on cmd_channel_dm / cmd_channel_dm_list / cmd_channel_inbox so a future 'should I wedge this?' investigation finds the answer at the CLI handler via grep/hover. The selection criterion lives in cmd_channel_dm's doc comment."
+- id: PL-178
+  learning: "Single-page fetch against a capped RPC must clamp its cursor math to the cap. fetch_topic_msgs computed cursor=count-slice_size but the hub caps channel.subscribe limit at 1000; callers passing slice_size>1000 silently read the OLDEST page (cursor pinned to 0) instead of the most-recent. Fixed by clamping effective slice to the page cap so cursor stays tail-anchored (T-1795)."
+  source: P-001
+  task: T-1795
+  date: 2026-05-22
+  context: Added via context agent
+  application: TBD
+- id: PL-179
+  learning: "cargo build green != tests compile. cargo build does NOT compile #[cfg(test)] modules, so a signature change can ship with broken test call sites undetected (T-1727 added a param to cmd_fleet_reauth; 7 test sites broke; bin test target was uncompilable for an unknown period). Rust verification gates should run 'cargo test --no-run' (or full cargo test) not just cargo build (T-1797)."
+  source: P-001
+  task: T-1797
+  date: 2026-05-22
+  context: Added via context agent
+  application: TBD

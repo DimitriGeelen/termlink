@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1744: termlink_hub_fingerprint + termlink_hub_export_secret MCP — rotation-protocol primitives (T-1166 MCP-parity)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T07:43:49Z
+# ============================================================================
+
+task_id: T-1744
+task_name: "termlink_hub_fingerprint + termlink_hub_export_secret MCP — rotation-protocol primitives (T-1166 MCP-parity)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T07:40:30Z
+completed: 2026-05-21T07:43:47Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`termlink_hub_fingerprint` tool method: no params, reads `termlink_hub::tls::hub_cert_path()`, extracts and decodes CERT block, returns `{ok, path, fingerprint}` — tools.rs section \"Hub fingerprint + export-secret (T-1744)\""
+  - "`termlink_hub_export_secret` tool method: no params, reads `termlink_hub::server::hub_secret_path()`, returns `{ok, path, hex, bytes}`. NEVER touches `~/.termlink/secrets/` cache (R3 compliance) — verified: only `hub_secret_path` is read"
+  - "Both return `{ok: false, error, path}` on missing file (hub not running) — `path` always surfaced"
+  - "Pure helper `parse_first_cert_block_to_fingerprint(pem: &str) -> Result<String, String>` extracted — tools.rs:~1420"
+  - "At least 4 unit tests on the helper — 5 added: valid PEM (b\"abc\"→known sha256), missing BEGIN, missing END, base64 garbage, whitespace-in-body"
+  - "`cargo build -p termlink-mcp` clean (only pre-existing cur_run_end warning)"
+  - "`cargo test -p termlink-mcp` 367 → 372 passing, 0 regressions"
+  - "CLI smoke-baseline (`termlink hub fingerprint` + `hub export-secret`) confirms same hub-state values the MCP tools will report"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1744-termlinkhubfingerprint--termlinkhubexpor.md
+generated_by: context-agent-hybrid

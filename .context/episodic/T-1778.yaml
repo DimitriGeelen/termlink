@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1778: termlink_channel_react MCP — topic-flexible reaction emit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T15:31:45Z
+# ============================================================================
+
+task_id: T-1778
+task_name: "termlink_channel_react MCP — topic-flexible reaction emit"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T15:29:31Z
+completed: 2026-05-21T15:31:31Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelReactParams { topic: String, offset: u64, emoji: String, sender_id: Option<String> }` params struct."
+  - "`termlink_channel_react` tool method registered. Builds `msg_type=reaction` envelope with `payload=emoji.into_bytes()`, `metadata.in_reply_to=\"<offset>\"`, signs via local identity, POSTs via `CHANNEL_POST` RPC. Mirrors `termlink_agent_react` at tools.rs:14478 with caller-supplied topic."
+  - "Unit test: params struct deserializes with required fields + with sender override + rejects missing emoji (3 tests)."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_react_params` all pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1778-termlinkchannelreact-mcp--topic-flexible.md
+generated_by: context-agent-hybrid

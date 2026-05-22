@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1774: termlink_channel_replies_of MCP — topic-flexible replies-of filter
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-21T15:18:16Z
+# ============================================================================
+
+task_id: T-1774
+task_name: "termlink_channel_replies_of MCP — topic-flexible replies-of filter"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T15:14:44Z
+completed: 2026-05-21T15:18:01Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`ChannelRepliesOfParams { topic: String, sender_id: Option<String> }` params struct defined."
+  - "`termlink_channel_replies_of` tool method registered. Walks topic via `walk_topic_full_mcp`, reuses `compute_replies_of_mcp`. Defaults `sender_id` to caller's local Identity fingerprint when omitted (matches CLI fallback at channel.rs:5168 and sister at tools.rs:13890)."
+  - "Returns `{ok, topic, sender, replies: [...]}` shape — same as `agent_replies_of` but with caller-supplied topic."
+  - "Unit test: params struct deserializes correctly with topic+sender and topic-only (sender defaulted)."
+  - "`cargo build -p termlink-mcp` clean."
+  - "`cargo test -p termlink-mcp channel_replies_of` all pass (3 tests)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1774-termlinkchannelrepliesof-mcp--topic-flex.md
+generated_by: context-agent-hybrid
