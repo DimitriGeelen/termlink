@@ -7197,7 +7197,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("does-not-exist", None);
+        let result = cmd_fleet_reauth("does-not-exist", None, false);
 
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe {
@@ -7301,7 +7301,7 @@ secret_file = "/tmp/other.hex"
         unsafe { std::env::set_var("HOME", &tmp) };
 
         let source = format!("file:{}", bootstrap_path.display());
-        let result = cmd_fleet_reauth("ring20", Some(&source));
+        let result = cmd_fleet_reauth("ring20", Some(&source), false);
 
         // Capture state before restoring env.
         let written = std::fs::read_to_string(&secret_path).ok();
@@ -7352,7 +7352,7 @@ secret_file = "/tmp/other.hex"
         unsafe { std::env::set_var("HOME", &tmp) };
 
         let source = format!("file:{}", bootstrap_path.display());
-        let result = cmd_fleet_reauth("bad", Some(&source));
+        let result = cmd_fleet_reauth("bad", Some(&source), false);
 
         // Capture pre-restore state.
         let target_content_after = std::fs::read_to_string(&secret_path).ok();
@@ -7391,7 +7391,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: guarded by CWD_LOCK.
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("inline", Some("file:/dev/null"));
+        let result = cmd_fleet_reauth("inline", Some("file:/dev/null"), false);
 
         unsafe {
             match prev_home {
@@ -7421,7 +7421,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: single-threaded test region (guarded by CWD_LOCK).
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("anything", None);
+        let result = cmd_fleet_reauth("anything", None, false);
 
         unsafe {
             match prev_home {
@@ -7472,7 +7472,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: guarded by CWD_LOCK.
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("declared", Some("auto"));
+        let result = cmd_fleet_reauth("declared", Some("auto"), false);
         let written = std::fs::read_to_string(&secret_path).ok();
 
         unsafe {
@@ -7508,7 +7508,7 @@ secret_file = "/tmp/other.hex"
         // SAFETY: guarded by CWD_LOCK.
         unsafe { std::env::set_var("HOME", &tmp) };
 
-        let result = cmd_fleet_reauth("bare", Some("auto"));
+        let result = cmd_fleet_reauth("bare", Some("auto"), false);
 
         unsafe {
             match prev_home {
