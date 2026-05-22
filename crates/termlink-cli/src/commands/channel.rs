@@ -685,11 +685,31 @@ pub(crate) fn evaluate_presence(
     }
 }
 
+/// T-1795: the hub clamps `channel.subscribe` `limit` to this value per page
+/// (crates/termlink-hub/src/channel.rs). `fetch_topic_msgs` must clamp its
+/// cursor math to the same cap or it reads the wrong (oldest) window.
+pub(crate) const HUB_SUBSCRIBE_PAGE_CAP: u64 = 1000;
+
+/// T-1795: compute the tail-anchored `(cursor, limit)` for fetching the
+/// most-recent `slice_size` envelopes of a topic with `count` total
+/// envelopes. The effective slice is clamped to `HUB_SUBSCRIBE_PAGE_CAP`
+/// because the hub caps each `channel.subscribe` page at that size — without
+/// the clamp, `cursor = count - slice_size` for slice_size > cap pushes the
+/// window past the tail and the single capped page returns the OLDEST
+/// envelopes instead of the most-recent. Pure so it can be unit-tested
+/// without a hub round-trip.
+pub(crate) fn tail_slice_cursor(count: u64, slice_size: u64) -> (u64, u64) {
+    let effective = slice_size.min(HUB_SUBSCRIBE_PAGE_CAP);
+    (count.saturating_sub(effective), effective)
+}
+
 /// T-1485: fetch the last `slice_size` envelopes of any topic. Returns an
 /// empty Vec when the topic is empty or doesn't exist. Single round-trip
 /// for `channel.list` + `channel.subscribe`. Generalizes the original
 /// chat-arc-only helper (T-1480/T-1481) so dm topics can use the same
-/// walk pattern (T-1485 ack-wait).
+/// walk pattern (T-1485 ack-wait). The effective slice is clamped to
+/// `HUB_SUBSCRIBE_PAGE_CAP` (T-1795) — request more via pagination
+/// (walk_topic_full / fetch_chat_arc_full).
 pub(crate) async fn fetch_topic_msgs(
     topic: &str,
     hub: Option<&str>,
@@ -717,11 +737,20 @@ pub(crate) async fn fetch_topic_msgs(
     if count == 0 {
         return Ok(Vec::new());
     }
-    let cursor = count.saturating_sub(slice_size);
+    // T-1795: the hub caps channel.subscribe `limit` at 1000 per page
+    // (crates/termlink-hub/src/channel.rs). If slice_size exceeds that cap,
+    // computing cursor = count - slice_size pushes the window back past the
+    // tail, so the single capped page returns the OLDEST 1000 envelopes
+    // instead of the most-recent slice (the on-thread "wider walk" bug:
+    // on-thread fetched slice 2000 → cursor 0 → oldest page → empty results).
+    // Clamp the effective slice to the cap so the cursor stays tail-anchored.
+    // Callers wanting deeper history must paginate (walk_topic_full /
+    // fetch_chat_arc_full).
+    let (cursor, effective_slice) = tail_slice_cursor(count, slice_size);
     let resp = rpc_call_authed(
         &sock,
         method::CHANNEL_SUBSCRIBE,
-        json!({"topic": topic, "cursor": cursor, "limit": slice_size}),
+        json!({"topic": topic, "cursor": cursor, "limit": effective_slice}),
     )
     .await
     .with_context(|| format!("Hub rpc_call (channel.subscribe {topic}) failed"))?;
@@ -1520,7 +1549,11 @@ pub(crate) async fn fetch_fleet_by_project_via_chat_arc(
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let window_ms = (window_secs as i64).saturating_mul(1000);
-    let msgs = fetch_recent_chat_arc_msgs(hub, 2000).await?;
+    // T-1795: read the most-recent page. The hub caps each subscribe page at
+    // 1000; the prior 2000 silently read the OLDEST page (fleet verbs showed
+    // empty against live traffic). Deeper-than-1000 fleet history is a
+    // pagination enhancement tracked separately (T-1796).
+    let msgs = fetch_recent_chat_arc_msgs(hub, HUB_SUBSCRIBE_PAGE_CAP).await?;
     Ok(summarize_fleet_by_project(
         &msgs,
         now_ms,
@@ -1544,7 +1577,10 @@ pub(crate) async fn fetch_fleet_presence_via_chat_arc(
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
     let window_ms = (window_secs as i64).saturating_mul(1000);
-    let msgs = fetch_recent_chat_arc_msgs(hub, 2000).await?;
+    // T-1795: read the most-recent page (see fetch_fleet_by_project note).
+    // The prior 2000 read the OLDEST page — the root cause of `agent presence`
+    // reporting no active peers against a live fleet. Deeper history: T-1796.
+    let msgs = fetch_recent_chat_arc_msgs(hub, HUB_SUBSCRIBE_PAGE_CAP).await?;
     Ok(summarize_fleet_presence(
         &msgs,
         now_ms,
@@ -8632,6 +8668,40 @@ pub(crate) async fn cmd_channel_search(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-1795 fetch_topic_msgs tail-anchoring tests -------------------
+
+    #[test]
+    fn fetch_topic_tail_cursor_within_cap_anchors_at_tail() {
+        // slice within the page cap: classic tail window (timeline-style).
+        let (cursor, limit) = tail_slice_cursor(1821, 1000);
+        assert_eq!(cursor, 821, "cursor must land at count - slice");
+        assert_eq!(limit, 1000);
+    }
+
+    #[test]
+    fn fetch_topic_tail_cursor_above_cap_stays_at_tail_not_zero() {
+        // T-1795 regression: slice 2000 (on-thread "wider walk") with
+        // count 1821 must NOT push the cursor to 0 (which returned the
+        // OLDEST capped page and made `agent on-thread` empty). The
+        // effective slice is clamped to the cap so the cursor stays at
+        // the tail.
+        let (cursor, limit) = tail_slice_cursor(1821, 2000);
+        assert_eq!(limit, HUB_SUBSCRIBE_PAGE_CAP, "limit clamped to page cap");
+        assert_eq!(
+            cursor, 821,
+            "cursor must remain tail-anchored (count - cap), not 0"
+        );
+        assert_ne!(cursor, 0, "the pre-fix bug: cursor=0 → oldest page");
+    }
+
+    #[test]
+    fn fetch_topic_tail_cursor_count_below_slice_returns_all() {
+        // Fewer envelopes than the slice: cursor 0 is correct (return all).
+        let (cursor, limit) = tail_slice_cursor(300, 1000);
+        assert_eq!(cursor, 0);
+        assert_eq!(limit, 1000);
+    }
 
     // ---- T-1448 from_project tests --------------------------------------
 

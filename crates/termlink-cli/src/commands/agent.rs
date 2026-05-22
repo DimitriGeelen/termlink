@@ -2388,7 +2388,7 @@ pub(crate) async fn cmd_agent_on_thread(
                 thread, clamped_interval, clamped_window_secs, clamped_n,
                 filter_suffix, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, 2000).await {
+            match super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP).await {
                 Ok(msgs) => {
                     let now_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -2423,8 +2423,10 @@ pub(crate) async fn cmd_agent_on_thread(
         }
     }
 
-    // Wider walk than `recent` since thread logs are denser.
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 2000)
+    // T-1795: fetch the most-recent page. The hub caps each subscribe page
+    // at 1000 (HUB_SUBSCRIBE_PAGE_CAP); requesting more silently read the
+    // OLDEST page and made this verb return empty. Use the cap directly.
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP)
         .await
         .with_context(|| {
             format!("agent on-thread: failed to fetch chat-arc for thread={thread}")
@@ -2565,7 +2567,7 @@ pub(crate) async fn cmd_agent_overview(
                 "# agent overview --watch | interval={}s | window={}s | top={} | {}",
                 clamped_interval, clamped_window_secs, clamped_top, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, 2000).await {
+            match super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP).await {
                 Ok(msgs) => render_overview_body(&msgs, clamped_window_secs, clamped_top),
                 Err(e) => {
                     println!("# fetch error (will retry on next tick): {e}");
@@ -2575,9 +2577,11 @@ pub(crate) async fn cmd_agent_overview(
         }
     }
 
-    // Single round-trip — wider slice (2000) so all three summaries get
-    // enough coverage on busy fleets.
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 2000)
+    // T-1795: single round-trip of the most-recent page. The hub caps each
+    // subscribe page at 1000 (HUB_SUBSCRIBE_PAGE_CAP); the prior slice of
+    // 2000 silently read the OLDEST page, starving all three summaries on
+    // busy fleets (overview showed "no fleet activity" against live traffic).
+    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP)
         .await
         .context("agent overview: failed to fetch chat-arc")?;
 
