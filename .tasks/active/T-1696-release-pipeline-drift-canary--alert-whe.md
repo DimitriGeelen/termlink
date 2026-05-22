@@ -45,14 +45,21 @@ specific failure mode where main mirrors but tags don't.
 - [x] Existing `cargo test`/clippy pipeline NOT touched — pure tooling addition, no Rust changes
 
 ### Human
-- [ ] [RUBBER-STAMP] Cron entry merged into the active host crontab on .107
-  **Steps:**
-  1. Review `.context/cron/release-mirror-canary.crontab` for the schedule
-  2. Append the single line to your active crontab: `crontab -l | { cat; cat .context/cron/release-mirror-canary.crontab; } | crontab -`
-  3. Verify: `crontab -l | grep check-mirror-freshness`
-  4. Wait 24h or run manually once to seed the log: `bash scripts/check-mirror-freshness.sh --quiet >> .context/working/.release-mirror-canary.log 2>&1`
-  **Expected:** Canary entry present in crontab; log file accumulates entries on drift
-  **If not:** Pick a different schedule slot or path that fits the host's crontab convention
+- [ ] [RUBBER-STAMP] Cron entry installed in /etc/cron.d on .107
+  **CORRECTED 2026-05-22 (T-1166 review sweep):** the crontab file uses
+  `/etc/cron.d` USER-field syntax (`... root cd /opt/termlink && ...`) — its
+  own header says "do NOT load into a user crontab." The original step below
+  pointed at a *user* crontab (`crontab -l | ... | crontab -`), which would
+  have produced a broken entry. Install path is `/etc/cron.d/` instead.
+  **ALREADY DONE:** `/etc/cron.d/termlink-release-mirror-canary` was installed
+  2026-05-20 and is byte-identical to the git source; the canary log is
+  actively accumulating drift entries. This box is ready to tick.
+  **Steps (to verify, copy-paste):**
+  1. Confirm the file is installed: `diff /etc/cron.d/termlink-release-mirror-canary /opt/termlink/.context/cron/release-mirror-canary.crontab && echo IDENTICAL`
+  2. Confirm the canary is firing: `tail -3 /opt/termlink/.context/working/.release-mirror-canary.log`
+  3. (If ever missing) re-install: `sudo cp /opt/termlink/.context/cron/release-mirror-canary.crontab /etc/cron.d/termlink-release-mirror-canary`
+  **Expected:** step 1 prints IDENTICAL; step 2 shows recent drift entries (the canary detecting the live G-058 mirror lag — that is the canary working, not a canary failure)
+  **If not:** run the step-3 re-install, then `sudo systemctl reload cron` (or `service cron reload`)
 
 ## Verification
 
