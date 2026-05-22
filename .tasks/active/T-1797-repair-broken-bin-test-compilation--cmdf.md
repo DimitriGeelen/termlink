@@ -25,9 +25,9 @@ Found while trying to run the T-1795 regression test: `cargo test -p termlink --
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All 7 `cmd_fleet_reauth(...)` test call sites in `remote.rs` pass the `json` arg (`false` — tests assert on the returned `Result`, not JSON-mode process exit)
-- [ ] `cargo test -p termlink --bins --no-run` compiles the test target (no E0061 arity errors) — this is the deliverable
-- [ ] Note: full-suite RUN completion is blocked by a SEPARATE pre-existing bug (`cli::cli_tests::event_watch_without_hub_accepts_targets` stack-overflows / SIGABRT) — filed as T-1798, out of scope here
+- [x] All 7 `cmd_fleet_reauth(...)` test call sites in `remote.rs` pass the `json` arg (`false` — tests assert on the returned `Result`, not JSON-mode process exit)
+- [x] `cargo test -p termlink --bins --no-run` compiles the test target (no E0061 arity errors) — this is the deliverable
+- [x] Note: full-suite RUN completion is blocked by a SEPARATE pre-existing bug (`cli::cli_tests::event_watch_without_hub_accepts_targets` stack-overflows / SIGABRT) — filed as T-1798, out of scope here
 
 ## Verification
 
