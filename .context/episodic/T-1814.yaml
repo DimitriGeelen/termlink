@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1814: Remove event.broadcast fallback from framework bus bridges (T-1166 cut-unblocker)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T22:08:44Z
+# ============================================================================
+
+task_id: T-1814
+task_name: "Remove event.broadcast fallback from framework bus bridges (T-1166 cut-unblocker)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T22:03:32Z
+completed: 2026-05-25T22:08:42Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`event.broadcast` fallback removed from `lib/pickup-channel-bridge.sh`: a"
+  - "`event.broadcast` fallback removed from `lib/publish-learning-to-bus.sh`:"
+  - "Both edits land upstream on `/opt/999-Agentic-Engineering-Framework`"
+  - "T-1166 `## Updates` records the root cause + this fix as the cut-unblocker"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-26 — How to stop the bridge's legacy emission"
+    chose: "Remove the `event.broadcast` fallback outright; degrade to a logged no-op on channel.post failure."
+    rationale: "The fallback points at a primitive termlink is actively retiring (T-1166), so it is dead-weight-trending-to-harmful. It was the lone live emitter resetting the cut's clean-window gate. The bridges are explicitly non-fatal \"pure enhancement\" code (T-1214), so no-op-on-failure is the designed degradation. `--ensure-topic` (T-1443+) already covers the missing-topic case the fallback was protecting against. CLAUDE.md: delete unused/harmful code rather than gate it behind a flag."
+    alternatives_rejected: ["(a) Add an opt-in env flag to preserve the fallback — rejected per \"no feature flags / backwards-compat shims when you can just change the code\"; no fleet hub lacks channel.post (.122 HAS it — it just fails). (b) Deploy the staged binary to .122 to make channel.post succeed — complementary operator action (T-1438) but doesn't fix the framework-wide latent landmine, and .122 is flaky/auth-gated. (c) Probe hub.capabilities to gate the fallback on `legacy_primitives` — more code, more risk, same end state."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1814-remove-eventbroadcast-fallback-from-fram.md
+generated_by: context-agent-hybrid

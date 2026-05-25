@@ -416,3 +416,10 @@ decisions:
     date: 2026-05-25
     task: T-1813
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-039
+    decision: "Remove the `event.broadcast` fallback outright; degrade to a logged no-op on channel.post failure."
+    scope: project
+    date: 2026-05-25
+    task: T-1814
+    rationale: "Auto-captured from task file on completion"

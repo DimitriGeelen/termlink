@@ -2738,3 +2738,20 @@ scan_id: R-35f1d176
 task_id: T-1813
 payload:
   task_file: .tasks/active/T-1813-agent-replysh-scriptable-receiver-half-o.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T22:08:42Z'
+scan_id: R-6f70e505
+task_id: T-1814
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T22:08:42Z'
+scan_id: R-6f70e505
+task_id: T-1814
+payload:
+  task_file: .tasks/active/T-1814-remove-eventbroadcast-fallback-from-fram.md

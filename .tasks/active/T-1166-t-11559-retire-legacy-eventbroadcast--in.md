@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-21T15:42:03Z
+last_update: 2026-05-25T22:09:01Z
 date_finished: null
 ---
 
@@ -80,6 +80,41 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 -->
 
 ## Updates
+
+### 2026-05-26T — CUT-BLOCKER ROOT CAUSE FOUND + FIXED (T-1814): framework pickup bridge fallback was the lone live event.broadcast emitter [agent]
+
+- **Telemetry refresh (`fw metrics api-usage --cut-ready --json`):** `cut_ready=false`,
+  `legacy_attributable=1` in the 7d window. Trend: 1d=**0**, 7d=**1**, 30d=4472.
+  The single live legacy call: `event.broadcast` from peer `192.168.10.122`
+  (ring20-management), last seen **2026-05-22T11:46Z**.
+- **Why the cut has lingered "almost ready" for weeks:** the lone emitter is the
+  **framework's own pickup-channel-bridge** (`lib/pickup-channel-bridge.sh`),
+  not an application caller. The bridge posts pickups to the `framework:pickup`
+  topic via `channel.post`, but **falls back to `termlink event broadcast`
+  when channel.post fails**. On .122 channel.post fails (old binary lacking
+  `--ensure-topic` and/or the topic missing after a hub restart), so every
+  pickup there (~every few days) re-emits a legacy `event.broadcast` to the
+  .107 hub — resetting the 7-day clean window before it can elapse. Audit
+  proof: all recent `event.broadcast` calls from .122 carry
+  `topic=framework:pickup`, and that bridge fallback is the ONLY framework
+  code that posts event.broadcast to that topic. `publish-learning-to-bus.sh`
+  had the identical latent anti-pattern (topic `channel:learnings`).
+- **Fix (T-1814, landed upstream `origin/master` f87f8e97):** removed the
+  `event.broadcast` fallback from both bridges. A channel.post failure now
+  degrades to a logged no-op (the bridges are non-fatal "pure enhancement"
+  code, T-1214). `--ensure-topic` (T-1443+) already covers the topic-loss case
+  the fallback was protecting against. Verified on remote: 0 event.broadcast
+  invocations in either file, channel.post path retained, `bash -n` clean.
+- **Expected effect:** with the framework no longer emitting event.broadcast on
+  pickup, the 7-day clean window can finally run uninterrupted. The 2026-05-22
+  .122 call ages out ~2026-05-29; assuming no other emitters, **cut becomes
+  ready ~2026-05-29**. Re-verify then with
+  `.agentic-framework/bin/fw metrics api-usage --cut-ready --json`.
+- **Caveat:** .122 still runs the old binary whose channel.post fails, so its
+  pickups will no longer be bus-mirrored (silent no-op) until the staged
+  binary (T-1438) is swapped in. That is an operator action and does NOT block
+  the cut — it only affects bus-mirror completeness from .122, not the legacy
+  emission (which is now eliminated).
 
 ### 2026-05-19T21:52Z — bake telemetry refresh: HOLDING — .122 partial gate elapse confirmed (1 entry rolled out) [agent]
 
