@@ -4,16 +4,16 @@ name: "Pickup-and-respond ritual — /check-arc reads turns AND posts receipt+re
 description: >
   T-1800 build #2. Extend /check-arc (currently read-only) into the pickup-AND-respond ritual: when woken by an injected doorbell, read unread turns on dm:<self>:* topics, and for each, post a msg_type=receipt with the same conversation_id (so the sender's agent-send.sh T-1804 detects delivery) and a reply turn. Closes the 'respond' half of the doorbell+mail loop. Composes channel post/subscribe + ack; no protocol changes.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-respond.sh, scripts/test-agent-respond.sh]
 related_tasks: []
 created: 2026-05-25T17:35:09Z
-last_update: 2026-05-25T19:49:04Z
-date_finished: null
+last_update: 2026-05-25T20:02:59Z
+date_finished: 2026-05-25T20:02:59Z
 ---
 
 # T-1805: Pickup-and-respond ritual — /check-arc reads turns AND posts receipt+reply (T-1800 build #2)
@@ -134,3 +134,15 @@ grep -q "Respond mode" .claude/commands/check-arc.md
 ### 2026-05-25T19:49:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-c9c5d195
+- **Timestamp:** 2026-05-25T20:03:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T20:02:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

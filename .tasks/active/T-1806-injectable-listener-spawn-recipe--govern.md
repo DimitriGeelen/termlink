@@ -4,15 +4,15 @@ name: "Injectable-listener spawn recipe + governance doc (T-1800 build #3)"
 description: >
   T-1800 build #3. Document the canonical recipe to run a persistent injectable Claude listener: persistent termlink --shell session + claude (default permission mode, NOT claude -p), governed via FW_SAFE_MODE=1 (keeps Tier-0+budget) OR its own started-work task, with Bash(termlink:*) allowlisted for hands-free replies. Per T-1800 Evidence: do NOT use ungoverned /tmp (drops Tier-0+budget+boundary). Write to docs/operations/.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T17:35:12Z
-last_update: 2026-05-25T17:35:12Z
+last_update: 2026-05-25T20:03:36Z
 date_finished: null
 ---
 
@@ -26,8 +26,13 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `docs/operations/injectable-listener-spawn-recipe.md` exists and documents the canonical recipe to run a persistent injectable Claude listener: a long-lived `termlink` PTY session running `claude` in DEFAULT permission mode, explicitly NOT `claude -p` (with the re-pay-context-per-call rationale).
+- [x] The doc specifies the two sanctioned governance modes — `FW_SAFE_MODE=1` (keeps Tier-0 + budget gates, drops only the task gate) OR running the listener under its own `started-work` task — and explicitly warns against an ungoverned `/tmp` session (drops Tier-0 + budget + project-boundary protections), per the T-1800 Evidence.
+- [x] The doc ties the recipe to the full doorbell+mail loop: doorbell (`agent-send.sh` injecting `/check-arc`, T-1804) wakes the listener → `/check-arc` respond mode (T-1805) → `agent-respond.sh` posts receipt+reply. It cross-references both scripts by path, and both referenced scripts exist on disk.
+- [x] The doc includes a copy-pasteable spawn command block, an injectability verification step (confirm the session shows up and accepts an inject), and a teardown step.
+- [x] The doc notes the `Bash(termlink:*)` allowlist requirement so the woken listener can post receipts/replies hands-free.
+
+### Human
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -54,6 +59,13 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+test -f docs/operations/injectable-listener-spawn-recipe.md
+grep -q "FW_SAFE_MODE" docs/operations/injectable-listener-spawn-recipe.md
+grep -q "claude -p" docs/operations/injectable-listener-spawn-recipe.md
+grep -q "agent-send.sh" docs/operations/injectable-listener-spawn-recipe.md
+grep -q "agent-respond.sh" docs/operations/injectable-listener-spawn-recipe.md
+test -f scripts/agent-send.sh
+test -f scripts/agent-respond.sh
 
 ## RCA
 
@@ -122,3 +134,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md
 - **Context:** Initial task creation
+
+### 2026-05-25T20:03:36Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
