@@ -103,9 +103,16 @@ for (( ring=1; ring<=max_rings; ring++ )); do
     fi
     waited=0
     while (( waited < timeout )); do
+        # Offset-aware: only a receipt that acks THIS turn counts (up_to >= the
+        # offset we just posted). A stale receipt from an earlier turn on the
+        # same conversation_id must NOT satisfy this wait — that was the T-1808
+        # multi-turn false-DELIVERED bug.
         recv="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
                        --cursor 0 --limit 1000 --json 2>/dev/null \
-                   | jq -s '[ .[] | select(.msg_type=="receipt") ] | (.[0].offset // empty)' ; } || true )"
+                   | jq -s --argjson po "$post_offset" \
+                       '[ .[] | select(.msg_type=="receipt")
+                              | select((.metadata.up_to|tonumber? // -1) >= $po) ]
+                        | (.[0].offset // empty)' ; } || true )"
         if [ -n "$recv" ] && [ "$recv" != "null" ]; then
             deliver_offset="$recv"; break
         fi

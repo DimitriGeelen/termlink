@@ -58,5 +58,26 @@ else
     echo "FAIL B: expected non-zero + FAILED + 3 rings (got rc=$rcB, rings=$rings)"; sed 's/^/  B| /' "$tmp/B.out"; fail=1
 fi
 
+# --- Path C (T-1808): a STALE receipt from an earlier turn on the same cid must
+#     NOT satisfy a later turn's wait. Pre-ack turn-1, then send turn-2 unacked. ---
+cidC="cidC-$$"
+"$TERMLINK" channel post "$topic" --msg-type turn --payload "turn1 C" \
+            --metadata conversation_id="$cidC" --ensure-topic --json >/dev/null
+o1="$("$TERMLINK" channel subscribe "$topic" --conversation-id "$cidC" --cursor 0 --limit 100 --json 2>/dev/null \
+        | jq -s '[.[]|select(.msg_type=="turn")][0].offset // 0')"
+# ack turn-1 only (receipt up_to = turn-1 offset)
+"$TERMLINK" channel post "$topic" --msg-type receipt \
+            --metadata conversation_id="$cidC" --metadata up_to="$o1" --ensure-topic --json >/dev/null
+set +e
+"$SEND" --to-session "$nosess" --topic "$topic" --message "turn2 C" \
+        --conversation-id "$cidC" --timeout 2 --max-rings 2 >"$tmp/C.out" 2>&1
+rcC=$?
+set -e
+if [ "$rcC" != "0" ] && grep -q "FAILED" "$tmp/C.out"; then
+    echo "PASS C: stale turn-1 receipt did NOT false-deliver turn-2 (rc=$rcC)"
+else
+    echo "FAIL C: stale receipt caused false DELIVERED for turn-2 (got rc=$rcC)"; sed 's/^/  C| /' "$tmp/C.out"; fail=1
+fi
+
 if [ "$fail" = "0" ]; then echo "test-agent-send: ALL PASS"; else echo "test-agent-send: FAILURES"; fi
 exit "$fail"
