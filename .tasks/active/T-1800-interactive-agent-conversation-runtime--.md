@@ -127,7 +127,7 @@ T-243's message/protocol layer is fully shipped and live (channel.* with convers
 3. Then S-4 (deterministic post→ring→receipt verb) and S-5 (two agents, ≥3 turns).
 4. Cleanup: `termlink clean` the leftover `spike-s1-shell` session.
 
-**Design steer from spikes so far:** doorbell+mail is *mechanically* sound (injection works), but the autonomous-responder-under-root permission constraint may tilt the GO toward a hybrid: doorbell+mail for human-supervised interactive pairs, and candidate #4 (`claude -p` daemon) for hands-off autonomous loops. Revisit the GO/NO-GO framing with this evidence.
+**Design steer from spikes so far (REVISED 2026-05-25 per operator):** doorbell+mail is *mechanically* sound (injection works). Operator directive: **"aim not to use claude-p for expensive jobs"** — `claude -p` re-pays full context cost every invocation (no cache continuity, no resume), so it is wrong for sustained/expensive conversation. Therefore candidate **#4 (`claude -p` daemon) is DEMOTED** — reserved only for cheap ephemeral fan-out, NOT the conversation runtime. The **persistent-session doorbell+mail path is PRIMARY** (keeps context warm + resumable). Consequence: the root+bypassPermissions blocker must be SOLVED for the persistent path (run listener agents **non-root**, or pre-allow `termlink`/`Bash(termlink:*)` in `.claude/settings` under default permission mode) rather than sidestepped via `claude -p`. Reframe GO criteria around proving a persistent injectable session, not a daemon.
 
 ## Decisions
 
