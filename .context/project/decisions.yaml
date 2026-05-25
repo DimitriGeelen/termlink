@@ -409,3 +409,10 @@ decisions:
     date: 2026-05-25
     task: T-1812
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-038
+    decision: "Remove `agent-reply.sh`/`test-agent-reply.sh`; keep the existing `agent-respond.sh` (T-1805) as the one receiver verb."
+    scope: project
+    date: 2026-05-25
+    task: T-1813
+    rationale: "Auto-captured from task file on completion"

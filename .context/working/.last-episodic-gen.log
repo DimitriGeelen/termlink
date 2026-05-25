@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-05-25T21:48:12Z ===
-task_id: T-1812
+=== episodic-gen invocation: 2026-05-25T21:53:08Z ===
+task_id: T-1813
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1812.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1813.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Propagate T-1803 watchtower foreign-port-kill guard upstream to /opt/999-AEF (channel-1)
-  Duration: 0 days (22 min)
-  Updates: 3
+  Task: agent-reply.sh scriptable receiver half of doorbell+mail loop (ack + optional reply)
+  Duration: 0 days (3 min)
+  Updates: 1
   Commits: 0
   Lines: +0 -0 across 0 files
-  Outcomes: 5 AC checked
+  Outcomes: 4 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1812-propagate-t-1803-watchtower-foreign-port.md
+Source: /opt/termlink/.tasks/completed/T-1813-agent-replysh-scriptable-receiver-half-o.md
 --- exit code: 0 ---

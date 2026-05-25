@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1813: agent-reply.sh scriptable receiver half of doorbell+mail loop (ack + optional reply)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T21:53:08Z
+# ============================================================================
+
+task_id: T-1813
+task_name: "agent-reply.sh scriptable receiver half of doorbell+mail loop (ack + optional reply)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T21:49:25Z
+completed: 2026-05-25T21:53:01Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "Verified `scripts/agent-respond.sh` (T-1805) already provides the receiver half: receipt ack (auto `up_to` = highest offset on the cid) + optional `--reply` turn, with `--topic`/`--peer-fp` resolution"
+  - "Verified `scripts/test-agent-respond.sh` already covers the end-to-end round-trip with the REAL agent-send.sh (Path A receipt delivery, Path B no-responder, Path V arg validation)"
+  - "Removed the redundant `scripts/agent-reply.sh` + `scripts/test-agent-reply.sh` I started before discovering T-1805 — no duplicate left in the tree"
+  - "Confirmed the existing receiver test is green after cleanup (`test-agent-respond: ALL PASS`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-25 — delete the duplicate instead of shipping a second receiver"
+    chose: "Remove `agent-reply.sh`/`test-agent-reply.sh`; keep the existing `agent-respond.sh` (T-1805) as the one receiver verb."
+    rationale: "Two scripts doing the same receipt-ack + optional-reply, composing the same primitives, would split the surface and confuse callers (and the recipe doc). One verb, one test. The marginal extras my version had (`--json`, exit-3-on-no-turn) don't justify a parallel script or churn on a tested, shipped one."
+    alternatives_rejected: ["(a) Merge `--json` into agent-respond.sh — scope creep on a working script, not asked for. (b) Add a `--await-reply`×`--reply` e2e path to test-agent-respond.sh — marginal: `--await-reply` is already proven in test-agent-send.sh Path D, and agent-respond's reply post is wire-identical to that inline post."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1813-agent-replysh-scriptable-receiver-half-o.md
+generated_by: context-agent-hybrid

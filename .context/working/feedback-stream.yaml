@@ -2721,3 +2721,20 @@ scan_id: R-31696bf5
 task_id: T-1812
 payload:
   task_file: .tasks/active/T-1812-propagate-t-1803-watchtower-foreign-port.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T21:53:07Z'
+scan_id: R-35f1d176
+task_id: T-1813
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T21:53:07Z'
+scan_id: R-35f1d176
+task_id: T-1813
+payload:
+  task_file: .tasks/active/T-1813-agent-replysh-scriptable-receiver-half-o.md
