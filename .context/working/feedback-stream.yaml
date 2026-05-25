@@ -2755,3 +2755,20 @@ scan_id: R-6f70e505
 task_id: T-1814
 payload:
   task_file: .tasks/active/T-1814-remove-eventbroadcast-fallback-from-fram.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T22:21:53Z'
+scan_id: R-2a370c38
+task_id: T-1815
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T22:21:53Z'
+scan_id: R-2a370c38
+task_id: T-1815
+payload:
+  task_file: .tasks/active/T-1815-self-audit-guard-framework-bus-bridges-m.md

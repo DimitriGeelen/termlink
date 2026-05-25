@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1815: self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T22:21:54Z
+# ============================================================================
+
+task_id: T-1815
+task_name: "self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T22:19:03Z
+completed: 2026-05-25T22:21:52Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`agents/audit/self-audit.sh` gains a \"LAYER 6: BUS BRIDGE INTEGRITY\" check"
+  - "Check PASSES against the current (T-1814-fixed) bridges and WARNS against"
+  - "G-019 gap registered as **G-061** in `.context/project/concerns.yaml`"
+  - "Edit lands upstream on `/opt/999-AEF` `origin/master` via channel-1"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1815-self-audit-guard-framework-bus-bridges-m.md
+generated_by: context-agent-hybrid

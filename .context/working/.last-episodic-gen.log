@@ -1,21 +1,21 @@
-=== episodic-gen invocation: 2026-05-25T22:08:43Z ===
-task_id: T-1814
+=== episodic-gen invocation: 2026-05-25T22:21:54Z ===
+task_id: T-1815
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1814.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1815.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Remove event.broadcast fallback from framework bus bridges (T-1166 cut-unblocker)
-  Duration: 0 days (5 min)
+  Task: self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)
+  Duration: 0 days (2 min)
   Updates: 1
   Commits: 0
   Lines: +0 -0 across 0 files
   Outcomes: 4 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1814-remove-eventbroadcast-fallback-from-fram.md
+Source: /opt/termlink/.tasks/completed/T-1815-self-audit-guard-framework-bus-bridges-m.md
 --- exit code: 0 ---

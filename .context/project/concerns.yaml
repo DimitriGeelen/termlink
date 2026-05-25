@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-061
+  type: gap
+  title: "Framework blind to bus bridges falling back to retired termlink primitives — undetected for weeks (T-1814 RCA)"
+  description: "The framework's two bus bridges (lib/pickup-channel-bridge.sh, lib/publish-learning-to-bus.sh) fell back to the legacy `termlink event broadcast` whenever their channel.post attempt failed. On .122 channel.post fails, so every pickup there re-emitted event.broadcast — the lone live caller that kept resetting T-1166's 7-day cut clean-window gate. T-1166 sat 'almost cut-ready' for weeks; the framework had NO check that would surface a bridge invoking a primitive the project is actively retiring. Only manual telemetry archaeology (grep rpc-audit.jsonl, cross-ref topics) found it. Fixed in T-1814 (fallback removed; landed upstream f87f8e97); the structural blindness is this gap."
+  spec_reference: "T-1814 (fix); T-1166 (the retirement the bridge was undermining); CLAUDE.md §Post-Fix Root Cause Escalation (G-019)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-05-26 root-cause of T-1166 cut-blocker: the lone live event.broadcast emitter was the framework's own pickup bridge fallback, undetected since the retirement bake began."
+  detection_lag_days: 16
+  what_works_now: "T-1814 removed the fallback from both bridges (channel.post failure now degrades to a logged no-op). T-1815 added a self-audit LAYER 6 guard (WARN-level) that flags any future bridge invoking a retired termlink verb (event.broadcast / inbox.* / file.send|receive) — catches regressions at self-audit time instead of via telemetry archaeology. Both landed upstream via channel-1."
+  what_remains: "(1) The guard covers only the 2 known bridge files; a future framework script invoking a retired primitive elsewhere would not be caught — widen the scan to all lib/+agents/ shell scripts only if a 2nd instance appears (avoid premature generalization). (2) Verify the guard WARNs in a real self-audit cycle against a consumer copy that has not yet pulled the fix. (3) Propagate the T-1814 fix to .122 (operator-gated) so the cut can actually go clean."
+  mitigation_candidate: "Prevention shipped (T-1815 LAYER 6). Widen scope only on recurrence."
+  status: watching
+  created: 2026-05-26
+  related_tasks: [T-1814, T-1815, T-1166]
+
 - id: G-060
   type: documentation-gap
   title: "Per-hub channel-topic semantics not documented — agents/operators may assume auto-federation that does not exist (PL-176 reframed by T-1791)"
