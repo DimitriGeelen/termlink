@@ -326,14 +326,23 @@ pub fn merge_branch(
 
 /// Check if the current directory is inside a git repository.
 pub fn is_git_repo(path: &Path) -> bool {
-    std::process::Command::new("git")
-        .args(["rev-parse", "--git-dir"])
+    git_dir_succeeds(path, &[])
+}
+
+/// Run `git rev-parse --git-dir` in `path`, optionally with extra env on the
+/// child process. `extra_env` is empty for production callers; tests use it to
+/// inject `GIT_CEILING_DIRECTORIES` so git's ancestor walk can be capped without
+/// mutating process-global env.
+fn git_dir_succeeds(path: &Path, extra_env: &[(&str, &str)]) -> bool {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(["rev-parse", "--git-dir"])
         .current_dir(path)
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .stderr(std::process::Stdio::null());
+    for (k, v) in extra_env {
+        cmd.env(k, v);
+    }
+    cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -585,8 +594,15 @@ mod tests {
 
     #[test]
     fn test_is_git_repo_on_temp_dir() {
+        // The system temp dir may itself be inside a git repo on some hosts
+        // (e.g. a stray /tmp/.git), which would make git's ancestor walk report
+        // the probe dir as "in a repo". Cap the walk at the probe's parent with
+        // GIT_CEILING_DIRECTORIES so this asserts is_git_repo's logic, not the
+        // host's /tmp state. Scoped to the child process — no global env. (T-1801)
         let tmp = tempfile::tempdir().unwrap();
-        assert!(!is_git_repo(tmp.path()));
+        let probe = std::fs::canonicalize(tmp.path()).unwrap();
+        let ceiling = probe.parent().unwrap().to_str().unwrap();
+        assert!(!git_dir_succeeds(&probe, &[("GIT_CEILING_DIRECTORIES", ceiling)]));
     }
 
     /// Helper: create a temporary git repo with an initial commit.

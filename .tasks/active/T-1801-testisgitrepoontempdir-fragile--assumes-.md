@@ -4,7 +4,7 @@ name: "test_is_git_repo_on_temp_dir fragile — assumes system temp dir is never
 description: >
   manifest::tests::test_is_git_repo_on_temp_dir asserts !is_git_repo(tempdir). is_git_repo runs 'git rev-parse --git-dir' which walks ancestors, so the test fails whenever the system temp dir is inside a git repo (this env has /tmp/.git, created 2026-05-22). Pre-existing failure, unmasked by T-1798 (the bin suite previously SIGABRT'd before reaching it). Fix: make the test hermetic — set GIT_CEILING_DIRECTORIES / GIT_DIR isolation or create the probe dir outside any repo, so it does not depend on the host /tmp not being a repo.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1798]
 created: 2026-05-25T15:01:26Z
-last_update: 2026-05-25T15:01:26Z
+last_update: 2026-05-25T17:16:58Z
 date_finished: null
 ---
 
@@ -20,14 +20,30 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`manifest::tests::test_is_git_repo_on_temp_dir` (crates/termlink-cli/src/manifest.rs:586)
+creates a tempdir under `std::env::temp_dir()` (= `/tmp`) and asserts
+`!is_git_repo(...)`. But `is_git_repo` runs `git rev-parse --git-dir`, which
+walks ancestors — and this host has a stray `/tmp/.git` (created 2026-05-22),
+so git reports the probe dir as inside a repo and the assertion fails. The
+positive test (`test_is_git_repo_on_real_repo`, line 630) is unaffected because
+the probe repo has its own `.git`, found before any ancestor walk. Pre-existing
+failure, unmasked by T-1798 (the bin suite previously SIGABRT'd before reaching it).
+
+Fix: make the negative test hermetic by capping git's ancestor walk at the probe
+dir via `GIT_CEILING_DIRECTORIES`, scoped to the spawned child process only (no
+global `std::env::set_var` — unsafe + racy under parallel tests in edition 2024).
+Production `is_git_repo` semantics (ancestor-walk, used by dispatch.rs:85 worktree
+isolation) stay identical.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `is_git_repo` refactored so the git invocation accepts per-child extra env, with the public `is_git_repo(path)` unchanged in behavior (no ceiling in prod path) — used by dispatch.rs:85 — `git_dir_succeeds(path, &[])`
+- [x] Negative test caps git's ancestor walk at the probe dir's parent via `GIT_CEILING_DIRECTORIES` on the child process, so it passes regardless of whether the host `/tmp` is itself a git repo
+- [x] `test_is_git_repo_on_temp_dir` passes on THIS host (which has `/tmp/.git`) — proven by running it (2 passed; 0 failed)
+- [x] `test_is_git_repo_on_real_repo` still passes (positive case unbroken)
+- [x] `cargo check -p termlink` is clean (1 pre-existing unrelated termlink-mcp warning)
+- [x] No `std::env::set_var` introduced (no process-global env mutation)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -45,31 +61,32 @@ date_finished: null
 -->
 
 ## Verification
-
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+cargo check -p termlink
+cargo test -p termlink --bin termlink test_is_git_repo
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `cargo test` for the termlink CLI fails on
+`manifest::tests::test_is_git_repo_on_temp_dir` — `assert!(!is_git_repo(tmp.path()))`
+trips because `is_git_repo` reports the tempdir as inside a repo.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The test assumed `std::env::temp_dir()` (`/tmp`) is never inside
+a git repo. `is_git_repo` runs `git rev-parse --git-dir`, which walks ancestors;
+this host has a stray `/tmp/.git`, so the walk from `/tmp/<probe>` finds it and
+returns success. The function is behaving correctly — the test's environmental
+assumption was the defect.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** (1) The test depended on un-controlled host state
+(`/tmp` not being a git repo) with no isolation of git's ancestor walk. (2) It
+went unnoticed because the bin unit-test target SIGABRT'd before reaching it
+(the T-1798 stack-overflow), so this assertion never actually ran in CI until
+T-1798 unmasked it.
+
+**Prevention:** Cap git's ancestor walk at the probe dir via
+`GIT_CEILING_DIRECTORIES`, scoped to the spawned child process — the test now
+asserts the contract ("a directory not inside a repo → false") independent of
+host `/tmp` state. No global env mutation, so no cross-test contamination. The
+positive test continues to cover the in-repo path.
 
 ## Evolution
 
@@ -122,3 +139,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1801-testisgitrepoontempdir-fragile--assumes-.md
 - **Context:** Initial task creation
+
+### 2026-05-25T17:16:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
