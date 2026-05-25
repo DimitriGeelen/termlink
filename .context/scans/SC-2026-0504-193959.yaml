@@ -1,0 +1,582 @@
+schema_version: 1
+scan_id: SC-2026-0504-193959
+scan_status: complete
+timestamp: '2026-05-04T19:39:59.134254+00:00'
+errors: []
+summary: 'Project: 49 active, 1 with issues, 1210 completed. 1 need decision, 2 recommendations.
+  Top priority: T-1457 (issues).'
+project_health:
+  stale_tasks: []
+  tasks_with_issues:
+  - T-1457
+  audit_status: PASS
+  traceability:
+    score: 0.9610802223987291
+    total_tasks: 1259
+    completed: 1210
+    active: 49
+  velocity:
+    tasks_per_week: 142.6
+    window_days: 30
+    completed_in_window: 611
+antifragility:
+  patterns_total: 12
+  patterns_added_since_last_scan: 12
+  learnings_graduated: 0
+  dead_letter_practices: 10
+  practice_adoption:
+    active: 21
+    with_applications: 11
+  scan_accuracy:
+    recommendations_approved: 0
+    recommendations_dismissed: 0
+    approval_rate: null
+needs_decision:
+- id: REC-001
+  type: novel_failure
+  summary: T-1457 entered issues with failure not matching any known pattern
+  evidence:
+    task: T-1457
+    name: Register identity on .141 agent-1 session (chat-arc peer-addressability
+      gap)
+  suggested_action: Diagnose and capture as new pattern
+  priority: high
+  priority_factors:
+  - rule: novel_failure_detection
+    detail: No pattern in patterns.yaml matches
+framework_recommends:
+- id: FRA-001
+  type: stale_task
+  summary: T-212 has had no update for 8 days
+  recommended_action:
+    command: fw task update
+    args: T-212 --add-note 'Flagged as stale by scan'
+  priority: medium
+  priority_factors:
+  - rule: stale_detection
+    detail: '8 days since last update (threshold: 7 days)'
+- id: FRA-002
+  type: stale_task
+  summary: T-1291 has had no update for 8 days
+  recommended_action:
+    command: fw task update
+    args: T-1291 --add-note 'Flagged as stale by scan'
+  priority: medium
+  priority_factors:
+  - rule: stale_detection
+    detail: '8 days since last update (threshold: 7 days)'
+opportunities: []
+work_queue:
+- task_id: T-1457
+  name: Register identity on .141 agent-1 session (chat-arc peer-addressability gap)
+  status: issues
+  priority: 1
+  priority_factors:
+  - rule: status
+    detail: 'Status: issues'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1166
+  name: T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primitives
+  status: started-work
+  priority: 2
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1418
+  name: Upgrade ring20-dashboard termlink-cli to T-1235 build (clear T-1166 cut blocker)
+  status: started-work
+  priority: 3
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1425
+  name: agent-to-agent contact pattern (post-T-1166 canon)
+  status: started-work
+  priority: 4
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1448
+  name: co-resident agent identity disambiguation
+  status: started-work
+  priority: 5
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1427
+  name: termlink whoami + identity binding on channel post
+  status: started-work
+  priority: 6
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1422
+  name: "Recover ring20-management hub at .122 \u2014 0.9.1591 swap left hub down"
+  status: started-work
+  priority: 7
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1423
+  name: 'fleet-deploy-binary.sh: add --probe pre-swap dry-run (PL-100 mitigation)'
+  status: started-work
+  priority: 8
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1424
+  name: Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline
+    gap)
+  status: started-work
+  priority: 9
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1426
+  name: Deprecation print on legacy primitives (inbox.push, file.send, event.broadcast)
+  status: started-work
+  priority: 10
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1429
+  name: "termlink agent contact <name> \u2014 high-level cross-host contact verb (T-1425\
+    \ pick #2)"
+  status: started-work
+  priority: 11
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1430
+  name: "channel describe \u2014 agent-chat-arc + dm:* topic self-documentation (T-1425\
+    \ pick #3)"
+  status: started-work
+  priority: 12
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1431
+  name: "/agent-handoff claude-code skill \u2014 wraps T-1429 verb (T-1425 pick #5)"
+  status: started-work
+  priority: 13
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1432
+  name: "fw fleet doctor --legacy-usage \u2014 telemetry for T-1166 cut readiness\
+    \ (T-1425 pick #6)"
+  status: started-work
+  priority: 14
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1420
+  name: "agent chat arc: deploy 0.9.1591 to laptop-141 (.141, WSL) \u2014 close 29-cmd\
+    \ gap"
+  status: started-work
+  priority: 15
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1137
+  name: "Install logrotate on proxmox host .180 \u2014 prevent /var/log full cascade\
+    \ (G-009)"
+  status: started-work
+  priority: 16
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1294
+  name: Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink
+    (T-1290 GO)
+  status: started-work
+  priority: 17
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-212
+  name: Create Homebrew tap for TermLink distribution
+  status: started-work
+  priority: 18
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1291
+  name: "Declarative heal manifest \u2014 bootstrap_from per profile in hubs.toml"
+  status: started-work
+  priority: 19
+  priority_factors:
+  - rule: status
+    detail: 'Status: started-work'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1452
+  name: 'revisit-due-scan.sh cron + handover banner integration (T-1449 Phase-1 #2)'
+  status: captured
+  priority: 20
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1480
+  name: "agent contact --require-online \u2014 Q3 fail-fast flag (T-1425 Phase-2 backlog)"
+  status: work-completed
+  priority: 21
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1481
+  name: "agent who \u2014 peer observability primitive (presence + projects + dm topics)"
+  status: work-completed
+  priority: 22
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1482
+  name: "agent presence \u2014 fleet-wide peer activity summary (companion to agent\
+    \ who)"
+  status: work-completed
+  priority: 23
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1483
+  name: "agent who --target <name> \u2014 local-resolved alternative to --target-fp"
+  status: work-completed
+  priority: 24
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1484
+  name: "agent presence --filter-project <name> \u2014 project-scoped fleet view"
+  status: work-completed
+  priority: 25
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1485
+  name: "agent contact --ack-required \u2014 synchronous engagement (T-1425 Phase-2\
+    \ backlog)"
+  status: work-completed
+  priority: 26
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1486
+  name: "agent presence --watch \u2014 live operator dashboard mode"
+  status: work-completed
+  priority: 27
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1487
+  name: "agent ping <target> \u2014 operator-facing presence check verb"
+  status: work-completed
+  priority: 28
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1488
+  name: "agent who --thread <T-XXX> \u2014 thread-scoped peer activity filter"
+  status: work-completed
+  priority: 29
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1489
+  name: "agent presence --top N \u2014 limit to N busiest peers"
+  status: work-completed
+  priority: 30
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1490
+  name: "agent presence --thread T-XXX \u2014 fleet-wide thread activity filter"
+  status: work-completed
+  priority: 31
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1491
+  name: "agent presence --by-project \u2014 fleet activity aggregated by project"
+  status: work-completed
+  priority: 32
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1492
+  name: "agent recent <peer> \u2014 show last N posts from a peer on chat-arc"
+  status: work-completed
+  priority: 33
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1493
+  name: "agent on-thread <T-XXX> \u2014 chronological log of all posts on a thread\
+    \ across all peers"
+  status: work-completed
+  priority: 34
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1494
+  name: "agent on-thread --watch \u2014 live thread-following view"
+  status: work-completed
+  priority: 35
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1495
+  name: "agent overview \u2014 single-shot fleet digest combining presence + by-project\
+    \ + recent posts"
+  status: work-completed
+  priority: 36
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1496
+  name: "agent overview --watch \u2014 live fleet dashboard"
+  status: work-completed
+  priority: 37
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1428
+  name: "Foundation soak audit \u2014 T-1426 + T-1427 ship status (2-week check)"
+  status: captured
+  priority: 38
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1451
+  name: 'revisit_at frontmatter field + template update (T-1449 Phase-1 #1)'
+  status: captured
+  priority: 39
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1453
+  name: 'fw task revisit-due CLI verb (T-1449 Phase-1 #3)'
+  status: captured
+  priority: 40
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1455
+  name: Install agent-chat-arc heartbeat cron on .121 (ring20-dashboard)
+  status: captured
+  priority: 41
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1442
+  name: Populate model_used and fallback_used in dispatch meta.json
+  status: work-completed
+  priority: 42
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1435
+  name: Identify + migrate 4919 weekly inbox.status pollers on .107 (T-1166 last-mile)
+  status: work-completed
+  priority: 43
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1415
+  name: 'T-1166 post-cut cleanup: delete retired primitive handlers + fallback paths'
+  status: captured
+  priority: 44
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1417
+  name: Migrate event.broadcast --targets fanout to parallel event.emit_to (final
+    pre-cut migration)
+  status: work-completed
+  priority: 45
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1419
+  name: 'api-usage --json: add last_seen_iso per legacy caller (post-deploy freshness)'
+  status: work-completed
+  priority: 46
+  priority_factors:
+  - rule: status
+    detail: 'Status: work-completed'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1296
+  name: "Migrate ring20-dashboard hub runtime_dir (.121) \u2014 same as T-1294"
+  status: captured
+  priority: 47
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1124
+  name: Run T-1122 WSGI migration spikes (after GO decision)
+  status: captured
+  priority: 48
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+- task_id: T-1261
+  name: 'T-1191 deferred follow-up: integration tests + bench scaffold for vte mirror
+    grid'
+  status: captured
+  priority: 49
+  priority_factors:
+  - rule: status
+    detail: 'Status: captured'
+  - rule: session_continuity
+    detail: Listed in last handover
+risks: []
+changes_since_last_scan:
+  first_scan: true
+recent_failures:
+- id: FP-003
+  pattern: dependency-version-conflict
+  description: Package version conflicts prevent installation when project has pinned
+    dependencies
+  scope: universal
+  inherited_from: framework
+  origin_task: T-026
+  mitigation: Use built-in libraries or vendored dependencies to avoid version conflicts
+- id: FP-004
+  pattern: Context exhaustion before handover
+  description: 'Agent outputs consume context faster than expected. Handover generated
+    as skeleton with [TODO] placeholders is useless for recovery.
+
+    '
+  scope: universal
+  inherited_from: framework
+  origin_task: T-059
+  mitigation: Token-aware monitoring from JSONL transcript. Commit early and often.
+    Generate handovers AFTER work, not before.
+- id: FP-005
+  pattern: Plugin authority override bypasses framework governance
+  description: 'Third-party plugins using authority-claiming language (''YOU MUST'',
+    ''BEFORE ANY response'') override framework rules. Skills rarely reference task
+    creation.
+
+    '
+  scope: universal
+  inherited_from: framework
+  origin_task: T-061
+  mitigation: Instruction precedence in CLAUDE.md, PreToolUse structural gate, plugin
+    audit tool
+- id: FP-006
+  pattern: Premature task closure with post-closure drift
+  description: 'Task marked work-completed before all work is done. Subsequent commits
+    reference a closed task. Episodic snapshot freezes at premature closure time.
+
+    '
+  scope: universal
+  inherited_from: framework
+  origin_task: T-112
+  mitigation: Acceptance criteria gate in update-task.sh. Closed task commit warning
+    in commit-msg hook.
+- id: FP-007
+  pattern: Silent error bypass
+  description: 'Agent encounters an error and silently switches to an alternative
+    approach without investigating the root cause. The original error may indicate
+    a deeper problem.
+
+    '
+  scope: universal
+  inherited_from: framework
+  origin_task: T-118
+  mitigation: 'CLAUDE.md error investigation protocol: STOP, investigate, report,
+    fix, then proceed.'
+warnings: []

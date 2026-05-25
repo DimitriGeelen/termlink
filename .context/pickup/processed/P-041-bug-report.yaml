@@ -1,0 +1,30 @@
+pickup_id: P-041
+version: 1
+type: bug-report
+source:
+  project: "agentic-engineering-framework"
+  task_id: "T-1636"
+  agent: "claude-code"
+  timestamp: "2026-05-14T05:54:11Z"
+payload:
+  summary: "inbox.queued aggregator handler not registered at hub boot — emit unreachable from CLI"
+  detail: "During framework-side joint smoke for T-1820 (paired with T-1636), the new inbox.queued event was confirmed registered in the protocol crate and the integration tests pass — but three live channel.post calls to inbox:<id> with msg-type file.init did NOT fire the event on any live framework subscriber stream (next_seq stuck, no inbox.queued in event topics).
+
+Working hypothesis: router::init_aggregator(...) is called inside the integration test setup, NOT at hub startup. The live hub has no aggregator-subscribed handler to pick up the channel post and inject inbox.queued.
+
+Evidence:
+- Built/installed cargo install --path crates/termlink-cli --force; binary 0.9.2104 active on hub PID 4091515.
+- .agentic-framework/bin/fw peer subscribe --once polls inbox.queued cleanly; topic recognized.
+- 3 posts to inbox:tl-design-smoke-target landed at offsets 0/1/2; no event fired.
+- Trigger-extract worker confirmed CLI recipe matches the test, but live behaviour differs.
+
+Three resolution paths the TermLink-side maintainer can pick:
+(A) Call router::init_aggregator(...) at hub startup so the handler is live → existing CLI recipe (channel post inbox:<id> --msg-type file.init) starts working.
+(B) Add a CLI/RPC command that bridges the post to an in-process aggregator subscriber.
+(C) Bundle this with the next delivery-path change so the emit fires in production, not just tests.
+
+Framework side is tracking the live joint smoke under T-1821 (captured/next), awaiting your resolution.
+
+Cross-refs: T-1636 commits f3927611 + 13a11741 on /opt/termlink master; framework T-1820 demo artefact at /opt/999-Agentic-Engineering-Framework/docs/reports/T-1820-joint-smoke-demo.md."
+  priority: high
+  tags: [cross-repo, joint-smoke, T-1820, T-1636, T-1821]

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1807: Two-agent >=3-turn conversation end-to-end validation (T-1800 S-5/build #4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T20:17:47Z
+# ============================================================================
+
+task_id: T-1807
+task_name: "Two-agent >=3-turn conversation end-to-end validation (T-1800 S-5/build #4)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T17:35:16Z
+completed: 2026-05-25T20:17:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-25T22:17:35+02:00
+last_commit: 2026-05-25T22:17:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  multi-turn doorbell+mail loop validated end-to-end (determinism + A-4)
+
+# Key outcomes
+outcomes:
+  - "A ≥3-turn conversation is conducted end-to-end over the doorbell+mail loop on a single `conversation_id`: each round `agent-send.sh` (post turn + doorbell + receipt wait) pairs with `agent-respond.sh` (receipt + reply). All three turns reported DELIVERED with FRESH per-turn receipts (offsets 1→4→7, not stale). Transcript captured."
+  - "**Determinism confirmed** — every sender turn (offsets 0/3/6) has a matching receipt whose `up_to` (0/3/6) equals that turn's offset; no silent drop, PL-011 satisfied per turn (incorporates the T-1808 offset-aware fix)."
+  - "**A-4 confirmed** — delivery detected purely from `channel.*` receipt envelopes; the PTY was never scraped (the doorbell `inject` targeted a non-existent session, non-fatal, and contributed nothing to detection)."
+  - "The full transcript (6 turns + 3 receipts on one conversation_id) is captured via `channel subscribe --json` and saved under `docs/reports/T-1807-doorbell-mail-loop-validation.md`."
+  - "Live two-real-claude blockers reproduced and documented (G-a: `--dangerously-skip-permissions` refused under root → allowlist required; G-b: `/check-arc` doorbell doesn't signal respond mode); recipe updated; follow-ups filed (T-1809 respond-mode signal, T-1810 live soak)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/injectable-listener-spawn-recipe.md"
+  - "docs/reports/T-1807-doorbell-mail-loop-validation.md"
+  - ".tasks/active/T-1807-two-agent-3-turn-conversation-end-to-end.md"
+  - ".tasks/active/T-1809-doorbell-respond-mode-signal--woken-chec.md"
+  - ".tasks/active/T-1810-live-two-real-claude-3-turn-soak-t-1807-.md"
+  - ".tasks/completed/T-1808-agent-sendsh-receipt-detection-not-offse.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T22:17:35"
+    action: "T-1807: multi-turn doorbell+mail loop validated end-to-end (determinism + A-4)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 162 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 162
+  commits: 1
+  files_changed: 6
+  lines_added: 383
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1807-two-agent-3-turn-conversation-end-to-end.md
+generated_by: context-agent-hybrid

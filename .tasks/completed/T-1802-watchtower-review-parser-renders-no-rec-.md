@@ -4,7 +4,7 @@ name: "Watchtower review parser renders NO-REC for tasks that have a Recommendat
 description: >
   Watchtower review parser renders NO-REC for tasks that have a Recommendation block (T-1612)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T15:35:39Z
-last_update: 2026-05-25T15:35:39Z
-date_finished: null
+last_update: 2026-05-25T15:41:13Z
+date_finished: 2026-05-25T15:41:13Z
 ---
 
 # T-1802: Watchtower review parser renders NO-REC for tasks that have a Recommendation block (T-1612)
@@ -149,3 +149,20 @@ deterministic per-project `PORT` is the operative guard.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1802-watchtower-review-parser-renders-no-rec-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-870cebce
+- **Timestamp:** 2026-05-25T15:41:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Proved the parser is NOT the bug: termlink's `extract_recommendation` returns `verdict=="GO"` + non-empty raw for the exact T-1612 body, via the server's own import path (`PROJECT_ROOT=/opt/termlink`,
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/web/shared.py in: Proved the parser is NOT the bug: termlink's `extract_recommendation` returns `verdict=="GO"` + non-empty raw for the exact T-1612 body, via the serve`
+
+### 2026-05-25T15:41:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

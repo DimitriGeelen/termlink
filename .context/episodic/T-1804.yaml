@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1804: Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T17:35:40Z
+# ============================================================================
+
+task_id: T-1804
+task_name: "Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T17:28:59Z
+completed: 2026-05-25T17:35:31Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-25T19:35:27+02:00
+last_commit: 2026-05-25T19:35:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  deterministic doorbell+mail send verb (T-1800 build #1)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-send.sh` exists, is executable, and accepts: target session (for the doorbell), dm topic OR peer fingerprint (for mail), message text, a conversation id (auto-generated if omitted), per-attempt timeout, and max re-ring attempts — with `--help` and arg validation (verified: `--help`, missing-message → rc 2, no-topic/peer → rc 2)"
+  - "Happy path: posts the turn, rings the doorbell, then polls the dm topic filtered by `conversation_id` for a `msg_type=receipt`; on receipt it prints the delivered offset and exits 0 (smoke PASS A)"
+  - "Failure path: when no receipt arrives, it re-rings up to the cap (one ring per attempt), then exits non-zero with a clear \"not acked after N attempts\" message — never claims success on hub-accept alone (PL-011) (smoke PASS B: rc 3 after 3 rings)"
+  - "Doorbell (`inject`) failure is non-fatal to the post (turn is still posted + still waits for receipt) and is surfaced as a warning, so a missing/renamed listener session doesn't lose the mail (smoke targets a non-existent session; mail still posts + receipt still detected)"
+  - "Smoke test `scripts/test-agent-send.sh` against a local hub proves BOTH paths: (a) self-posted receipt → script exits 0 with the offset; (b) no receipt → script re-rings the capped number of times then exits non-zero. Test uses the local hub and cleans up via mktemp+trap (ALL PASS)"
+  - "`bash -n scripts/agent-send.sh` and `bash -n scripts/test-agent-send.sh` parse clean; `shellcheck` has no errors (clean, no output)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-send.sh"
+  - "scripts/test-agent-send.sh"
+  - ".tasks/active/T-1804-deterministic-doorbellmail-send-verb--po.md"
+  - ".tasks/active/T-1805-pickup-and-respond-ritual--check-arc-rea.md"
+  - ".tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md"
+  - ".tasks/active/T-1807-two-agent-3-turn-conversation-end-to-end.md"
+  - ".tasks/completed/T-1793-auto-federated-channel-topics-across-hub.md"
+  - ".tasks/completed/T-1800-interactive-agent-conversation-runtime--.md"
+  - ".tasks/completed/T-1801-testisgitrepoontempdir-fragile--assumes-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T19:35:27"
+    action: "T-1804: deterministic doorbell+mail send verb (T-1800 build #1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 7
+  lines_added: 694
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1804-deterministic-doorbellmail-send-verb--po.md
+generated_by: context-agent-hybrid

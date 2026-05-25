@@ -4,19 +4,29 @@ Surface pending agent-chat-arc DMs targeted at this agent. Read-side counterpart
 to `/agent-handoff`. Walks `dm:<self-fp>:*` topics, computes unread counts via
 `termlink channel unread`, renders a Slack-style summary.
 
-**Invocation:** `/check-arc` (no arguments)
+**Invocation:**
+
+- `/check-arc` (no arguments) → **Browse mode** (read-only).
+- `/check-arc respond` → **Respond mode** (ack + reply). This is the form
+  `agent-send.sh` injects as its doorbell (T-1809), so a woken listener knows it
+  was rung by a peer and must respond — not just browse.
 
 This skill has two modes:
 
 - **Browse mode (default, manual)** — read-only. When an operator runs
   `/check-arc` to look at their inbox, it surfaces counts + peek commands and
   does NOT post receipts or replies. The caller acks explicitly per topic.
-- **Respond mode (woken by a doorbell)** — when this skill fires because a peer
-  rang the doorbell (`agent-send.sh` injects `/check-arc` after posting a turn,
-  T-1804), the woken agent should ack each unread conversation so the SENDER
-  learns delivery, then reply. See "Step 6 — Respond mode" below. The ack is
-  delegated to the deterministic `scripts/agent-respond.sh` (T-1805) so the
-  receipt is the exact shape `agent-send.sh` polls for.
+- **Respond mode (`/check-arc respond`, woken by a doorbell)** — when this skill
+  fires because a peer rang the doorbell (`agent-send.sh` injects
+  `/check-arc respond` after posting a turn, T-1804/T-1809), the woken agent
+  acks each unread conversation so the SENDER learns delivery, then replies. Go
+  straight to "Step 6 — Respond mode" below. The ack is delegated to the
+  deterministic `scripts/agent-respond.sh` (T-1805) so the receipt is the exact
+  shape `agent-send.sh` polls for.
+
+**Argument contract:** if the skill is invoked with the argument `respond` (i.e.
+`$ARGUMENTS` contains `respond`), branch to Step 6 (Respond mode) after Steps 1–4
+gather the unread set. Otherwise run Steps 1–5 (browse) and stop before Step 6.
 
 ## Step 1: Resolve self identity fingerprint
 

@@ -4,7 +4,7 @@ name: "Auto-federated channel topics across hubs — does the fleet want it? (T-
 description: >
   Inception: Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: later
@@ -14,8 +14,8 @@ related_tasks: [T-1791, T-1166, T-1792]
 revisit_at: 2026-08-21
 revisit_evidence_needed: "Multiple agents independently surprised by per-hub channel-topic semantics despite T-1792 documentation, OR a concrete fleet-wide coordination workflow emerges that client-driven cross-posting can't serve cleanly."
 created: 2026-05-21T19:14:37Z
-last_update: 2026-05-21T19:16:21Z
-date_finished: null
+last_update: 2026-05-25T17:27:58Z
+date_finished: 2026-05-25T17:27:58Z
 ---
 
 # T-1793: Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)
@@ -48,15 +48,15 @@ date_finished: null
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -113,7 +113,11 @@ T-1791 inception established TermLink has no inter-hub channel-topic federation 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: T-1791 inception established TermLink has no inter-hub channel-topic federation primitive; cross-hub coordination is client-driven. This optional follow-up explores whether to ADD auto-federation as a feature. Benefits: cleaner agent UX, single source of truth across fleet, no need to remember --hub or remote_call for shared topics. Costs: state-sync complexity, consistency model choices (last-write-wins? vector clocks? CRDTs?), conflict resolution, bandwidth amplification on every post, ordering guarantees across hubs, retention divergence handling. Parked at horizon=later because: T-1166 retirement is not blocked, current client-driven pattern works correctly when used, and the architectural cost is significant. Revisit when: multiple agents independently surprised by per-hub semantics despite documentation (G-060 stays alive), OR a concrete fleet-wide coordination workflow emerges that the client-driven pattern can't serve cleanly.
+
+**Date**: 2026-05-25T17:27:58Z
 
 ## Updates
 
@@ -123,3 +127,21 @@ T-1791 inception established TermLink has no inter-hub channel-topic federation 
 ### 2026-05-21T19:16:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-05-25T17:27:58Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** T-1791 inception established TermLink has no inter-hub channel-topic federation primitive; cross-hub coordination is client-driven. This optional follow-up explores whether to ADD auto-federation as a feature. Benefits: cleaner agent UX, single source of truth across fleet, no need to remember --hub or remote_call for shared topics. Costs: state-sync complexity, consistency model choices (last-write-wins? vector clocks? CRDTs?), conflict resolution, bandwidth amplification on every post, ordering guarantees across hubs, retention divergence handling. Parked at horizon=later because: T-1166 retirement is not blocked, current client-driven pattern works correctly when used, and the architectural cost is significant. Revisit when: multiple agents independently surprised by per-hub semantics despite documentation (G-060 stays alive), OR a concrete fleet-wide coordination workflow emerges that the client-driven pattern can't serve cleanly.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-74d323e5
+- **Timestamp:** 2026-05-25T17:27:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T17:27:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

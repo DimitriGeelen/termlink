@@ -4,16 +4,16 @@ name: "test_is_git_repo_on_temp_dir fragile — assumes system temp dir is never
 description: >
   manifest::tests::test_is_git_repo_on_temp_dir asserts !is_git_repo(tempdir). is_git_repo runs 'git rev-parse --git-dir' which walks ancestors, so the test fails whenever the system temp dir is inside a git repo (this env has /tmp/.git, created 2026-05-22). Pre-existing failure, unmasked by T-1798 (the bin suite previously SIGABRT'd before reaching it). Fix: make the test hermetic — set GIT_CEILING_DIRECTORIES / GIT_DIR isolation or create the probe dir outside any repo, so it does not depend on the host /tmp not being a repo.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/manifest.rs]
 related_tasks: [T-1798]
 created: 2026-05-25T15:01:26Z
-last_update: 2026-05-25T17:16:58Z
-date_finished: null
+last_update: 2026-05-25T17:19:56Z
+date_finished: 2026-05-25T17:19:56Z
 ---
 
 # T-1801: test_is_git_repo_on_temp_dir fragile — assumes system temp dir is never a git repo
@@ -142,3 +142,15 @@ positive test continues to cover the in-repo path.
 
 ### 2026-05-25T17:16:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-385b2bda
+- **Timestamp:** 2026-05-25T17:20:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T17:19:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

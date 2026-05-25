@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1806: Injectable-listener spawn recipe + governance doc (T-1800 build #3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T20:05:39Z
+# ============================================================================
+
+task_id: T-1806
+task_name: "Injectable-listener spawn recipe + governance doc (T-1800 build #3)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T17:35:12Z
+completed: 2026-05-25T20:05:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-25T22:05:33+02:00
+last_commit: 2026-05-25T22:05:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  injectable-listener spawn recipe + governance doc (T-1800 build #3); finalize T-1805 --switch-focus
+
+# Key outcomes
+outcomes:
+  - "`docs/operations/injectable-listener-spawn-recipe.md` exists and documents the canonical recipe to run a persistent injectable Claude listener: a long-lived `termlink` PTY session running `claude` in DEFAULT permission mode, explicitly NOT `claude -p` (with the re-pay-context-per-call rationale)."
+  - "The doc specifies the two sanctioned governance modes — `FW_SAFE_MODE=1` (keeps Tier-0 + budget gates, drops only the task gate) OR running the listener under its own `started-work` task — and explicitly warns against an ungoverned `/tmp` session (drops Tier-0 + budget + project-boundary protections), per the T-1800 Evidence."
+  - "The doc ties the recipe to the full doorbell+mail loop: doorbell (`agent-send.sh` injecting `/check-arc`, T-1804) wakes the listener → `/check-arc` respond mode (T-1805) → `agent-respond.sh` posts receipt+reply. It cross-references both scripts by path, and both referenced scripts exist on disk."
+  - "The doc includes a copy-pasteable spawn command block, an injectability verification step (confirm the session shows up and accepts an inject), and a teardown step."
+  - "The doc notes the `Bash(termlink:*)` allowlist requirement so the woken listener can post receipts/replies hands-free."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1805.yaml"
+  - "docs/operations/injectable-listener-spawn-recipe.md"
+  - ".fabric/components/scripts-agent-respond.yaml"
+  - ".fabric/components/scripts-test-agent-respond.yaml"
+  - ".tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md"
+  - ".tasks/completed/T-1805-pickup-and-respond-ritual--check-arc-rea.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T22:05:33"
+    action: "T-1806: injectable-listener spawn recipe + governance doc (T-1800 build #3); finalize T-1805 --switch-focus"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 150 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 150
+  commits: 1
+  files_changed: 6
+  lines_added: 267
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1806-injectable-listener-spawn-recipe--govern.md
+generated_by: context-agent-hybrid

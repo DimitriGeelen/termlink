@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1798: Fix cli_tests event_watch stack-overflow aborting bin test run
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T15:03:19Z
+# ============================================================================
+
+task_id: T-1798
+task_name: "Fix cli_tests event_watch stack-overflow aborting bin test run"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-22T07:07:04Z
+completed: 2026-05-25T15:02:50Z
+duration_days: 3
+updates_count: 2
+first_commit: 2026-05-25T17:02:45+02:00
+last_commit: 2026-05-25T17:02:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  pin RUST_MIN_STACK to fix bin test suite SIGABRT
+
+# Key outcomes
+outcomes:
+  - "Root cause of the stack overflow identified and documented in the RCA section (the specific recursion/setup gap, not \"the code was wrong\") — stack-size, not recursion: see RCA"
+  - "Fix adds a termination/bound (or corrects the faulty path) so `event_watch_without_hub_accepts_targets` runs to completion without SIGABRT — `.cargo/config.toml` sets `RUST_MIN_STACK=16 MiB` for cargo-invoked test threads"
+  - "The previously-crashing test passes in isolation — `cargo test -p termlink --bin termlink event_watch_without_hub_accepts_targets` → 1 passed (via config, no inline env)"
+  - "The full bin (`--bin termlink`) test binary runs to completion with no process abort — 782 passed, 1 failed, no SIGABRT/overflow (finished in 30s)"
+  - "`cargo check -p termlink` passes"
+  - "No unrelated test regressed — the single failure (`manifest::tests::test_is_git_repo_on_temp_dir`) is pre-existing + environment-dependent (`/tmp/.git` present), was masked by the prior SIGABRT, and is filed as T-1801. Not a regression of this change (stack env cannot affect git detection; confirmed by isolation run)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "pin RUST_MIN_STACK to fix bin test suite SIGABRT"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".cargo/config.toml"
+  - ".tasks/active/T-1798-fix-clitests-eventwatch-stack-overflow-a.md"
+  - ".tasks/active/T-1801-testisgitrepoontempdir-fragile--assumes-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T17:02:45"
+    action: "T-1798: pin RUST_MIN_STACK to fix bin test suite SIGABRT"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4795 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4795
+  commits: 1
+  files_changed: 3
+  lines_added: 181
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1798-fix-clitests-eventwatch-stack-overflow-a.md
+generated_by: context-agent-hybrid

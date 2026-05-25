@@ -2013,3 +2013,10 @@ learnings:
   date: 2026-05-22
   context: Added via context agent
   application: TBD
+- id: PL-180
+  learning: "Secret purge is NOT complete after git filter-repo: it leaves refs/replace/* (one per rewritten commit) that anchor the OLD pre-rewrite objects, so the secret survives in dangling blobs even though git log --all -S and rev-list --all are clean. Full purge = delete all refs/replace/* (git for-each-ref --format='delete %(refname)' refs/replace | git update-ref --stdin) + git reflog expire --expire=now --expire-unreachable=now --all + git gc --prune=now, then PROVE via git cat-file --batch-all-objects scan (not just reachable history). T-1799: .git went 322M->35M after purge."
+  source: P-002
+  task: T-1799
+  date: 2026-05-22
+  context: Added via context agent
+  application: TBD

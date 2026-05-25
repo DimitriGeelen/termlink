@@ -4,7 +4,7 @@ name: "agent-send.sh receipt detection not offset-aware — false DELIVERED on m
 description: >
   agent-send.sh accepts any receipt for the cid rather than one acking the posted turn; on turn 2+ of a same-cid conversation the prior turn's receipt yields false DELIVERED. Fix: require receipt up_to >= post_offset. Found during T-1807 e2e validation.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T20:12:40Z
-last_update: 2026-05-25T20:12:51Z
-date_finished: null
+last_update: 2026-05-25T20:14:15Z
+date_finished: 2026-05-25T20:14:15Z
 ---
 
 # T-1808: agent-send.sh receipt detection not offset-aware — false DELIVERED on multi-turn
@@ -152,3 +152,15 @@ fail this test.
 
 ### 2026-05-25T20:12:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-3326e2a8
+- **Timestamp:** 2026-05-25T20:14:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T20:14:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

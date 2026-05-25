@@ -4,16 +4,16 @@ name: "Doorbell respond-mode signal — woken /check-arc must enter respond mode
 description: >
   G-b from T-1807: agent-send.sh injects /check-arc as the doorbell, but /check-arc defaults to read-only browse mode. A woken listener has no way to know it was rung by a peer (ack+reply) vs invoked manually (read-only), so a live claude reads the turn but never posts a receipt and the sender never sees DELIVERED. Add an explicit respond-mode signal (e.g. /check-arc --respond, or a distinct doorbell text the skill recognizes) so a woken listener auto-acks via agent-respond.sh. Blocks T-1810.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T20:16:19Z
-last_update: 2026-05-25T20:16:19Z
-date_finished: null
+last_update: 2026-05-25T20:19:37Z
+date_finished: 2026-05-25T20:19:37Z
 ---
 
 # T-1809: Doorbell respond-mode signal — woken /check-arc must enter respond mode not browse
@@ -26,8 +26,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/agent-send.sh` default doorbell text changes from `/check-arc` to a respond-signalling form (`/check-arc respond`) so a woken listener enters respond mode, not read-only browse. `--doorbell-text` override still works. (verified: ring output shows `inject '/check-arc respond'`)
+- [x] `.claude/commands/check-arc.md` recognizes the `respond` argument: when invoked as `/check-arc respond` it enters Respond mode (Step 6) directly; bare `/check-arc` still defaults to read-only browse mode. The arg contract is documented in the Invocation section.
+- [x] The doorbell-text change does not regress the loop: `scripts/test-agent-send.sh` and `scripts/test-agent-respond.sh` still ALL PASS (they target a non-existent doorbell session, so the inject text is non-fatal and irrelevant to receipt detection).
+- [x] `bash -n` + `shellcheck` clean on `scripts/agent-send.sh`; the skill markdown documents both invocation forms (browse vs respond).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -54,6 +56,12 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+bash -n scripts/agent-send.sh
+shellcheck scripts/agent-send.sh
+grep -q "check-arc respond" scripts/agent-send.sh
+grep -q "respond" .claude/commands/check-arc.md
+bash scripts/test-agent-send.sh
+bash scripts/test-agent-respond.sh
 
 ## RCA
 
@@ -122,3 +130,19 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1809-doorbell-respond-mode-signal--woken-chec.md
 - **Context:** Initial task creation
+
+### 2026-05-25T20:18:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-cc631525
+- **Timestamp:** 2026-05-25T20:19:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T20:19:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

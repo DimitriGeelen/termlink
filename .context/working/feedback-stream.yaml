@@ -1,0 +1,2672 @@
+# Reviewer feedback stream (T-1443 v1.0, Spike I)
+# Append-only. Events separated by ---.
+# Schema: kind, timestamp, scan_id, task_id, payload
+---
+kind: scan_emitted
+timestamp: '2026-05-15T23:31:47Z'
+scan_id: R-6ee176f3
+task_id: T-1636
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-15T23:31:47Z'
+scan_id: R-6ee176f3
+task_id: T-1636
+payload:
+  task_file: .tasks/active/T-1636-v2-peer-consult-slice-1-termlink-half--.md
+---
+kind: scan_emitted
+timestamp: '2026-05-15T23:39:57Z'
+scan_id: R-537f5358
+task_id: T-1642
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-15T23:39:57Z'
+scan_id: R-537f5358
+task_id: T-1642
+payload:
+  task_file: .tasks/active/T-1642-vendor-reviewer-policy--pythonpath-fix--.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T07:23:05Z'
+scan_id: R-cfb7b111
+task_id: T-1644
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T07:23:05Z'
+scan_id: R-cfb7b111
+task_id: T-1644
+payload:
+  task_file: .tasks/active/T-1644-termlink-agent-contact-surface-agent-cha.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T07:56:50Z'
+scan_id: R-48e23aea
+task_id: T-1646
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T07:56:50Z'
+scan_id: R-48e23aea
+task_id: T-1646
+payload:
+  task_file: .tasks/active/T-1646-termlink-agent-contact-add---file-path-f.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T08:47:38Z'
+scan_id: R-2612d94d
+task_id: T-1645
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T08:47:38Z'
+scan_id: R-2612d94d
+task_id: T-1645
+payload:
+  task_file: .tasks/active/T-1645-pickup-t-1820-rerun-inboxqueued-emit-on-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T08:58:54Z'
+scan_id: R-12ffef6c
+task_id: T-1647
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T08:58:54Z'
+scan_id: R-12ffef6c
+task_id: T-1647
+payload:
+  task_file: .tasks/active/T-1647-mcp-termlinkeventsubscribe-hub-level-sup.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T21:37:48Z'
+scan_id: R-38c25ee4
+task_id: T-1648
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T21:37:48Z'
+scan_id: R-38c25ee4
+task_id: T-1648
+payload:
+  task_file: .tasks/active/T-1648-fleet-doctor--suggest---bootstrap-from-a.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T21:56:51Z'
+scan_id: R-80d41889
+task_id: T-1649
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T21:56:51Z'
+scan_id: R-80d41889
+task_id: T-1649
+payload:
+  task_file: .tasks/active/T-1649-fleet-doctor-cmdfleetdoctor-hmac-mismatc.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T22:19:46Z'
+scan_id: R-2982b6db
+task_id: T-1650
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T22:19:46Z'
+scan_id: R-2982b6db
+task_id: T-1650
+payload:
+  task_file: .tasks/active/T-1650-remote-profile-list--surface-bootstrapfr.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T22:38:00Z'
+scan_id: R-fdb3dc3e
+task_id: T-1651
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T22:38:00Z'
+scan_id: R-fdb3dc3e
+task_id: T-1651
+payload:
+  task_file: .tasks/active/T-1651-remote-profile-add--tip-when---bootstrap.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T22:56:29Z'
+scan_id: R-df8b1b03
+task_id: T-1652
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T22:56:29Z'
+scan_id: R-df8b1b03
+task_id: T-1652
+payload:
+  task_file: .tasks/active/T-1652-fleet-doctor--status--secretfile-perms-w.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T23:02:05Z'
+scan_id: R-4b4a2018
+task_id: T-1653
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T23:02:05Z'
+scan_id: R-4b4a2018
+task_id: T-1653
+payload:
+  task_file: .tasks/active/T-1653-remote-profile-listadd--secretfile-perms.md
+---
+kind: scan_emitted
+timestamp: '2026-05-16T23:10:14Z'
+scan_id: R-fb9de914
+task_id: T-1654
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-16T23:10:14Z'
+scan_id: R-fb9de914
+task_id: T-1654
+payload:
+  task_file: .tasks/active/T-1654-termlink-doctor---fix-auto-chmod-600-on-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T13:54:04Z'
+scan_id: R-13f7860b
+task_id: T-1655
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T13:54:04Z'
+scan_id: R-13f7860b
+task_id: T-1655
+payload:
+  task_file: .tasks/active/T-1655-tag-12-genuinely-standalone-fabric-cards.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T14:07:44Z'
+scan_id: R-80bde7b9
+task_id: T-1656
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T14:07:44Z'
+scan_id: R-80bde7b9
+task_id: T-1656
+payload:
+  task_file: .tasks/active/T-1656-hub-export-secret--read-live-alternative.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T14:36:11Z'
+scan_id: R-63170ffe
+task_id: T-1657
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T14:36:11Z'
+scan_id: R-63170ffe
+task_id: T-1657
+payload:
+  task_file: .tasks/active/T-1657-hub-fingerprint--print-tls-cert-sha256-f.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T15:46:09Z'
+scan_id: R-1db04ccd
+task_id: T-1658
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T15:46:09Z'
+scan_id: R-1db04ccd
+task_id: T-1658
+payload:
+  task_file: .tasks/active/T-1658-hub-probe--tls-handshake-to-addr-print-r.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T15:56:09Z'
+scan_id: R-d87b14b1
+task_id: T-1659
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T15:56:09Z'
+scan_id: R-d87b14b1
+task_id: T-1659
+payload:
+  task_file: .tasks/active/T-1659-tofu-verify-addr--probe-wire-fingerprint.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T16:13:08Z'
+scan_id: R-ea6c72cc
+task_id: T-1660
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T16:13:08Z'
+scan_id: R-ea6c72cc
+task_id: T-1660
+payload:
+  task_file: .tasks/active/T-1660-fleet-verify--run-tofu-verify-across-all.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T17:49:57Z'
+scan_id: R-2550c885
+task_id: T-1661
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T17:49:57Z'
+scan_id: R-2550c885
+task_id: T-1661
+payload:
+  task_file: .tasks/active/T-1661-mcp-exposure-for-fleet-verify--parity-wi.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T18:24:49Z'
+scan_id: R-8a3406b0
+task_id: T-1662
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T18:24:49Z'
+scan_id: R-8a3406b0
+task_id: T-1662
+payload:
+  task_file: .tasks/active/T-1662-document-rotation-protocol-detection-ver.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T18:39:18Z'
+scan_id: R-8f39cf97
+task_id: T-1663
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T18:39:18Z'
+scan_id: R-8f39cf97
+task_id: T-1663
+payload:
+  task_file: .tasks/active/T-1663-mcp-parity-for-hub-probe--tofu-verify-pr.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T18:56:29Z'
+scan_id: R-264a9b05
+task_id: T-1664
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T18:56:29Z'
+scan_id: R-264a9b05
+task_id: T-1664
+payload:
+  task_file: .tasks/active/T-1664-episodic-generator-emits-invalid-yaml-on.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T19:22:38Z'
+scan_id: R-d4ec45fc
+task_id: T-1666
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T19:22:38Z'
+scan_id: R-d4ec45fc
+task_id: T-1666
+payload:
+  task_file: .tasks/active/T-1666-fleet-doctor---include-pin-check--unify-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T19:53:30Z'
+scan_id: R-2e3368c8
+task_id: T-1667
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T19:53:30Z'
+scan_id: R-2e3368c8
+task_id: T-1667
+payload:
+  task_file: .tasks/active/T-1667-fleet-doctor---watch-mode-for-continuous.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:00:52Z'
+scan_id: R-1a1369f1
+task_id: T-1668
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:00:52Z'
+scan_id: R-1a1369f1
+task_id: T-1668
+payload:
+  task_file: .tasks/active/T-1668-document-t-1666t-1667-in-claudemd-rotati.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:07:21Z'
+scan_id: R-e52538a8
+task_id: T-1669
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:07:21Z'
+scan_id: R-e52538a8
+task_id: T-1669
+payload:
+  task_file: .tasks/active/T-1669-fleet-doctor---watch---notify-cmd--exec-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:09:40Z'
+scan_id: R-bbed747c
+task_id: T-1670
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:09:40Z'
+scan_id: R-bbed747c
+task_id: T-1670
+payload:
+  task_file: .tasks/active/T-1670-document-t-1669---notify-in-claudemd-rot.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:30:37Z'
+scan_id: R-0fb0ab52
+task_id: T-1671
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:30:37Z'
+scan_id: R-0fb0ab52
+task_id: T-1671
+payload:
+  task_file: .tasks/active/T-1671-fleet-history-verb--rotation-log-persist.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:32:23Z'
+scan_id: R-e2b8016f
+task_id: T-1672
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:32:23Z'
+scan_id: R-e2b8016f
+task_id: T-1672
+payload:
+  task_file: .tasks/active/T-1672-document-t-1671-fleet-history-in-claudem.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:42:10Z'
+scan_id: R-fee60c29
+task_id: T-1673
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:42:10Z'
+scan_id: R-fee60c29
+task_id: T-1673
+payload:
+  task_file: .tasks/active/T-1673-tag-v0100-release--land-rotation-protoco.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T20:57:38Z'
+scan_id: R-6a1c1617
+task_id: T-1674
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T20:57:38Z'
+scan_id: R-6a1c1617
+task_id: T-1674
+payload:
+  task_file: .tasks/active/T-1674-fleet-doctor---include-pin-check-bound-p.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T21:09:49Z'
+scan_id: R-6ee91c95
+task_id: T-1675
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T21:09:49Z'
+scan_id: R-6ee91c95
+task_id: T-1675
+payload:
+  task_file: .tasks/active/T-1675-tofuprobecertwithtimeout--pull-t-1674-ti.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T21:42:43Z'
+scan_id: R-710250b0
+task_id: T-1676
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T21:42:43Z'
+scan_id: R-710250b0
+task_id: T-1676
+payload:
+  task_file: .tasks/active/T-1676-fleet-doctor---watch---notify-include-te.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T21:56:58Z'
+scan_id: R-9a583a73
+task_id: T-1677
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T21:56:58Z'
+scan_id: R-9a583a73
+task_id: T-1677
+payload:
+  task_file: .tasks/active/T-1677-clientconnectaddrwithtimeout-primitive--.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T22:06:57Z'
+scan_id: R-20867553
+task_id: T-1678
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T22:06:57Z'
+scan_id: R-20867553
+task_id: T-1678
+payload:
+  task_file: .tasks/active/T-1678-migrate-remaining-6-operator-facing-conn.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T22:18:39Z'
+scan_id: R-6d0e40d0
+task_id: T-1679
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T22:18:39Z'
+scan_id: R-6d0e40d0
+task_id: T-1679
+payload:
+  task_file: .tasks/active/T-1679-fleet-reauth---all-drifted-bulk-heal-all.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T22:31:33Z'
+scan_id: R-db91ed9d
+task_id: T-1680
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T22:31:33Z'
+scan_id: R-db91ed9d
+task_id: T-1680
+payload:
+  task_file: .tasks/active/T-1680-fleet-doctor---watch---auto-heal-built-i.md
+---
+kind: scan_emitted
+timestamp: '2026-05-17T22:47:47Z'
+scan_id: R-29508041
+task_id: T-1681
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-17T22:47:47Z'
+scan_id: R-29508041
+task_id: T-1681
+payload:
+  task_file: .tasks/active/T-1681-extend---auto-heal-to-fire-on-connauth-m.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:09:24Z'
+scan_id: R-48e796f5
+task_id: T-1682
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:09:24Z'
+scan_id: R-48e796f5
+task_id: T-1682
+payload:
+  task_file: .tasks/active/T-1682-watch-loop-auth-mismatch-parsing-broken-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:15:45Z'
+scan_id: R-9e29c2fe
+task_id: T-1683
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:15:45Z'
+scan_id: R-9e29c2fe
+task_id: T-1683
+payload:
+  task_file: .tasks/active/T-1683-fleet-doctor---auto-heal-one-shot--heal-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:23:36Z'
+scan_id: R-be6e8c6e
+task_id: T-1684
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:23:36Z'
+scan_id: R-be6e8c6e
+task_id: T-1684
+payload:
+  task_file: .tasks/active/T-1684-fleet-doctor---auto-heal---dry-run--prin.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:28:26Z'
+scan_id: R-5d98f77f
+task_id: T-1685
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:28:26Z'
+scan_id: R-5d98f77f
+task_id: T-1685
+payload:
+  task_file: .tasks/active/T-1685-heallog-audit-trail--fire-and-forget-aut.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:33:16Z'
+scan_id: R-698f9ebe
+task_id: T-1686
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:33:16Z'
+scan_id: R-698f9ebe
+task_id: T-1686
+payload:
+  task_file: .tasks/active/T-1686-fleet-history---include-heals--merge-hea.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T06:57:03Z'
+scan_id: R-789eb036
+task_id: T-1687
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T06:57:03Z'
+scan_id: R-789eb036
+task_id: T-1687
+payload:
+  task_file: .tasks/active/T-1687-mcp-exposure-termlinkfleethistory---incl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T07:08:45Z'
+scan_id: R-d5e93cbe
+task_id: T-1688
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T07:08:45Z'
+scan_id: R-d5e93cbe
+task_id: T-1688
+payload:
+  task_file: .tasks/active/T-1688-fleet-bootstrap-check--preflight-validat.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T07:23:48Z'
+scan_id: R-bf8281f7
+task_id: T-1689
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T07:23:48Z'
+scan_id: R-bf8281f7
+task_id: T-1689
+payload:
+  task_file: .tasks/active/T-1689-mcp-exposure-termlinkfleetbootstrapcheck.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T08:48:36Z'
+scan_id: R-182db2ca
+task_id: T-1691
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T08:48:36Z'
+scan_id: R-182db2ca
+task_id: T-1691
+payload:
+  task_file: .tasks/active/T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T09:14:55Z'
+scan_id: R-3f3e88f0
+task_id: T-1690
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T09:14:55Z'
+scan_id: R-3f3e88f0
+task_id: T-1690
+payload:
+  task_file: .tasks/active/T-1690-fleet-history---analyze-detect-pl-021-fl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T09:38:17Z'
+scan_id: R-e05a3387
+task_id: T-1694
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T09:38:17Z'
+scan_id: R-e05a3387
+task_id: T-1694
+payload:
+  task_file: .tasks/active/T-1694-expose-envelope-metadata-on-termlinkchan.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T10:50:16Z'
+scan_id: R-923ac7c9
+task_id: T-1696
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T10:50:16Z'
+scan_id: R-923ac7c9
+task_id: T-1696
+payload:
+  task_file: .tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T18:36:39Z'
+scan_id: R-c7f4c2b9
+task_id: T-1455
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T18:36:39Z'
+scan_id: R-c7f4c2b9
+task_id: T-1455
+payload:
+  task_file: .tasks/active/T-1455-install-agent-chat-arc-heartbeat-cron-on.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T21:02:14Z'
+scan_id: R-cc17c6af
+task_id: T-1692
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T21:02:14Z'
+scan_id: R-cc17c6af
+task_id: T-1692
+payload:
+  task_file: .tasks/active/T-1692-mcp-channelpost-metadata-exposure--close.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T21:02:27Z'
+scan_id: R-f6e1cb5e
+task_id: T-1693
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T21:02:27Z'
+scan_id: R-f6e1cb5e
+task_id: T-1693
+payload:
+  task_file: .tasks/active/T-1693-per-agent-ed25519-signing-identity-on-sh.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T21:19:39Z'
+scan_id: R-52404986
+task_id: T-1698
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T21:19:39Z'
+scan_id: R-52404986
+task_id: T-1698
+payload:
+  task_file: .tasks/active/T-1698-auto-heal-infrastructure-dormant--no-boo.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T22:21:39Z'
+scan_id: R-378d6aca
+task_id: T-1700
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T22:21:39Z'
+scan_id: R-378d6aca
+task_id: T-1700
+payload:
+  task_file: .tasks/active/T-1700-termlink-register---identity-key-per-age.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T22:26:06Z'
+scan_id: R-94e656f6
+task_id: T-1701
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T22:26:06Z'
+scan_id: R-94e656f6
+task_id: T-1701
+payload:
+  task_file: .tasks/active/T-1701-termlink-register---self---identity-key-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T22:28:12Z'
+scan_id: R-bd668654
+task_id: T-1702
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T22:28:12Z'
+scan_id: R-bd668654
+task_id: T-1702
+payload:
+  task_file: .tasks/active/T-1702-docsmigrations-guide-for-per-agent-ident.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T22:29:27Z'
+scan_id: R-e931b06e
+task_id: T-1703
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T22:29:27Z'
+scan_id: R-e931b06e
+task_id: T-1703
+payload:
+  task_file: .tasks/active/T-1703-t-1700-series-archival--t-1701-episodic-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-18T23:00:18Z'
+scan_id: R-fd4d0f48
+task_id: T-1704
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-18T23:00:18Z'
+scan_id: R-fd4d0f48
+task_id: T-1704
+payload:
+  task_file: .tasks/active/T-1704-whoami-hint-when-identity-is-host-shared.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T06:28:31Z'
+scan_id: R-52085e7f
+task_id: T-1705
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T06:28:31Z'
+scan_id: R-52085e7f
+task_id: T-1705
+payload:
+  task_file: .tasks/active/T-1705-termlink-doctor-shared-identity-check-dr.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T06:56:19Z'
+scan_id: R-f04c1f95
+task_id: T-1706
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T06:56:19Z'
+scan_id: R-f04c1f95
+task_id: T-1706
+payload:
+  task_file: .tasks/active/T-1706-termlinkdoctor-mcp--identity-check-parit.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T07:18:22Z'
+scan_id: R-966d81f8
+task_id: T-1707
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T07:18:22Z'
+scan_id: R-966d81f8
+task_id: T-1707
+payload:
+  task_file: .tasks/active/T-1707-termlinkfleetdoctor-mcp--add---legacy-us.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T07:27:49Z'
+scan_id: R-d114b33b
+task_id: T-1708
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T07:27:49Z'
+scan_id: R-d114b33b
+task_id: T-1708
+payload:
+  task_file: .tasks/active/T-1708-termlinkfleetdoctor-mcp--add-includepinc.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T07:36:07Z'
+scan_id: R-26a80614
+task_id: T-1709
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T07:36:07Z'
+scan_id: R-26a80614
+task_id: T-1709
+payload:
+  task_file: .tasks/active/T-1709-termlinkfleetdoctor-mcp--add-topicdurabi.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T12:14:13Z'
+scan_id: R-e53ded6f
+task_id: T-1710
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T12:14:13Z'
+scan_id: R-e53ded6f
+task_id: T-1710
+payload:
+  task_file: .tasks/active/T-1710-termlinkfleethistory-mcp--add-analyze-pl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T12:19:05Z'
+scan_id: R-950420d3
+task_id: T-1711
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T12:19:05Z'
+scan_id: R-950420d3
+task_id: T-1711
+payload:
+  task_file: .tasks/active/T-1711-termlinkfleetstatus-mcp--add-verbose-fla.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T12:23:37Z'
+scan_id: R-a20781df
+task_id: T-1712
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T12:23:37Z'
+scan_id: R-a20781df
+task_id: T-1712
+payload:
+  task_file: .tasks/active/T-1712-termlinkdoctor-mcp--add-strict-flag-warn.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T14:15:31Z'
+scan_id: R-ed200679
+task_id: T-1713
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T14:15:31Z'
+scan_id: R-ed200679
+task_id: T-1713
+payload:
+  task_file: .tasks/active/T-1713-termlinkfleetdoctor-mcp--add-autohealpre.md
+---
+kind: scan_emitted
+timestamp: '2026-05-19T14:30:23Z'
+scan_id: R-b4b876d5
+task_id: T-1714
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-19T14:30:23Z'
+scan_id: R-b4b876d5
+task_id: T-1714
+payload:
+  task_file: .tasks/active/T-1714-termlinkfleetdoctor-mcp--validateanchors.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T06:55:56Z'
+scan_id: R-0927548e
+task_id: T-1721
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T06:55:56Z'
+scan_id: R-0927548e
+task_id: T-1721
+payload:
+  task_file: .tasks/active/T-1721-fix-t-1696-canary-cron-format--installed.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T10:17:49Z'
+scan_id: R-540b1273
+task_id: T-1720
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T10:17:49Z'
+scan_id: R-540b1273
+task_id: T-1720
+payload:
+  task_file: .tasks/active/T-1720-termlinkagentidentity-mcp--local-fp-self.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T18:42:50Z'
+scan_id: R-e95463bc
+task_id: T-1725
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T18:42:50Z'
+scan_id: R-e95463bc
+task_id: T-1725
+payload:
+  task_file: .tasks/active/T-1725-verify-project-pre-commit-hook-runs-secr.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T18:46:17Z'
+scan_id: R-8e3496aa
+task_id: T-1724
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T18:46:17Z'
+scan_id: R-8e3496aa
+task_id: T-1724
+payload:
+  task_file: .tasks/active/T-1724-capture-pl-175-runtime-signature-alone-r.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T18:56:45Z'
+scan_id: R-1a7ca20d
+task_id: T-1728
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T18:56:45Z'
+scan_id: R-1a7ca20d
+task_id: T-1728
+payload:
+  task_file: .tasks/active/T-1728-termlinkfleetreauth-mcp--single-shot-hea.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:25:28Z'
+scan_id: R-b6c7355f
+task_id: T-1715
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:25:28Z'
+scan_id: R-b6c7355f
+task_id: T-1715
+payload:
+  task_file: .tasks/active/T-1715-termlinkagentcontact-mcp--parity-with-cl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:25:34Z'
+scan_id: R-31db1418
+task_id: T-1716
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:25:34Z'
+scan_id: R-31db1418
+task_id: T-1716
+payload:
+  task_file: .tasks/active/T-1716-termlinkagentcontact-mcp-v2--add-require.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:25:40Z'
+scan_id: R-9d27036f
+task_id: T-1717
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:25:40Z'
+scan_id: R-9d27036f
+task_id: T-1717
+payload:
+  task_file: .tasks/active/T-1717-termlinkagentcontact-mcp-v3--add-bodyfil.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:25:47Z'
+scan_id: R-c7593a09
+task_id: T-1718
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:25:47Z'
+scan_id: R-c7593a09
+task_id: T-1718
+payload:
+  task_file: .tasks/active/T-1718-termlinkagentping-mcp--single-peer-liven.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:35:18Z'
+scan_id: R-8ffa171f
+task_id: T-1719
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:35:18Z'
+scan_id: R-8ffa171f
+task_id: T-1719
+payload:
+  task_file: .tasks/active/T-1719-termlinkagentdms-mcp--dm-topic-directory.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T19:50:37Z'
+scan_id: R-12117041
+task_id: T-1729
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T19:50:37Z'
+scan_id: R-12117041
+task_id: T-1729
+payload:
+  task_file: .tasks/active/T-1729-termlinkagentinbox-mcp--cross-topic-unre.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T20:04:14Z'
+scan_id: R-8b88fcbe
+task_id: T-1730
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T20:04:14Z'
+scan_id: R-8b88fcbe
+task_id: T-1730
+payload:
+  task_file: .tasks/active/T-1730-termlinkagentmentions-mcp--find--mention.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T20:16:42Z'
+scan_id: R-7331659a
+task_id: T-1731
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T20:16:42Z'
+scan_id: R-7331659a
+task_id: T-1731
+payload:
+  task_file: .tasks/active/T-1731-termlinkagenttypers-mcp--list-active-typ.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T21:29:25Z'
+scan_id: R-1bbc2238
+task_id: T-1732
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T21:29:25Z'
+scan_id: R-1bbc2238
+task_id: T-1732
+payload:
+  task_file: .tasks/active/T-1732-termlinkagentthreads-mcp--list-thread-ro.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T21:35:30Z'
+scan_id: R-b2de88b3
+task_id: T-1733
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T21:35:30Z'
+scan_id: R-b2de88b3
+task_id: T-1733
+payload:
+  task_file: .tasks/active/T-1733-termlinkagentthread-mcp--read-full-threa.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T21:40:00Z'
+scan_id: R-fe0da026
+task_id: T-1734
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T21:40:00Z'
+scan_id: R-fe0da026
+task_id: T-1734
+payload:
+  task_file: .tasks/active/T-1734-termlinkagentrepliesof-mcp--list-all-rep.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T21:43:52Z'
+scan_id: R-35bcce34
+task_id: T-1735
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T21:43:52Z'
+scan_id: R-35bcce34
+task_id: T-1735
+payload:
+  task_file: .tasks/active/T-1735-termlinkagentreactionsof-mcp--list-react.md
+---
+kind: scan_emitted
+timestamp: '2026-05-20T21:47:32Z'
+scan_id: R-d975ccfa
+task_id: T-1736
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-20T21:47:32Z'
+scan_id: R-d975ccfa
+task_id: T-1736
+payload:
+  task_file: .tasks/active/T-1736-termlinkagentforwardsof-mcp--list-forwar.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T06:21:14Z'
+scan_id: R-84e9e609
+task_id: T-1737
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T06:21:14Z'
+scan_id: R-84e9e609
+task_id: T-1737
+payload:
+  task_file: .tasks/active/T-1737-termlinkagentrelations-mcp--unified-rela.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T06:27:00Z'
+scan_id: R-0c04a31c
+task_id: T-1738
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T06:27:00Z'
+scan_id: R-0c04a31c
+task_id: T-1738
+payload:
+  task_file: .tasks/active/T-1738-termlinkagentsnippet-mcp--windowed-conte.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T06:51:56Z'
+scan_id: R-e1ac680c
+task_id: T-1739
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T06:51:56Z'
+scan_id: R-e1ac680c
+task_id: T-1739
+payload:
+  task_file: .tasks/active/T-1739-termlinkagenttimeline-mcp--chronological.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T06:57:01Z'
+scan_id: R-4ad12f3f
+task_id: T-1740
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T06:57:01Z'
+scan_id: R-4ad12f3f
+task_id: T-1740
+payload:
+  task_file: .tasks/active/T-1740-termlinkagentstats-mcp--chat-arc-activit.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:10:00Z'
+scan_id: R-438bc72d
+task_id: T-1741
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:10:00Z'
+scan_id: R-438bc72d
+task_id: T-1741
+payload:
+  task_file: .tasks/active/T-1741-termlinkagentoverview-mcp--composite-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:18:43Z'
+scan_id: R-09b7ea43
+task_id: T-1742
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:18:43Z'
+scan_id: R-09b7ea43
+task_id: T-1742
+payload:
+  task_file: .tasks/active/T-1742-align-mcp-cli-defaults--timeline--overvi.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:38:42Z'
+scan_id: R-cca380b5
+task_id: T-1743
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:38:42Z'
+scan_id: R-cca380b5
+task_id: T-1743
+payload:
+  task_file: .tasks/active/T-1743-termlinkagentlisten-mcp--agentrequest-po.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:43:47Z'
+scan_id: R-71f6e633
+task_id: T-1744
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:43:47Z'
+scan_id: R-71f6e633
+task_id: T-1744
+payload:
+  task_file: .tasks/active/T-1744-termlinkhubfingerprint--termlinkhubexpor.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:50:20Z'
+scan_id: R-40e896d4
+task_id: T-1745
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:50:20Z'
+scan_id: R-40e896d4
+task_id: T-1745
+payload:
+  task_file: .tasks/active/T-1745-termlinkchannelstate-mcp--canonical-stat.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:54:28Z'
+scan_id: R-7ae7e5e0
+task_id: T-1746
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:54:28Z'
+scan_id: R-7ae7e5e0
+task_id: T-1746
+payload:
+  task_file: .tasks/active/T-1746-termlinkchannelmembers-mcp--per-sender-a.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T07:58:10Z'
+scan_id: R-30005962
+task_id: T-1747
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T07:58:10Z'
+scan_id: R-30005962
+task_id: T-1747
+payload:
+  task_file: .tasks/active/T-1747-termlinkchannelsnapshot-mcp--point-in-ti.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:12:04Z'
+scan_id: R-66e9c0a7
+task_id: T-1748
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:12:04Z'
+scan_id: R-66e9c0a7
+task_id: T-1748
+payload:
+  task_file: .tasks/active/T-1748-termlinkchannelstatesince-mcp--increment.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:17:09Z'
+scan_id: R-25bbfef7
+task_id: T-1749
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:17:09Z'
+scan_id: R-25bbfef7
+task_id: T-1749
+payload:
+  task_file: .tasks/active/T-1749-termlinkchannelsnapshotdiff-mcp--typed-s.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:21:18Z'
+scan_id: R-e3880f70
+task_id: T-1750
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:21:18Z'
+scan_id: R-e3880f70
+task_id: T-1750
+payload:
+  task_file: .tasks/active/T-1750-termlinkchannelackhistory-mcp--chronolog.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:25:42Z'
+scan_id: R-82d38678
+task_id: T-1751
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:25:42Z'
+scan_id: R-82d38678
+task_id: T-1751
+payload:
+  task_file: .tasks/active/T-1751-termlinkchanneleditsof-mcp--chronologica.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:29:52Z'
+scan_id: R-1c406f73
+task_id: T-1752
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:29:52Z'
+scan_id: R-1c406f73
+task_id: T-1752
+payload:
+  task_file: .tasks/active/T-1752-termlinkchannelpinhistory-mcp--pinunpin-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:34:00Z'
+scan_id: R-e42e8307
+task_id: T-1753
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:34:00Z'
+scan_id: R-e42e8307
+task_id: T-1753
+payload:
+  task_file: .tasks/active/T-1753-termlinkchannelredactions-mcp--chronolog.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T08:40:41Z'
+scan_id: R-2b68358b
+task_id: T-1754
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T08:40:41Z'
+scan_id: R-2b68358b
+task_id: T-1754
+payload:
+  task_file: .tasks/active/T-1754-termlinkchannelthreads-mcp--thread-roots.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:00:11Z'
+scan_id: R-00f9b687
+task_id: T-1755
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:00:11Z'
+scan_id: R-00f9b687
+task_id: T-1755
+payload:
+  task_file: .tasks/active/T-1755-termlinkchanneltopicstats-mcp--full-topi.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:03:50Z'
+scan_id: R-30fac0f6
+task_id: T-1756
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:03:50Z'
+scan_id: R-30fac0f6
+task_id: T-1756
+payload:
+  task_file: .tasks/active/T-1756-termlinkchannelrelations-mcp--per-offset.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:07:24Z'
+scan_id: R-c2e61312
+task_id: T-1757
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:07:24Z'
+scan_id: R-c2e61312
+task_id: T-1757
+payload:
+  task_file: .tasks/active/T-1757-termlinkchannelunread-mcp--unread-count-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:11:16Z'
+scan_id: R-5ae17a1a
+task_id: T-1758
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:11:16Z'
+scan_id: R-5ae17a1a
+task_id: T-1758
+payload:
+  task_file: .tasks/active/T-1758-termlinkchannelpinned-mcp--current-pin-s.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:15:08Z'
+scan_id: R-c36c80fb
+task_id: T-1759
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:15:08Z'
+scan_id: R-c36c80fb
+task_id: T-1759
+payload:
+  task_file: .tasks/active/T-1759-termlinkchannelstarred-mcp--current-star.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T10:19:09Z'
+scan_id: R-f9cb2139
+task_id: T-1760
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T10:19:09Z'
+scan_id: R-f9cb2139
+task_id: T-1760
+payload:
+  task_file: .tasks/active/T-1760-termlinkchannelackstatus-mcp--per-sender.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:22:03Z'
+scan_id: R-2e32c94b
+task_id: T-1761
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:22:03Z'
+scan_id: R-2e32c94b
+task_id: T-1761
+payload:
+  task_file: .tasks/active/T-1761-termlinkchanneldescribe-mcp--set-arbitra.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:28:58Z'
+scan_id: R-80ef39c4
+task_id: T-1762
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:28:58Z'
+scan_id: R-80ef39c4
+task_id: T-1762
+payload:
+  task_file: .tasks/active/T-1762-termlinkchannelancestors-mcp--reply-chai.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:33:00Z'
+scan_id: R-cd0ec923
+task_id: T-1763
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:33:00Z'
+scan_id: R-cd0ec923
+task_id: T-1763
+payload:
+  task_file: .tasks/active/T-1763-termlinkchannelemojistats-mcp--per-emoji.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:37:33Z'
+scan_id: R-69c69326
+task_id: T-1764
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:37:33Z'
+scan_id: R-69c69326
+task_id: T-1764
+payload:
+  task_file: .tasks/active/T-1764-termlinkchanneldigest-mcp--period-summar.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:40:47Z'
+scan_id: R-f90ba465
+task_id: T-1765
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:40:47Z'
+scan_id: R-f90ba465
+task_id: T-1765
+payload:
+  task_file: .tasks/active/T-1765-termlinkchannelsnippet-mcp--windowed-con.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:43:46Z'
+scan_id: R-9edebd25
+task_id: T-1766
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:43:46Z'
+scan_id: R-9edebd25
+task_id: T-1766
+payload:
+  task_file: .tasks/active/T-1766-termlinkchannelreactionsof-mcp--per-send.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T12:47:46Z'
+scan_id: R-05fbb1ca
+task_id: T-1767
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T12:47:46Z'
+scan_id: R-05fbb1ca
+task_id: T-1767
+payload:
+  task_file: .tasks/active/T-1767-termlinkchannelreactionson-mcp--per-targ.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:23:55Z'
+scan_id: R-b4a3e1fd
+task_id: T-1768
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:23:55Z'
+scan_id: R-b4a3e1fd
+task_id: T-1768
+payload:
+  task_file: .tasks/active/T-1768-termlinkchanneleditstats-mcp--topic-wide.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:27:46Z'
+scan_id: R-b29f8302
+task_id: T-1769
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:27:46Z'
+scan_id: R-b29f8302
+task_id: T-1769
+payload:
+  task_file: .tasks/active/T-1769-termlinkchannelquotestats-mcp--per-targe.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:31:04Z'
+scan_id: R-8cdfe4b7
+task_id: T-1770
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:31:04Z'
+scan_id: R-8cdfe4b7
+task_id: T-1770
+payload:
+  task_file: .tasks/active/T-1770-termlinkchannelmentionsof-mcp--topic-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:36:21Z'
+scan_id: R-df9d3c52
+task_id: T-1771
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:36:21Z'
+scan_id: R-df9d3c52
+task_id: T-1771
+payload:
+  task_file: .tasks/active/T-1771-termlinkchannelsearch-mcp--topic-flexibl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:39:12Z'
+scan_id: R-00aabc5c
+task_id: T-1772
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:39:12Z'
+scan_id: R-00aabc5c
+task_id: T-1772
+payload:
+  task_file: .tasks/active/T-1772-termlinkchannelforwardsof-mcp--topic-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T13:41:55Z'
+scan_id: R-94e24139
+task_id: T-1773
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T13:41:55Z'
+scan_id: R-94e24139
+task_id: T-1773
+payload:
+  task_file: .tasks/active/T-1773-termlinkchanneltypinglist-mcp--topic-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:18:15Z'
+scan_id: R-4e94712e
+task_id: T-1774
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:18:15Z'
+scan_id: R-4e94712e
+task_id: T-1774
+payload:
+  task_file: .tasks/active/T-1774-termlinkchannelrepliesof-mcp--topic-flex.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:21:40Z'
+scan_id: R-1292bc97
+task_id: T-1775
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:21:40Z'
+scan_id: R-1292bc97
+task_id: T-1775
+payload:
+  task_file: .tasks/active/T-1775-termlinkchanneltypingemit-mcp--topic-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:25:19Z'
+scan_id: R-a6423bb2
+task_id: T-1776
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:25:19Z'
+scan_id: R-a6423bb2
+task_id: T-1776
+payload:
+  task_file: .tasks/active/T-1776-termlinkchannelthread-mcp--topic-flexibl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:28:47Z'
+scan_id: R-19e183ae
+task_id: T-1777
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:28:47Z'
+scan_id: R-19e183ae
+task_id: T-1777
+payload:
+  task_file: .tasks/active/T-1777-termlinkchannelmentions-mcp--cross-topic.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:31:43Z'
+scan_id: R-a5fccb59
+task_id: T-1778
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:31:43Z'
+scan_id: R-a5fccb59
+task_id: T-1778
+payload:
+  task_file: .tasks/active/T-1778-termlinkchannelreact-mcp--topic-flexible.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:34:22Z'
+scan_id: R-dc7c70f5
+task_id: T-1779
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:34:22Z'
+scan_id: R-dc7c70f5
+task_id: T-1779
+payload:
+  task_file: .tasks/active/T-1779-termlinkchannelpin-mcp--topic-flexible-p.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:37:04Z'
+scan_id: R-2bad4f37
+task_id: T-1780
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:37:04Z'
+scan_id: R-2bad4f37
+task_id: T-1780
+payload:
+  task_file: .tasks/active/T-1780-termlinkchannelstar-mcp--topic-flexible-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:39:31Z'
+scan_id: R-ddd21c41
+task_id: T-1781
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:39:31Z'
+scan_id: R-ddd21c41
+task_id: T-1781
+payload:
+  task_file: .tasks/active/T-1781-termlinkchannelredact-mcp--topic-flexibl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T15:42:16Z'
+scan_id: R-fcce0506
+task_id: T-1782
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T15:42:16Z'
+scan_id: R-fcce0506
+task_id: T-1782
+payload:
+  task_file: .tasks/active/T-1782-termlinkchanneledit-mcp--topic-flexible-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:20:02Z'
+scan_id: R-d34e97bd
+task_id: T-1783
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:20:02Z'
+scan_id: R-d34e97bd
+task_id: T-1783
+payload:
+  task_file: .tasks/active/T-1783-termlinkchannelack-mcp--topic-flexible-r.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:24:08Z'
+scan_id: R-1bfe2c8a
+task_id: T-1784
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:24:08Z'
+scan_id: R-1bfe2c8a
+task_id: T-1784
+payload:
+  task_file: .tasks/active/T-1784-termlinkchannelreply-mcp--topic-flexible.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:29:37Z'
+scan_id: R-aa7cc217
+task_id: T-1785
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:29:37Z'
+scan_id: R-aa7cc217
+task_id: T-1785
+payload:
+  task_file: .tasks/active/T-1785-termlinkchannelquote-mcp--topic-flexible.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:32:33Z'
+scan_id: R-c9ef6df3
+task_id: T-1786
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:32:33Z'
+scan_id: R-c9ef6df3
+task_id: T-1786
+payload:
+  task_file: .tasks/active/T-1786-termlinkchannelforward-mcp--re-post-enve.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:36:34Z'
+scan_id: R-7f22e81b
+task_id: T-1787
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:36:34Z'
+scan_id: R-7f22e81b
+task_id: T-1787
+payload:
+  task_file: .tasks/active/T-1787-termlinkchannelreceipts-mcp--topic-flexi.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T17:41:53Z'
+scan_id: R-62a75686
+task_id: T-1788
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T17:41:53Z'
+scan_id: R-62a75686
+task_id: T-1788
+payload:
+  task_file: .tasks/active/T-1788-termlinkchannelpoll-family-mcp--topic-fl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T18:22:16Z'
+scan_id: R-b9c83da0
+task_id: T-1789
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T18:22:16Z'
+scan_id: R-b9c83da0
+task_id: T-1789
+payload:
+  task_file: .tasks/active/T-1789-termlinkchannelpollresults-mcp--topic-fl.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T18:27:26Z'
+scan_id: R-326ed69a
+task_id: T-1790
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T18:27:26Z'
+scan_id: R-326ed69a
+task_id: T-1790
+payload:
+  task_file: .tasks/active/T-1790-termlinkchannelinfo-mcp--topic-flexible-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T22:30:58Z'
+scan_id: R-9a70453f
+task_id: T-1792
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T22:30:58Z'
+scan_id: R-9a70453f
+task_id: T-1792
+payload:
+  task_file: .tasks/active/T-1792-document-per-hub-channel-topic-semantics.md
+---
+kind: scan_emitted
+timestamp: '2026-05-21T22:56:28Z'
+scan_id: R-041a45da
+task_id: T-1794
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-21T22:56:28Z'
+scan_id: R-041a45da
+task_id: T-1794
+payload:
+  task_file: .tasks/active/T-1794-pl-177-skip-rationale-docstrings-on-chan.md
+---
+kind: scan_emitted
+timestamp: '2026-05-22T07:04:40Z'
+scan_id: R-d98f28ec
+task_id: T-1797
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-22T07:04:40Z'
+scan_id: R-d98f28ec
+task_id: T-1797
+payload:
+  task_file: .tasks/active/T-1797-repair-broken-bin-test-compilation--cmdf.md
+---
+kind: scan_emitted
+timestamp: '2026-05-22T07:06:34Z'
+scan_id: R-0d9caeb6
+task_id: T-1795
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-22T07:06:34Z'
+scan_id: R-0d9caeb6
+task_id: T-1795
+payload:
+  task_file: .tasks/active/T-1795-fix-agent-on-thread-returns-empty--fetch.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T15:03:18Z'
+scan_id: R-1dc934ac
+task_id: T-1798
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T15:03:18Z'
+scan_id: R-1dc934ac
+task_id: T-1798
+payload:
+  task_file: .tasks/active/T-1798-fix-clitests-eventwatch-stack-overflow-a.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T15:41:14Z'
+scan_id: R-870cebce
+task_id: T-1802
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T15:41:14Z'
+scan_id: R-870cebce
+task_id: T-1802
+payload:
+  task_file: .tasks/active/T-1802-watchtower-review-parser-renders-no-rec-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T17:20:18Z'
+scan_id: R-385b2bda
+task_id: T-1801
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T17:20:18Z'
+scan_id: R-385b2bda
+task_id: T-1801
+payload:
+  task_file: .tasks/active/T-1801-testisgitrepoontempdir-fragile--assumes-.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T17:27:13Z'
+scan_id: R-f6f15c16
+task_id: T-1800
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T17:27:13Z'
+scan_id: R-f6f15c16
+task_id: T-1800
+payload:
+  task_file: .tasks/active/T-1800-interactive-agent-conversation-runtime--.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T17:27:58Z'
+scan_id: R-74d323e5
+task_id: T-1793
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T17:27:58Z'
+scan_id: R-74d323e5
+task_id: T-1793
+payload:
+  task_file: .tasks/active/T-1793-auto-federated-channel-topics-across-hub.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T17:35:38Z'
+scan_id: R-3bc0e4bb
+task_id: T-1804
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T17:35:38Z'
+scan_id: R-3bc0e4bb
+task_id: T-1804
+payload:
+  task_file: .tasks/active/T-1804-deterministic-doorbellmail-send-verb--po.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T20:03:05Z'
+scan_id: R-c9c5d195
+task_id: T-1805
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T20:03:05Z'
+scan_id: R-c9c5d195
+task_id: T-1805
+payload:
+  task_file: .tasks/active/T-1805-pickup-and-respond-ritual--check-arc-rea.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T20:05:37Z'
+scan_id: R-d71ee75b
+task_id: T-1806
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T20:05:37Z'
+scan_id: R-d71ee75b
+task_id: T-1806
+payload:
+  task_file: .tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T20:14:27Z'
+scan_id: R-3326e2a8
+task_id: T-1808
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T20:14:27Z'
+scan_id: R-3326e2a8
+task_id: T-1808
+payload:
+  task_file: .tasks/active/T-1808-agent-sendsh-receipt-detection-not-offse.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T20:17:45Z'
+scan_id: R-c67923be
+task_id: T-1807
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T20:17:45Z'
+scan_id: R-c67923be
+task_id: T-1807
+payload:
+  task_file: .tasks/active/T-1807-two-agent-3-turn-conversation-end-to-end.md
+---
+kind: scan_emitted
+timestamp: '2026-05-25T20:19:49Z'
+scan_id: R-cc631525
+task_id: T-1809
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-05-25T20:19:49Z'
+scan_id: R-cc631525
+task_id: T-1809
+payload:
+  task_file: .tasks/active/T-1809-doorbell-respond-mode-signal--woken-chec.md

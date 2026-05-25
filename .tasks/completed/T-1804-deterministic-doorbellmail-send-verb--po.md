@@ -4,16 +4,16 @@ name: "Deterministic doorbell+mail send verb — post turn + ring doorbell + rec
 description: >
   Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-hub/src/aggregator.rs, crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
 related_tasks: []
 created: 2026-05-25T17:28:59Z
-last_update: 2026-05-25T17:28:59Z
-date_finished: null
+last_update: 2026-05-25T17:35:31Z
+date_finished: 2026-05-25T17:35:31Z
 ---
 
 # T-1804: Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)
@@ -135,3 +135,15 @@ bash scripts/test-agent-send.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1804-deterministic-doorbellmail-send-verb--po.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-3bc0e4bb
+- **Timestamp:** 2026-05-25T17:35:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T17:35:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

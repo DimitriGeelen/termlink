@@ -4,7 +4,7 @@ name: "Injectable-listener spawn recipe + governance doc (T-1800 build #3)"
 description: >
   T-1800 build #3. Document the canonical recipe to run a persistent injectable Claude listener: persistent termlink --shell session + claude (default permission mode, NOT claude -p), governed via FW_SAFE_MODE=1 (keeps Tier-0+budget) OR its own started-work task, with Bash(termlink:*) allowlisted for hands-free replies. Per T-1800 Evidence: do NOT use ungoverned /tmp (drops Tier-0+budget+boundary). Write to docs/operations/.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T17:35:12Z
-last_update: 2026-05-25T20:03:36Z
-date_finished: null
+last_update: 2026-05-25T20:05:37Z
+date_finished: 2026-05-25T20:05:37Z
 ---
 
 # T-1806: Injectable-listener spawn recipe + governance doc (T-1800 build #3)
@@ -138,3 +138,15 @@ test -f scripts/agent-respond.sh
 ### 2026-05-25T20:03:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-d71ee75b
+- **Timestamp:** 2026-05-25T20:05:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T20:05:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

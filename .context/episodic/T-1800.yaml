@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1800: Interactive agent conversation runtime — deterministic doorbell+mail auto-pickup loop (close T-243 runtime gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T17:27:15Z
+# ============================================================================
+
+task_id: T-1800
+task_name: "Interactive agent conversation runtime — deterministic doorbell+mail auto-pickup loop (close T-243 runtime gap)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T09:41:44Z
+completed: 2026-05-25T17:27:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-25T11:44:16+02:00
+last_commit: 2026-05-25T12:00:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file deep inception — interactive agent conversation runtime (doorbell+mail). spike findings S-1/S-3 — doorbell mechanism proven; root+bypassPermissions blocker
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/assumptions.yaml"
+  - "docs/reports/T-1800-interactive-agent-conversation-runtime-inception.md"
+  - ".tasks/active/T-1800-interactive-agent-conversation-runtime--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T11:44:16"
+    action: "T-1800: file deep inception — interactive agent conversation runtime (doorbell+mail)"
+  - time: "2026-05-25T12:00:30"
+    action: "T-1800: spike findings S-1/S-3 — doorbell mechanism proven; root+bypassPermissions blocker"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 465 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 465
+  commits: 2
+  files_changed: 3
+  lines_added: 340
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1800-interactive-agent-conversation-runtime--.md
+generated_by: context-agent-hybrid

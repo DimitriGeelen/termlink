@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1802: Watchtower review parser renders NO-REC for tasks that have a Recommendation block (T-1612)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T15:41:15Z
+# ============================================================================
+
+task_id: T-1802
+task_name: "Watchtower review parser renders NO-REC for tasks that have a Recommendation block (T-1612)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T15:35:39Z
+completed: 2026-05-25T15:41:13Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-25T17:41:09+02:00
+last_commit: 2026-05-25T17:41:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix Watchtower wrong-dashboard — termlink url/port pointed at neighbor project's :3001
+
+# Key outcomes
+outcomes:
+  - "Proved the parser is NOT the bug: termlink's `extract_recommendation` returns `verdict==\"GO\"` + non-empty raw for the exact T-1612 body, via the server's own import path (`PROJECT_ROOT=/opt/termlink`, `.agentic-framework/web/shared.py`, `_find_task_file`)"
+  - "Identified true cause: termlink `watchtower.url`/`watchtower.port` advertised `:3001`, which is the 050-email-archive Watchtower (`PROJECT_ROOT=/opt/050-email-archive`, pid 1245149); termlink's real instance is `:3003` (pid 1711352)"
+  - "Corrected termlink's `.context/working/watchtower.url` and `watchtower.port` to `:3003` (matching the actually-bound port; `pid` was already correct)"
+  - "Verified the corrected URL renders termlink's T-1612 (G-054 task) as `Recommendation — GO`, not 050's inbox-nav NO-REC"
+  - "Pinned termlink `PORT=3003` (`fw config set PORT 3003`) so future `watchtower restart` is deterministic and the triple cannot drift onto a neighbor's port"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fix Watchtower wrong-dashboard — termlink url/port pointed at neighbor project's :3001"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/watchtower.port"
+  - ".context/working/watchtower.url"
+  - ".framework.yaml"
+  - ".tasks/active/T-1802-watchtower-review-parser-renders-no-rec-.md"
+  - ".tasks/active/T-1803-watchtower-shared-launcher-deterministic.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T17:41:09"
+    action: "T-1802: fix Watchtower wrong-dashboard — termlink url/port pointed at neighbor project's :3001"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 278
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1802-watchtower-review-parser-renders-no-rec-.md
+generated_by: context-agent-hybrid

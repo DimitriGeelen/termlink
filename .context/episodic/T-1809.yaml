@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1809: Doorbell respond-mode signal — woken /check-arc must enter respond mode not browse
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T20:19:50Z
+# ============================================================================
+
+task_id: T-1809
+task_name: "Doorbell respond-mode signal — woken /check-arc must enter respond mode not browse"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T20:16:19Z
+completed: 2026-05-25T20:19:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-25T22:19:29+02:00
+last_commit: 2026-05-25T22:19:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  doorbell signals respond mode — /check-arc respond; finalize T-1807 --switch-focus
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-send.sh` default doorbell text changes from `/check-arc` to a respond-signalling form (`/check-arc respond`) so a woken listener enters respond mode, not read-only browse. `--doorbell-text` override still works. (verified: ring output shows `inject '/check-arc respond'`)"
+  - "`.claude/commands/check-arc.md` recognizes the `respond` argument: when invoked as `/check-arc respond` it enters Respond mode (Step 6) directly; bare `/check-arc` still defaults to read-only browse mode. The arg contract is documented in the Invocation section."
+  - "The doorbell-text change does not regress the loop: `scripts/test-agent-send.sh` and `scripts/test-agent-respond.sh` still ALL PASS (they target a non-existent doorbell session, so the inject text is non-fatal and irrelevant to receipt detection)."
+  - "`bash -n` + `shellcheck` clean on `scripts/agent-send.sh`; the skill markdown documents both invocation forms (browse vs respond)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/completed/T-1807-two-agent-3-turn-conversation-end-to-end.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T22:19:29"
+    action: "T-1809: doorbell signals respond mode — /check-arc respond; finalize T-1807 --switch-focus"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 1
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1809-doorbell-respond-mode-signal--woken-chec.md
+generated_by: context-agent-hybrid

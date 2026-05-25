@@ -90,3 +90,32 @@ bypasses:
   command_hash: bbc913c8260a56618980328a286afb31e3681806036230fc96f8049aa4b50af2
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-05-20T08:58:34Z'
+  tier: 0
+  risk: 'FORCE PUSH: Can overwrite remote commit history'
+  command_preview: 'echo "=== Fetch OneDev''s current state to set lease ==="
+
+    git fetch origin main 2>&1 | tail -3
+
+    LEASE=$(git rev-parse orig'
+  command_hash: 6096524f54420866e769e0a7e3b045ee2b40223f8496b07e7c338512d0daca2d
+  authorized_by: human
+  mechanism: fw tier0 approve
+- timestamp: '2026-05-20T08:59:20Z'
+  tier: 0
+  risk: 'FORCE PUSH: Can overwrite remote commit history'
+  command_preview: 'ONEDEV_URL="https://onedev.docker.ring20.geelenandcompany.com"
+
+    TOKEN=$(git remote get-url origin | sed ''s|.*//\([^@]*\)@'
+  command_hash: fb0ef5fff3d822963935655718b2c22e88f0a41744af3c8c59bcdb92e4b4e716
+  authorized_by: human
+  mechanism: fw tier0 approve
+- timestamp: '2026-05-20T09:00:48Z'
+  tier: 0
+  risk: 'FORCE PUSH: Can overwrite remote commit history'
+  command_preview: 'ONEDEV_URL="https://onedev.docker.ring20.geelenandcompany.com"
+
+    TOKEN=$(git remote get-url origin | sed ''s|.*//\([^@]*\)@'
+  command_hash: 11127f02bba31ee4c9b9baf87dc53cc4ec2110e5b9295bac2997485f1b7aa0bf
+  authorized_by: human
+  mechanism: fw tier0 approve
