@@ -176,3 +176,49 @@ assumptions:
   linked_task: T-1791
   created: '2026-05-21'
   resolved_date: '2026-05-21'
+- id: A-019
+  statement: A Claude session spawned via termlink spawn --backend tmux is reliably
+    injectable (has_pty=true) and an injected /check-arc doorbell is picked up as
+    a normal turn
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1800
+  created: '2026-05-25'
+  resolved_date: null
+- id: A-020
+  statement: When the receiver is mid-turn, an injected doorbell queues and is consumed
+    cleanly after the current turn (no corruption, bounded latency)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1800
+  created: '2026-05-25'
+  resolved_date: null
+- id: A-021
+  statement: Atomic post-accept-ring + receipt ack + bounded re-ring gives deterministic
+    delivery (sender always learns delivered-or-failed) without races
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1800
+  created: '2026-05-25'
+  resolved_date: null
+- id: A-022
+  statement: The reply round-trips as a structured channel.* envelope — the PTY is
+    never scraped for content
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1800
+  created: '2026-05-25'
+  resolved_date: null
+- id: A-023
+  statement: Permission-dialog / TUI-state collision is avoidable (prompt-ready detection)
+    or acceptably rare
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1800
+  created: '2026-05-25'
+  resolved_date: null
