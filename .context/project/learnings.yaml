@@ -2020,3 +2020,10 @@ learnings:
   date: 2026-05-22
   context: Added via context agent
   application: TBD
+- id: PL-181
+  learning: "Framework bus bridges (pickup-channel-bridge, publish-learning-to-bus) must NOT fall back to a legacy primitive that is being decommissioned. The fallback to 'termlink event broadcast' became the lone live emitter that kept resetting T-1166's 7-day clean-window cut gate — every pickup on a hub where channel.post fails re-emitted the retired primitive. Prefer degrade-to-logged-no-op; the bridges are non-fatal pure-enhancement code. --ensure-topic covers the topic-loss case the fallback protected."
+  source: P-001
+  task: T-1814
+  date: 2026-05-25
+  context: Added via context agent
+  application: TBD

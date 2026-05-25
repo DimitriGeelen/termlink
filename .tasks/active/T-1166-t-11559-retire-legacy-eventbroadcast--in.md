@@ -105,16 +105,28 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
   code, T-1214). `--ensure-topic` (T-1443+) already covers the topic-loss case
   the fallback was protecting against. Verified on remote: 0 event.broadcast
   invocations in either file, channel.post path retained, `bash -n` clean.
-- **Expected effect:** with the framework no longer emitting event.broadcast on
-  pickup, the 7-day clean window can finally run uninterrupted. The 2026-05-22
-  .122 call ages out ~2026-05-29; assuming no other emitters, **cut becomes
-  ready ~2026-05-29**. Re-verify then with
-  `.agentic-framework/bin/fw metrics api-usage --cut-ready --json`.
-- **Caveat:** .122 still runs the old binary whose channel.post fails, so its
-  pickups will no longer be bus-mirrored (silent no-op) until the staged
-  binary (T-1438) is swapped in. That is an operator action and does NOT block
-  the cut — it only affects bus-mirror completeness from .122, not the legacy
-  emission (which is now eliminated).
+- **Expected effect + IMPORTANT scope caveat:** the fix removes the fallback
+  *in the framework source* (vendored `/opt/termlink` + upstream
+  `origin/master` f87f8e97). It stops event.broadcast **emission only on hosts
+  that actually run the patched bridge.** The emitter is `.122`
+  (ring20-management), which runs its **own** AEF framework checkout — it will
+  keep emitting event.broadcast on each pickup until ONE of:
+  (a) `.122` pulls the framework fix (`fw upgrade` → f87f8e97 → no fallback →
+  channel.post failure becomes a no-op), OR
+  (b) `.122`'s `channel.post` starts succeeding (swap the staged binary T-1438
+  so it has `--ensure-topic`, and/or ensure the `framework:pickup` topic exists
+  on the hub it posts to) — this also restores the bus mirror.
+  Until then, every `.122` pickup re-arms the 7d window. **So the cut is NOT
+  guaranteed ready on 2026-05-29** — that date only holds if `.122` stops
+  emitting (no further pickups, or one of (a)/(b) applied). Path (b) is the
+  better operator fix (stops emission AND restores mirror). Re-verify with
+  `.agentic-framework/bin/fw metrics api-usage --cut-ready --json`; only
+  promote T-1415 once it reports `cut_ready=true`.
+- **Follow-up needed (not yet filed):** propagate the framework fix to `.122`
+  (and any other host whose pickup bridge falls back) OR apply the T-1438
+  binary swap on `.122`. Both are operator/remote actions on a flaky,
+  auth-gated host — deliberately left for operator authorization rather than
+  forced autonomously.
 
 ### 2026-05-19T21:52Z — bake telemetry refresh: HOLDING — .122 partial gate elapse confirmed (1 entry rolled out) [agent]
 
