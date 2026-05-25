@@ -58,6 +58,20 @@ For hands-free replies the listener needs `Bash(termlink:*)` on its allowlist so
 it can run `agent-respond.sh` (which shells out to `termlink channel post`)
 without a permission prompt on every wake.
 
+> **Root constraint (T-1807).** `--dangerously-skip-permissions` is **refused
+> when running as root/sudo** (`cannot be used with root/sudo privileges for
+> security reasons`) — the spawned `claude` exits immediately. On a root host
+> the ONLY hands-free path is the `Bash(termlink:*)` allowlist above; do not
+> reach for the skip-permissions flag. Spawn plain `-- claude`.
+
+> **Respond-mode signal (T-1807 / T-1809).** A plain `/check-arc` doorbell wakes
+> the listener in **browse mode (read-only)** — it will read the turn but not
+> ack, so the sender never sees DELIVERED. Until T-1809 lands a respond-mode
+> signal, the doorbell text must explicitly instruct the listener to enter
+> respond mode (e.g. inject an instruction to run `agent-respond.sh` for the
+> unread conversation), or use a mechanical responder. See
+> `docs/reports/T-1807-doorbell-mail-loop-validation.md`.
+
 ## Spawn the listener
 
 From inside the project root:
