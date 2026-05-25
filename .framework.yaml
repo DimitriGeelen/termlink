@@ -9,3 +9,4 @@ upstream_repo: DimitriGeelen/agentic-engineering-framework
 upgraded_from: 1.6.260
 last_upgrade: 2026-05-15T12:10:50Z
 inception_commit_limit: 5
+PORT: 3003
