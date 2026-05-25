@@ -667,3 +667,35 @@ Field rollout stabilized. Three of four vendored hubs now have working hourly he
 - **What the remaining residue is.** Two pre-cut emits dated 2026-05-18T08:29Z routed through the `local-test` + `.107` hubs (which both keep an audit trail of legacy method dispatches). Caller traces to `.122` — consistent with prior snapshots; no new sources observed.
 - **Version skew unchanged** (2 hubs on 0.9.2110, 2 on 0.9.2127). **.141 still DOWN** — outside scope; planned re-pickup ~2026-05-26 per Option A (T-1457).
 - **No regressions.** Monotonic decay continues. T-1415 source-cleanup unblocked structurally; gated only on .121 clock + final clean fleet doctor.
+
+### 2026-05-26 — CUT IS OPERATOR-BLOCKED ON .122 BINARY; "create the topic" path RULED OUT [agent]
+
+Fresh state this session:
+- `fw metrics api-usage --cut-ready --json` → `cut_ready: false, legacy_attributable: 1` (7d window).
+- **1-day window: `legacy: 0`** — nothing in the last 24h. The lone 7d-window
+  attributable caller is `event.broadcast` from **192.168.10.122**,
+  `last_seen 2026-05-22T11:46:46Z` (~4d ago). Naive self-clear date = **2026-05-29 11:46Z**.
+- **But the cut will NOT reliably self-clear.** `fleet status` shows .122
+  (ring20-management) **up with 2 active sessions**, running a binary that
+  predates the T-1814 bridge fix (its last emit predates the fix's existence).
+  Any pickup on either session before 2026-05-29 re-emits `event.broadcast` →
+  window resets.
+
+**Ruled out: pre-creating the `framework:pickup` topic.** Hypothesis was that
+.122's `channel.post` falls back to `event.broadcast` because the topic is
+missing and its old binary can't `--ensure-topic`. Disproven: `channel list
+--prefix framework` shows `framework:pickup` **exists** on the .107 hub (25
+msgs, retention=forever). Per G-060 (independent per-hub topic storage) the
+remaining cause is **.122's pre-`channel.post` binary** — its `channel post
+--help` probe fails, so the bridge skips straight to `event.broadcast`
+regardless of topic state. Creating topics cannot help; only a binary that
+*has* `channel.post` will.
+
+**Therefore the only paths to a clean cut are operator-gated:**
+1. **Binary swap on .122** — T-1438 already staged musl 0.9.1657 to .122
+   (probed, not swapped). Operator runs the swap, then .122's bridge posts via
+   `channel.post` (no fallback) → no more `event.broadcast`.
+2. **OR `fw upgrade` on .122** — pulls the T-1814 bridge fix (no fallback at
+   all) into .122's vendored AEF checkout.
+After either, wait 7d clean bake, confirm `cut_ready: true`, then promote
+T-1415 (Tier-2 source cut). No in-initiative action can advance this further.

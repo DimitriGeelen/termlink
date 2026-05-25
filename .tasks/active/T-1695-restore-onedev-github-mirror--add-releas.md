@@ -281,3 +281,28 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 ### 2026-05-20T18:55:00Z — PL-175 captured (T-1724)
 - **Learning filed:** PL-175 added to `.context/project/learnings.yaml` — "Runtime-signature-alone RCA is unsafe when two failure modes produce identical runtime signatures." Source task: T-1695. Application: insist on UI logs before forming hypotheses.
 - **Reference:** Next session investigating a stuck/hung remote job with "no output, no error" should hit this learning via `fw work-on T-1695` related-knowledge lookup AND via `fw context add-learning` search.
+
+### 2026-05-26 — MIRROR STILL BROKEN AND DRIFT IS GROWING [agent]
+
+- `scripts/check-mirror-freshness.sh`: **drift** — GitHub is **159 commits
+  behind** OneDev. OneDev HEAD `2a980492`, GitHub stuck at `4c89ca1a` (the
+  last manual push from .107 during the 2026-05-20 PAT-purge session).
+- Canary log confirms monotonic growth (126 → 159 behind). The canary
+  (T-1696) is working; the gap is purely that the **OneDev executor fix never
+  landed** — exactly as the 2026-05-20 entry predicted ("canary will start
+  firing again on the next OneDev-only push").
+- **Confirms root cause is unchanged and operator-gated:** the `Push to GitHub
+  Mirror` job still runs OneDev's default `penelope-shell` executor (cannot run
+  in containers). No in-initiative fix exists — I must not push to GitHub
+  directly (standing rule), and the executor name needed for a `jobExecutor:`
+  buildspec pin is only discoverable via the OneDev admin UI.
+- **Operator action required (one of):**
+  - (A) OneDev UI → Administration → Job Executors: note a container-capable
+    executor name, add `jobExecutor: <name>` to `.onedev-buildspec.yml`'s
+    PushRepository job, push to OneDev.
+  - (B) OneDev UI → System Settings → Job Executors: make a container-capable
+    executor (e.g. `server-docker`) the server-wide default.
+  Then re-fire the mirror job; canary should report `synced`.
+- **Impact while broken:** every commit + release tag pushed to OneDev this
+  session (and since 2026-05-20) is NOT on GitHub, so Homebrew/binary consumers
+  see stale releases. This is the live G-058 failure mode.
