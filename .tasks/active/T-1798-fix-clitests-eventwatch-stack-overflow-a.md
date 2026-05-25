@@ -4,7 +4,7 @@ name: "Fix cli_tests event_watch stack-overflow aborting bin test run"
 description: >
   cli::cli_tests::event_watch_without_hub_accepts_targets stack-overflows (SIGABRT) when the bin test suite runs, aborting the whole process before most tests report. Pre-existing; discovered during T-1797. Likely unbounded recursion in the event-watch-without-hub path or the test's setup. Investigate the recursion, add a depth/termination guard, confirm the full suite runs to completion.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-22T07:07:04Z
-last_update: 2026-05-22T07:07:04Z
+last_update: 2026-05-25T14:56:13Z
 date_finished: null
 ---
 
@@ -20,56 +20,59 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`cli::cli_tests::event_watch_without_hub_accepts_targets` stack-overflows
+(SIGABRT) during the bin test run, aborting the process before most tests
+report. Pre-existing; surfaced during T-1797. Restoring a green,
+run-to-completion bin test suite is foundational — it gates every TermLink
+release.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Root cause of the stack overflow identified and documented in the RCA section (the specific recursion/setup gap, not "the code was wrong") — stack-size, not recursion: see RCA
+- [x] Fix adds a termination/bound (or corrects the faulty path) so `event_watch_without_hub_accepts_targets` runs to completion without SIGABRT — `.cargo/config.toml` sets `RUST_MIN_STACK=16 MiB` for cargo-invoked test threads
+- [x] The previously-crashing test passes in isolation — `cargo test -p termlink --bin termlink event_watch_without_hub_accepts_targets` → 1 passed (via config, no inline env)
+- [x] The full bin (`--bin termlink`) test binary runs to completion with no process abort — 782 passed, 1 failed, no SIGABRT/overflow (finished in 30s)
+- [x] `cargo check -p termlink` passes
+- [x] No unrelated test regressed — the single failure (`manifest::tests::test_is_git_repo_on_temp_dir`) is pre-existing + environment-dependent (`/tmp/.git` present), was masked by the prior SIGABRT, and is filed as T-1801. Not a regression of this change (stack env cannot affect git detection; confirmed by isolation run).
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+cargo check -p termlink
+cargo test -p termlink --bin termlink event_watch_without_hub_accepts_targets
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `cli::cli_tests::event_watch_without_hub_accepts_targets` overflows its
+stack and SIGABRTs (signal 6) when the `--bin termlink` unittests run, aborting the
+whole process before most of the 783 tests report.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Stack size, NOT infinite recursion. The test does nothing but
+`Cli::try_parse_from(["termlink","event","watch","alpha","beta"])`. clap builds the
+*entire* command tree on every parse, and the termlink CLI is large (22 top-level
+subcommands, hundreds of args). That construction's peak stack usage exceeds the
+**default 2 MiB stack of a Rust libtest worker thread**. Proof: the test passes
+unchanged under `RUST_MIN_STACK=8388608` (8 MiB) and larger; it overflows at the 2 MiB
+default. The real `termlink` binary parses on the main thread (8 MiB), so production
+has never been affected — this is strictly a test-harness/main-thread stack mismatch.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Nothing pinned the test-thread stack size, so it silently
+rode the 2 MiB libtest default. As the CLI grew (clap surface expanded over many tasks),
+per-parse stack usage crept up until it crossed 2 MiB — with no gate or signal, because
+the only place it manifests is a worker thread, never the 8 MiB main thread the binary
+actually uses. A single SIGABRT then masks the rest of the suite (and other latent
+failures, e.g. T-1801).
+
+**Prevention:** `.cargo/config.toml` `[env] RUST_MIN_STACK = "16777216"` gives all
+cargo-invoked processes a 16 MiB thread-stack floor (8 MiB margin over the proven 8 MiB
+need; lazily committed, so negligible real cost). Released binaries are not launched via
+cargo, so runtime behaviour is unchanged. The fix is durable (committed config, not an
+operator-remembered env var), and the now-completing suite surfaces future latent
+failures instead of swallowing them in the abort.
+
+Rejected alternatives: shrinking the clap command tree (would gut a legitimately large
+CLI for a test-only issue); a per-test big-stack thread wrapper (fixes one test, leaves
+every other parse-test one CLI-growth-increment from the same SIGABRT).
 
 ## Evolution
 
@@ -122,3 +125,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1798-fix-clitests-eventwatch-stack-overflow-a.md
 - **Context:** Initial task creation
+
+### 2026-05-25T14:56:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

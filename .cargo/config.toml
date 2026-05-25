@@ -1,0 +1,9 @@
+[env]
+# T-1798: the termlink CLI's clap command tree is large (22 top-level subcommands,
+# hundreds of args). Building it — which every `Cli::try_parse_from` does — overflows
+# the default 2 MiB Rust *test-thread* stack and SIGABRTs the bin test run before most
+# tests report. The real binary parses on the 8 MiB main thread and is unaffected;
+# this is purely a test-harness stack mismatch. Give cargo-invoked processes a matching,
+# generous thread-stack floor so the suite runs to completion. Released binaries are not
+# launched via cargo, so runtime behaviour is unchanged.
+RUST_MIN_STACK = "16777216"
