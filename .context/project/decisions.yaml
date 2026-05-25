@@ -374,3 +374,17 @@ decisions:
     date: 2026-05-20
     task: T-1732
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-033
+    decision: "Ship the two writer-side fixes (foreign-port-kill guard + identity-verified triple write) in this task; carve the `fw doctor` drift-warning (3rd item in the original description) into a follow-up."
+    scope: project
+    date: 2026-05-25
+    task: T-1803
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-034
+    decision: "Factor the `/api/_identity` handshake into top-level `_watchtower_identity_matches` / `_watchtower_port_holder_is_ours` in the already-shared lib; have the reader's inline check delegate."
+    scope: project
+    date: 2026-05-25
+    task: T-1803
+    rationale: "Auto-captured from task file on completion"
