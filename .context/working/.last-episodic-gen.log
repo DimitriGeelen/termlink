@@ -1,22 +1,21 @@
-=== episodic-gen invocation: 2026-05-25T21:25:40Z ===
-task_id: T-1803
+=== episodic-gen invocation: 2026-05-25T21:48:12Z ===
+task_id: T-1812
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1803.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1812.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)
-  Duration: 0 days (344 min)
-  Updates: 2
-  Commits: 1
-  Lines: +181 -26 across 4 files
-  Outcomes: 7 AC checked
-  Artifacts: 4 files tracked
+  Task: Propagate T-1803 watchtower foreign-port-kill guard upstream to /opt/999-AEF (channel-1)
+  Duration: 0 days (22 min)
+  Updates: 3
+  Commits: 0
+  Lines: +0 -0 across 0 files
+  Outcomes: 5 AC checked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1803-watchtower-shared-launcher-deterministic.md
+Source: /opt/termlink/.tasks/completed/T-1812-propagate-t-1803-watchtower-foreign-port.md
 --- exit code: 0 ---

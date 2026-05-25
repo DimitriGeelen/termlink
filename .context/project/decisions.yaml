@@ -388,3 +388,24 @@ decisions:
     date: 2026-05-25
     task: T-1803
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-035
+    decision: "`mcp__termlink__termlink_run` (synchronous ephemeral session) for the patch + commit + push + verify steps."
+    scope: project
+    date: 2026-05-25
+    task: T-1812
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-036
+    decision: "A Python patcher doing per-hunk targeted string replacement with a presence-marker idempotency check and exactly-once anchor assertions; validated with `bash -n` before trusting."
+    scope: project
+    date: 2026-05-25
+    task: T-1812
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-037
+    decision: "`git add lib/watchtower.sh bin/watchtower.sh` (explicit, never `-A`)."
+    scope: project
+    date: 2026-05-25
+    task: T-1812
+    rationale: "Auto-captured from task file on completion"
