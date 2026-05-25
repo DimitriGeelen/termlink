@@ -79,5 +79,60 @@ else
     echo "FAIL C: stale receipt caused false DELIVERED for turn-2 (got rc=$rcC)"; sed 's/^/  C| /' "$tmp/C.out"; fail=1
 fi
 
+# Helper: offset of the turn this cid posted (for an offset-correct receipt ack).
+turn_offset() {
+    "$TERMLINK" channel subscribe "$topic" --conversation-id "$1" --cursor 0 --limit 200 --json 2>/dev/null \
+        | jq -s '[.[]|select(.msg_type=="turn")][0].offset // 0'
+}
+
+# --- Path D (T-1811): --await-reply -> delivered AND a reply turn arrives ->
+#     exit 0, the reply payload is printed. ---
+cidD="cidD-$$"
+(
+    set +e  # capture rc even when $SEND exits non-zero (parent runs set -e)
+    "$SEND" --to-session "$nosess" --topic "$topic" --message "ping D" \
+            --conversation-id "$cidD" --timeout 6 --max-rings 2 --await-reply 8 \
+            >"$tmp/D.out" 2>&1
+    echo $? >"$tmp/D.rc"
+) &
+bgD=$!
+sleep 1
+oD="$(turn_offset "$cidD")"
+# ack the turn (offset-correct), then post the peer's reply turn.
+"$TERMLINK" channel post "$topic" --msg-type receipt \
+            --metadata conversation_id="$cidD" --metadata up_to="$oD" --ensure-topic --json >/dev/null
+"$TERMLINK" channel post "$topic" --msg-type turn --payload "PONG_D_REPLY" \
+            --metadata conversation_id="$cidD" --ensure-topic --json >/dev/null
+wait "$bgD" || true
+rcD="$(cat "$tmp/D.rc" 2>/dev/null || echo X)"
+if [ "$rcD" = "0" ] && grep -q "REPLY at offset=" "$tmp/D.out" && grep -q "PONG_D_REPLY" "$tmp/D.out"; then
+    echo "PASS D: delivered + reply round-trip (rc=0, payload printed)"
+else
+    echo "FAIL D: expected rc=0 + reply payload (got rc=$rcD)"; sed 's/^/  D| /' "$tmp/D.out"; fail=1
+fi
+
+# --- Path E (T-1811): --await-reply -> delivered but NO reply turn -> exit 4. ---
+cidE="cidE-$$"
+(
+    set +e  # capture rc even when $SEND exits non-zero (parent runs set -e)
+    "$SEND" --to-session "$nosess" --topic "$topic" --message "ping E" \
+            --conversation-id "$cidE" --timeout 6 --max-rings 2 --await-reply 3 \
+            >"$tmp/E.out" 2>&1
+    echo $? >"$tmp/E.rc"
+) &
+bgE=$!
+sleep 1
+oE="$(turn_offset "$cidE")"
+# ack only — never post a reply.
+"$TERMLINK" channel post "$topic" --msg-type receipt \
+            --metadata conversation_id="$cidE" --metadata up_to="$oE" --ensure-topic --json >/dev/null
+wait "$bgE" || true
+rcE="$(cat "$tmp/E.rc" 2>/dev/null || echo X)"
+if [ "$rcE" = "4" ] && grep -q "DELIVERED but no reply" "$tmp/E.out"; then
+    echo "PASS E: delivered, no reply -> rc=4 (distinct from not-acked rc=3)"
+else
+    echo "FAIL E: expected rc=4 + 'no reply' (got rc=$rcE)"; sed 's/^/  E| /' "$tmp/E.out"; fail=1
+fi
+
 if [ "$fail" = "0" ]; then echo "test-agent-send: ALL PASS"; else echo "test-agent-send: FAILURES"; fi
 exit "$fail"

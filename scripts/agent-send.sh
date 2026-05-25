@@ -27,6 +27,7 @@ Usage: agent-send.sh --to-session <name> (--topic <dm-topic> | --peer-fp <fp>)
                      --message <text>
                      [--conversation-id <id>] [--timeout <secs>]
                      [--max-rings <n>] [--doorbell-text <text>]
+                     [--await-reply <secs>]
 
 Required:
   --to-session <name>   PTY session to ring (doorbell target; name, not fp)
@@ -39,14 +40,23 @@ Optional:
   --conversation-id <id>  thread id (default: cid-<epoch>-<rand>)
   --timeout <secs>        seconds to wait for a receipt per ring (default: 10)
   --max-rings <n>         max doorbell attempts (default: 3)
-  --doorbell-text <text>  what to inject to wake the listener (default: /check-arc)
+  --doorbell-text <text>  what to inject to wake the listener
+                          (default: "/check-arc respond" — signals respond mode)
+  --await-reply <secs>    after delivery, wait up to <secs> for the peer's reply
+                          turn (first msg_type=turn with offset > the posted turn
+                          on this conversation_id) and print it. Turns
+                          send+confirm into a full request->response round-trip.
 
-Exit: 0 delivered (receipt seen) | 2 usage/precondition | 3 not acked after N rings
+Exit: 0 delivered (and reply printed if --await-reply) | 2 usage/precondition
+      | 3 not acked after N rings | 4 delivered but no reply within --await-reply
 EOF
 }
 
-to_session="" topic="" peer_fp="" message="" cid=""
-timeout=10 max_rings=3 doorbell_text="/check-arc"
+to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
+# Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
+# listener in read-only browse mode and it never acks; `/check-arc respond` tells
+# it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
+timeout=10 max_rings=3 doorbell_text="/check-arc respond"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -58,6 +68,7 @@ while [ $# -gt 0 ]; do
         --timeout)        timeout="${2:-}"; shift 2 ;;
         --max-rings)      max_rings="${2:-}"; shift 2 ;;
         --doorbell-text)  doorbell_text="${2:-}"; shift 2 ;;
+        --await-reply)    await_reply="${2:-}"; shift 2 ;;
         -h|--help)        usage; exit 0 ;;
         *)                die "unknown arg: $1 (try --help)" ;;
     esac
@@ -67,6 +78,9 @@ done
 [ -n "$to_session" ] || die "missing --to-session (the doorbell target)"
 [[ "$timeout" =~ ^[0-9]+$ && "$timeout" -ge 1 ]]     || die "--timeout must be a positive integer"
 [[ "$max_rings" =~ ^[0-9]+$ && "$max_rings" -ge 1 ]] || die "--max-rings must be a positive integer"
+if [ -n "$await_reply" ]; then
+    [[ "$await_reply" =~ ^[0-9]+$ && "$await_reply" -ge 1 ]] || die "--await-reply must be a positive integer"
+fi
 
 # Resolve the destination topic.
 if [ -n "$topic" ]; then
@@ -123,7 +137,35 @@ done
 
 if [ -n "$deliver_offset" ]; then
     echo "agent-send: DELIVERED — receipt for cid=$cid at offset=$deliver_offset"
-    exit 0
+    [ -n "$await_reply" ] || exit 0
+
+    # --await-reply: poll for the peer's reply turn — the first msg_type=turn on
+    # this conversation_id with offset > the turn we posted. We posted exactly one
+    # turn (at post_offset), so any later turn on the cid is the peer's reply.
+    # Offset (not sender_id) is the discriminator: on a shared host all co-resident
+    # agents sign with the same host key, so sender_id can't tell my turn from the
+    # peer's reply (reference: shared-host-envelope-identity / T-1693).
+    echo "agent-send: awaiting reply (cid=$cid, up to ${await_reply}s)"
+    reply_waited=0
+    while (( reply_waited < await_reply )); do
+        reply_json="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
+                            --cursor 0 --limit 1000 --json 2>/dev/null \
+                        | jq -c -s --argjson po "$post_offset" \
+                            '[ .[] | select(.msg_type=="turn")
+                                   | select((.offset|tonumber? // -1) > $po) ]
+                             | (.[0] // empty)' ; } || true )"
+        if [ -n "$reply_json" ] && [ "$reply_json" != "null" ]; then
+            reply_offset="$(printf '%s' "$reply_json" | jq -r '.offset // empty')"
+            reply_payload="$(printf '%s' "$reply_json" | jq -r '(.payload_b64 // "") | @base64d')"
+            echo "agent-send: REPLY at offset=$reply_offset:"
+            printf '%s\n' "$reply_payload"
+            exit 0
+        fi
+        sleep 1; reply_waited=$((reply_waited+1))
+    done
+
+    echo "agent-send: DELIVERED but no reply within ${await_reply}s (cid=$cid; receipt at offset=$deliver_offset)" >&2
+    exit 4
 fi
 
 echo "agent-send: FAILED — no receipt for cid=$cid after $max_rings ring(s) (turn posted at offset=$post_offset; receiver never acked)" >&2

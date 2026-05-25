@@ -116,6 +116,8 @@ If the PTY is wedged, `termlink list` to find the PID and stop it, then
 ## Related
 
 - `scripts/agent-send.sh` — sender verb (doorbell + mail + receipt wait), T-1804.
+  Add `--await-reply <secs>` (T-1811) to also wait for and print the listener's
+  reply turn — one full request→confirm→response round-trip in a single command.
 - `scripts/agent-respond.sh` — receiver ack (receipt + optional reply), T-1805.
 - `.claude/commands/check-arc.md` — the `/check-arc` skill; its "Respond mode"
   section is what a doorbell-woken listener runs.
