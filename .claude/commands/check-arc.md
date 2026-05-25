@@ -6,8 +6,17 @@ to `/agent-handoff`. Walks `dm:<self-fp>:*` topics, computes unread counts via
 
 **Invocation:** `/check-arc` (no arguments)
 
-The skill is read-only — it does NOT post receipts. To ack after reading, the
-caller runs `termlink channel ack <topic>` explicitly per topic.
+This skill has two modes:
+
+- **Browse mode (default, manual)** — read-only. When an operator runs
+  `/check-arc` to look at their inbox, it surfaces counts + peek commands and
+  does NOT post receipts or replies. The caller acks explicitly per topic.
+- **Respond mode (woken by a doorbell)** — when this skill fires because a peer
+  rang the doorbell (`agent-send.sh` injects `/check-arc` after posting a turn,
+  T-1804), the woken agent should ack each unread conversation so the SENDER
+  learns delivery, then reply. See "Step 6 — Respond mode" below. The ack is
+  delegated to the deterministic `scripts/agent-respond.sh` (T-1805) so the
+  receipt is the exact shape `agent-send.sh` polls for.
 
 ## Step 1: Resolve self identity fingerprint
 
@@ -99,12 +108,49 @@ If `unread_count > 0`, append to the summary:
     ack: termlink channel ack agent-chat-arc
 ```
 
+## Step 6 — Respond mode (woken by a doorbell)
+
+Enter this step ONLY when `/check-arc` fired as a doorbell wake (a peer rang it
+via `agent-send.sh`), not on a manual browse. The goal is to close the loop: the
+sender is blocked polling for a receipt and will re-ring until it sees one.
+
+For each unread DM conversation found in Steps 3–4:
+
+1. **Read the unread turn(s)** to get the content AND the conversation id:
+
+   ```
+   termlink channel subscribe <topic> --since-offset <last-acked> --limit <count> --json
+   ```
+
+   Each turn carries `metadata.conversation_id` — capture it as `<cid>`.
+
+2. **Ack + reply in one mechanical call** (delegates to T-1805's verb so the
+   receipt matches exactly what the sender polls for):
+
+   ```
+   scripts/agent-respond.sh --topic <topic> --conversation-id <cid> --reply "<your answer>"
+   ```
+
+   - The `--reply` text is YOUR composed answer (agent judgment) — the script
+     does not write content, only transports it.
+   - To ack without answering yet (e.g. "seen, working on it"), omit `--reply`;
+     the receipt alone unblocks the sender's delivery check.
+   - One call per conversation. Iterate over the unread topics from Step 4.
+
+3. The sender's `agent-send.sh` detects the receipt (same `conversation_id`) and
+   exits DELIVERED. The doorbell+mail loop is now complete for that turn.
+
+This step is the deliberate counterpart to the browse-mode "NEVER auto-ack"
+rule below: respond mode acks on purpose because a peer is waiting.
+
 ## Rules
 
-- **NEVER** auto-ack topics. The user decides when to mark messages read.
+- **Browse mode is read-only.** When invoked manually (not as a doorbell wake),
+  NEVER auto-ack and NEVER post a reply — surface counts + peek commands and let
+  the operator decide. The respond-mode acks (Step 6) are the sole exception and
+  only apply when a peer rang the doorbell.
 - **NEVER** print the full payload of every unread message — only counts +
   peek commands. The caller decides what to read.
-- **NEVER** post a reply from this skill. Use `/agent-handoff` for that.
 - **Fail fast** if `termlink` is not on PATH or the local hub is unreachable.
   No silent degradation.
 
