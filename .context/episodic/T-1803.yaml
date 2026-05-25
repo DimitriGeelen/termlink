@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1803: Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-25T21:25:41Z
+# ============================================================================
+
+task_id: T-1803
+task_name: "Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-25T15:40:43Z
+completed: 2026-05-25T21:25:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-25T23:24:54+02:00
+last_commit: 2026-05-25T23:24:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  watchtower foreign-port-kill guard — validation test + task (code lands upstream via channel-1)
+
+# Key outcomes
+outcomes:
+  - "`lib/watchtower.sh` exposes sourceable `_watchtower_identity_matches <url>` and `_watchtower_port_holder_is_ours <port>`; `_watchtower_url`'s existing inline identity check delegates to the new helper (no behavior change to the reader) — verified `_watchtower_url` still returns `http://192.168.10.107:3003`"
+  - "`do_start` refuses to kill a port holder that is NOT this project's Watchtower: when `port_in_use` and the holder fails the identity check, it errors loud (names the foreign holder, suggests `--port N`) and exits non-zero WITHOUT sending any signal"
+  - "`do_start` still recycles its OWN stale instance: when the port holder identity-matches this project, the existing TERM/KILL free-the-port path runs as before"
+  - "After health check, `do_start` writes the `watchtower.{port,url}` triple ONLY after confirming the served instance identity-matches this project; on mismatch it fails loud and does not write a triple pointing at a foreign instance"
+  - "`lib/watchtower.sh` sources cleanly under `set -euo pipefail` (the `&& return 0` load-guard does not abort a strict-mode sourcing caller) — verified"
+  - "A test (`scripts/test-watchtower-guard.sh`) proves: foreign holder → `_watchtower_port_holder_is_ours` false (not killed); this project's running Watchtower → true; non-destructive (never kills the live instance). SKIPs cleanly if no Watchtower/curl — ALL PASS (positive :3003, negative :39517, read-only survival)"
+  - "`bash -n` clean on both modified scripts + the test — verified (pre-existing shellcheck info/style notes in untouched code only; no new findings)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-25 — Scope: launcher hardening now, doctor-drift lint as follow-up"
+    chose: "Ship the two writer-side fixes (foreign-port-kill guard + identity-verified triple write) in this task; carve the `fw doctor` drift-warning (3rd item in the original description) into a follow-up."
+    rationale: "One deliverable = launcher hardening. The kill-guard is the high-severity fix (it can kill a neighbor's live service); the doctor lint is observability of a condition the guard now prevents at the source. Keeping them separate keeps this bounded and the diff reviewable."
+    alternatives_rejected: ["Bundling the doctor lint here — would widen scope into `fw doctor` and delay the high-value kill-guard."]
+  - decision: "2026-05-25 — Identity check lives in lib/watchtower.sh, reused by reader+writer"
+    chose: "Factor the `/api/_identity` handshake into top-level `_watchtower_identity_matches` / `_watchtower_port_holder_is_ours` in the already-shared lib; have the reader's inline check delegate."
+    rationale: "DRY — one identity implementation for both the reader (which already had it inline) and the new writer guard. Also makes the decision logic unit-testable without invoking the destructive `do_start`."
+    alternatives_rejected: ["Duplicating the curl/grep handshake inside bin/watchtower.sh — two copies drift."]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/bin/watchtower.sh"
+  - ".agentic-framework/lib/watchtower.sh"
+  - "scripts/test-watchtower-guard.sh"
+  - ".tasks/active/T-1803-watchtower-shared-launcher-deterministic.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-25T23:24:54"
+    action: "T-1803: watchtower foreign-port-kill guard — validation test + task (code lands upstream via channel-1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 344 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 344
+  commits: 1
+  files_changed: 4
+  lines_added: 181
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1803-watchtower-shared-launcher-deterministic.md
+generated_by: context-agent-hybrid

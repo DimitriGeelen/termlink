@@ -4,7 +4,7 @@ name: "Watchtower shared-launcher: deterministic per-project port + triple self-
 description: >
   On a multi-project host (.107 runs termlink :3003 + 050-email-archive :3001 + others), bin/watchtower.sh can advertise/drift onto a port another project owns, and the watchtower.{pid,port,url} triple can be internally inconsistent (pid=real instance, url/port=neighbor). Harden: refuse to kill a foreign port holder; validate that watchtower.url/port resolve to THIS project's PROJECT_ROOT (cross-check served instance) before trusting them; surface a doctor warning on drift. Lives in vendored .agentic-framework — propagate upstream via channel-1.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T15:40:43Z
-last_update: 2026-05-25T21:20:48Z
-date_finished: null
+last_update: 2026-05-25T21:25:38Z
+date_finished: 2026-05-25T21:25:38Z
 ---
 
 # T-1803: Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)
@@ -153,3 +153,15 @@ bash scripts/test-watchtower-guard.sh
 ### 2026-05-25T21:20:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-c08d99cb
+- **Timestamp:** 2026-05-25T21:25:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-25T21:25:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

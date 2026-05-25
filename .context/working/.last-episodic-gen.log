@@ -1,22 +1,22 @@
-=== episodic-gen invocation: 2026-05-25T20:40:00Z ===
-task_id: T-1811
+=== episodic-gen invocation: 2026-05-25T21:25:40Z ===
+task_id: T-1803
 FRAMEWORK_ROOT: /opt/termlink/.agentic-framework
 PROJECT_ROOT: /opt/termlink
 CONTEXT_DIR: /opt/termlink/.context
 CONTEXT_AGENT: /opt/termlink/.agentic-framework/agents/context/context.sh
 cwd: /opt/termlink
 --- context.sh output ---
-Episodic generated: /opt/termlink/.context/episodic/T-1811.yaml
+Episodic generated: /opt/termlink/.context/episodic/T-1803.yaml
 
   Status: ✓ complete (Auto-generated)
-  Task: agent-send.sh --await-reply: synchronous conversational round-trip (T-1800 follow-up)
-  Duration: 0 days (4 min)
-  Updates: 1
+  Task: Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)
+  Duration: 0 days (344 min)
+  Updates: 2
   Commits: 1
-  Lines: +248 -5 across 4 files
+  Lines: +181 -26 across 4 files
   Outcomes: 7 AC checked
   Artifacts: 4 files tracked
   Decisions: recorded from task file
 
-Source: /opt/termlink/.tasks/completed/T-1811-agent-sendsh---await-reply-synchronous-c.md
+Source: /opt/termlink/.tasks/completed/T-1803-watchtower-shared-launcher-deterministic.md
 --- exit code: 0 ---
