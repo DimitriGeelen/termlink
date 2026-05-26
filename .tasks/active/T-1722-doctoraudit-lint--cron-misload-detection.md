@@ -4,16 +4,16 @@ name: "Doctor/audit lint — cron-misload detection (PL-173 enforcement)"
 description: >
   Add a fw doctor / fw audit check that catches the T-1721 cron-misload class structurally instead of waiting for the next silent failure. PL-173 documents the bidirectional signature: (1) a cron file present in BOTH /etc/cron.d/<name> AND root's user crontab → cron will run the wrong one or both; (2) a source-of-truth crontab at .context/cron/*.crontab using /etc/cron.d/ USER-field syntax ('m h dom mon dow USER cmd') with no matching /etc/cron.d/ counterpart → the crontab is dormant. The lint walks .context/cron/*.crontab files, classifies each by syntax (USER field present/absent), and verifies the install destination is correct. Wire into fw doctor under the existing 'cron registry' family of checks. Outcome: T-1721's silent failure mode becomes impossible to ship undetected.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [cron, doctor, lint, PL-173, G-058, prevention]
 components: []
 related_tasks: [T-1721, T-1696]
 created: 2026-05-20T07:06:58Z
-last_update: 2026-05-26T22:37:48Z
-date_finished: null
+last_update: 2026-05-26T22:44:25Z
+date_finished: 2026-05-26T22:44:25Z
 ---
 
 # T-1722: Doctor/audit lint — cron-misload detection (PL-173 enforcement)
@@ -35,11 +35,11 @@ when there's an actual observed instance. The lint lives in `fw audit`'s
 structure section (alongside the existing 'Cron registry' check) so it runs
 on every `fw audit` invocation, including the project's own scheduled audit.
 
-- [ ] `.agentic-framework/agents/audit/audit.sh` walks `$PROJECT_ROOT/.context/cron/*.crontab` and, for each USER-field-syntax file (detected by awk-parsing for a row whose first field is cron-numeric and 6th field looks like a username), checks for a matching install in `/etc/cron.d/`. Matches via canonical-name heuristic (`<basename>`, `termlink-<basename>`, `<project-slug>-<basename>`) then a content-substring fallback if names don't match. Emits PASS when found, FAIL when not. The framework's own `agentic-audit.crontab` is excluded — it's covered by the existing registry check.
-- [ ] Live verification on this repo: lint emits PASS for `release-mirror-canary.crontab` (installed at `/etc/cron.d/termlink-release-mirror-canary`) and PASS for `heartbeat.crontab` (installed at `/etc/cron.d/termlink-heartbeat`).
-- [ ] Negative-tested by staging a temporary USER-field crontab in `.context/cron/__test-T1722.crontab` with no install, running the audit section, and confirming the FAIL appears with the install command in the suggestion. Then removing the test file and confirming the FAIL disappears.
-- [ ] Channel-1 mirror: identical patch lands at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` (so `fw upgrade` does not regress the consumer copy on the next pull).
-- [ ] `bash -n .agentic-framework/agents/audit/audit.sh` passes; `fw audit --section structure` returns clean (no spurious WARN/FAIL added; existing PASS lines unaffected).
+- [x] `.agentic-framework/agents/audit/audit.sh` walks `$PROJECT_ROOT/.context/cron/*.crontab` and, for each USER-field-syntax file (detected by awk-parsing for a row whose first field is cron-numeric and 6th field looks like a username), checks for a matching install in `/etc/cron.d/`. Matches via canonical-name heuristic (`<basename>`, `termlink-<basename>`, `<project-slug>-<basename>`) then a content-substring fallback if names don't match. Emits PASS when found, FAIL when not. The framework's own `agentic-audit.crontab` is excluded — it's covered by the existing registry check.
+- [x] Live verification on this repo: lint emits PASS for `release-mirror-canary.crontab` (installed at `/etc/cron.d/termlink-release-mirror-canary`) and PASS for `heartbeat.crontab` (installed at `/etc/cron.d/termlink-heartbeat`).
+- [x] Negative-tested by staging a temporary USER-field crontab in `.context/cron/__test-T1722.crontab` with no install, running the audit section, and confirming the FAIL appears with the install command in the suggestion. Then removing the test file and confirming the FAIL disappears.
+- [x] Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Verified via `git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master` → `a3566cb37ea76bef4d10712141ba9cccb7a4110b`.
+- [x] `bash -n .agentic-framework/agents/audit/audit.sh` passes; `fw audit --section structure` returns clean (no spurious WARN/FAIL added; existing PASS lines unaffected — 3 new PASS lines added).
 
 ### Human
 
@@ -53,7 +53,7 @@ on every `fw audit` invocation, including the project's own scheduled audit.
 ## Verification
 
 bash -n .agentic-framework/agents/audit/audit.sh
-.agentic-framework/bin/fw audit --section structure 2>&1 | grep -qE "cron\(.*\):|Cron registry"
+test "$(.agentic-framework/bin/fw audit --section structure 2>&1 | grep -cE 'cron\(|Cron registry')" -ge 3
 
 ## RCA
 
@@ -95,6 +95,28 @@ bash -n .agentic-framework/agents/audit/audit.sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — verify upstream landing and close.
+
+**Rationale:** Five Agent ACs all verified. Consumer copy at
+`/opt/termlink/.agentic-framework/agents/audit/audit.sh` and upstream at
+`/opt/999-AEF/agents/audit/audit.sh` are byte-equivalent (same Python
+patcher applied to both); upstream pushed to OneDev master as `a3566cb3`.
+Live test exercises the exact G-058 prevention case (dormant USER-field
+crontab) and reports a FAIL with the install command. No spurious noise
+added — only PASS lines for installed crons and a FAIL for genuinely
+dormant ones.
+
+**Evidence:**
+- Consumer commit: `e89e94a6` on `/opt/termlink` `main`
+- Upstream commit: `a3566cb3` on `/opt/999-AEF` `master` (verified via `git ls-remote`)
+- Live audit output: 3 new PASS lines (heartbeat, release-mirror-canary; agentic-audit already covered by registry check)
+- Negative test: stage `.context/cron/__test-T1722.crontab` (no install) → `[FAIL] cron(__test-T1722)` surfaces; remove → disappears
+
+**Follow-up filed if needed:**
+- PL-173 case (1) (dual-install in /etc/cron.d/ + user crontab) deferred to a future task when an actual instance is observed — current MVP catches the silent-failure mode that is the established G-058 cause.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -126,3 +148,25 @@ bash -n .agentic-framework/agents/audit/audit.sh
 ### 2026-05-26T22:37:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-5b51a70a
+- **Timestamp:** 2026-05-26T22:44:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `.agentic-framework/agents/audit/audit.sh` walks `$PROJECT_ROOT/.context/cron/*.crontab` and, for each USER-field-syntax file (detected by awk-parsing for a row whose first field is cron-numeric and 6
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: `.agentic-framework/agents/audit/audit.sh` walks `$PROJECT_ROOT/.context/cron/*.crontab` and, for each USER-field-syntax file (detected by awk-parsing`
+- **AC#2 (Agent)** — Live verification on this repo: lint emits PASS for `release-mirror-canary.crontab` (installed at `/etc/cron.d/termlink-release-mirror-canary`) and PASS for `heartbeat.crontab` (installed at `/etc/cro
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: Live verification on this repo: lint emits PASS for `release-mirror-canary.crontab` (installed at `/etc/cron.d/termlink-release-mirror-canary`) and PA`
+- **AC#4 (Agent)** — Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Verified via `git ls-remote https://onedev.docker.ri
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh in: Channel-1 mirror: identical patch landed at `/opt/999-Agentic-Engineering-Framework/agents/audit/audit.sh` on `origin/master` as commit `a3566cb3`. Ve`
+
+### 2026-05-26T22:44:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Verification gate fixed (pipefail-safe with grep -c)
