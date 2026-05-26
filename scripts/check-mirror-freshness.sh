@@ -23,12 +23,14 @@ set -eu
 
 FORMAT=human
 QUIET=0
+HEARTBEAT=1
 GITHUB_URL="https://github.com/DimitriGeelen/termlink.git"
 
 for arg in "$@"; do
     case "$arg" in
         --json)  FORMAT=json ;;
         --quiet) QUIET=1 ;;
+        --no-heartbeat) HEARTBEAT=0 ;;
         -h|--help)
             sed -n '2,20p' "$0"
             exit 0
@@ -36,6 +38,18 @@ for arg in "$@"; do
         *) echo "unknown arg: $arg" >&2; exit 2 ;;
     esac
 done
+
+# T-1723 heartbeat: prove this canary ran, even on synced/error cycles.
+# scripts/check-canary-aliveness.sh stats this file's mtime; if stale,
+# the canary itself is broken (cron didn't load, script crashed, etc.).
+# Placed BEFORE the network calls so a network error still leaves a heartbeat.
+# --no-heartbeat suppresses the touch so the meta-canary can probe drift
+# without side-effecting the very signal it's checking.
+HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.release-mirror-canary.heartbeat}"
+if [ "$HEARTBEAT" = 1 ]; then
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
+    touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
+fi
 
 die() {
     if [ "$FORMAT" = json ]; then

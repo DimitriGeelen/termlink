@@ -15,3 +15,10 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # and :43 rollout audit (heartbeat.crontab). Runs as root so cwd-into the
 # repo doesn't trip permissions on .git.
 13 7 * * * root cd /opt/termlink && bash scripts/check-mirror-freshness.sh --quiet >> .context/working/.release-mirror-canary.log 2>&1
+
+# T-1723 — meta-canary. Fires 80 minutes after the canary above, on a
+# different minute so a load-time race or transient cron lock can't take
+# both out together. --quiet means the log only grows when the canary's
+# heartbeat is stale; an empty log here is the healthy state (same
+# convention as the canary it watches).
+33 8 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1

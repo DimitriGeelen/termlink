@@ -4,15 +4,15 @@ name: "Meta-canary — warn when release-mirror-canary log is stale despite drif
 description: >
   Add a self-check to scripts/check-mirror-freshness.sh (or a sibling cron) so that if .context/working/.release-mirror-canary.log mtime is older than 2× cron-interval (≥48h for the daily canary) AND OneDev→GitHub HEAD divergence is non-zero, an alert fires. T-1721 surfaced the failure mode: the canary itself can be silently broken (wrong install location, bad PATH, parse error in /etc/cron.d/) and produce zero log entries even when drift is present — replicating the exact G-058 silent-failure pattern the canary was built to prevent. The meta-canary closes the recursion: 'the watcher is being watched'. Implementation options: (a) prepend a self-check to check-mirror-freshness.sh that stats its own log; (b) a separate scripts/check-canary-aliveness.sh; (c) a Watchtower panel that surfaces 'canary log mtime' next to 'drift status' so an operator sees both in one glance. Choice between (a)/(b)/(c) is the first design decision in the task.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [canary, meta, release, G-058, prevention, observability]
 components: []
 related_tasks: [T-1721, T-1696, T-1695]
 created: 2026-05-20T07:07:06Z
-last_update: 2026-05-20T07:07:06Z
+last_update: 2026-05-26T22:29:52Z
 date_finished: null
 ---
 
@@ -25,35 +25,40 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+
+Design choice (decided 2026-05-27): **option (b) — sibling script + cron entry**,
+augmented by a heartbeat-file touch added to the existing canary. The log-only
+signal in the original task description is insufficient because the canary log
+is append-on-drift-only: a healthy canary with no drift leaves the log mtime
+stale-looking even when it's running fine. The heartbeat-touch fires on every
+invocation regardless of drift, giving a clean "did the canary actually run?"
+signal that the meta-check can stat.
+
+- [x] `scripts/check-mirror-freshness.sh` touches `.context/working/.release-mirror-canary.heartbeat` on every invocation, BEFORE the network calls (so a network error doesn't suppress the heartbeat); `bash -n` passes. Also gains `--no-heartbeat` so the meta-canary can probe drift status without side-effecting the very signal it's checking (discovered during negative testing).
+- [x] New `scripts/check-canary-aliveness.sh` exists, is executable, `bash -n` passes; exits 0 when heartbeat is fresh (≤48h), exits 1 when stale.
+- [x] `.context/cron/release-mirror-canary.crontab` has a new line invoking `check-canary-aliveness.sh --quiet` daily (33 8 * * *, 80 min after the canary at 13 7 * * * so a load-time race can't take both); the file still parses as `/etc/cron.d/`-style USER-field syntax (15-field rows, header comment unchanged).
+- [x] After a manual run of `check-mirror-freshness.sh` in this repo, the heartbeat file exists at `.context/working/.release-mirror-canary.heartbeat`.
+- [x] `check-canary-aliveness.sh` against the fresh heartbeat exits 0. Negative test: backdated heartbeat to 72h → exit 1 with full diagnostic, AND the side-effect-free probe (via `--no-heartbeat`) preserved the stale mtime across multiple meta-canary invocations.
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+
+- [ ] [RUBBER-STAMP] Cron entry installed on .107 so the meta-canary actually fires.
+  **Steps:**
+  1. `sudo cp /opt/termlink/.context/cron/release-mirror-canary.crontab /etc/cron.d/termlink-release-mirror-canary`
+  2. `sudo systemctl reload cron`
+  3. `grep aliveness /etc/cron.d/termlink-release-mirror-canary`
+  **Expected:** The grep returns the new meta-canary line.
+  **If not:** Inspect `/etc/cron.d/termlink-release-mirror-canary` for syntax / permission issues; cron does NOT load files that are group/world-writable.
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+bash -n scripts/check-mirror-freshness.sh
+bash -n scripts/check-canary-aliveness.sh
+test -x scripts/check-canary-aliveness.sh
+bash scripts/check-mirror-freshness.sh --quiet || true
+test -f .context/working/.release-mirror-canary.heartbeat
+bash scripts/check-canary-aliveness.sh --quiet
+grep -q "check-canary-aliveness.sh" .context/cron/release-mirror-canary.crontab
 
 ## RCA
 
@@ -122,3 +127,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1723-meta-canary--warn-when-release-mirror-ca.md
 - **Context:** Initial task creation
+
+### 2026-05-26T22:29:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
