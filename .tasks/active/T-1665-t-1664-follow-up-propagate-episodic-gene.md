@@ -4,7 +4,7 @@ name: "T-1664 follow-up: propagate episodic-generator escape-order fix to upstre
 description: >
   T-1664 fixed the consumer copy. Dispatch from this host's container fails with cd /opt/999-AEF (path inaccessible). Operator must propagate from a host that has /opt/999-AEF mounted, or run termlink dispatch from outside the boundary. Without this fix landing upstream, consumer fw upgrade will silently re-introduce the bug. Three sites (lines 288/304/361 in agents/context/lib/episodic.sh) need 'sed s/\\\\/\\\\\\\\/g' prepended before the existing quote-escape.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T18:54:38Z
-last_update: 2026-05-17T18:54:38Z
+last_update: 2026-05-26T16:02:58Z
 date_finished: null
 ---
 
@@ -25,9 +25,31 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+**Revised 2026-05-26 after upstream-state check — original premise was wrong.**
+The task as filed assumed upstream lacks the fix and needs the same `sed 's/\\/\\\\/g'` prepend that T-1664 applied to the consumer. **Upstream check disproved this.**
+Upstream `/opt/999-AEF/agents/context/lib/episodic.sh` does NOT use the
+double-quoted-with-backslash-escape approach at all — at the three sites it
+uses **single-quoted YAML scalars** (`sed "s/'/''/g"`) which are naturally
+safe against the backslash-in-quoted-string bug T-1664 was patching. The
+consumer copy has structurally diverged from upstream (different quoting
+strategy, not just a missing fix). Real ACs depend on the divergence
+decision (human-owner judgment, see Updates 2026-05-26):
+
+- [ ] **Owner decides direction** between (A) re-align consumer with
+      upstream's single-quote approach (sweep the whole `generate_episodic`
+      function — not just the 3 documented sites — because emit/escape
+      pairs come together), or (B) re-apply the T-1664 backslash-prepend
+      fix to consumer ONLY and leave upstream's single-quote approach alone
+      (accepts permanent divergence), or (C) port the T-1664 backslash
+      escape to upstream too (defensive belt-and-braces — single quote
+      already covers it, but extra hardening).
+- [ ] Once direction chosen, the implementing change passes `bash -n` and
+      a smoke run of episodic generation against a backslash-bearing input
+      yields YAML that `python3 -c 'import yaml; yaml.safe_load(open("..."))'`
+      accepts without raising.
+- [ ] If direction (A) or (C): commit landed on `/opt/999-AEF` OneDev
+      `origin/master` referencing T-1665. If direction (A) or (B): commit
+      landed on `/opt/termlink` referencing T-1665. Push to OneDev.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,3 +144,37 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1665-t-1664-follow-up-propagate-episodic-gene.md
 - **Context:** Initial task creation
+
+### 2026-05-26 — premise check: upstream does not need this fix [agent]
+
+While picking T-1665 up as a small in-initiative unit, did the propagation
+preflight (read upstream + consumer at lines 288/304/361). Found a
+structural divergence the original task description didn't anticipate:
+
+- **Consumer** `/opt/termlink/.agentic-framework/agents/context/lib/episodic.sh`
+  at lines 288, 304, 322, 325, 328, 331, 361: emits YAML using
+  **double-quoted** scalars (`echo "  - \"$text\""`) and escapes with
+  `sed 's/"/\\"/g'`. This is the form T-1664 patched (prepend a backslash-
+  escape `sed 's/\\/\\\\/g'` so a literal `\` in input doesn't break the
+  double-quoted scalar parse).
+- **Upstream** `/opt/999-Agentic-Engineering-Framework/agents/context/lib/episodic.sh`
+  at the corresponding sites: uses **single-quoted** scalars and escapes
+  with `sed "s/'/''/g"` (YAML single-quote doubling). Single-quoted YAML
+  scalars are literal — no backslash escaping needed, no backslash bug.
+
+**Implication:** T-1665 was filed on the premise that upstream needs the
+same `sed 's/\\/\\\\/g'` prepend the consumer got. That premise is
+disproven by today's read. The actual situation is divergence: consumer
+uses a different YAML quoting strategy than upstream (probably stale —
+upstream rewrote to single-quoted for cleaner escape semantics; consumer
+never picked up the rewrite, and T-1638 force-downgrade left it on the
+old version).
+
+**Not patched this session.** The right next step is owner judgment among
+direction (A) re-align consumer with upstream, (B) keep consumer on
+double-quote and re-apply T-1664's prepend, (C) port T-1664 to upstream
+defensively. ACs revised to gate on that choice. No upstream patch yet;
+no consumer patch yet.
+
+### 2026-05-26T16:02:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
