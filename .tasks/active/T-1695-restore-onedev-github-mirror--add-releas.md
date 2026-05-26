@@ -12,7 +12,7 @@ tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-05-20T08:23:20Z
+last_update: 2026-05-26T21:45:34Z
 date_finished: null
 ---
 
@@ -306,3 +306,63 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 - **Impact while broken:** every commit + release tag pushed to OneDev this
   session (and since 2026-05-20) is NOT on GitHub, so Homebrew/binary consumers
   see stale releases. This is the live G-058 failure mode.
+
+### 2026-05-26T21:43:35Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
+- **Reason:** AEF buildspec comparison disproved jobExecutor diagnosis; root cause is force:false and/or stale PAT
+
+### 2026-05-26T22:00Z — SELF-CORRECTION: AEF mirror is also broken; executor diagnosis REAFFIRMED [agent]
+
+Flipped status from `issues → started-work` above on a faulty inference. Walking it back here.
+
+**What I did wrong this session.** Compared `.onedev-buildspec.yml` between AEF (public,
+readable anonymously) and termlink, noted differences (`force: false` vs `true`,
+`passwordSecret: github-push-token-v2` vs `github-push-token`), AND observed neither
+buildspec sets `jobExecutor:`. From "AEF has 306 successful builds and no jobExecutor
+either" I jumped to "the executor diagnosis from 2026-05-20 must be wrong; the differences
+must explain it." This was sloppy.
+
+**What disproves it.** Compared LIVE HEADs across both projects, anonymously:
+
+| project | OneDev HEAD | GitHub HEAD | mirror state |
+|---|---|---|---|
+| termlink | `482e5a14` | `4c89ca1a` | broken (159 behind) |
+| agentic-engineering-framework | `ec218bff` | `0c3c3528` | **also broken** |
+
+AEF's mirror is broken too. The "306 successful builds" on AEF are its
+`Deploy Production to LXC` job (which DOES specify `runInContainer: true image: alpine:3.19`
+in the CommandStep, so it gets a container executor); its `Push to GitHub Mirror` job uses
+no container config and presumably fails the same way termlink's does.
+
+**Re-anchoring on ground truth.** The 2026-05-20T08:40Z entry above contains operator-pasted
+stderr from OneDev's actual build log:
+
+```
+Executing job (executor: penelope-shell, agent: penelope-ct250)...
+Remote shell executor can only execute jobs on agents running directly on bare metal/virtual machine
+```
+
+This is authoritative — operator pulled it from the UI, no inference. The root cause IS
+the `penelope-shell` executor + container-agent mismatch. The 2026-05-26 status entry
+above ("MIRROR STILL BROKEN AND DRIFT IS GROWING") was already correct; I confused myself
+by re-questioning it this session.
+
+**Implication for the fix.** Since this affects BOTH projects (not termlink-specific),
+Path 2 — change the OneDev server-wide default executor — is structurally cleaner
+than per-project `jobExecutor:` pins. One admin action heals both mirrors AND any
+future project's PushRepository job.
+
+**Lesson (PL-175 reinforced).** Inferring from buildspec config without checking the
+authoritative artifact (actual build stderr OR HEAD drift) led me to re-question a
+correctly-diagnosed root cause. PL-175 already says "don't RCA from runtime signatures
+alone — read the log"; this session adds "don't UN-RCA from config diffs alone — verify
+the symptom is still consistent with the prior diagnosis." Both reduce to: ground in
+empirical evidence, not inference layers.
+
+**No buildspec edit made this session.** Flipped back to `issues` (operator action still
+gated). The 2026-05-20T09:05Z "Operator's still-pending Human ACs" list remains accurate
+as the recovery path.
+
+### 2026-05-26T21:45:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → issues
+- **Reason:** Self-correction: AEF mirror also broken; executor-mismatch diagnosis (2026-05-20 operator log) reaffirmed. Operator action still gated.
