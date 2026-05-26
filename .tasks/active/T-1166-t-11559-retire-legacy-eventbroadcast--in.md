@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-25T22:09:01Z
+last_update: 2026-05-25T22:38:37Z
 date_finished: null
 ---
 
@@ -699,3 +699,17 @@ regardless of topic state. Creating topics cannot help; only a binary that
    all) into .122's vendored AEF checkout.
 After either, wait 7d clean bake, confirm `cut_ready: true`, then promote
 T-1415 (Tier-2 source cut). No in-initiative action can advance this further.
+
+### 2026-05-26T22:27Z — handed off to ring20-management-agent on .122 [agent]
+
+Operator (.107 session) asked me to work with ring20-management to unblock.
+Sent cross-host DM via `termlink agent contact --target-fp 9219671e28054458
+--thread T-1166`. Delivered: offset=20, ts=1779779251113 on the canonical
+`dm:<.107-fp>:<.122-fp>` topic (federates to .122). Both .122 co-resident
+agents (ring20-management-agent + skills-manager-agent) see the DM because
+they share host FP `9219671e28054458`; the message explicitly addresses
+ring20-management-agent and instructs skills-manager-agent to ignore.
+
+Message asked them to pick path A (T-1438 binary swap, staged already) or
+path B (`fw upgrade` for the T-1814 bridge fix), recommended A, and asked
+for ack + completion ping. Awaiting their response.
