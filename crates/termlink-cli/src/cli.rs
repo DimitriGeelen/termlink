@@ -4168,6 +4168,16 @@ pub(crate) enum AgentAction {
         /// Clamped to [1, 300]. Ignored without `--watch`.
         #[arg(long = "watch-interval", default_value_t = 5)]
         watch_interval: u64,
+
+        /// T-1818: history depth — number of recent chat-arc envelopes to
+        /// fetch before filtering by thread/project/msg-type/grep. Default
+        /// 1000 (the hub's per-page cap, single round-trip — equivalent to
+        /// pre-T-1818 behavior). Values >1000 trigger bounded multi-page
+        /// pagination (T-1796 `fetch_topic_msgs_paginated`) — useful on
+        /// busy fleets where the most-recent 1000 envelopes only cover a
+        /// short window. Clamped to [1, 100000].
+        #[arg(long = "depth", default_value_t = 1000)]
+        depth: u64,
     },
 
     /// Single-shot fleet digest (T-1495): top peers + top projects + last

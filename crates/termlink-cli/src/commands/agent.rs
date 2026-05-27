@@ -1840,6 +1840,7 @@ pub(crate) async fn cmd_agent_timeline(
     json: bool,
     watch: bool,
     watch_interval: u64,
+    depth: u64,
 ) -> Result<()> {
     if watch && json {
         let msg = "--watch and --json are incompatible: --watch streams \
@@ -1852,6 +1853,8 @@ pub(crate) async fn cmd_agent_timeline(
 
     let clamped_n = n.clamp(1, 500);
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+    // T-1818: history depth — single-page (default 1000) vs bounded multi-page.
+    let clamped_depth = depth.clamp(1, 100_000);
 
     if watch {
         let clamped_interval = watch_interval.clamp(1, 300);
@@ -1881,7 +1884,8 @@ pub(crate) async fn cmd_agent_timeline(
                 "# agent timeline --watch | interval={}s | window={}s | n={}{} | {}",
                 clamped_interval, clamped_window_secs, clamped_n, filter_suffix, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, 1000).await {
+            // T-1818: paginated fetch — depth controls round-trips above the 1000-page cap.
+            match super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth).await {
                 Ok(msgs) => {
                     let now_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -1909,7 +1913,9 @@ pub(crate) async fn cmd_agent_timeline(
         }
     }
 
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 1000)
+    // T-1818: paginated fetch — `--depth` controls how deep we walk before
+    // filtering. Default 1000 matches pre-T-1818 single-page behavior.
+    let msgs = super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth)
         .await
         .with_context(|| "agent timeline: failed to fetch chat-arc".to_string())?;
 
