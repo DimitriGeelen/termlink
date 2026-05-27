@@ -2562,9 +2562,12 @@ pub(crate) async fn cmd_agent_overview(
     json: bool,
     watch: bool,
     watch_interval: u64,
+    depth: u64,
 ) -> Result<()> {
     let clamped_window_secs = window_secs.clamp(60, 604_800);
     let clamped_top = top.clamp(1, 50);
+    // T-1819: history depth — single-page (default 1000) vs bounded multi-page.
+    let clamped_depth = depth.clamp(1, 100_000);
     // T-1496: --watch + --json incompatible.
     if watch && json {
         let msg = "--watch and --json are incompatible: --watch streams \
@@ -2589,7 +2592,8 @@ pub(crate) async fn cmd_agent_overview(
                 "# agent overview --watch | interval={}s | window={}s | top={} | {}",
                 clamped_interval, clamped_window_secs, clamped_top, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP).await {
+            // T-1819: paginated fetch — depth controls round-trips above the 1000-page cap.
+            match super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth).await {
                 Ok(msgs) => render_overview_body(&msgs, clamped_window_secs, clamped_top),
                 Err(e) => {
                     println!("# fetch error (will retry on next tick): {e}");
@@ -2599,11 +2603,11 @@ pub(crate) async fn cmd_agent_overview(
         }
     }
 
-    // T-1795: single round-trip of the most-recent page. The hub caps each
-    // subscribe page at 1000 (HUB_SUBSCRIBE_PAGE_CAP); the prior slice of
-    // 2000 silently read the OLDEST page, starving all three summaries on
-    // busy fleets (overview showed "no fleet activity" against live traffic).
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP)
+    // T-1795 → T-1819: `--depth` controls how deep we walk before computing
+    // summaries. Default 1000 matches pre-T-1819 single-page behavior (the
+    // T-1795 fix kept the tail anchor right). Higher --depth walks bounded
+    // multi-page so digests on busy fleets cover a longer window.
+    let msgs = super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth)
         .await
         .context("agent overview: failed to fetch chat-arc")?;
 

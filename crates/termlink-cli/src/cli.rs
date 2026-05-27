@@ -4205,6 +4205,16 @@ pub(crate) enum AgentAction {
         #[arg(long)]
         json: bool,
 
+        /// T-1819: history depth — number of recent chat-arc envelopes to
+        /// fetch before computing the 3-section digest. Default 1000 (the
+        /// hub's per-page cap, single round-trip — equivalent to pre-T-1819
+        /// behavior). Values >1000 trigger bounded multi-page pagination
+        /// (T-1796 `fetch_topic_msgs_paginated`) — useful on busy fleets
+        /// where 1000 envelopes only cover a short window. Clamped to
+        /// [1, 100000].
+        #[arg(long = "depth", default_value_t = 1000)]
+        depth: u64,
+
         /// Live fleet dashboard mode (T-1496): re-render the 3-section
         /// overview every `--watch-interval` seconds until Ctrl-C.
         /// Composes with `--window-secs`, `--top`, `--hub`. Incompatible
