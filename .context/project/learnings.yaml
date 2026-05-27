@@ -2027,3 +2027,10 @@ learnings:
   date: 2026-05-25
   context: Added via context agent
   application: TBD
+- id: PL-182
+  learning: "When classifying ACs as agent-verifiable vs human-only, weight the success criterion (title + Expected: line) over the Steps block. Steps always contain shell verbs by template requirement (P-011 + Human AC Format), so any Steps-based classifier will over-flag mechanical. The discriminator is what's IN the Expected line — string-match/exit-code/fields-present means mechanical; subjective predicate (reads naturally / is steady / is operator-fluent / scannable / intuitive / delight) means human-only regardless of Steps. Origin: T-1697 first pass yielded 100 mechanical, second pass with subjective-override yielded 26."
+  source: PL-169
+  task: T-1697
+  date: 2026-05-27
+  context: Added via context agent
+  application: TBD
