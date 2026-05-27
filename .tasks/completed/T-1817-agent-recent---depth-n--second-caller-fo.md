@@ -4,16 +4,16 @@ name: "agent recent --depth N — second caller for T-1796 helper (T-1816 follow
 description: >
   agent recent --depth N — second caller for T-1796 helper (T-1816 follow-up #1)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-27T23:20:10Z
-last_update: 2026-05-27T23:20:10Z
-date_finished: null
+last_update: 2026-05-27T23:30:02Z
+date_finished: 2026-05-27T23:30:02Z
 ---
 
 # T-1817: agent recent --depth N — second caller for T-1796 helper (T-1816 follow-up #1)
@@ -143,3 +143,15 @@ code path, deferred unless operators report needing it.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1817-agent-recent---depth-n--second-caller-fo.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7952d541
+- **Timestamp:** 2026-05-27T23:30:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-27T23:30:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

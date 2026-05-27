@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1817: agent recent --depth N — second caller for T-1796 helper (T-1816 follow-up #1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-27T23:30:28Z
+# ============================================================================
+
+task_id: T-1817
+task_name: "agent recent --depth N — second caller for T-1796 helper (T-1816 follow-up #1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-27T23:20:10Z
+completed: 2026-05-27T23:30:02Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T01:29:54+02:00
+last_commit: 2026-05-28T01:29:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent recent --depth N — second caller for T-1796 paginated helper
+
+# Key outcomes
+outcomes:
+  - "`--depth` flag added to the `AgentAction::Recent` clap variant (default 1000, clamped [1, 100000]) with doc explaining single-round-trip vs multi-page tradeoff"
+  - "`main.rs` destructures `depth` and threads it into `cmd_agent_recent` as the final arg"
+  - "`cmd_agent_recent` signature gains `depth: u64`; clamped to [1, 100000] as `clamped_depth`"
+  - "Both `fetch_recent_chat_arc_msgs(hub, 1000)` call sites in `cmd_agent_recent` (watch loop + one-shot) replaced with `super::channel::fetch_topic_msgs_paginated(\"agent-chat-arc\", hub, clamped_depth)`"
+  - "`cargo check -p termlink` clean"
+  - "`cargo test -p termlink --bin termlink paginated_tail_start` still passes (regression sentinel for T-1796 helper) — 5/5"
+  - "Release build succeeds (`cargo build -p termlink --release --bin termlink`) — operator gets a binary that actually carries the flag"
+  - "`target/release/termlink agent recent --help` shows `--depth` with `[default: 1000]`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1817-agent-recent---depth-n--second-caller-fo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T01:29:54"
+    action: "T-1817: agent recent --depth N — second caller for T-1796 paginated helper"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 4
+  lines_added: 167
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1817-agent-recent---depth-n--second-caller-fo.md
+generated_by: context-agent-hybrid
