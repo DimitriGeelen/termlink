@@ -283,10 +283,10 @@ async fn main() -> Result<()> {
             AgentAction::Ping { target, target_fp, window_secs, hub, json } => {
                 commands::agent::cmd_agent_ping(target.as_deref(), target_fp.as_deref(), window_secs, hub.as_deref(), json).await
             }
-            AgentAction::Recent { target, target_fp, n, window_secs, filter_thread, filter_project, filter_msg_types, filter_grep, hub, json, watch, watch_interval } => {
+            AgentAction::Recent { target, target_fp, n, window_secs, filter_thread, filter_project, filter_msg_types, filter_grep, hub, json, watch, watch_interval, depth } => {
                 let mt: Vec<&str> = filter_msg_types.iter().map(String::as_str).collect();
                 let mt_opt = if mt.is_empty() { None } else { Some(mt.as_slice()) };
-                commands::agent::cmd_agent_recent(target.as_deref(), target_fp.as_deref(), n, window_secs, filter_thread.as_deref(), filter_project.as_deref(), mt_opt, filter_grep.as_deref(), hub.as_deref(), json, watch, watch_interval).await
+                commands::agent::cmd_agent_recent(target.as_deref(), target_fp.as_deref(), n, window_secs, filter_thread.as_deref(), filter_project.as_deref(), mt_opt, filter_grep.as_deref(), hub.as_deref(), json, watch, watch_interval, depth).await
             }
             AgentAction::OnThread { thread, n, window_secs, filter_project, filter_msg_types, filter_grep, peer, peer_fp, hub, json, watch, watch_interval, depth } => {
                 let mt: Vec<&str> = filter_msg_types.iter().map(String::as_str).collect();

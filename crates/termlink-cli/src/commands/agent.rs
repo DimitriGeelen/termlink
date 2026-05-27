@@ -1573,6 +1573,7 @@ pub(crate) async fn cmd_agent_recent(
     json: bool,
     watch: bool,
     watch_interval: u64,
+    depth: u64,
 ) -> Result<()> {
     if target.is_some() && target_fp.is_some() {
         let msg = "specify either <TARGET> or --target-fp, not both";
@@ -1618,6 +1619,8 @@ pub(crate) async fn cmd_agent_recent(
 
     let clamped_n = n.clamp(1, 200);
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+    // T-1817: history depth — single-page (default 1000) vs bounded multi-page.
+    let clamped_depth = depth.clamp(1, 100_000);
 
     // T-1498: watch loop branches before the one-shot fetch path.
     if watch {
@@ -1649,7 +1652,8 @@ pub(crate) async fn cmd_agent_recent(
                 display_target, peer_fp, clamped_interval, clamped_window_secs,
                 clamped_n, filter_suffix, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, 1000).await {
+            // T-1817: paginated fetch — depth controls round-trips above the 1000-page cap.
+            match super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth).await {
                 Ok(msgs) => {
                     let now_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -1677,9 +1681,11 @@ pub(crate) async fn cmd_agent_recent(
         }
     }
 
-    // Walk a wider slice than n so filtering doesn't starve — 1000 envelopes
-    // covers ~16h on a 1/min-cadence chat-arc.
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, 1000)
+    // T-1817: paginated fetch — `--depth` controls how deep we walk before
+    // filtering. Default 1000 matches pre-T-1817 single-page behavior (covers
+    // ~16h on a 1/min chat-arc). Higher --depth walks bounded multi-page so
+    // busy fleets dominated by other peers can still surface this peer.
+    let msgs = super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth)
         .await
         .with_context(|| {
             format!("agent recent: failed to fetch chat-arc for peer fp={peer_fp}")
