@@ -2321,6 +2321,7 @@ pub(crate) async fn cmd_agent_on_thread(
     json: bool,
     watch: bool,
     watch_interval: u64,
+    depth: u64,
 ) -> Result<()> {
     if peer.is_some() && peer_fp.is_some() {
         let msg = "specify either --peer or --peer-fp, not both";
@@ -2360,6 +2361,12 @@ pub(crate) async fn cmd_agent_on_thread(
 
     let clamped_n = n.clamp(1, 500);
     let clamped_window_secs = window_secs.clamp(60, 604_800);
+    // T-1816: history depth for the pre-filter fetch. 1000 = the hub's
+    // per-page cap (single round-trip); higher values trigger multi-page
+    // pagination via T-1796 fetch_topic_msgs_paginated. 100k upper bound
+    // is a safety cap (~100 round-trips); operator can request more by
+    // running multiple targeted queries.
+    let clamped_depth = depth.clamp(1, 100_000);
 
     // T-1494: watch loop branches before the one-shot fetch path.
     if watch {
@@ -2388,7 +2395,8 @@ pub(crate) async fn cmd_agent_on_thread(
                 thread, clamped_interval, clamped_window_secs, clamped_n,
                 filter_suffix, now_str
             );
-            match super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP).await {
+            // T-1816: bounded multi-page pagination — honors --depth >1000.
+            match super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth).await {
                 Ok(msgs) => {
                     let now_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -2423,10 +2431,12 @@ pub(crate) async fn cmd_agent_on_thread(
         }
     }
 
-    // T-1795: fetch the most-recent page. The hub caps each subscribe page
-    // at 1000 (HUB_SUBSCRIBE_PAGE_CAP); requesting more silently read the
-    // OLDEST page and made this verb return empty. Use the cap directly.
-    let msgs = super::channel::fetch_recent_chat_arc_msgs(hub, super::channel::HUB_SUBSCRIBE_PAGE_CAP)
+    // T-1795 + T-1816: fetch the most-recent `clamped_depth` envelopes via
+    // bounded multi-page pagination. Default depth=1000 = single round-trip
+    // (matches pre-T-1816 behavior). Depth >1000 walks multiple pages, useful
+    // on busy fleets where the most-recent 1000 envelopes contain few thread
+    // matches.
+    let msgs = super::channel::fetch_topic_msgs_paginated("agent-chat-arc", hub, clamped_depth)
         .await
         .with_context(|| {
             format!("agent on-thread: failed to fetch chat-arc for thread={thread}")

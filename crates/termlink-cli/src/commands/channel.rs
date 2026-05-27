@@ -711,7 +711,8 @@ pub(crate) fn tail_slice_cursor(count: u64, slice_size: u64) -> (u64, u64) {
 /// (single-page tail, T-1795) — that helper exists for the one-round-trip
 /// path where we accept being capped at `HUB_SUBSCRIBE_PAGE_CAP`; this helper
 /// exists for callers willing to make multiple round-trips for deeper history.
-#[allow(dead_code)] // T-1796: ships ahead of callers; future tasks wire it into specific verbs.
+// T-1796 + T-1816: wired by `cmd_agent_on_thread` (chat-arc thread filtering
+// with operator-tunable depth). First caller, more verbs may follow.
 pub(crate) fn paginated_tail_start(count: u64, slice_size: u64) -> u64 {
     count.saturating_sub(slice_size)
 }
@@ -797,7 +798,7 @@ pub(crate) async fn fetch_topic_msgs(
 ///     `channel.list` round-trip (no `channel.subscribe`).
 ///   - When `slice_size = 0`: returns `Ok(vec![])` immediately after the
 ///     count probe (no envelopes requested).
-#[allow(dead_code)] // T-1796: ships ahead of callers; future tasks wire it into specific verbs.
+// T-1796 + T-1816: wired by `cmd_agent_on_thread` via the `--depth` flag.
 pub(crate) async fn fetch_topic_msgs_paginated(
     topic: &str,
     hub: Option<&str>,
