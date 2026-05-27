@@ -703,13 +703,26 @@ pub(crate) fn tail_slice_cursor(count: u64, slice_size: u64) -> (u64, u64) {
     (count.saturating_sub(effective), effective)
 }
 
+/// T-1796: tail-anchored start cursor for bounded multi-page pagination.
+/// Used by `fetch_topic_msgs_paginated`. Returns `count - slice_size` clamped
+/// to zero so callers requesting MORE envelopes than the topic holds get the
+/// whole topic (cursor 0) rather than a saturating panic. Pure so it can be
+/// unit-tested without a hub round-trip. Companion to `tail_slice_cursor`
+/// (single-page tail, T-1795) — that helper exists for the one-round-trip
+/// path where we accept being capped at `HUB_SUBSCRIBE_PAGE_CAP`; this helper
+/// exists for callers willing to make multiple round-trips for deeper history.
+#[allow(dead_code)] // T-1796: ships ahead of callers; future tasks wire it into specific verbs.
+pub(crate) fn paginated_tail_start(count: u64, slice_size: u64) -> u64 {
+    count.saturating_sub(slice_size)
+}
+
 /// T-1485: fetch the last `slice_size` envelopes of any topic. Returns an
 /// empty Vec when the topic is empty or doesn't exist. Single round-trip
 /// for `channel.list` + `channel.subscribe`. Generalizes the original
 /// chat-arc-only helper (T-1480/T-1481) so dm topics can use the same
 /// walk pattern (T-1485 ack-wait). The effective slice is clamped to
 /// `HUB_SUBSCRIBE_PAGE_CAP` (T-1795) — request more via pagination
-/// (walk_topic_full / fetch_chat_arc_full).
+/// (walk_topic_full / fetch_chat_arc_full / fetch_topic_msgs_paginated).
 pub(crate) async fn fetch_topic_msgs(
     topic: &str,
     hub: Option<&str>,
@@ -757,6 +770,105 @@ pub(crate) async fn fetch_topic_msgs(
     let result = client::unwrap_result(resp)
         .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
     Ok(result["messages"].as_array().cloned().unwrap_or_default())
+}
+
+/// T-1796: fetch the most-recent `slice_size` envelopes of `topic` via
+/// **bounded multi-page** pagination. Closes the gap between
+/// `fetch_topic_msgs` (single round-trip, capped at HUB_SUBSCRIBE_PAGE_CAP)
+/// and `walk_topic_full` (full topic, unbounded depth). Use this when a
+/// caller wants the most-recent N > 1000 envelopes from a busy topic but
+/// does NOT want to pay for the full history.
+///
+/// Algorithm:
+///   1. `channel.list` → topic count.
+///   2. Walk forward from `paginated_tail_start(count, slice_size)` in
+///      pages of `HUB_SUBSCRIBE_PAGE_CAP`, collecting envelopes in
+///      offset-ascending order.
+///   3. Stop when we've collected `slice_size` envelopes OR a page comes
+///      back short of the cap (topic exhausted).
+///
+/// Edge behavior:
+///   - When `count <= slice_size`: returns ALL envelopes (equivalent to
+///     `walk_topic_full`).
+///   - When `slice_size <= HUB_SUBSCRIBE_PAGE_CAP`: makes one round-trip
+///     for the count + one `channel.subscribe` (equivalent envelope set to
+///     `fetch_topic_msgs`).
+///   - When the topic is empty: returns `Ok(vec![])` after the single
+///     `channel.list` round-trip (no `channel.subscribe`).
+///   - When `slice_size = 0`: returns `Ok(vec![])` immediately after the
+///     count probe (no envelopes requested).
+#[allow(dead_code)] // T-1796: ships ahead of callers; future tasks wire it into specific verbs.
+pub(crate) async fn fetch_topic_msgs_paginated(
+    topic: &str,
+    hub: Option<&str>,
+    slice_size: u64,
+) -> Result<Vec<Value>> {
+    if slice_size == 0 {
+        return Ok(Vec::new());
+    }
+    let sock = hub_socket(hub)?;
+    let list_resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_LIST,
+        json!({"prefix": topic}),
+    )
+    .await
+    .with_context(|| format!("Hub rpc_call (channel.list {topic}) failed"))?;
+    let list_result = client::unwrap_result(list_resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics = list_result["topics"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let count = topics
+        .iter()
+        .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
+        .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
+        .unwrap_or(0);
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    let mut cursor = paginated_tail_start(count, slice_size);
+    let mut collected: Vec<Value> = Vec::new();
+    loop {
+        let resp = rpc_call_authed(
+            &sock,
+            method::CHANNEL_SUBSCRIBE,
+            json!({
+                "topic": topic,
+                "cursor": cursor,
+                "limit": HUB_SUBSCRIBE_PAGE_CAP,
+            }),
+        )
+        .await
+        .with_context(|| {
+            format!("Hub rpc_call (channel.subscribe {topic} cursor={cursor}) failed")
+        })?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+        let n = msgs.len() as u64;
+        collected.extend(msgs);
+        // Stop conditions:
+        //  - we have enough envelopes for the requested slice
+        //  - hub returned a short page (topic exhausted from this cursor)
+        if (collected.len() as u64) >= slice_size {
+            break;
+        }
+        if n < HUB_SUBSCRIBE_PAGE_CAP {
+            break;
+        }
+        cursor = result["next_cursor"].as_u64().unwrap_or(cursor + n);
+    }
+    // Bound the returned slice to `slice_size` — guards against the corner
+    // case where a hub returns more than requested due to a partial-page
+    // overshoot (collected can exceed slice_size when we pull a full page
+    // that pushes us past the target).
+    if (collected.len() as u64) > slice_size {
+        let drop = collected.len() - slice_size as usize;
+        collected.drain(0..drop);
+    }
+    Ok(collected)
 }
 
 /// T-1480 / T-1481: fetch the last `slice_size` envelopes of
@@ -8701,6 +8813,41 @@ mod tests {
         let (cursor, limit) = tail_slice_cursor(300, 1000);
         assert_eq!(cursor, 0);
         assert_eq!(limit, 1000);
+    }
+
+    // ---- T-1796 paginated_tail_start tests ------------------------------
+
+    #[test]
+    fn paginated_tail_start_slice_within_count_anchors_at_tail() {
+        // 5000 envelopes, want last 2500 → start at 2500.
+        assert_eq!(paginated_tail_start(5000, 2500), 2500);
+    }
+
+    #[test]
+    fn paginated_tail_start_slice_equals_count_returns_zero() {
+        // Asking for the whole topic → start cursor 0.
+        assert_eq!(paginated_tail_start(1500, 1500), 0);
+    }
+
+    #[test]
+    fn paginated_tail_start_slice_above_count_saturates_to_zero() {
+        // Asking for MORE than the topic holds must NOT underflow — start 0.
+        assert_eq!(paginated_tail_start(300, 5000), 0);
+    }
+
+    #[test]
+    fn paginated_tail_start_zero_slice_returns_count() {
+        // Degenerate: slice_size 0 means "no envelopes" — cursor lands at
+        // the end-of-topic offset (caller is expected to skip the
+        // round-trip entirely; the helper still returns a sane value).
+        assert_eq!(paginated_tail_start(1000, 0), 1000);
+    }
+
+    #[test]
+    fn paginated_tail_start_empty_topic() {
+        // Empty topic with any slice → cursor 0.
+        assert_eq!(paginated_tail_start(0, 100), 0);
+        assert_eq!(paginated_tail_start(0, 0), 0);
     }
 
     // ---- T-1448 from_project tests --------------------------------------

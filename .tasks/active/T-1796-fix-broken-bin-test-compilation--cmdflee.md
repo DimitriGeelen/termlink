@@ -4,15 +4,15 @@ name: "Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 foll
 description: >
   fetch_topic_msgs is clamped to the hub's 1000-envelope page cap (T-1795). Fleet-aggregation verbs (presence, overview, by-project) genuinely want more history on busy fleets but can only get the most-recent 1000 in one page. Add bounded multi-page pagination (model on walk_topic_full) so a caller can request the most-recent N>1000 envelopes via multiple round-trips.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [chat-arc, fetch, T-1795]
 components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: [T-1795]
 created: 2026-05-22T06:59:41Z
-last_update: 2026-05-22T06:59:41Z
+last_update: 2026-05-27T20:45:22Z
 date_finished: null
 ---
 
@@ -37,26 +37,33 @@ across multiple round-trips (model on the existing `walk_topic_full` /
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+
+Scope: add ONE new public helper + ONE new async function in
+`crates/termlink-cli/src/commands/channel.rs`. Do NOT modify the existing
+`fetch_topic_msgs` (T-1795 single-page tail) or `walk_topic_full` (full topic
+walk) — both serve current callers correctly. The gap is the *bounded
+tail-anchored multi-page* variant.
+
+- [x] New pure helper `paginated_tail_start(count, slice_size) -> u64` returns the tail-anchored start cursor (`count.saturating_sub(slice_size)`). Lives alongside `tail_slice_cursor` (line 701). Documented with `T-1796` reference.
+- [x] New async function `fetch_topic_msgs_paginated(topic, hub, slice_size)` makes a `channel.list` round-trip for the count, then walks the hub from `paginated_tail_start(count, slice_size)` forward in pages of `HUB_SUBSCRIBE_PAGE_CAP` (1000), collecting up to `slice_size` envelopes in offset-ascending order. Returns `Result<Vec<Value>>`.
+- [x] Equivalence: when `slice_size <= HUB_SUBSCRIBE_PAGE_CAP`, `fetch_topic_msgs_paginated` returns the same envelope set as `fetch_topic_msgs` (a single round-trip suffices); when `count <= slice_size`, returns ALL envelopes (equivalent to `walk_topic_full`).
+- [x] Unit tests for `paginated_tail_start`: slice < count (anchors at tail), slice = count (cursor 0), slice > count (cursor 0, saturating), slice = 0 (cursor = count).
+- [x] `cargo check -p termlink` passes from the workspace root (`/opt/termlink`).
+- [x] `cargo test -p termlink paginated_tail_start` runs the new unit tests and they PASS.
+- [x] Existing T-1795 tests (`fetch_topic_tail_cursor_*`) still PASS — proves we didn't regress the single-page path.
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+<!-- All criteria are mechanically verifiable; no human AC needed. The function
+     is internal pagination plumbing — there is no operator-facing surface yet.
+     Future tasks will wire it into specific verbs (presence, overview, etc.)
+     where operator-facing behavior may emerge and human ACs become relevant. -->
 
 ## Verification
+
+# T-1796 verification: build + targeted unit tests for the new helper.
+cargo check -p termlink
+cargo test -p termlink --bin termlink paginated_tail_start
+cargo test -p termlink --bin termlink fetch_topic_tail_cursor
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -107,6 +114,29 @@ across multiple round-trips (model on the existing `walk_topic_full` /
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — pagination helper shipped, ready for caller wiring in follow-up tasks.
+
+**Rationale:** All 7 Agent ACs satisfied. The implementation closes the gap T-1795 left open: callers wanting >1000 envelopes from a busy topic now have a bounded multi-round-trip alternative to the unbounded `walk_topic_full`. The new helper is internal plumbing only — no caller migrated yet (intentional; the spec said add the verb), so the existing `fetch_topic_msgs` (T-1795 tail-clamp) and `walk_topic_full` (full walk) remain authoritative for their current callers. The `#[allow(dead_code)]` annotation makes the "ships ahead of callers" stance explicit and prevents a clippy regression when wiring follow-up tasks land.
+
+**Evidence:**
+- New code: `crates/termlink-cli/src/commands/channel.rs` — `paginated_tail_start` (pure helper, ~line 714), `fetch_topic_msgs_paginated` (async function, ~100 lines, ~line 800)
+- New tests: 5 unit tests for `paginated_tail_start` covering slice<count, slice=count, slice>count (saturating), slice=0, and empty topic
+- Build: `cargo check -p termlink` PASS with zero new warnings (the unrelated `termlink-mcp` warning is pre-existing)
+- Tests: 5 new + 3 regression PASS (`cargo test -p termlink --bin termlink paginated_tail_start` + `fetch_topic_tail_cursor`)
+- Verification gate: 3/3 PASS
+
+**Algorithm summary (for follow-up callers):**
+1. `channel.list` → topic count (one round-trip)
+2. Walk from `paginated_tail_start(count, slice_size)` forward in pages of `HUB_SUBSCRIBE_PAGE_CAP` (1000) — typically ⌈slice_size / 1000⌉ round-trips
+3. Stop when collected ≥ slice_size OR a page comes back short (topic exhausted from this cursor)
+4. Trim any overshoot to exactly `slice_size` envelopes
+
+**Follow-up candidates (separate tasks when wanted):**
+- Wire `fetch_topic_msgs_paginated` into fleet-aggregation verbs (`agent presence`, `agent overview`, `agent on-thread`) where deeper history is useful on busy fleets
+- Consider a CLI knob (`--depth N`) on those verbs so the operator opts into multiple round-trips per call
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -134,3 +164,7 @@ across multiple round-trips (model on the existing `walk_topic_full` /
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1796-fix-broken-bin-test-compilation--cmdflee.md
 - **Context:** Initial task creation
+
+### 2026-05-27T20:45:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now
