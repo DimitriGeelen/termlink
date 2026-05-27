@@ -4,16 +4,16 @@ name: "agent on-thread --depth N — wire T-1796 helper as first caller"
 description: >
   agent on-thread --depth N — wire T-1796 helper as first caller
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-27T21:53:40Z
-last_update: 2026-05-27T21:53:40Z
-date_finished: null
+last_update: 2026-05-27T22:03:40Z
+date_finished: 2026-05-27T22:03:40Z
 ---
 
 # T-1816: agent on-thread --depth N — wire T-1796 helper as first caller
@@ -172,3 +172,26 @@ construction) and doesn't need the new helper.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1816-agent-on-thread---depth-n--wire-t-1796-h.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-f2f4f91d
+- **Timestamp:** 2026-05-27T22:10:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 4
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Add `#[arg(long = "depth", default_value_t = 1000)] depth: u64` to the `OnThread` clap variant in `crates/termlink-cli/src/cli.rs`. Doc-comment names T-1816 and explains: clamped to [1, 100000], defau
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/cli.rs in: Add `#[arg(long = "depth", default_value_t = 1000)] depth: u64` to the `OnThread` clap variant in `crates/termlink-cli/src/cli.rs`. Doc-comment names `
+- **AC#2 (Agent)** — Thread `depth` through the dispatch site in `crates/termlink-cli/src/main.rs` to `cmd_agent_on_thread`.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/main.rs in: Thread `depth` through the dispatch site in `crates/termlink-cli/src/main.rs` to `cmd_agent_on_thread`.`
+- **AC#3 (Agent)** — Update `cmd_agent_on_thread` signature in `crates/termlink-cli/src/commands/agent.rs` to accept `depth: u64`, clamp it to `1..=100_000`, and replace both call sites of `fetch_recent_chat_arc_msgs(hub,
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/agent.rs in: Update `cmd_agent_on_thread` signature in `crates/termlink-cli/src/commands/agent.rs` to accept `depth: u64`, clamp it to `1..=100_000`, and replace b`
+- **AC#4 (Agent)** — Remove `#[allow(dead_code)]` on `fetch_topic_msgs_paginated` and `paginated_tail_start` in `crates/termlink-cli/src/commands/channel.rs` — they now have a real caller.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/channel.rs in: Remove `#[allow(dead_code)]` on `fetch_topic_msgs_paginated` and `paginated_tail_start` in `crates/termlink-cli/src/commands/channel.rs` — they now ha`
+### 2026-05-27T22:03:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** First caller wired; dead-code annotation removed; verification 4/4 PASS

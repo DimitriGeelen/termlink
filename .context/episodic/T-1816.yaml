@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1816: agent on-thread --depth N — wire T-1796 helper as first caller
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-27T22:10:32Z
+# ============================================================================
+
+task_id: T-1816
+task_name: "agent on-thread --depth N — wire T-1796 helper as first caller"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-27T21:53:40Z
+completed: 2026-05-27T22:03:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T00:03:35+02:00
+last_commit: 2026-05-28T00:03:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent on-thread --depth N — wire T-1796 helper as first caller
+
+# Key outcomes
+outcomes:
+  - "Add `#[arg(long = \"depth\", default_value_t = 1000)] depth: u64` to the `OnThread` clap variant in `crates/termlink-cli/src/cli.rs`. Doc-comment names T-1816 and explains: clamped to [1, 100000], default 1000 (the hub page cap), values >1000 make multiple round-trips."
+  - "Thread `depth` through the dispatch site in `crates/termlink-cli/src/main.rs` to `cmd_agent_on_thread`."
+  - "Update `cmd_agent_on_thread` signature in `crates/termlink-cli/src/commands/agent.rs` to accept `depth: u64`, clamp it to `1..=100_000`, and replace both call sites of `fetch_recent_chat_arc_msgs(hub, HUB_SUBSCRIBE_PAGE_CAP)` (one-shot fetch + watch-loop fetch) with `fetch_topic_msgs_paginated(\"agent-chat-arc\", hub, clamped_depth)`. Tracking comment names T-1816."
+  - "Remove `#[allow(dead_code)]` on `fetch_topic_msgs_paginated` and `paginated_tail_start` in `crates/termlink-cli/src/commands/channel.rs` — they now have a real caller."
+  - "`cargo check -p termlink` PASS with zero new warnings."
+  - "`cargo test -p termlink --bin termlink paginated_tail_start` PASS (regression — proves the T-1796 unit tests still hold under the new wiring)."
+  - "`cargo build --release -p termlink` PASS (the bin actually links) — wiring the verb means the dead-code removal must hold."
+  - "`target/release/termlink agent on-thread --help 2>&1 | grep -q -- '--depth'` PASS — the new flag is documented in --help output."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1816-agent-on-thread---depth-n--wire-t-1796-h.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T00:03:35"
+    action: "T-1816: agent on-thread --depth N — wire T-1796 helper as first caller"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 5
+  lines_added: 204
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1816-agent-on-thread---depth-n--wire-t-1796-h.md
+generated_by: context-agent-hybrid
