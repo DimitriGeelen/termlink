@@ -1,0 +1,372 @@
+# T-1697 — Human AC mechanical-misclassification audit
+
+Punch list per AC for operator review. Classifications are heuristic-based; the operator decides which migrations to authorize per the T-1480/T-1481 (PL-169) pattern.
+
+**Header counts:** 26 mechanical, 136 human-only, 6 ambiguous (scanned 1578 task files; 168 unticked Human ACs total).
+
+Scope: every unticked `- [ ]` under `### Human` in `.tasks/active/*.md` and `.tasks/completed/*.md`.
+
+Classifier signals: mechanical = string-match / exit-code / file-exists / fields-present / cron/systemctl/grep/jq/git verbs; human-only = browser/UI/click/render/subjective/judgment language; ambiguous = mixed or no strong signals.
+
+
+---
+
+## Mechanical
+
+_26 ACs_ — success criterion is mechanically verifiable; candidate for `### Agent` migration.
+
+- T-157 (completed) — [REVIEW] Paste prompt into framework Claude Code session and verify integration
+  - **Why:** 2 mech signals, 0 human signals
+  - **Proposed migration:** move this AC verbatim under `### Agent` in `T-157` (delete from `### Human`), then have the agent run the Steps and tick the box. Original [REVIEW]/[RUBBER-STAMP] marker can drop.
+- T-257 (completed) — [REVIEW] Dispatch 3 real Claude research agents using the new convention, verify results arrive without polling
+  - **Why:** 1 mech signals, 0 human signals
+  - **Proposed migration:** move this AC verbatim under `### Agent` in `T-257` (delete from `### Human`), then have the agent run the Steps and tick the box. Original [REVIEW]/[RUBBER-STAMP] marker can drop.
+- T-1137 (active) — [REVIEW] /var/log on proxmox .180 is below 50 % after rotation + daily cron active
+  - **Why:** 3 mech signals, 0 human signals
+  - **Proposed migration:** move this AC verbatim under `### Agent` in `T-1137` (delete from `### Human`), then have the agent run the Steps and tick the box. Original [REVIEW]/[RUBBER-STAMP] marker can drop.
+- T-1137 (active) — [REVIEW] CT 200 (.122) stops rebooting
+  - **Why:** 2 mech signals, 0 human signals
+  - **Proposed migration:** move this AC verbatim under `### Agent` in `T-1137` (delete from `### Human`), then have the agent run the Steps and tick the box. Original [REVIEW]/[RUBBER-STAMP] marker can drop.
+- T-1296 (active) — [RUBBER-STAMP] Apply same migration recipe as T-1294 AC 2
+  - **Why:** RUBBER-STAMP + 4 mech signals, 0 human signals
+  - **Proposed migration:** move this AC verbatim under `### Agent` in `T-1296` (delete from `### Human`), then have the agent run the Steps and tick the box. Original [REVIEW]/[RUBBER-STAMP] marker can drop.
+- T-1296 (active) — [RUBBER-STAMP] Re-pin from .102 + fleet doctor green
+  - **Why:** RUBBER-STAMP + 1 mech signals, 0 human signals
+- T-1415 (active) — [REVIEW] Confirm bake metric is clean
+  - **Why:** 2 mech signals, 0 human signals
+- T-1415 (active) — [REVIEW] Verify production hubs have been running flag-off for ≥7 days
+  - **Why:** 2 mech signals, 0 human signals
+- T-1417 (active) — [REVIEW] Audit shows zero `event.broadcast` callers from this codebase after production hub rebuild + restart
+  - **Why:** 3 mech signals, 0 human signals
+- T-1419 (active) — [REVIEW] Post-deploy of T-1418, the freshness signal correctly distinguishes live from stale
+  - **Why:** 2 mech signals, 0 human signals
+- T-1420 (active) — [RUBBER-STAMP] Binary deployed on .141 — Method A or B
+  - **Why:** RUBBER-STAMP + 1 mech signals, 0 human signals
+- T-1435 (active) — [REVIEW] Verification of CUT-READY happens under T-1418, not here
+  - **Why:** 2 mech signals, 0 human signals
+- T-1442 (active) — [REVIEW] Spot-check by running cmd_spawn against a live hub and confirm `cat /tmp/tl-dispatch/spot/meta.json | python3 -m json.tool` shows `model_used: "haiku"`, `fallback_used: false`, ...
+  - **Why:** 7 mech signals, 0 human signals
+- T-1457 (active) — [RUBBER-STAMP] Operator action on .141 (only if peer Claude is required)
+  - **Why:** RUBBER-STAMP + 1 mech signals, 0 human signals
+- T-1483 (active) — [REVIEW] Verify error messages name the failing input clearly
+  - **Why:** 1 mech signals, 0 human signals
+- T-1502 (active) — [REVIEW] Verify the fixed reading verbs surface real chat-arc content
+  - **Why:** 2 mech signals, 0 human signals
+- T-1632 (active) — [REVIEW] On next .122 deploy (after T-1166 bake clears), `hub.capabilities` returns `control_plane_version: 3` alongside `protocol_version: 1`.
+  - **Why:** 2 mech signals, 0 human signals
+- T-1633 (active) — [REVIEW] On next .122 deploy (post-bake), the warning is visible in hub stderr/journal if the operator forgets to set the env.
+  - **Why:** 1 mech signals, 0 human signals
+- T-1635 (active) — [REVIEW] Review response artifact and approve (or amend) before AEF coordination completes
+  - **Why:** 1 mech signals, 0 human signals
+- T-1673 (active) — [REVIEW] Confirm release pipeline produced artifacts
+  - **Why:** 3 mech signals, 0 human signals
+- T-1691 (active) — [RUBBER-STAMP] GitHub Release published with macOS + Linux binaries
+  - **Why:** RUBBER-STAMP + 3 mech signals, 0 human signals
+- T-1695 (active) — [REVIEW] Releases published on GitHub for v0.10.0, v0.11.0, v0.11.1 (the GH Actions auto-trigger)
+  - **Why:** 1 mech signals, 0 human signals
+- T-1696 (active) — [RUBBER-STAMP] Cron entry installed in /etc/cron.d on .107
+  - **Why:** RUBBER-STAMP + 5 mech signals, 0 human signals
+- T-1715 (completed) — [REVIEW] Smoke-test MCP tool from a real MCP-aware session (e.g. Claude Code in this repo)
+  - **Why:** 2 mech signals, 0 human signals
+- T-1722 (active) — [RUBBER-STAMP] Upstream landed on `/opt/999-AEF` `origin/master`.
+  - **Why:** RUBBER-STAMP + 6 mech signals, 0 human signals
+- T-1723 (active) — [RUBBER-STAMP] Cron entry installed on .107 so the meta-canary actually fires.
+  - **Why:** RUBBER-STAMP + 6 mech signals, 0 human signals
+
+---
+
+## Human-Only
+
+_136 ACs_ — needs human verification (UI rendering / subjective judgment / authenticated session); leave as `### Human`.
+
+- T-264 (completed) — [REVIEW] MCP server works with Claude Code
+  - **Why:** subjective predicate in title/Expected: '\\bdiscoverable\\b' (mech=1, human=1)
+- T-1296 (active) — [RUBBER-STAMP] Verify CT 101 reboot persistence (ground truth)
+  - **Why:** subjective predicate in title/Expected: '\\breboot persistence\\b' (mech=1, human=0)
+- T-1420 (active) — [RUBBER-STAMP] .141 hub restarted on new binary
+  - **Why:** 1 human signals, 0 mech signals
+- T-1426 (active) — [REVIEW] Verify the warning is informative without being noisy
+  - **Why:** subjective predicate in title/Expected: '\\binformative without being noisy\\b' (mech=2, human=0)
+- T-1429 (active) — [REVIEW] Verify the verb's UX from a vendored-agent perspective
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=3, human=2)
+- T-1430 (active) — [REVIEW] Verify topic self-doc is discoverable from a fresh agent's perspective
+  - **Why:** subjective predicate in title/Expected: '\\bdiscoverable\\b' (mech=1, human=0)
+- T-1431 (active) — [RUBBER-STAMP] Verify the skill works end-to-end from a real session
+  - **Why:** subjective predicate in title/Expected: '\\bend-to-end\\s+from\\s+a\\s+real\\b' (mech=2, human=0)
+- T-1453 (active) — [REVIEW] CLI feels right
+  - **Why:** subjective predicate in title/Expected: '\\bfeels?\\b' (mech=3, human=2)
+- T-1482 (active) — [REVIEW] Verify text-mode table is scannable for fleet observability
+  - **Why:** subjective predicate in title/Expected: '\\bscannable\\b' (mech=1, human=3)
+- T-1484 (active) — [REVIEW] Verify the empty-with-filter message reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1485 (active) — [REVIEW] Verify timeout error wording is operator-actionable
+  - **Why:** subjective predicate in title/Expected: '\\boperator-actionable\\b' (mech=1, human=0)
+- T-1486 (active) — [REVIEW] Verify the watch view is steady (no flicker / no row jitter)
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=0)
+- T-1487 (active) — [REVIEW] Verify the one-liner output is operator-scannable
+  - **Why:** subjective predicate in title/Expected: '\\bscannable\\b' (mech=1, human=2)
+- T-1488 (active) — [REVIEW] Verify thread-filter output makes sense
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1489 (active) — [REVIEW] Verify the truncation footer reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1490 (active) — [REVIEW] Verify the empty-with-thread message reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1491 (active) — [REVIEW] Verify the by-project table is operator-readable
+  - **Why:** subjective predicate in title/Expected: '\\bscannable\\b' (mech=1, human=2)
+- T-1492 (active) — [REVIEW] Verify the recent-post output is operator-readable
+  - **Why:** subjective predicate in title/Expected: '\\bscannable\\b' (mech=1, human=2)
+- T-1493 (active) — [REVIEW] Verify the on-thread reading view scans well
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1494 (active) — [REVIEW] Verify the watch view is steady (no flicker) and readable
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=1)
+- T-1495 (active) — [REVIEW] Verify the overview is operator-readable as a "first command" of a session
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1496 (active) — [REVIEW] Verify the live overview is steady and useful as a "leave it running" dashboard
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=0)
+- T-1498 (active) — [REVIEW] Verify the live single-peer view is steady and useful for "babysit one peer"
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=0)
+- T-1499 (active) — [REVIEW] Verify --msg-type filtering output is operator-readable
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1500 (active) — [REVIEW] Verify timeline output is operator-readable as fleet "tail -f"
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1501 (active) — [REVIEW] Verify --grep filtering output is operator-readable
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=5, human=1)
+- T-1503 (completed) — [REVIEW] Verify `agent post` is a fluent improvement over `channel post`
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1504 (completed) — [REVIEW] Verify `agent stats` is operator-readable as a synthesis view
+  - **Why:** subjective predicate in title/Expected: '\\breadable\\b' (mech=1, human=1)
+- T-1505 (completed) — [REVIEW] Verify `agent quote` is operator-fluent
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=1)
+- T-1506 (active) — [REVIEW] Verify offset rendering reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1507 (completed) — [REVIEW] Verify `agent reply` is operator-fluent
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1508 (completed) — [REVIEW] Verify `agent search` is operator-fluent
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1509 (completed) — [REVIEW] Verify `agent thread` reads naturally as conversation view
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1510 (completed) — [REVIEW] Verify `agent ancestors` reads naturally as up-walk
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1511 (completed) — [REVIEW] Verify `agent digest` reads naturally as period summary
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1512 (completed) — [REVIEW] Verify `agent unread` reads naturally as gap-since-last-read
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1513 (completed) — [REVIEW] Verify `agent mentions` reads naturally as structured-mentions filter
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1514 (completed) — [REVIEW] Verify `agent reactions` reads naturally as ack/triage
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1515 (completed) — [REVIEW] Verify `agent emoji-stats` reads naturally as fleet-sentiment
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1516 (completed) — [REVIEW] Verify `agent topic-stats` reads naturally as lifetime shape
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1517 (completed) — [REVIEW] Verify `agent pinned` reads naturally as attention-list
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1518 (completed) — [REVIEW] Verify `agent starred` reads naturally as bookmark-list
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1519 (completed) — [REVIEW] Verify `agent snippet` reads naturally as context-window
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1520 (completed) — [REVIEW] Verify `agent peers` reads naturally as fleet directory
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1521 (completed) — [REVIEW] Verify `agent reactions-of` reads naturally as engagement signal
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1522 (completed) — [REVIEW] Verify `agent forwards-of` reads naturally as cross-topic re-share view
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1523 (completed) — [REVIEW] Verify `agent replies-of` reads naturally as discussion-engagement view
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1524 (completed) — [REVIEW] Verify `agent info` reads naturally as topic-summary
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1525 (completed) — [REVIEW] Verify `agent react` reads naturally as engagement-emit verb
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1526 (completed) — [REVIEW] Verify `agent ack` reads naturally as receipt-emit verb
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1527 (completed) — [REVIEW] Verify `agent pin` reads naturally as curation verb
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1528 (completed) — [REVIEW] Verify `agent star` reads naturally as bookmark verb
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1529 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=2, human=0)
+- T-1530 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1531 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1532 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1533 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1534 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1535 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1536 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1537 (active) — [REVIEW] Verify the verb reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1538 (completed) — [REVIEW] Verify `agent ack-history` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1539 (completed) — [REVIEW] Verify `agent ack-status` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1540 (completed) — [REVIEW] Verify `agent state` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1541 (completed) — [REVIEW] Verify `agent quote-stats` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1542 (completed) — [REVIEW] Verify `agent edit-stats` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1543 (completed) — [REVIEW] Verify `agent poll-start` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=0, human=0)
+- T-1544 (completed) — [REVIEW] Verify `agent vote` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=0, human=0)
+- T-1545 (completed) — [REVIEW] Verify `agent poll-end` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=0, human=0)
+- T-1546 (completed) — [REVIEW] Verify `agent poll-results` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=0, human=0)
+- T-1547 (completed) — [REVIEW] Verify `agent snapshot` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1548 (completed) — [REVIEW] Verify `agent state-since` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1549 (completed) — [REVIEW] Verify `agent snapshot-diff` reads naturally
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=2, human=0)
+- T-1550 (completed) — [REVIEW] Verify `agent typing` reads naturally as presence-emit verb
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1551 (completed) — [REVIEW] Verify `agent typers` reads naturally as live-presence reader
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1552 (completed) — [REVIEW] Verify `agent dms` reads naturally as personal-DM directory
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1553 (completed) — [REVIEW] Verify `agent inbox` reads naturally as cross-topic unread digest
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=2, human=0)
+- T-1554 (completed) — [REVIEW] Verify `agent identity` reads naturally as self-FP query
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=4, human=0)
+- T-1556 (completed) — [REVIEW] Verify `agent verbs` reads naturally as operator-discovery index
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=1)
+- T-1557 (active) — [REVIEW] Verify `agent typers --watch` is steady (no flicker / no jitter)
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=1)
+- T-1558 (active) — [REVIEW] Verify `agent inbox --watch` reads naturally as live unread monitor
+  - **Why:** subjective predicate in title/Expected: '\\breads?\\s+naturally\\b' (mech=1, human=0)
+- T-1559 (active) — [REVIEW] Verify both `--watch` views are steady and useful
+  - **Why:** subjective predicate in title/Expected: '\\bsteady\\b' (mech=1, human=1)
+- T-1560 (completed) — [REVIEW] Verify `termlink_agent_post` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1561 (completed) — [REVIEW] Verify `termlink_agent_typing` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1562 (completed) — [REVIEW] Verify `termlink_agent_react` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1563 (completed) — [REVIEW] Verify `termlink_agent_reply` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=1)
+- T-1564 (completed) — [REVIEW] Verify `termlink_agent_pin` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1565 (completed) — [REVIEW] Verify `termlink_agent_star` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1566 (completed) — [REVIEW] Verify `termlink_agent_redact` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1567 (completed) — [REVIEW] Verify `termlink_agent_edit` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1568 (completed) — [REVIEW] Verify `termlink_agent_ack` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1569 (completed) — [REVIEW] Verify `termlink_agent_describe` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1570 (active) — [REVIEW] Verify `termlink_agent_poll_*` family is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=1)
+- T-1571 (completed) — [REVIEW] Verify `termlink_agent_recent` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=3, human=0)
+- T-1572 (completed) — [REVIEW] Verify `termlink_agent_search` is operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1573 (completed) — [REVIEW] Verify `termlink_agent_pinned` + `termlink_agent_starred` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1574 (completed) — [REVIEW] Verify `termlink_agent_quote` + `termlink_agent_threads` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1575 (completed) — [REVIEW] Verify `termlink_agent_on_thread` + `termlink_agent_reactions` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1576 (completed) — [REVIEW] Verify `termlink_agent_info` + `termlink_agent_peers` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1577 (completed) — [REVIEW] Verify `termlink_agent_redactions` + `termlink_agent_ack_status` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1578 (completed) — [REVIEW] Verify `termlink_agent_unread` + `termlink_agent_digest` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1579 (completed) — [REVIEW] Verify `termlink_agent_ancestors` + `termlink_agent_pin_history` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1580 (completed) — [REVIEW] Verify `termlink_agent_emoji_stats` + `termlink_agent_ack_history` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1581 (completed) — [REVIEW] Verify `termlink_agent_edits_of` + `termlink_agent_topic_stats` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1582 (completed) — [REVIEW] Verify `termlink_agent_active_now` + `termlink_agent_history` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1583 (completed) — [REVIEW] Verify `termlink_agent_followups` + `termlink_agent_state` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1584 (completed) — [REVIEW] Verify `termlink_agent_topic_metadata_history` + `termlink_agent_reactions_by` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1585 (completed) — [REVIEW] Verify `termlink_agent_pinned_by` + `termlink_agent_starred_by` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1586 (completed) — [REVIEW] Verify `termlink_agent_pinned_history` + `termlink_agent_starred_history` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=2, human=0)
+- T-1587 (completed) — [REVIEW] Verify `termlink_agent_search_by` + `termlink_agent_top_repliers` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1588 (completed) — [REVIEW] Verify `termlink_agent_threads_by` + `termlink_agent_silent_senders` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1589 (completed) — [REVIEW] Verify `termlink_agent_busiest_threads` + `termlink_agent_recent_decisions` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1590 (completed) — [REVIEW] Verify `termlink_agent_envelope` + `termlink_agent_who_is` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=1)
+- T-1591 (completed) — [REVIEW] Verify `termlink_agent_thread_summary` + `termlink_agent_active_in_thread` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1592 (completed) — [REVIEW] Verify `termlink_agent_thread_path` + `termlink_agent_reaction_summary` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1593 (completed) — [REVIEW] Verify `termlink_agent_followups_to` + `termlink_agent_help` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1594 (completed) — [REVIEW] Verify `termlink_agent_search_thread` + `termlink_agent_unanswered` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1595 (completed) — [REVIEW] Verify `termlink_agent_peer_engagement` + `termlink_agent_activity_rhythm` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1596 (completed) — [REVIEW] Verify `termlink_agent_thread_health` + `termlink_agent_engagement_rate` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=1)
+- T-1597 (completed) — [REVIEW] Verify `termlink_agent_response_latency` + `termlink_agent_msg_growth_rate` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1598 (completed) — [REVIEW] Verify `termlink_agent_top_reacted` + `termlink_agent_top_replied` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1599 (completed) — [REVIEW] Verify `termlink_agent_user_summary` + `termlink_agent_first_post_by` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1600 (completed) — [REVIEW] Verify `termlink_agent_self_replies` + `termlink_agent_first_responders` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1601 (completed) — [REVIEW] Verify `termlink_agent_emoji_users` + `termlink_agent_orphan_replies` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1602 (completed) — [REVIEW] Verify `termlink_agent_thread_authors` + `termlink_agent_recent_window` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1603 (completed) — [REVIEW] Verify `termlink_agent_thread_depth` + `termlink_agent_quiet_threads` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1604 (completed) — [REVIEW] Verify `termlink_agent_co_posters` + `termlink_agent_daily_volume` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1605 (completed) — [REVIEW] Verify `termlink_agent_post_streak` + `termlink_agent_presence_now` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1606 (completed) — [REVIEW] Verify `termlink_agent_silence_gap` + `termlink_agent_age_distribution` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1607 (completed) — [REVIEW] Verify `termlink_agent_top_thread_starters` + `termlink_agent_thread_size_dist` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=1, human=0)
+- T-1608 (completed) — [REVIEW] Verify `termlink_agent_response_received` + `termlink_agent_burst_detect` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1609 (completed) — [REVIEW] Verify `termlink_agent_idle_threads` + `termlink_agent_reaction_rate` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1610 (completed) — [REVIEW] Verify `termlink_agent_recent_threads` + `termlink_agent_topic_summary` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1611 (completed) — [REVIEW] Verify `termlink_agent_top_pinners` + `termlink_agent_top_starrers` are operator-fluent over MCP
+  - **Why:** subjective predicate in title/Expected: '\\bfluent\\b' (mech=0, human=0)
+- T-1695 (active) — [REVIEW] Re-enable OneDev auto-mirror (optional but recommended)
+  - **Why:** REVIEW + 2 human signals > 1 mech signals
+- T-1695 (active) — [REVIEW] Revoke the diagnostic PAT pasted in this session (ends `…7ehL`, ~93 chars long, fine-grained `github_pat_…` prefix)
+  - **Why:** REVIEW + 2 human signals > 1 mech signals
+
+---
+
+## Ambiguous
+
+_6 ACs_ — operationalizable but author may have intended judgment; flag for operator review.
+
+- T-265 (completed) — [REVIEW] New MCP tools work with Claude Code
+  - **Why:** no strong signals — author intent unclear
+- T-1420 (active) — [REVIEW] Full chat arc parity confirmed via fleet check
+  - **Why:** no strong signals — author intent unclear
+- T-1432 (active) — [REVIEW] Verify the cut-readiness signal is actionable
+  - **Why:** no strong signals — author intent unclear
+- T-1457 (active) — [REVIEW] Decide whether .141 needs a peer Claude attached at all, or whether heartbeat-only target is the desired end state for that host
+  - **Why:** no strong signals — author intent unclear
+- T-1795 (active) — [REVIEW] Live confirm the fix on a populated hub
+  - **Why:** no strong signals — author intent unclear
+- T-1799 (active) — [REVIEW] Rotate/revoke the compromised PAT on GitHub
+  - **Why:** REVIEW with 1 mech / 1 human signals — measurable but author flagged judgment
