@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1818: agent timeline --depth N — third caller for T-1796 helper (T-1816 follow-up #2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-27T23:42:19Z
+# ============================================================================
+
+task_id: T-1818
+task_name: "agent timeline --depth N — third caller for T-1796 helper (T-1816 follow-up #2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-27T23:31:50Z
+completed: 2026-05-27T23:41:54Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T01:41:49+02:00
+last_commit: 2026-05-28T01:41:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent timeline --depth N — third caller for T-1796 paginated helper
+
+# Key outcomes
+outcomes:
+  - "`--depth` flag added to `AgentAction::Timeline` clap variant (default 1000, clamped [1, 100000])"
+  - "`main.rs` destructures `depth` and threads it into `cmd_agent_timeline` as the final arg"
+  - "`cmd_agent_timeline` signature gains `depth: u64`; clamped to [1, 100000] as `clamped_depth`"
+  - "Both `fetch_recent_chat_arc_msgs(hub, 1000)` call sites in `cmd_agent_timeline` (watch loop + one-shot) replaced with `fetch_topic_msgs_paginated(\"agent-chat-arc\", hub, clamped_depth)`"
+  - "`cargo check -p termlink` clean"
+  - "`cargo test -p termlink --bin termlink paginated_tail_start` still passes (regression sentinel) — 5/5"
+  - "Release build succeeds"
+  - "`target/release/termlink agent timeline --help` shows `--depth` with `[default: 1000]`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/agent.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1818-agent-timeline---depth-n--third-caller-f.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T01:41:49"
+    action: "T-1818: agent timeline --depth N — third caller for T-1796 paginated helper"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 4
+  lines_added: 163
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1818-agent-timeline---depth-n--third-caller-f.md
+generated_by: context-agent-hybrid
