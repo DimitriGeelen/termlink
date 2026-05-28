@@ -1520,6 +1520,80 @@ Each assertion is content-level (`grep -F` for expected substrings) so
 re-runs are safe even though the canonical DM topic accumulates state
 across runs.
 
+## Observing autonomous threads (T-1826/T-1827)
+
+The doorbell+mail loop (`scripts/agent-send.sh` + `scripts/agent-respond.sh`,
+shipped T-1800/T-1804/T-1805/T-1807/T-1809) lets two agents hold a turn-by-turn
+autonomous conversation with deterministic delivery confirmation — every turn
+gets a receipt envelope, and the sender either learns DELIVERED or fails with a
+specific exit code. Each round is identified by `metadata.conversation_id` (a
+cid) on the dm topic.
+
+Two read-only diagnostic verbs let a third observer (operator, orchestrator
+agent supervising N concurrent threads, automation cron) inspect that state
+without re-running `channel subscribe` + grepping payloads.
+
+### `agent-conversation-status.sh` — single-cid detail
+
+Given a topic + cid, returns the full state of one conversation: turns posted,
+receipts received, pending turns (with no matching `metadata.up_to >= turn.offset`),
+distinct senders, last activity timestamp. Text mode for humans, `--json` for
+agents.
+
+```sh
+# Human read.
+scripts/agent-conversation-status.sh \
+    --topic dm:alice-fp:bob-fp \
+    --conversation-id cid-1779961400-12345
+
+# Machine read (agent / cron / dashboard).
+scripts/agent-conversation-status.sh \
+    --topic dm:alice-fp:bob-fp \
+    --conversation-id cid-1779961400-12345 \
+    --json | jq -r '.summary | "\(.turn_count) turns, \(.pending_count) pending"'
+```
+
+`pending_count > 0` means the sender posted a turn whose offset is greater
+than the highest receipt watermark — i.e. the peer hasn't acked yet (or never
+will). Pair with the doorbell+mail loop's `--max-rings`/`--timeout` to decide
+whether to re-ring or give up.
+
+### `agent-conversation-list.sh` — all-cids on a topic
+
+Given a topic, enumerates distinct `conversation_id` values + per-cid roll-up
+(turn count, receipt count, sender count, last activity). Use this when you
+want to sweep a dm topic for stalled/abandoned threads, or when an orchestrator
+agent boots and needs to enumerate its own active set.
+
+```sh
+# Default sort: most-recently-active first.
+scripts/agent-conversation-list.sh --topic dm:alice-fp:bob-fp
+
+# Highest-volume threads first.
+scripts/agent-conversation-list.sh \
+    --topic dm:alice-fp:bob-fp \
+    --sort turn_count
+
+# Include legacy envelopes without a cid as a single sentinel row.
+scripts/agent-conversation-list.sh \
+    --topic agent-chat-arc \
+    --include-no-cid \
+    --json
+```
+
+### Unknown-topic exit behavior
+
+`termlink channel subscribe` exits **1** on an unknown topic (JSON-RPC error
+`-32013`). Both verbs detect this and exit **3** ("subscribe failed"). Empty
+*existing* topic — created but no envelopes posted — is a normal `ok: true,
+count: 0` response (exit 0). Automation scripts can branch on:
+
+| Exit | Meaning |
+|---|---|
+| 0 | success (incl. zero turns / conversations) |
+| 2 | usage error (missing required flag, invalid `--sort`) |
+| 3 | hub-side error (most commonly: topic doesn't exist) |
+
 ## Limits and next steps
 
 What's NOT implemented today, with rough effort if anyone picks it up:
