@@ -4,16 +4,16 @@ name: "termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)"
 description: >
   Add MCP tool wrapping scripts/agent-chat-arc-recent.sh — agent-callable parity with termlink_fleet_adoption_snapshot (T-1847) and termlink_agent_listeners_fleet (T-1839). Completes MCP coverage of the discovery triangle.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [doorbell-mail, mcp, t-1849-followon]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-28T19:53:21Z
-last_update: 2026-05-28T19:53:21Z
-date_finished: null
+last_update: 2026-05-28T19:55:29Z
+date_finished: 2026-05-28T19:55:29Z
 ---
 
 # T-1852: termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)
@@ -120,3 +120,15 @@ cargo check --package termlink-mcp 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1852-termlinkagentchatarcrecent-mcp-wrapper-t.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-57a31e25
+- **Timestamp:** 2026-05-28T19:55:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T19:55:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

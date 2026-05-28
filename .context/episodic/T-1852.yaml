@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1852: termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T19:55:36Z
+# ============================================================================
+
+task_id: T-1852
+task_name: "termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T19:53:21Z
+completed: 2026-05-28T19:55:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T21:55:25+02:00
+last_commit: 2026-05-28T21:55:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)
+
+# Key outcomes
+outcomes:
+  - "`AgentChatArcRecentParams` struct in `crates/termlink-mcp/src/tools.rs` next to existing T-1836-family params."
+  - "`termlink_agent_chat_arc_recent` `#[tool]` method on the same impl block as `termlink_fleet_adoption_snapshot`. Always passes `--json`. Reuses `resolve_t1836_script` + `run_t1836_subprocess`. Default timeout 30s clamped 1..=120."
+  - "Params: all 8 fields wired with proper clamps."
+  - "Tool description: discovery-triangle role + PL-188/189/191 references + parsed envelope shape."
+  - "`cargo check --package termlink-mcp` clean (10.90s, only pre-existing L23029 warning)."
+  - "`cargo build --package termlink-mcp` clean (17.01s)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1851.yaml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1852-termlinkagentchatarcrecent-mcp-wrapper-t.md"
+  - ".tasks/completed/T-1851-recent-chat-skill--one-keystroke-agent-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T21:55:25"
+    action: "T-1852: termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, mcp, t-1849-followon]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 301
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1852-termlinkagentchatarcrecent-mcp-wrapper-t.md
+generated_by: context-agent-hybrid
