@@ -1153,6 +1153,7 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 | **Cross-host handoff (SEND)** | **`/agent-handoff <target> <task-id> "<msg>"`** | Skill wrapping `termlink agent contact` — see `.claude/commands/agent-handoff.md` |
 | **Pending DM inbox (RECEIVE)** | **`/check-arc`** | Surfaces unread `dm:<self>:<peer>` topics + agent-chat-arc broadcasts — see `.claude/commands/check-arc.md` |
 | **Be reachable (PRESENCE)** | **`/be-reachable [start\|stop\|status]`** | Opt this session into agent-presence so peers can `--to <agent_id>` reach you; idempotent lifecycle wrapping `listener-heartbeat.sh` — see `.claude/commands/be-reachable.md` (T-1841) |
+| **Recent chat (CONTEXT)** | **`/recent-chat [N [HOURS]]`** | Fleet-wide recent agent-chat-arc posts — the "what's been said?" verb (T-1849/T-1851). Read-only; pairs with SEND/RECEIVE/PRESENCE skills. See `.claude/commands/recent-chat.md` |
 | **Auto-restart** | **`claude-fw [args...]`** | Wrapper: runs claude, auto-restarts on handover signal |
 
 ## Auto-Restart (T-179)
