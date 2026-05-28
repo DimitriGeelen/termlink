@@ -112,12 +112,18 @@ summary="$(printf '%s' "$raw" | jq -n -c \
        end) as $all_buckets
 
     # Roll up per-bucket.
+    # T-1855 / PL-191 — sender identity is multi-source on shared hosts.
+    # Priority: .metadata.agent_id // .metadata._from // .sender_id.
+    # T-1693 forward-compat: turn/receipt envelopes do not carry agent_id
+    # today (deferred); chain falls through to .sender_id so this is a
+    # zero-regression change that auto-corrects when producers gain
+    # identity. Cross-ref: fleet-adoption-snapshot.sh, agent-chat-arc-recent.sh.
     | ($all_buckets | map({
         conversation_id: .conversation_id,
         turn_count: (.envelopes | map(select(.msg_type == "turn")) | length),
         receipt_count: (.envelopes | map(select(.msg_type == "receipt")) | length),
-        senders: (.envelopes | map(.sender_id) | unique),
-        sender_count: (.envelopes | map(.sender_id) | unique | length),
+        senders: (.envelopes | map(.metadata.agent_id // .metadata._from // .sender_id // "") | unique),
+        sender_count: (.envelopes | map(.metadata.agent_id // .metadata._from // .sender_id // "") | unique | length),
         first_activity_ms: (.envelopes | map(.ts) | min // 0),
         last_activity_ms: (.envelopes | map(.ts) | max // 0)
       })) as $rolled

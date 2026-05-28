@@ -84,13 +84,25 @@ summary="$(printf '%s' "$raw" | jq -n -c \
     --arg topic "$topic" \
     --arg cid "$cid" \
     '
+    # T-1855 / PL-191 — sender identity is multi-source on shared hosts.
+    # Same priority chain as fleet-adoption-snapshot.sh + agent-chat-arc-recent.sh:
+    #   1. .metadata.agent_id  (explicit agent identity — /be-reachable convention)
+    #   2. .metadata._from     (vendored-arc heartbeat convention, T-1438)
+    #   3. .sender_id          (envelope fingerprint — collapses co-resident agents)
+    # T-1693 forward-compat: agent-send/respond do not write metadata.agent_id
+    # today (deferred to T-1693), so chain falls through to .sender_id; the
+    # moment producers gain identity this reader auto-resolves correctly.
     [inputs] as $all
-    | ($all | map(select(.msg_type == "turn") | {offset, sender: .sender_id, ts}))
+    | ($all | map(select(.msg_type == "turn") | {
+        offset,
+        sender: (.metadata.agent_id // .metadata._from // .sender_id // ""),
+        ts
+      }))
         as $turns
     | ($all | map(select(.msg_type == "receipt") | {
         offset,
         up_to: ((.metadata.up_to // "0") | tonumber? // 0),
-        sender: .sender_id,
+        sender: (.metadata.agent_id // .metadata._from // .sender_id // ""),
         ts
       }))
         as $receipts
