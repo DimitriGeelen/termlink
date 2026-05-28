@@ -2062,3 +2062,11 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+
+- id: PL-187
+  learning: "Verb-stack pattern (PL-186) has a 6th rung for ephemeral session surfaces: a lifecycle wrapper that backgrounds the primitive with sensible defaults + idempotent start/stop/status, plus a Claude Code skill that fronts it. T-1841 shipped scripts/be-reachable.sh + .claude/commands/be-reachable.md as the example: start spawns listener-heartbeat.sh detached (nohup+setsid), persists JSON state at ~/.termlink/be-reachable.state, defaults agent_id from $USER-claude-$(hostname -s), picks $TMUX/$STY for pty_session, defaults listen-topics to [dm:<id>:*, agent-chat-arc]. The systemd rung (T-1840) covers persistent hosts; the be-reachable rung covers ad-hoc claude sessions that should die with the terminal. Apply when a primitive needs adoption by short-lived sessions where running a setup command is the wrong UX — wrap it in a /skill so it's one keystroke. Pair it with the send-side skill (e.g. /agent-handoff) so reach and be-reached are symmetric."
+  source: P-009
+  task: T-1841
+  date: 2026-05-28
+  context: Captured after T-1841 closure — self-dogfooded by starting be-reachable for this agent's own session; fleet presence went 0→1 immediately.
+  application: TBD
