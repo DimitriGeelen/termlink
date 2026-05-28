@@ -1,0 +1,24 @@
+# T-1831 — fleet-wide doorbell+mail runtime health canary
+# Source of truth: /opt/termlink/.context/cron/fleet-doorbell-mail-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-fleet-doorbell-mail-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Daily check that the doorbell+mail loop (T-1800 arc) is healthy on every
+# profile in ~/.termlink/hubs.toml. Same shape as release-mirror-canary
+# (T-1696): --quiet exits non-zero only on drift, so the log accumulates
+# only when something is broken. Empty log = healthy fleet.
+#
+# Becomes load-bearing the moment T-1830 adoption push lands and real
+# conversations start flowing — runtime drift must be visible BEFORE
+# conversations break.
+#
+# Diagnostic on drift: bash scripts/check-fleet-doorbell-mail-health.sh
+# Operator action on drift: per-hub investigation (selftest runs
+# agent-conversation-selftest.sh under the hood — re-run with --verbose).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 09:23 UTC — non-colliding with :13 mirror canary, :33 meta-canary,
+# :17 heartbeat, :43 rollout audit. Runs as root so cwd-into the repo doesn't
+# trip permissions and so it can read /var/lib/termlink/hub.secret for the
+# local profile when selftest needs it.
+23 9 * * * root cd /opt/termlink && bash scripts/check-fleet-doorbell-mail-health.sh --quiet >> .context/working/.fleet-doorbell-mail-canary.log 2>&1
