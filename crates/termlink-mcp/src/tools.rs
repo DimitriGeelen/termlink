@@ -7224,6 +7224,12 @@ pub struct FleetSecretsAuditParams {
     /// (path/mode/size/status/reasons). Closes G-011 item 1 (the 2026-04-20
     /// PL-041 silent-cache-rot incident).
     pub check_drift: Option<String>,
+    /// T-1825 (mirror of T-1824 CLI `--target-cache`): narrow the drift check
+    /// to one named cache file. Only valid when paired with `check_drift`.
+    /// Non-target rows skip the drift comparison and fall back to plain
+    /// perms/format/orphan verdict. Eliminates broad-mode false positives
+    /// when the scan dir holds caches for multiple hubs (peer + self).
+    pub target_cache: Option<String>,
     /// Bound the subprocess call (clamped to 1..=120s). Default 10. The audit
     /// is filesystem-only (no network, no auth) so the subprocess should
     /// complete in milliseconds — timeout exists as a safety net.
@@ -13101,7 +13107,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_secrets_audit",
-        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for security hygiene. Per-file taxonomy: ok / ok-mirror (matches authoritative) / warn-perms (mode > 0o600 — G-011 incident proxmox4.hex@0o644) / warn-format (not 64 hex chars) / warn-drift (T-1822: content differs from authoritative hub.secret) / info-orphan (not referenced by any hubs.toml profile). Read-only — no auth, no network, no writes. `dir` overrides the default scan path. `check_drift` (T-1823) names the authoritative `<runtime_dir>/hub.secret` for content-comparison; when set, the envelope gains an `authoritative` block. `timeout_secs` (default 10, clamped 1..=120) caps the subprocess. Returns the CLI's JSON envelope decorated with `exit_code`: `{ok, dir, files: [{path, mode, size, status, reasons}], summary: {total, ok, ok_mirror, warn_perms, warn_format, warn_drift, info_orphan}, authoritative?: {...}, authoritative_error?: \"...\", exit_code}`. `ok: true` means zero warn-perms AND zero warn-format AND zero warn-drift (orphan is informational)."
+        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for security hygiene. Per-file taxonomy: ok / ok-mirror (matches authoritative) / warn-perms (mode > 0o600 — G-011 incident proxmox4.hex@0o644) / warn-format (not 64 hex chars) / warn-drift (T-1822: content differs from authoritative hub.secret) / info-orphan (not referenced by any hubs.toml profile). Read-only — no auth, no network, no writes. `dir` overrides the default scan path. `check_drift` (T-1823) names the authoritative `<runtime_dir>/hub.secret` for content-comparison; when set, the envelope gains an `authoritative` block. `target_cache` (T-1825) narrows drift comparison to ONE named cache file — non-target rows skip drift and fall back to plain perms/format/orphan verdict; eliminates broad-mode false positives when the scan dir has caches for multiple hubs. `timeout_secs` (default 10, clamped 1..=120) caps the subprocess. Returns the CLI's JSON envelope decorated with `exit_code`: `{ok, dir, target_cache, files: [{path, mode, size, status, reasons}], summary: {total, ok, ok_mirror, warn_perms, warn_format, warn_drift, info_orphan}, authoritative?: {...}, authoritative_error?: \"...\", target_cache_error?: \"...\", exit_code}`. `ok: true` means zero warn-perms AND zero warn-format AND zero warn-drift (orphan is informational)."
     )]
     async fn termlink_fleet_secrets_audit(
         &self,
@@ -13123,6 +13129,11 @@ impl TermLinkTools {
         // we pass it through verbatim (the CLI handles `~/`-expansion).
         if let Some(auth) = p.check_drift.as_deref() {
             cmd.arg("--check-drift").arg(auth);
+        }
+        // T-1825: forward --target-cache when set. CLI enforces it must be
+        // paired with --check-drift (rejects standalone with exit 2).
+        if let Some(tgt) = p.target_cache.as_deref() {
+            cmd.arg("--target-cache").arg(tgt);
         }
         cmd.kill_on_drop(true);
         cmd.stdin(std::process::Stdio::null());
@@ -33773,6 +33784,7 @@ not-json
         let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
         assert!(p.dir.is_none());
         assert!(p.check_drift.is_none());
+        assert!(p.target_cache.is_none());
         assert!(p.timeout_secs.is_none());
     }
 
@@ -33782,6 +33794,7 @@ not-json
         let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.dir.as_deref(), Some("/tmp/peer-secrets"));
         assert!(p.check_drift.is_none());
+        assert!(p.target_cache.is_none());
         assert!(p.timeout_secs.is_none());
     }
 
@@ -33792,22 +33805,38 @@ not-json
         let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
         assert!(p.dir.is_none());
         assert_eq!(p.check_drift.as_deref(), Some("/var/lib/termlink/hub.secret"));
+        assert!(p.target_cache.is_none());
         assert!(p.timeout_secs.is_none());
     }
 
     #[test]
     fn fleet_secrets_audit_params_accepts_all_fields() {
         // Full set — proves no field ordering bug or required-field regression
-        // (the T-1823 addition must be optional).
+        // (the T-1823 + T-1825 additions must be optional).
         let json = serde_json::json!({
             "dir": "/custom",
             "check_drift": "/var/lib/termlink/hub.secret",
+            "target_cache": "/root/.termlink/secrets/self.hex",
             "timeout_secs": 30
         });
         let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.dir.as_deref(), Some("/custom"));
         assert_eq!(p.check_drift.as_deref(), Some("/var/lib/termlink/hub.secret"));
+        assert_eq!(p.target_cache.as_deref(), Some("/root/.termlink/secrets/self.hex"));
         assert_eq!(p.timeout_secs, Some(30));
+    }
+
+    // T-1825: target_cache param parity with T-1824 CLI flag.
+    #[test]
+    fn fleet_secrets_audit_params_accepts_target_cache_alone() {
+        // target_cache as the only set field (the MCP doesn't enforce the
+        // pairing rule — CLI does that with exit 2; MCP forwards faithfully).
+        let json = serde_json::json!({"target_cache": "/path/to/self.hex"});
+        let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
+        assert!(p.dir.is_none());
+        assert!(p.check_drift.is_none());
+        assert_eq!(p.target_cache.as_deref(), Some("/path/to/self.hex"));
+        assert!(p.timeout_secs.is_none());
     }
 
     #[test]
@@ -33834,6 +33863,7 @@ not-json
             .termlink_fleet_secrets_audit(Parameters(FleetSecretsAuditParams {
                 dir: Some("/nonexistent/path/for/test".to_string()),
                 check_drift: None,
+                target_cache: None,
                 timeout_secs: Some(2),
             }))
             .await;
