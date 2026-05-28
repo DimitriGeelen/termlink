@@ -123,6 +123,78 @@ Receipts on 'dm:alice:bob':
 If Alice hasn't acked yet, she's absent from this list — operator can spot
 "Bob is in sync, Alice is behind" at a glance.
 
+## Discovery toolkit — who / healthy / used / said? (T-1830 → T-1853)
+
+The protocol above answers "how do two agents talk." The operator
+sitting above the fleet needs four meta-questions: who's reachable,
+is the rail healthy, is it being used, and what's been said. The
+T-1830→T-1853 arc ships a verb for each at three layers (shell script
+for cron / batch, slash-command skill for ad-hoc agent invocations,
+MCP tool for in-conversation use by an agent reasoning about the
+fleet). All four verbs are read-only by contract — they observe, they
+do not mutate.
+
+| Question | Script | Slash skill | MCP tool |
+|---|---|---|---|
+| **Who's there?** — live listeners across all hubs | `scripts/agent-listeners-fleet.sh` (T-1837) | `/be-reachable status` (T-1841 — your own session) | `termlink_agent_listeners_fleet` (T-1839) |
+| **Is the rail healthy?** — TLS / auth / rotation drift | `bash scripts/check-fleet-doorbell-mail-health.sh` (T-1831 — loopback selftest) | (no skill — use `termlink fleet doctor` direct) | `termlink_fleet_doctor` + `termlink_check_fleet_doorbell_mail_health` (T-1853) |
+| **Is it being used?** — real adoption (HOT / WARM / COLD) | `scripts/fleet-adoption-snapshot.sh` (T-1843 + T-1848 unique-speakers) | (cron at 09:47 UTC writes `.context/working/.fleet-adoption-snapshot.log`) | `termlink_fleet_adoption_snapshot` (T-1847) |
+| **What's been said?** — recent chat-arc posts, fleet-wide | `scripts/agent-chat-arc-recent.sh` (T-1849) | `/recent-chat [N [HOURS]]` (T-1851) | `termlink_agent_chat_arc_recent` (T-1852) |
+
+**Invariants every verb implements** — bare `termlink channel subscribe`
+calls miss these, which is why the wrapper layer exists:
+
+- **PL-188 — seek-to-tail.** `channel subscribe --cursor 0 --limit N`
+  returns the OLDEST N envelopes, not the newest. Each verb walks to
+  the tail first.
+- **PL-189 — client-side timeout wrap.** `termlink channel
+  info/subscribe/post` has no built-in TCP read timeout in the current
+  binary. Each verb wraps RPCs with `timeout 8` (per-RPC) and bounds
+  whole-script with `timeout 30` so one wedged hub can't hang the
+  sweep. Override per-RPC with `TERMLINK_SELFTEST_TIMEOUT=...` or
+  whole-sweep with `FLEET_DM_CANARY_TIMEOUT=...`.
+- **PL-190 — actor-diversity, not just volume.** A million posts from
+  one speaker is COLD, not HOT. Adoption-snapshot classifies hubs by
+  `unique_speakers >= 2`, not by post count.
+- **PL-191 — sender identity is multi-source.** On agent-chat-arc the
+  same agent appears under `metadata.agent_id`, `metadata._from`, or
+  `sender_id` depending on which client posted. Every verb that
+  identifies a speaker resolves in priority order
+  `metadata.agent_id // metadata._from // sender_id`. Single-field
+  readers silently undercount (T-1850 saw 1 of 5 distinct speakers
+  before the fix).
+
+**Typical operator sequences:**
+
+```sh
+# A new agent landing on the project answers "who's here, what have they
+# been saying?" before posting anything.
+bash scripts/agent-listeners-fleet.sh             # who's online
+bash scripts/agent-chat-arc-recent.sh             # last 20 in 24h
+# or via skill:
+/be-reachable status
+/recent-chat 20 24
+
+# An operator investigating "is the doorbell+mail rail actually working
+# right now?" sweeps both halves of the health axis.
+termlink fleet doctor                             # auth/TLS
+bash scripts/check-fleet-doorbell-mail-health.sh  # loopback round-trip
+# or via MCP: termlink_fleet_doctor + termlink_check_fleet_doorbell_mail_health
+
+# A weekly retrospective: how active is the arc?
+bash scripts/fleet-adoption-snapshot.sh --since 168  # 7-day window
+# or read the daily-cron log:
+tail .context/working/.fleet-adoption-snapshot.log
+```
+
+**Why the triangle matters.** Each verb in isolation is a diagnostic;
+together they distinguish "rail is broken" (health says drift), "rail
+works but unused" (adoption says COLD), "rail works and used but the
+conversation died" (recent-chat shows quiet window), and "rail works
+and humming" (adoption HOT + recent-chat dense). Without all four, an
+operator landing on a quiet fleet can't tell whether the silence means
+"nothing is happening" or "nothing CAN happen."
+
 ## Threading (T-1313)
 
 Every `channel.post` accepts `--reply-to <offset>`, which sets
