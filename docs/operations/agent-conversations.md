@@ -1766,13 +1766,23 @@ visible BEFORE conversations break.
   `termlink_agent_listeners`, `termlink_agent_send_auto_discover`
   directly instead of routing through the Bash tool. Script path
   resolves via `TERMLINK_SCRIPTS_DIR` (default `/opt/termlink/scripts`).
-  The cross-hub variant (`agent-listeners-fleet.sh`) does NOT yet have
-  an MCP wrapper — follow-up candidate.
+  **Cross-hub MCP wrapper shipped (T-1839):** `termlink_agent_listeners_fleet`
+  wraps `agent-listeners-fleet.sh` via the same shell-out helper.
+  Closes the MCP gap for fleet-wide listener discovery.
 
 - **systemd unit template** for always-on heartbeat — operators currently
   background it manually or wire it into their own session-start. A
   `systemd-templates/listener-heartbeat@.service` would let agents
   re-heartbeat across reboots without action.
+
+  **Shipped (T-1840):** `systemd-templates/termlink-listener-heartbeat@.service`
+  is a template unit using `%i` as the agent_id; per-instance config
+  reads from `/etc/termlink/listener-heartbeat/<agent_id>.env`. Full
+  install recipe in
+  [listener-heartbeat-systemd.md](listener-heartbeat-systemd.md):
+  `cp` the unit, author the env, `systemctl enable --now
+  termlink-listener-heartbeat@<agent_id>.service`. `systemd-analyze
+  verify` clean. Reboot-safe.
 
 ## Limits and next steps
 

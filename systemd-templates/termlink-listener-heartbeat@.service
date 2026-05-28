@@ -1,0 +1,73 @@
+# T-1840 — persistent agent-presence heartbeat (T-1830/T-1832).
+#
+# Template unit: instance specifier `%i` is the agent_id.
+#
+# Install (per host, per agent):
+#   sudo install -d /etc/termlink/listener-heartbeat
+#   sudo cp termlink-listener-heartbeat@.service /etc/systemd/system/
+#   # author /etc/termlink/listener-heartbeat/<agent_id>.env (see template
+#   # in docs/operations/listener-heartbeat-systemd.md)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now termlink-listener-heartbeat@<agent_id>.service
+#
+# Inspect:
+#   systemctl status termlink-listener-heartbeat@<agent_id>
+#   journalctl -u termlink-listener-heartbeat@<agent_id> -f
+#
+# Uninstall:
+#   sudo systemctl disable --now termlink-listener-heartbeat@<agent_id>
+#   sudo rm /etc/systemd/system/termlink-listener-heartbeat@.service
+#   sudo systemctl daemon-reload
+#
+# Recipe: see docs/operations/listener-heartbeat-systemd.md
+#
+[Unit]
+Description=TermLink listener-heartbeat for %i (T-1830 agent-presence)
+Documentation=file:/opt/termlink/docs/operations/listener-heartbeat-systemd.md
+Documentation=file:/opt/termlink/docs/operations/agent-conversations.md
+# Wait until the network is up so the channel.post can reach the hub.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+EnvironmentFile=/etc/termlink/listener-heartbeat/%i.env
+# Default role + topic; .env can override via the same vars listener-heartbeat.sh
+# reads on the command line. We translate env→flags here for clarity.
+Environment=TERMLINK_LH_SCRIPT=/opt/termlink/scripts/listener-heartbeat.sh
+Environment=TERMLINK_LH_ROLE=listener
+Environment=TERMLINK_LH_TOPIC=agent-presence
+Environment=TERMLINK_LH_INTERVAL=30
+# %i is the agent_id; everything else comes from the .env or defaults above.
+# /bin/sh -c form so listen-topics fan-out (one --listen-topic per CSV element)
+# stays readable; the .env can also override the whole flag list via
+# TERMLINK_LH_EXTRA_ARGS for advanced use.
+ExecStart=/bin/sh -c '\
+    set -e; \
+    flags="--agent-id %i --role $${TERMLINK_LH_ROLE} --topic $${TERMLINK_LH_TOPIC} --interval $${TERMLINK_LH_INTERVAL}"; \
+    if [ -n "$${TERMLINK_LH_HUB:-}" ]; then flags="$$flags --hub $${TERMLINK_LH_HUB}"; fi; \
+    if [ -n "$${TERMLINK_LH_PTY_SESSION:-}" ]; then flags="$$flags --pty-session $${TERMLINK_LH_PTY_SESSION}"; fi; \
+    IFS=","; \
+    for t in $${TERMLINK_LH_LISTEN_TOPICS:-}; do \
+        [ -n "$$t" ] && flags="$$flags --listen-topic $$t"; \
+    done; \
+    unset IFS; \
+    exec $${TERMLINK_LH_SCRIPT} $${flags} $${TERMLINK_LH_EXTRA_ARGS:-}'
+
+Restart=on-failure
+RestartSec=10s
+
+# Hardening (low-risk defaults; loosen if your install needs more).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/termlink /tmp
+ProtectHome=true
+
+# Logging: stdout/stderr → journal.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=termlink-listener-heartbeat-%i
+
+[Install]
+WantedBy=multi-user.target
