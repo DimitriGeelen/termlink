@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1820: termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T06:43:32Z
+# ============================================================================
+
+task_id: T-1820
+task_name: "termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T06:32:50Z
+completed: 2026-05-28T06:43:09Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T08:43:04+02:00
+last_commit: 2026-05-28T08:43:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink fleet secrets-audit — close G-011 item 4 (perms+orphan audit)
+
+# Key outcomes
+outcomes:
+  - "`FleetAction::SecretsAudit { json: bool, dir: Option<String> }` variant added to `cli.rs` (default dir = `~/.termlink/secrets`)"
+  - "`main.rs` routes to a new `commands::remote::cmd_fleet_secrets_audit` function"
+  - "Implementation walks the dir, stats every `*.hex` file, classifies each as `ok` / `warn-perms` / `warn-format` (not 64-char hex) / `info-orphan` (perms ok but no profile in hubs.toml references it) — additive: a file can be both warn-perms AND info-orphan"
+  - "Per-file output (text mode): one row `<status> 0o<mode> <path> [reason]`; summary line at end (e.g. \"5 files: 4 ok, 1 warn-perms, 1 info-orphan\")"
+  - "JSON mode: `{ok, dir, files: [{path, mode, size, status, reasons[], referenced_by[]}], summary: {total, ok, warn_perms, warn_format, info_orphan}}`"
+  - "Exit code: 0 if every file is `ok` OR only `info-orphan`; 1 if any `warn-perms` or `warn-format` (cron-friendly: orphans informational, perms actionable)"
+  - "Pure-function unit tests for the classifier (perms 0o600 = ok; 0o644 = warn-perms; 0o400 = ok per existing helper; 32-byte payload = ok-format; 17-byte = warn-format) — 6/6 pass (exceeds \"at least 4\" target)"
+  - "`cargo check -p termlink` clean"
+  - "Release build succeeds; `target/release/termlink fleet secrets-audit --help` shows the new subcommand. Live run on .107 found 4 files (3 ok, 1 info-orphan: proxmox4.hex — the G-011 incident file, now correctly chmod'd 0o600 but profile removed)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1820-termlink-fleet-secrets-audit--perms--orp.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T08:43:04"
+    action: "T-1820: termlink fleet secrets-audit — close G-011 item 4 (perms+orphan audit)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 4
+  lines_added: 447
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1820-termlink-fleet-secrets-audit--perms--orp.md
+generated_by: context-agent-hybrid

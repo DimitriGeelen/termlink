@@ -4,16 +4,16 @@ name: "termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secr
 description: >
   termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/aggregator.rs, crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
 related_tasks: []
 created: 2026-05-28T06:32:50Z
-last_update: 2026-05-28T06:32:50Z
-date_finished: null
+last_update: 2026-05-28T06:43:09Z
+date_finished: 2026-05-28T06:43:09Z
 ---
 
 # T-1820: termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)
@@ -156,3 +156,15 @@ until policy decided (delete vs. quarantine; Tier-2 gate).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1820-termlink-fleet-secrets-audit--perms--orp.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-a133b950
+- **Timestamp:** 2026-05-28T06:43:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T06:43:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
