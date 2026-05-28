@@ -7357,6 +7357,32 @@ pub struct AgentChatArcRecentParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1858: MCP wrapper for `scripts/chat-arc-broadcast.sh` (T-1856).
+// FIRST mutating chat-arc MCP tool — writes one envelope per hub in
+// the fleet. G-060 mitigation: agent-chat-arc does not federate, so
+// fleet-visible chat requires explicit cross-post per hub.
+//
+// Distinct from the four read-only discovery wrappers (T-1839, T-1847,
+// T-1852, T-1853): every successful call produces N real envelopes
+// and there is no undo. Agents should pair with termlink_agent_chat_arc_recent
+// for context BEFORE broadcasting.
+#[derive(Deserialize, JsonSchema)]
+pub struct ChatArcBroadcastParams {
+    /// Required. The message body to fan to every hub.
+    pub payload: String,
+    /// Sender identity to stamp into `metadata.agent_id` + `metadata._from`
+    /// (PL-191 priority chain). If unset, the script resolves via
+    /// `$TERMLINK_AGENT_ID` env then `~/.termlink/be-reachable.state`.
+    /// If all three fail, the subprocess exits 2 with a hint.
+    pub from: Option<String>,
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Subprocess timeout (default 60, clamped 1..=300). The script
+    /// internally bounds each per-hub `channel post` with `timeout 8`
+    /// (PL-189) — 60s covers a 5-hub fleet with comfortable headroom.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1853: MCP wrapper for `scripts/check-fleet-doorbell-mail-health.sh`
 // (T-1831 + T-1845 timeout-wrap). Pairs with `termlink_fleet_doctor`
 // (rotation/auth) and `termlink_fleet_adoption_snapshot` (real-use
@@ -25797,6 +25823,33 @@ impl TermLinkTools {
         }
         if p.no_heartbeat.unwrap_or(false) {
             args.push("--no-heartbeat".to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_chat_arc_broadcast",
+        description = "Fan a chat-arc post to every hub in the fleet (T-1856, MCP wrapper from T-1858). FIRST mutating chat-arc MCP tool — writes one real envelope per hub on every call; no undo. Distinct from the four read-only discovery wrappers (termlink_agent_listeners_fleet T-1839, termlink_fleet_adoption_snapshot T-1847, termlink_agent_chat_arc_recent T-1852, termlink_check_fleet_doorbell_mail_health T-1853). Wraps scripts/chat-arc-broadcast.sh: walks `~/.termlink/hubs.toml`, posts to each unique address with `--ensure-topic` + `--metadata agent_id=<from>` + `--metadata _from=<from>` (PL-191 attribution), per-hub bounded by `timeout 8` (PL-189). G-060 mitigation: agent-chat-arc does NOT federate so cross-hub broadcast is client-driven. Sender resolution: `from` param → `$TERMLINK_AGENT_ID` env → `~/.termlink/be-reachable.state` → subprocess exit 2 with hint. Params: `payload` (required), `from` (optional sender override), `hubs_file` (override default), `timeout_secs` (default 60, clamped 1..=300). Returns T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}}`. Best practice: call termlink_agent_chat_arc_recent FIRST to read context, then broadcast informed."
+    )]
+    async fn termlink_chat_arc_broadcast(
+        &self,
+        Parameters(p): Parameters<ChatArcBroadcastParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("chat-arc-broadcast.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(60).clamp(1, 300);
+
+        let mut args: Vec<String> = vec!["--json".to_string(), "--payload".to_string(), p.payload];
+        if let Some(f) = p.from.as_deref() {
+            args.push("--from".to_string());
+            args.push(f.to_string());
+        }
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
         }
 
         Self::run_t1836_subprocess(&script, &args, timeout).await
