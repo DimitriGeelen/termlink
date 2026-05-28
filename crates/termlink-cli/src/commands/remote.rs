@@ -6368,10 +6368,17 @@ pub(crate) fn classify_secret_file(
 /// classification additionally compares its content against that authoritative
 /// value (mirror/drift verdict). The caller is responsible for pre-trimming
 /// + validating the authoritative hex.
+///
+/// T-1824 extension: when `target_cache` is `Some(&Path)`, drift comparison
+/// applies ONLY to the row whose path canonicalizes equal to the target.
+/// Every other row receives `None` for authoritative_hex (preserving plain
+/// perms/format/orphan verdict). When `target_cache` is `None`, behavior
+/// matches the broad-mode T-1822 path (drift-check every row).
 fn scan_secrets_dir<F>(
     dir: &std::path::Path,
     is_referenced: F,
     authoritative_hex: Option<&str>,
+    target_cache: Option<&std::path::Path>,
 ) -> Vec<(std::path::PathBuf, u32, u64, String, Vec<String>)>
 where
     F: Fn(&std::path::Path) -> bool,
@@ -6391,6 +6398,14 @@ where
         .collect();
     paths.sort();
 
+    // T-1824: pre-resolve the target cache path for comparison. Use
+    // canonicalize() to handle symlinks, ~/expansion, relative-vs-absolute.
+    // Falls back to the raw path on canonicalize failure (e.g. doesn't exist
+    // yet — caller still gets the "no target match" signal).
+    let target_canonical: Option<std::path::PathBuf> = target_cache.map(|p| {
+        std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+    });
+
     for path in paths {
         let metadata = match std::fs::metadata(&path) {
             Ok(m) => m,
@@ -6406,8 +6421,24 @@ where
             .map(|s| s.trim().to_string())
             .unwrap_or_default();
         let orphan = !is_referenced(&path);
-        let (status, reasons) =
-            classify_secret_file(mode, &content_trimmed, orphan, authoritative_hex);
+
+        // T-1824: only pass authoritative_hex through when this row IS the
+        // target (or no target set → broad-mode). Other rows get None →
+        // plain T-1820 classifier behavior.
+        let pass_auth: Option<&str> = match &target_canonical {
+            None => authoritative_hex, // broad mode
+            Some(tgt) => {
+                let path_canonical =
+                    std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+                if &path_canonical == tgt {
+                    authoritative_hex
+                } else {
+                    None
+                }
+            }
+        };
+
+        let (status, reasons) = classify_secret_file(mode, &content_trimmed, orphan, pass_auth);
         rows.push((path, mode, size, status, reasons));
     }
     rows
@@ -6418,9 +6449,19 @@ where
 pub(crate) fn cmd_fleet_secrets_audit(
     dir_override: Option<&str>,
     check_drift: Option<&str>,
+    target_cache: Option<&str>,
     json: bool,
 ) -> Result<()> {
     use serde_json::json;
+
+    // T-1824 R1: --target-cache requires --check-drift. Standalone makes no
+    // sense (there's nothing to compare against). Exit 2 = usage error.
+    if target_cache.is_some() && check_drift.is_none() {
+        eprintln!(
+            "error: --target-cache requires --check-drift <PATH> (the target needs an authoritative to compare against)"
+        );
+        std::process::exit(2);
+    }
 
     // Resolve scan directory.
     let dir_path: std::path::PathBuf = if let Some(d) = dir_override {
@@ -6512,11 +6553,36 @@ pub(crate) fn cmd_fleet_secrets_audit(
         .collect();
     let is_referenced = |p: &std::path::Path| referenced.contains(p);
 
+    // T-1824: resolve --target-cache once. Used both by the scanner (to
+    // narrow drift comparison) and below for the "named target doesn't
+    // exist in scan" warning.
+    let target_cache_path: Option<std::path::PathBuf> = target_cache.map(expand_secret_file_path);
+
     let rows = scan_secrets_dir(
         &dir_path,
         is_referenced,
         authoritative_hex_owned.as_deref(),
+        target_cache_path.as_deref(),
     );
+
+    // T-1824 R2: if --target-cache was set but the named file isn't in the
+    // scan (typo or wrong dir), warn the operator — silent skipping would
+    // hide a real misuse.
+    let mut target_cache_missing: Option<String> = None;
+    if let Some(tgt) = &target_cache_path {
+        let tgt_canonical = std::fs::canonicalize(tgt).unwrap_or_else(|_| tgt.clone());
+        let found = rows.iter().any(|(p, _, _, _, _)| {
+            let p_canon = std::fs::canonicalize(p).unwrap_or_else(|_| p.clone());
+            p_canon == tgt_canonical
+        });
+        if !found {
+            target_cache_missing = Some(format!(
+                "--target-cache path {} not found in scan dir {} — no drift verdict rendered. Check for typo or wrong --dir.",
+                tgt.display(),
+                dir_path.display()
+            ));
+        }
+    }
 
     // Summary counts.
     let mut count_ok = 0u32;
@@ -6575,6 +6641,20 @@ pub(crate) fn cmd_fleet_secrets_audit(
                     serde_json::Value::String(err.to_string()),
                 );
             }
+            // T-1824: always include target_cache in envelope (null = broad mode).
+            obj.insert(
+                "target_cache".to_string(),
+                target_cache_path
+                    .as_ref()
+                    .map(|p| serde_json::Value::String(p.display().to_string()))
+                    .unwrap_or(serde_json::Value::Null),
+            );
+            if let Some(err) = target_cache_missing.as_deref() {
+                obj.insert(
+                    "target_cache_error".to_string(),
+                    serde_json::Value::String(err.to_string()),
+                );
+            }
         }
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
@@ -6588,7 +6668,13 @@ pub(crate) fn cmd_fleet_secrets_audit(
                 .unwrap_or("0o???");
             println!("# authoritative: {status} {mode} {path}");
         }
+        if let Some(tgt) = &target_cache_path {
+            println!("# target-cache: {}", tgt.display());
+        }
         if let Some(err) = authoritative_error.as_deref() {
+            println!("# WARNING: {err}");
+        }
+        if let Some(err) = target_cache_missing.as_deref() {
             println!("# WARNING: {err}");
         }
         if rows.is_empty() {
@@ -6622,9 +6708,14 @@ pub(crate) fn cmd_fleet_secrets_audit(
         }
     }
 
-    // Exit code: 1 if any actionable warning (perms, format, or drift), 0
-    // otherwise (orphan-only is informational; ok-mirror is positive).
-    if count_warn_perms > 0 || count_warn_format > 0 || count_warn_drift > 0 {
+    // Exit code: 1 if any actionable warning (perms, format, drift) OR
+    // target-cache typo (operator misuse). 0 otherwise (orphan-only is
+    // informational; ok-mirror is positive).
+    if count_warn_perms > 0
+        || count_warn_format > 0
+        || count_warn_drift > 0
+        || target_cache_missing.is_some()
+    {
         std::process::exit(1);
     }
     Ok(())
@@ -9172,6 +9263,102 @@ secret_file = "/tmp/other.hex"
         let auth = "deadbeef".repeat(8);
         let (status, _) = super::classify_secret_file(0o600, &cache, false, Some(&auth));
         assert_eq!(status, "ok-mirror");
+    }
+
+    // === T-1824: --target-cache scanner-level tests ===
+
+    fn write_hex_file(dir: &std::path::Path, name: &str, hex: &str) -> std::path::PathBuf {
+        let p = dir.join(name);
+        std::fs::write(&p, hex).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        p
+    }
+
+    #[test]
+    fn secrets_audit_target_cache_narrows_drift_check_to_named_file() {
+        // Two caches in dir. Target = first one. Authoritative content =
+        // first one's content (so first → ok-mirror, second → plain ok
+        // because target narrowing keeps drift check OFF for non-target rows).
+        let tmp = tempfile::tempdir().unwrap();
+        let auth_hex = "deadbeef".repeat(8); // 64 chars
+        let other_hex = "cafebabe".repeat(8);
+        let target = write_hex_file(tmp.path(), "self.hex", &auth_hex);
+        let _other = write_hex_file(tmp.path(), "peer.hex", &other_hex);
+
+        let rows = super::scan_secrets_dir(
+            tmp.path(),
+            |_p: &std::path::Path| true, // all referenced (no orphans)
+            Some(&auth_hex),
+            Some(&target),
+        );
+        assert_eq!(rows.len(), 2);
+
+        let mut found_self = false;
+        let mut found_other = false;
+        for (path, _mode, _size, status, _reasons) in &rows {
+            if path.ends_with("self.hex") {
+                assert_eq!(status, "ok-mirror", "target self.hex must be drift-checked");
+                found_self = true;
+            } else if path.ends_with("peer.hex") {
+                // Crucially: with broad mode this would be "warn-drift". With
+                // target narrowing, peer.hex skips the drift comparison
+                // entirely and falls back to plain "ok".
+                assert_eq!(status, "ok", "non-target peer.hex must NOT be drift-checked");
+                found_other = true;
+            }
+        }
+        assert!(found_self && found_other, "both files must be in rows");
+    }
+
+    #[test]
+    fn secrets_audit_target_cache_warn_drift_when_target_differs() {
+        // Target file's content differs from authoritative → warn-drift.
+        // Other file stays at plain ok regardless.
+        let tmp = tempfile::tempdir().unwrap();
+        let auth_hex = "deadbeef".repeat(8);
+        let target_hex = "cafebabe".repeat(8); // differs from auth
+        let other_hex = "12345678".repeat(8);
+        let target = write_hex_file(tmp.path(), "self.hex", &target_hex);
+        let _other = write_hex_file(tmp.path(), "peer.hex", &other_hex);
+
+        let rows = super::scan_secrets_dir(
+            tmp.path(),
+            |_p: &std::path::Path| true,
+            Some(&auth_hex),
+            Some(&target),
+        );
+        let target_row = rows.iter().find(|(p, ..)| p.ends_with("self.hex")).unwrap();
+        assert_eq!(target_row.3, "warn-drift");
+        let other_row = rows.iter().find(|(p, ..)| p.ends_with("peer.hex")).unwrap();
+        assert_eq!(other_row.3, "ok");
+    }
+
+    #[test]
+    fn secrets_audit_target_cache_broad_mode_unchanged_when_target_none() {
+        // Backward compat: when target_cache=None, broad-mode behavior
+        // matches T-1822 — every cache gets drift-checked.
+        let tmp = tempfile::tempdir().unwrap();
+        let auth_hex = "deadbeef".repeat(8);
+        let target_hex = "cafebabe".repeat(8);
+        let other_hex = "12345678".repeat(8);
+        let _t = write_hex_file(tmp.path(), "self.hex", &target_hex);
+        let _o = write_hex_file(tmp.path(), "peer.hex", &other_hex);
+
+        let rows = super::scan_secrets_dir(
+            tmp.path(),
+            |_p: &std::path::Path| true,
+            Some(&auth_hex),
+            None, // BROAD MODE
+        );
+        // Both should be warn-drift (both differ from authoritative).
+        assert_eq!(rows.len(), 2);
+        for (_, _, _, status, _) in &rows {
+            assert_eq!(status, "warn-drift", "broad mode = all rows drift-checked");
+        }
     }
 }
 

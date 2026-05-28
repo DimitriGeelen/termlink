@@ -3469,6 +3469,16 @@ pub(crate) enum FleetAction {
         #[arg(long, value_name = "PATH")]
         check_drift: Option<String>,
 
+        /// T-1824: Narrow the drift check to one named cache file. Only valid
+        /// when paired with `--check-drift`. When set, only the named cache
+        /// gets an ok-mirror/warn-drift verdict; every other cache file
+        /// keeps its plain perms/format/orphan verdict. Use this when the
+        /// dir contains caches for multiple hubs (peer caches + self caches);
+        /// broad-mode `--check-drift` alone would flag every peer cache as
+        /// `warn-drift` which is operator-expected, not a real problem.
+        #[arg(long, value_name = "PATH")]
+        target_cache: Option<String>,
+
         /// Output as JSON: {ok, dir, files: [{path, mode, size, status, reasons[], referenced_by[]}], summary}
         #[arg(long)]
         json: bool,

@@ -674,10 +674,12 @@ async fn main() -> Result<()> {
             FleetAction::SecretsAudit {
                 dir,
                 check_drift,
+                target_cache,
                 json,
             } => commands::remote::cmd_fleet_secrets_audit(
                 dir.as_deref(),
                 check_drift.as_deref(),
+                target_cache.as_deref(),
                 json,
             ),
         },
