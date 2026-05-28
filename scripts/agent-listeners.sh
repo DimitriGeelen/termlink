@@ -93,26 +93,59 @@ esac
 
 command -v jq >/dev/null 2>&1 || { echo "agent-listeners: jq not in PATH" >&2; exit 2; }
 
-sub_args=("$topic" --limit "$limit" --json)
-[ -n "$hub" ] && sub_args+=(--hub "$hub")
-
-# Capture stderr separately so we can detect the G-060 graceful-degradation
-# case: hub healthy but agent-presence topic never created (no one ever
-# heartbeat'd here). JSON-RPC -32013 / "unknown topic" → treat as 0 listeners
-# rather than scan failure. T-1842.
+# T-1844: seek to tail before scanning. Default subscribe is cursor=0
+# which returns the OLDEST `--limit` envelopes; on busy topics the most-
+# recent heartbeats are NEVER scanned and total_listeners reads 0
+# spuriously. Probe topic post count via `channel info --json`, then
+# subscribe with `--cursor max(0, count - limit)`.
+info_args=("$topic" --json)
+[ -n "$hub" ] && info_args+=(--hub "$hub")
 stderr_file="$(mktemp)"
 trap 'rm -f "$stderr_file"' EXIT
-raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>"$stderr_file")"
-rc=$?
-if [ "$rc" -ne 0 ]; then
-    if grep -qE '\-32013|unknown topic' "$stderr_file"; then
-        # Topic doesn't exist on this hub — empty rollup. raw will be empty.
+
+post_count=0
+info_raw="$("$TERMLINK" channel info "${info_args[@]}" 2>"$stderr_file")"
+info_rc=$?
+if [ "$info_rc" -ne 0 ]; then
+    # G-060 degradation: hub healthy but topic absent. Match the JSON-RPC
+    # code, the textual variants ("unknown topic"), and the human-readable
+    # form ("Topic 'X' not found") that `channel info` emits.
+    if grep -qE '\-32013|unknown topic|[Nn]ot found' "$stderr_file"; then
         raw=""
+        info_skip=1
     else
-        # Real failure: auth, network, etc. Surface to caller.
         cat "$stderr_file" >&2
-        echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
+        echo "agent-listeners: channel info failed (exit=$info_rc)" >&2
         exit 3
+    fi
+else
+    # `channel info --json` payload contains `.count` (T-1324). Accept
+    # legacy field names defensively in case the binary is older.
+    post_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // .post_count // 0)' 2>/dev/null || echo 0)"
+    info_skip=0
+fi
+
+if [ "${info_skip:-0}" -ne 1 ]; then
+    cursor=0
+    if [ "$post_count" -gt "$limit" ]; then
+        cursor=$((post_count - limit))
+    fi
+    sub_args=("$topic" --cursor "$cursor" --limit "$limit" --json)
+    [ -n "$hub" ] && sub_args+=(--hub "$hub")
+
+    : > "$stderr_file"
+    raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>"$stderr_file")"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        if grep -qE '\-32013|unknown topic' "$stderr_file"; then
+            # Topic existed at info-time, disappeared by subscribe-time. Rare
+            # but possible (operator deleted between probes); treat as empty.
+            raw=""
+        else
+            cat "$stderr_file" >&2
+            echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
+            exit 3
+        fi
     fi
 fi
 

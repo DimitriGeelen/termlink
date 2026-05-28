@@ -198,6 +198,47 @@ else
     fi
 fi
 
+# -------- T11: seek-to-tail (T-1844) — fresh agent surfaces when topic has > --limit envelopes --------
+echo "T11: T-1844 — fresh agent surfaces after >limit prior heartbeats"
+if [ "$hub_up" -ne 1 ]; then
+    skip "T11: local hub not up"
+else
+    topic="agent-listeners-test-T11-$$-$(date +%s)"
+    bulk_aid="bulk-T11-$$-$(date +%s)"
+    fresh_aid="fresh-T11-$$-$(date +%s)"
+    "$TERMLINK" channel create "$topic" --retention messages:300 >/dev/null 2>&1
+
+    # Post 220 OLD heartbeats from bulk agent directly via channel post.
+    # interval_secs=30 → these will classify STALE/OFFLINE when scanned.
+    # Use --limit 200 in the subscribe → only the last 200 envelopes are
+    # in the scan window; the fresh one (offset 220) MUST be inside.
+    for n in $(seq 1 220); do
+        "$TERMLINK" channel post "$topic" \
+            --msg-type heartbeat --payload "bulk" \
+            --metadata agent_id="$bulk_aid" \
+            --metadata role="listener" \
+            --metadata interval_secs="30" \
+            --metadata started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1
+    done
+
+    # Fresh heartbeat from a different agent — should classify LIVE.
+    "$TERMLINK" channel post "$topic" \
+        --msg-type heartbeat --payload "fresh" \
+        --metadata agent_id="$fresh_aid" \
+        --metadata role="listener" \
+        --metadata interval_secs="30" \
+        --metadata started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1
+
+    out="$(bash "$SCRIPT" --topic "$topic" --limit 200 --json 2>/dev/null)"
+    rc=$?
+    fresh_status="$(printf '%s' "$out" | jq -r --arg aid "$fresh_aid" '.listeners[] | select(.agent_id==$aid) | .status' 2>/dev/null)"
+    if [ "$rc" -eq 0 ] && [ "$fresh_status" = "LIVE" ]; then
+        pass "T11: fresh agent surfaced as LIVE (seek-to-tail worked)"
+    else
+        fail "T11: rc=$rc fresh_status='$fresh_status' (expected LIVE)"
+    fi
+fi
+
 # -------- T10: real subscribe failure still exits 3 (T-1842 — non-32013 path preserved) --------
 echo "T10: subscribe failure other than -32013 still exits 3"
 # Use an unreachable hub address. Should fail with network error, NOT -32013.
