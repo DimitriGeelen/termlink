@@ -2084,3 +2084,10 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+- id: PL-190
+  learning: "Adoption metrics that count posts without counting unique posters give false-HOT signals. A 178-posts/24h fleet that's actually one agent monologuing reads identical to a 178-posts/24h fleet of 5 agents conversing — but they're qualitatively different. Always pair volume metrics with unique-actor counts. T-1848 added unique_speakers to fleet-adoption-snapshot.sh; HOT now requires >=2 distinct .metadata.agent_id values in the window. Same principle applies to any 'activity gauge' in this codebase: throughput alone is noise, throughput + actor-diversity is signal."
+  source: unknown
+  task: T-1452
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
