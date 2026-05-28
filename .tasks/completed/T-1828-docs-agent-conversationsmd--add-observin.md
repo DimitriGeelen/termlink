@@ -4,7 +4,7 @@ name: "docs: agent-conversations.md — add Observing Autonomous Threads section
 description: >
   docs: agent-conversations.md — add Observing Autonomous Threads section (T-1826/T-1827)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T09:51:14Z
-last_update: 2026-05-28T09:51:14Z
-date_finished: null
+last_update: 2026-05-28T09:52:57Z
+date_finished: 2026-05-28T09:52:57Z
 ---
 
 # T-1828: docs: agent-conversations.md — add Observing Autonomous Threads section (T-1826/T-1827)
@@ -131,3 +131,22 @@ grep -qF "Observing autonomous threads" docs/operations/agent-conversations.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1828-docs-agent-conversationsmd--add-observin.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7407cfb9
+- **Timestamp:** 2026-05-28T09:52:58Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Section mentions both `scripts/agent-conversation-status.sh` (single-cid detail) and `scripts/agent-conversation-list.sh` (all-cids on a topic).
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-conversation-status.sh in: Section mentions both `scripts/agent-conversation-status.sh` (single-cid detail) and `scripts/agent-conversation-list.sh` (all-cids on a topic).`
+- **AC#4 (Agent)** — Cross-references `scripts/agent-send.sh` and `scripts/agent-respond.sh` so a reader finding the docs via "what observes my agent threads?" can trace back to the loop.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-send.sh in: Cross-references `scripts/agent-send.sh` and `scripts/agent-respond.sh` so a reader finding the docs via "what observes my agent threads?" can trace b`
+
+### 2026-05-28T09:52:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
