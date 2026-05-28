@@ -1594,6 +1594,157 @@ count: 0` response (exit 0). Automation scripts can branch on:
 | 2 | usage error (missing required flag, invalid `--sort`) |
 | 3 | hub-side error (most commonly: topic doesn't exist) |
 
+## Establishing presence + auto-discover (T-1830 — T-1832/T-1833/T-1834)
+
+The doorbell+mail runtime (T-1800 arc) is structurally healthy on every
+reachable hub — `scripts/agent-conversation-selftest.sh` PASSes everywhere
+(see [Pre-flight validation](#pre-flight-validation-t-1829)). For a long
+time it nonetheless had zero active conversations: the runtime worked, but
+peers had no way to find each other without out-of-band coordination
+(operator hands you a PTY-session name and a dm-topic). T-1830 (GO) named
+this as a coordination gap, not a runtime gap. Three sub-builds close it:
+
+1. **Listener side — heartbeat (T-1832).** Each agent that wants to be
+   reachable posts a heartbeat to the canonical `agent-presence` topic
+   declaring its `agent_id`, `pty_session` (the PTY where the doorbell
+   gets injected), and the `listen_topics` it's actually polling.
+2. **Discovery side — enumerator (T-1833).** Any caller can read the
+   `agent-presence` topic and ask "who's listening right now?".
+   Classification is LIVE / STALE / OFFLINE per the TTL convention below.
+3. **Sender side — auto-discover (T-1834).** `agent-send.sh --to
+   <agent-id>` resolves both the doorbell session AND the dm-topic
+   from the heartbeat metadata. No prior coordination required.
+
+### Listener side — start a heartbeat
+
+```bash
+# In the background of your responder session (or via systemd).
+bash scripts/listener-heartbeat.sh \
+    --agent-id  penelope \
+    --role      responder \
+    --pty-session penelope-claude-1 \
+    --listen-topic dm:penelope-fp:cohort-agent-fp \
+    --listen-topic agent-chat-arc \
+    --interval 30 &
+```
+
+The script loops, posting one heartbeat per `--interval` seconds (min: 5),
+exits cleanly on SIGINT/SIGTERM. Use `--once` for a single post (handy in
+cron). Topic auto-creates on first post via `channel post --ensure-topic`
+(T-1443 G-050 idempotent). Source: `scripts/listener-heartbeat.sh`.
+
+### Discovery side — find live listeners
+
+```bash
+# Text rollup (LIVE+STALE by default; --include-offline to broaden).
+bash scripts/agent-listeners.sh
+
+# JSON envelope for scripting / agents.
+bash scripts/agent-listeners.sh --json | jq '.listeners[] | {agent_id, status, pty_session, listen_topics}'
+
+# Filter to a specific agent.
+bash scripts/agent-listeners.sh --filter-agent-id penelope --json
+```
+
+Output classifies each listener per the TTL convention. Source:
+`scripts/agent-listeners.sh`.
+
+### TTL convention
+
+| Status   | Age vs declared `interval_secs` |
+|----------|--------------------------------|
+| LIVE     | age ≤ 2× interval              |
+| STALE    | 2× < age ≤ 5× interval         |
+| OFFLINE  | age > 5× interval              |
+
+The classification uses the *posted* `interval_secs` from each envelope,
+not a global default — listeners can choose different cadences without
+breaking the math. Default text mode hides OFFLINE entries; pass
+`--include-offline` to surface them.
+
+### Sender side — auto-discover
+
+Without auto-discover (pre-T-1834), you needed two pre-known facts:
+
+```bash
+# Old way: caller already knows penelope's session + dm-topic.
+bash scripts/agent-send.sh \
+    --to-session penelope-claude-1 \
+    --topic dm:penelope-fp:cohort-agent-fp \
+    --message "hi"
+```
+
+With auto-discover (T-1834), the caller knows only the agent_id:
+
+```bash
+# New way: heartbeat metadata supplies the rest.
+bash scripts/agent-send.sh --to penelope --message "hi"
+```
+
+`--to` is mutually exclusive with `--to-session`/`--topic`/`--peer-fp`. It
+calls `agent-listeners.sh --filter-agent-id <id> --include-offline --json`
+to find the listener, then resolves:
+
+- `to_session` ← `metadata.pty_session` (REQUIRED — error if missing)
+- `topic` ← first `metadata.listen_topics` entry starting with `dm:`
+  (error if none)
+
+**Preview mode (`--dry-run`):** with `--to`, prints `RESOLVED: ...` and
+exits 0 without posting or injecting. Useful for automation:
+
+```bash
+$ bash scripts/agent-send.sh --to penelope --message hi --dry-run
+RESOLVED: agent_id=penelope status=LIVE to_session=penelope-claude-1 topic=dm:...
+```
+
+**Error paths** (all exit 2 with specific messages):
+- `no listener with agent_id=X` — the heartbeat hasn't been observed
+- `agent X is OFFLINE (last heartbeat Ns ago)` — heartbeat is stale
+- `agent X heartbeat does not declare pty_session` — caller can't ring
+- `agent X has no dm:* listen_topic` — caller can't infer destination
+
+### One-line end-to-end
+
+```bash
+# Tab 1: bring penelope online with one command.
+bash scripts/listener-heartbeat.sh \
+    --agent-id penelope --pty-session penelope-claude-1 \
+    --listen-topic dm:penelope-fp:cohort-agent-fp --interval 30 &
+
+# Tab 2 (any other host w/ same hub): send without prior coordination.
+bash scripts/agent-send.sh --to penelope --message "hello"
+# Output: agent-send: posted turn to 'dm:...' (cid=cid-..., offset=N)
+#         agent-send: ring 1/3 -> inject '/check-arc respond' into 'penelope-claude-1'
+#         agent-send: DELIVERED — receipt for cid=... at offset=N+1
+```
+
+### Observability
+
+A daily cron canary (`scripts/check-fleet-doorbell-mail-health.sh`,
+T-1831) runs the T-1829 selftest against every profile in
+`~/.termlink/hubs.toml`. Empty
+`.context/working/.fleet-doorbell-mail-canary.log` means the runtime is
+healthy fleet-wide; any entry means investigate. This becomes
+load-bearing once real conversations are flowing — runtime drift must be
+visible BEFORE conversations break.
+
+### Deliberately NOT done yet
+
+- **MCP parity for the new verbs** — `termlink_listener_heartbeat`,
+  `termlink_agent_listeners`, `termlink_agent_send_auto_discover` would
+  give LLM-driven agents (cohort-agent, penelope, claude-code instances)
+  direct access without shelling. Per PL-167 silent-strip rule: file a
+  follow-up build per verb. Filing it: T-1836 candidate.
+- **Cross-hub discovery merge** — today `agent-listeners.sh` reads one
+  hub at a time. A federated view (read agent-presence on each profile in
+  `hubs.toml`, merge by agent_id, prefer LIVE) would be valuable when
+  agents are spread across hubs. Per G-060: `agent-presence` is a
+  per-hub topic; merge must be client-side.
+- **systemd unit template** for always-on heartbeat — operators currently
+  background it manually or wire it into their own session-start. A
+  `systemd-templates/listener-heartbeat@.service` would let agents
+  re-heartbeat across reboots without action.
+
 ## Limits and next steps
 
 What's NOT implemented today, with rough effort if anyone picks it up:
