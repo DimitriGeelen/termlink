@@ -4,16 +4,16 @@ name: "be-reachable claude code skill — one-command opt-in to agent-presence f
 description: >
   be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T14:12:58Z
-last_update: 2026-05-28T14:12:58Z
-date_finished: null
+last_update: 2026-05-28T14:28:28Z
+date_finished: 2026-05-28T14:28:28Z
 ---
 
 # T-1841: be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions
@@ -115,6 +115,30 @@ grep -q "be-reachable" docs/operations/agent-conversations.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** All 12 Agent ACs checked + 6/6 Verification commands pass. Live-fired
+against the local hub on 2026-05-28: `start --agent-id t1841-live-test --interval 10`
+spawned pid 3480008, agent-presence emission was visible to `agent-listeners.sh`
+within ~13s as `status=LIVE`; `stop` cleanly killed the process and removed state.
+The /be-reachable skill mirrors the existing /agent-handoff shape so the
+operator-facing UX is already familiar. Closes the last socio-technical adoption
+rail of T-1830 (persistent hosts had T-1840; ephemeral sessions did not).
+
+**Evidence:**
+- `scripts/be-reachable.sh` — executable, --help present, 318 LOC
+- `scripts/test-be-reachable.sh` — 33/33 assertions pass (12 test groups)
+- `.claude/commands/be-reachable.md` — skill discoverable in /be-reachable listing
+- `docs/operations/agent-conversations.md` — T-1841 section landed between T-1840
+  systemd and Limits sections
+- Live run: pid 3480008, `kill -0` confirms reaped post-stop
+- Commit: 9cc0bdf6 — 5 files, 950 insertions
+
+**Human action:** Tick the [RUBBER-STAMP] AC once you've run `/be-reachable`
+in a session and confirmed the listed agent_id is discoverable from a peer.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -172,3 +196,25 @@ session can now opt in to agent-presence with one keystroke (`/be-reachable`) an
 discoverable via T-1834 `--to <agent_id>` immediately.
 
 **Recommendation:** GO — partial-complete pending [RUBBER-STAMP] Human AC tick.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-a4c3cd52
+- **Timestamp:** 2026-05-28T14:28:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — `be-reachable.sh start` writes JSON state to `~/.termlink/be-reachable.state` (agent_id, pid, started_at, listen_topics, pty_session)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/be-reachable.state in: `be-reachable.sh start` writes JSON state to `~/.termlink/be-reachable.state` (agent_id, pid, started_at, listen_topics, pty_session)`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/be-reachable.sh --help >/dev/null`
+
+### 2026-05-28T14:28:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
