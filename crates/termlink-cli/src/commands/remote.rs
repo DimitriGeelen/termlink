@@ -6277,17 +6277,25 @@ pub(crate) fn cmd_fleet_bootstrap_check(
 /// - `warn-perms`    — group or other have any bit set (rwx). G-011 incident class.
 /// - `warn-format`   — content is not a 64-char lowercase/uppercase hex string.
 ///                     Likely truncated, corrupt, or wrong file misplaced here.
+/// - `warn-drift`    — T-1822: content differs from the authoritative
+///                     `<runtime_dir>/hub.secret` passed via `--check-drift`.
+///                     Closes G-011 item 1 — the 2026-04-20 PL-041 case where
+///                     the giving-end cache had silently rotted after a restart.
 /// - `info-orphan`   — perms+format both ok, but no `hubs.toml` profile's
 ///                     `secret_file` (after `~/`-expansion) matches this file.
 ///                     Likely leftover from IP renumbering or removed profile.
+/// - `ok-mirror`     — T-1822: perms+format ok AND content matches authoritative
+///                     (`--check-drift` set). Positive confirmation, distinct
+///                     from plain `ok` (where no drift check was performed).
 ///
 /// A single file can carry multiple reasons (e.g. warn-perms AND warn-format).
 /// Operator-actionable verdict is the highest-severity reason. Order:
-/// warn-perms > warn-format > info-orphan > ok.
+/// warn-perms > warn-format > warn-drift > info-orphan > ok-mirror > ok.
 pub(crate) fn classify_secret_file(
     mode: u32,
     content_trimmed: &str,
     is_orphan: bool,
+    authoritative_hex: Option<&str>,
 ) -> (String, Vec<String>) {
     let mut reasons: Vec<String> = Vec::new();
 
@@ -6306,11 +6314,33 @@ pub(crate) fn classify_secret_file(
         ));
     }
 
-    // Orphan status (informational only — the cache may be genuinely
-    // unused yet, or it may be obsolete; the operator decides).
     let perms_warn = mode & 0o077 != 0;
     let format_warn = !hex_ok;
-    if is_orphan && !perms_warn && !format_warn {
+
+    // T-1822: drift check. Only meaningful when BOTH files are valid 64-hex —
+    // a malformed cache file is already flagged by warn-format; we don't want
+    // to double-flag with a drift complaint that's really a format complaint.
+    // The authoritative_hex passed in is assumed pre-normalized (trimmed,
+    // lowercased) so a byte comparison is sufficient.
+    let drift_status = match authoritative_hex {
+        Some(auth) if hex_ok && auth.len() == 64 => {
+            let own = content_trimmed.to_ascii_lowercase();
+            let auth_lc = auth.to_ascii_lowercase();
+            if own == auth_lc {
+                Some("ok-mirror")
+            } else {
+                reasons.push(
+                    "content differs from authoritative hub.secret (--check-drift)".to_string(),
+                );
+                Some("warn-drift")
+            }
+        }
+        _ => None,
+    };
+
+    // Orphan status (informational only — the cache may be genuinely
+    // unused yet, or it may be obsolete; the operator decides).
+    if is_orphan && !perms_warn && !format_warn && drift_status != Some("warn-drift") {
         reasons.push("not referenced by any hubs.toml profile".to_string());
     }
 
@@ -6318,8 +6348,12 @@ pub(crate) fn classify_secret_file(
         "warn-perms"
     } else if format_warn {
         "warn-format"
+    } else if drift_status == Some("warn-drift") {
+        "warn-drift"
     } else if is_orphan {
         "info-orphan"
+    } else if drift_status == Some("ok-mirror") {
+        "ok-mirror"
     } else {
         "ok"
     };
@@ -6329,9 +6363,15 @@ pub(crate) fn classify_secret_file(
 /// T-1820: scan a directory for `*.hex` files. Pure: takes the dir path and a
 /// closure that yields the cross-reference set of currently-referenced files
 /// (so unit tests can supply a fixed set). Returns the rows sorted by path.
+///
+/// T-1822 extension: when `authoritative_hex` is `Some(&str)`, each row's
+/// classification additionally compares its content against that authoritative
+/// value (mirror/drift verdict). The caller is responsible for pre-trimming
+/// + validating the authoritative hex.
 fn scan_secrets_dir<F>(
     dir: &std::path::Path,
     is_referenced: F,
+    authoritative_hex: Option<&str>,
 ) -> Vec<(std::path::PathBuf, u32, u64, String, Vec<String>)>
 where
     F: Fn(&std::path::Path) -> bool,
@@ -6366,7 +6406,8 @@ where
             .map(|s| s.trim().to_string())
             .unwrap_or_default();
         let orphan = !is_referenced(&path);
-        let (status, reasons) = classify_secret_file(mode, &content_trimmed, orphan);
+        let (status, reasons) =
+            classify_secret_file(mode, &content_trimmed, orphan, authoritative_hex);
         rows.push((path, mode, size, status, reasons));
     }
     rows
@@ -6374,7 +6415,11 @@ where
 
 /// T-1820: audit `~/.termlink/secrets/*.hex` for security hygiene. Read-only;
 /// never authenticates; never contacts a hub. Closes G-011 item 4.
-pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) -> Result<()> {
+pub(crate) fn cmd_fleet_secrets_audit(
+    dir_override: Option<&str>,
+    check_drift: Option<&str>,
+    json: bool,
+) -> Result<()> {
     use serde_json::json;
 
     // Resolve scan directory.
@@ -6385,6 +6430,75 @@ pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) ->
             .map_err(|_| anyhow::anyhow!("HOME not set; cannot resolve default secrets dir"))?;
         std::path::PathBuf::from(home).join(".termlink").join("secrets")
     };
+
+    // T-1822: load authoritative hub.secret if --check-drift was passed.
+    // We audit its perms+format independently, then pass its hex content
+    // into the scanner so each cache row gets a mirror/drift verdict.
+    // Failure to read/parse becomes a top-level error_message but does NOT
+    // abort the scan (operator still sees perms/format/orphan info).
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+    let authoritative_info: Option<serde_json::Value>;
+    let mut authoritative_hex_owned: Option<String> = None;
+    let mut authoritative_error: Option<String> = None;
+    match check_drift {
+        Some(path_str) => {
+            let auth_path = expand_secret_file_path(path_str);
+            match std::fs::metadata(&auth_path) {
+                Ok(md) => {
+                    #[cfg(unix)]
+                    let auth_mode = md.permissions().mode() & 0o777;
+                    #[cfg(not(unix))]
+                    let auth_mode: u32 = 0o600;
+                    let auth_size = md.len();
+                    let content = std::fs::read_to_string(&auth_path)
+                        .map(|s| s.trim().to_string())
+                        .unwrap_or_default();
+                    // Classify the authoritative file using its own hex as
+                    // self-reference → status will be ok-mirror if perms/format
+                    // both clean. The "is_orphan" arg is irrelevant here (the
+                    // authoritative file is by construction not in the cache
+                    // dir), so pass `false`.
+                    let (auth_status, auth_reasons) =
+                        classify_secret_file(auth_mode, &content, false, Some(&content));
+                    let hex_ok = content.len() == 64
+                        && content.chars().all(|c| c.is_ascii_hexdigit());
+                    if hex_ok {
+                        authoritative_hex_owned = Some(content.to_ascii_lowercase());
+                    } else {
+                        authoritative_error = Some(format!(
+                            "authoritative file content is not 64-char hex (got {} chars); drift-check disabled — perms/format/orphan still run",
+                            content.len()
+                        ));
+                    }
+                    authoritative_info = Some(json!({
+                        "path": auth_path.display().to_string(),
+                        "mode": format!("0o{:03o}", auth_mode),
+                        "size": auth_size,
+                        "status": auth_status,
+                        "reasons": auth_reasons,
+                    }));
+                }
+                Err(e) => {
+                    authoritative_error = Some(format!(
+                        "cannot read authoritative file {}: {}; drift-check disabled — perms/format/orphan still run",
+                        auth_path.display(),
+                        e
+                    ));
+                    authoritative_info = Some(json!({
+                        "path": auth_path.display().to_string(),
+                        "mode": null,
+                        "size": null,
+                        "status": "error",
+                        "reasons": [authoritative_error.clone().unwrap_or_default()],
+                    }));
+                }
+            }
+        }
+        None => {
+            authoritative_info = None;
+        }
+    }
 
     // Build the set of secret_file paths referenced by hubs.toml. Used to
     // classify orphans. Empty config (no profiles) means every hex file is
@@ -6398,18 +6512,26 @@ pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) ->
         .collect();
     let is_referenced = |p: &std::path::Path| referenced.contains(p);
 
-    let rows = scan_secrets_dir(&dir_path, is_referenced);
+    let rows = scan_secrets_dir(
+        &dir_path,
+        is_referenced,
+        authoritative_hex_owned.as_deref(),
+    );
 
     // Summary counts.
     let mut count_ok = 0u32;
+    let mut count_ok_mirror = 0u32;
     let mut count_warn_perms = 0u32;
     let mut count_warn_format = 0u32;
+    let mut count_warn_drift = 0u32;
     let mut count_info_orphan = 0u32;
     for (_, _, _, status, _) in &rows {
         match status.as_str() {
             "ok" => count_ok += 1,
+            "ok-mirror" => count_ok_mirror += 1,
             "warn-perms" => count_warn_perms += 1,
             "warn-format" => count_warn_format += 1,
+            "warn-drift" => count_warn_drift += 1,
             "info-orphan" => count_info_orphan += 1,
             _ => {}
         }
@@ -6429,21 +6551,46 @@ pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) ->
                 })
             })
             .collect();
-        let envelope = json!({
-            "ok": count_warn_perms == 0 && count_warn_format == 0,
+        let mut envelope = json!({
+            "ok": count_warn_perms == 0 && count_warn_format == 0 && count_warn_drift == 0,
             "dir": dir_path.display().to_string(),
             "files": files,
             "summary": {
                 "total": total,
                 "ok": count_ok,
+                "ok_mirror": count_ok_mirror,
                 "warn_perms": count_warn_perms,
                 "warn_format": count_warn_format,
+                "warn_drift": count_warn_drift,
                 "info_orphan": count_info_orphan,
             }
         });
+        if let Some(obj) = envelope.as_object_mut() {
+            if let Some(auth) = authoritative_info {
+                obj.insert("authoritative".to_string(), auth);
+            }
+            if let Some(err) = authoritative_error.as_deref() {
+                obj.insert(
+                    "authoritative_error".to_string(),
+                    serde_json::Value::String(err.to_string()),
+                );
+            }
+        }
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
         println!("# fleet secrets-audit | dir={}", dir_path.display());
+        if let Some(auth_v) = &authoritative_info {
+            let path = auth_v.get("path").and_then(|v| v.as_str()).unwrap_or("?");
+            let status = auth_v.get("status").and_then(|v| v.as_str()).unwrap_or("?");
+            let mode = auth_v
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("0o???");
+            println!("# authoritative: {status} {mode} {path}");
+        }
+        if let Some(err) = authoritative_error.as_deref() {
+            println!("# WARNING: {err}");
+        }
         if rows.is_empty() {
             println!("(no .hex files found — directory missing or empty)");
         } else {
@@ -6455,16 +6602,29 @@ pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) ->
                 };
                 println!("{:<12} 0o{:03o} {}{}", status, mode, path.display(), suffix);
             }
-            println!(
-                "\n{} file(s): {} ok, {} warn-perms, {} warn-format, {} info-orphan",
-                total, count_ok, count_warn_perms, count_warn_format, count_info_orphan
-            );
+            if check_drift.is_some() {
+                println!(
+                    "\n{} file(s): {} ok, {} ok-mirror, {} warn-perms, {} warn-format, {} warn-drift, {} info-orphan",
+                    total,
+                    count_ok,
+                    count_ok_mirror,
+                    count_warn_perms,
+                    count_warn_format,
+                    count_warn_drift,
+                    count_info_orphan
+                );
+            } else {
+                println!(
+                    "\n{} file(s): {} ok, {} warn-perms, {} warn-format, {} info-orphan",
+                    total, count_ok, count_warn_perms, count_warn_format, count_info_orphan
+                );
+            }
         }
     }
 
-    // Exit code: 1 if any actionable warning (perms or format), 0 otherwise
-    // (orphan-only is informational).
-    if count_warn_perms > 0 || count_warn_format > 0 {
+    // Exit code: 1 if any actionable warning (perms, format, or drift), 0
+    // otherwise (orphan-only is informational; ok-mirror is positive).
+    if count_warn_perms > 0 || count_warn_format > 0 || count_warn_drift > 0 {
         std::process::exit(1);
     }
     Ok(())
@@ -8891,7 +9051,7 @@ secret_file = "/tmp/other.hex"
     #[test]
     fn secrets_audit_classifier_ok_perms_ok_format_referenced() {
         let hex = "0".repeat(64);
-        let (status, reasons) = super::classify_secret_file(0o600, &hex, false);
+        let (status, reasons) = super::classify_secret_file(0o600, &hex, false, None);
         assert_eq!(status, "ok");
         assert!(reasons.is_empty(), "expected no reasons, got {reasons:?}");
     }
@@ -8900,7 +9060,7 @@ secret_file = "/tmp/other.hex"
     fn secrets_audit_classifier_warn_perms_g011_incident() {
         // The exact G-011 incident mode (proxmox4.hex at 0o644).
         let hex = "0".repeat(64);
-        let (status, reasons) = super::classify_secret_file(0o644, &hex, false);
+        let (status, reasons) = super::classify_secret_file(0o644, &hex, false, None);
         assert_eq!(status, "warn-perms");
         assert_eq!(reasons.len(), 1);
         assert!(reasons[0].contains("0o644"), "reason: {}", reasons[0]);
@@ -8909,7 +9069,8 @@ secret_file = "/tmp/other.hex"
     #[test]
     fn secrets_audit_classifier_warn_format_truncated() {
         // 17 chars — not a valid 32-byte hex secret.
-        let (status, reasons) = super::classify_secret_file(0o600, "abcdef0123456789a", false);
+        let (status, reasons) =
+            super::classify_secret_file(0o600, "abcdef0123456789a", false, None);
         assert_eq!(status, "warn-format");
         assert_eq!(reasons.len(), 1);
         assert!(reasons[0].contains("17 chars"), "reason: {}", reasons[0]);
@@ -8918,7 +9079,7 @@ secret_file = "/tmp/other.hex"
     #[test]
     fn secrets_audit_classifier_perms_takes_priority_over_format() {
         // Both warn-perms AND warn-format — perms is the higher severity.
-        let (status, reasons) = super::classify_secret_file(0o644, "short", false);
+        let (status, reasons) = super::classify_secret_file(0o644, "short", false, None);
         assert_eq!(status, "warn-perms");
         assert_eq!(reasons.len(), 2, "expected both reasons recorded: {reasons:?}");
     }
@@ -8928,7 +9089,7 @@ secret_file = "/tmp/other.hex"
         // 0o400 and 0o700 are both group-and-other-empty; both must pass.
         let hex = "f".repeat(64);
         for mode in [0o400u32, 0o600, 0o700] {
-            let (status, reasons) = super::classify_secret_file(mode, &hex, false);
+            let (status, reasons) = super::classify_secret_file(mode, &hex, false, None);
             assert_eq!(status, "ok", "mode 0o{:o} must classify as ok: {reasons:?}", mode);
         }
     }
@@ -8937,16 +9098,80 @@ secret_file = "/tmp/other.hex"
     fn secrets_audit_classifier_orphan_only_when_other_checks_pass() {
         let hex = "a".repeat(64);
         // Referenced + ok perms + ok format = "ok".
-        let (status, _) = super::classify_secret_file(0o600, &hex, false);
+        let (status, _) = super::classify_secret_file(0o600, &hex, false, None);
         assert_eq!(status, "ok");
         // Orphan + ok perms + ok format = "info-orphan".
-        let (status, reasons) = super::classify_secret_file(0o600, &hex, true);
+        let (status, reasons) = super::classify_secret_file(0o600, &hex, true, None);
         assert_eq!(status, "info-orphan");
         assert_eq!(reasons.len(), 1);
         assert!(reasons[0].contains("not referenced"), "reason: {}", reasons[0]);
         // Orphan + warn-perms = "warn-perms" (orphan suppressed by higher severity).
-        let (status, _) = super::classify_secret_file(0o644, &hex, true);
+        let (status, _) = super::classify_secret_file(0o644, &hex, true, None);
         assert_eq!(status, "warn-perms");
+    }
+
+    // T-1822: drift-check classifier tests.
+
+    #[test]
+    fn secrets_audit_classifier_ok_mirror_when_content_matches_authoritative() {
+        let hex = "deadbeef".repeat(8); // 64 chars, valid hex
+        let (status, reasons) = super::classify_secret_file(0o600, &hex, false, Some(&hex));
+        assert_eq!(status, "ok-mirror");
+        assert!(reasons.is_empty(), "ok-mirror should be reason-free: {reasons:?}");
+    }
+
+    #[test]
+    fn secrets_audit_classifier_warn_drift_when_content_differs_from_authoritative() {
+        let cache_hex = "a".repeat(64);
+        let auth_hex = "b".repeat(64);
+        let (status, reasons) =
+            super::classify_secret_file(0o600, &cache_hex, false, Some(&auth_hex));
+        assert_eq!(status, "warn-drift");
+        assert_eq!(reasons.len(), 1);
+        assert!(
+            reasons[0].contains("differs from authoritative"),
+            "reason: {}",
+            reasons[0]
+        );
+    }
+
+    #[test]
+    fn secrets_audit_classifier_drift_check_skipped_when_format_bad() {
+        // Cache hex is malformed — warn-format must win, no drift verdict
+        // (you can't compare apples to a half-banana).
+        let cache = "short";
+        let auth = "f".repeat(64);
+        let (status, reasons) =
+            super::classify_secret_file(0o600, cache, false, Some(&auth));
+        assert_eq!(status, "warn-format");
+        // Reasons should mention format only, not drift.
+        assert!(!reasons.iter().any(|r| r.contains("differs from authoritative")),
+            "drift reason must not appear when cache is malformed: {reasons:?}");
+    }
+
+    #[test]
+    fn secrets_audit_classifier_perms_outranks_drift() {
+        // World-readable AND drifted — perms is the higher-severity actionable
+        // verdict (G-011 incident class), drift detail still recorded in reasons.
+        let cache = "a".repeat(64);
+        let auth = "b".repeat(64);
+        let (status, reasons) = super::classify_secret_file(0o644, &cache, false, Some(&auth));
+        assert_eq!(status, "warn-perms");
+        assert!(
+            reasons.iter().any(|r| r.contains("0o644"))
+                && reasons.iter().any(|r| r.contains("differs from authoritative")),
+            "both perms AND drift reasons must be recorded for full audit trail: {reasons:?}"
+        );
+    }
+
+    #[test]
+    fn secrets_audit_classifier_drift_case_insensitive() {
+        // Some hub.secret writes use uppercase hex; the comparison must
+        // normalize so the same 32-byte value isn't flagged as drift.
+        let cache = "DEADBEEF".repeat(8);
+        let auth = "deadbeef".repeat(8);
+        let (status, _) = super::classify_secret_file(0o600, &cache, false, Some(&auth));
+        assert_eq!(status, "ok-mirror");
     }
 }
 

@@ -3458,6 +3458,17 @@ pub(crate) enum FleetAction {
         #[arg(long)]
         dir: Option<String>,
 
+        /// T-1822: Path to the authoritative `<runtime_dir>/hub.secret` (e.g.
+        /// `/var/lib/termlink/hub.secret` or `/tmp/termlink-0/hub.secret`).
+        /// When set, the audit reads the named file and adds a drift verdict
+        /// to each scanned cache row: `ok-mirror` (content matches), `warn-drift`
+        /// (differs), or no drift verdict if the cache is already flagged
+        /// warn-format. Closes G-011 item 1 — the 2026-04-20 PL-041 case where
+        /// the giving-end's IP-keyed cache had rotted silently after a hub
+        /// restart.
+        #[arg(long, value_name = "PATH")]
+        check_drift: Option<String>,
+
         /// Output as JSON: {ok, dir, files: [{path, mode, size, status, reasons[], referenced_by[]}], summary}
         #[arg(long)]
         json: bool,
