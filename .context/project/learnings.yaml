@@ -2055,3 +2055,10 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+- id: PL-186
+  learning: "Doorbell+mail adoption arc (T-1830 → T-1840) ships the 'verb-stack' pattern for socio-technical primitives: (1) shell-script verb in scripts/, (2) MCP wrapper via tokio::process shell-out (PL-185 option b, T-1689 precedent), (3) cross-hub variant when channels are hub-local (G-060), (4) systemd template for persistence across reboots, (5) docs section with copy-pasteable example. Each layer answers a specific 'how do I actually use this?' question. T-1832/33/34 (verbs) → T-1836 (MCP) → T-1837 (cross-hub) → T-1839 (cross-hub MCP) → T-1840 (systemd) → T-1835/T-1838 (docs). Apply this template when adding any new primitive that needs ergonomic adoption from both bash-callable and LLM-callable surfaces."
+  source: P-009
+  task: T-1452
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
