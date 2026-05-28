@@ -7204,6 +7204,20 @@ pub struct FleetBootstrapCheckParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1821: Fleet secrets-audit params (MCP parity for T-1820).
+// Read-only audit of `~/.termlink/secrets/*.hex` for perms/format/orphan
+// hygiene. Closes G-011 item 4 via agent-callable surveillance.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetSecretsAuditParams {
+    /// Override the default scan dir (`~/.termlink/secrets`). Useful for
+    /// scanning a peer's secret cache via bind mount or for integration tests.
+    pub dir: Option<String>,
+    /// Bound the subprocess call (clamped to 1..=120s). Default 10. The audit
+    /// is filesystem-only (no network, no auth) so the subprocess should
+    /// complete in milliseconds — timeout exists as a safety net.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1728: Fleet reauth params (MCP parity for `termlink fleet reauth`).
 // Single-profile heal RPC: writes the new HMAC secret to the profile's
 // `secret_file` using the named out-of-band trust anchor. Bulk
@@ -13055,6 +13069,74 @@ impl TermLinkTools {
                 if let Some(obj) = parsed.as_object_mut() {
                     obj.entry("ok".to_string())
                         .or_insert(serde_json::Value::Bool(matches!(exit_code, Some(0))));
+                    obj.insert(
+                        "exit_code".to_string(),
+                        serde_json::json!(exit_code.unwrap_or(-1)),
+                    );
+                }
+                serde_json::to_string_pretty(&parsed).unwrap_or_else(json_err)
+            }
+            Err(parse_err) => json_err(format!(
+                "subprocess returned non-JSON output (exit={:?}): {parse_err}\nstdout: {}\nstderr: {}",
+                exit_code,
+                stdout.chars().take(300).collect::<String>(),
+                stderr.chars().take(300).collect::<String>()
+            )),
+        }
+    }
+
+    // === Fleet secrets-audit (T-1821: MCP parity for T-1820) ===
+
+    #[tool(
+        name = "termlink_fleet_secrets_audit",
+        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for security hygiene. Per-file taxonomy: ok / warn-perms (mode > 0o600 — G-011 incident proxmox4.hex@0o644) / warn-format (not 64 hex chars) / info-orphan (not referenced by any hubs.toml profile). Read-only — no auth, no network, no writes. `dir` overrides the default scan path. `timeout_secs` (default 10, clamped 1..=120) caps the subprocess. Returns the CLI's JSON envelope decorated with `exit_code`: `{ok, dir, files: [{path, mode, size, status, reasons}], summary: {total, ok, warn_perms, warn_format, info_orphan}, exit_code}`. `ok: true` means zero warn-perms AND zero warn-format (orphan is informational)."
+    )]
+    async fn termlink_fleet_secrets_audit(
+        &self,
+        Parameters(p): Parameters<FleetSecretsAuditParams>,
+    ) -> String {
+        let timeout = p.timeout_secs.unwrap_or(10).clamp(1, 120);
+
+        let exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => return json_err(format!("cannot resolve termlink binary path: {e}")),
+        };
+
+        let mut cmd = tokio::process::Command::new(&exe);
+        cmd.arg("fleet").arg("secrets-audit").arg("--json");
+        if let Some(d) = p.dir.as_deref() {
+            cmd.arg("--dir").arg(d);
+        }
+        cmd.kill_on_drop(true);
+        cmd.stdin(std::process::Stdio::null());
+
+        let fut = cmd.output();
+        let output = match tokio::time::timeout(std::time::Duration::from_secs(timeout), fut).await
+        {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+            Err(_) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "verdict": "timeout",
+                    "error": format!("timeout after {}s", timeout),
+                    "hint": "audit is filesystem-only; a timeout here implies a stuck FS or excessive directory size — investigate the scan path",
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code();
+
+        // CLI emits the envelope to stdout. Exit 1 == any warn-perms or
+        // warn-format (per cmd_fleet_secrets_audit). Decorate the parsed
+        // JSON with `exit_code` so the caller can tell "0 = clean", "1 =
+        // actionable warning" without re-counting.
+        match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+            Ok(mut parsed) => {
+                if let Some(obj) = parsed.as_object_mut() {
                     obj.insert(
                         "exit_code".to_string(),
                         serde_json::json!(exit_code.unwrap_or(-1)),
@@ -33664,6 +33746,58 @@ not-json
         assert_eq!(clamp(10), 10);
         assert_eq!(clamp(120), 120);
         assert_eq!(clamp(9999), 120);
+    }
+
+    // === T-1821: fleet_secrets_audit MCP tool tests ===
+
+    #[test]
+    fn fleet_secrets_audit_params_defaults_when_omitted() {
+        let json = serde_json::json!({});
+        let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
+        assert!(p.dir.is_none());
+        assert!(p.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn fleet_secrets_audit_params_accepts_dir_override() {
+        let json = serde_json::json!({"dir": "/tmp/peer-secrets"});
+        let p: FleetSecretsAuditParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.dir.as_deref(), Some("/tmp/peer-secrets"));
+        assert!(p.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn fleet_secrets_audit_timeout_clamp_bounds() {
+        // Same clamp shape as T-1689 — 0 -> 1, 9999 -> 120.
+        let clamp = |t: u64| t.clamp(1, 120);
+        assert_eq!(clamp(0), 1);
+        assert_eq!(clamp(1), 1);
+        assert_eq!(clamp(10), 10);
+        assert_eq!(clamp(120), 120);
+        assert_eq!(clamp(9999), 120);
+    }
+
+    #[tokio::test]
+    async fn fleet_secrets_audit_subprocess_runs() {
+        // Like fleet_bootstrap_check_accepts_all_false_with_profile: in test
+        // context current_exe() isn't the termlink binary, so the subprocess
+        // either fails to spawn or runs but doesn't emit our JSON. What we're
+        // pinning here is that the tool body returns a *parseable* JSON string
+        // (not a panic, not a hang), with `ok` set to false on the failure
+        // path — i.e. error handling matches T-1689's shape.
+        let tools = TermLinkTools::new();
+        let result = tools
+            .termlink_fleet_secrets_audit(Parameters(FleetSecretsAuditParams {
+                dir: Some("/nonexistent/path/for/test".to_string()),
+                timeout_secs: Some(2),
+            }))
+            .await;
+        let parsed: serde_json::Value = serde_json::from_str(&result)
+            .expect("tool must always return parseable JSON");
+        // Either the subprocess errored (ok:false, error set) or it ran the
+        // real binary and produced ok:true with zero files. Both are valid;
+        // what we forbid is a panic / unparseable / missing-ok.
+        assert!(parsed.get("ok").is_some(), "response missing `ok` field: {result}");
     }
 
     // T-1728: termlink_fleet_reauth params + R2 guard.
