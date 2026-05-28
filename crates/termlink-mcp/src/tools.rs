@@ -7357,6 +7357,29 @@ pub struct AgentChatArcRecentParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1853: MCP wrapper for `scripts/check-fleet-doorbell-mail-health.sh`
+// (T-1831 + T-1845 timeout-wrap). Pairs with `termlink_fleet_doctor`
+// (rotation/auth) and `termlink_fleet_adoption_snapshot` (real-use
+// gauge) to close the "is rail healthy?" axis of the discovery
+// triangle at the MCP layer. Distinct from doctor: doctor checks
+// secrets+TLS+auth; this runs the T-1829 doorbell+mail LOOPBACK
+// selftest — proves the rail can actually carry a turn end-to-end.
+#[derive(Deserialize, JsonSchema)]
+pub struct CheckFleetDoorbellMailHealthParams {
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Suppress per-hub heartbeat touch
+    /// (`.context/working/.fleet-doorbell-mail-canary.heartbeat`).
+    /// Off by default — heartbeat is a load-bearing freshness signal for
+    /// the meta-canary (T-1723 pattern).
+    pub no_heartbeat: Option<bool>,
+    /// Subprocess timeout (default 60, clamped 1..=300). The script
+    /// internally bounds each per-hub selftest with `timeout 30`
+    /// (T-1845 / FLEET_DM_CANARY_TIMEOUT) — 60s covers a 5-hub fleet
+    /// with comfortable headroom; bump for larger fleets.
+    pub timeout_secs: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentSendAutoDiscoverParams {
     /// Agent ID to deliver to. Listener must heartbeat with both `pty_session`
@@ -25748,6 +25771,32 @@ impl TermLinkTools {
         }
         if p.all_msg_types.unwrap_or(false) {
             args.push("--all-msg-types".to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_check_fleet_doorbell_mail_health",
+        description = "Fleet-wide doorbell+mail LOOPBACK canary (T-1831, T-1845 timeout-wrap, MCP wrapper from T-1853). Closes the 'is rail healthy?' axis of the discovery triangle at the MCP layer alongside `termlink_fleet_doctor` (rotation/auth/TLS) and `termlink_fleet_adoption_snapshot` (real-use gauge). Distinct from doctor: doctor checks secrets+TLS+auth; this runs the T-1829 end-to-end selftest against EVERY profile in `~/.termlink/hubs.toml` — proves the rail can actually carry a turn (channel.create + post + read) right now. Read-only against your own hubs (selftest uses ephemeral throwaway topics). Per-hub bounded by `timeout 30` internally (T-1845 / PL-189). Params: `hubs_file` (override default), `no_heartbeat` (skip `.context/working/.fleet-doorbell-mail-canary.heartbeat` touch — leave default for the meta-canary T-1723), `timeout_secs` (default 60, clamped 1..=300 — 60s covers 5-hub fleet). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, summary: {total, pass, fail, unreachable}, profiles: [{name, address, verdict, elapsed_ms}]}}`. Verdict per hub is one of `pass` / `fail` / `unreachable`. Use when an agent investigating a flap needs to answer 'would a real doorbell+mail turn work right now?' without shelling out."
+    )]
+    async fn termlink_check_fleet_doorbell_mail_health(
+        &self,
+        Parameters(p): Parameters<CheckFleetDoorbellMailHealthParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("check-fleet-doorbell-mail-health.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(60).clamp(1, 300);
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
+        }
+        if p.no_heartbeat.unwrap_or(false) {
+            args.push("--no-heartbeat".to_string());
         }
 
         Self::run_t1836_subprocess(&script, &args, timeout).await
