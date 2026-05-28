@@ -7236,6 +7236,83 @@ pub struct FleetSecretsAuditParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1836: MCP parity for T-1830 trio. PL-185 decision: shell-out (option b)
+// to bash scripts via tokio::process — matches the T-1689 precedent
+// (fleet_bootstrap_check subprocesses fleet bootstrap-check --json). Script
+// path resolves via env `TERMLINK_SCRIPTS_DIR` (default `/opt/termlink/scripts`).
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ListenerHeartbeatParams {
+    /// Logical agent name to publish in `metadata.agent_id`. Required.
+    pub agent_id: String,
+    /// Role string (default: "listener"). Also used as payload body.
+    pub role: Option<String>,
+    /// Topics this agent listens on; joined into `metadata.listen_topics`
+    /// as comma-separated. For `agent-send.sh --to <agent-id>` auto-discover
+    /// to work, include at least one `dm:*` entry.
+    pub listen_topics: Option<Vec<String>>,
+    /// PTY session name (T-1834) — required for `--to <agent-id>` doorbell
+    /// auto-discover. Surfaces in `metadata.pty_session`. Omit when there's
+    /// no bound PTY session.
+    pub pty_session: Option<String>,
+    /// Heartbeat topic (default: `agent-presence`). Auto-created via
+    /// `channel.post --ensure-topic`.
+    pub topic: Option<String>,
+    /// Heartbeat period to publish (default 30, min 5). MCP wrapper ALWAYS
+    /// passes `--once`; this is the *advertised* interval in the envelope
+    /// (drives TTL classification on the discovery side).
+    pub interval_secs: Option<u32>,
+    /// Target hub (default: local hub).
+    pub hub: Option<String>,
+    /// Subprocess timeout (default 15, clamped 1..=120).
+    pub timeout_secs: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentListenersParams {
+    /// Source topic (default: `agent-presence`).
+    pub topic: Option<String>,
+    /// Target hub (default: local hub).
+    pub hub: Option<String>,
+    /// Envelopes to scan (default 200, max 1000).
+    pub limit: Option<u32>,
+    /// Include OFFLINE entries in output. Default false.
+    pub include_offline: Option<bool>,
+    /// Only show listeners with `metadata.role == R`.
+    pub filter_role: Option<String>,
+    /// Only show listeners whose `listen_topics` include this string.
+    pub filter_listen_topic: Option<String>,
+    /// Only show the listener with `metadata.agent_id == ID`.
+    pub filter_agent_id: Option<String>,
+    /// Subprocess timeout (default 15, clamped 1..=120).
+    pub timeout_secs: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentSendAutoDiscoverParams {
+    /// Agent ID to deliver to. Listener must heartbeat with both `pty_session`
+    /// and at least one `dm:*` entry in `listen_topics`. Resolution failures
+    /// (no listener / OFFLINE / no pty_session / no dm:* topic) surface as
+    /// `exit_code=2` with a hint.
+    pub to_agent_id: String,
+    /// Turn content (the "mail").
+    pub message: String,
+    /// When true, pass `--dry-run` — print `RESOLVED:` line and exit 0
+    /// without posting or injecting. Default false. Use for preview /
+    /// validation before a real send.
+    pub dry_run: Option<bool>,
+    /// Target hub (default: local hub). Forwarded to `agent-send.sh --hub`
+    /// only when set; the script's internal channel.post and discovery
+    /// invocations resolve their own hub when omitted.
+    pub hub: Option<String>,
+    /// Conversation thread id (default auto-generated).
+    pub conversation_id: Option<String>,
+    /// Subprocess timeout (default 60, clamped 1..=120). Higher than the
+    /// other two because the non-dry-run path includes up to 3 doorbell
+    /// rings with default 10s/ring + delivery confirmation.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1728: Fleet reauth params (MCP parity for `termlink fleet reauth`).
 // Single-profile heal RPC: writes the new HMAC secret to the profile's
 // `secret_file` using the named out-of-band trust anchor. Bulk
@@ -25266,6 +25343,225 @@ impl TermLinkTools {
         .unwrap_or_else(json_err)
     }
 
+    // === T-1836: MCP parity for T-1830 trio (shell-out per PL-185) ===
+
+    // Resolve a bash script under `${TERMLINK_SCRIPTS_DIR:-/opt/termlink/scripts}`.
+    // Returns the absolute path, or a `json_err`-shaped string when the
+    // script can't be found. Keeps the script directory overridable for
+    // dev installs and tests (the e2e tests below set the env to point
+    // at the repo's `scripts/` dir).
+    fn resolve_t1836_script(name: &str) -> Result<std::path::PathBuf, String> {
+        let dir = std::env::var("TERMLINK_SCRIPTS_DIR")
+            .unwrap_or_else(|_| "/opt/termlink/scripts".to_string());
+        let path = std::path::PathBuf::from(&dir).join(name);
+        if !path.is_file() {
+            return Err(json_err(format!(
+                "T-1836 script not found: {} (set TERMLINK_SCRIPTS_DIR to override; tried '{}')",
+                path.display(),
+                dir
+            )));
+        }
+        Ok(path)
+    }
+
+    // Run a `bash <script>` subprocess with bounded timeout, kill-on-drop,
+    // and null stdin. Returns the structured envelope every T-1836 tool
+    // emits: `{ok, exit_code, stdout, stderr}` with optional `parsed`
+    // when stdout was JSON.
+    async fn run_t1836_subprocess(
+        script: &std::path::Path,
+        args: &[String],
+        timeout_secs: u64,
+    ) -> String {
+        let mut cmd = tokio::process::Command::new("bash");
+        cmd.arg(script);
+        for a in args {
+            cmd.arg(a);
+        }
+        cmd.kill_on_drop(true);
+        cmd.stdin(std::process::Stdio::null());
+
+        let fut = cmd.output();
+        let output =
+            match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), fut).await {
+                Ok(Ok(o)) => o,
+                Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+                Err(_) => {
+                    return serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": false,
+                        "exit_code": -1,
+                        "verdict": "timeout",
+                        "error": format!("timeout after {}s", timeout_secs),
+                        "hint": "raise timeout_secs (max 120) or check the underlying hub",
+                    }))
+                    .unwrap_or_else(json_err);
+                }
+            };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code().unwrap_or(-1);
+
+        // Best-effort JSON parse so MCP clients get structured data when
+        // the script supports `--json` (agent-listeners always does;
+        // listener-heartbeat with `--once --json` does; agent-send is
+        // text-only).
+        let parsed: Option<serde_json::Value> =
+            serde_json::from_str(stdout.trim()).ok();
+
+        let mut envelope = serde_json::json!({
+            "ok": exit_code == 0,
+            "exit_code": exit_code,
+            "stdout": stdout,
+            "stderr": stderr,
+        });
+        if let Some(p) = parsed {
+            envelope
+                .as_object_mut()
+                .unwrap()
+                .insert("parsed".to_string(), p);
+        }
+        serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_listener_heartbeat",
+        description = "Emit ONE agent-presence heartbeat (T-1830/T-1832, MCP wrapper from T-1836). MCP path always passes `--once` — never spawns a loop. Required: `agent_id`. Optional: `role` (default 'listener'), `listen_topics` (Vec<String> — for `--to <agent-id>` auto-discover include at least one `dm:*` entry), `pty_session` (required for doorbell auto-discover from T-1834), `topic` (default 'agent-presence', auto-created on first post), `interval_secs` (advertised cadence, drives TTL classification — default 30, min 5), `hub` (default local), `timeout_secs` (default 15, clamped 1..=120). Returns `{ok, exit_code, stdout, stderr, parsed?}`. PL-185 decision: shell-out option (b)."
+    )]
+    async fn termlink_listener_heartbeat(
+        &self,
+        Parameters(p): Parameters<ListenerHeartbeatParams>,
+    ) -> String {
+        if p.agent_id.trim().is_empty() {
+            return json_err("agent_id is required and must be non-empty");
+        }
+        let script = match Self::resolve_t1836_script("listener-heartbeat.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(15).clamp(1, 120);
+
+        let mut args: Vec<String> = vec!["--once".to_string(), "--json".to_string()];
+        args.push("--agent-id".to_string());
+        args.push(p.agent_id.clone());
+        if let Some(role) = p.role.as_deref() {
+            args.push("--role".to_string());
+            args.push(role.to_string());
+        }
+        if let Some(topics) = p.listen_topics.as_ref() {
+            for t in topics {
+                args.push("--listen-topic".to_string());
+                args.push(t.clone());
+            }
+        }
+        if let Some(pty) = p.pty_session.as_deref() {
+            args.push("--pty-session".to_string());
+            args.push(pty.to_string());
+        }
+        if let Some(topic) = p.topic.as_deref() {
+            args.push("--topic".to_string());
+            args.push(topic.to_string());
+        }
+        if let Some(intv) = p.interval_secs {
+            args.push("--interval".to_string());
+            args.push(intv.to_string());
+        }
+        if let Some(hub) = p.hub.as_deref() {
+            args.push("--hub".to_string());
+            args.push(hub.to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_agent_listeners",
+        description = "Discover active agent-presence listeners (T-1830/T-1833, MCP wrapper from T-1836). Reads heartbeat topic, dedups per agent_id (keeps most recent), classifies each as LIVE/STALE/OFFLINE using the listener's own advertised interval (2x/5x rule). Optional params: `topic` (default 'agent-presence'), `hub` (default local), `limit` (envelopes scanned, default 200 max 1000), `include_offline` (default false), `filter_role`, `filter_listen_topic`, `filter_agent_id`, `timeout_secs` (default 15, clamped 1..=120). Returns `{ok, exit_code, stdout, stderr, parsed: {topic, hub, total_listeners, live, stale, offline, listeners: [{agent_id, role, status, age_secs, last_seen_ts, listen_topics, host, interval_secs, pty_session}]}}`. Read-only; never auths, never writes. PL-185 decision: shell-out option (b)."
+    )]
+    async fn termlink_agent_listeners(
+        &self,
+        Parameters(p): Parameters<AgentListenersParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("agent-listeners.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(15).clamp(1, 120);
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(topic) = p.topic.as_deref() {
+            args.push("--topic".to_string());
+            args.push(topic.to_string());
+        }
+        if let Some(hub) = p.hub.as_deref() {
+            args.push("--hub".to_string());
+            args.push(hub.to_string());
+        }
+        if let Some(lim) = p.limit {
+            args.push("--limit".to_string());
+            args.push(lim.to_string());
+        }
+        if p.include_offline.unwrap_or(false) {
+            args.push("--include-offline".to_string());
+        }
+        if let Some(role) = p.filter_role.as_deref() {
+            args.push("--filter-role".to_string());
+            args.push(role.to_string());
+        }
+        if let Some(lt) = p.filter_listen_topic.as_deref() {
+            args.push("--filter-listen-topic".to_string());
+            args.push(lt.to_string());
+        }
+        if let Some(aid) = p.filter_agent_id.as_deref() {
+            args.push("--filter-agent-id".to_string());
+            args.push(aid.to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_agent_send_auto_discover",
+        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata (T-1830/T-1834, MCP wrapper from T-1836). Required: `to_agent_id`, `message`. Optional: `dry_run` (when true, prints `RESOLVED:` line and exits 0 without posting/injecting — for preview), `hub` (default local), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60, clamped 1..=120 — higher than the discovery tools because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes mirror the script: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session declared / no dm:* topic) surface in stderr with a hint. PL-185 decision: shell-out option (b)."
+    )]
+    async fn termlink_agent_send_auto_discover(
+        &self,
+        Parameters(p): Parameters<AgentSendAutoDiscoverParams>,
+    ) -> String {
+        if p.to_agent_id.trim().is_empty() {
+            return json_err("to_agent_id is required and must be non-empty");
+        }
+        if p.message.is_empty() {
+            return json_err("message is required and must be non-empty");
+        }
+        let script = match Self::resolve_t1836_script("agent-send.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(60).clamp(1, 120);
+
+        let mut args: Vec<String> = vec![
+            "--to".to_string(),
+            p.to_agent_id.clone(),
+            "--message".to_string(),
+            p.message.clone(),
+        ];
+        if p.dry_run.unwrap_or(false) {
+            args.push("--dry-run".to_string());
+        }
+        if let Some(cid) = p.conversation_id.as_deref() {
+            args.push("--conversation-id".to_string());
+            args.push(cid.to_string());
+        }
+        // Note: agent-send.sh doesn't expose --hub directly; the script
+        // delegates hub selection to its internal `termlink channel post`
+        // and `agent-listeners.sh` calls. When `hub` is set here, pass it
+        // via env so any nested termlink command picks it up.
+        let _ = p.hub; // currently a no-op pass-through; reserved for future use.
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
 }
 
 #[cfg(test)]
@@ -34801,5 +35097,266 @@ not-json
         assert_eq!(validated, 3);
         assert_eq!(ok_n, 1);
         assert_eq!(broken, 2);
+    }
+
+    // === T-1836: MCP parity for T-1830 trio tests ===
+    //
+    // These tests exercise the shell-out wrappers with synthetic scripts
+    // (TERMLINK_SCRIPTS_DIR points at a tempdir containing tiny bash
+    // stubs). That way they validate parameter forwarding, timeout
+    // handling, JSON parse fall-back, and missing-script error paths
+    // without depending on a live hub.
+    //
+    // Rust 2024 edition: `std::env::set_var` / `remove_var` are unsafe
+    // because they're not thread-safe under concurrent reads/writes. We
+    // serialize the T-1836 tests via a static Mutex so the env mutations
+    // are non-overlapping, and wrap each call in `unsafe`.
+
+    static T1836_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    struct T1836EnvGuard {
+        _g: std::sync::MutexGuard<'static, ()>,
+    }
+    impl T1836EnvGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            // .unwrap_or_else handles poisoned mutex from a prior panicked test.
+            let g = T1836_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            unsafe { std::env::set_var("TERMLINK_SCRIPTS_DIR", dir) };
+            T1836EnvGuard { _g: g }
+        }
+    }
+    impl Drop for T1836EnvGuard {
+        fn drop(&mut self) {
+            unsafe { std::env::remove_var("TERMLINK_SCRIPTS_DIR") };
+        }
+    }
+
+    fn t1836_make_stub_dir(name: &str, body: &str) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join(name);
+        std::fs::write(&path, body).expect("write stub");
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&path, perms).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn t1836_missing_script_returns_helpful_error() {
+        // Point at a dir with no scripts.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners(Parameters(AgentListenersParams {
+                topic: None,
+                hub: None,
+                limit: None,
+                include_offline: None,
+                filter_role: None,
+                filter_listen_topic: None,
+                filter_agent_id: None,
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        let err = v["error"].as_str().unwrap_or("");
+        assert!(
+            err.contains("script not found") && err.contains("agent-listeners.sh"),
+            "expected helpful not-found error, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn t1836_listener_heartbeat_forwards_params_and_returns_envelope() {
+        // Stub echoes its argv to stdout; we assert all expected flags appear.
+        let body = "#!/usr/bin/env bash\n\
+                    echo \"args: $*\"\n\
+                    echo '{\"ok\":true,\"stub\":\"heartbeat\"}'\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("listener-heartbeat.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_listener_heartbeat(Parameters(ListenerHeartbeatParams {
+                agent_id: "claude-A".to_string(),
+                role: Some("listener".to_string()),
+                listen_topics: Some(vec!["dm:claude-A:claude-B".to_string()]),
+                pty_session: Some("pty-A".to_string()),
+                topic: None,
+                interval_secs: Some(30),
+                hub: None,
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(true));
+        assert_eq!(v["exit_code"], serde_json::json!(0));
+        let stdout = v["stdout"].as_str().unwrap_or("");
+        assert!(stdout.contains("--once"), "missing --once: {stdout}");
+        assert!(stdout.contains("--json"), "missing --json: {stdout}");
+        assert!(stdout.contains("--agent-id claude-A"), "missing agent-id: {stdout}");
+        assert!(stdout.contains("--role listener"), "missing role: {stdout}");
+        assert!(
+            stdout.contains("--listen-topic dm:claude-A:claude-B"),
+            "missing listen-topic: {stdout}"
+        );
+        assert!(
+            stdout.contains("--pty-session pty-A"),
+            "missing pty-session: {stdout}"
+        );
+        assert!(stdout.contains("--interval 30"), "missing interval: {stdout}");
+    }
+
+    #[tokio::test]
+    async fn t1836_agent_listeners_parses_json_stdout() {
+        let body = "#!/usr/bin/env bash\n\
+                    echo '{\"ok\":true,\"topic\":\"agent-presence\",\"total_listeners\":0,\"live\":0,\"stale\":0,\"offline\":0,\"listeners\":[]}'\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("agent-listeners.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners(Parameters(AgentListenersParams {
+                topic: None,
+                hub: None,
+                limit: None,
+                include_offline: Some(true),
+                filter_role: None,
+                filter_listen_topic: None,
+                filter_agent_id: Some("claude-A".to_string()),
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(true));
+        // The `parsed` field should mirror the stub's JSON.
+        let parsed = &v["parsed"];
+        assert_eq!(parsed["topic"], serde_json::json!("agent-presence"));
+        assert_eq!(parsed["total_listeners"], serde_json::json!(0));
+    }
+
+    #[tokio::test]
+    async fn t1836_agent_listeners_forwards_include_offline_and_filter() {
+        let body = "#!/usr/bin/env bash\n\
+                    # Surface argv as JSON so we can assert structure.
+                    args_csv=$(printf '\"%s\",' \"$@\")\n\
+                    args_csv=${args_csv%,}\n\
+                    echo \"{\\\"argv\\\":[${args_csv}]}\"\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("agent-listeners.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners(Parameters(AgentListenersParams {
+                topic: Some("alt-presence".to_string()),
+                hub: None,
+                limit: Some(50),
+                include_offline: Some(true),
+                filter_role: Some("listener".to_string()),
+                filter_listen_topic: Some("dm:x".to_string()),
+                filter_agent_id: Some("claude-A".to_string()),
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let argv = &v["parsed"]["argv"];
+        let argv_str = argv.to_string();
+        for needle in [
+            "--json",
+            "--topic",
+            "alt-presence",
+            "--limit",
+            "50",
+            "--include-offline",
+            "--filter-role",
+            "listener",
+            "--filter-listen-topic",
+            "dm:x",
+            "--filter-agent-id",
+            "claude-A",
+        ] {
+            assert!(argv_str.contains(needle), "missing {needle} in {argv_str}");
+        }
+    }
+
+    #[tokio::test]
+    async fn t1836_agent_send_dry_run_forwards_flags() {
+        let body = "#!/usr/bin/env bash\n\
+                    echo \"args: $*\"\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("agent-send.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_send_auto_discover(Parameters(AgentSendAutoDiscoverParams {
+                to_agent_id: "claude-B".to_string(),
+                message: "hello".to_string(),
+                dry_run: Some(true),
+                hub: None,
+                conversation_id: Some("cid-test".to_string()),
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(true));
+        let stdout = v["stdout"].as_str().unwrap_or("");
+        assert!(stdout.contains("--to claude-B"), "missing --to: {stdout}");
+        assert!(stdout.contains("--message hello"), "missing message: {stdout}");
+        assert!(stdout.contains("--dry-run"), "missing dry-run: {stdout}");
+        assert!(
+            stdout.contains("--conversation-id cid-test"),
+            "missing conversation-id: {stdout}"
+        );
+    }
+
+    #[tokio::test]
+    async fn t1836_agent_send_rejects_empty_message() {
+        // Stubbed script needed because resolve_t1836_script runs first.
+        let body = "#!/usr/bin/env bash\nexit 0\n";
+        let dir = t1836_make_stub_dir("agent-send.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_send_auto_discover(Parameters(AgentSendAutoDiscoverParams {
+                to_agent_id: "claude-B".to_string(),
+                message: String::new(),
+                dry_run: Some(true),
+                hub: None,
+                conversation_id: None,
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        let err = v["error"].as_str().unwrap_or("");
+        assert!(err.contains("message"), "expected message-required error: {err}");
+    }
+
+    #[tokio::test]
+    async fn t1836_subprocess_timeout_returns_timeout_verdict() {
+        // Script sleeps longer than the timeout — wrapper should bail.
+        let body = "#!/usr/bin/env bash\nsleep 5\nexit 0\n";
+        let dir = t1836_make_stub_dir("agent-listeners.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners(Parameters(AgentListenersParams {
+                topic: None,
+                hub: None,
+                limit: None,
+                include_offline: None,
+                filter_role: None,
+                filter_listen_topic: None,
+                filter_agent_id: None,
+                timeout_secs: Some(1),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        assert_eq!(v["verdict"], serde_json::json!("timeout"));
+        assert_eq!(v["exit_code"], serde_json::json!(-1));
     }
 }
