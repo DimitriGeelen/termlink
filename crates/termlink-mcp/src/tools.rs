@@ -7288,6 +7288,29 @@ pub struct AgentListenersParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1839: cross-hub fleet listener sweep. Wraps `agent-listeners-fleet.sh`
+// (T-1837). Reuses T-1836's `run_t1836_subprocess` helper.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentListenersFleetParams {
+    /// Source topic (default: `agent-presence`).
+    pub topic: Option<String>,
+    /// Envelopes scanned per hub (default 200, max 1000).
+    pub limit: Option<u32>,
+    /// Include OFFLINE entries. Default false.
+    pub include_offline: Option<bool>,
+    /// Only show listeners with `metadata.role == R`.
+    pub filter_role: Option<String>,
+    /// Only show listeners whose `listen_topics` include this string.
+    pub filter_listen_topic: Option<String>,
+    /// Only show the listener with `metadata.agent_id == ID`.
+    pub filter_agent_id: Option<String>,
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Subprocess timeout (default 30, clamped 1..=120). Higher than the
+    /// single-hub default because fan-out timing dominates.
+    pub timeout_secs: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentSendAutoDiscoverParams {
     /// Agent ID to deliver to. Listener must heartbeat with both `pty_session`
@@ -25562,6 +25585,52 @@ impl TermLinkTools {
         Self::run_t1836_subprocess(&script, &args, timeout).await
     }
 
+    #[tool(
+        name = "termlink_agent_listeners_fleet",
+        description = "Cross-hub agent-presence discovery (T-1837, MCP wrapper from T-1839). Walks every profile in `~/.termlink/hubs.toml` in parallel, calls `agent-listeners.sh --hub <addr>` per hub, and merges by `agent_id` with deterministic preference: LIVE > STALE > OFFLINE; ties broken by most-recent `last_seen_ts`. Surviving rows carry `hub` so the caller can route a doorbell ring (T-1834) to the correct host. Partial-failure is OK — `hubs_failed[]` surfaces per-hub errors; exit code 3 only when EVERY hub is unreachable. Params: `topic` (default `agent-presence`), `limit`, `include_offline`, `filter_role`, `filter_listen_topic`, `filter_agent_id`, `hubs_file` (override default), `timeout_secs` (default 30, clamped 1..=120 — higher than single-hub because fan-out dominates). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, hubs_scanned, hubs_failed, total_listeners, live, stale, offline, listeners}}`. Closes G-060 client-side."
+    )]
+    async fn termlink_agent_listeners_fleet(
+        &self,
+        Parameters(p): Parameters<AgentListenersFleetParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("agent-listeners-fleet.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(30).clamp(1, 120);
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(topic) = p.topic.as_deref() {
+            args.push("--topic".to_string());
+            args.push(topic.to_string());
+        }
+        if let Some(lim) = p.limit {
+            args.push("--limit".to_string());
+            args.push(lim.to_string());
+        }
+        if p.include_offline.unwrap_or(false) {
+            args.push("--include-offline".to_string());
+        }
+        if let Some(role) = p.filter_role.as_deref() {
+            args.push("--filter-role".to_string());
+            args.push(role.to_string());
+        }
+        if let Some(lt) = p.filter_listen_topic.as_deref() {
+            args.push("--filter-listen-topic".to_string());
+            args.push(lt.to_string());
+        }
+        if let Some(aid) = p.filter_agent_id.as_deref() {
+            args.push("--filter-agent-id".to_string());
+            args.push(aid.to_string());
+        }
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
 }
 
 #[cfg(test)]
@@ -35358,5 +35427,82 @@ not-json
         assert_eq!(v["ok"], serde_json::Value::Bool(false));
         assert_eq!(v["verdict"], serde_json::json!("timeout"));
         assert_eq!(v["exit_code"], serde_json::json!(-1));
+    }
+
+    // === T-1839: cross-hub MCP wrapper tests ===
+
+    #[tokio::test]
+    async fn t1839_agent_listeners_fleet_forwards_params() {
+        // Stub echoes argv (JSON-shaped) so we can assert flag pass-through.
+        let body = "#!/usr/bin/env bash\n\
+                    args_csv=$(printf '\"%s\",' \"$@\")\n\
+                    args_csv=${args_csv%,}\n\
+                    echo \"{\\\"argv\\\":[${args_csv}]}\"\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("agent-listeners-fleet.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners_fleet(Parameters(AgentListenersFleetParams {
+                topic: Some("agent-presence".to_string()),
+                limit: Some(50),
+                include_offline: Some(true),
+                filter_role: Some("listener".to_string()),
+                filter_listen_topic: Some("dm:x".to_string()),
+                filter_agent_id: Some("claude-A".to_string()),
+                hubs_file: Some("/tmp/test.toml".to_string()),
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(true));
+        let argv_str = v["parsed"]["argv"].to_string();
+        for needle in [
+            "--json",
+            "--topic",
+            "agent-presence",
+            "--limit",
+            "50",
+            "--include-offline",
+            "--filter-role",
+            "listener",
+            "--filter-listen-topic",
+            "dm:x",
+            "--filter-agent-id",
+            "claude-A",
+            "--hubs-file",
+            "/tmp/test.toml",
+        ] {
+            assert!(argv_str.contains(needle), "missing {needle} in {argv_str}");
+        }
+    }
+
+    #[tokio::test]
+    async fn t1839_agent_listeners_fleet_parses_envelope() {
+        let body = "#!/usr/bin/env bash\n\
+                    echo '{\"ok\":true,\"hubs_scanned\":2,\"hubs_failed\":[],\"total_listeners\":1,\"live\":1,\"stale\":0,\"offline\":0,\"listeners\":[{\"agent_id\":\"claude-X\",\"status\":\"LIVE\",\"hub\":\"127.0.0.1:9100\"}]}'\n\
+                    exit 0\n";
+        let dir = t1836_make_stub_dir("agent-listeners-fleet.sh", body);
+        let _env = T1836EnvGuard::set(dir.path());
+        let tools = TermLinkTools::new();
+        let out = tools
+            .termlink_agent_listeners_fleet(Parameters(AgentListenersFleetParams {
+                topic: None,
+                limit: None,
+                include_offline: None,
+                filter_role: None,
+                filter_listen_topic: None,
+                filter_agent_id: None,
+                hubs_file: None,
+                timeout_secs: Some(5),
+            }))
+            .await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["ok"], serde_json::Value::Bool(true));
+        let parsed = &v["parsed"];
+        assert_eq!(parsed["hubs_scanned"], serde_json::json!(2));
+        assert_eq!(parsed["total_listeners"], serde_json::json!(1));
+        assert_eq!(parsed["listeners"][0]["agent_id"], serde_json::json!("claude-X"));
+        assert_eq!(parsed["listeners"][0]["status"], serde_json::json!("LIVE"));
     }
 }
