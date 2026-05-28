@@ -4,7 +4,7 @@ name: "agent-listeners.sh subscribe-from-tail — fix cursor=0 reading OLDEST no
 description: >
   agent-listeners.sh subscribe-from-tail — fix cursor=0 reading OLDEST not NEWEST envelopes (livelisten count always 0 on busy topics)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug]
 components: []
 related_tasks: []
 created: 2026-05-28T17:39:33Z
-last_update: 2026-05-28T17:39:33Z
-date_finished: null
+last_update: 2026-05-28T17:45:52Z
+date_finished: 2026-05-28T17:45:52Z
 ---
 
 # T-1844: agent-listeners.sh subscribe-from-tail — fix cursor=0 reading OLDEST not NEWEST envelopes (livelisten count always 0 on busy topics)
@@ -41,12 +41,31 @@ post count, then `channel subscribe --cursor max(0, count - SCAN_DEPTH)`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `agent-listeners.sh` seeks to tail before scanning — uses `channel info --json` to get topic post count, then `channel subscribe --cursor <count - SCAN_DEPTH>` where SCAN_DEPTH defaults to 200 (existing `--limit` flag preserved as scan-depth knob)
-- [ ] Backwards-compatible: when topic count <= SCAN_DEPTH, behaves as before (cursor=0)
-- [ ] G-060 graceful: `channel info` returning -32013 / unknown topic → exit 0 with empty rollup (same convention as T-1842 for subscribe)
-- [ ] Live verification: with `/be-reachable` heartbeating as `root-claude-dimitrimintdev` and agent-presence having ≥200 envelopes on the local hub, `agent-listeners.sh --json | jq '.live'` returns ≥1
-- [ ] Existing test suite still passes (`bash scripts/test-agent-listeners.sh` — 10/10 from T-1842)
-- [ ] One new test covers the seek-to-tail path: post >SCAN_DEPTH dummy heartbeats from one agent + a fresh heartbeat from a second agent; the second agent surfaces as LIVE
+- [x] `agent-listeners.sh` seeks to tail before scanning — uses `channel info --json` to get topic post count, then `channel subscribe --cursor <count - SCAN_DEPTH>` where SCAN_DEPTH defaults to 200 (existing `--limit` flag preserved as scan-depth knob)
+- [x] Backwards-compatible: when topic count <= SCAN_DEPTH, behaves as before (cursor=0)
+- [x] G-060 graceful: `channel info` returning -32013 / unknown topic → exit 0 with empty rollup (same convention as T-1842 for subscribe). Also matches `Topic 'X' not found` text variant.
+- [x] Live verification: with `/be-reachable` heartbeating as `root-claude-dimitrimintdev` and agent-presence having ≥200 envelopes on the local hub, `agent-listeners.sh --json | jq '.live'` returns ≥1 (live: 1, status=LIVE, age=15s)
+- [x] Existing test suite still passes (`bash scripts/test-agent-listeners.sh` — 11/11 including new T11)
+- [x] One new test covers the seek-to-tail path: post >SCAN_DEPTH dummy heartbeats from one agent + a fresh heartbeat from a second agent; the second agent surfaces as LIVE
+
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** Latent bug discovered while building T-1843 (adoption
+snapshot kept reporting COLD despite a live local heartbeat). Fix is
+mechanical (probe topic count, seek cursor), backwards-compatible (no
+new flags, falls back to cursor=0 when count<=limit), and protected by
+a new regression test (T11) that posts >SCAN_DEPTH heartbeats. All 6
+Verification commands pass. Unblocks T-1843 and any future adoption-state
+verb that composes agent-listeners.
+
+**Evidence:**
+- `scripts/agent-listeners.sh` — diff +47/-14 LOC, see commit `812517a3`
+- `scripts/test-agent-listeners.sh` — added T11, 11/11 pass
+- Live run before fix: `total_listeners=0` despite be-reachable active
+- Live run after fix: `{live:1, listeners:[{agent_id:"root-claude-dimitrimintdev", status:"LIVE", age:15}]}`
+- Commit: 812517a3 — 3 files, 219 insertions, 14 deletions
 
 ## Verification
 
@@ -129,3 +148,22 @@ surfaces. Catches the regression on every CI run.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1844-agent-listenerssh-subscribe-from-tail--f.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-540cf58d
+- **Timestamp:** 2026-05-28T17:46:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `bash scripts/agent-listeners.sh --help >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 4
+     - evidence: `bash scripts/agent-listeners.sh --json | jq -e '.listeners | map(select(.agent_id == "root-claude-dimitrimintdev")) | length >= 1' >/dev/null`
+
+### 2026-05-28T17:45:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

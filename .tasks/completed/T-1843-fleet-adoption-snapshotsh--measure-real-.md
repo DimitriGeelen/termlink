@@ -4,16 +4,16 @@ name: "fleet-adoption-snapshot.sh — measure REAL doorbell+mail traffic (distin
 description: >
   fleet-adoption-snapshot.sh — measure REAL doorbell+mail traffic (distinct from T-1831 health canary)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/fleet-adoption-snapshot.sh, scripts/test-fleet-adoption-snapshot.sh]
 related_tasks: []
 created: 2026-05-28T17:29:47Z
-last_update: 2026-05-28T17:47:00Z
-date_finished: null
+last_update: 2026-05-28T17:58:59Z
+date_finished: 2026-05-28T17:58:59Z
 ---
 
 # T-1843: fleet-adoption-snapshot.sh — measure REAL doorbell+mail traffic (distinct from T-1831 health canary)
@@ -170,3 +170,31 @@ bash scripts/fleet-adoption-snapshot.sh --json | jq -e '.ok == true and (.summar
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1843-fleet-adoption-snapshotsh--measure-real-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-5c90d7e2
+- **Timestamp:** 2026-05-28T17:59:26Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Walks every profile in `~/.termlink/hubs.toml` (same source as T-1837 / canary)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Walks every profile in `~/.termlink/hubs.toml` (same source as T-1837 / canary)`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/fleet-adoption-snapshot.sh --help >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 5
+     - evidence: `bash scripts/fleet-adoption-snapshot.sh --json | jq -e '.ok == true and (.summary | has("adoption_state"))' >/dev/null`
+
+- **Layer-1 escalations:** 1
+  1. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet-wide`
+
+### 2026-05-28T17:58:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
