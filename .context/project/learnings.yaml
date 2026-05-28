@@ -2034,3 +2034,17 @@ learnings:
   date: 2026-05-27
   context: Added via context agent
   application: TBD
+- id: PL-183
+  learning: "T-1796 fetch_topic_msgs_paginated generalizes across all chat-arc reading verbs — proven across 4 callers (T-1816/17/18/19) with identical one-flag-plus-two-call-site shape. Pattern: add --depth N (default 1000, clamped [1,100000]) to clap variant, thread through main.rs destructure, add depth param + clamped_depth to cmd_agent_X signature, swap both fetch_recent_chat_arc_msgs(hub, 1000) call sites for fetch_topic_msgs_paginated(\"agent-chat-arc\", hub, clamped_depth). Default preserves pre-flag behavior exactly. Direct operator value: deep history reads on busy fleets where the most-recent 1000 envelopes are dominated by other peers/short windows."
+  source: unknown
+  task: T-1819
+  date: 2026-05-27
+  context: Added via context agent
+  application: TBD
+- id: PL-184
+  learning: "Doorbell+mail runtime (T-1800 arc) is structurally healthy on every reachable hub — agent-conversation-selftest.sh PASS on .107/.121/.122 (51/391/453 ms) — yet active conversation count = 0. Adoption gap is NOT infrastructure; it's coordination: no discovery primitive for 'who's listening?', no convention for always-on /check-arc respond listeners, agents (cohort-agent, penelope, framework-agent, termlink-agent) aren't wired to use the loop. Next push needs to drive adoption (discovery/heartbeat/listener convention), not fix runtime."
+  source: P-009
+  task: T-1829
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
