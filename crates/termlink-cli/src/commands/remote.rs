@@ -6267,6 +6267,209 @@ pub(crate) fn cmd_fleet_bootstrap_check(
     Ok(())
 }
 
+/// T-1820: classifier for a single `~/.termlink/secrets/*.hex` file. Pure;
+/// takes the inputs an OS stat would produce plus the trimmed content. Returns
+/// the human-readable status plus zero-or-more reason strings.
+///
+/// Status taxonomy:
+/// - `ok`            — perms 0o600-equivalent (group/other have no bits set),
+///                     content is exactly 64 hex chars
+/// - `warn-perms`    — group or other have any bit set (rwx). G-011 incident class.
+/// - `warn-format`   — content is not a 64-char lowercase/uppercase hex string.
+///                     Likely truncated, corrupt, or wrong file misplaced here.
+/// - `info-orphan`   — perms+format both ok, but no `hubs.toml` profile's
+///                     `secret_file` (after `~/`-expansion) matches this file.
+///                     Likely leftover from IP renumbering or removed profile.
+///
+/// A single file can carry multiple reasons (e.g. warn-perms AND warn-format).
+/// Operator-actionable verdict is the highest-severity reason. Order:
+/// warn-perms > warn-format > info-orphan > ok.
+pub(crate) fn classify_secret_file(
+    mode: u32,
+    content_trimmed: &str,
+    is_orphan: bool,
+) -> (String, Vec<String>) {
+    let mut reasons: Vec<String> = Vec::new();
+
+    // Perms check (G-011 item 4 — the world-readable 0o644 case).
+    if mode & 0o077 != 0 {
+        reasons.push(format!("perms 0o{:03o} expose secret to group/world", mode));
+    }
+
+    // Format check — must parse as 64 hex chars.
+    let hex_ok = content_trimmed.len() == 64
+        && content_trimmed.chars().all(|c| c.is_ascii_hexdigit());
+    if !hex_ok {
+        reasons.push(format!(
+            "content not 64-hex-char (got {} chars)",
+            content_trimmed.len()
+        ));
+    }
+
+    // Orphan status (informational only — the cache may be genuinely
+    // unused yet, or it may be obsolete; the operator decides).
+    let perms_warn = mode & 0o077 != 0;
+    let format_warn = !hex_ok;
+    if is_orphan && !perms_warn && !format_warn {
+        reasons.push("not referenced by any hubs.toml profile".to_string());
+    }
+
+    let status = if perms_warn {
+        "warn-perms"
+    } else if format_warn {
+        "warn-format"
+    } else if is_orphan {
+        "info-orphan"
+    } else {
+        "ok"
+    };
+    (status.to_string(), reasons)
+}
+
+/// T-1820: scan a directory for `*.hex` files. Pure: takes the dir path and a
+/// closure that yields the cross-reference set of currently-referenced files
+/// (so unit tests can supply a fixed set). Returns the rows sorted by path.
+fn scan_secrets_dir<F>(
+    dir: &std::path::Path,
+    is_referenced: F,
+) -> Vec<(std::path::PathBuf, u32, u64, String, Vec<String>)>
+where
+    F: Fn(&std::path::Path) -> bool,
+{
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut rows: Vec<(std::path::PathBuf, u32, u64, String, Vec<String>)> = Vec::new();
+    let entries = match std::fs::read_dir(dir) {
+        Ok(it) => it,
+        Err(_) => return rows,
+    };
+    let mut paths: Vec<std::path::PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("hex"))
+        .collect();
+    paths.sort();
+
+    for path in paths {
+        let metadata = match std::fs::metadata(&path) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        #[cfg(unix)]
+        let mode = metadata.permissions().mode() & 0o777;
+        #[cfg(not(unix))]
+        let mode: u32 = 0o600; // placeholder — non-unix path skips perms check
+
+        let size = metadata.len();
+        let content_trimmed = std::fs::read_to_string(&path)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let orphan = !is_referenced(&path);
+        let (status, reasons) = classify_secret_file(mode, &content_trimmed, orphan);
+        rows.push((path, mode, size, status, reasons));
+    }
+    rows
+}
+
+/// T-1820: audit `~/.termlink/secrets/*.hex` for security hygiene. Read-only;
+/// never authenticates; never contacts a hub. Closes G-011 item 4.
+pub(crate) fn cmd_fleet_secrets_audit(dir_override: Option<&str>, json: bool) -> Result<()> {
+    use serde_json::json;
+
+    // Resolve scan directory.
+    let dir_path: std::path::PathBuf = if let Some(d) = dir_override {
+        expand_secret_file_path(d)
+    } else {
+        let home = std::env::var("HOME")
+            .map_err(|_| anyhow::anyhow!("HOME not set; cannot resolve default secrets dir"))?;
+        std::path::PathBuf::from(home).join(".termlink").join("secrets")
+    };
+
+    // Build the set of secret_file paths referenced by hubs.toml. Used to
+    // classify orphans. Empty config (no profiles) means every hex file is
+    // orphan — still useful info.
+    let config = crate::config::load_hubs_config();
+    let referenced: std::collections::HashSet<std::path::PathBuf> = config
+        .hubs
+        .values()
+        .filter_map(|entry| entry.secret_file.as_deref())
+        .map(expand_secret_file_path)
+        .collect();
+    let is_referenced = |p: &std::path::Path| referenced.contains(p);
+
+    let rows = scan_secrets_dir(&dir_path, is_referenced);
+
+    // Summary counts.
+    let mut count_ok = 0u32;
+    let mut count_warn_perms = 0u32;
+    let mut count_warn_format = 0u32;
+    let mut count_info_orphan = 0u32;
+    for (_, _, _, status, _) in &rows {
+        match status.as_str() {
+            "ok" => count_ok += 1,
+            "warn-perms" => count_warn_perms += 1,
+            "warn-format" => count_warn_format += 1,
+            "info-orphan" => count_info_orphan += 1,
+            _ => {}
+        }
+    }
+    let total = rows.len() as u32;
+
+    if json {
+        let files: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|(path, mode, size, status, reasons)| {
+                json!({
+                    "path": path.display().to_string(),
+                    "mode": format!("0o{:03o}", mode),
+                    "size": size,
+                    "status": status,
+                    "reasons": reasons,
+                })
+            })
+            .collect();
+        let envelope = json!({
+            "ok": count_warn_perms == 0 && count_warn_format == 0,
+            "dir": dir_path.display().to_string(),
+            "files": files,
+            "summary": {
+                "total": total,
+                "ok": count_ok,
+                "warn_perms": count_warn_perms,
+                "warn_format": count_warn_format,
+                "info_orphan": count_info_orphan,
+            }
+        });
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        println!("# fleet secrets-audit | dir={}", dir_path.display());
+        if rows.is_empty() {
+            println!("(no .hex files found — directory missing or empty)");
+        } else {
+            for (path, mode, _size, status, reasons) in &rows {
+                let suffix = if reasons.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{}]", reasons.join("; "))
+                };
+                println!("{:<12} 0o{:03o} {}{}", status, mode, path.display(), suffix);
+            }
+            println!(
+                "\n{} file(s): {} ok, {} warn-perms, {} warn-format, {} info-orphan",
+                total, count_ok, count_warn_perms, count_warn_format, count_info_orphan
+            );
+        }
+    }
+
+    // Exit code: 1 if any actionable warning (perms or format), 0 otherwise
+    // (orphan-only is informational).
+    if count_warn_perms > 0 || count_warn_format > 0 {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 /// T-1055 Tier-2 heal: fetch the new secret via the named out-of-band source,
 /// validate it, back up the existing file, and write the new one.
 /// T-1728: structured outcome from Tier-2 heal — lets the CLI render either
@@ -8681,6 +8884,69 @@ secret_file = "/tmp/other.hex"
         let e = rot("h1", "2026-05-01T00:00:00Z", "auth-mismatch", "auth-mismatch", "drift", "drift");
         let report = analyze_pl021(&[&e]);
         assert!(report.is_empty(), "stable-drifted state must not register as a transition");
+    }
+
+    // T-1820: classify_secret_file unit tests.
+
+    #[test]
+    fn secrets_audit_classifier_ok_perms_ok_format_referenced() {
+        let hex = "0".repeat(64);
+        let (status, reasons) = super::classify_secret_file(0o600, &hex, false);
+        assert_eq!(status, "ok");
+        assert!(reasons.is_empty(), "expected no reasons, got {reasons:?}");
+    }
+
+    #[test]
+    fn secrets_audit_classifier_warn_perms_g011_incident() {
+        // The exact G-011 incident mode (proxmox4.hex at 0o644).
+        let hex = "0".repeat(64);
+        let (status, reasons) = super::classify_secret_file(0o644, &hex, false);
+        assert_eq!(status, "warn-perms");
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("0o644"), "reason: {}", reasons[0]);
+    }
+
+    #[test]
+    fn secrets_audit_classifier_warn_format_truncated() {
+        // 17 chars — not a valid 32-byte hex secret.
+        let (status, reasons) = super::classify_secret_file(0o600, "abcdef0123456789a", false);
+        assert_eq!(status, "warn-format");
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("17 chars"), "reason: {}", reasons[0]);
+    }
+
+    #[test]
+    fn secrets_audit_classifier_perms_takes_priority_over_format() {
+        // Both warn-perms AND warn-format — perms is the higher severity.
+        let (status, reasons) = super::classify_secret_file(0o644, "short", false);
+        assert_eq!(status, "warn-perms");
+        assert_eq!(reasons.len(), 2, "expected both reasons recorded: {reasons:?}");
+    }
+
+    #[test]
+    fn secrets_audit_classifier_owner_only_variants_are_ok() {
+        // 0o400 and 0o700 are both group-and-other-empty; both must pass.
+        let hex = "f".repeat(64);
+        for mode in [0o400u32, 0o600, 0o700] {
+            let (status, reasons) = super::classify_secret_file(mode, &hex, false);
+            assert_eq!(status, "ok", "mode 0o{:o} must classify as ok: {reasons:?}", mode);
+        }
+    }
+
+    #[test]
+    fn secrets_audit_classifier_orphan_only_when_other_checks_pass() {
+        let hex = "a".repeat(64);
+        // Referenced + ok perms + ok format = "ok".
+        let (status, _) = super::classify_secret_file(0o600, &hex, false);
+        assert_eq!(status, "ok");
+        // Orphan + ok perms + ok format = "info-orphan".
+        let (status, reasons) = super::classify_secret_file(0o600, &hex, true);
+        assert_eq!(status, "info-orphan");
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("not referenced"), "reason: {}", reasons[0]);
+        // Orphan + warn-perms = "warn-perms" (orphan suppressed by higher severity).
+        let (status, _) = super::classify_secret_file(0o644, &hex, true);
+        assert_eq!(status, "warn-perms");
     }
 }
 

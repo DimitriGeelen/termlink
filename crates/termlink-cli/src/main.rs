@@ -671,6 +671,9 @@ async fn main() -> Result<()> {
             FleetAction::BootstrapCheck { profile, all, json } => {
                 commands::remote::cmd_fleet_bootstrap_check(profile.as_deref(), all, json)
             }
+            FleetAction::SecretsAudit { dir, json } => {
+                commands::remote::cmd_fleet_secrets_audit(dir.as_deref(), json)
+            }
         },
         Command::Net { action } => match action {
             NetAction::Test { profile, json, timeout } => {

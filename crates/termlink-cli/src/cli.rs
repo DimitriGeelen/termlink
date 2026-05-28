@@ -3442,6 +3442,26 @@ pub(crate) enum FleetAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// T-1820: Audit `~/.termlink/secrets/*.hex` for security hygiene.
+    /// Scans the secrets directory directly (independent of `hubs.toml`),
+    /// reporting file perms (must be 0o600 — flags world-/group-readable),
+    /// payload size (must be 64-char hex = 32 bytes), and orphan status
+    /// (no profile in `hubs.toml` references this file). Complements
+    /// `fleet status`, which only inspects perms for hex files referenced
+    /// by a profile — orphan caches left behind by IP renumbering or
+    /// legacy heal flows are invisible to that path. Read-only; never
+    /// authenticates; never contacts a hub; safe for cron/CI.
+    /// Closes G-011 item 4 (the 2026-04 incident: `proxmox4.hex` at 0o644).
+    SecretsAudit {
+        /// Override scan directory (default: `~/.termlink/secrets`)
+        #[arg(long)]
+        dir: Option<String>,
+
+        /// Output as JSON: {ok, dir, files: [{path, mode, size, status, reasons[], referenced_by[]}], summary}
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Network connectivity diagnostics (T-1106)
