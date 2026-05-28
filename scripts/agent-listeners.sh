@@ -96,11 +96,24 @@ command -v jq >/dev/null 2>&1 || { echo "agent-listeners: jq not in PATH" >&2; e
 sub_args=("$topic" --limit "$limit" --json)
 [ -n "$hub" ] && sub_args+=(--hub "$hub")
 
-raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>/dev/null)"
+# Capture stderr separately so we can detect the G-060 graceful-degradation
+# case: hub healthy but agent-presence topic never created (no one ever
+# heartbeat'd here). JSON-RPC -32013 / "unknown topic" → treat as 0 listeners
+# rather than scan failure. T-1842.
+stderr_file="$(mktemp)"
+trap 'rm -f "$stderr_file"' EXIT
+raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>"$stderr_file")"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
-    exit 3
+    if grep -qE '\-32013|unknown topic' "$stderr_file"; then
+        # Topic doesn't exist on this hub — empty rollup. raw will be empty.
+        raw=""
+    else
+        # Real failure: auth, network, etc. Surface to caller.
+        cat "$stderr_file" >&2
+        echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
+        exit 3
+    fi
 fi
 
 # Now compute the rollup via jq. Steps:

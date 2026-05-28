@@ -178,6 +178,37 @@ else
     fi
 fi
 
+# -------- T9: G-060 graceful degradation — unknown topic on healthy hub → exit 0 empty (T-1842) --------
+echo "T9: unknown topic on healthy hub → exit 0 with empty rollup"
+if [ "$hub_up" -ne 1 ]; then
+    skip "T9: local hub not up"
+else
+    # Use a topic name that's extremely unlikely to exist. Hub is healthy
+    # (we passed pre-flight), so the failure must be -32013, not network.
+    bogus_topic="agent-listeners-test-T9-NEVER-CREATED-$$-$(date +%s)"
+    out="$(bash "$SCRIPT" --topic "$bogus_topic" --json 2>/dev/null)"
+    rc=$?
+    ok="$(printf '%s' "$out" | jq -r '.ok')"
+    tot="$(printf '%s' "$out" | jq -r '.total_listeners')"
+    listeners_len="$(printf '%s' "$out" | jq -r '.listeners | length')"
+    if [ "$rc" -eq 0 ] && [ "$ok" = "true" ] && [ "$tot" = "0" ] && [ "$listeners_len" = "0" ]; then
+        pass "T9: unknown topic → exit 0 ok=true total=0 listeners=[]"
+    else
+        fail "T9: rc=$rc ok=$ok total=$tot listeners_len=$listeners_len"
+    fi
+fi
+
+# -------- T10: real subscribe failure still exits 3 (T-1842 — non-32013 path preserved) --------
+echo "T10: subscribe failure other than -32013 still exits 3"
+# Use an unreachable hub address. Should fail with network error, NOT -32013.
+out="$(bash "$SCRIPT" --hub 192.0.2.99:9100 --json 2>/dev/null)"
+rc=$?
+if [ "$rc" -eq 3 ]; then
+    pass "T10: unreachable hub → exit 3 preserved"
+else
+    fail "T10: expected 3, got $rc (out=$out)"
+fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]
