@@ -7311,6 +7311,24 @@ pub struct AgentListenersFleetParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1847: MCP wrapper for `scripts/fleet-adoption-snapshot.sh` (T-1843).
+// Distinct from the T-1831 health canary: this gauges REAL adoption
+// (live_listeners, chat_arc_posts, dm_topics_active) and classifies each
+// hub HOT/WARM/COLD.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetAdoptionSnapshotParams {
+    /// Look-back window in hours (default 24, clamped 1..=720). Drives the
+    /// chat_arc_posts count emitted per hub.
+    pub since_hours: Option<u32>,
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Subprocess timeout (default 30, clamped 1..=120). The script fans
+    /// out to every hub in `hubs.toml` and each RPC is internally bounded
+    /// by `timeout 8` (T-1843 / PL-189), so 30s covers a 5-hub fleet
+    /// with comfortable headroom.
+    pub timeout_secs: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentSendAutoDiscoverParams {
     /// Agent ID to deliver to. Listener must heartbeat with both `pty_session`
@@ -25622,6 +25640,34 @@ impl TermLinkTools {
         if let Some(aid) = p.filter_agent_id.as_deref() {
             args.push("--filter-agent-id".to_string());
             args.push(aid.to_string());
+        }
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_fleet_adoption_snapshot",
+        description = "Fleet doorbell+mail adoption snapshot (T-1843 / T-1846, MCP wrapper from T-1847). Distinct from `termlink_fleet_doctor` (which checks HEALTH) — this gauges REAL adoption: per-hub live_listeners (via agent-presence heartbeats), chat_arc_posts in the window, and dm_topics_active. Each hub is classified HOT (live listener + recent chat_arc posts), WARM (live listener but quiet arc), or COLD (no listeners). The whole fleet rolls up to one of HOT/WARM/COLD. Read-only sweep — no posts, no mutations. Params: `since_hours` (default 24, clamped 1..=720), `hubs_file` (override default `~/.termlink/hubs.toml`), `timeout_secs` (default 30, clamped 1..=120; each internal RPC is bounded by `timeout 8` per PL-189). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, summary:{hubs, reachable_hubs, live_listeners, chat_arc_posts, dm_topics_active, adoption_state}, profiles:[...]}}`. Use when an agent investigating fleet activity wants to answer 'is anyone actually talking?' without shelling out."
+    )]
+    async fn termlink_fleet_adoption_snapshot(
+        &self,
+        Parameters(p): Parameters<FleetAdoptionSnapshotParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("fleet-adoption-snapshot.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(30).clamp(1, 120);
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(h) = p.since_hours {
+            let clamped = h.clamp(1, 720);
+            args.push("--since".to_string());
+            args.push(clamped.to_string());
         }
         if let Some(hf) = p.hubs_file.as_deref() {
             args.push("--hubs-file".to_string());

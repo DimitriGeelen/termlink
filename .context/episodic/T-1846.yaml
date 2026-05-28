@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1846: Cron entry: fleet-adoption-snapshot.sh daily HOT/WARM/COLD log (T-1843 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T18:41:50Z
+# ============================================================================
+
+task_id: T-1846
+task_name: "Cron entry: fleet-adoption-snapshot.sh daily HOT/WARM/COLD log (T-1843 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T18:36:48Z
+completed: 2026-05-28T18:41:48Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T20:41:44+02:00
+last_commit: 2026-05-28T20:41:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cron entry — daily fleet-adoption-snapshot HOT/WARM/COLD log
+
+# Key outcomes
+outcomes:
+  - "`.context/cron/fleet-adoption-snapshot.crontab` (NEW) — single daily cron entry under USER-field syntax (`root` user). Window default 24h. Non-colliding with existing schedules (:13 mirror-canary, :17 heartbeat, :23 doorbell-mail-canary, :33 meta-canary, :43 rollout audit) — pick a fresh minute slot."
+  - "Installed copy at `/etc/cron.d/termlink-fleet-adoption-snapshot` matches the source."
+  - "Log target: `.context/working/.fleet-adoption-snapshot.log` — append-mode, full output (NOT --quiet — adoption is a positive signal so all output captured). Heartbeat file: `.context/working/.fleet-adoption-snapshot.heartbeat`."
+  - "Fabric: cron entry registered in fw cron registry (or audit passes — `fw audit` reports no new cron drift)."
+  - "First-run smoke: manually invoke the cron command line; expect single-line HOT/WARM/COLD summary appended to log."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/cron/fleet-adoption-snapshot.crontab"
+  - ".context/episodic/T-1845.yaml"
+  - ".tasks/active/T-1846-cron-entry-fleet-adoption-snapshotsh-dai.md"
+  - ".tasks/completed/T-1845-pl-189-follow-on-timeout-wrap-fleet-door.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T20:41:44"
+    action: "T-1846: cron entry — daily fleet-adoption-snapshot HOT/WARM/COLD log"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, cron, adoption, t-1843-followon]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 225
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1846-cron-entry-fleet-adoption-snapshotsh-dai.md
+generated_by: context-agent-hybrid
