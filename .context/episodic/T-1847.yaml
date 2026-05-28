@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1847: termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T18:46:30Z
+# ============================================================================
+
+task_id: T-1847
+task_name: "termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T18:43:50Z
+completed: 2026-05-28T18:46:24Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T20:46:19+02:00
+last_commit: 2026-05-28T20:46:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)
+
+# Key outcomes
+outcomes:
+  - "`FleetAdoptionSnapshotParams` struct added to `crates/termlink-mcp/src/tools.rs` near the other T-1836 family params: `since_hours: Option<u32>`, `hubs_file: Option<String>`, `timeout_secs: Option<u64>`."
+  - "`termlink_fleet_adoption_snapshot` `#[tool]` method registered on the same impl block as `termlink_agent_listeners_fleet`. Reuses `resolve_t1836_script` + `run_t1836_subprocess`. Always passes `--json`. Default timeout 30s, clamped 1..=120. Since-hours clamp 1..=720 (mirrors script-side validation)."
+  - "Tool description references T-1843 + T-1846 and explains HOT/WARM/COLD semantics so MCP clients understand the gauge."
+  - "`cargo check --package termlink-mcp` clean (12.52s, only pre-existing warning at line 23001)."
+  - "`cargo build --package termlink-mcp` succeeds (18.35s — crate is lib-only, no bin target; AC overspecified `--bin termlink-mcp` which doesn't exist)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1846.yaml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1847-termlinkfleetadoptionsnapshot-mcp-wrappe.md"
+  - ".tasks/completed/T-1846-cron-entry-fleet-adoption-snapshotsh-dai.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T20:46:19"
+    action: "T-1847: termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, mcp, adoption, t-1843-followon]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 247
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1847-termlinkfleetadoptionsnapshot-mcp-wrappe.md
+generated_by: context-agent-hybrid

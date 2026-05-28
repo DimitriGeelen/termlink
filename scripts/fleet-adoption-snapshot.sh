@@ -147,6 +147,10 @@ fleet_listeners=0
 fleet_chat_arc=0
 fleet_dm_topics=0
 fleet_reachable_hubs=0
+# T-1848: fleet-wide speaker UNION (not sum) — temp file accumulates one
+# agent_id per line across all hubs; final count via sort -u | wc -l.
+fleet_speakers_tmp="$(mktemp -t fleet-adoption-speakers.XXXXXX)"
+trap 'rm -f "$tmp_results" "$fleet_speakers_tmp"' EXIT
 
 for i in "${!profile_names[@]}"; do
     name="${profile_names[$i]}"
@@ -156,6 +160,8 @@ for i in "${!profile_names[@]}"; do
     live_listeners=0
     chat_arc_posts=0
     dm_topic_count=0
+    unique_speakers=0
+    speakers_payload=""  # newline-delimited agent_ids from this hub's chat_arc scan, for fleet-wide union
 
     # --- live listeners via agent-listeners.sh ---
     listeners_json="$(bash "$LISTENERS_VERB" --hub "$addr" --json 2>/dev/null || echo '')"
@@ -200,6 +206,14 @@ for i in "${!profile_names[@]}"; do
             sub_rc=$?
             if [ -n "$chat_raw" ]; then
                 chat_arc_posts="$(printf '%s' "$chat_raw" | grep -cE '^\{' || true)"
+                # T-1848: unique speakers in this hub's window. Pull
+                # .metadata.agent_id from each envelope (jq -s reads stream
+                # → array), dedupe, count. Empty/missing agent_id is dropped.
+                speakers_payload="$(printf '%s' "$chat_raw" | jq -r -s \
+                    '[.[] | select(.msg_type == "chat") | .metadata.agent_id // "" | select(. != "")] | unique | .[]' 2>/dev/null || true)"
+                if [ -n "$speakers_payload" ]; then
+                    unique_speakers="$(printf '%s\n' "$speakers_payload" | sed '/^$/d' | wc -l | tr -d ' ')"
+                fi
             elif [ "$sub_rc" -ne 0 ] && ! grep -qE '\-32013|unknown topic|[Nn]ot found' "$chat_err"; then
                 verdict="partial-unreachable"
             fi
@@ -219,6 +233,8 @@ for i in "${!profile_names[@]}"; do
         fleet_listeners=$((fleet_listeners + live_listeners))
         fleet_chat_arc=$((fleet_chat_arc + chat_arc_posts))
         fleet_dm_topics=$((fleet_dm_topics + dm_topic_count))
+        # Contribute this hub's speakers to the fleet UNION (deduped at end).
+        [ -n "$speakers_payload" ] && printf '%s\n' "$speakers_payload" >> "$fleet_speakers_tmp"
     fi
 
     jq -n -c \
@@ -228,16 +244,27 @@ for i in "${!profile_names[@]}"; do
         --argjson listeners "$live_listeners" \
         --argjson chat_arc "$chat_arc_posts" \
         --argjson dm_topics "$dm_topic_count" \
-        '{name:$name, address:$addr, verdict:$verdict, live_listeners:$listeners, chat_arc_posts:$chat_arc, dm_topic_count:$dm_topics}' \
+        --argjson speakers "$unique_speakers" \
+        '{name:$name, address:$addr, verdict:$verdict, live_listeners:$listeners, chat_arc_posts:$chat_arc, unique_speakers:$speakers, dm_topic_count:$dm_topics}' \
         >> "$tmp_results"
 done
 
 profiles_arr="$(jq -s -c '.' "$tmp_results")"
 
-# Classify adoption_state.
+# T-1848: fleet-wide unique speakers = union across all hubs (not sum).
+# An agent posting on hub A and hub B counts as 1, not 2.
+fleet_unique_speakers=0
+if [ -s "$fleet_speakers_tmp" ]; then
+    fleet_unique_speakers="$(sort -u "$fleet_speakers_tmp" | sed '/^$/d' | wc -l | tr -d ' ')"
+fi
+
+# Classify adoption_state. T-1848 refinement: HOT now requires ≥2 unique
+# speakers — a single agent monologuing (even at 178 posts/24h) is NOT
+# an active conversation, it's noise. Closes the gap the user's directive
+# called out: "no active doorbell+mail conversations arc".
 if [ "$fleet_listeners" -eq 0 ]; then
     adoption_state="COLD"
-elif [ "$fleet_chat_arc" -ge 1 ]; then
+elif [ "$fleet_unique_speakers" -ge 2 ]; then
     adoption_state="HOT"
 else
     adoption_state="WARM"
@@ -248,9 +275,10 @@ summary_json="$(jq -n -c \
     --argjson reachable "$fleet_reachable_hubs" \
     --argjson listeners "$fleet_listeners" \
     --argjson chat_arc "$fleet_chat_arc" \
+    --argjson speakers "$fleet_unique_speakers" \
     --argjson dm_topics "$fleet_dm_topics" \
     --arg state "$adoption_state" \
-    '{hubs:$hubs, reachable_hubs:$reachable, live_listeners:$listeners, chat_arc_posts:$chat_arc, dm_topics_active:$dm_topics, adoption_state:$state}')"
+    '{hubs:$hubs, reachable_hubs:$reachable, live_listeners:$listeners, chat_arc_posts:$chat_arc, unique_speakers:$speakers, dm_topics_active:$dm_topics, adoption_state:$state}')"
 
 if [ "$FORMAT" = json ]; then
     jq -n -c \
@@ -264,11 +292,12 @@ else
     echo "  hubs:               $total_hubs ($fleet_reachable_hubs reachable)"
     echo "  live_listeners:     $fleet_listeners"
     echo "  chat_arc_posts:     $fleet_chat_arc"
+    echo "  unique_speakers:    $fleet_unique_speakers"
     echo "  dm_topics_active:   $fleet_dm_topics"
     echo ""
-    printf '%-28s %-22s %-12s %-10s %-10s %-10s\n' "HUB" "ADDRESS" "VERDICT" "LISTENERS" "CHAT_ARC" "DM_TOPICS"
-    printf '%s\n' "$profiles_arr" | jq -r '.[] | [.name, .address, .verdict, (.live_listeners|tostring), (.chat_arc_posts|tostring), (.dm_topic_count|tostring)] | @tsv' \
-        | awk -F'\t' '{printf "%-28s %-22s %-12s %-10s %-10s %-10s\n", $1, $2, $3, $4, $5, $6}'
+    printf '%-28s %-22s %-12s %-10s %-10s %-9s %-10s\n' "HUB" "ADDRESS" "VERDICT" "LISTENERS" "CHAT_ARC" "SPEAKERS" "DM_TOPICS"
+    printf '%s\n' "$profiles_arr" | jq -r '.[] | [.name, .address, .verdict, (.live_listeners|tostring), (.chat_arc_posts|tostring), (.unique_speakers|tostring), (.dm_topic_count|tostring)] | @tsv' \
+        | awk -F'\t' '{printf "%-28s %-22s %-12s %-10s %-10s %-9s %-10s\n", $1, $2, $3, $4, $5, $6, $7}'
 fi
 
 exit 0
