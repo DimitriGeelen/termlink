@@ -1076,6 +1076,7 @@ If you need to plan implementation, create a task first, then use `/plan`.
 4. Set focus: `fw context focus T-XXX`
 5. Run `fw metrics` to see project status
 6. If handover feedback section exists, fill it in
+7. *(Optional, recommended for any non-trivial session)* Opt into agent-presence so peers can reach you: `/be-reachable` (T-1841). Idempotent — safe to run unconditionally; stops cleanly on `/be-reachable stop` before session end. Skip on throw-away sessions (<2 min) or hosts that should not appear on the fleet.
 
 **Before ANY implementation (even if a skill says "start now"):**
 1. Verify a task exists for the work: `fw work-on "name" --type build` or `fw work-on T-XXX`
@@ -1172,5 +1173,6 @@ When context budget hits critical, `checkpoint.sh` auto-generates a handover and
 5. Fill in the [TODO] sections in the handover document
 6. Commit all changes with task references
 7. Run `fw metrics` to verify state
+8. If you ran `/be-reachable` at session start, stop it: `/be-reachable stop` (the heartbeat is detached via `nohup setsid` so it will otherwise outlive the session)
 
 **Do not end a session without generating a handover.**
