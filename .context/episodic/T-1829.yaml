@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1829: agent-conversation-selftest.sh — loopback doorbell+mail validation (drives adoption)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T11:36:00Z
+# ============================================================================
+
+task_id: T-1829
+task_name: "agent-conversation-selftest.sh — loopback doorbell+mail validation (drives adoption)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T11:33:24Z
+completed: 2026-05-28T11:35:58Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T13:35:53+02:00
+last_commit: 2026-05-28T13:35:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-conversation-selftest.sh — loopback validation closes pre-flight gap (fleet-wide PASS)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-conversation-selftest.sh` exists, executable, `bash -n` + `shellcheck` clean."
+  - "Accepts `--hub <addr>` (optional; default local) + `--verbose` flag + `--json` flag for machine-readable output."
+  - "Creates an ephemeral topic (unique per-run, name encodes `$$` + epoch), posts ≥1 synthetic turn with a synthetic conversation_id, posts a synthetic receipt acking that turn, then runs `agent-conversation-status.sh --json` against the created cid."
+  - "**Pass criterion:** the status verb reports `turn_count >= 1`, `receipt_count >= 1`, `pending_count == 0`. Verified inside the selftest with explicit jq assertions; exit 0 only when all hold."
+  - "**Fail modes** distinguished by exit code: 0 = pass; 1 = assertion-fail; 2 = usage; 3 = setup-fail."
+  - "`--verbose` mode prints each step."
+  - "`--json` mode emits `{ok, hub, ephemeral_topic, conversation_id, turns_posted, receipts_posted, status_result, elapsed_ms, verdict}`."
+  - "`scripts/test-agent-conversation-selftest.sh` covers all 4 paths (T1..T4). **4 PASS / 0 FAIL / 0 SKIP** at HEAD."
+  - "All static checks clean; test suite ALL PASS."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-conversation-selftest.sh"
+  - "scripts/test-agent-conversation-selftest.sh"
+  - ".tasks/active/T-1829-agent-conversation-selftestsh--loopback-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T13:35:53"
+    action: "T-1829: agent-conversation-selftest.sh — loopback validation closes pre-flight gap (fleet-wide PASS)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 446
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1829-agent-conversation-selftestsh--loopback-.md
+generated_by: context-agent-hybrid
