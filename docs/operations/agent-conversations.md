@@ -1740,6 +1740,35 @@ visible BEFORE conversations break.
   `hubs.toml`, merge by agent_id, prefer LIVE) would be valuable when
   agents are spread across hubs. Per G-060: `agent-presence` is a
   per-hub topic; merge must be client-side.
+
+  **Shipped (T-1837):** `scripts/agent-listeners-fleet.sh` walks every
+  profile in `~/.termlink/hubs.toml` in parallel, calls
+  `agent-listeners.sh --hub <addr>` per profile, and merges by `agent_id`
+  with LIVE > STALE > OFFLINE preference (ties → most-recent
+  `last_seen_ts`). Surviving rows carry `hub` so the caller can route a
+  doorbell ring to the right hub. Same flags as the single-hub verb
+  (`--topic`, `--include-offline`, `--filter-*`, `--json`) plus
+  `--hubs-file <path>` override. Partial-failure is OK: failed hubs
+  appear in `hubs_failed[]` with the underlying error; exit 0 unless
+  EVERY hub is unreachable (then exit 3). Example:
+  ```bash
+  bash scripts/agent-listeners-fleet.sh --include-offline --json \
+    | jq '{hubs_scanned, hubs_failed: (.hubs_failed | length),
+           total_listeners, live, stale, offline}'
+  ```
+
+- **MCP parity for the trio (T-1836).** PL-185's decision point —
+  shell-out option (b) — was picked: three new MCP tools subprocess
+  the bash scripts via `tokio::process` with `kill_on_drop` + null
+  stdin + bounded timeout, matching the T-1689 precedent
+  (`fleet_bootstrap_check`). LLM-driven agents (cohort-agent, penelope,
+  claude-code) now call `termlink_listener_heartbeat`,
+  `termlink_agent_listeners`, `termlink_agent_send_auto_discover`
+  directly instead of routing through the Bash tool. Script path
+  resolves via `TERMLINK_SCRIPTS_DIR` (default `/opt/termlink/scripts`).
+  The cross-hub variant (`agent-listeners-fleet.sh`) does NOT yet have
+  an MCP wrapper — follow-up candidate.
+
 - **systemd unit template** for always-on heartbeat — operators currently
   background it manually or wire it into their own session-start. A
   `systemd-templates/listener-heartbeat@.service` would let agents
