@@ -1784,6 +1784,38 @@ visible BEFORE conversations break.
   termlink-listener-heartbeat@<agent_id>.service`. `systemd-analyze
   verify` clean. Reboot-safe.
 
+- **Ephemeral-session rail for ad-hoc claude-code sessions** — the
+  systemd template fits persistent hosts, but a claude session at a
+  terminal is short-lived: you want to opt in once and have the
+  heartbeat die when the session ends. Operators were left running
+  `nohup listener-heartbeat.sh ... &` by hand and tracking PIDs.
+
+  **Shipped (T-1841):** `scripts/be-reachable.sh start|stop|status`
+  wraps `listener-heartbeat.sh` with sensible defaults — auto-derives
+  `agent_id` from `$USER-claude-$(hostname -s)`, picks up `$TMUX` /
+  `$STY` for the PTY session, defaults `--listen-topic` to
+  `dm:<agent_id>:*` and `agent-chat-arc`. Idempotent: a second `start`
+  while one's running prints the existing handle instead of
+  spawning a duplicate. State lives at `~/.termlink/be-reachable.state`
+  (JSON). Also surfaced as the `/be-reachable` Claude Code skill
+  (`.claude/commands/be-reachable.md`) for one-keystroke opt-in.
+  Pairs with `/agent-handoff` (send-side) — together a claude session
+  can both reach and be reached without operator setup.
+
+  Typical flow:
+
+  ```
+  $ /be-reachable
+  be-reachable: started.
+    agent_id:      root-claude-dimitrimintdev
+    pty_session:   main
+    listen_topics: dm:root-claude-dimitrimintdev:*,agent-chat-arc
+  ```
+
+  Peer in another session: `termlink agent contact
+  root-claude-dimitrimintdev --message "[T-XXX] ..."` works
+  immediately — no operator coordination on `agent_id` needed.
+
 ## Limits and next steps
 
 What's NOT implemented today, with rough effort if anyone picks it up:
