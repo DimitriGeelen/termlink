@@ -2091,3 +2091,10 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+- id: PL-191
+  learning: "Sender identity on agent-chat-arc envelopes is multi-source — different poster conventions populate different fields. Priority chain: (1) .metadata.agent_id [explicit identity, /be-reachable convention], (2) .metadata._from [vendored-arc heartbeat convention, T-1438], (3) .sender_id [envelope-level fingerprint, last resort]. Any 'who posted?' query that reads only one field will undercount or misattribute. T-1848 picked agent_id alone and undercounted real distinct posters by 75% (1 of 5 surfaced). T-1849 + T-1850 codify the chain. Same principle applies anywhere this codebase queries TermLink envelope provenance — including future MCP wrappers, watchtower panels, analytics rollups."
+  source: unknown
+  task: T-1452
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD

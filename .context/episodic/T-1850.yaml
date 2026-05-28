@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1850: fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T19:37:18Z
+# ============================================================================
+
+task_id: T-1850
+task_name: "fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T19:34:56Z
+completed: 2026-05-28T19:36:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T21:36:45+02:00
+last_commit: 2026-05-28T21:36:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet-adoption-snapshot — sender priority chain (T-1848 undercount fix)
+
+# Key outcomes
+outcomes:
+  - "`scripts/fleet-adoption-snapshot.sh`: sender extraction jq uses priority `(.metadata.agent_id // .metadata._from // .sender_id // \"\")` (matches T-1849)."
+  - "Live verification: 24h window now reports `unique_speakers=5` (was 1 before fix — vendored-arc heartbeat posters become visible)."
+  - "adoption_state now correctly determined: HOT iff (≥1 listener AND ≥2 unique speakers). Currently COLD because /be-reachable was stopped per protocol — but the speaker-count IS ≥2, so state would correctly be HOT the moment a listener returns. T-1848 prevented this from ever being possible on this fleet."
+  - "Existing tests still 9/9 pass."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fleet-adoption-snapshot — sender priority chain (T-1848 undercount fix)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1849.yaml"
+  - "scripts/fleet-adoption-snapshot.sh"
+  - ".tasks/active/T-1850-fleet-adoption-snapshot-extend-sender-re.md"
+  - ".tasks/completed/T-1849-agent-chat-arc-recentsh--fleet-wide-what.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T21:36:45"
+    action: "T-1850: fleet-adoption-snapshot — sender priority chain (T-1848 undercount fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [bug, doorbell-mail, adoption, t-1848-followon]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 234
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1850-fleet-adoption-snapshot-extend-sender-re.md
+generated_by: context-agent-hybrid

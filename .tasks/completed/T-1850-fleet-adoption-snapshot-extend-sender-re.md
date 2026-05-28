@@ -4,16 +4,16 @@ name: "fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)
 description: >
   T-1848 used .metadata.agent_id only — undercount on vendored-arc heartbeat posters that use .metadata._from. T-1849 found the gap. Apply the same priority chain (agent_id → _from → sender_id) to fleet-adoption-snapshot.sh.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [bug, doorbell-mail, adoption, t-1848-followon]
-components: []
+components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 created: 2026-05-28T19:34:56Z
-last_update: 2026-05-28T19:34:56Z
-date_finished: null
+last_update: 2026-05-28T19:36:49Z
+date_finished: 2026-05-28T19:36:49Z
 ---
 
 # T-1850: fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)
@@ -112,3 +112,22 @@ grep -q 'metadata._from' scripts/fleet-adoption-snapshot.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1850-fleet-adoption-snapshot-extend-sender-re.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-34438339
+- **Timestamp:** 2026-05-28T19:37:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 1
+     - evidence: `bash scripts/fleet-adoption-snapshot.sh --json --since 24 | jq -e '.summary.unique_speakers >= 2' >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `bash scripts/test-fleet-adoption-snapshot.sh >/dev/null`
+
+### 2026-05-28T19:36:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
