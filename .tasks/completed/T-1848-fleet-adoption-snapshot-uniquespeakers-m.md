@@ -4,16 +4,16 @@ name: "fleet-adoption-snapshot: unique_speakers metric — distinguish conversat
 description: >
   Add unique_speakers (per-hub + fleet) to fleet-adoption-snapshot.sh. Refine HOT semantics: HOT requires >=2 unique speakers. Closes the gap where 178 chat_arc_posts from a single agent reports HOT but is actually a solo-monologue with no active conversation — the exact symptom the user's directive calls out.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [doorbell-mail, adoption, t-1843-followon]
-components: []
+components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 created: 2026-05-28T18:58:30Z
-last_update: 2026-05-28T18:58:30Z
-date_finished: null
+last_update: 2026-05-28T19:02:16Z
+date_finished: 2026-05-28T19:02:16Z
 ---
 
 # T-1848: fleet-adoption-snapshot: unique_speakers metric — distinguish conversation from monologue
@@ -52,7 +52,7 @@ Current adoption_state semantics: HOT = ≥1 listener AND ≥1 chat_arc post. To
 ## Verification
 
 bash scripts/fleet-adoption-snapshot.sh --json | jq -e '.summary.unique_speakers != null'
-bash scripts/fleet-adoption-snapshot.sh --json | jq -e '.profiles | all(. ; .unique_speakers != null)'
+bash scripts/fleet-adoption-snapshot.sh --json | jq -e '.profiles | all(.unique_speakers != null)'
 bash scripts/test-fleet-adoption-snapshot.sh >/dev/null
 
 ## RCA
@@ -122,3 +122,20 @@ bash scripts/test-fleet-adoption-snapshot.sh >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1848-fleet-adoption-snapshot-uniquespeakers-m.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-970e4b4b
+- **Timestamp:** 2026-05-28T19:02:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/test-fleet-adoption-snapshot.sh >/dev/null`
+
+### 2026-05-28T19:02:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1848: fleet-adoption-snapshot: unique_speakers metric — distinguish conversation from monologue
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T19:02:48Z
+# ============================================================================
+
+task_id: T-1848
+task_name: "fleet-adoption-snapshot: unique_speakers metric — distinguish conversation from monologue"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T18:58:30Z
+completed: 2026-05-28T19:02:16Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T21:01:31+02:00
+last_commit: 2026-05-28T21:01:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet-adoption-snapshot — unique_speakers metric (distinguishes conversation from monologue)
+
+# Key outcomes
+outcomes:
+  - "Per-hub envelope grows a `unique_speakers` field: integer count of distinct `.metadata.agent_id` values in the windowed `agent-chat-arc` scan."
+  - "Summary envelope grows a `unique_speakers` field: count of distinct agent_ids across the union of all hubs' chat_arc envelopes in the window (NOT a sum — a single agent posting on 3 hubs counts as 1)."
+  - "`adoption_state` reclassified: HOT requires `unique_speakers ≥ 2`; WARM covers (≥1 listener AND (0 posts OR 1 unique speaker)); COLD unchanged (0 listeners)."
+  - "Human output adds a `unique_speakers:` summary row and a `SPEAKERS` column in the per-hub table."
+  - "Existing test `scripts/test-fleet-adoption-snapshot.sh` still 9/9 pass; T5 + T6 still validate JSON shape + state-membership."
+  - "Live verification shows current fleet now correctly reports WARM (single-speaker monologue) instead of misleadingly HOT, until a real second speaker posts."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1847.yaml"
+  - "scripts/fleet-adoption-snapshot.sh"
+  - ".tasks/active/T-1848-fleet-adoption-snapshot-uniquespeakers-m.md"
+  - ".tasks/completed/T-1847-termlinkfleetadoptionsnapshot-mcp-wrappe.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T21:01:31"
+    action: "T-1848: fleet-adoption-snapshot — unique_speakers metric (distinguishes conversation from monologue)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, adoption, t-1843-followon]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 240
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1848-fleet-adoption-snapshot-uniquespeakers-m.md
+generated_by: context-agent-hybrid
