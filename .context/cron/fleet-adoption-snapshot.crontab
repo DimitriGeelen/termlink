@@ -1,0 +1,23 @@
+# T-1846 / T-1843 follow-on — daily fleet doorbell+mail adoption snapshot
+# Source of truth: /opt/termlink/.context/cron/fleet-adoption-snapshot.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-fleet-adoption-snapshot (USER field syntax — do NOT load into a user crontab)
+#
+# Distinct from T-1831's doorbell-mail-canary. The canary asks "is the rail
+# healthy?" (drift-only log; empty=healthy). This script asks "is the rail
+# being USED?" — HOT/WARM/COLD adoption_state across all hubs in hubs.toml.
+#
+# Adoption is a positive signal, so we capture ALL output (not just drift),
+# giving operators a historical trace of HOT→WARM→COLD transitions and
+# day-over-day chat_arc_posts / dm_topics_active deltas.
+#
+# Diagnostic on COLD: bash scripts/fleet-adoption-snapshot.sh --since 24
+# Operator action on COLD: investigate listener health (agent-listeners-fleet),
+# investigate whether agents are actually using doorbell+mail vs. legacy primitives.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 09:47 UTC — non-colliding with :13 mirror-canary, :17 heartbeat,
+# :23 doorbell-mail-canary, :33 meta-canary, :43 rollout audit. Runs as root
+# so cwd-into the repo doesn't trip permissions and so it can read
+# /var/lib/termlink/hub.secret for local profile lookups.
+47 9 * * * root cd /opt/termlink && bash scripts/fleet-adoption-snapshot.sh >> .context/working/.fleet-adoption-snapshot.log 2>&1
