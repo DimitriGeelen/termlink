@@ -28,6 +28,17 @@ set -euo pipefail
 TERMLINK="${TERMLINK_BIN:-termlink}"
 STATUS_VERB="${STATUS_VERB:-scripts/agent-conversation-status.sh}"
 
+# T-1845 / PL-189 — termlink channel info|subscribe|post|create has no
+# client-side TCP read timeout. A frozen hub will wedge any call here
+# indefinitely. Bound every termlink RPC; falls open if timeout(1) is
+# absent (rare; POSIX-required on every modern coreutils install).
+PER_CALL_TIMEOUT="${TERMLINK_SELFTEST_TIMEOUT:-8}"
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout $PER_CALL_TIMEOUT"
+else
+    TIMEOUT_CMD=""
+fi
+
 die() { echo "agent-conversation-selftest: $*" >&2; exit 2; }
 
 usage() {
@@ -117,7 +128,7 @@ hub_args=()
 
 # --- Step 1: create ephemeral topic ---
 vlog "step 1: create topic $topic"
-if ! "$TERMLINK" channel create "${hub_args[@]}" "$topic" --retention messages:10 >/dev/null 2>&1; then
+if ! $TIMEOUT_CMD "$TERMLINK" channel create "${hub_args[@]}" "$topic" --retention messages:10 >/dev/null 2>&1; then
     verdict="setup-fail"
     emit_result
     exit 3
@@ -125,7 +136,7 @@ fi
 
 # --- Step 2: post synthetic turn ---
 vlog "step 2: post turn (cid=$cid)"
-if ! "$TERMLINK" channel post "${hub_args[@]}" "$topic" \
+if ! $TIMEOUT_CMD "$TERMLINK" channel post "${hub_args[@]}" "$topic" \
         --msg-type turn --payload "selftest-turn" \
         --metadata conversation_id="$cid" >/dev/null 2>&1; then
     verdict="setup-fail"
@@ -136,7 +147,7 @@ turns_posted=1
 
 # --- Step 3: post synthetic receipt acking that turn (up_to=0, the turn's offset) ---
 vlog "step 3: post receipt (up_to=0)"
-if ! "$TERMLINK" channel post "${hub_args[@]}" "$topic" \
+if ! $TIMEOUT_CMD "$TERMLINK" channel post "${hub_args[@]}" "$topic" \
         --msg-type receipt --payload "selftest-ack" \
         --metadata conversation_id="$cid" \
         --metadata up_to=0 >/dev/null 2>&1; then

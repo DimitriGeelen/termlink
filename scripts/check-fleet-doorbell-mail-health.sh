@@ -29,6 +29,18 @@ HEARTBEAT=1
 HUBS_FILE="${HOME}/.termlink/hubs.toml"
 SELFTEST="${SELFTEST:-scripts/agent-conversation-selftest.sh}"
 
+# T-1845 / PL-189 — per-hub bound. The selftest internally wraps each
+# termlink RPC with `timeout 8` (PER_CALL_TIMEOUT in selftest), but the
+# selftest itself runs 4 RPCs sequentially plus a status verb. 30s is
+# safe upper-bound for the whole sweep against one hub. Exit 124 from
+# timeout(1) means "selftest produced no JSON" → treat as unreachable.
+PER_HUB_TIMEOUT="${FLEET_DM_CANARY_TIMEOUT:-30}"
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout $PER_HUB_TIMEOUT"
+else
+    TIMEOUT_CMD=""
+fi
+
 die() {
     if [ "$FORMAT" = json ]; then
         printf '{"ok":false,"error":"%s"}\n' "$1"
@@ -109,10 +121,11 @@ for i in "${!profile_names[@]}"; do
     name="${profile_names[$i]}"
     addr="${profile_addrs[$i]}"
 
-    out="$(bash "$SELFTEST" --hub "$addr" --json 2>/dev/null || true)"
+    out="$($TIMEOUT_CMD bash "$SELFTEST" --hub "$addr" --json 2>/dev/null || true)"
     if [ -z "$out" ] || ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         # Selftest exited non-zero AND emitted no parseable JSON — treat as
-        # unreachable (network / setup-fail edge case).
+        # unreachable. Includes timeout(1) exit 124 (whole-sweep wedged on
+        # a frozen hub — PL-189) and selftest setup-fail (network drop).
         unreachable_count=$((unreachable_count + 1))
         jq -n -c \
             --arg name "$name" \
