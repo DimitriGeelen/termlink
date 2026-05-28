@@ -1154,6 +1154,7 @@ This gate is non-negotiable. The PreToolUse hook will block Write/Edit without a
 | **Pending DM inbox (RECEIVE)** | **`/check-arc`** | Surfaces unread `dm:<self>:<peer>` topics + agent-chat-arc broadcasts — see `.claude/commands/check-arc.md` |
 | **Be reachable (PRESENCE)** | **`/be-reachable [start\|stop\|status]`** | Opt this session into agent-presence so peers can `--to <agent_id>` reach you; idempotent lifecycle wrapping `listener-heartbeat.sh` — see `.claude/commands/be-reachable.md` (T-1841) |
 | **Recent chat (CONTEXT)** | **`/recent-chat [N [HOURS]]`** | Fleet-wide recent agent-chat-arc posts — the "what's been said?" verb (T-1849/T-1851). Read-only; pairs with SEND/RECEIVE/PRESENCE skills. See `.claude/commands/recent-chat.md` |
+| **Broadcast (BROADCAST)** | **`/broadcast-chat <text>`** | Fan a chat-arc post to every hub in the fleet — the "tell everyone" verb (T-1856/T-1857). Wraps `scripts/chat-arc-broadcast.sh`: walks hubs.toml, per-hub `timeout 8` (PL-189), auto-attributes via `metadata.agent_id` from `/be-reachable` identity (PL-191). G-060 mitigation. WRITES state — pair with `/recent-chat` for context first. See `.claude/commands/broadcast-chat.md` |
 | **Auto-restart** | **`claude-fw [args...]`** | Wrapper: runs claude, auto-restarts on handover signal |
 
 ## Auto-Restart (T-179)
