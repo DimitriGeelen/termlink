@@ -7329,6 +7329,34 @@ pub struct FleetAdoptionSnapshotParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1852: MCP wrapper for `scripts/agent-chat-arc-recent.sh` (T-1849).
+// Completes the discovery triangle at the MCP layer:
+//   who's there?  → termlink_agent_listeners_fleet (T-1839)
+//   is it healthy? → termlink_fleet_doctor + canary
+//   what's said?  → THIS
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentChatArcRecentParams {
+    /// Posts to return after fleet merge (default 20, clamped 1..=200).
+    pub limit: Option<u32>,
+    /// Look-back window in hours (default 24, clamped 1..=720).
+    pub since_hours: Option<u32>,
+    /// Single-hub address override; when set, skips hubs.toml walk.
+    pub hub: Option<String>,
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Only include posts whose resolved sender == this value. Resolution
+    /// priority (PL-191): metadata.agent_id → metadata._from → sender_id.
+    pub filter_sender: Option<String>,
+    /// Override default msg_type filter ('chat'). Use with `all_msg_types=false`.
+    pub filter_msg_type: Option<String>,
+    /// When true, disable the msg_type filter — include heartbeats/receipts/etc.
+    pub all_msg_types: Option<bool>,
+    /// Subprocess timeout (default 30, clamped 1..=120). Each internal
+    /// RPC is bounded by `timeout 8` (PL-189) so 30s covers a 5-hub
+    /// fleet with comfortable headroom.
+    pub timeout_secs: Option<u64>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentSendAutoDiscoverParams {
     /// Agent ID to deliver to. Listener must heartbeat with both `pty_session`
@@ -25672,6 +25700,54 @@ impl TermLinkTools {
         if let Some(hf) = p.hubs_file.as_deref() {
             args.push("--hubs-file".to_string());
             args.push(hf.to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_agent_chat_arc_recent",
+        description = "Fleet-wide 'what's been said?' verb on agent-chat-arc (T-1849, MCP wrapper from T-1852). Closes the discovery triangle at the MCP layer alongside termlink_agent_listeners_fleet (who's there?) and termlink_fleet_doctor (is rail healthy?). Walks every hub in `~/.termlink/hubs.toml`, scans recent agent-chat-arc envelopes with seek-to-tail (PL-188) + per-RPC timeout 8s (PL-189), merges chronologically, and surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority (PL-191): metadata.agent_id → metadata._from → sender_id — any consumer that reads one field undercounts. Read-only; no posts, no mutations. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub` (single-hub override), `hubs_file` (override default), `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30, clamp 1..=120). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, limit, summary: {total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts: [...]}}`. Use when an agent needs conversation context before responding."
+    )]
+    async fn termlink_agent_chat_arc_recent(
+        &self,
+        Parameters(p): Parameters<AgentChatArcRecentParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("agent-chat-arc-recent.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(30).clamp(1, 120);
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(lim) = p.limit {
+            let clamped = lim.clamp(1, 200);
+            args.push("--limit".to_string());
+            args.push(clamped.to_string());
+        }
+        if let Some(h) = p.since_hours {
+            let clamped = h.clamp(1, 720);
+            args.push("--since".to_string());
+            args.push(clamped.to_string());
+        }
+        if let Some(hub) = p.hub.as_deref() {
+            args.push("--hub".to_string());
+            args.push(hub.to_string());
+        }
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
+        }
+        if let Some(fs) = p.filter_sender.as_deref() {
+            args.push("--filter-sender".to_string());
+            args.push(fs.to_string());
+        }
+        if let Some(fmt) = p.filter_msg_type.as_deref() {
+            args.push("--filter-msg-type".to_string());
+            args.push(fmt.to_string());
+        }
+        if p.all_msg_types.unwrap_or(false) {
+            args.push("--all-msg-types".to_string());
         }
 
         Self::run_t1836_subprocess(&script, &args, timeout).await

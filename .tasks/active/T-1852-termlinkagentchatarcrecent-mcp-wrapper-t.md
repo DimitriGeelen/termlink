@@ -1,34 +1,36 @@
 ---
-id: T-1851
-name: "/recent-chat skill — one-keystroke agent-chat-arc recent posts (T-1849 UX wrapper)"
+id: T-1852
+name: "termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)"
 description: >
-  Claude Code slash-command wrapping scripts/agent-chat-arc-recent.sh. Makes the T-1849 'what's been said?' verb one-keystroke for any claude session, closing the context-before-reply gap operationally. Follows the /be-reachable / /check-arc pattern.
+  Add MCP tool wrapping scripts/agent-chat-arc-recent.sh — agent-callable parity with termlink_fleet_adoption_snapshot (T-1847) and termlink_agent_listeners_fleet (T-1839). Completes MCP coverage of the discovery triangle.
 
 status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: [doorbell-mail, skill, t-1849-followon, arc:t-1830]
+tags: [doorbell-mail, mcp, t-1849-followon]
 components: []
 related_tasks: []
-created: 2026-05-28T19:50:46Z
-last_update: 2026-05-28T19:50:46Z
+created: 2026-05-28T19:53:21Z
+last_update: 2026-05-28T19:53:21Z
 date_finished: null
 ---
 
-# T-1851: /recent-chat skill — one-keystroke agent-chat-arc recent posts (T-1849 UX wrapper)
+# T-1852: termlink_agent_chat_arc_recent MCP wrapper (T-1849 follow-on)
 
 ## Context
 
-T-1849 shipped `scripts/agent-chat-arc-recent.sh` (the "what's been said?" verb). For operators landing in a fresh claude session, that's still two shell calls + remembering the path. A slash-command shortcut makes the discovery flow one keystroke and mirrors the convention established by `/be-reachable` (T-1841), `/agent-handoff` (T-1815), `/check-arc` (T-1810). Closes the operational UX gap on the discovery triangle.
+T-1849 shipped `scripts/agent-chat-arc-recent.sh`. T-1847 + T-1839 established the MCP wrapper pattern (using `resolve_t1836_script` + `run_t1836_subprocess`). This task fills the third + final MCP wrapper for the discovery triangle: agents using MCP can now answer "who's there / is it healthy / what's been said" all natively without shelling out.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.claude/commands/recent-chat.md` (NEW) — wraps `scripts/agent-chat-arc-recent.sh`. Default form `/recent-chat` returns last 20 posts in 24h window. Args passthrough: `--since N`, `--limit N`, `--hub addr`, `--filter-sender ID`, `--all-msg-types`, `--json`.
-- [x] Skill respects the `/be-reachable` convention: step-by-step, pre-flight wrapper exists, clear error printing, no AskUserQuestion.
-- [x] CLAUDE.md Quick Reference table gains a row pointing to the new skill (kept in sync with other recently-added skills like `/be-reachable`).
-- [x] Smoke: `bash scripts/agent-chat-arc-recent.sh --since 24 --limit 5 --json` returns ≥1 post on the live fleet.
+- [x] `AgentChatArcRecentParams` struct in `crates/termlink-mcp/src/tools.rs` next to existing T-1836-family params.
+- [x] `termlink_agent_chat_arc_recent` `#[tool]` method on the same impl block as `termlink_fleet_adoption_snapshot`. Always passes `--json`. Reuses `resolve_t1836_script` + `run_t1836_subprocess`. Default timeout 30s clamped 1..=120.
+- [x] Params: all 8 fields wired with proper clamps.
+- [x] Tool description: discovery-triangle role + PL-188/189/191 references + parsed envelope shape.
+- [x] `cargo check --package termlink-mcp` clean (10.90s, only pre-existing L23029 warning).
+- [x] `cargo build --package termlink-mcp` clean (17.01s).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -47,16 +49,9 @@ T-1849 shipped `scripts/agent-chat-arc-recent.sh` (the "what's been said?" verb)
 
 ## Verification
 
-test -f .claude/commands/recent-chat.md
-grep -q '/recent-chat' .claude/commands/recent-chat.md
-grep -q '/recent-chat' CLAUDE.md
-bash scripts/agent-chat-arc-recent.sh --since 24 --limit 5 --json | jq -e '.posts | type == "array"' >/dev/null
-
-# Old toolchain hints below — kept for reference.
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q 'termlink_agent_chat_arc_recent' crates/termlink-mcp/src/tools.rs
+grep -q 'AgentChatArcRecentParams' crates/termlink-mcp/src/tools.rs
+cargo check --package termlink-mcp 2>&1 | tail -5
 
 ## RCA
 
@@ -121,7 +116,7 @@ bash scripts/agent-chat-arc-recent.sh --since 24 --limit 5 --json | jq -e '.post
 
 ## Updates
 
-### 2026-05-28T19:50:46Z — task-created [task-create-agent]
+### 2026-05-28T19:53:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-1851-recent-chat-skill--one-keystroke-agent-c.md
+- **Output:** /opt/termlink/.tasks/active/T-1852-termlinkagentchatarcrecent-mcp-wrapper-t.md
 - **Context:** Initial task creation

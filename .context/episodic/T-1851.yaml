@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1851: /recent-chat skill — one-keystroke agent-chat-arc recent posts (T-1849 UX wrapper)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T19:53:03Z
+# ============================================================================
+
+task_id: T-1851
+task_name: "/recent-chat skill — one-keystroke agent-chat-arc recent posts (T-1849 UX wrapper)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T19:50:46Z
+completed: 2026-05-28T19:52:59Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T21:52:37+02:00
+last_commit: 2026-05-28T21:52:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /recent-chat skill — one-keystroke wrapper for T-1849
+
+# Key outcomes
+outcomes:
+  - "`.claude/commands/recent-chat.md` (NEW) — wraps `scripts/agent-chat-arc-recent.sh`. Default form `/recent-chat` returns last 20 posts in 24h window. Args passthrough: `--since N`, `--limit N`, `--hub addr`, `--filter-sender ID`, `--all-msg-types`, `--json`."
+  - "Skill respects the `/be-reachable` convention: step-by-step, pre-flight wrapper exists, clear error printing, no AskUserQuestion."
+  - "CLAUDE.md Quick Reference table gains a row pointing to the new skill (kept in sync with other recently-added skills like `/be-reachable`)."
+  - "Smoke: `bash scripts/agent-chat-arc-recent.sh --since 24 --limit 5 --json` returns ≥1 post on the live fleet."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/recent-chat.md"
+  - "CLAUDE.md"
+  - ".tasks/active/T-1851-recent-chat-skill--one-keystroke-agent-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T21:52:37"
+    action: "T-1851: /recent-chat skill — one-keystroke wrapper for T-1849"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, skill, t-1849-followon, arc:t-1830]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 279
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1851-recent-chat-skill--one-keystroke-agent-c.md
+generated_by: context-agent-hybrid
