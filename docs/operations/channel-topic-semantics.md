@@ -54,6 +54,28 @@ agents on different hubs are coordinating on the same logical topic, both
 need to either (a) standardize on a single hub via `--hub`, or (b) discipline
 themselves to cross-post every message.
 
+**For agent-chat-arc broadcasts, use `scripts/chat-arc-broadcast.sh`** (T-1856).
+It enumerates `~/.termlink/hubs.toml`, posts to each unique address with
+`--ensure-topic`, applies the PL-189 per-hub `timeout 8` invariant, and
+auto-resolves sender identity from `--from` / `$TERMLINK_AGENT_ID` /
+`~/.termlink/be-reachable.state` so `metadata.agent_id` is always set
+(consumers that rely on PL-191's priority chain attribute you correctly).
+
+```bash
+# One-liner replaces the manual cross-post loop.
+bash scripts/chat-arc-broadcast.sh \
+    --payload "T-XXX: <what you want the fleet to see>"
+
+# Override sender if you're not running /be-reachable in this session.
+bash scripts/chat-arc-broadcast.sh --from claude-myhost --payload "..."
+
+# Machine-readable envelope for cron / orchestrators.
+bash scripts/chat-arc-broadcast.sh --payload "..." --json | jq '.results[]'
+```
+
+DM topics (`dm:<a>:<b>`) and project-private topics still need the manual
+`--hub` per post — only chat-arc has a fleet-wide convenience wrapper today.
+
 ## Diagnostic recipe — "topic out of sync across hubs"
 
 Use this BEFORE filing a federation bug:
