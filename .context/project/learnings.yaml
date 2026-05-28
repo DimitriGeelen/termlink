@@ -2070,3 +2070,17 @@ learnings:
   date: 2026-05-28
   context: Captured after T-1841 closure — self-dogfooded by starting be-reachable for this agent's own session; fleet presence went 0→1 immediately.
   application: TBD
+- id: PL-188
+  learning: "channel subscribe --cursor 0 --limit N returns OLDEST N envelopes (offsets 0..N-1), not NEWEST. For 'recent activity' verbs: probe channel info first, then subscribe with --cursor max(0, count - limit). T-1844: bug masked because no test exercised count > limit."
+  source: P-001
+  task: T-1844
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
+- id: PL-189
+  learning: "termlink channel info/subscribe has NO client-side timeout — calls to an unreachable hub hang indefinitely. Observed 50+ zombie 'channel info --hub laptop-141 agent-chat-arc' processes accumulated over a week. Always wrap with 'timeout 8' (or similar) when called against any hub other than local UDS. Fix in T-1843 fleet-adoption-snapshot.sh uses TIMEOUT_CMD pattern; same wrap should be applied to scripts/check-fleet-doorbell-mail-health.sh and any other shell verb that loops over hubs.toml."
+  source: P-001
+  task: T-1843
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
