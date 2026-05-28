@@ -2048,3 +2048,10 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+- id: PL-185
+  learning: "T-1830 adoption-push trio (T-1832 heartbeat / T-1833 listeners / T-1834 agent-send --to) ships as shell scripts, not Rust CLI verbs. Consequence for MCP parity (PL-167 silent-strip): MCP cannot directly wrap shell scripts the way it wraps clap-defined CLI commands. Two paths exist: (a) lift the three verbs into Rust CLI ('termlink agent presence|listeners|send-auto'), then wrap in MCP — high cost, full parity; or (b) MCP tool shells out to the bash scripts via subprocess (same pattern as T-1689 fleet_bootstrap_check wrapping bash) — low cost, lossy validation. Decision belongs to whoever picks T-1836 (MCP parity follow-up). Until then, LLM-driven agents (cohort-agent, penelope, claude-code instances) can only use these verbs via Bash tool — which still works, just less ergonomic."
+  source: P-009
+  task: T-1834
+  date: 2026-05-28
+  context: Added via context agent
+  application: TBD
