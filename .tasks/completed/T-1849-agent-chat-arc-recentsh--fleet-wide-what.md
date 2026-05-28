@@ -4,16 +4,16 @@ name: "agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb"
 description: >
   Walks hubs.toml, scans recent agent-chat-arc posts across the fleet, merges chronologically, surfaces per-post: ts, hub, sender (metadata.agent_id), msg_type, payload preview. Closes the third leg of the discovery triangle: who's there (agent-listeners-fleet, T-1837), is rail healthy (fleet-doctor + canary), what's been said (THIS). Gives a fresh-session agent context to respond.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [doorbell-mail, discovery, t-1830-arc]
-components: []
+components: [scripts/agent-chat-arc-recent.sh, scripts/test-agent-chat-arc-recent.sh]
 related_tasks: []
 created: 2026-05-28T19:30:39Z
-last_update: 2026-05-28T19:30:39Z
-date_finished: null
+last_update: 2026-05-28T19:34:29Z
+date_finished: 2026-05-28T19:34:29Z
 ---
 
 # T-1849: agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb
@@ -129,3 +129,27 @@ bash scripts/test-agent-chat-arc-recent.sh >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1849-agent-chat-arc-recentsh--fleet-wide-what.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-5de86d96
+- **Timestamp:** 2026-05-28T19:34:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/agent-chat-arc-recent.sh` (NEW) — walks `~/.termlink/hubs.toml`, scans recent `agent-chat-arc` posts on each hub, merges chronologically. Reuses seek-to-tail (PL-188) + timeout wrap (PL-189).
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: `scripts/agent-chat-arc-recent.sh` (NEW) — walks `~/.termlink/hubs.toml`, scans recent `agent-chat-arc` posts on each hub, merges chronologically. Reu`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/agent-chat-arc-recent.sh --json | jq -e '.ok and (.posts | type == "array")' >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 4
+     - evidence: `bash scripts/test-agent-chat-arc-recent.sh >/dev/null`
+
+### 2026-05-28T19:34:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

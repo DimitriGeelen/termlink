@@ -206,11 +206,14 @@ for i in "${!profile_names[@]}"; do
             sub_rc=$?
             if [ -n "$chat_raw" ]; then
                 chat_arc_posts="$(printf '%s' "$chat_raw" | grep -cE '^\{' || true)"
-                # T-1848: unique speakers in this hub's window. Pull
-                # .metadata.agent_id from each envelope (jq -s reads stream
-                # → array), dedupe, count. Empty/missing agent_id is dropped.
+                # T-1848 / T-1850: unique speakers in this hub's window.
+                # Sender resolution priority (matches T-1849):
+                #   1. .metadata.agent_id  (explicit agent identity — /be-reachable)
+                #   2. .metadata._from     (vendored-arc heartbeat convention, T-1438)
+                #   3. .sender_id          (envelope fingerprint, last resort)
+                # T-1848 used #1 only and under-counted vendored-arc posters 75%.
                 speakers_payload="$(printf '%s' "$chat_raw" | jq -r -s \
-                    '[.[] | select(.msg_type == "chat") | .metadata.agent_id // "" | select(. != "")] | unique | .[]' 2>/dev/null || true)"
+                    '[.[] | select(.msg_type == "chat") | (.metadata.agent_id // .metadata._from // .sender_id // "") | select(. != "")] | unique | .[]' 2>/dev/null || true)"
                 if [ -n "$speakers_payload" ]; then
                     unique_speakers="$(printf '%s\n' "$speakers_payload" | sed '/^$/d' | wc -l | tr -d ' ')"
                 fi

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1849: agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T19:34:35Z
+# ============================================================================
+
+task_id: T-1849
+task_name: "agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T19:30:39Z
+completed: 2026-05-28T19:34:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T21:34:24+02:00
+last_commit: 2026-05-28T21:34:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-chat-arc-recent.sh` (NEW) — walks `~/.termlink/hubs.toml`, scans recent `agent-chat-arc` posts on each hub, merges chronologically. Reuses seek-to-tail (PL-188) + timeout wrap (PL-189)."
+  - "Args: `--limit N` (default 20, clamp 1..=200), `--since <hours>` (default 24, clamp 1..=720), `--hub <addr>` (single-hub override), `--filter-sender ID`, `--filter-msg-type T` (default `chat`), `--all-msg-types`, `--hubs-file P`, `--json`, `--help`."
+  - "Output (text): header + 5-column table `TS HUB SENDER TYPE PREVIEW`. Preview truncated to ~80 chars with ellipsis."
+  - "Output (--json): envelope `{ok, window_hours, limit, summary: {total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts: [...]}`."
+  - "Sender resolution: `.metadata.agent_id` → `.metadata._from` → `.sender_id` (priority). Closes a gap that mis-counted vendored-arc heartbeat posters (they use `_from`, not `agent_id`)."
+  - "Payload decode: prefer `.payload`; fall back to `.payload_b64 | @base64d`."
+  - "Test script: 8 tests, 8/8 pass."
+  - "Fabric: both cards registered."
+  - "Live: `state=4 unique_speakers` in 24h window — finds vendored-arc heartbeats from 3 distinct hosts + my own posts."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".fabric/components/scripts-agent-chat-arc-recent.yaml"
+  - ".fabric/components/scripts-test-agent-chat-arc-recent.yaml"
+  - "scripts/agent-chat-arc-recent.sh"
+  - "scripts/test-agent-chat-arc-recent.sh"
+  - ".tasks/active/T-1849-agent-chat-arc-recentsh--fleet-wide-what.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T21:34:24"
+    action: "T-1849: agent-chat-arc-recent.sh — fleet-wide 'what's been said?' verb"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [doorbell-mail, discovery, t-1830-arc]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 5
+  lines_added: 561
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1849-agent-chat-arc-recentsh--fleet-wide-what.md
+generated_by: context-agent-hybrid
