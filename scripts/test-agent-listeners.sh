@@ -160,6 +160,24 @@ else
     fi
 fi
 
+# -------- T8: pty_session round-trips through discovery (T-1834) --------
+echo "T8: pty_session round-trips through discovery"
+if [ "$hub_up" -ne 1 ]; then
+    skip "T8: local hub not up"
+else
+    topic="agent-listeners-test-T8-$$-$(date +%s)"
+    aid="agent-T8-$$-$(date +%s)"
+    "$TERMLINK" channel create "$topic" --retention messages:10 >/dev/null 2>&1
+    bash "$HEARTBEAT" --agent-id "$aid" --pty-session "soak-pty-T8" --topic "$topic" --once >/dev/null 2>&1
+    out="$(bash "$SCRIPT" --topic "$topic" --json 2>/dev/null)"
+    pty="$(printf '%s' "$out" | jq -r --arg aid "$aid" '.listeners[] | select(.agent_id==$aid) | .pty_session // ""')"
+    if [ "$pty" = "soak-pty-T8" ]; then
+        pass "T8: pty_session='soak-pty-T8' surfaced"
+    else
+        fail "T8: expected 'soak-pty-T8', got '$pty'"
+    fi
+fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]

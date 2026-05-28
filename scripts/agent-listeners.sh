@@ -141,7 +141,8 @@ rollup="$(printf '%s' "$raw" | jq -s \
             last_seen_ts: .ts,
             listen_topics: (.metadata.listen_topics // ""),
             host: (.metadata.host // ""),
-            interval_secs: $intv
+            interval_secs: $intv,
+            pty_session: (.metadata.pty_session // null)
           }
       )
     | map(select(

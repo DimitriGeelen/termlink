@@ -28,13 +28,17 @@ Usage: agent-send.sh --to-session <name> (--topic <dm-topic> | --peer-fp <fp>)
                      [--conversation-id <id>] [--timeout <secs>]
                      [--max-rings <n>] [--doorbell-text <text>]
                      [--await-reply <secs>]
+       agent-send.sh --to <agent-id> --message <text> [other flags] [--dry-run]
 
 Required:
-  --to-session <name>   PTY session to ring (doorbell target; name, not fp)
   --message <text>      the turn content (the "mail")
-  one of:
-    --topic <dm-topic>  post directly to this topic (e.g. dm:<a>:<b>)
-    --peer-fp <fp>      compute dm:<sorted self,peer> from `whoami` + this fp
+  exactly one routing form:
+    --to <agent-id>     auto-discover: resolve --to-session and --topic by
+                        looking up agent-id in agent-presence (T-1834).
+                        Requires listener to declare pty_session and a
+                        dm:* listen_topic.
+    --to-session <name> + (--topic <dm-topic> | --peer-fp <fp>)
+                        explicit routing (the pre-T-1834 form).
 
 Optional:
   --conversation-id <id>  thread id (default: cid-<epoch>-<rand>)
@@ -46,13 +50,17 @@ Optional:
                           turn (first msg_type=turn with offset > the posted turn
                           on this conversation_id) and print it. Turns
                           send+confirm into a full request->response round-trip.
+  --dry-run               with --to, print RESOLVED line and exit 0 without
+                          posting or injecting (test/preview seam).
 
-Exit: 0 delivered (and reply printed if --await-reply) | 2 usage/precondition
+Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED)
+      | 2 usage/precondition (incl. auto-discover resolution failures)
       | 3 not acked after N rings | 4 delivered but no reply within --await-reply
 EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
+to_agent_id="" dry_run=0
 # Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
 # listener in read-only browse mode and it never acks; `/check-arc respond` tells
 # it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
@@ -60,6 +68,7 @@ timeout=10 max_rings=3 doorbell_text="/check-arc respond"
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --to)             to_agent_id="${2:-}"; shift 2 ;;
         --to-session)     to_session="${2:-}"; shift 2 ;;
         --topic)          topic="${2:-}"; shift 2 ;;
         --peer-fp)        peer_fp="${2:-}"; shift 2 ;;
@@ -69,13 +78,61 @@ while [ $# -gt 0 ]; do
         --max-rings)      max_rings="${2:-}"; shift 2 ;;
         --doorbell-text)  doorbell_text="${2:-}"; shift 2 ;;
         --await-reply)    await_reply="${2:-}"; shift 2 ;;
+        --dry-run)        dry_run=1; shift ;;
         -h|--help)        usage; exit 0 ;;
         *)                die "unknown arg: $1 (try --help)" ;;
     esac
 done
 
 [ -n "$message" ]    || die "missing --message"
-[ -n "$to_session" ] || die "missing --to-session (the doorbell target)"
+
+# T-1834: --to <agent-id> auto-discover. Mutually exclusive with explicit
+# routing flags (--to-session/--topic/--peer-fp). If --to is set, resolve
+# both to_session and topic by reading agent-presence via agent-listeners.sh.
+if [ -n "$to_agent_id" ]; then
+    if [ -n "$to_session" ] || [ -n "$topic" ] || [ -n "$peer_fp" ]; then
+        die "--to is mutex with --to-session / --topic / --peer-fp; pick one routing form"
+    fi
+    LISTENERS_VERB="${LISTENERS_VERB:-scripts/agent-listeners.sh}"
+    [ -x "$LISTENERS_VERB" ] || die "agent-listeners verb not executable: $LISTENERS_VERB"
+    resolved="$(bash "$LISTENERS_VERB" --filter-agent-id "$to_agent_id" --include-offline --json 2>/dev/null)"
+    [ -n "$resolved" ] || die "agent-listeners returned no output for agent-id=$to_agent_id"
+    total="$(printf '%s' "$resolved" | jq -r '.total_listeners // 0')"
+    if [ "$total" = "0" ]; then
+        die "no listener with agent_id=$to_agent_id (run 'agent-listeners.sh' to see who's live)"
+    fi
+    listener="$(printf '%s' "$resolved" | jq -c '.listeners[0]')"
+    status="$(printf '%s' "$listener" | jq -r '.status')"
+    if [ "$status" = "OFFLINE" ]; then
+        age="$(printf '%s' "$listener" | jq -r '.age_secs')"
+        die "agent $to_agent_id is OFFLINE (last heartbeat ${age}s ago)"
+    fi
+    resolved_session="$(printf '%s' "$listener" | jq -r '.pty_session // empty')"
+    [ -n "$resolved_session" ] && [ "$resolved_session" != "null" ] \
+        || die "agent $to_agent_id heartbeat does not declare pty_session — sender cannot ring the doorbell"
+    listen_csv="$(printf '%s' "$listener" | jq -r '.listen_topics // empty')"
+    resolved_topic=""
+    IFS=',' read -ra parts <<< "$listen_csv"
+    for p in "${parts[@]}"; do
+        # Strip whitespace.
+        t="$(echo "$p" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [[ "$t" == dm:* ]]; then
+            resolved_topic="$t"
+            break
+        fi
+    done
+    [ -n "$resolved_topic" ] || die "agent $to_agent_id has no dm:* listen_topic — sender cannot infer destination"
+    to_session="$resolved_session"
+    topic="$resolved_topic"
+    if [ "$dry_run" -eq 1 ]; then
+        echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic"
+        exit 0
+    fi
+elif [ "$dry_run" -eq 1 ]; then
+    die "--dry-run requires --to <agent-id>"
+fi
+
+[ -n "$to_session" ] || die "missing --to-session (the doorbell target) — or use --to <agent-id> for auto-discover"
 [[ "$timeout" =~ ^[0-9]+$ && "$timeout" -ge 1 ]]     || die "--timeout must be a positive integer"
 [[ "$max_rings" =~ ^[0-9]+$ && "$max_rings" -ge 1 ]] || die "--max-rings must be a positive integer"
 if [ -n "$await_reply" ]; then

@@ -53,6 +53,10 @@ Optional:
   --role R             Role string (default: "listener"). Also used as payload.
   --listen-topic T     Topic this agent is listening on. Repeatable. Joined into
                        metadata.listen_topics as comma-separated.
+  --pty-session NAME   PTY session name to ring for doorbell (T-1834). When
+                       declared, surfaces in metadata.pty_session so
+                       agent-send.sh --to AGENT_ID can auto-discover the
+                       doorbell target. Omit if no PTY session is bound.
   --topic TOPIC        Heartbeat topic (default: agent-presence)
   --interval N         Heartbeat period in seconds (default: 30; min: 5)
   --hub addr           Target hub (default: local)
@@ -76,6 +80,7 @@ EOF
 agent_id=""
 role="listener"
 listen_topics=()
+pty_session=""
 topic="agent-presence"
 interval=30
 hub=""
@@ -87,6 +92,7 @@ while [ $# -gt 0 ]; do
         --agent-id)      agent_id="${2:-}"; shift 2 ;;
         --role)          role="${2:-}"; shift 2 ;;
         --listen-topic)  listen_topics+=("${2:-}"); shift 2 ;;
+        --pty-session)   pty_session="${2:-}"; shift 2 ;;
         --topic)         topic="${2:-}"; shift 2 ;;
         --interval)      interval="${2:-}"; shift 2 ;;
         --hub)           hub="${2:-}"; shift 2 ;;
@@ -121,7 +127,7 @@ hub_args=()
 [ -n "$hub" ] && hub_args+=(--hub "$hub")
 
 post_one() {
-    "$TERMLINK" channel post "${hub_args[@]}" "$topic" \
+    local post_args=(channel post "${hub_args[@]}" "$topic" \
         --ensure-topic \
         --msg-type heartbeat \
         --payload "$role" \
@@ -130,8 +136,12 @@ post_one() {
         --metadata "listen_topics=$listen_csv" \
         --metadata "started_at=$started_at" \
         --metadata "interval_secs=$interval" \
-        --metadata "host=$host" \
-        --json 2>&1
+        --metadata "host=$host")
+    # T-1834: declare pty_session only when provided. Empty string would
+    # confuse auto-discover (it would consider an empty value valid).
+    [ -n "$pty_session" ] && post_args+=(--metadata "pty_session=$pty_session")
+    post_args+=(--json)
+    "$TERMLINK" "${post_args[@]}" 2>&1
 }
 
 emit_once() {

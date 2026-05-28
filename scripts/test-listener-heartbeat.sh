@@ -116,6 +116,29 @@ else
     else fail "T6: expected 2, got $rc"; fi
 fi
 
+# -------- T7: --pty-session round-trips to metadata.pty_session (T-1834) --------
+echo "T7: --pty-session round-trips; omitted means field absent"
+if [ "$hub_up" -ne 1 ]; then
+    skip "T7: local hub not up"
+else
+    aid_with="$run_id-T7-with"
+    aid_without="$run_id-T7-without"
+    bash "$SCRIPT" --agent-id "$aid_with" --pty-session "pty-soak-foo" --once >/dev/null 2>&1
+    bash "$SCRIPT" --agent-id "$aid_without" --once >/dev/null 2>&1
+
+    env_with="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_with\")" | tail -1)"
+    env_without="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_without\")" | tail -1)"
+
+    pty_with="$(printf '%s' "$env_with" | jq -r '.metadata.pty_session // "ABSENT"')"
+    pty_without="$(printf '%s' "$env_without" | jq -r '.metadata.pty_session // "ABSENT"')"
+
+    if [ "$pty_with" = "pty-soak-foo" ] && [ "$pty_without" = "ABSENT" ]; then
+        pass "T7: with --pty-session='pty-soak-foo' present; omitted -> absent"
+    else
+        fail "T7: with=$pty_with (want 'pty-soak-foo'), without=$pty_without (want ABSENT)"
+    fi
+fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]
