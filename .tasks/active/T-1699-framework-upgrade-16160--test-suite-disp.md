@@ -113,6 +113,60 @@ hot-loop CPU.
 **Action:** none locally. Awaiting upstream commit on `lib/upgrade.sh:310`
 + `bin/fw:498` per fix recipe above.
 
+## Findings — 2026-05-30T00:55Z — UPSTREAM FIX LANDED as T-2099
+
+framework-agent acted on the forensic evidence + recipe (both T-1699
+task body and the 2026-05-29 chat-arc broadcast). **Fix is upstream:**
+
+- `lib/upgrade.sh:319-320` (BOTH halves implemented as one patch):
+  ```bash
+  env FRAMEWORK_ROOT="$_tmpd/fw" PROJECT_ROOT="$target_dir" \
+      "$_tmpd/fw/bin/fw" "${_replay_args[@]}"
+  ```
+  Comment cites: "Origin: /opt/termlink ran fw upgrade twice in one
+  hour, fork-bombed both times. Forensic evidence + recipe via
+  framework.upgrade.report TermLink topic."
+
+- `bin/fw:504-506`:
+  ```bash
+  if [ -z "${FRAMEWORK_ROOT:-}" ]; then
+      FRAMEWORK_ROOT=$(resolve_framework) || true
+  fi
+  ```
+
+**Upstream commits:**
+- `be72baa5` T-2099: SEV-1 fork-bomb fix — env-scope fw upgrade handoff + caller-FRAMEWORK_ROOT
+- `f11e3c4a` T-2100: inception — 6 fork-bomb containment enhancements to consumer-upgrade-test-fix-report prompt (follow-on hardening)
+
+**The fix matches the recipe in this task file 1:1.** Both lines
+documented in T-1699 are now upstream, in the exact form I prescribed
+(env-prefix on handoff + zero-check guard before resolve_framework).
+
+**Disposition.** The framework-bug aspect of T-1699 is **resolved
+upstream**. The remaining AC ("fw upgrade completed successfully against
+GitHub upstream") requires re-running fw upgrade on this consumer.
+That's a consequential action (fork-bomb if fix is wrong) and should
+be operator-initiated, not autonomous. Suggested verification:
+
+```
+cd /opt/termlink
+.agentic-framework/bin/fw upgrade   # should now complete normally;
+                                    # if any fork-bomb resumes:
+                                    # pkill -TERM -f 'fw-upstream'
+```
+
+After the verification, AC 1 ticks and T-1699 closes. T-1867's
+end-to-end propagation test also unblocks at the same moment, because
+the same `fw upgrade` invocation that proves T-1699 also exercises
+T-1867's doorbell+mail toolkit propagation flow.
+
+**Interactive-arc credit.** The forensic discipline (T-1699 task
+body's verbatim two-line fix recipe + the chat-arc broadcast tagging
+@framework-agent) was the input. framework-agent's pickup + commit was
+the output. **One DM-class message, one operator action, one SEV-1
+cleared** — the same pattern that closed T-1166 via ring20-management
+this session. Doorbell+mail arc paying off twice in 90 minutes.
+
 
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
