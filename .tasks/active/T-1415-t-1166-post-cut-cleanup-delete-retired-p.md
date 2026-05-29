@@ -137,3 +137,39 @@ test -f .tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md || test
 
 ### 2026-05-29T22:39:07Z — status-update [task-update-agent]
 - **Change:** horizon: later → now
+
+### 2026-05-30T00:40Z — gates cleared, promoted for human review [agent, focus=T-1166]
+
+**All three pre-conditions in Context section 1/2/3 are now satisfied:**
+
+1. **Tier-2 cut authorized + deployed** — `legacy_primitives_disabled`
+   feature is live on every production hub. Verified via `hub.version`
+   on .122: `control_plane_version=3` + `legacy_primitives:false`.
+2. **Bake window passed** — `fw metrics api-usage --cut-ready --json`
+   returns `cut_ready: true`, `legacy_attributable: 0`,
+   `legacy_unattributable_pre_t1409: 0` over the 7d window. See
+   T-1166 Updates 2026-05-30T00:35Z for the breakthrough event.
+3. **Roll-back window closed** — no -32601 method-not-found complaints
+   in the last 7d window (would surface as audit log entries; none
+   present).
+
+**Status change.** horizon: later → now. Owner remains `human` per the
+task contract — source deletion across crates needs human review. The
+two [REVIEW] human ACs (lines 97, 105) are now actionable: bake metric
++ flag-off duration are both verifiable today.
+
+**Operator next step (suggested).**
+
+```
+cd /opt/termlink
+fw work-on T-1415
+# then walk the "Inventory of code to delete" section:
+#   hub: router.rs + Cargo.toml [features]
+#   session-shim: inbox_channel.rs fallback else-branches
+#   CLI: commands/file.rs (operator-verify file.* CLI retention)
+#   protocol: control.rs const definitions
+#   tests: no_legacy_callers.rs tighten, cut_path module removal
+```
+
+This is the destructive cut PL-094 promised. The bake window paid for
+the safety; now the abstraction can go.
