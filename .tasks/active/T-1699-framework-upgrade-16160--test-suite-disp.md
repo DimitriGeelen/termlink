@@ -87,6 +87,32 @@ cd /opt/termlink && .agentic-framework/bin/fw upgrade
 - Test suite (STEP 5) — blocked, can't upgrade.
 - Pre-existing 5-file vendored drift — still on disk, still uncommitted; reconciliation requires either (a) upstreaming via bug-report pickup or (b) declaring obsolete and discarding. Deferred until upgrade path works.
 
+## Findings — 2026-05-29T12:30Z — second repro (dispatched via T-1869)
+
+Re-repro under fresh dispatch — same SEV-1, same fork-bomb, same root cause.
+Bin still at v1.6.160, no upstream fix has landed.
+
+**New datum: wrong-target propagation.** Last run (2026-05-18) the recursion
+correctly carried `target_dir=/opt/termlink` through the handoff. This run the
+children all show `fw upgrade /opt/003-Vailliant-diagnosis` — the target_dir
+shifted to a peer project somewhere in the cloned-upstream's path resolution.
+Possible source: a global registry (`/root/.agentic-framework/...`?) or
+.framework.yaml on a peer that the cloned upstream's `find_project_root`
+walks up to. T-559 boundary blocks investigation from this consumer. Worth
+upstream-side inspection.
+
+**Cleanup:** 50+ /tmp/fw-upstream-* tempdirs reaped automatically via the
+EXIT trap on SIGTERM. /tmp disk reclaim: ~9G (916G→833G used, but 96% used
+is pre-existing).
+
+**Process tree at peak:** PIDs 2532558→2617712, ~85 nested processes in
+~60s before SIGTERM cleared them. All 0% CPU (blocked on git-clone /
+network), so the wedge mode is queue-of-pending-clones rather than
+hot-loop CPU.
+
+**Action:** none locally. Awaiting upstream commit on `lib/upgrade.sh:310`
++ `bin/fw:498` per fix recipe above.
+
 
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
