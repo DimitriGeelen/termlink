@@ -62,6 +62,12 @@ Options:
   --filter-sender ID   Only include posts where metadata.agent_id == ID
   --filter-msg-type T  Override default msg_type filter (default: chat)
   --all-msg-types      Disable msg_type filter (include heartbeats, etc.)
+  --exclude-heartbeats Exclude posts whose resolved sender ends with
+                       '-vendored' (T-1832/T-1840 emitter convention).
+                       Distinguishes real conversation from systemd
+                       heartbeat bookkeeping. When set, JSON envelope's
+                       .summary gains heartbeat_posts/heartbeat_speakers
+                       counts (excluded population).
   --json               Emit JSON envelope instead of fixed-width table
   -h, --help           Print this help and exit 0
 
@@ -85,6 +91,7 @@ HUBS_FILE="$HUBS_FILE_DEFAULT"
 FILTER_SENDER=""
 FILTER_MSG_TYPE="chat"
 ALL_MSG_TYPES=0
+EXCLUDE_HEARTBEATS=0
 FORMAT=text
 
 while [ $# -gt 0 ]; do
@@ -96,6 +103,7 @@ while [ $# -gt 0 ]; do
         --filter-sender)      FILTER_SENDER="${2:-}"; shift 2 ;;
         --filter-msg-type)    FILTER_MSG_TYPE="${2:-}"; shift 2 ;;
         --all-msg-types)      ALL_MSG_TYPES=1; shift ;;
+        --exclude-heartbeats) EXCLUDE_HEARTBEATS=1; shift ;;
         --json)               FORMAT=json; shift ;;
         -h|--help)            usage; exit 0 ;;
         *)                    die_usage "unknown arg: $1" ;;
@@ -207,13 +215,42 @@ else
     sender_filter='true'
 fi
 
+# T-1861 — heartbeat exclusion. Heuristic: resolved-sender ends with
+# `-vendored` (T-1832/T-1840 emitter naming convention). Applied in
+# the filtered-population sense: posts where this matches are removed
+# from the headline post list, but their count is exposed in
+# .summary.heartbeat_posts / heartbeat_speakers so the caller can show
+# both numbers.
+if [ "$EXCLUDE_HEARTBEATS" -eq 1 ]; then
+    heartbeat_filter='((.metadata.agent_id // .metadata._from // .sender_id // "") | endswith("-vendored") | not)'
+else
+    heartbeat_filter='true'
+fi
+
+# When the flag is on, also compute counts of the EXCLUDED population
+# in a separate pre-filter pass.
+heartbeat_posts=0
+heartbeat_speakers=0
+if [ "$EXCLUDE_HEARTBEATS" -eq 1 ]; then
+    heartbeat_posts="$(jq -s -c \
+        --arg mtype "$FILTER_MSG_TYPE" \
+        --arg sender "$FILTER_SENDER" \
+        "map(select($msg_type_filter and $sender_filter and (((.metadata.agent_id // .metadata._from // .sender_id // \"\") | endswith(\"-vendored\")))))| length" \
+        "$tmp_envs")"
+    heartbeat_speakers="$(jq -s -c \
+        --arg mtype "$FILTER_MSG_TYPE" \
+        --arg sender "$FILTER_SENDER" \
+        "map(select($msg_type_filter and $sender_filter and (((.metadata.agent_id // .metadata._from // .sender_id // \"\") | endswith(\"-vendored\"))))) | map(.metadata.agent_id // .metadata._from // .sender_id // \"\") | unique | map(select(. != \"\")) | length" \
+        "$tmp_envs")"
+fi
+
 posts_json="$(jq -s -c \
     --arg mtype "$FILTER_MSG_TYPE" \
     --arg sender "$FILTER_SENDER" \
     --argjson limit "$LIMIT" \
     --argjson plen "$preview_len" \
     "
-    map(select($msg_type_filter and $sender_filter))
+    map(select($msg_type_filter and $sender_filter and $heartbeat_filter))
     | sort_by(.ts) | reverse
     | .[:\$limit]
     | map({
@@ -250,21 +287,32 @@ if [ "$FORMAT" = json ]; then
         --argjson hubs "$hubs_scanned" \
         --argjson failed "$hubs_failed" \
         --argjson speakers "$unique_speakers" \
+        --argjson hb_posts "$heartbeat_posts" \
+        --argjson hb_speakers "$heartbeat_speakers" \
+        --argjson excluded "$EXCLUDE_HEARTBEATS" \
         --argjson posts "$posts_json" \
         '{
             ok: ($failed == 0 or $hubs > 0),
             window_hours: $window,
             limit: $limit,
-            summary: {
+            summary: ({
                 total_posts: $total,
                 hubs_scanned: $hubs,
                 hubs_failed: $failed,
                 unique_speakers: $speakers
-            },
+            } + (if $excluded == 1 then {
+                heartbeat_posts: $hb_posts,
+                heartbeat_speakers: $hb_speakers,
+                heartbeats_excluded: true
+            } else {} end)),
             posts: $posts
         }'
 else
-    echo "agent-chat-arc recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers})"
+    if [ "$EXCLUDE_HEARTBEATS" -eq 1 ]; then
+        echo "agent-chat-arc recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers}, heartbeats excluded: ${heartbeat_posts} posts / ${heartbeat_speakers} speakers)"
+    else
+        echo "agent-chat-arc recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers})"
+    fi
     if [ "$total_posts" = "0" ]; then
         echo "  (no posts matched filters)"
     else

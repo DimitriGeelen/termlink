@@ -58,7 +58,7 @@ Execute concurrently via Bash:
 {
   bash scripts/agent-listeners-fleet.sh --json > /tmp/pulse.peers.$$ 2>/dev/null &
   PEERS_PID=$!
-  bash scripts/agent-chat-arc-recent.sh --json --limit "$LIMIT" --since "$SINCE" > /tmp/pulse.recent.$$ 2>/dev/null &
+  bash scripts/agent-chat-arc-recent.sh --json --limit "$LIMIT" --since "$SINCE" --exclude-heartbeats > /tmp/pulse.recent.$$ 2>/dev/null &
   RECENT_PID=$!
   wait "$PEERS_PID" "$RECENT_PID"
 }
@@ -80,9 +80,16 @@ PEERS (LIVE / total): N / M
   <agent_id>  status=LIVE  age=Ns  hub=<addr>
   ... (one row per LIVE peer; if all OFFLINE, "no LIVE peers — fleet is cold")
 
-RECENT (last N in HOURSh window, unique speakers=K):
+RECENT (last N in HOURSh window, unique speakers=K + H heartbeat bots hidden):
   <ts>  <sender>  <preview>
   ... (one row per post; if zero, "no chat-arc activity in window")
+
+The "+ H heartbeat bots hidden" tail surfaces the count of vendored-arc
+emitter posts that were filtered (T-1861 `--exclude-heartbeats`).
+H>0, K=0 is the canonical "rail is busy with bookkeeping but no real
+conversation" signal — exactly what the directive's "no active
+conversations arc" framing is about. Read from JSON's
+`.summary.heartbeat_speakers`.
 ```
 
 Adapt the section headers from the JSON envelopes:
@@ -91,16 +98,21 @@ Adapt the section headers from the JSON envelopes:
 - RECENT: `.summary.unique_speakers` (or wrapper's header field),
   `.posts[]` or `.envelopes[]` depending on the wrapper's shape
 
-### Empty-fleet path (BOTH wrappers return zero LIVE + zero posts)
+### Empty-fleet path (BOTH wrappers return zero LIVE + zero real posts)
 
-After the two-section render, append:
+"Real posts" = post count AFTER `--exclude-heartbeats` filter (so
+heartbeat-only fleets correctly classify as cold). After the
+two-section render, append:
 
 ```
-The rail is cold — no LIVE peers AND no recent posts.
+The rail is cold — no LIVE peers AND no real posts in window.
+(Heartbeats: H posts from S vendored-arc bots — bookkeeping, not conversation.)
 To warm it up:
   /be-reachable        # advertise yourself
   /broadcast-chat "..." # leave a message for future arrivals
 ```
+
+If H == 0 (truly empty fleet, not even heartbeats), drop the parenthetical line.
 
 ### Partial-success path (one wrapper failed)
 

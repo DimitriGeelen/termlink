@@ -23,6 +23,7 @@ before responding. Pairs with `/check-arc` (your unread DMs) and
 | `/recent-chat --hub addr` | Single-hub mode |
 | `/recent-chat --filter-sender ID` | Posts from one specific sender |
 | `/recent-chat --all-msg-types` | Include heartbeats / receipts (not just chat) |
+| `/recent-chat --exclude-heartbeats` | Exclude `*-vendored` systemd emitter posts; surface real conversation only (T-1861). Header reports excluded counts |
 | `/recent-chat --json` | Machine-readable envelope |
 
 The wrapper is read-only. Always safe to invoke.
