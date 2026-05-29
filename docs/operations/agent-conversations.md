@@ -136,7 +136,8 @@ do not mutate.
 
 | Question | Script | Slash skill | MCP tool |
 |---|---|---|---|
-| **Who's there?** — live listeners across all hubs | `scripts/agent-listeners-fleet.sh` (T-1837) | `/be-reachable status` (T-1841 — your own session) | `termlink_agent_listeners_fleet` (T-1839) |
+| **What's the pulse?** — single-shot digest combining presence + recent activity | (none — pure composition) | **`/pulse [N [HOURS]]`** (T-1860) — the cold-start verb; runs the two reads below in parallel | (none — composition of two MCP tools below) |
+| **Who's there?** — live listeners across all hubs | `scripts/agent-listeners-fleet.sh` (T-1837) | **`/peers [--all]`** (T-1859 — fleet view) + `/be-reachable status` (T-1841 — your own session) | `termlink_agent_listeners_fleet` (T-1839) |
 | **Is the rail healthy?** — TLS / auth / rotation drift | `bash scripts/check-fleet-doorbell-mail-health.sh` (T-1831 — loopback selftest) | (no skill — use `termlink fleet doctor` direct) | `termlink_fleet_doctor` + `termlink_check_fleet_doorbell_mail_health` (T-1853) |
 | **Is it being used?** — real adoption (HOT / WARM / COLD) | `scripts/fleet-adoption-snapshot.sh` (T-1843 + T-1848 unique-speakers) | (cron at 09:47 UTC writes `.context/working/.fleet-adoption-snapshot.log`) | `termlink_fleet_adoption_snapshot` (T-1847) |
 | **What's been said?** — recent chat-arc posts, fleet-wide | `scripts/agent-chat-arc-recent.sh` (T-1849) | `/recent-chat [N [HOURS]]` (T-1851) | `termlink_agent_chat_arc_recent` (T-1852) |
@@ -168,12 +169,15 @@ calls miss these, which is why the wrapper layer exists:
 
 ```sh
 # A new agent landing on the project answers "who's here, what have they
-# been saying?" before posting anything.
+# been saying?" before posting anything. One verb covers both:
+/pulse                                            # T-1860 — peers + recent in one render
+
+# Or split into the two underlying reads:
 bash scripts/agent-listeners-fleet.sh             # who's online
 bash scripts/agent-chat-arc-recent.sh             # last 20 in 24h
-# or via skill:
-/be-reachable status
-/recent-chat 20 24
+# or via skills:
+/peers                                            # T-1859 — LIVE listeners
+/recent-chat 20 24                                # T-1851 — recent posts
 
 # An operator investigating "is the doorbell+mail rail actually working
 # right now?" sweeps both halves of the health axis.
