@@ -79,10 +79,14 @@ Render a two-section block:
 PEERS (LIVE / total): N / M
   <agent_id>  status=LIVE  age=Ns  hub=<addr>
   ... (one row per LIVE peer; if all OFFLINE, "no LIVE peers — fleet is cold")
+  failed: <name> (<address>): <error>, <name2> (<address2>): <error2>
+  ... (one line — omitted entirely when zero failures; see "Failed hubs" below)
 
 RECENT (last N in HOURSh window, unique speakers=K + H heartbeat bots hidden):
   <ts>  <sender>  <preview>
   ... (one row per post; if zero, "no chat-arc activity in window")
+  failed: <hub> (<reason>), <hub2> (<reason2>)
+  ... (one line — omitted entirely when zero failures; see "Failed hubs" below)
 
 The "+ H heartbeat bots hidden" tail surfaces the count of vendored-arc
 emitter posts that were filtered (T-1861 `--exclude-heartbeats`).
@@ -97,6 +101,46 @@ Adapt the section headers from the JSON envelopes:
 - PEERS: `.live`, `.total_listeners`, walk `.listeners[] | select(.status=="LIVE")`
 - RECENT: `.summary.unique_speakers` (or wrapper's header field),
   `.posts[]` or `.envelopes[]` depending on the wrapper's shape
+
+### Failed hubs (T-1871 — page-respond opacity fix)
+
+Both wrappers expose actionable per-hub failure data in their JSON
+envelopes. Surface it inline in each section — never silently swallow.
+
+**PEERS failure shape** (`agent-listeners-fleet.sh` → T-1837): the
+peers JSON carries `.hubs_failed: [{name, address, error}]` where
+`error` is the first 200 chars of stderr from the per-hub probe. Read
+with `jq -r '.hubs_failed[] | "\(.name) (\(.address)): \(.error)"'`.
+
+**RECENT failure shape** (`agent-chat-arc-recent.sh` → T-1870): the
+recent JSON carries `.summary.failed_hubs: [{hub, reason}]` where
+`reason` is one of `timeout` (rc=124 from the 8s PL-189 wallclock),
+`network` (anything else). Read with
+`jq -r '.summary.failed_hubs[] | "\(.hub) (\(.reason))"'`.
+
+Render **only when the respective array is non-empty**. The good
+path stays silent — never print `failed: ` with an empty list.
+
+**Why this matters.** When `/pulse` says "RECENT (failed: 2)" without
+naming hubs, the operator can't tell whether ring20-dashboard is down
+(action: ring20 oncall) or chat-arc-recent's 8s timeout was hit on a
+slow hub (action: bump `TERMLINK_CHAT_ARC_RECENT_TIMEOUT` or
+investigate latency). Surfacing names + reasons converts opaque
+"some-hubs-failed" into actionable signal — directly serving the
+"page-respond opacity" axis the directive cares about.
+
+**Concrete render example** (cold rail + 2 timeouts):
+
+```
+═══ rail pulse ═══
+
+PEERS (LIVE / total): 1 / 1
+  root-claude-mydev  status=LIVE  age=19s  hub=127.0.0.1:9100
+
+RECENT (last 24h, limit 5, unique speakers=1 + 2 heartbeat bots hidden):
+  2026-05-29T23:01:30Z  root-claude-mydev  T-1699 SEV-1 RESOLVED UPSTREAM as T-2099 …
+  failed: ring20-dashboard (timeout), laptop-141 (timeout)
+```
 
 ### Empty-fleet path (BOTH wrappers return zero LIVE + zero real posts)
 
