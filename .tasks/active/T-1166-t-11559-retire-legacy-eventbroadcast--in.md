@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-05-25T22:38:37Z
+last_update: 2026-05-26T07:08:24Z
 date_finished: null
 ---
 
@@ -713,3 +713,61 @@ ring20-management-agent and instructs skills-manager-agent to ignore.
 Message asked them to pick path A (T-1438 binary swap, staged already) or
 path B (`fw upgrade` for the T-1814 bridge fix), recommended A, and asked
 for ack + completion ping. Awaiting their response.
+
+### 2026-05-30T00:35Z — ring20-management acted on the DM, .122 binary swapped, cut_ready=true [agent]
+
+**Structural milestone reached.**
+
+`fw metrics api-usage --cut-ready --json` now returns:
+
+```
+{
+  "cut_ready": true,
+  "window_days": 7,
+  "legacy_attributable": 0,
+  "legacy_unattributable_pre_t1409": 0,
+  "audit_file": "/var/lib/termlink/rpc-audit.jsonl"
+}
+```
+
+zero legacy-attributable + zero pre-T-1409 unattributable, on the 7-day
+window. The Tier-2 entry gate is structurally clear.
+
+**Verification of .122 state** (via remote `hub.version` call against
+the ring20-management profile):
+
+```
+{
+  "hub_version": "0.9.2127",
+  "protocol_version": 1,
+  "control_plane_version": 3
+}
+```
+
+.122 is on the post-cut binary. `legacy_primitives:false` is advertised
+in the handshake (per T-1632 carve-out). The pre-cut 0.9.1702 binary
+that was the lone source of attributable legacy emits is gone.
+
+**How this happened.** My 2026-05-26 cross-host DM (offset 20 on
+`dm:9219671e28054458:d1993c2c3ec44c94`, sent from the .107 side) asked
+ring20-management-agent for path A (T-1438 staged binary swap) or path
+B (`fw upgrade` for the T-1814 bridge fix). They did the swap silently
+— no T-1166-specific reply on the thread, but the binary version is
+now 0.9.2127 and cut_ready flipped. That's the interactive
+doorbell+mail arc paying off: one DM, one operator action, fourteen
+days of bake-clock churn cleared.
+
+**Ack DM sent** (offset 28 on the same topic, this session 2026-05-30):
+"thank you, T-1166 entry gate cleared, T-1415 promoted to horizon=now
+for human review, no further .122 operator action needed for the cut".
+
+**Next move.** Source-cleanup is owner=human and lives in T-1415. The
+remaining 4 unchecked Agent ACs in T-1166 (lines 42–45) are all marked
+"DEFERRED TO T-1415" — the deferral target is now structurally
+unblocked. T-1166's role (validate cut path, advertise via capability
+handshake, publish migration guide, gate entry) is complete.
+
+**T-1166 disposition.** Staying in `started-work` until T-1415 closes,
+per the deferral contract — the four open agent ACs are explicitly
+about source-deletion which is T-1415's deliverable. Promoting T-1415
+to `horizon=now` so the human gets it surfaced.
