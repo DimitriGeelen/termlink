@@ -7357,6 +7357,56 @@ pub struct AgentChatArcRecentParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-1863: MCP wrapper for `scripts/recent-dm.sh` (T-1862).
+// Per-peer DM history at the MCP layer — agent-callable companion to
+// the `/recent-dm` slash skill. Read-side asymmetric to T-1852
+// (chat_arc_recent reads broadcasts; this reads per-peer DM threads).
+//
+// Use case: an autonomous orchestrator deciding whether to engage a
+// peer needs prior DM context. Calling this avoids shelling out and
+// keeps the agent's flow inside the MCP envelope contract.
+#[derive(Deserialize, JsonSchema)]
+pub struct RecentDmParams {
+    /// Substring to match against `dm:*` topic names. Usually a peer
+    /// agent_id (e.g. "ring20-management-agent") or a short fingerprint
+    /// (16 hex). Mutually exclusive with `topic` — exactly one is
+    /// required. Substring match means too-generic strings (e.g.
+    /// "claude") may match many topics; the response surfaces all
+    /// matched topics so the caller can refine.
+    pub peer: Option<String>,
+    /// Explicit dm:* topic name; skips discovery. Use when the topic
+    /// is already known (e.g. from a `termlink_inbox_status` result).
+    /// Mutually exclusive with `peer`.
+    pub topic: Option<String>,
+    /// Override the self-identity substring filter. Default: agent_id
+    /// from `~/.termlink/be-reachable.state`; if absent, no self-filter
+    /// is applied (every peer<->X topic is shown). Pass empty string
+    /// to explicitly disable the self-filter even when state exists.
+    pub self_id: Option<String>,
+    /// Posts to keep per merged result (default 20, clamped 1..=200).
+    pub limit: Option<u32>,
+    /// Look-back window in hours (default 24, clamped 1..=720).
+    pub since_hours: Option<u32>,
+    /// Single-hub address override; when set, restricts discovery to
+    /// this hub. Default walks every profile in `hubs.toml`.
+    pub hub: Option<String>,
+    /// Override default `~/.termlink/hubs.toml`.
+    pub hubs_file: Option<String>,
+    /// Restrict to one msg_type — useful values: `chat`, `turn`,
+    /// `receipt`. Default: show ALL types (DM topics use chat AND
+    /// turn for content; T-1862 deliberately differs from
+    /// `termlink_agent_chat_arc_recent` which defaults to `chat`).
+    pub filter_msg_type: Option<String>,
+    /// When true, force `--all-msg-types` (redundant with the default
+    /// behavior but kept for symmetric parameterization with
+    /// `termlink_agent_chat_arc_recent`).
+    pub all_msg_types: Option<bool>,
+    /// Subprocess timeout (default 30, clamped 1..=120). Each internal
+    /// RPC is bounded by `timeout 8` (PL-189) so 30s covers a 5-hub
+    /// fleet plus discovery walk with headroom.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1858: MCP wrapper for `scripts/chat-arc-broadcast.sh` (T-1856).
 // FIRST mutating chat-arc MCP tool — writes one envelope per hub in
 // the fleet. G-060 mitigation: agent-chat-arc does not federate, so
@@ -25790,6 +25840,71 @@ impl TermLinkTools {
         if let Some(fs) = p.filter_sender.as_deref() {
             args.push("--filter-sender".to_string());
             args.push(fs.to_string());
+        }
+        if let Some(fmt) = p.filter_msg_type.as_deref() {
+            args.push("--filter-msg-type".to_string());
+            args.push(fmt.to_string());
+        }
+        if p.all_msg_types.unwrap_or(false) {
+            args.push("--all-msg-types".to_string());
+        }
+
+        Self::run_t1836_subprocess(&script, &args, timeout).await
+    }
+
+    #[tool(
+        name = "termlink_recent_dm",
+        description = "Per-peer DM conversation history (T-1862 wrapper from T-1863). Read-side asymmetric to `termlink_agent_chat_arc_recent` (broadcasts) — completes the conversation-arc read trio at the MCP layer alongside `termlink_check_fleet_doorbell_mail_health` (rail healthy?) and `termlink_agent_listeners_fleet` (who's there?). Wraps `scripts/recent-dm.sh`: discovers `dm:*` topics by SUBSTRING match against the `peer` param across every hub in `~/.termlink/hubs.toml`, optionally further-filtered by self-identity, dedups federated copies by (ts, sender, payload_preview), and reads each matched topic via the same engine that powers chat_arc_recent (PL-188 seek-to-tail + PL-189 timeout + PL-191 sender priority). Read-only — no posts, no mutations. Live dm:* naming is MIXED (fp-pairs, name-pairs, mixed; plus shared-host fingerprint patterns) so substring discovery is more robust than canonical-derivation. PL-176 caveat: DM topics may not federate either — the per-hub walk surfaces visibility fragmentation rather than hiding it. Params: `peer` (substring, mutex with `topic`), `topic` (explicit dm:* name, mutex with `peer`), `self_id` (override self-filter — default from `~/.termlink/be-reachable.state`), `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub` (single-hub override), `hubs_file` (override default), `filter_msg_type` (default: all msg_types since DMs use both `chat` and `turn`), `all_msg_types` (redundant with default; kept for symmetry), `timeout_secs` (default 30, clamp 1..=120). Returns T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, summary:{topics_matched, total_posts, peer, self}, topics:[...], posts:[...]}}`. Use when an autonomous agent needs prior DM context with a peer before deciding whether/how to engage."
+    )]
+    async fn termlink_recent_dm(
+        &self,
+        Parameters(p): Parameters<RecentDmParams>,
+    ) -> String {
+        let script = match Self::resolve_t1836_script("recent-dm.sh") {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        let timeout = p.timeout_secs.unwrap_or(30).clamp(1, 120);
+
+        // Validate mutex: peer XOR topic.
+        let has_peer = p.peer.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+        let has_topic = p.topic.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+        if has_peer && has_topic {
+            return r#"{"ok":false,"error":"peer and topic are mutually exclusive; pass exactly one"}"#.to_string();
+        }
+        if !has_peer && !has_topic {
+            return r#"{"ok":false,"error":"one of peer (substring) or topic (explicit dm:* name) is required"}"#.to_string();
+        }
+
+        let mut args: Vec<String> = vec!["--json".to_string()];
+        if let Some(topic) = p.topic.as_deref() {
+            args.push("--topic".to_string());
+            args.push(topic.to_string());
+        } else if let Some(peer) = p.peer.as_deref() {
+            args.push(peer.to_string());
+        }
+        if let Some(sid) = p.self_id.as_deref() {
+            // Empty string is meaningful: explicitly disable self-filter.
+            args.push("--self".to_string());
+            args.push(sid.to_string());
+        }
+        if let Some(lim) = p.limit {
+            let clamped = lim.clamp(1, 200);
+            args.push("--limit".to_string());
+            args.push(clamped.to_string());
+        }
+        if let Some(h) = p.since_hours {
+            let clamped = h.clamp(1, 720);
+            args.push("--since".to_string());
+            args.push(clamped.to_string());
+        }
+        if let Some(hub) = p.hub.as_deref() {
+            args.push("--hub".to_string());
+            args.push(hub.to_string());
+        }
+        if let Some(hf) = p.hubs_file.as_deref() {
+            args.push("--hubs-file".to_string());
+            args.push(hf.to_string());
         }
         if let Some(fmt) = p.filter_msg_type.as_deref() {
             args.push("--filter-msg-type".to_string());

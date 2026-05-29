@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1862: /recent-dm slash skill — per-peer DM conversation history (T-1830 doorbell+mail arc read-side)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T10:22:58Z
+# ============================================================================
+
+task_id: T-1862
+task_name: "/recent-dm slash skill — per-peer DM conversation history (T-1830 doorbell+mail arc read-side)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T10:13:42Z
+completed: 2026-05-29T10:22:57Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-29T12:22:50+02:00
+last_commit: 2026-05-29T12:22:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /recent-dm slash skill — per-peer DM conversation history (T-1830 read-side)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-chat-arc-recent.sh --topic <T>` flag accepts arbitrary topic name (default `agent-chat-arc`) — verified live: `--topic agent-chat-arc --limit 2 --since 168` returns 2 known posts; `--topic \"\"` rejected with exit 2"
+  - "`scripts/recent-dm.sh <peer>` exists, has `--help`, exits 2 on usage error, 3 on setup error — verified live (no-arg call exits 2 \"is required\")"
+  - "`recent-dm.sh` resolves self agent_id from `~/.termlink/be-reachable.state` (or `--self <id>` override) — implemented; falls back to \"no self filter\" if no state"
+  - "`recent-dm.sh` discovers dm:* topics via substring-match on `<peer>` across every hub in hubs.toml — verified live: search `d1993c2c` returned 30 topics; search `alice-fp-test` returned 1 specific topic; search `no-such-peer-XYZ` returned 0 with hint"
+  - "`recent-dm.sh` delegates to chat-arc-recent.sh `--topic <T>` per matched topic, dedups federated copies, merges chronologically — verified live: `--topic dm:9219671e28054458:d1993c2c3ec44c94 --since 720 --limit 8` returned 4 deduped posts (vs duplicates before dedup) spanning the real T-1166/T-450 cohort exchange"
+  - "`.claude/commands/recent-dm.md` skill exists with $ARGUMENTS handling matching `/recent-chat` patterns — created at `.claude/commands/recent-dm.md`, mirrors recent-chat normalization (first positive int → --limit, second → --since, --flags passthrough, --topic special-case)"
+  - "CLAUDE.md Quick Reference table includes a row for `/recent-dm` placed adjacent to `/recent-chat` — added between RECEIVE (`/check-arc`) and PRESENCE (`/be-reachable`) rows, labelled \"DM history per peer (READ)\""
+  - "Live demo: `/recent-dm <known-peer>` returns either real envelopes OR a clear \"no DM topic between you and <peer>\" message — both paths verified above"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/recent-dm.md"
+  - "CLAUDE.md"
+  - "scripts/agent-chat-arc-recent.sh"
+  - "scripts/recent-dm.sh"
+  - ".tasks/active/T-1862-recent-dm-slash-skill--per-peer-dm-conve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-29T12:22:50"
+    action: "T-1862: /recent-dm slash skill — per-peer DM conversation history (T-1830 read-side)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 5
+  lines_added: 640
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1862-recent-dm-slash-skill--per-peer-dm-conve.md
+generated_by: context-agent-hybrid
