@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T12:28:12Z
-last_update: 2026-05-29T12:41:52Z
+last_update: 2026-05-29T12:42:13Z
 date_finished: null
 ---
 
@@ -164,3 +164,23 @@ what we're testing.
 ### 2026-05-29T12:41:52Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** fw upgrade SEV-1 fork-bomb (T-1699 repro #2); test suite blocked by PL-125 (web pkg path) and PL-123 (bats unit not vendored)
+
+### 2026-05-29T~12:58Z — dispatch re-executed at user request (option 2)
+
+Re-ran the full dispatch verbatim. All findings reproduce identically:
+- STEP 3: fork-bomb confirmed (T-1699 repro #3 in two days).
+- STEP 4: doctor 4W/0F (identical).
+- STEP 5: bats ERR / web 136P/1F/8S / playwright 3F/444E (byte-identical totals).
+
+**One new datum on the wrong-target propagation:** this run the children
+all targeted `/opt/termlink` (correct). The 12:30Z run targeted
+`/opt/003-Vailliant-diagnosis` (wrong). **The shift is intermittent**
+— same .framework.yaml, same .agentic-framework/, same operator, same
+hour, different outcome. Suggests a TOCTOU on a global registry or a
+cloned-upstream-side `find_project_root` walk that depends on
+working-directory state at clone time. Worth a deeper upstream
+investigation (separate from the fix recipe, which is independent of
+this question).
+
+Posted follow-up envelope to framework.upgrade.report on all 5 hubs
+referencing 41f108b1 + this rerun datum.
