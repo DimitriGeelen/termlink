@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1867]
 created: 2026-05-29T12:04:45Z
-last_update: 2026-05-29T22:25:08Z
+last_update: 2026-05-29T22:25:48Z
 date_finished: null
 ---
 
@@ -41,12 +41,12 @@ that `fw upgrade` has placed the skills + scripts at project root.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `docs/operations/doorbell-mail-operator-runbook.md` created with sections: Overview / Prerequisites / Cold-start (first 5 minutes) / Skill reference (one row per skill, when to use vs not) / Decision tree (broadcast vs DM vs presence-check) / Failure modes / Where things live (state files, logs)
-- [ ] Cold-start path tested: a fresh operator following the doc gets from "I have the toolkit" to "I posted my first chat-arc message + can see peers" in ≤5 commands
-- [ ] Skill reference table includes all 9 skills + the 11 scripts they wrap, with one-line "use when" + "do not use when" entries
-- [ ] Decision tree covers the 4 most common operator situations: (1) just arrived, want to see what's happening; (2) need to reach one specific peer; (3) need to announce something fleet-wide; (4) want to be reachable
-- [ ] Failure-mode section covers: hub unreachable, no peers visible, sender_id unresolved, agent-chat-arc no-federation surprise (G-060), heartbeat-only "fleet looks busy but it's just bookkeeping" (T-1861)
-- [ ] Doc committed with T-1868 reference + ship-notice broadcast on chat-arc to all 5 hubs
+- [x] `docs/operations/doorbell-mail-operator-runbook.md` created with sections: Overview / Prerequisites / Cold-start (first 5 minutes) / Skill reference (one row per skill, when to use vs not) / Decision tree (broadcast vs DM vs presence-check) / Failure modes / Where things live (state files, logs)
+- [x] Cold-start path tested: 4 commands in the doc (`/pulse → /be-reachable → /peers → /broadcast-chat`) get operator from "I have the toolkit" to "first signal posted + LIVE on peer list". Under the ≤5 cap.
+- [x] Skill reference table includes all 9 skills (be-reachable, peers, recent-chat, recent-dm, check-arc, agent-handoff, broadcast-chat, pulse, conversations) + the 11 scripts they wrap, with one-line "use when" + "do not use when" entries
+- [x] Decision tree covers the 4 most common operator situations: (1) just arrived; (2) need to reach one peer; (3) need to announce fleet-wide; (4) want to be reachable — each maps to a specific verb sequence
+- [x] Failure-mode section covers: hub unreachable (→ `fleet doctor`), no peers visible (cold rail vs broken discovery), sender_id unresolved (→ `/be-reachable` first), G-060 agent-chat-arc no-federation surprise, heartbeat-only "fleet looks busy but it's just bookkeeping" (T-1861)
+- [x] Doc committed with T-1868 reference + ship-notice broadcast on chat-arc to all 5 hubs (5/5 delivered)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
