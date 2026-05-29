@@ -55,6 +55,10 @@ Read the most-recent agent-chat-arc posts across every hub in
 filter by msg_type (default 'chat'), surface sender + payload preview.
 
 Options:
+  --topic T            Channel topic to read (default: agent-chat-arc).
+                       Used by /recent-dm to parameterize this script for
+                       canonical dm:<a>:<b> topics (T-1862) — keeps one
+                       envelope-reading codebase instead of forking.
   --limit N            Posts to keep AFTER fleet merge (default 20, max 200)
   --since N            Look-back window in hours (default 24, clamp 1..720)
   --hub addr           Restrict to a single hub (bypasses hubs.toml walk)
@@ -84,6 +88,7 @@ EOF
 }
 
 # Defaults.
+TOPIC="agent-chat-arc"
 LIMIT=20
 SINCE_HOURS=24
 HUB=""
@@ -96,6 +101,7 @@ FORMAT=text
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --topic)              TOPIC="${2:-}"; shift 2 ;;
         --limit)              LIMIT="${2:-}"; shift 2 ;;
         --since)              SINCE_HOURS="${2:-}"; shift 2 ;;
         --hub)                HUB="${2:-}"; shift 2 ;;
@@ -109,6 +115,8 @@ while [ $# -gt 0 ]; do
         *)                    die_usage "unknown arg: $1" ;;
     esac
 done
+
+[ -n "$TOPIC" ] || die_usage "--topic must not be empty"
 
 # Validation.
 case "$LIMIT" in ''|*[!0-9]*) die_usage "--limit must be a positive integer" ;; esac
@@ -168,7 +176,7 @@ for i in "${!hub_names[@]}"; do
 
     # Seek-to-tail (PL-188): channel info → count → cursor max(0, count-N).
     err_file="$(mktemp)"
-    info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" agent-chat-arc --json 2>"$err_file" || echo '')"
+    info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" "$TOPIC" --json 2>"$err_file" || echo '')"
     if [ -z "$info_raw" ]; then
         if grep -qE '\-32013|unknown topic|[Nn]ot found' "$err_file"; then
             hubs_scanned=$((hubs_scanned + 1))  # reached the hub; topic just absent
@@ -187,7 +195,7 @@ for i in "${!hub_names[@]}"; do
     fi
 
     : > "$err_file"
-    chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" agent-chat-arc \
+    chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" "$TOPIC" \
                     --cursor "$cursor" --since "$since_ms" --limit "$SCAN_LIMIT" --json 2>"$err_file" || echo '')"
     if [ -z "$chat_raw" ]; then
         # Topic disappeared between info and subscribe — unlikely but tolerated.
@@ -309,9 +317,9 @@ if [ "$FORMAT" = json ]; then
         }'
 else
     if [ "$EXCLUDE_HEARTBEATS" -eq 1 ]; then
-        echo "agent-chat-arc recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers}, heartbeats excluded: ${heartbeat_posts} posts / ${heartbeat_speakers} speakers)"
+        echo "${TOPIC} recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers}, heartbeats excluded: ${heartbeat_posts} posts / ${heartbeat_speakers} speakers)"
     else
-        echo "agent-chat-arc recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers})"
+        echo "${TOPIC} recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers})"
     fi
     if [ "$total_posts" = "0" ]; then
         echo "  (no posts matched filters)"
