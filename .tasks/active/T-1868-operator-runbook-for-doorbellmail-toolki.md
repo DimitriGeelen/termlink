@@ -4,15 +4,15 @@ name: "Operator runbook for doorbell+mail toolkit (T-1865 follow-up #3, optional
 description: >
   Phase 3 of T-1865 GO (optional): docs/operations/doorbell-mail-operator-runbook.md covering hub deployment, secret deployment, /be-reachable opt-in, /pulse cold-start, /agent-handoff vs /broadcast-chat decision tree. Audience: AEF consumer-project operators who just got the toolkit via fw upgrade and need to know how to use it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1867]
 created: 2026-05-29T12:04:45Z
-last_update: 2026-05-29T12:04:45Z
+last_update: 2026-05-29T22:25:08Z
 date_finished: null
 ---
 
@@ -20,14 +20,33 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Phase 3 of T-1865 GO. T-1866 (vendor bundle) + T-1867 (do_vendor propagation)
+shipped. Operators on AEF consumer projects will gain the 9 skills + 11
+scripts on their next `fw upgrade`, but have no canonical guide to: (a) which
+skill to reach for in which situation, (b) prerequisites (hub deployment,
+secret deployment, `~/.termlink/hubs.toml`), (c) the cold-start path
+(`/be-reachable` → `/pulse` → `/agent-handoff` / `/broadcast-chat`), and
+(d) failure-mode diagnostics. Without this doc, the toolkit ships but
+adoption stalls — `T-1830` "drive zero adoption gap" finding.
+
+Source material already exists in scattered form:
+- `docs/operations/agent-conversations.md` (T-1830) — recipe master doc
+- `docs/operations/listener-heartbeat-systemd.md` (T-1840) — persistent rail
+- Skill-by-skill notes in each `.claude/commands/*.md` Related section
+
+This task synthesizes them into a single AEF-consumer-facing runbook
+written for someone who has NEVER used the toolkit before — assumes only
+that `fw upgrade` has placed the skills + scripts at project root.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `docs/operations/doorbell-mail-operator-runbook.md` created with sections: Overview / Prerequisites / Cold-start (first 5 minutes) / Skill reference (one row per skill, when to use vs not) / Decision tree (broadcast vs DM vs presence-check) / Failure modes / Where things live (state files, logs)
+- [ ] Cold-start path tested: a fresh operator following the doc gets from "I have the toolkit" to "I posted my first chat-arc message + can see peers" in ≤5 commands
+- [ ] Skill reference table includes all 9 skills + the 11 scripts they wrap, with one-line "use when" + "do not use when" entries
+- [ ] Decision tree covers the 4 most common operator situations: (1) just arrived, want to see what's happening; (2) need to reach one specific peer; (3) need to announce something fleet-wide; (4) want to be reachable
+- [ ] Failure-mode section covers: hub unreachable, no peers visible, sender_id unresolved, agent-chat-arc no-federation surprise (G-060), heartbeat-only "fleet looks busy but it's just bookkeeping" (T-1861)
+- [ ] Doc committed with T-1868 reference + ship-notice broadcast on chat-arc to all 5 hubs
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -122,3 +141,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1868-operator-runbook-for-doorbellmail-toolki.md
 - **Context:** Initial task creation
+
+### 2026-05-29T22:25:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now
