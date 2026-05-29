@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: decommission
 owner: human
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-04-30T07:07:28Z
+last_update: 2026-05-29T22:39:07Z
 date_finished: null
 ---
 
@@ -134,3 +134,6 @@ test -f .tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md || test
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md
 - **Context:** Initial task creation
+
+### 2026-05-29T22:39:07Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
