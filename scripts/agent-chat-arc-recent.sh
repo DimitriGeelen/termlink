@@ -157,6 +157,9 @@ fi
 
 hubs_scanned=0
 hubs_failed=0
+# T-1870: parallel tracking of {name, reason} pairs so the caller can act on
+# WHICH hub failed, not just how many. Stored as "name|reason" entries.
+declare -a failed_hubs_pairs=()
 total_posts=0
 SCAN_LIMIT="${SCAN_LIMIT:-500}"
 
@@ -176,12 +179,25 @@ for i in "${!hub_names[@]}"; do
 
     # Seek-to-tail (PL-188): channel info → count → cursor max(0, count-N).
     err_file="$(mktemp)"
-    info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" "$TOPIC" --json 2>"$err_file" || echo '')"
+    if info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" "$TOPIC" --json 2>"$err_file")"; then
+        info_rc=0
+    else
+        info_rc=$?
+        info_raw=""
+    fi
     if [ -z "$info_raw" ]; then
         if grep -qE '\-32013|unknown topic|[Nn]ot found' "$err_file"; then
             hubs_scanned=$((hubs_scanned + 1))  # reached the hub; topic just absent
         else
             hubs_failed=$((hubs_failed + 1))
+            # T-1870: classify failure. rc=124 from `timeout` wrapper = wallclock
+            # exceeded PER_CALL_TIMEOUT (PL-189). Anything else is treated as
+            # network/protocol-level reach failure.
+            if [ "$info_rc" = "124" ]; then
+                failed_hubs_pairs+=("$name|timeout")
+            else
+                failed_hubs_pairs+=("$name|network")
+            fi
         fi
         rm -f "$err_file"
         continue
@@ -287,6 +303,17 @@ posts_json="$(jq -s -c \
 total_posts="$(printf '%s' "$posts_json" | jq 'length')"
 unique_speakers="$(printf '%s' "$posts_json" | jq '[.[].sender] | unique | map(select(. != "")) | length')"
 
+# T-1870: build failed_hubs JSON array from the name|reason pairs collected
+# in the scan loop. Empty array when zero failures (vs missing key) so JSON
+# consumers can dereference without null-guarding.
+if [ "${#failed_hubs_pairs[@]}" -eq 0 ]; then
+    failed_hubs_json="[]"
+else
+    failed_hubs_json="$(printf '%s\n' "${failed_hubs_pairs[@]}" \
+        | jq -R 'split("|") | {hub: .[0], reason: .[1]}' \
+        | jq -s -c .)"
+fi
+
 if [ "$FORMAT" = json ]; then
     jq -n -c \
         --argjson window "$SINCE_HOURS" \
@@ -294,6 +321,7 @@ if [ "$FORMAT" = json ]; then
         --argjson total "$total_posts" \
         --argjson hubs "$hubs_scanned" \
         --argjson failed "$hubs_failed" \
+        --argjson failed_hubs "$failed_hubs_json" \
         --argjson speakers "$unique_speakers" \
         --argjson hb_posts "$heartbeat_posts" \
         --argjson hb_speakers "$heartbeat_speakers" \
@@ -307,6 +335,7 @@ if [ "$FORMAT" = json ]; then
                 total_posts: $total,
                 hubs_scanned: $hubs,
                 hubs_failed: $failed,
+                failed_hubs: $failed_hubs,
                 unique_speakers: $speakers
             } + (if $excluded == 1 then {
                 heartbeat_posts: $hb_posts,
@@ -320,6 +349,22 @@ else
         echo "${TOPIC} recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers}, heartbeats excluded: ${heartbeat_posts} posts / ${heartbeat_speakers} speakers)"
     else
         echo "${TOPIC} recent (window: last ${SINCE_HOURS}h, limit ${LIMIT}, scanned: ${hubs_scanned} hubs, failed: ${hubs_failed}, unique_speakers: ${unique_speakers})"
+    fi
+    # T-1870: surface which hubs failed when any failures present. One line,
+    # comma-separated, with reason in parens. Omitted entirely when zero
+    # failures so the no-news case stays quiet.
+    if [ "${#failed_hubs_pairs[@]}" -gt 0 ]; then
+        failed_summary=""
+        for entry in "${failed_hubs_pairs[@]}"; do
+            fh_name="${entry%%|*}"
+            fh_reason="${entry#*|}"
+            if [ -n "$failed_summary" ]; then
+                failed_summary="${failed_summary}, ${fh_name} (${fh_reason})"
+            else
+                failed_summary="${fh_name} (${fh_reason})"
+            fi
+        done
+        echo "  failed: ${failed_summary}"
     fi
     if [ "$total_posts" = "0" ]; then
         echo "  (no posts matched filters)"
