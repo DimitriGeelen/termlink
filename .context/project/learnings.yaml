@@ -2098,3 +2098,10 @@ learnings:
   date: 2026-05-28
   context: Added via context agent
   application: TBD
+- id: PL-192
+  learning: "Discovery RPCs (`termlink topics`, `agent-listeners-fleet`) silently return empty against hubs that are 2+ major.minor versions behind the CLI (e.g. CLI 0.11.1 vs hub 0.9.x). channel.post / channel.subscribe are Tier-A and continue to work, so the fleet appears 'dead' when it's actually busy. Symptom matrix: /peers shows zero LIVE, /check-arc empty, /recent-chat returns 'scanned N hubs, failed M', termlink topics --hub returns empty list — all while channel subscribe agent-chat-arc returns hundreds of envelopes on the same hub. fleet doctor DOES catch the skew with hint 'Tier-B RPCs may fail across the diversity' but the conversation-arc verbs don't surface it. Workaround: scan agent-chat-arc per hub via channel.subscribe and harvest unique sender_id/metadata.agent_id to reconstruct a fleet view. Real fix: add a Tier-B-method-failure flag to discovery output so /peers et al can warn 'visibility limited by hub version skew, run fleet doctor'. Source: T-1869 framework upgrade dispatch — 3 chatty fleet hosts (laptop-141, ring20-mgmt, ring20-dash) all invisible to /peers because their hubs run 0.9.0-0.9.2127."
+  source: P-009
+  task: T-1869
+  date: 2026-05-29
+  context: Added via context agent
+  application: TBD
