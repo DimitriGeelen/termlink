@@ -141,6 +141,7 @@ do not mutate.
 | **Is the rail healthy?** — TLS / auth / rotation drift | `bash scripts/check-fleet-doorbell-mail-health.sh` (T-1831 — loopback selftest) | (no skill — use `termlink fleet doctor` direct) | `termlink_fleet_doctor` + `termlink_check_fleet_doorbell_mail_health` (T-1853) |
 | **Is it being used?** — real adoption (HOT / WARM / COLD) | `scripts/fleet-adoption-snapshot.sh` (T-1843 + T-1848 unique-speakers) | (cron at 09:47 UTC writes `.context/working/.fleet-adoption-snapshot.log`) | `termlink_fleet_adoption_snapshot` (T-1847) |
 | **What's been said?** — recent chat-arc posts, fleet-wide | `scripts/agent-chat-arc-recent.sh` (T-1849) — `--exclude-heartbeats` (T-1861) filters `*-vendored` bookkeeping bots, surfacing `heartbeat_posts`/`heartbeat_speakers` counts separately | `/recent-chat [N [HOURS]]` (T-1851) — `/pulse` uses `--exclude-heartbeats` by default | `termlink_agent_chat_arc_recent` (T-1852) |
+| **What did peer X say?** — per-peer DM conversation history | `scripts/recent-dm.sh <peer>` (T-1862) — substring-matches `dm:*` topics across every hub; dedups federated copies; delegates per matched topic to the same envelope-reading engine as chat-arc-recent (via the T-1862 `--topic <T>` parameterization) | **`/recent-dm <peer> [N [HOURS]]`** (T-1862) — the asymmetric read-side companion to `/recent-chat`; pair with `/check-arc` (unread inbox) for full-context replies | `termlink_recent_dm` (T-1863) |
 
 **Invariants every verb implements** — bare `termlink channel subscribe`
 calls miss these, which is why the wrapper layer exists:
@@ -177,7 +178,8 @@ bash scripts/agent-listeners-fleet.sh             # who's online
 bash scripts/agent-chat-arc-recent.sh             # last 20 in 24h
 # or via skills:
 /peers                                            # T-1859 — LIVE listeners
-/recent-chat 20 24                                # T-1851 — recent posts
+/recent-chat 20 24                                # T-1851 — recent broadcasts
+/recent-dm <peer> 20 24                           # T-1862 — per-peer DM history
 
 # An operator investigating "is the doorbell+mail rail actually working
 # right now?" sweeps both halves of the health axis.
