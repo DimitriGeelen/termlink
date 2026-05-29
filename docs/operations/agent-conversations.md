@@ -140,7 +140,7 @@ do not mutate.
 | **Who's there?** — live listeners across all hubs | `scripts/agent-listeners-fleet.sh` (T-1837) | **`/peers [--all]`** (T-1859 — fleet view) + `/be-reachable status` (T-1841 — your own session) | `termlink_agent_listeners_fleet` (T-1839) |
 | **Is the rail healthy?** — TLS / auth / rotation drift | `bash scripts/check-fleet-doorbell-mail-health.sh` (T-1831 — loopback selftest) | (no skill — use `termlink fleet doctor` direct) | `termlink_fleet_doctor` + `termlink_check_fleet_doorbell_mail_health` (T-1853) |
 | **Is it being used?** — real adoption (HOT / WARM / COLD) | `scripts/fleet-adoption-snapshot.sh` (T-1843 + T-1848 unique-speakers) | (cron at 09:47 UTC writes `.context/working/.fleet-adoption-snapshot.log`) | `termlink_fleet_adoption_snapshot` (T-1847) |
-| **What's been said?** — recent chat-arc posts, fleet-wide | `scripts/agent-chat-arc-recent.sh` (T-1849) | `/recent-chat [N [HOURS]]` (T-1851) | `termlink_agent_chat_arc_recent` (T-1852) |
+| **What's been said?** — recent chat-arc posts, fleet-wide | `scripts/agent-chat-arc-recent.sh` (T-1849) — `--exclude-heartbeats` (T-1861) filters `*-vendored` bookkeeping bots, surfacing `heartbeat_posts`/`heartbeat_speakers` counts separately | `/recent-chat [N [HOURS]]` (T-1851) — `/pulse` uses `--exclude-heartbeats` by default | `termlink_agent_chat_arc_recent` (T-1852) |
 
 **Invariants every verb implements** — bare `termlink channel subscribe`
 calls miss these, which is why the wrapper layer exists:
