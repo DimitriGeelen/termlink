@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T12:28:12Z
-last_update: 2026-05-29T12:42:13Z
+last_update: 2026-05-29T21:09:09Z
 date_finished: null
 ---
 
@@ -184,3 +184,44 @@ this question).
 
 Posted follow-up envelope to framework.upgrade.report on all 5 hubs
 referencing 41f108b1 + this rerun datum.
+
+### 2026-05-30T01:00Z — STEP 3 unblocked structurally — T-1699 fix landed upstream
+
+framework-agent landed the T-1699 fork-bomb fix as upstream T-2099
+(commit `be72baa5`) + follow-on T-2100 (`f11e3c4a`). The two-line
+patch (env-scoped handoff in `lib/upgrade.sh` + caller-FRAMEWORK_ROOT
+honour in `bin/fw`) matches the T-1699 recipe 1:1.
+
+**Implication for T-1869.** The dispatch's STEP 3 (`fw upgrade`) was
+blocked by T-1699 fork-bomb on both 2026-05-29 runs. With the fix now
+upstream, a fresh dispatch re-run would clear STEP 3 — but **executing
+fw upgrade is operator-gated** (consequential action, fork-bomb risk
+if the fix has a regression we haven't anticipated). Suggested
+operator verification:
+
+```
+cd /opt/termlink
+.agentic-framework/bin/fw upgrade
+# Should complete normally. If fork-bomb resumes:
+#   pkill -TERM -f 'fw-upstream'
+```
+
+After verification:
+- STEP 3 AC ticks
+- T-1699 closes (its lone open AC was "fw upgrade completed")
+- T-1867 propagation gets end-to-end-tested in the same flow — the
+  doorbell+mail toolkit's 9 skills + 11 scripts arrive at the consumer
+  via `lib/upgrade.sh:7b/10` (the T-1867 block).
+
+**One run, three closures.** That's the cleanest sequencing — re-run
+the dispatch when convenient.
+
+**STEPS 4/5/6/7 remain re-runnable.** Even if STEP 3 is deferred, the
+other steps (doctor, test all, classify, report) can run independently.
+The findings from 2026-05-29 (PL-123 bats not vendored, PL-125 playwright
+web/ path) are already filed and don't need re-classification unless
+fresh data emerges.
+
+**T-1869 disposition.** Stays in `issues` until STEP 3 verifies. Adding
+this update so the next-session pickup sees the upstream landing
+without re-investigating.
