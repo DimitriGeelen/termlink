@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1868]
 created: 2026-05-29T12:04:41Z
-last_update: 2026-05-29T21:45:57Z
+last_update: 2026-05-29T21:55:22Z
 date_finished: null
 ---
 
@@ -77,7 +77,7 @@ local includes=(
 - [x] /opt/termlink round-trip test: run upstream's `lib/upgrade.sh` flow against /opt/termlink, confirm: (a) the 11 scripts arrive at `/opt/termlink/scripts/` executable, (b) consumer-local script (e.g. /opt/termlink/scripts/chat-arc-multicast.sh) NOT in the propagated set survives untouched, (c) the 9 skills arrive at `/opt/termlink/.claude/commands/`, (d) consumer-local skill (e.g. /opt/termlink/.claude/commands/heartbeat.md) survives
 - [x] Upstream commit message references T-1867 + names the corrected pattern
 - [x] `fw upgrade --help` text updated to mention "doorbell+mail toolkit propagation" alongside resume.md
-- [ ] Upstream push lands on `origin/master` (in progress — pre-push audit hook iterating 1894 task files, see Updates)
+- [x] Upstream push lands on `origin/master` (verified 2026-05-30: `git fetch origin master` → origin at `c5b6a3f8`, my `98bc7dae` in history; peer commits `c5b6a3f8`/`8d5b52c3` (T-2102/T-2103 /approvals perf work) layered on top — push completed server-side as predicted)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -210,6 +210,29 @@ local includes=(
 ### 2026-05-29T21:36:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-05-30T00:15Z — push landed on origin/master, closing T-1867
+
+`mcp__termlink__termlink_run`-bridged check (T-559 read-only verify, my
+session can't cross the boundary directly):
+
+```
+cd /opt/999-Agentic-Engineering-Framework && git fetch origin master
+git rev-parse origin/master  → c5b6a3f8
+git rev-parse HEAD           → 8d5b52c3
+git log --oneline -3:
+  8d5b52c3 T-2103: /approvals AC cap 15 → 10 (height 8926px → 7361px, under 8000 cap)
+  c5b6a3f8 T-2102: /approvals body-extraction cache — 14.8s → 2.5s warm (5.9× speedup)
+  98bc7dae T-1867: propagate doorbell+mail toolkit to consumers via lib/upgrade.sh
+```
+
+My `98bc7dae` is in origin's history (parent of `c5b6a3f8`); the upstream
+audit hook completed and the push landed cleanly. Two peer commits from
+the framework-agent (T-2102/T-2103, /approvals page perf work) layered on
+top while my push was waiting in the hook. No conflict — separate code
+paths.
+
+All 8 ACs satisfied. Marking work-completed.
 
 ### 2026-05-29T21:55Z — implemented + sandbox-tested + commit local + push pending
 
