@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1868]
 created: 2026-05-29T12:04:41Z
-last_update: 2026-05-29T21:36:17Z
+last_update: 2026-05-29T21:37:53Z
 date_finished: null
 ---
 
@@ -69,13 +69,14 @@ local includes=(
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Upstream `bin/fw:254-264` `do_vendor` includes list extended with `.claude/commands` and `scripts` (or scoped form) — committed on `origin/master`
-- [ ] Vendor semantics confirmed additive: a consumer-local `.claude/commands/local-only.md` survives a `fw upgrade` that brings in upstream files (proven via dry-run or controlled smoke)
-- [ ] Decision on `scripts/spikes/` exclusion recorded in `## Decisions` (whole dir vs `scripts/*.sh` top-level only)
-- [ ] /opt/termlink round-trip test: pull upstream `master` into a sandbox copy of the framework, run `do_vendor` against `/opt/termlink`, confirm the 9 doorbell+mail skills + 11 scripts appear in `/opt/termlink/.claude/commands/` and `/opt/termlink/scripts/` AND no pre-existing local file is deleted
-- [ ] PL-124 protection: if vendor logic uses rsync `--delete` semantics anywhere on `.claude/commands/` or `scripts/`, that path is patched OR `--delete` is scoped so consumer-local files survive
-- [ ] Upstream commit message references T-1867 + cites this safety analysis
-- [ ] Brief note in `lib/upgrade.sh` or fw help text that `.claude/commands/` and `scripts/` are now consumer-propagated (so operators reading source know)
+- [ ] Upstream `lib/templates/skills/` directory created and populated with the 9 doorbell+mail skill `.md` files (be-reachable, peers, recent-chat, recent-dm, broadcast-chat, pulse, conversations, check-arc, agent-handoff)
+- [ ] Upstream `lib/templates/scripts/` directory created and populated with the 11 supporting script `.sh` files (agent-chat-arc-recent, recent-dm, agent-listeners, agent-listeners-fleet, chat-arc-broadcast, agent-conversation-list, agent-conversation-status, agent-send, agent-respond, listener-heartbeat, be-reachable) — chmod 755 in source
+- [ ] `lib/upgrade.sh` extended with a loop (placed next to the existing resume.md block at ~1060-1090) that iterates `lib/templates/skills/*.md` and `lib/templates/scripts/*.sh`, applies compare-and-update-with-backup to project-root `.claude/commands/` and `scripts/`, and preserves script execute bit
+- [ ] Drift-and-backup semantics confirmed: a consumer-edited skill triggers `.bak` then update (same as resume.md flow)
+- [ ] dry-run output lists each propagated file under `WOULD UPDATE` / `WOULD CREATE`
+- [ ] /opt/termlink round-trip test: run upstream's `lib/upgrade.sh` flow against /opt/termlink, confirm: (a) the 11 scripts arrive at `/opt/termlink/scripts/` executable, (b) consumer-local script (e.g. /opt/termlink/scripts/chat-arc-multicast.sh) NOT in the propagated set survives untouched, (c) the 9 skills arrive at `/opt/termlink/.claude/commands/`, (d) consumer-local skill (e.g. /opt/termlink/.claude/commands/heartbeat.md) survives
+- [ ] Upstream commit message references T-1867 + names the corrected pattern
+- [ ] `fw upgrade --help` text updated to mention "doorbell+mail toolkit propagation" alongside resume.md
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,38 +122,72 @@ local includes=(
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-05-29 — original premise invalidated by destination-path discovery
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** Original plan said "extend `bin/fw:254-264` `do_vendor`
+  includes list with `.claude/commands` + `scripts`". Investigation while
+  starting build revealed `bin/fw:221` sets `local dest="$target/.agentic-framework"`
+  — so anything in the `includes` array is copied INTO the vendored
+  `.agentic-framework/` subdir, NOT to the consumer's project root where
+  claude-code reads from. Adding `.claude/commands` to `includes` would
+  put files at `<consumer>/.agentic-framework/.claude/commands/`, invisible
+  to claude-code.
+- **Plan impact:** The stated AC slate ("extend includes list") cannot
+  achieve the goal. T-1865 spike-2 confirmed the includes list excluded
+  these paths, but did not verify destination semantics. False positive.
+- **Triggered:** Need to reshape T-1867 around the actually-viable pattern.
+  The existing project-root propagation path for `resume.md` lives in
+  `lib/upgrade.sh:1063-1090` and uses `lib/templates/resume-md.md` as
+  source, project-root `.claude/commands/resume.md` as target, with `.bak`
+  backup on drift. That's the operative pattern.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+### 2026-05-29 — additional --delete hazard noted (independent of path issue)
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **What changed:** `bin/fw:321` uses `rsync -a --delete --delete-excluded`
+  per include. Even if a hypothetical project-root-targeted include
+  worked, naive add would clobber consumer-local files. PL-124-class
+  hazard. Mitigation: either additive copy semantics (Option B) or
+  per-file pattern (Option C — which is what resume.md already does).
+- **Plan impact:** Option C (per-file via lib/templates + lib/upgrade.sh)
+  has the side-benefit of being inherently additive — it only touches
+  the specific files it knows about, never sweeps a directory.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-05-29 — corrected approach: lib/templates loop, not do_vendor includes
+
+- **Chose:** Stage the 9 doorbell+mail skills + 11 scripts under
+  `lib/templates/skills/*.md` and `lib/templates/scripts/*.sh` in upstream
+  AEF, then add ONE loop in `lib/upgrade.sh` (next to the existing
+  resume.md block at lines 1060-1090) that iterates them and applies the
+  same compare-and-update-with-backup pattern. One loop, 20 files.
+- **Why:** This is the only pattern that puts files where claude-code
+  reads from (consumer project root). It also inherits the resume.md
+  block's drift-detection + `.bak` semantics, which means consumer-local
+  edits to a vendored skill survive across upgrades. PL-124-safe by
+  construction. No new vendor contract architecture.
+- **Rejected — Option A (do_vendor includes naïve add):** invalid because
+  destination is `.agentic-framework/`, not project root. Discovery
+  during build (see Evolution above).
+- **Rejected — Option B (additive copy in do_vendor):** does not solve
+  the project-root targeting problem. Even with `--delete` skipped,
+  files land in `.agentic-framework/`, invisible to claude-code.
+- **Rejected — Option C-per-file (20 hand-coded branches in upgrade.sh):**
+  works but copy-paste tax. Replaced by Option C-looped (above).
+- **Rejected — Option D (new "additive-includes" contract on do_vendor):**
+  bigger change, conceptually attractive, but premature for one toolkit.
+  Revisit if a third project-root-targeting subsystem appears.
+
+### 2026-05-29 — scripts/spikes/ handling
+
+- **Chose:** Don't include `scripts/spikes/` in vendoring at all. Only
+  the 11 specific named `*.sh` scripts go through the lib/templates loop.
+- **Why:** `scripts/spikes/` (T-1736-* / T-1740-* / etc Python metrics)
+  is framework-side R&D, not consumer-bound. The per-file loop naturally
+  excludes it by enumerating only the doorbell+mail subset.
+- **Rejected — vendor whole `scripts/` dir with exclude pattern:** would
+  require do_vendor's directory-mode (which also has the destination-path
+  problem). Per-file loop sidesteps both.
 
 ## Decision
 
