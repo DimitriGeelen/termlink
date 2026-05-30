@@ -118,8 +118,18 @@ recent JSON carries `.summary.failed_hubs: [{hub, reason}]` where
 `network` (anything else). Read with
 `jq -r '.summary.failed_hubs[] | "\(.hub) (\(.reason))"'`.
 
+**RECENT fallback shape** (`agent-chat-arc-recent.sh` → T-1872): the
+recent JSON ALSO carries `.summary.fallback_hubs: [<name>]` — a flat
+array of strings (NOT objects, different shape from failed_hubs). These
+are hubs where `channel info` timed out but the no-seek
+`channel subscribe --cursor 0` rescued data. The data from these hubs
+may be partial — recent activity past SCAN_LIMIT from offset 0 is not
+visible. Read with `jq -r '.summary.fallback_hubs[]'` and render as a
+separate line distinct from `failed:`. PL-194 mitigation context.
+
 Render **only when the respective array is non-empty**. The good
-path stays silent — never print `failed: ` with an empty list.
+path stays silent — never print `failed: ` or `fallback: ` with an
+empty list.
 
 **Why this matters.** When `/pulse` says "RECENT (failed: 2)" without
 naming hubs, the operator can't tell whether ring20-dashboard is down
@@ -129,7 +139,7 @@ investigate latency). Surfacing names + reasons converts opaque
 "some-hubs-failed" into actionable signal — directly serving the
 "page-respond opacity" axis the directive cares about.
 
-**Concrete render example** (cold rail + 2 timeouts):
+**Concrete render example** (cold rail + 1 timeout + 1 fallback):
 
 ```
 ═══ rail pulse ═══
@@ -139,8 +149,13 @@ PEERS (LIVE / total): 1 / 1
 
 RECENT (last 24h, limit 5, unique speakers=1 + 2 heartbeat bots hidden):
   2026-05-29T23:01:30Z  root-claude-mydev  T-1699 SEV-1 RESOLVED UPSTREAM as T-2099 …
-  failed: ring20-dashboard (timeout), laptop-141 (timeout)
+  failed: ring20-dashboard (timeout)
+  fallback: laptop-141 (seek-to-tail unavailable — data may be partial)
 ```
+
+`failed:` and `fallback:` can co-exist. The same fleet may have one
+hub that times out completely and another that rescues via the
+no-seek path on the same scan.
 
 ### Empty-fleet path (BOTH wrappers return zero LIVE + zero real posts)
 
@@ -250,4 +265,6 @@ The empty/empty case is already handled in Step 4.
 - T-1841 (`/be-reachable` — when /pulse says the rail is cold)
 - T-1857 (`/broadcast-chat` — when /pulse says peers are present and the arc is quiet)
 - T-1810 (`/check-arc` — the DM-inbox view, intentionally NOT composed here)
+- T-1872 (chat-arc-recent fallback path — `fallback_hubs` data this skill renders)
 - PL-187 (verb-stack rung 6 — ephemeral session integrators)
+- PL-194 (asymmetric channel.info / channel.subscribe cost on slow hubs)
