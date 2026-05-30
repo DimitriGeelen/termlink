@@ -61,19 +61,13 @@ test -n "$(timeout 8 termlink channel info agent-presence --json 2>/dev/null | j
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** On shared host .107 (multiple claude sessions co-resident), `/check-arc` Step 1 silently fell through to its fail-fast print because `termlink whoami --json` returned `{ambiguous: true, candidates: [22]}` with no `session.identity_fingerprint` field. The skill never proceeded to enumerate `dm:<self-fp>:*` topics, so the operator saw "cannot resolve self identity_fingerprint" even though 29 unread DM topics existed on the local hub addressed to this host's signing key.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The skill conflated two different identifiers. `whoami.session.identity_fingerprint` is a session-scoped CLI artifact distinct from the envelope `sender_id` that `dm:<fp>:*` topics are keyed on. The envelope `sender_id` is a host-level signing key, not a session-level identifier. So even when whoami DOES return a session block (single-session host), the fingerprint it reports doesn't match the key DM topics are named with.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Two compounding gaps: (1) the skill was authored before the channel-info topology was exposed via the `senders[]` array (T-1830-era) so the obvious O(1) self-resolution path didn't exist when the skill was written; (2) the framework has no schema check that a skill's identifier resolution path actually matches the wire-level identifier the same skill then queries against — the two divergent identifiers shared the word "fingerprint" so the inconsistency was invisible to manual review.
+
+**Prevention:** Three layers. (a) This fix replaces the wrong path with the right one. (b) PL-195 (captured 2026-05-30) carries the symptom + fix for future agents searching by class. (c) T-1693 (per-agent identity keys) is the structural fix that removes the shared-host caveat entirely — until then this skill is correct per current wire semantics. No new framework gate added: the test "skill's resolved identifier matches what it then queries" is too narrow to systematize across N skills, but the learning + new path are the durable hedge.
 
 ## Evolution
 
