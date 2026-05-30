@@ -4,7 +4,7 @@ name: "reply: --cid flag for explicit thread targeting"
 description: >
   reply: --cid flag for explicit thread targeting
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T16:23:19Z
-last_update: 2026-05-30T16:26:01Z
-date_finished: null
+last_update: 2026-05-30T16:27:09Z
+date_finished: 2026-05-30T16:27:09Z
 ---
 
 # T-1882: reply: --cid flag for explicit thread targeting
@@ -48,8 +48,8 @@ threading, just for an existing-but-not-latest cid.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # Help mentions --cid flag.
 bash scripts/agent-reply.sh --help 2>&1 | grep -q -- '--cid'
-# Mutual exclusion: --cid + --ensure-cid refuses with exit 2.
-bash scripts/agent-reply.sh --cid foo --ensure-cid d1993c2c3ec44c94:d1993c2c3ec44c94 hi 2>&1 | grep -q "mutually exclusive\|cannot combine\|both"; [ $? -eq 0 ]
+# Mutual exclusion: --cid + --ensure-cid refuses with the right message (agent-reply exits 2 on purpose — swallow before grep).
+out_excl="$(bash scripts/agent-reply.sh --cid foo --ensure-cid d1993c2c3ec44c94:d1993c2c3ec44c94 hi 2>&1 || true)"; echo "$out_excl" | grep -q "mutually exclusive"
 # --dry-run + --cid bypass works and prints the override cid.
 bash scripts/agent-reply.sh --cid test-override-T-1882 --dry-run d1993c2c3ec44c94:d1993c2c3ec44c94 hi 2>&1 | grep -q "cid='test-override-T-1882'\|cid=test-override-T-1882"
 # Skill doc documents --cid.
@@ -130,3 +130,20 @@ bash -n scripts/agent-reply.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1882-reply---cid-flag-for-explicit-thread-tar.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-a886616a
+- **Timestamp:** 2026-05-30T16:27:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **skip-as-pass** (severe, deterministic) @ Verification:line 8
+     - evidence: `bash scripts/agent-reply.sh --cid test-override-T-1882 --dry-run d1993c2c3ec44c94:d1993c2c3ec44c94 hi 2>&1 | grep -q "cid='test-override-T-1882'\|cid=test-override-T-1882"`
+
+### 2026-05-30T16:27:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
