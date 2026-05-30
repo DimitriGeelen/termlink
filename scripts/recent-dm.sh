@@ -312,9 +312,20 @@ else
     if [ "$total_posts" = "0" ]; then
         echo "  (no posts in window — topic exists but no recent activity)"
     else
-        printf '%-20s %-44s %-32s %s\n' "TS" "TOPIC" "SENDER" "PREVIEW"
-        printf '%s' "$merged_posts" | jq -r '.[] | [.ts_iso, ._topic, .sender, .payload_preview] | @tsv' \
-            | awk -F'\t' '{printf "%-20s %-44s %-32s %s\n", $1, $2, $3, $4}'
+        # T-1881: CID column rendered between SENDER and PREVIEW so the
+        # operator sees which thread each post belongs to before invoking
+        # /reply (uses latest cid) or /reply --ensure-cid (mints new).
+        # Width 22 fits the canonical "reply-YYYYmmddTHHMMSSZ" form exactly.
+        printf '%-20s %-44s %-26s %-22s %s\n' "TS" "TOPIC" "SENDER" "CID" "PREVIEW"
+        printf '%s' "$merged_posts" \
+            | jq -r '.[] | [
+                .ts_iso,
+                ._topic,
+                .sender,
+                ((.conversation_id // "-") | if length > 22 then .[0:21] + "…" else . end),
+                .payload_preview
+              ] | @tsv' \
+            | awk -F'\t' '{printf "%-20s %-44s %-26s %-22s %s\n", $1, $2, $3, $4, $5}'
     fi
 fi
 

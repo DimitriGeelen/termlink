@@ -324,6 +324,10 @@ posts_json="$(jq -s -c \
         #   3. sender_id          (envelope-level fingerprint, last resort)
         sender: (.metadata.agent_id // .metadata._from // .sender_id // \"\"),
         msg_type: .msg_type,
+        # T-1881: surface conversation_id so DM readers (recent-dm.sh) can
+        # render the thread key that /reply targets. null on envelopes that
+        # don't carry one (chat-arc broadcasts) — additive, no consumer breakage.
+        conversation_id: (.metadata.conversation_id // null),
         # Payload may be inline (.payload) or base64-encoded (.payload_b64).
         # Prefer inline; b64-decode otherwise. Best-effort, dropped on error.
         payload_preview: (
