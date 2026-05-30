@@ -91,7 +91,7 @@ Filter results to topics whose name contains `<self-fp>` (canonical
 
 If zero matching topics: print `check-arc: no DM topics found for <self-fp-shortened>` and exit zero.
 
-## Step 3: For each dm topic, compute unread
+## Step 3: For each dm topic, compute unread + latest cid
 
 Run, per topic:
 
@@ -101,6 +101,20 @@ termlink channel unread <topic> --sender <self-fp> --json
 
 Capture `unread_count` and `latest_offset`. Skip topics with zero unread.
 
+**Latest conversation_id (T-1883).** For each non-skipped topic, also extract
+the load-bearing thread key that `/reply` would target by default:
+
+```
+termlink channel subscribe <topic> --limit 100 --json \
+  | jq -sr 'map(select(.metadata.conversation_id != null)) | sort_by(.offset) | .[-1].metadata.conversation_id // empty'
+```
+
+Mirror of T-1880's `agent-reply.sh` cid-extract path — `--limit 100` is a
+pragmatic ceiling that covers topics up to ~100 envelopes deep without
+the operator having to know the offset. Capture as `latest_cid`. If empty
+(no envelope carries `metadata.conversation_id`), record `latest_cid=-`
+so the renderer can route the reply hint accordingly.
+
 ## Step 4: Render summary
 
 Print, sorted by unread count descending:
@@ -109,8 +123,11 @@ Print, sorted by unread count descending:
 check-arc: <N> topic(s) with pending DMs
 
   dm:<peer-short>...    unread=<count>  latest_offset=<offset>
-    last sender: <peer-fp-short>
-    peek: /recent-dm <peer-short> --since 720
+    last sender:  <peer-fp-short>
+    latest_cid:   <cid-or-->
+    peek:         /recent-dm <peer-short> --since 720
+    reply:        /reply <peer-short> "<text>"            # if latest_cid present
+                  /reply <peer-short> "<text>" --ensure-cid  # if latest_cid is -
 
   dm:<peer-short-2>...  unread=<count>  latest_offset=<offset>
     ...
@@ -121,6 +138,21 @@ To open a conversation interactively:
 To ack a topic after reading:
   termlink channel ack <topic>
 ```
+
+**Reply-hint routing (T-1883).** The `reply:` line is conditional on
+`latest_cid` state, computed in Step 3:
+
+- `latest_cid` is a real cid → render `/reply <peer> "<text>"` (default
+  uses latest cid, which is now visible to the operator)
+- `latest_cid` is `-` (no envelope carries one) → render
+  `/reply <peer> "<text>" --ensure-cid` (mint a fresh thread on a
+  chat-style topic, T-1882)
+
+If `latest_cid` is present AND the operator wants to target a non-latest
+thread (multi-cid topic — visible via `/recent-dm`'s CID column post-T-1881),
+they pass `--cid <CID>` explicitly. That third case is intentionally NOT
+rendered as a default hint — surfacing all three forms would clutter; the
+common path stays one line.
 
 If zero unread across all dm topics:
 
@@ -209,8 +241,14 @@ broadcasts.
 - `/agent-handoff` (`T-1431`) — SEND side; this skill is RECEIVE
 - `/be-reachable` (`T-1841`) — establishes presence and therefore the
   sender_id this skill reads in Step 1
-- `/recent-dm` (`T-1862`) — per-peer DM history; pair after Step 4 reveals
-  an unread topic and you want thread context before replying
+- `/recent-dm` (`T-1862`, `T-1881`) — per-peer DM history; pair after Step 4
+  reveals an unread topic and you want thread context before replying. T-1881
+  added the CID column so the operator can see distinct concurrent threads
+  on a multi-cid topic before deciding `/reply` vs `/reply --cid`
+- `/reply` (`T-1880`, `T-1882`) — one-keystroke ad-hoc reply. `--cid <CID>`
+  (T-1882) explicitly targets a non-latest thread; `--ensure-cid` mints a
+  fresh structured thread on a chat-style topic. Default uses the cid
+  surfaced here in Step 4 — same value the operator sees in this view
 - `/recent-chat` (`T-1851`) — fleet-wide agent-chat-arc digest; pair after
   Step 5 reveals unread broadcasts and you want the actual posts rendered
   with sender + payload preview
