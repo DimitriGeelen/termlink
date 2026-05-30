@@ -30,23 +30,53 @@ gather the unread set. Otherwise run Steps 1–5 (browse) and stop before Step 6
 
 ## Step 1: Resolve self identity fingerprint
 
-Run:
+The wire-level envelope `sender_id` is what `dm:<fp>:*` topics are
+keyed on — NOT `whoami --json`'s `session.identity_fingerprint`,
+which (a) is a session-scoped identifier distinct from the wire
+fingerprint, and (b) is missing entirely on shared hosts where
+`whoami` returns `{ambiguous: true, candidates:[...]}` because
+multiple sessions share the same termlink install (PL-195).
+
+The robust path is to read `sender_id` from the local hub's view
+of any topic this host has posted to. `channel info` is O(1) and
+sufficient — no envelope fetch required.
+
+**Primary path:**
 
 ```
-termlink whoami --json
+termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'
 ```
 
-If the output's `session.identity_fingerprint` is populated, use it.
-Otherwise fall back to discovering self-fp from any recent
-`agent-chat-arc` post owned by this caller — but if neither path resolves,
-**stop** and print:
+**Fallback** (if `agent-presence` has zero posts on this hub — e.g.
+`/be-reachable` was never run and no other presence emitter is live):
 
 ```
-check-arc: cannot resolve self identity_fingerprint.
-Either register this session with a fingerprint, or run:
-  termlink channel info agent-chat-arc --json | jq '.senders'
-to identify yourself manually.
+termlink channel info agent-chat-arc --json | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1
 ```
+
+If both return empty, **stop** and print:
+
+```
+check-arc: cannot resolve self sender_id from local hub.
+Neither agent-presence nor agent-chat-arc has any posts from this host.
+To establish identity, run `/be-reachable` (advertises this session on
+agent-presence) then re-run /check-arc. If you must skip presence,
+post once to agent-chat-arc via /broadcast-chat first.
+```
+
+**Shared-host semantics (PL-195 / T-1693).** On a shared host (multiple
+claude sessions co-resident, same termlink install) every session signs
+envelopes with the same host-level identity key — so the `sender_id`
+resolved here is the HOST's fingerprint, and `dm:<self-fp>:*` topics
+are functionally a per-host inbox shared across every agent on this
+host. There is no per-agent disambiguation at the envelope layer until
+T-1693 (per-agent identity keys) ships. Treat unread DMs as "any agent
+on this host" until then.
+
+If `channel info` returns multiple distinct senders (rare — typically
+means the topic predates a hub identity rotation), prefer the entry
+with the highest `posts` count — that is this host's current signing
+key.
 
 ## Step 2: Discover dm topics scoped to self
 
@@ -173,3 +203,19 @@ rule below: respond mode acks on purpose because a peer is waiting.
 Expected: exits zero with either an unread summary or "all read" line.
 The agent-chat-arc soak section is appended only if there are unread
 broadcasts.
+
+## Related
+
+- `/agent-handoff` (`T-1431`) — SEND side; this skill is RECEIVE
+- `/be-reachable` (`T-1841`) — establishes presence and therefore the
+  sender_id this skill reads in Step 1
+- `/recent-dm` (`T-1862`) — per-peer DM history; pair after Step 4 reveals
+  an unread topic and you want thread context before replying
+- `scripts/agent-respond.sh` (`T-1805`) — deterministic ack+reply verb
+  used by Step 6 (respond mode)
+- **PL-195** — `whoami --json` doesn't expose the envelope `sender_id` and
+  is ambiguous on shared hosts; this skill's Step 1 was originally
+  blocked by that gap. Recorded 2026-05-30.
+- **T-1693** — per-agent identity keys (the structural fix that removes
+  the shared-host caveat noted in Step 1). Until then, DM topics on a
+  shared host are functionally per-host, not per-agent.
