@@ -160,6 +160,11 @@ hubs_failed=0
 # T-1870: parallel tracking of {name, reason} pairs so the caller can act on
 # WHICH hub failed, not just how many. Stored as "name|reason" entries.
 declare -a failed_hubs_pairs=()
+# T-1872: hubs that succeeded only via the no-seek fallback path
+# (`channel info` timed out → tried `channel subscribe --cursor 0`).
+# Surface separately so /pulse can hint "data may be partial — seek-to-tail
+# unavailable on these hubs". PL-194 mitigation.
+declare -a fallback_hubs=()
 total_posts=0
 SCAN_LIMIT="${SCAN_LIMIT:-500}"
 
@@ -185,15 +190,53 @@ for i in "${!hub_names[@]}"; do
         info_rc=$?
         info_raw=""
     fi
+    used_fallback=0
     if [ -z "$info_raw" ]; then
         if grep -qE '\-32013|unknown topic|[Nn]ot found' "$err_file"; then
             hubs_scanned=$((hubs_scanned + 1))  # reached the hub; topic just absent
-        else
+            rm -f "$err_file"
+            continue
+        fi
+        # T-1872 (PL-194 mitigation): `channel info` failed but the topic
+        # exists somewhere. Try the no-seek subscribe path instead of
+        # immediately marking the hub failed. For small/medium topics this
+        # returns data within the timeout. For large topics it returns
+        # empty (cursor=0 + --limit hits before reaching recent activity),
+        # but that's no worse than the previous behavior.
+        used_fallback=1
+        rm -f "$err_file"
+    else
+        hubs_scanned=$((hubs_scanned + 1))
+
+        chat_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // 0)' 2>/dev/null || echo 0)"
+        cursor=0
+        if [ "$chat_count" -gt "$SCAN_LIMIT" ]; then
+            cursor=$((chat_count - SCAN_LIMIT))
+        fi
+    fi
+
+    if [ "$used_fallback" -eq 1 ]; then
+        cursor=0
+    fi
+
+    err_file="$(mktemp)"
+    : > "$err_file"
+    if chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" "$TOPIC" \
+                    --cursor "$cursor" --since "$since_ms" --limit "$SCAN_LIMIT" --json 2>"$err_file")"; then
+        sub_rc=0
+    else
+        sub_rc=$?
+        chat_raw=""
+    fi
+    if [ "$sub_rc" -ne 0 ]; then
+        # Subscribe genuinely failed. If we were on the fallback path this
+        # means `channel info` failed AND subscribe also failed → mark
+        # failed. If we were on the seek-to-tail path (info worked, then
+        # subscribe broke) accept it as scanned-empty and continue
+        # silently — the previous run had already incremented hubs_scanned.
+        if [ "$used_fallback" -eq 1 ]; then
             hubs_failed=$((hubs_failed + 1))
-            # T-1870: classify failure. rc=124 from `timeout` wrapper = wallclock
-            # exceeded PER_CALL_TIMEOUT (PL-189). Anything else is treated as
-            # network/protocol-level reach failure.
-            if [ "$info_rc" = "124" ]; then
+            if [ "$sub_rc" = "124" ]; then
                 failed_hubs_pairs+=("$name|timeout")
             else
                 failed_hubs_pairs+=("$name|network")
@@ -202,23 +245,17 @@ for i in "${!hub_names[@]}"; do
         rm -f "$err_file"
         continue
     fi
-    hubs_scanned=$((hubs_scanned + 1))
-
-    chat_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // 0)' 2>/dev/null || echo 0)"
-    cursor=0
-    if [ "$chat_count" -gt "$SCAN_LIMIT" ]; then
-        cursor=$((chat_count - SCAN_LIMIT))
-    fi
-
-    : > "$err_file"
-    chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" "$TOPIC" \
-                    --cursor "$cursor" --since "$since_ms" --limit "$SCAN_LIMIT" --json 2>"$err_file" || echo '')"
-    if [ -z "$chat_raw" ]; then
-        # Topic disappeared between info and subscribe — unlikely but tolerated.
-        rm -f "$err_file"
-        continue
-    fi
     rm -f "$err_file"
+
+    # subscribe succeeded — chat_raw may still be empty (no posts in
+    # window). That's fine. Account for the fallback bookkeeping.
+    if [ "$used_fallback" -eq 1 ]; then
+        hubs_scanned=$((hubs_scanned + 1))
+        fallback_hubs+=("$name")
+    fi
+
+    # Skip the augment step if literally nothing came back.
+    [ -z "$chat_raw" ] && continue
 
     # Augment each envelope with `hub` field, drop anything outside window.
     printf '%s' "$chat_raw" | jq -c --arg hub "$name" --argjson since "$since_ms" \
@@ -314,6 +351,15 @@ else
         | jq -s -c .)"
 fi
 
+# T-1872: build fallback_hubs JSON array (hubs that succeeded via the
+# no-seek path). Always emitted (empty when none) so consumers can
+# dereference without null-guarding.
+if [ "${#fallback_hubs[@]}" -eq 0 ]; then
+    fallback_hubs_json="[]"
+else
+    fallback_hubs_json="$(printf '%s\n' "${fallback_hubs[@]}" | jq -R . | jq -s -c .)"
+fi
+
 if [ "$FORMAT" = json ]; then
     jq -n -c \
         --argjson window "$SINCE_HOURS" \
@@ -322,6 +368,7 @@ if [ "$FORMAT" = json ]; then
         --argjson hubs "$hubs_scanned" \
         --argjson failed "$hubs_failed" \
         --argjson failed_hubs "$failed_hubs_json" \
+        --argjson fallback_hubs "$fallback_hubs_json" \
         --argjson speakers "$unique_speakers" \
         --argjson hb_posts "$heartbeat_posts" \
         --argjson hb_speakers "$heartbeat_speakers" \
@@ -336,6 +383,7 @@ if [ "$FORMAT" = json ]; then
                 hubs_scanned: $hubs,
                 hubs_failed: $failed,
                 failed_hubs: $failed_hubs,
+                fallback_hubs: $fallback_hubs,
                 unique_speakers: $speakers
             } + (if $excluded == 1 then {
                 heartbeat_posts: $hb_posts,
@@ -365,6 +413,20 @@ else
             fi
         done
         echo "  failed: ${failed_summary}"
+    fi
+    # T-1872: surface which hubs succeeded via the no-seek fallback path.
+    # Omitted when none. Tells operator "data from these hubs may be
+    # partial — seek-to-tail was unavailable, so older posts only".
+    if [ "${#fallback_hubs[@]}" -gt 0 ]; then
+        fb_summary=""
+        for fb_name in "${fallback_hubs[@]}"; do
+            if [ -n "$fb_summary" ]; then
+                fb_summary="${fb_summary}, ${fb_name}"
+            else
+                fb_summary="${fb_name}"
+            fi
+        done
+        echo "  fallback: ${fb_summary} (seek-to-tail unavailable — data may be partial)"
     fi
     if [ "$total_posts" = "0" ]; then
         echo "  (no posts matched filters)"
