@@ -88,3 +88,14 @@ grep -q "agent-handoff" CLAUDE.md
 ### 2026-05-01T11:55Z — agent-acs-ticked [agent autonomous]
 - **Action:** All 9 agent ACs ticked. CLAUDE.md gets one-liner under Quick Reference. Skill discoverable via `/agent-handoff` slash command (verified in skills surface)
 - **Owner:** unchanged (human) — pending RUBBER-STAMP verification
+
+### 2026-05-30T16:18Z — re-smoke-test [agent autonomous, fresh evidence for operator rubber-stamp]
+- **Why:** 29 days after the original 2026-05-01 smoke. Operator about to click the rubber-stamp; fresh evidence reduces inference distance and re-validates against the PL-195 closure landed 2026-05-30.
+- **Setup:** `termlink register --name handoff-rubber-stamp --self --json &` → PID 1510636 orphan to init, peer live on local hub. PL-195 caveat surfaced live: `whoami --json` returned `{session:null,host:null,candidates_n:23}` (structurally null on shared host — exactly why T-1874..T-1877 rewired self-fp resolution). Skill calls whoami for log visibility only; null didn't block the run.
+- **Invocation:** `termlink agent contact handoff-rubber-stamp --message "[T-1431] rubber-stamp verification — please ignore (executed 2026-05-30T16:15:55Z)" --json`
+- **Result:** `{"delivered":{"offset":8,"ts":1780150555466}}` — exit 0
+- **Topic verified:** `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` now carries 9 envelopes (original 2026-05-01 smoke landed at offset 4, plus 4 intermediate, plus this one at offset 8 → 9 total). Single sender `d1993c2c3ec44c94` (host signing key) accounts for all 9 — shared-host self-DM topology preserved, same as the original smoke.
+- **Self-fp resolution canonical path validated:** `termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'` → `d1993c2c3ec44c94` ✓. This is the path T-1874..T-1877 standardized across `check-arc.md`, `agent-handoff.md`, `agent-send.sh`, `agent-respond.sh`.
+- **Verification gate:** all 5 verification commands re-pass (skill file present, mentions `agent contact`, mentions `whoami`, contains the NEVER-rules, CLAUDE.md line present).
+- **Cleanup pending:** ephemeral `handoff-rubber-stamp` register session (PID 1510636) will be SIGTERMed at session end so it doesn't accumulate as a stale presence beacon.
+- **Operator next step:** Watchtower → http://192.168.10.107:3003/tasks/T-1431 → check the `[RUBBER-STAMP]` Human AC checkbox → set status `work-completed`.
