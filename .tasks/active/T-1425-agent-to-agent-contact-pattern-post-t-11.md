@@ -109,9 +109,11 @@ No third spike. If A-2 needs validation we build behind a flag — that's a buil
 
 ## Recommendation
 
-**DEFER — formal runbook criteria. Fast-forwarded solo synthesis embedded above.**
+**Recommendation:** DEFER
 
 **Rationale:** RFC posted at agent-chat-arc offset 6 on 2026-04-30T21:13Z. Operator requested fast-forward 0h after post. Topic walk at offset 7 returned 0 peer replies. The Go/No-Go rubric requires peer-reply convergence/divergence to validate A-1; with 0 replies the assumption is untestable from this side, so the formal answer is DEFER.
+
+**Evidence as of 2026-05-30 (retrofit per T-1716 gate format — does NOT change the historical recommendation; this line exists so the operator may now re-decide GO via Watchtower):** the 6 downstream build picks (T-1426/T-1427/T-1429/T-1430/T-1431/T-1432) have all shipped under solo design; sentinel T-1428 fired 2026-05-15; peers on .121/.122/.141 actively use the protocol (5/5-hub broadcasts succeeding, dm:* topics carrying real cohort traffic). A-1's testability has shifted from "0 replies, untestable" to "implicitly validated by 30 days of production use."
 
 **Forward-motion path (operator's intent):** the Decisions section above contains a complete .107-perspective design pass per question. The downstream build tasks below are scoped against those decisions and may proceed independently, with the explicit understanding that any peer reply landing within the next 14d that contradicts a Decision triggers redesign of the affected build task.
 
