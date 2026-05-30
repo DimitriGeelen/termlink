@@ -222,3 +222,39 @@ assumptions:
   linked_task: T-1800
   created: '2026-05-25'
   resolved_date: null
+- id: A-024
+  statement: AC class is detectable by prefix [REVIEW]/[RUBBER-STAMP]/unprefixed with
+    >=80% accuracy on the current 47
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1884
+  created: '2026-05-30'
+  resolved_date: null
+- id: A-025
+  statement: Most [RUBBER-STAMP] Human ACs have mechanical Steps blocks that shell-validate
+    without UI interaction
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1884
+  created: '2026-05-30'
+  resolved_date: null
+- id: A-026
+  statement: ux-review wireup needs <=1 line per-task config (URL/page-id), preserving
+    one-verb UX
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1884
+  created: '2026-05-30'
+  resolved_date: null
+- id: A-027
+  statement: Memory [Validate-don't-punt] vs T-1950 constitutional rail can be resolved
+    via per-session opt-in flag rather than picking one path
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1884
+  created: '2026-05-30'
+  resolved_date: null
