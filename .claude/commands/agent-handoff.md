@@ -36,18 +36,36 @@ Exit non-zero. Do NOT post to a non-existent task.
 
 ## Step 2: Capture self identity (for log visibility)
 
-Run:
+The wire-level envelope `sender_id` (what DM topics are keyed on and
+what handoff logs should reference) is NOT exposed by `whoami --json` —
+its `candidates[].sender_id` is structurally `null` and on shared
+hosts the response is `{ambiguous: true, candidates: [N]}`. Read the
+sender_id from the local hub's view of any topic this host has signed.
+
+**Primary path** (O(1), works for log visibility):
 
 ```
-termlink whoami --json 2>/dev/null
+termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'
 ```
 
-If single candidate: capture `sender_id`.
-If multi-candidate (multiple sessions on this hub): prefer the one whose
-`cwd` matches `$(pwd)`. If still ambiguous, fall back to the first
-candidate and note the ambiguity in the Update entry.
-If `whoami` fails: continue with `sender_id=unknown` — identity binding
-is enforced server-side once T-1427 ships, not here.
+**Fallback** if `agent-presence` has no posts on the local hub:
+
+```
+termlink channel info agent-chat-arc --json | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1
+```
+
+If both return empty: continue with `sender_id=unknown` and note in
+the Update entry. Identity binding is enforced server-side once T-1427
+ships — this skill's self-fp capture is for log audit only, not
+routing, so an `unknown` self-fp does NOT block the handoff.
+
+**Shared-host semantics (PL-195, T-1874 predecessor).** On a shared
+host (multiple claude sessions co-resident, same termlink install)
+every session signs with the same host-level identity key, so the
+resolved `sender_id` is the HOST's fingerprint, shared across every
+agent on this host until T-1693 (per-agent identity keys) ships.
+Sufficient for handoff audit; ambiguous if you need to attribute a
+handoff to a specific agent vs another agent on the same host.
 
 ## Step 3: Post to the peer
 
@@ -104,9 +122,11 @@ should still record the handoff in the task's Updates section (Step 4)
 but with topic `agent-chat-arc` instead of `dm:<a>:<b>`.
 
 The dm topic name is not in the JSON; if the user wants it for follow-up
-subscribe, derive it from `termlink whoami` (self fingerprint) and the
-target's discovered fingerprint (sorted lex), or run
-`termlink channel list --prefix "dm:<self-fp>:"` to locate it.
+subscribe, derive it from the self-fp resolved in Step 2 (via
+`channel info agent-presence`) and the target's discovered fingerprint
+(sorted lex), or run `termlink channel list --prefix "dm:<self-fp>:"`
+to locate it. Do NOT use `whoami` — its fingerprint field is unrelated
+to the envelope `sender_id` that DM topics are named with (PL-195).
 
 ## Step 4: Append Update entry to the task file
 
@@ -165,3 +185,16 @@ Expected: offset returned, T-1429 task file gets an Update entry with
 `handoff-posted [agent-handoff-skill]`, and the message lands on
 `dm:<self>:<framework-agent>` visible via
 `termlink channel subscribe dm:... --limit 1`.
+
+## Related
+
+- `/check-arc` (`T-1810` + `T-1874`) — RECEIVE side; T-1874 closed the
+  same `whoami` self-fp gap there. Step 2 in this skill applies the
+  same fix to the SEND side for log audit consistency.
+- `/be-reachable` (`T-1841`) — establishes presence on `agent-presence`,
+  which is what Step 2 reads to resolve self-fp.
+- **PL-195** — `whoami` self-fp resolution is structurally broken
+  (candidates[].sender_id always null + ambiguous on shared hosts).
+  This skill's Step 2 originally inherited that bad path.
+- **T-1693** — per-agent identity keys (structural fix; until it ships,
+  the resolved self-fp is the host signing key shared across sessions).
