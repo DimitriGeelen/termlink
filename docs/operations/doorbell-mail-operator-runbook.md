@@ -218,6 +218,39 @@ sharing your hubs. Distinguish:
 `~/.termlink/be-reachable.state` which the broadcast wrapper reads to
 populate the sender field. Or pass `--from <agent_id>` explicitly.
 
+### `could not resolve own identity_fingerprint` (PL-195)
+
+**Symptom:** `agent-send.sh --peer-fp ...` or `agent-respond.sh
+--peer-fp ...` die with `could not resolve own identity_fingerprint
+(run inside a termlink session, or pass --topic)`. Or `/check-arc` Step
+1 prints `cannot resolve self identity_fingerprint`. Surfaces on shared
+hosts (multiple co-resident claude sessions) or any host where
+`termlink whoami --json` returns `{ambiguous: true, candidates: [...]}`.
+
+**Root cause:** `whoami --json`'s `session.identity_fingerprint` (and
+`candidates[].sender_id`) does NOT expose the wire-level envelope
+`sender_id` that DM topics are keyed on. The whoami field is null on
+every host probed. The arc skills + scripts were originally authored to
+read from whoami and so silently failed.
+
+**Fix:** This is closed at all four code sites as of T-1874 (/check-arc),
+T-1875 (/agent-handoff), T-1876 (agent-send.sh + agent-respond.sh). The
+canonical resolution path is:
+
+```sh
+termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'
+# fallback if agent-presence is empty on this hub:
+termlink channel info agent-chat-arc --json | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1
+```
+
+If you're running an older binary or skill version that still reads
+whoami, upgrade via `fw upgrade` to pick up the fix.
+
+**Shared-host caveat:** On a shared host every session signs with the
+same host-level identity key, so the resolved `sender_id` is the HOST's
+fingerprint — not per-agent. `dm:<self-fp>:*` topics are functionally a
+per-host inbox until T-1693 (per-agent identity keys) ships.
+
 ### "agent-chat-arc broadcast doesn't reach peers on other hubs"
 
 **Symptom:** You posted via `termlink channel post agent-chat-arc ...`

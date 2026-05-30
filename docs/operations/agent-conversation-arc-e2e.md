@@ -193,6 +193,45 @@ though the identity model isn't.
 primitives are always attributed to the local identity. T-1391's e2e
 documents this as a CLI surface limitation, not an arc bug.
 
+## Resolving self-fp when writing new arc tooling (PL-195)
+
+When a new arc script needs the local host's envelope `sender_id` (to
+compute a `dm:<sorted self,peer>` topic, to attribute a log entry, or
+similar), do NOT read it from `termlink whoami --json`. That field
+(`session.identity_fingerprint` or `candidates[].sender_id`) is null on
+every host probed — it's a session-scoped CLI artifact distinct from
+the wire-level envelope identity.
+
+Use this instead:
+
+```sh
+self_fp="$(termlink channel info agent-presence --json 2>/dev/null \
+            | jq -r '.senders[0].sender_id // empty')"
+# Fallback if agent-presence has no posts on this hub
+# (e.g. /be-reachable was never run):
+if [ -z "$self_fp" ]; then
+    self_fp="$(termlink channel info agent-chat-arc --json 2>/dev/null \
+                | jq -r '.senders[] | select(.posts > 0) | .sender_id' \
+                | head -1)"
+fi
+[ -n "$self_fp" ] || die "could not resolve own envelope sender_id from local hub (run /be-reachable, or pass --topic explicitly)"
+```
+
+`channel info` is O(1) — it does not fetch any envelope, only the
+topic's senders manifest. The four arc call-sites that use this pattern:
+
+- `.claude/commands/check-arc.md` Step 1 (T-1874)
+- `.claude/commands/agent-handoff.md` Step 2 (T-1875)
+- `scripts/agent-send.sh` (T-1876)
+- `scripts/agent-respond.sh` (T-1876)
+
+**Shared-host caveat.** On a host where multiple termlink sessions
+coexist (same `~/.termlink/`), the resolved `sender_id` is the HOST's
+signing key shared across every session. There is no per-agent
+disambiguation at the envelope layer until T-1693 (per-agent identity
+keys). For now: treat `dm:<host-fp>:peer` as "inbox for any agent on
+this host."
+
 ## Related work
 
 - T-1384 — multi-agent readiness inception (DEFER → GO)
