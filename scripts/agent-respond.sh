@@ -64,8 +64,14 @@ done
 if [ -n "$topic" ]; then
     :
 elif [ -n "$peer_fp" ]; then
-    self_fp="$("$TERMLINK" whoami --json 2>/dev/null | jq -r '.session.identity_fingerprint // empty')"
-    [ -n "$self_fp" ] || die "could not resolve own identity_fingerprint (run inside a termlink session, or pass --topic)"
+    # PL-195: whoami --json's session.identity_fingerprint is not the wire-level
+    # envelope sender_id (it's null on every host probed). Read sender_id from
+    # the local hub's view of any topic this host has signed instead.
+    self_fp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+    if [ -z "$self_fp" ]; then
+        self_fp="$("$TERMLINK" channel info agent-chat-arc --json 2>/dev/null | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1)"
+    fi
+    [ -n "$self_fp" ] || die "could not resolve own envelope sender_id from local hub (agent-presence + agent-chat-arc both empty for this host — run /be-reachable to advertise, or pass --topic explicitly)"
     # Mirror Rust dm_topic(): lexicographic sort, my_id <= peer.
     if [[ "$self_fp" < "$peer_fp" || "$self_fp" == "$peer_fp" ]]; then
         topic="dm:${self_fp}:${peer_fp}"
