@@ -28,11 +28,25 @@ actual receipt + reply (so the protocol stays in one place).
 | Form | Action |
 |------|--------|
 | `/reply <peer-short> "<text>"` | Reply to peer's latest cid with `<text>` |
+| `/reply <peer-short> "<text>" --cid CID` | Target a specific cid (skip auto-extract). T-1882. |
 | `/reply <peer-short> "<text>" --ensure-cid` | Mint fresh cid if topic has none |
 | `/reply <peer-short> "<text>" --dry-run` | Print resolved topic + cid + delegated command, do NOT post |
 | `/reply <peer-short> "<text>" --hub addr` | Restrict topic discovery to one hub |
 | `/reply <peer-short> "<text>" --self ID` | Override self-fp resolution |
 | `/reply <peer-short> "<text>" --json` | Emit JSON envelope after success |
+
+`--cid` and `--ensure-cid` are mutually exclusive (override existing vs
+mint new — pick one). The typical `--cid` flow:
+
+```
+/recent-dm <peer> --since 720    # see distinct cids in CID column (T-1881)
+/reply <peer> "..." --cid <chosen-cid>
+```
+
+Use `--cid` when a topic has multiple parallel threads and you want to
+respond on a non-latest one. Default behavior (no `--cid`, no
+`--ensure-cid`) is "use whatever cid the highest-offset envelope carries"
+— right answer 90% of the time.
 
 The peer-substring is matched against `dm:*` topic names. It typically
 is a 16-hex envelope sender_id (or a recognizable infix). It must be
@@ -124,6 +138,11 @@ verbatim and stop. Do NOT improvise an alternative.
   the right behavior. `--ensure-cid` is for converting a chat-style
   thread to a structured one, or for first-reply on a topic that was
   created by direct `channel dm`.
+- **Use `--cid` for explicit thread targeting (T-1882).** When a topic
+  has multiple concurrent cids visible in `/recent-dm`, `--cid <CID>`
+  bypasses the "latest envelope wins" auto-extract. Pair with
+  `/recent-dm` first (its CID column shows the available threads —
+  T-1881). Mutually exclusive with `--ensure-cid`.
 - **Do not use `AskUserQuestion`.** Just run and report.
 
 ## Pair with
@@ -160,8 +179,17 @@ verbatim and stop. Do NOT improvise an alternative.
 /reply 9219671e "starting structured thread re T-1880" --ensure-cid
 ```
 
+**Target a specific non-latest cid (T-1882):**
+
+```
+/recent-dm 9219671e --since 720    # see CID column, pick one
+/reply 9219671e "reviving T-1881 thread" --cid reply-20260530T161523Z
+```
+
 ## Related
 
+- T-1882 (this skill's `--cid` flag + mutual exclusion with `--ensure-cid`)
+- T-1881 (CID column in `/recent-dm` — the read companion that makes `--cid` selectable)
 - T-1880 (the underlying script + this skill)
 - T-1431, T-1429 (the SEND-side counterparts — `/agent-handoff` +
   `termlink agent contact`)

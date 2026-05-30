@@ -49,12 +49,18 @@ Options:
                        chat-arc fallback. PL-195 canonical chain.
   --hub addr           Restrict topic discovery to a single hub. Default:
                        scan local hub via `channel list`.
+  --cid CID            Bypass auto-extraction and reply on this specific
+                       conversation_id. Use when a topic has multiple
+                       concurrent threads (visible via `/recent-dm` CID
+                       column post-T-1881) and you want to target an
+                       older one — not the latest. Mutually exclusive
+                       with --ensure-cid.
   --ensure-cid         If the resolved topic carries no envelope with
                        `metadata.conversation_id`, mint a fresh cid
                        (`reply-<utc-iso>`) instead of refusing. Use when
                        you know you're starting a new structured thread
                        on a topic that previously held only chat-msg-type
-                       envelopes.
+                       envelopes. Mutually exclusive with --cid.
   --dry-run            Print resolved topic + cid + delegated command, do
                        NOT call agent-respond.sh.
   --json               Emit JSON envelope to stdout after success.
@@ -72,6 +78,7 @@ reply_text=""
 SELF_OVERRIDE=""
 HUB=""
 ENSURE_CID=0
+CID_OVERRIDE=""
 DRY_RUN=0
 JSON_OUT=0
 
@@ -80,6 +87,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --self)        SELF_OVERRIDE="${2:-}"; shift 2 ;;
         --hub)         HUB="${2:-}"; shift 2 ;;
+        --cid)         CID_OVERRIDE="${2:-}"; shift 2 ;;
         --ensure-cid)  ENSURE_CID=1; shift ;;
         --dry-run)     DRY_RUN=1; shift ;;
         --json)        JSON_OUT=1; shift ;;
@@ -95,6 +103,12 @@ peer_substr="${positionals[0]}"
 reply_text="${positionals[1]}"
 [ -n "$peer_substr" ] || die "peer-substring is empty"
 [ -n "$reply_text" ] || die "reply text is empty (refusing to post empty turn)"
+
+# --cid and --ensure-cid are orthogonal levers — combining them is operator
+# confusion (override an existing cid vs mint a new one) so refuse fast.
+if [ -n "$CID_OVERRIDE" ] && [ "$ENSURE_CID" -eq 1 ]; then
+    die "--cid and --ensure-cid are mutually exclusive (override existing vs mint new — pick one)"
+fi
 
 command -v jq >/dev/null 2>&1 || die "jq not in PATH"
 [ -x "$AGENT_RESPOND" ] || die "scripts/agent-respond.sh not executable at $AGENT_RESPOND"
@@ -143,20 +157,28 @@ case "${#matched[@]}" in
         ;;
 esac
 
-# --- cid extraction ---------------------------------------------------------
-# Read the topic's latest envelope (cursor=highest known offset) and pull
-# metadata.conversation_id. `channel subscribe --limit 100` gives us the most
-# recent batch; we scan for the highest offset that has a cid.
-latest_envs="$("$TERMLINK" channel subscribe "$topic" --limit 100 --json 2>/dev/null || true)"
-cid="$(printf '%s' "$latest_envs" \
-        | jq -sr 'map(select(.metadata.conversation_id != null)) | sort_by(.offset) | .[-1].metadata.conversation_id // empty')"
+# --- cid resolution ---------------------------------------------------------
+# T-1882: --cid CID short-circuits auto-extraction so the operator can target
+# a non-latest thread on a topic with multiple concurrent cids (e.g. read
+# them via /recent-dm's CID column, pick one, pass it here).
+if [ -n "$CID_OVERRIDE" ]; then
+    cid="$CID_OVERRIDE"
+    echo "agent-reply: using operator-supplied cid='$cid' (--cid override; auto-extraction skipped)" >&2
+else
+    # Read the topic's latest envelope (cursor=highest known offset) and pull
+    # metadata.conversation_id. `channel subscribe --limit 100` gives us the most
+    # recent batch; we scan for the highest offset that has a cid.
+    latest_envs="$("$TERMLINK" channel subscribe "$topic" --limit 100 --json 2>/dev/null || true)"
+    cid="$(printf '%s' "$latest_envs" \
+            | jq -sr 'map(select(.metadata.conversation_id != null)) | sort_by(.offset) | .[-1].metadata.conversation_id // empty')"
 
-if [ -z "$cid" ]; then
-    if [ "$ENSURE_CID" -eq 1 ]; then
-        cid="reply-$(date -u +%Y%m%dT%H%M%SZ)"
-        echo "agent-reply: no existing conversation_id on '$topic' — minted '$cid' (--ensure-cid)" >&2
-    else
-        die "no envelope on '$topic' carries metadata.conversation_id. Hint: pass --ensure-cid to mint a fresh thread (reply-<utc-iso>), or use /agent-handoff to open a structured thread."
+    if [ -z "$cid" ]; then
+        if [ "$ENSURE_CID" -eq 1 ]; then
+            cid="reply-$(date -u +%Y%m%dT%H%M%SZ)"
+            echo "agent-reply: no existing conversation_id on '$topic' — minted '$cid' (--ensure-cid)" >&2
+        else
+            die "no envelope on '$topic' carries metadata.conversation_id. Hint: pass --ensure-cid to mint a fresh thread (reply-<utc-iso>), --cid <CID> to target an existing one explicitly, or use /agent-handoff to open a structured thread."
+        fi
     fi
 fi
 
@@ -164,7 +186,7 @@ fi
 respond_cmd=(bash "$AGENT_RESPOND" --topic "$topic" --conversation-id "$cid" --reply "$reply_text")
 
 if [ "$DRY_RUN" -eq 1 ]; then
-    echo "agent-reply: [DRY-RUN] resolved topic='$topic' cid='$cid'"
+    echo "agent-reply: [DRY-RUN] resolved topic='$topic' cid='$cid' self='$SELF_FP'"
     echo "agent-reply: [DRY-RUN] would run: ${respond_cmd[*]}"
     exit 0
 fi
