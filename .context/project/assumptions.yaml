@@ -225,12 +225,17 @@ assumptions:
 - id: A-024
   statement: AC class is detectable by prefix [REVIEW]/[RUBBER-STAMP]/unprefixed with
     >=80% accuracy on the current 47
-  status: untested
+  status: validated
   validation_method: TBD
-  evidence: []
+  evidence:
+  - outcome: 'S1 classifier achieves 87.5% (63/72) confident routing on current 72-AC
+      corpus. See docs/reports/T-1884-S1-results.md. Taxonomy required 7 classes (3
+      added beyond filing-time spec: OBSERVE-INFRA, OPERATOR-ACTION, TIME-GATED) plus
+      RUBBER-STAMP prefix-trust default.'
+    date: '2026-05-30'
   linked_task: T-1884
   created: '2026-05-30'
-  resolved_date: null
+  resolved_date: '2026-05-30'
 - id: A-025
   statement: Most [RUBBER-STAMP] Human ACs have mechanical Steps blocks that shell-validate
     without UI interaction

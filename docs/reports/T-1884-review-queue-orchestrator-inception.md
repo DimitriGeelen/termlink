@@ -128,24 +128,85 @@ underlying Playwright path) to capture:
 **Pass:** evidence-block-only is enough for operator rubber-stamp.
 **Fail:** per-task config (URL/route/page-id) explosion — nullifies one-verb UX.
 
-## Open questions for operator
+## Decided (2026-05-30 operator dialogue)
 
-1. **Tick-on-mechanical-PASS default** — OFF (constitutional default) vs ON
-   (memory-blessed default). Recommend: OFF default, `--tick-mechanical-pass`
-   opt-in flag per invocation.
+**D1 — Tick-on-mechanical-PASS default: ON, gated on independent reviewer.**
+Auto-tick is allowed BUT only when a separate reviewer agent (distinct context
+from the producer) emits a PASS verdict. The producer agent NEVER ticks own
+work. This is the same anti-bias rail T-1443/T-1950 already applies to
+`[REVIEWER]`-Agent ACs, extended to `[RUBBER-STAMP]`-mechanical Human ACs.
 
-2. **Verb name** — `fw drain-review`, `fw review-queue`, `fw triage-review`,
-   `fw review-orchestrate`. Recommend: `fw drain-review` (verb-first, intent
-   explicit).
+**D2 — Verb name: `fw independent-review`.** Names the load-bearing rail
+(independence) rather than the action (drain). Operator-typed.
 
-3. **Batch vs per-task UX** — `fw drain-review` (all 47 in one pass) vs `fw
-   drain-review T-XXX` (one). Recommend: support both, batch is default with
-   `--task T-XXX` filter.
+**D3 — UX: hybrid Option C with isolation rail.**
+- `fw independent-review` (no args) → batch over all `partial-complete`
+- `fw independent-review T-XXX` → one task
+- `fw independent-review --since 7d`, `--class rubber-stamp`, `--resume`
+  → filtered batch
+- **Isolation rail (operator-specified):** each reviewer instance works on
+  EXACTLY ONE task at a time. The orchestrator may run reviewers sequentially
+  OR dispatch multiple in parallel (each handling its own one task) — both are
+  legal, but no reviewer ever crosses task boundaries. State journaled to
+  `.context/working/.independent-review-state.json` for crash-safe resume.
+- Dispatch mechanism for parallel mode is TBD in build phase (likely
+  termlink-dispatched reviewer agents on separate hosts, or Claude Code
+  sub-agents on this host — explicitly NOT `claude -p` per memory
+  `feedback_avoid_claude_p_expensive.md`).
 
-4. **Auto-followup-filing threshold** — file `T-XXXX investigate-and-fix` on
-   FAIL always, or only when FAIL evidence is definitive (e.g. `curl 404` not
-   `curl no-network`)? Recommend: only on definitive (`PASS-FAIL` vs
-   `FAIL-INCONCLUSIVE`); inconclusive surfaces in Updates without filing.
+**D4 — Auto-followup filing: always, even on INCONCLUSIVE.** Anti-pile-up
+default. Every non-PASS result fires `T-XXXX investigate-T-<src>` with G-019
+RCA stub. Operator gets explicit next-actions, not silent surface-only that
+gets ignored. The 47-task pile-up that motivated this inception is precisely
+the failure mode being designed against.
+
+## Spike results
+
+### S1 — AC classifier (COMPLETE, PASS at 87.5%)
+
+**Round 1** (initial taxonomy): 65.3% confident (47/72). MARGINAL — failure
+mode interpretable: needed 3 more classes (OBSERVE-INFRA, OPERATOR-ACTION,
+TIME-GATED) + RUBBER-STAMP prefix-trust.
+
+**Round 2** (refined): **87.5% confident (63/72). PASS.** Final distribution:
+
+| Class | Count | Conf% |
+|---|---:|---:|
+| REVIEW-CLI | 32 | 94% |
+| RUBBER-STAMP-MECHANICAL | 9 | 100% |
+| REVIEW-RENDER | 8 | 88% |
+| OBSERVE-INFRA | 7 | 100% |
+| OPERATOR-ACTION | 6 | 100% |
+| TIME-GATED | 3 | 100% |
+| RUBBER-STAMP-RELEASE | 1 | 100% |
+| OTHER | 6 | 0% |
+
+**Drain split:**
+- Auto-validatable (REVIEW-CLI + REVIEW-RENDER + RUBBER-STAMP-* + OBSERVE-INFRA):
+  **57 of 72 = 79%** — orchestrator can dry-run + surface evidence
+- Surface-only (OPERATOR-ACTION + TIME-GATED + OTHER):
+  **15 of 72 = 21%** — orchestrator surfaces "needs human" with no verdict
+
+**A1 status:** VALIDATED. Prefix + content-keyword classification achieves
+≥80% confident routing on the current 72-AC corpus.
+
+**Evidence:** `docs/reports/T-1884-S1-results.md` (108-line full output);
+`scripts/T-1884-S1-classify.py` (165-line classifier).
+
+**Taxonomy updates beyond filing-time spec:**
+- Added OBSERVE-INFRA (state observation against remote host — `termlink
+  remote exec`, hub probe). Origin: T-1137's "/var/log below 50%" type ACs.
+- Added OPERATOR-ACTION (human must do first — rotate PAT, decide). Origin:
+  T-1695 / T-1799 PAT rotation flow.
+- Added TIME-GATED (deferred event — "on next deploy"). Origin: T-1633's
+  post-bake observation pattern.
+- RUBBER-STAMP prefix-trust: absent stronger signal, default to MECHANICAL
+  on the prefix alone. The orchestrator dry-runs Steps as the confirmation
+  mechanism.
+
+### S2 — Mechanical-Step dry-run (PENDING)
+
+### S3 — ux-review wireup smoke (PENDING)
 
 ## Dialogue Log
 
