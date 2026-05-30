@@ -4,7 +4,7 @@ name: "Consumer-side review-agent orchestrator — drain review-waiting queue (f
 description: >
   Inception: Consumer-side review-agent orchestrator — drain review-waiting queue (fw reviewer + ux-review + shell-validate + auto-followup)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T20:30:58Z
-last_update: 2026-05-30T20:33:38Z
-date_finished: null
+last_update: 2026-05-30T21:57:25Z
+date_finished: 2026-05-30T21:57:25Z
 ---
 
 # T-1884: Consumer-side review-agent orchestrator — drain review-waiting queue (fw reviewer + ux-review + shell-validate + auto-followup)
@@ -157,15 +157,15 @@ that nullifies "one verb" UX, this spike fails the inception.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -221,9 +221,23 @@ that nullifies "one verb" UX, this spike fails the inception.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- **S1 (classifier):** 87.5% confident routing on 72 unchecked Human ACs across 63 tasks. 9-class taxonomy validates A-024.
+  - `docs/reports/T-1884-S1-results.md` — full output
+  - `scripts/T-1884-S1-classify.py` — 165-line classifier
+- **S2 (mechanical-Step dry-run):** 25% first-round PASS-LOOSE; gap is parser+remote-exec, not structural NO-GO. Real bug surfaced as proof-of-design-value: T-1696 cron drift.
+  - `docs/reports/T-1884-S2-results.md` — 16 ACs, 223 lines
+  - `scripts/T-1884-S2-dryrun.py` — safety-classifier + executor
+- **S3 (CLI-watch validator):** PASS-LOOSE on T-1486 — frame-capture technique works. Reframed: A-026 was about ux-review, but the 8 REVIEW-RENDER ACs are actually `--watch` CLI not browser UI. CLI-watch validator is correct tool.
+  - `docs/reports/T-1884-S3-results.md`
+  - `scripts/T-1884-S3-cli-watch.py`
+- **Synthesis:** `docs/reports/T-1884-review-queue-orchestrator-inception.md` (final form with Recommendation section)
+
+**Refined MVP scope (replaces filing-time framing):**
+- v0.1 local-only ships REVIEW-CLI (32) + CLI-WATCH (8) + RUBBER-STAMP-RELEASE (1) = 41 ACs / 56% of queue
+- v0.2 adds remote-exec → +RUBBER-STAMP-MECHANICAL (9) + OBSERVE-INFRA (7) = 57 ACs / 79% of queue
+- Surface-only: OPERATOR-ACTION (6) + TIME-GATED (3) + OTHER (6) = 15 ACs / 21% — no validator possible by definition
+
+**Assumption results:** A-024 ✓, A-025 ✓ (with caveats), A-026 ✓ (reframed), A-027 ✓.
 
 ## Decisions
 
@@ -238,7 +252,35 @@ that nullifies "one verb" UX, this spike fails the inception.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+47 review-waiting tasks unchanged for 2+ weeks despite three discovery skills (recent-dm, check-arc, reply) shipping in same session. Upstream T-1950 + T-1443 already designed reviewer auto-tick for [REVIEWER]-Agent ACs and ux-review for [REVIEW] UI ACs — no constitutional new ground. Gap is a consumer-side orchestrator that routes by AC class (REVIEWER → static scan + auto-tick, REVIEW → ux-review surface, RUBBER-STAMP → shell-validate Steps), surfaces evidence in Updates + Watchtower, and auto-files investigate-and-fix on FAIL. Modest design surface (~3-spike inception): which path for mechanical RUBBER-STAMP under ### Human (constitutional surface vs memory-blessed tick), batch vs per-task UX, follow-up filing semantics. Direct value: drain a 47-deep queue with one operator verb instead of 47 manual click-throughs.
+
+Evidence:
+
+- S1 (classifier): 87.5% confident routing on 72 unchecked Human ACs across 63 tasks. 9-class taxonomy validates A-024.
+  - `docs/reports/T-1884-S1-results.md` — full output
+  - `scripts/T-1884-S1-classify.py` — 165-line classifier
+- S2 (mechanical-Step dry-run): 25% first-round PASS-LOOSE; gap is parser+remote-exec, not structural NO-GO. Real bug surfaced as proof-of-design-value: T-1696 cron drift.
+  - `docs/reports/T-1884-S2-results.md` — 16 ACs, 223 lines
+  - `scripts/T-1884-S2-dryrun.py` — safety-classifier + executor
+- S3 (CLI-watch validator): PASS-LOOSE on T-1486 — frame-capture technique works. Reframed: A-026 was about ux-review, but the 8 REVIEW-RENDER ACs are actually `--watch` CLI not browser UI. CLI-watch validator is correct tool.
+  - `docs/reports/T-1884-S3-results.md`
+  - `scripts/T-1884-S3-cli-watch.py`
+- Synthesis: `docs/reports/T-1884-review-queue-orchestrator-inception.md` (final form with Recommendation section)
+
+Refined MVP scope (replaces filing-time framing):
+- v0.1 local-only ships REVIEW-CLI (32) + CLI-WATCH (8) + RUBBER-STAMP-RELEASE (1) = 41 ACs / 56% of queue
+- v0.2 adds remote-exec → +RUBBER-STAMP-MECHANICAL (9) + OBSERVE-INFRA (7) = 57 ACs / 79% of queue
+- Surface-only: OPERATOR-ACTION (6) + TIME-GATED (3) + OTHER (6) = 15 ACs / 21% — no validator possible by definition
+
+Assumption results: A-024 ✓, A-025 ✓ (with caveats), A-026 ✓ (reframed), A-027 ✓.
+
+**Date**: 2026-05-30T21:57:25Z
 
 ## Updates
 
@@ -247,3 +289,45 @@ that nullifies "one verb" UX, this spike fails the inception.
 
 ### 2026-05-30T20:33:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-30T21:57:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+47 review-waiting tasks unchanged for 2+ weeks despite three discovery skills (recent-dm, check-arc, reply) shipping in same session. Upstream T-1950 + T-1443 already designed reviewer auto-tick for [REVIEWER]-Agent ACs and ux-review for [REVIEW] UI ACs — no constitutional new ground. Gap is a consumer-side orchestrator that routes by AC class (REVIEWER → static scan + auto-tick, REVIEW → ux-review surface, RUBBER-STAMP → shell-validate Steps), surfaces evidence in Updates + Watchtower, and auto-files investigate-and-fix on FAIL. Modest design surface (~3-spike inception): which path for mechanical RUBBER-STAMP under ### Human (constitutional surface vs memory-blessed tick), batch vs per-task UX, follow-up filing semantics. Direct value: drain a 47-deep queue with one operator verb instead of 47 manual click-throughs.
+
+Evidence:
+
+- S1 (classifier): 87.5% confident routing on 72 unchecked Human ACs across 63 tasks. 9-class taxonomy validates A-024.
+  - `docs/reports/T-1884-S1-results.md` — full output
+  - `scripts/T-1884-S1-classify.py` — 165-line classifier
+- S2 (mechanical-Step dry-run): 25% first-round PASS-LOOSE; gap is parser+remote-exec, not structural NO-GO. Real bug surfaced as proof-of-design-value: T-1696 cron drift.
+  - `docs/reports/T-1884-S2-results.md` — 16 ACs, 223 lines
+  - `scripts/T-1884-S2-dryrun.py` — safety-classifier + executor
+- S3 (CLI-watch validator): PASS-LOOSE on T-1486 — frame-capture technique works. Reframed: A-026 was about ux-review, but the 8 REVIEW-RENDER ACs are actually `--watch` CLI not browser UI. CLI-watch validator is correct tool.
+  - `docs/reports/T-1884-S3-results.md`
+  - `scripts/T-1884-S3-cli-watch.py`
+- Synthesis: `docs/reports/T-1884-review-queue-orchestrator-inception.md` (final form with Recommendation section)
+
+Refined MVP scope (replaces filing-time framing):
+- v0.1 local-only ships REVIEW-CLI (32) + CLI-WATCH (8) + RUBBER-STAMP-RELEASE (1) = 41 ACs / 56% of queue
+- v0.2 adds remote-exec → +RUBBER-STAMP-MECHANICAL (9) + OBSERVE-INFRA (7) = 57 ACs / 79% of queue
+- Surface-only: OPERATOR-ACTION (6) + TIME-GATED (3) + OTHER (6) = 15 ACs / 21% — no validator possible by definition
+
+Assumption results: A-024 ✓, A-025 ✓ (with caveats), A-026 ✓ (reframed), A-027 ✓.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7f338264
+- **Timestamp:** 2026-05-30T21:57:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T21:57:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

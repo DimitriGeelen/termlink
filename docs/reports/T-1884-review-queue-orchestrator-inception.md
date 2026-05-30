@@ -204,9 +204,122 @@ TIME-GATED) + RUBBER-STAMP prefix-trust.
   on the prefix alone. The orchestrator dry-runs Steps as the confirmation
   mechanism.
 
-### S2 — Mechanical-Step dry-run (PENDING)
+### S2 — Mechanical-Step dry-run (COMPLETE, PARTIAL — gap-interpretable)
 
-### S3 — ux-review wireup smoke (PENDING)
+16 ACs targeted (9 RUBBER-STAMP-MECHANICAL + 7 OBSERVE-INFRA from S1).
+Verdict distribution:
+
+| Verdict | Count | % |
+|---|---:|---:|
+| PASS-LOOSE | 4 | 25% |
+| OPERATOR-ONLY | 3 | 19% |
+| FAIL | 5 | 31% |
+| INCONCLUSIVE | 4 | 25% |
+
+**A-025 status: validated WITH CAVEATS.** First-round dry-run yields 25%
+auto-validatable, below the 15/47 threshold. The gap is **interpretable
+not structural**:
+
+1. **Parser limitations** — multi-line shell, pipes, `$(...)` subshells,
+   redirects → classified UNKNOWN, artificially deflating SAFE count
+2. **Remote-exec gap** — MECHANICAL ACs for `.122`/`.121`/`.141`/`.180`/`.107`
+   ran LOCALLY → false FAIL (T-1296 step 1 `ls /root/*/scripts/*watchdog*.sh`
+   on local found nothing because it's for .121)
+3. **Expected-block substring matching is weak** — "All green, fleet PASS 3/3"
+   needs structured assertion, not raw grep
+
+**Real-bug surfaced by spike (value-already-delivered):** T-1696's
+**Steps:** declare the installed crontab to be byte-identical to source.
+S2's `diff /etc/cron.d/termlink-release-mirror-canary /opt/termlink/.context/cron/release-mirror-canary.crontab`
+returned **exit=1, output `17a18,24`** — they are NOT byte-identical.
+The AC's "ALREADY DONE" claim is now false. This is exactly the regression
+the orchestrator's design-value catches.
+
+**Evidence:** `docs/reports/T-1884-S2-results.md` (223-line full output);
+`scripts/T-1884-S2-dryrun.py` (~280 lines with safety classifier).
+
+**Structural fix path for v0.2:** extend command classifier (UNKNOWN → SAFE
+where possible), add `termlink remote exec` routing per AC target-host hint,
+upgrade Expected-block from substring to structured assertion (`exit==0`,
+`grep -q`, output JSON schema validation).
+
+### S3 — CLI-watch render validator (COMPLETE, PASS-LOOSE)
+
+**Filing-time A-026 was reframed.** The original assumption named
+`ux-review` (browser-driving Playwright) as the validator for REVIEW-RENDER
+ACs. S3 investigation revealed: ALL 8 REVIEW-RENDER ACs from S1 are
+`--watch` CLI views (terminal redraw via ANSI 2J+H), NOT browser-driven UI.
+ux-review's actual surface is Watchtower itself; zero of the 47 target a
+Watchtower page review.
+
+**Right validator: CLI-watch frame-capture.** Capture pty output via
+`script -c "timeout N <cmd>"`, split on `\x1b[2J\x1b[H` (the clear+home
+redraw marker), normalize timestamps + ANSI, assert frame-body identity →
+"steady" verdict.
+
+**Smoke on T-1486 (`agent presence --watch --watch-interval 2`):**
+- 8s capture, 4 frames as expected
+- 2 distinct frame-bodies modulo timestamp normalization → PASS-LOOSE
+- No flicker pattern detected
+
+**A-026 status: VALIDATED (reframed).** Per-task config is 1 line
+(cmd + interval) — preserves one-verb UX. Evidence:
+`docs/reports/T-1884-S3-results.md`, `scripts/T-1884-S3-cli-watch.py`.
+
+## Inception Recommendation (Final)
+
+**GO — but with narrower MVP scope than filing-time spec.**
+
+### MVP v0.1 — local-only, 41-AC drain (56% of queue)
+
+| Class | Count | Validator |
+|---|---:|---|
+| REVIEW-CLI | 32 | `script -c` capture + grep Expected keywords |
+| CLI-WATCH | 8 | frame-capture + stability check (S3-proven) |
+| RUBBER-STAMP-RELEASE | 1 | `gh release view` |
+
+No remote-exec required. Builds on proven techniques (S1 classifier + S3
+frame-capture). Anti-bias rail: each task reviewed in an **independent**
+agent context (sub-agent via Claude Code Agent tool, or termlink-dispatched
+fresh session), never by the producer.
+
+### MVP v0.2 — adds remote-exec, 16 more ACs
+
+| Class | Count | Validator |
+|---|---:|---|
+| RUBBER-STAMP-MECHANICAL | 9 | extended classifier + `termlink remote exec` |
+| OBSERVE-INFRA | 7 | `termlink remote exec` against fleet hosts |
+
+### Surface-only (no validator possible)
+
+| Class | Count | Action |
+|---|---:|---|
+| OPERATOR-ACTION | 6 | surface "human-must-do" with copy-pasteable Steps |
+| TIME-GATED | 3 | surface "pending event X" with check-back date |
+| OTHER | 6 | surface for manual sort, no verdict |
+
+### Key design decisions (already in artifact above)
+
+- **D1** Tick-on-mechanical-PASS: default OFF, `--tick-mechanical-pass`
+  opt-in; gated on independent reviewer agent
+- **D2** Verb name: `fw independent-review`
+- **D3** Hybrid Option C UX (batch default + per-task + resume) with
+  isolation rail (each reviewer instance = exactly one task)
+- **D4** Auto-followup filing: always, even on INCONCLUSIVE (anti-pile-up)
+
+### Build task split (if operator GOs)
+
+1. **T-XXXX (build):** `fw independent-review` v0.1 — REVIEW-CLI + CLI-WATCH
+   + RUBBER-STAMP-RELEASE validators + independent-reviewer rail + Updates
+   surfacing + auto-followup filing
+2. **T-XXXX (build):** v0.2 — RUBBER-STAMP-MECHANICAL + OBSERVE-INFRA with
+   remote-exec routing
+3. **T-XXXX (fix):** T-1696 cron drift — surfaced by S2, file independently
+   (one-bug-one-task)
+4. **T-XXXX (fix or refresh):** T-1431 skill-e2e — S2 found `dm:handoff-rubber*`
+   missing on chat-arc; either evidence is stale or skill regressed
+
+
 
 ## Dialogue Log
 
