@@ -110,7 +110,7 @@ check-arc: <N> topic(s) with pending DMs
 
   dm:<peer-short>...    unread=<count>  latest_offset=<offset>
     last sender: <peer-fp-short>
-    peek: termlink channel subscribe <topic> --since-offset <last-acked> --limit <count>
+    peek: /recent-dm <peer-short> --since 720
 
   dm:<peer-short-2>...  unread=<count>  latest_offset=<offset>
     ...
@@ -144,7 +144,7 @@ If `unread_count > 0`, append to the summary:
 
 ```
 + agent-chat-arc broadcast: unread=<count>  latest_offset=<offset>
-    peek: termlink channel subscribe agent-chat-arc --since-offset <last-acked> --limit <count>
+    peek: /recent-chat <count>
     ack: termlink channel ack agent-chat-arc
 ```
 
@@ -211,6 +211,9 @@ broadcasts.
   sender_id this skill reads in Step 1
 - `/recent-dm` (`T-1862`) — per-peer DM history; pair after Step 4 reveals
   an unread topic and you want thread context before replying
+- `/recent-chat` (`T-1851`) — fleet-wide agent-chat-arc digest; pair after
+  Step 5 reveals unread broadcasts and you want the actual posts rendered
+  with sender + payload preview
 - `scripts/agent-respond.sh` (`T-1805`) — deterministic ack+reply verb
   used by Step 6 (respond mode)
 - **PL-195** — `whoami --json` doesn't expose the envelope `sender_id` and
