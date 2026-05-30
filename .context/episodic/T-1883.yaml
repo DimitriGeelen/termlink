@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1883: check-arc: surface latest cid per unread DM topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T16:40:35Z
+# ============================================================================
+
+task_id: T-1883
+task_name: "check-arc: surface latest cid per unread DM topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-30T16:37:38Z
+completed: 2026-05-30T16:40:33Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-30T18:40:29+02:00
+last_commit: 2026-05-30T18:40:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /check-arc Steps 3-4 — surface latest cid per unread DM topic
+
+# Key outcomes
+outcomes:
+  - "Cid-extract one-liner works on a real DM topic (sanity check that the jq path returns the load-bearing cid)"
+  - "`.claude/commands/check-arc.md` Step 3 includes a per-topic cid-extraction sub-step (using the same `channel subscribe --limit 5 --json | jq` shape as T-1880's agent-reply.sh)"
+  - "`.claude/commands/check-arc.md` Step 4 renders `latest_cid=<short>` (or `latest_cid=-` if none) on each topic row"
+  - "Step 4's reply-hint footer points at the right verb per cid state (cid present → `/reply <peer>`, cid missing → `/reply <peer> --ensure-cid`)"
+  - "Cross-link maintained: Related footer / Pair-with section references T-1881 + T-1882"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/check-arc.md"
+  - ".tasks/active/T-1883-check-arc-surface-latest-cid-per-unread-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T18:40:29"
+    action: "T-1883: /check-arc Steps 3-4 — surface latest cid per unread DM topic"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 180
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1883-check-arc-surface-latest-cid-per-unread-.md
+generated_by: context-agent-hybrid
