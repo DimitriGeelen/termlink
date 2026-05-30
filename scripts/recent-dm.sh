@@ -62,9 +62,12 @@ Required:
                        generic strings (e.g. "claude") may match many topics.
 
 Options:
-  --self ID            Override self identity match (default: agent_id from
-                       ~/.termlink/be-reachable.state, falls back to no
-                       self-filter — every peer<->X topic shown).
+  --self ID            Override self identity match. Default (T-1878, PL-195):
+                       envelope sender_id from `channel info agent-presence`
+                       (matches dm:* topic naming), with chat-arc fallback,
+                       with be-reachable.state agent_id as last-resort. Pass
+                       explicit --self to force a specific fingerprint or to
+                       disable the auto-detect on a host with mixed signers.
   --limit N            Posts to keep per topic (default 20, max 200)
   --since N            Look-back window in hours (default 24, clamp 1..720)
   --hub addr           Restrict topic discovery to a single hub
@@ -138,11 +141,29 @@ case "$SINCE_HOURS" in ''|*[!0-9]*) die_usage "--since must be a positive intege
 command -v jq >/dev/null 2>&1 || die_setup "jq not in PATH"
 
 # Resolve self identity.
+#
+# T-1878 / PL-195 propagation: DM topics are named `dm:<envelope_sender_id>:<envelope_sender_id>`
+# where envelope_sender_id is the wire-level sender (host signing fingerprint on shared
+# hosts). The previous default — `agent_id` from ~/.termlink/be-reachable.state — is the
+# *presence display name* (e.g. "root-claude-dimitrimintdev"), NOT the envelope sender_id.
+# On shared hosts the presence name never appears in any DM topic name, so the default
+# self-filter silently matched zero topics. Use the same `channel info` path that
+# check-arc.md / agent-handoff.md / agent-send.sh / agent-respond.sh all resolved to in
+# T-1874..T-1877: read sender_id directly from a topic this host has signed.
 SELF_ID=""
 if [ -n "$SELF_OVERRIDE" ]; then
     SELF_ID="$SELF_OVERRIDE"
-elif [ -f "$BE_REACHABLE_STATE" ]; then
-    SELF_ID="$(jq -r '.agent_id // empty' "$BE_REACHABLE_STATE" 2>/dev/null || echo '')"
+else
+    SELF_ID="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+    if [ -z "$SELF_ID" ]; then
+        SELF_ID="$("$TERMLINK" channel info agent-chat-arc --json 2>/dev/null | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1)"
+    fi
+    # Last-resort fallback: be-reachable agent_id (legacy path, kept for environments
+    # where presence-name and wire-fp happen to coincide — e.g. per-agent-key hosts
+    # post-T-1693). Only used when both `channel info` paths returned empty.
+    if [ -z "$SELF_ID" ] && [ -f "$BE_REACHABLE_STATE" ]; then
+        SELF_ID="$(jq -r '.agent_id // empty' "$BE_REACHABLE_STATE" 2>/dev/null || echo '')"
+    fi
 fi
 
 # Helper to invoke the underlying reader for one topic.
