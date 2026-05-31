@@ -12,7 +12,7 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-05-31T18:00:00Z
+last_update: 2026-05-31T17:56:25Z
 date_finished: null
 ---
 
@@ -109,9 +109,10 @@ S8. **Cross-cutting: identity-key handling.** A vendored host's identity key mus
 <!-- @auto-tick-on-decide -->
 - [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
-  1. Run: `fw task review T-1898` (opens Watchtower)
+  1. Open Watchtower inception page: http://192.168.10.107:3003/inception/T-1898
+     (NOT /review/T-1898 — that's the general task-AC review page; inception decisions live on /inception/<id> which has the GO/NO-GO/DEFER form)
   2. Review the Recommendation + cost model + architecture choice
-  3. Record decision via `fw inception decide T-1898 go|no-go|defer --rationale "..."`
+  3. Submit decision via the form on that page, OR via CLI: `fw inception decide T-1898 go|no-go|defer --rationale "..."`
   **Expected:** Decision recorded with rationale
   **If not:** Ask agent for clarification on specific assumption or cost-line
 
