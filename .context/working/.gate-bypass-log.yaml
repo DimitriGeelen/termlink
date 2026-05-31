@@ -1176,3 +1176,20 @@ git status --shor'
     Output: EMPTY (zero rows with count>1). Matches AC Expected.
     Code inspection: scripts/agent-chat-arc-recent.sh:279-288 has T-1890 group_by dedup.
   actor: claude-opus-4-7-via-claude-code
+
+- timestamp: 2026-05-31T16:35Z
+  task: T-1891
+  gate: human-ac-tick-guard
+  bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
+  ac_kind: RUBBER-STAMP
+  rationale: |
+    Live executed all 4 AC Steps this session:
+      Step 1 (--help): printed "T-1891 — /check-outbox: OUTBOUND complement of /check-arc."
+      Step 2 (local):  surfaced 5 local dm:* topics with unread peer (sample
+                       d1993c2c3ec44c94:ffff0000aaaa1111 unread=2)
+      Step 3 (--fleet): surfaced known T-1457 backpressure case verbatim:
+                       "laptop-141 dm:6604a2af482f0cf7:d1993c2c3ec44c94 peer=6604a2af… unread=5
+                        (count=5, peer_acked=-1)"
+      Step 4 (--json): {ok: true, topics_count: 27, summary.hubs_scanned: 1, hubs_failed: 0}
+    All four match AC Expected. Verification gate cmds pass.
+  actor: claude-opus-4-7-via-claude-code
