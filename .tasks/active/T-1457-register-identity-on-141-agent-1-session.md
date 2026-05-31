@@ -4,7 +4,7 @@ name: "Register identity on .141 agent-1 session (chat-arc peer-addressability g
 description: >
   Register identity on .141 agent-1 session (chat-arc peer-addressability gap)
 
-status: issues
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-03T20:52:09Z
-last_update: 2026-05-03T20:52:53Z
+last_update: 2026-05-31T07:05:16Z
 date_finished: null
 ---
 
@@ -120,3 +120,31 @@ out=$(./target/release/termlink channel members --hub laptop-141 agent-chat-arc 
 ### 2026-05-03T20:52:53Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** Fix requires session restart on .141 — out of scope for autonomous touch this session; deferring with full reproducer in body.
+
+### 2026-05-31T07:05:16Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
+
+### 2026-05-31T00:40Z — fresh-evidence-for-operator-decision [agent autonomous]
+Refreshed evidence so the [REVIEW] taste-call is actionable today.
+
+**.141 chat-arc on laptop-141 hub (write-side):**
+- count=466 posts, 3 distinct senders
+- 6604a2af482f0cf7 (.141 host): 418 posts — heartbeat-only emitter healthy
+- d1993c2c3ec44c94 (.107 self-key): 45 posts — .107-driven cross-posts visible
+- 0000000000000000: 1 (null/legacy)
+
+**.141 inbox dm:6604a2af482f0cf7:d1993c2c3ec44c94 (read-side):**
+- count=5 envelopes
+- receipts=[] — NO reader has ever ack-ed
+- Five DMs from .107 → .141 accumulated without being read; structural backpressure-of-silence
+
+**Fleet listeners on laptop-141 hub:**
+- 0 listeners reported by `scripts/agent-listeners-fleet.sh`
+- No `/be-reachable` heartbeat from any agent on .141
+
+**Implication for operator [REVIEW] decision:**
+- "vendored-agent" path: one-line `/be-reachable start` on .141 + a Claude reading dm:* would convert host from broadcast-target to interactive peer. The 5 accumulated DMs would become the inbox.
+- "heartbeat-only" path: current state IS the desired end state. Close T-1457 as scoped-out; document .141 as "vendored host" for chat-arc fan-in only.
+- Memory `[.141 pickup partial]` already classifies current state as "Hub UP but no peer-agent listener... broadcast-only" — picking heartbeat-only just formalizes the status quo.
+
+**Agent AC 3 (session re-registration on .141)** remains unsatisfied — requires operator SSH/WSL action on .141 host (cannot drive from .107).
