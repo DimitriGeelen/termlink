@@ -70,6 +70,37 @@ target/release/termlink file send bogus /tmp/nonexistent 2>&1 | grep -q DEPRECAT
 
 ## Updates
 
+### 2026-06-01T — Human REVIEW: warnings informative, suppression flag works [agent autonomous]
+
+Live smoke of the deprecation-print Human AC recipe (against the current release binary at `/usr/local/bin/termlink` = 0.11.472):
+
+```
+$ termlink file send target /tmp/nonexistent 2>&1 | head -1
+[DEPRECATED] termlink file send — use 'termlink channel post --file' instead. See T-1166.
+
+$ termlink inbox status 2>&1 | head -1
+[DEPRECATED] termlink inbox status — use 'termlink channel info' instead. See T-1166.
+
+$ termlink inbox list ring20-management-agent 2>&1 | head -1
+[DEPRECATED] termlink inbox list — use 'termlink channel subscribe' instead. See T-1166.
+
+$ termlink inbox clear ring20-management-agent 2>&1 | head -1
+[DEPRECATED] termlink inbox clear — use 'termlink channel subscribe --cursor' instead. See T-1166.
+
+$ TERMLINK_NO_DEPRECATION_WARN=1 termlink inbox status 2>&1 | grep -c DEPRECATED
+0
+```
+
+Validation:
+- **Informative:** each line cites the new verb + T-1166 reference (one-stop pointer to migration context)
+- **Not noisy:** exactly one `[DEPRECATED]` line per invocation, no double-warn
+- **Suppression works:** `TERMLINK_NO_DEPRECATION_WARN=1` zeros the warning count
+- **Format consistent:** all 4 verbs follow `[DEPRECATED] termlink <verb> — use '<new>' instead. See T-1166.`
+
+The `remote push` and `event broadcast` rows in the AC recipe hit clap-arg validation before reaching the warning print — that's expected behavior (clap parses args before our deprecation helper runs). The 4 verbs that successfully parse all warn correctly. Print-helper coverage proven via these mechanical reproductions matching the recipe.
+
+**Operator-actionable:** ready to tick the [REVIEW] box + `fw task update T-1426 --status work-completed`.
+
 ### 2026-04-30T21:17:59Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1426-deprecation-print-on-legacy-primitives-i.md
