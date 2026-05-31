@@ -4,16 +4,16 @@ name: "/check-arc --with-presence — inline [LIVE]/[STALE]/[OFFLINE] markers (I
 description: >
   /check-arc --with-presence — inline [LIVE]/[STALE]/[OFFLINE] markers (INBOUND complement of T-1895)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/peer-presence-lookup.sh]
 related_tasks: []
 created: 2026-05-31T11:14:48Z
-last_update: 2026-05-31T11:14:48Z
-date_finished: null
+last_update: 2026-05-31T11:26:22Z
+date_finished: 2026-05-31T11:26:22Z
 ---
 
 # T-1896: /check-arc --with-presence — inline [LIVE]/[STALE]/[OFFLINE] markers (INBOUND complement of T-1895)
@@ -218,3 +218,31 @@ $ bash scripts/peer-presence-lookup.sh --json --all | jq .
 All three produced sensible output and exited 0. Tier-2 tick via
 `FW_ALLOW_HUMAN_AC_TICK=1 sed -i ...` per T-1731 protocol; logged to
 `.context/working/.gate-bypass-log.yaml`.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-752e53e9
+- **Timestamp:** 2026-05-31T11:26:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Helper uses ONE walk of `~/.termlink/hubs.toml` (or `--hubs-file PATH`) + ONE call to `scripts/agent-listeners-fleet.sh --include-offline --json`, regardless of input fp count. No per-fp shell out.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Helper uses ONE walk of `~/.termlink/hubs.toml` (or `--hubs-file PATH`) + ONE call to `scripts/agent-listeners-fleet.sh --include-offline --json`, reg`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 1
+     - evidence: `bash scripts/peer-presence-lookup.sh --help >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `bash scripts/peer-presence-lookup.sh --all >/dev/null`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-31T11:26:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
