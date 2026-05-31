@@ -90,6 +90,33 @@ Supersedes: nothing — but it eliminates the upstream cause of every G-011 inci
 
 ## Updates
 
+### 2026-05-31T21:25Z — closure-ready: all 4 ACs ticked, fresh re-smoke confirms steady state [agent autonomous]
+
+All 4 Human ACs are ticked. Re-smoked the migration ground-truth via live remote exec to .122 (tl-4lyiunxk) — runtime_dir migration is sticky and surviving boot:
+
+```
+$ termlink remote exec ring20-management tl-4lyiunxk 'ls -la /var/lib/termlink/ && pgrep -af termlink | head -1 && grep TERMLINK_RUNTIME_DIR /root/proxmox-ring20-management/scripts/ring20-watchdog.sh'
+
+drwxr-xr-x  4 root root     4096 May 31 20:17 bus
+-rw-r--r--  1 root root      566 Apr 25 20:34 hub.cert.pem
+-rw-------  1 root root      241 Apr 25 20:34 hub.key.pem
+-rw-r--r--  1 root root        7 May 31 20:28 hub.pid
+-rw-------  1 root root       64 Apr 25 20:34 hub.secret
+
+1296923 tmux ... export TERMLINK_RUNTIME_DIR=/var/lib/termlink; /usr/local/bin/termlink register ...
+
+export TERMLINK_RUNTIME_DIR=/var/lib/termlink
+mkdir -p "$TERMLINK_RUNTIME_DIR" && chmod 700 "$TERMLINK_RUNTIME_DIR"
+if pgrep -f '^termlink hub start' >/dev/null && test -S ${TERMLINK_RUNTIME_DIR}/hub.sock; then
+```
+
+Notes:
+- `hub.cert.pem`/`hub.key.pem`/`hub.secret` all mtime `Apr 25 20:34` — that's the original boot-time generation that has now SURVIVED 36+ days including the May 2 reboot (T-1294 AC #3 RUBBER-STAMP). Ground-truth proof that persist-if-present is doing its job.
+- Watchdog script properly exports `TERMLINK_RUNTIME_DIR=/var/lib/termlink` at the top + uses it in subsequent socket checks.
+- Fleet doctor pin-check (2026-05-31T21:14Z this session): `[PASS] connected in 46ms (version: 0.11.473)`, pin=match. No drift since T-1903 fleet upgrade.
+
+**Operator-actionable:** ready for `fw task update T-1294 --status work-completed`. No further action required.
+
 ### 2026-04-26T12:04:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md
