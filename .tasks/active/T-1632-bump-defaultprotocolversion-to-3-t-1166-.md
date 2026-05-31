@@ -111,6 +111,31 @@ grep -q "control_plane_version" crates/termlink-hub/src/router.rs
 
 ## Updates
 
+### 2026-06-01T — Human REVIEW evidence captured live from .122 (T-1903 deploy) [agent autonomous]
+
+The Human REVIEW recipe waited on a fresh deploy to .122. T-1903 delivered that on 2026-05-31 (commit 8698f25e). Captured the canonical evidence via `termlink_remote_call` MCP tool with `execute` scope:
+
+```
+$ termlink_remote_call(hub=192.168.10.122:9100, method=hub.capabilities, scope=execute)
+
+{
+  "ok": true,
+  "result": {
+    "control_plane_version": 3,        ← AC #6 evidence: bumped to 3 ✓
+    "protocol_version": 1,             ← unchanged, no semantic regression ✓
+    "hub_version": "0.11.473",
+    "features": {
+      "legacy_primitives": false       ← bonus: T-1166 cut is LIVE on .122
+    },
+    "methods": [ /* 28 RPCs incl hub.legacy_usage (T-1432) */ ]
+  }
+}
+```
+
+The two-axis split (control_plane_version for capability surface, protocol_version for frame format) is visible to the wire. The Human AC is materially satisfied.
+
+**Operator-actionable:** ready to tick the [REVIEW] box + `fw task update T-1632 --status work-completed`.
+
 ### 2026-05-15T20:46Z — .121 ring20-dashboard deploy complete (second production hub)
 
 - Deployed musl 0.9.2127 to ring20-dashboard:9100. Same binary as .122.
