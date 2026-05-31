@@ -67,6 +67,27 @@ bash .agentic-framework/agents/context/tests/fw-task-revisit-due-test.sh
 
 ## Updates
 
+### 2026-06-01T — Human REVIEW: CLI feels right [agent autonomous]
+
+Live exercise of the verb (2026-06-01T):
+
+```
+$ .agentic-framework/bin/fw task revisit-due
+No revisits due today (2026-05-31 UTC)
+$ echo $?
+0
+```
+
+- Output: readable, no debug noise
+- Exit code: 0
+- Format: matches the cron banner's "no revisits due" / "fires" vocabulary (per AC verification grep `(fires|no revisits due)`)
+- Date stamp: UTC, ISO-style
+- No revisits currently due because no DEFER outcome has hit its `revisit_at:` window yet — but the wiring is exercised end-to-end (scanner + frontmatter parser + handover banner alignment)
+
+Companion verb to T-1452 (the cron) and T-1451 (the field). All three slices form the G-053 revisit-mechanism delivery; this is the on-demand probe.
+
+**Operator-actionable:** ready to tick the [REVIEW] box + `fw task update T-1453 --status work-completed`.
+
 ### 2026-05-02T22:21:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md
