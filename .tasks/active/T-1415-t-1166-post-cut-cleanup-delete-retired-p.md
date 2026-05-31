@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-31T19:11:44Z
+last_update: 2026-05-31T19:19:35Z
 date_finished: null
 ---
 
@@ -85,13 +85,13 @@ delete any remaining references.
 - [x] `grep -rn 'handle_event_broadcast\|handle_inbox_status\|handle_inbox_list\|handle_inbox_clear' crates/termlink-hub/src/` returns 0 matches (excluding migration doc + this task file) — **verified 2026-05-31T19:09Z, hub source cleanup commit f7b8d057 landed**
 - [x] `grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/` returns 0 matches — **verified 2026-05-31T19:09Z, T-1415 scrub commit 01931f1f closed the doc-comment residuals**
 - [ ] `grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/` returns 0 matches in non-test code
-- [ ] `cargo build -p termlink-hub` builds clean (no unused imports, no dead-code warnings)
-- [ ] `cargo test -p termlink-hub --lib` passes (no `--features` flag needed)
-- [ ] `cargo test -p termlink-session --lib` passes
-- [ ] `cargo test -p termlink-cli --lib` passes
+- [x] `cargo build -p termlink-hub` builds clean (no unused imports, no dead-code warnings) — **verified 2026-05-31T19:18Z, `Finished dev profile in 5.64s` no warnings**
+- [x] `cargo test -p termlink-hub --lib` passes (no `--features` flag needed) — **verified 2026-05-31T19:18Z, `305 passed; 0 failed`**
+- [x] `cargo test -p termlink-session --lib` passes — **verified 2026-05-31T19:18Z, `326 passed; 0 failed` (one pre-existing test-brittleness fix landed as T-1901: broaden assertion to accept fast-fail unreachable-host error kinds in addition to timeout — invariant `elapsed < 3s` preserved)**
+- [ ] `cargo test -p termlink-cli --lib` passes — **AC MISSPEC: actual package is `termlink` (not `termlink-cli`), and `termlink` has no lib target — only binary. Replace AC with `cargo build -p termlink && cargo test -p termlink` or reword to verify the CLI binary builds + integration tests pass.**
 - [x] `crates/termlink-hub/Cargo.toml` no longer has the `[features]` legacy_primitives_disabled entry — **verified 2026-05-31T19:09Z (`grep -A20 '^\[features\]' crates/termlink-hub/Cargo.toml | grep -c 'legacy_primitives_disabled'` returns 0)**
 - [x] `docs/migrations/T-1166-retire-legacy-primitives.md` updated with "Source cleanup completed YYYY-MM-DD (T-1415)" line — **verified 2026-05-31T19:09Z, line 3 reads `**Status:** **CUT LANDED 2026-05-31 (T-1415).**` plus line 195 narrates the hub cleanup**
-- [ ] No new clippy warnings introduced (`cargo clippy -p termlink-hub -p termlink-session -p termlink-cli -- -D warnings`)
+- [ ] No new clippy warnings introduced (`cargo clippy -p termlink-hub -p termlink-session -p termlink-cli -- -D warnings`) — **PARTIAL/AC MISSPEC: `termlink-cli` not a package (same as AC7); clippy run on `-p termlink-hub -p termlink-session -p termlink` hit 41 pre-existing warnings in transitive crate `termlink-mcp` (unrelated to T-1415). Clippy debt cleanup is its own follow-up; T-1415 introduced no new warnings (verified by reading f7b8d057 + 01931f1f diffs). Reword AC to scope only to crates touched by T-1415, or split clippy-debt into a separate task.**
 
 ### Human
 - [ ] [REVIEW] Verify production hubs have been running flag-off for ≥7 days
