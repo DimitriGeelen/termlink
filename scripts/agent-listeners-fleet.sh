@@ -120,6 +120,40 @@ if [ "$n_profiles" -eq 0 ]; then
     exit 0
 fi
 
+# T-1893 hub-identity dedup. Two profiles can list the same physical hub
+# under different addresses (canonical: workstation-107-public at
+# 192.168.10.107:9100 AND local-test at 127.0.0.1:9100 → same hub bound to
+# 0.0.0.0:9100). Without dedup, the parallel fan-out queries the same hub
+# twice; merge then double-counts listeners until downstream agent_id-dedup
+# trims them — but `hubs_scanned` and `hubs_failed` remain inflated. The
+# lib applies a single probe-per-address dedup pass BEFORE the fan-out so
+# the entire pipeline sees the correct profile set.
+_self_script="${BASH_SOURCE[0]}"
+_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_self_libdir/hubs-toml-walk.sh"
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout 8"   # PL-189 — per-probe bound for dedup only
+else
+    TIMEOUT_CMD=""
+fi
+_tsv_in=""
+for i in "${!profile_names[@]}"; do
+    _tsv_in+="${profile_addrs[$i]}"$'\t'"${profile_names[$i]}"$'\n'
+done
+_tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp agent-listeners-fleet)"
+declare -a _kept_names=()
+declare -a _kept_addrs=()
+while IFS=$'\t' read -r _kept_addr _kept_name; do
+    [ -n "$_kept_addr" ] || continue
+    _kept_addrs+=("$_kept_addr")
+    _kept_names+=("$_kept_name")
+done <<< "$_tsv_out"
+profile_addrs=("${_kept_addrs[@]}")
+profile_names=("${_kept_names[@]}")
+n_profiles="${#profile_names[@]}"
+[ "$n_profiles" -gt 0 ] || die "no profiles left after dedup"
+
 # ---- Fan out per-profile in parallel, capture JSON to per-profile tempfile.
 workdir="$(mktemp -d -t agent-listeners-fleet.XXXXXX)"
 trap 'rm -rf "$workdir"' EXIT
