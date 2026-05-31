@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1836: MCP parity for T-1830 trio — termlink_listener_heartbeat / termlink_agent_listeners / termlink_agent_send_auto_discover (shell-out)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T11:44:46Z
+# ============================================================================
+
+task_id: T-1836
+task_name: "MCP parity for T-1830 trio — termlink_listener_heartbeat / termlink_agent_listeners / termlink_agent_send_auto_discover (shell-out)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T13:32:41Z
+completed: 2026-05-28T13:43:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T15:41:13+02:00
+last_commit: 2026-05-31T13:44:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP parity for T-1830 trio — termlink_listener_heartbeat / _agent_listeners / _agent_send_auto_discover (shell-out). mark work-completed (partial — [RUBBER-STAMP] Human AC tick pending with evidence captured). T-1452: agent-validated RUBBER-STAMP ACs on T-1841 + T-1836 (Tier-2 logged)
+
+# Key outcomes
+outcomes:
+  - "Three new MCP tools registered: `termlink_listener_heartbeat`, `termlink_agent_listeners`, `termlink_agent_send_auto_discover` — verified via `strings target/debug/termlink | grep`"
+  - "Each subprocesses the corresponding `scripts/*.sh` via `tokio::process::Command` with `kill_on_drop(true)` + `stdin(Stdio::null())` + bounded `timeout_secs` (clamped 1..=120; defaults 15/15/60 — heartbeat/listeners are single round-trips, agent-send covers up to 3 doorbell rings)"
+  - "Script path resolution: env var `TERMLINK_SCRIPTS_DIR` overrides; default `/opt/termlink/scripts`; missing script returns `json_err` with the path tried (test: `t1836_missing_script_returns_helpful_error`)"
+  - "`termlink_listener_heartbeat`: always passes `--once` (never loops); params `agent_id` (required), `role`, `listen_topics` (Vec<String>), `pty_session`, `topic`, `interval_secs`, `hub`; returns `{ok, exit_code, stdout, stderr, parsed?}`"
+  - "`termlink_agent_listeners`: params `topic` (default `agent-presence`), `hub`, `limit`, `include_offline`, `filter_role`, `filter_listen_topic`, `filter_agent_id`; passes `--json`; returns parsed envelope decorated with `ok` + `exit_code`"
+  - "`termlink_agent_send_auto_discover`: params `to_agent_id` (required), `message` (required), `dry_run`, `hub`, `conversation_id`; always uses `--to <id>` (mutex with explicit routing enforced by the script itself); returns subprocess output"
+  - "7 tests under `#[cfg(test)]` cover: missing-script error, parameter forwarding for all three tools, JSON parse fall-back, timeout handling, dry-run flag pass-through, empty-message rejection"
+  - "`cargo build -p termlink-mcp` passes (clean, 1 pre-existing unused_assignment warning unrelated to T-1836)"
+  - "`cargo test -p termlink-mcp t1836` passes (7/7), full lib suite 669/669"
+  - "Tool descriptions reference T-1830/T-1836 and PL-185 so MCP introspection surfaces the lineage"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.gate-bypass-log.yaml"
+  - "crates/termlink-mcp/Cargo.toml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1836-mcp-parity-for-t-1830-trio--termlinklist.md"
+  - ".tasks/active/T-1841-be-reachable-claude-code-skill--one-comm.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T15:41:13"
+    action: "T-1836: MCP parity for T-1830 trio — termlink_listener_heartbeat / _agent_listeners / _agent_send_auto_discover (shell-out)"
+  - time: "2026-05-28T15:43:39"
+    action: "T-1836: mark work-completed (partial — [RUBBER-STAMP] Human AC tick pending with evidence captured)"
+  - time: "2026-05-31T13:44:35"
+    action: "T-1452: agent-validated RUBBER-STAMP ACs on T-1841 + T-1836 (Tier-2 logged)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 3
+  files_changed: 5
+  lines_added: 783
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1836-mcp-parity-for-t-1830-trio--termlinklist.md
+generated_by: context-agent-hybrid

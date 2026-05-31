@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1841: be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T11:44:45Z
+# ============================================================================
+
+task_id: T-1841
+task_name: "be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T14:12:58Z
+completed: 2026-05-28T14:28:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-28T16:27:51+02:00
+last_commit: 2026-05-31T13:44:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /be-reachable skill — one-command opt-in to agent-presence for ephemeral claude sessions. T-1452: agent-validated RUBBER-STAMP ACs on T-1841 + T-1836 (Tier-2 logged)
+
+# Key outcomes
+outcomes:
+  - "`scripts/be-reachable.sh` exists, executable, `--help` prints usage with start/stop/status subcommands"
+  - "`be-reachable.sh start` is idempotent (second call detects existing PID, exits 0 with \"already running\" message)"
+  - "`be-reachable.sh start` writes JSON state to `~/.termlink/be-reachable.state` (agent_id, pid, started_at, listen_topics, pty_session)"
+  - "`be-reachable.sh stop` kills PID, removes state file, exits 0; second call exits 0 with \"not running\" message (idempotent)"
+  - "`be-reachable.sh status` exits 0 when running, exits 1 when not running, prints state in human + `--json` modes"
+  - "Default agent_id derives stably from `$USER + hostname -s` when not specified"
+  - "PTY session auto-detected from `$TMUX` (tmux), `$STY` (screen), or `\"\"` (none)"
+  - "`scripts/test-be-reachable.sh` exists and passes — 33/33 covering start/stop idempotency, status, defaults, PTY detection"
+  - "`.claude/commands/be-reachable.md` exists with start/stop/status invocation patterns"
+  - "Live verification: `be-reachable.sh start --agent-id t1841-live-test` → `agent-listeners.sh --filter-agent-id t1841-live-test --json` showed `status=LIVE` within 15s (interval=10)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/be-reachable.md"
+  - ".context/working/.gate-bypass-log.yaml"
+  - "docs/operations/agent-conversations.md"
+  - "scripts/be-reachable.sh"
+  - "scripts/test-be-reachable.sh"
+  - ".tasks/active/T-1836-mcp-parity-for-t-1830-trio--termlinklist.md"
+  - ".tasks/active/T-1841-be-reachable-claude-code-skill--one-comm.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T16:27:51"
+    action: "T-1841: /be-reachable skill — one-command opt-in to agent-presence for ephemeral claude sessions"
+  - time: "2026-05-31T13:44:35"
+    action: "T-1452: agent-validated RUBBER-STAMP ACs on T-1841 + T-1836 (Tier-2 logged)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 2
+  files_changed: 7
+  lines_added: 996
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1841-be-reachable-claude-code-skill--one-comm.md
+generated_by: context-agent-hybrid
