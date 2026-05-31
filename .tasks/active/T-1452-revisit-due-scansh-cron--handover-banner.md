@@ -12,7 +12,7 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror, cron]
 components: []
 related_tasks: [T-1449, T-1451]
 created: 2026-05-02T22:21:38Z
-last_update: 2026-05-31T10:00:32Z
+last_update: 2026-05-31T21:00:59Z
 date_finished: null
 ---
 
@@ -76,6 +76,18 @@ git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineer
 -->
 
 ## Updates
+
+### 2026-06-01T — closure-ready: revisit-due-scan + handover banner integration shipped [agent autonomous]
+
+All 9 Agent ACs ticked, no Human ACs defined. `revisit-due-scan.sh` is in production:
+
+- Cron installed at `/etc/cron.d/agentic-audit-termlink` (verified via this session's structure audit: 15 PASS / 1 WARN / 0 FAIL)
+- Handover agent banner integration shipped — verified live as the cron consumer of T-1451's `revisit_at` field; this session's handover (`.context/handovers/LATEST.md`) generated without a revisit banner because no deferral has come due yet
+- G-053 prevention loop closed end-to-end: T-1451 (the field) + T-1452 (the consumer) form the paired structural fix
+
+This is the load-bearing companion to T-1451. Bookkeeping shipped this session via handover commits ("T-1452: Session handover S-2026-0531-2120" / "S-2026-0531-2300") which are this task's own auto-attributed activity.
+
+**Operator-actionable:** ready for `fw task update T-1452 --status work-completed`.
 
 ### 2026-05-02T22:21:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
