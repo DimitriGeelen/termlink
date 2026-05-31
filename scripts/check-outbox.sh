@@ -249,93 +249,45 @@ for i in "${!hub_names[@]}"; do
     done <<< "$dm_topics"
 done
 
-# T-1895 presence enrichment.
-# Maps each row's peer_fp -> peer_status by joining two reads:
+# T-1895 presence enrichment — refactored T-1897 to consume the shared
+# scripts/peer-presence-lookup.sh helper (single source of truth for fp→status
+# semantics, shared with /check-arc per PL-116 SEND+RECEIVE symmetry).
 #
-#   A. For each hubs.toml profile, query `channel info agent-presence --hub <name>`
-#      to learn which IDENTITY fingerprints (16-char host fps, NOT TLS leaf-cert
-#      sha256) currently emit presence on that hub. Build identity_fp -> hub_name.
-#      Falls back to agent-chat-arc senders if presence is empty.
-#   B. Fetch the listener fleet via agent-listeners-fleet.sh; collapse to
-#      hub_name -> max(LIVE > STALE > OFFLINE).
-#   C. Join: row.peer_fp -> hub_name (via A) -> peer_status (via B).
+# The helper internally does ONE hubs.toml walk + ONE agent-listeners-fleet
+# probe, builds fp → MULTI-HUB SET (handles broadcast fan-out), and resolves
+# each fp by walking its set preferring LIVE > STALE > OFFLINE. This fixes
+# the prior inline "first-seen wins" rule which mis-routed a peer-fp posting
+# on multiple hubs to whichever hub appeared first in hubs.toml regardless
+# of where their LIVE listener actually is.
 #
-# Failure-tolerant: if A or B fails, peer_status defaults to UNKNOWN and rows
-# render normally. UNKNOWN suppresses the inline marker.
+# Failure-tolerant: if the helper returns empty / non-zero, all rows render
+# with peer_status=UNKNOWN and a stderr diagnostic appears.
 presence_err=""
-declare -A _fp_to_hub_name=()
-declare -A _hub_name_to_status=()
 if [ "$WITH_PRESENCE" -eq 1 ]; then
-    # A. Walk hubs.toml profiles, query presence + chat-arc per profile.
-    declare -a _prof_names=()
-    declare -a _prof_addrs=()
-    _cur_name=""
-    while IFS= read -r _raw; do
-        _l="${_raw%$'\r'}"; _l="${_l%%#*}"; _l="${_l#"${_l%%[![:space:]]*}"}"; _l="${_l%"${_l##*[![:space:]]}"}"
-        [ -z "$_l" ] && continue
-        if [[ "$_l" =~ ^\[hubs\.([A-Za-z0-9_.-]+)\][[:space:]]*$ ]]; then
-            _cur_name="${BASH_REMATCH[1]}"
-        elif [ -n "$_cur_name" ] && [[ "$_l" =~ ^address[[:space:]]*=[[:space:]]*\"([^\"]+)\"[[:space:]]*$ ]]; then
-            _prof_names+=("$_cur_name")
-            _prof_addrs+=("${BASH_REMATCH[1]}")
-            _cur_name=""
+    _peer_fps="$(jq -r '.peer_fp' "$tmp_rows" 2>/dev/null | sort -u)"
+    declare -A _peer_fp_to_status=()
+    if [ -n "$_peer_fps" ]; then
+        _lookup_out="$(printf '%s' "$_peer_fps" | timeout 90 bash "$(dirname "$0")/peer-presence-lookup.sh" --hubs-file "$HUBS_FILE" 2>/dev/null || true)"
+        if [ -z "$_lookup_out" ]; then
+            presence_err="peer-presence-lookup returned no data"
+        else
+            while IFS=$'\t' read -r _fp _status; do
+                [ -n "$_fp" ] || continue
+                _peer_fp_to_status["$_fp"]="$_status"
+            done <<< "$_lookup_out"
         fi
-    done < "$HUBS_FILE"
-
-    for _i in "${!_prof_names[@]}"; do
-        _pn="${_prof_names[$_i]}"
-        # Try agent-presence first (matches the LIVE-presence source of truth).
-        _senders_json="$($TIMEOUT_CMD "$TERMLINK" channel info agent-presence --hub "$_pn" --json 2>/dev/null || true)"
-        _has_sender="$(printf '%s' "$_senders_json" | jq -r '.senders[]?.sender_id' 2>/dev/null | head -1)"
-        if [ -z "$_has_sender" ]; then
-            # Fallback to agent-chat-arc (presence topic may not exist on that hub).
-            _senders_json="$($TIMEOUT_CMD "$TERMLINK" channel info agent-chat-arc --hub "$_pn" --json 2>/dev/null || true)"
-        fi
-        while IFS= read -r _sid; do
-            [ -n "$_sid" ] || continue
-            # First-seen wins per fp.
-            [ -z "${_fp_to_hub_name[$_sid]:-}" ] && _fp_to_hub_name["$_sid"]="$_pn"
-        done < <(printf '%s' "$_senders_json" | jq -r '.senders[]?.sender_id' 2>/dev/null)
-    done
-
-    # B. Listener fleet → hub_name → max(status). The fleet wrapper's `hub` field
-    # holds the profile ADDRESS, so we invert addr -> name via _prof_*.
-    _listeners_json="$(timeout 15 bash scripts/agent-listeners-fleet.sh --include-offline --hubs-file "$HUBS_FILE" --json 2>/dev/null || true)"
-    if [ -z "$_listeners_json" ] || ! printf '%s' "$_listeners_json" | jq -e '.ok' >/dev/null 2>&1; then
-        presence_err="agent-listeners-fleet returned no data"
-    else
-        declare -A _addr_to_name=()
-        for _i in "${!_prof_names[@]}"; do
-            _addr_to_name["${_prof_addrs[$_i]}"]="${_prof_names[$_i]}"
-        done
-        while IFS=$'\t' read -r _l_hub_addr _l_status; do
-            [ -n "$_l_hub_addr" ] || continue
-            _l_name="${_addr_to_name[$_l_hub_addr]:-$_l_hub_addr}"
-            _cur="${_hub_name_to_status[$_l_name]:-OFFLINE}"
-            case "$_l_status" in
-                LIVE)    _hub_name_to_status["$_l_name"]=LIVE ;;
-                STALE)   [ "$_cur" != "LIVE" ] && _hub_name_to_status["$_l_name"]=STALE ;;
-                OFFLINE) [ "$_cur" != "LIVE" ] && [ "$_cur" != "STALE" ] && _hub_name_to_status["$_l_name"]=OFFLINE ;;
-            esac
-        done < <(printf '%s' "$_listeners_json" | jq -r '.listeners[]? | "\(.hub)\t\(.status)"' 2>/dev/null)
     fi
 
-    # C. Enrich rows in place.
     _tmp_enriched="$(mktemp -t check-outbox-enriched.XXXXXX)"
     while IFS= read -r _row; do
         [ -n "$_row" ] || continue
         _peer_fp="$(printf '%s' "$_row" | jq -r '.peer_fp')"
-        _peer_hub_name="${_fp_to_hub_name[$_peer_fp]:-}"
-        if [ -z "$_peer_hub_name" ]; then
-            _peer_status="UNKNOWN"
-        else
-            _peer_status="${_hub_name_to_status[$_peer_hub_name]:-OFFLINE}"
-        fi
+        _peer_status="${_peer_fp_to_status[$_peer_fp]:-UNKNOWN}"
         printf '%s' "$_row" | jq -c --arg s "$_peer_status" '. + {peer_status: $s}' >> "$_tmp_enriched"
     done < "$tmp_rows"
     mv "$_tmp_enriched" "$tmp_rows"
 
-    [ -n "$presence_err" ] && echo "check-outbox: presence lookup partial: $presence_err (rows shown without peer_status)" >&2
+    [ -n "$presence_err" ] && echo "check-outbox: presence lookup partial: $presence_err (rows shown with peer_status=UNKNOWN)" >&2
 fi
 
 # Render.
