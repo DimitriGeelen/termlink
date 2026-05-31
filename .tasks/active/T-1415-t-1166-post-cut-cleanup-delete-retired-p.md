@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-31T13:37:50Z
+last_update: 2026-05-31T15:30:20Z
 date_finished: null
 ---
 
@@ -231,3 +231,20 @@ The structural cut is complete: the hub no longer serves the retired
 methods. The remaining cleanup is dead-code removal in client-side helper
 layers and protocol constants — important for code hygiene but not
 load-bearing for the cut itself.
+
+### 2026-05-31T16:50Z — residual-string-refs cleaned [agent autonomous]
+- **Action:** After f7b8d057 (handler+const+test deletion), `grep -rn LEGACY_PRIMITIVES_ENABLED` workspace-wide surfaced 2 textual references to the deleted const:
+  - `crates/termlink-cli/src/commands/remote.rs:4399` — `eprintln!("  → safe to flip LEGACY_PRIMITIVES_ENABLED=false (T-1166)")` — operator-facing hint shown on `fw metrics api-usage --cut-ready` CUT-READY verdict. The flag-to-flip no longer exists; hint was stale.
+  - `crates/termlink-protocol/src/lib.rs:24` — doc comment on `CONTROL_PLANE_VERSION` saying retirement happened "via LEGACY_PRIMITIVES_ENABLED = false". Same problem.
+- **Edits:**
+  - remote.rs: rewrote hint to "no live legacy callers (T-1166 cut already landed in T-1415; verdict is informational)."
+  - lib.rs: rewrote doc para to cite the T-1413 cfg-feature gate + T-1415 source cleanup stages without referencing the dead symbol name.
+- **Verification:**
+  - `cargo check -p termlink -p termlink-protocol` — clean (only pre-existing termlink-mcp `unused_assignments` warning, unrelated).
+  - `cargo test -p termlink-hub --test no_legacy_callers` — 3/0 PASS (regression test still functional).
+  - `grep -rn "LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled" crates/` — empty. Zero residual references.
+- **Still deferred (no change this entry):**
+  - session-layer `*_with_fallback` paths in `crates/termlink-session/src/inbox_channel.rs` (gated on fleet upgrade verification)
+  - `crates/termlink-protocol/src/control.rs` `EVENT_BROADCAST`/`INBOX_LIST` consts (still referenced by retained fallback code)
+  - CLI `commands/file.rs` (operator check needed)
+  - Workspace-wide clippy pass

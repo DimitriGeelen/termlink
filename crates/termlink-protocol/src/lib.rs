@@ -21,11 +21,13 @@ pub const DATA_PLANE_VERSION: u8 = 1;
 ///
 /// Bumped to **3** by T-1166 (2026-05-11) when the legacy primitives
 /// (`event.broadcast`, `inbox.{list,status,clear}`, `file.{send,receive}`)
-/// were retired via `LEGACY_PRIMITIVES_ENABLED = false`. This is a
-/// SUBTRACTIVE change — v1 and v2 clients lose methods they were using and
-/// receive -32601 (method-not-found) when invoking them. The bump signals
-/// "this hub no longer speaks the retired data-plane methods" so federating
-/// clients can plan their migration windows.
+/// were retired. The retirement landed in two stages: T-1413 cfg-feature
+/// gate at cut-time (2026-05-11), then T-1415 source cleanup 2026-05-31
+/// after a 9-day clean bake window. This is a SUBTRACTIVE change — v1
+/// and v2 clients lose methods they were using and receive -32601
+/// (method-not-found) when invoking them. The bump signals "this hub no
+/// longer speaks the retired data-plane methods" so federating clients
+/// can plan their migration windows.
 pub const CONTROL_PLANE_VERSION: u8 = 3;
 
 /// Magic bytes for data plane frame sync: "TL" (0x54, 0x4C).

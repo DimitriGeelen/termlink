@@ -4396,7 +4396,7 @@ pub(crate) async fn cmd_fleet_doctor(
             }
             match verdict {
                 "CUT-READY" => {
-                    eprintln!("  → safe to flip LEGACY_PRIMITIVES_ENABLED=false (T-1166)");
+                    eprintln!("  → no live legacy callers (T-1166 cut already landed in T-1415; verdict is informational).");
                 }
                 "CUT-READY-DECAYING" => {
                     eprintln!(
