@@ -1,6 +1,15 @@
 # Migration Guide — Retire legacy `event.broadcast`, `inbox.*`, `file.*`
 
-**Status:** scheduled — gated on T-1166 entry-gate (bake window).
+**Status:** **CUT LANDED 2026-05-31 (T-1415).** Source-cleanup of the hub-side
+router handlers completed after a 9-day clean bake window (last legacy emission
+was 2026-05-22T11:46Z from .122's framework-bridge fallback, silenced by T-1814).
+`crates/termlink-hub/src/router.rs` no longer contains `handle_event_broadcast` /
+`handle_inbox_*` / `LEGACY_PRIMITIVES_ENABLED` / the cfg-feature gate; legacy
+method names fall through to `forward_to_target` like any other unknown method.
+Net router.rs LOC delta: −894. Cargo feature `legacy_primitives_disabled`
+removed. The session-layer `*_with_fallback` paths and the protocol consts
+(`EVENT_BROADCAST` etc.) remain for fleet hosts not yet upgraded; they age out
+in subsequent commits once the fleet is fully post-cut.
 **Tracking task:** [T-1166](../../.tasks/) (in this repo, `.tasks/active/T-1166-*.md` until it lands).
 **Predecessor migrations that already shipped:** T-1162 (broadcast→channel mirror),
 T-1163 (inbox→channel mirror), T-1164 (file→channel artifacts), T-1400

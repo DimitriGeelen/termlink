@@ -17,60 +17,12 @@ use crate::topic_lint::{self, LintOutcome};
 /// Per-target timeout for broadcast/collect operations.
 const PER_TARGET_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// T-1411: Single source of truth for the T-1166 legacy-primitive cut.
-///
-/// When `true` (current state), the hub serves `event.broadcast` + `inbox.*`
-/// exactly as before; `hub.capabilities` reports `features.legacy_primitives:true`.
-/// When flipped to `false`, the legacy match arms in `route()` are short-circuited
-/// to a structured method-not-found error, and the legacy method names are
-/// filtered out of the `methods` array in the capabilities response — the
-/// hub presents itself as post-retirement.
-///
-/// The flip is the entire T-1166 cut at the hub layer. Source-cleanup
-/// (deleting `handle_event_broadcast` and the inbox handlers, plus the
-/// allowlisted client-side fallback paths in 6 files) becomes a no-risk
-/// follow-up because the flag-off behavior is already proven by tests.
-///
-/// T-1413: value is `cfg!`-driven so CI can verify the flag-off path
-/// without editing source. `cargo test --features legacy_primitives_disabled`
-/// runs the suite as if the cut had landed. Default-feature-off preserves
-/// current production behavior. The operator running the cut can choose
-/// either approach (edit the const expression directly, or rebuild with
-/// `--features legacy_primitives_disabled`); both produce identical
-/// behavior.
-// T-1166 CUT 2026-05-11 — legacy primitives retired by operator authorization.
-// The const is hardcoded false to make cut behavior deterministic regardless of
-// build flags. The cfg-feature mechanism + this const + the legacy handler bodies
-// + cut_path test module + is_retired_legacy_method/legacy_method_retired_response
-// helpers all get removed in T-1415 once the 7-day bake passes with zero
-// attributable -32601 hits in production.
-pub(crate) const LEGACY_PRIMITIVES_ENABLED: bool = false;
-
-/// T-1411: Standardized response when a legacy method has been retired.
-/// Returns JSON-RPC error code -32601 (method-not-found) — what a stranger
-/// would see if the method had never existed — with a message that names
-/// the migration target so callers can self-serve.
-fn legacy_method_retired_response(id: serde_json::Value, method: &str) -> RpcResponse {
-    ErrorResponse::new(
-        id,
-        -32601,
-        &format!(
-            "Method '{}' has been retired (T-1166). Use channel.* primitives instead. \
-             See docs/migrations/T-1166-retire-legacy-primitives.md.",
-            method
-        ),
-    )
-    .into()
-}
-
-/// T-1411: predicate for filtering legacy method names from the
-/// `hub.capabilities` `methods` array when the cut is in effect.
-fn is_retired_legacy_method(method: &str) -> bool {
-    matches!(
-        method,
-        "event.broadcast" | "inbox.list" | "inbox.status" | "inbox.clear"
-    )
-}
+// T-1166 / T-1415: legacy primitives (event.broadcast, inbox.*) were retired
+// 2026-05-11 (operator-authorized cut). Source cleanup landed 2026-05-31 after
+// a 9-day clean bake window — last legacy emission was 2026-05-22T11:46Z from
+// .122's framework-bridge fallback (T-1814 fix). The retired methods now have
+// no router handlers, no cfg-feature gate, no const flip; they fall through
+// to forward_to_target like any other unknown method name.
 
 /// Global remote session store (initialized once by the hub server).
 static REMOTE_STORE: OnceLock<RemoteStore> = OnceLock::new();
@@ -115,14 +67,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
     let response = match req.method.as_str() {
         control::method::SESSION_DISCOVER => handle_discover(id, &req.params).await,
         control::method::SESSION_WHOAMI => handle_whoami(id, &req.params).await,
-        // T-1411: legacy methods short-circuit to retired-response when the
-        // T-1166 cut is in effect. Today the const is `true` so these arms
-        // are dead — when the cut is authorized, flipping the const flips
-        // behavior atomically. Source cleanup follows after.
-        control::method::EVENT_BROADCAST if !LEGACY_PRIMITIVES_ENABLED => {
-            legacy_method_retired_response(id, "event.broadcast")
-        }
-        control::method::EVENT_BROADCAST => handle_event_broadcast(id, &req.params).await,
+        // T-1166 / T-1415: event.broadcast + inbox.* arms deleted 2026-05-31.
+        // These method names now fall through to forward_to_target like any
+        // other unknown method.
         control::method::EVENT_COLLECT => handle_event_collect(id, &req.params).await,
         control::method::EVENT_SUBSCRIBE if is_hub_level(&req.params) => {
             handle_hub_subscribe(id, &req.params).await
@@ -134,18 +81,6 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "session.register_remote" => handle_register_remote(id, &req.params),
         "session.heartbeat" => handle_heartbeat(id, &req.params),
         "session.deregister_remote" => handle_deregister_remote(id, &req.params),
-        "inbox.list" if !LEGACY_PRIMITIVES_ENABLED => {
-            legacy_method_retired_response(id, "inbox.list")
-        }
-        "inbox.list" => handle_inbox_list(id, &req.params),
-        "inbox.status" if !LEGACY_PRIMITIVES_ENABLED => {
-            legacy_method_retired_response(id, "inbox.status")
-        }
-        "inbox.status" => handle_inbox_status(id),
-        "inbox.clear" if !LEGACY_PRIMITIVES_ENABLED => {
-            legacy_method_retired_response(id, "inbox.clear")
-        }
-        "inbox.clear" => handle_inbox_clear(id, &req.params),
         control::method::CHANNEL_CREATE => {
             crate::channel::handle_channel_create(id, &req.params).await
         }
@@ -327,124 +262,6 @@ async fn handle_whoami(id: serde_json::Value, params: &serde_json::Value) -> Rpc
     }
 }
 
-/// Handle `event.broadcast` — emit an event to multiple sessions (fan-out).
-///
-/// Params: { topic, payload, targets?: [string] }
-/// If targets is omitted, broadcasts to all live sessions.
-async fn handle_event_broadcast(
-    id: serde_json::Value,
-    params: &serde_json::Value,
-) -> RpcResponse {
-    let topic = match params.get("topic").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => {
-            return ErrorResponse::new(
-                id,
-                -32602,
-                "Missing 'topic' in params",
-            )
-            .into();
-        }
-    };
-    if let Err(e) = validate_topic_name(topic) {
-        return ErrorResponse::new(id, -32602, &e).into();
-    }
-
-    // T-1300: Soft-lint topic↔role mapping. Soft = warns via dual-write to
-    // `routing:lint`; the emit itself proceeds regardless of outcome.
-    let from = params.get("from").and_then(|f| f.as_str());
-    run_topic_lint("event.broadcast", topic, from).await;
-
-    let payload = params
-        .get("payload")
-        .cloned()
-        .unwrap_or(json!({}));
-
-    // Resolve target sessions
-    let registrations = if let Some(targets) = params.get("targets").and_then(|t| t.as_array()) {
-        let mut regs = Vec::new();
-        for t in targets {
-            if let Some(name) = t.as_str() {
-                match manager::find_session(name) {
-                    Ok(r) => regs.push(r),
-                    Err(_) => {
-                        tracing::warn!(target = name, "Broadcast: target not found, skipping");
-                    }
-                }
-            }
-        }
-        regs
-    } else {
-        // All live sessions
-        match manager::list_sessions(false) {
-            Ok(sessions) => sessions
-                .iter()
-                .filter_map(|s| manager::find_session(s.id.as_str()).ok())
-                .collect(),
-            Err(e) => {
-                return ErrorResponse::internal_error(
-                    id,
-                    &format!("Failed to list sessions: {e}"),
-                )
-                .into();
-            }
-        }
-    };
-
-    let targeted = registrations.len();
-    let topic_owned = topic.to_string();
-
-    // T-1162: dual-write the broadcast into channel:broadcast:global so
-    // subscribers on the new T-1155 bus surface observe every event.broadcast
-    // without forcing producers to migrate. Best-effort; never blocks fanout.
-    crate::channel::mirror_event_broadcast(&topic_owned, &payload).await;
-
-    // Dispatch to all targets concurrently with per-target timeout
-    let mut join_set = tokio::task::JoinSet::new();
-
-    for reg in registrations {
-        let emit_params = json!({
-            "topic": topic_owned,
-            "payload": payload,
-        });
-        let addr = reg.addr.to_transport_addr();
-
-        join_set.spawn(async move {
-            let result = tokio::time::timeout(
-                PER_TARGET_TIMEOUT,
-                client::rpc_call_addr(&addr, control::method::EVENT_EMIT, emit_params),
-            )
-            .await;
-
-            match result {
-                Ok(Ok(resp)) => client::unwrap_result(resp).is_ok(),
-                Ok(Err(_)) => false,   // RPC error
-                Err(_) => false,        // Timeout
-            }
-        });
-    }
-
-    let mut succeeded = 0u64;
-    let mut failed = 0u64;
-
-    while let Some(result) = join_set.join_next().await {
-        match result {
-            Ok(true) => succeeded += 1,
-            _ => failed += 1,
-        }
-    }
-
-    Response::success(
-        id,
-        json!({
-            "topic": topic_owned,
-            "targeted": targeted,
-            "succeeded": succeeded,
-            "failed": failed,
-        }),
-    )
-    .into()
-}
 
 /// Handle `event.emit_to` — push an event directly to a target session's event bus.
 ///
@@ -1006,23 +823,14 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         "hub.bus_state",
         control::method::HUB_CAPABILITIES,
     ];
-    // T-1411: filter retired legacy method names out of the methods array
-    // when the cut is in effect. With LEGACY_PRIMITIVES_ENABLED=true (today)
-    // this is a no-op and the array is identical to pre-T-1411 behavior.
-    if !LEGACY_PRIMITIVES_ENABLED {
-        methods.retain(|m| !is_retired_legacy_method(m));
-    }
     methods.sort_unstable();
 
-    // T-1405: feature flags object — gives downstream consumers a stable
-    // structural place to detect post-T-1166 hubs (legacy_primitives=false)
-    // versus current hubs (legacy_primitives=true) without probing each
-    // method individually. See docs/migrations/T-1166-retire-legacy-primitives.md.
-    // Forward-compatible: clients that don't read this field are unaffected.
-    // T-1411: value now sourced from the LEGACY_PRIMITIVES_ENABLED const
-    // (single source of truth for the flag-flip cut).
+    // T-1405 / T-1415: legacy_primitives is now hardcoded false (cut landed
+    // 2026-05-31). Field retained for downstream consumers that probe
+    // post-cut vs pre-cut hubs (returns false on every post-cut hub).
+    // See docs/migrations/T-1166-retire-legacy-primitives.md.
     let features = json!({
-        "legacy_primitives": LEGACY_PRIMITIVES_ENABLED,
+        "legacy_primitives": false,
     });
 
     Response::success(
@@ -1738,72 +1546,8 @@ pub fn resolve_target_path(target: &str) -> Result<std::path::PathBuf, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Handle `inbox.list` — list pending transfers for a target (T-988).
-///
-/// Params: { target: string }
-fn handle_inbox_list(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
-    let target = match params.get("target").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => {
-            return ErrorResponse::new(id, -32602, "Missing 'target' in params").into();
-        }
-    };
 
-    match crate::inbox::list_pending(target) {
-        Ok(transfers) => {
-            Response::success(id, json!({
-                "target": target,
-                "transfers": transfers,
-            }))
-            .into()
-        }
-        Err(e) => {
-            ErrorResponse::internal_error(id, &format!("Inbox list error: {e}")).into()
-        }
-    }
-}
 
-/// Handle `inbox.status` — show inbox overview (T-988).
-fn handle_inbox_status(id: serde_json::Value) -> RpcResponse {
-    match crate::inbox::list_all_targets() {
-        Ok(targets) => {
-            let total: usize = targets.iter().map(|(_, c)| c).sum();
-            Response::success(id, json!({
-                "total_transfers": total,
-                "targets": targets.iter().map(|(name, count)| json!({
-                    "target": name,
-                    "pending": count,
-                })).collect::<Vec<_>>(),
-            }))
-            .into()
-        }
-        Err(e) => {
-            ErrorResponse::internal_error(id, &format!("Inbox status error: {e}")).into()
-        }
-    }
-}
-
-fn handle_inbox_clear(id: serde_json::Value, params: &serde_json::Value) -> RpcResponse {
-    let all = params.get("all").and_then(|v| v.as_bool()).unwrap_or(false);
-    let target = params.get("target").and_then(|t| t.as_str());
-
-    if !all && target.is_none() {
-        return ErrorResponse::new(id, -32602, "Missing 'target' or 'all' in params").into();
-    }
-
-    let cleared = if all {
-        crate::inbox::clear_all()
-    } else {
-        crate::inbox::clear_target(target.unwrap())
-    };
-
-    Response::success(id, json!({
-        "ok": true,
-        "cleared": cleared,
-        "target": target.unwrap_or("*"),
-    }))
-    .into()
-}
 
 /// T-1298: validate topic names at hub emit boundaries. The accepted character
 /// set is `[a-z0-9._:-]` (no whitespace, no uppercase, no XML/punctuation),
@@ -2082,94 +1826,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn broadcast_emits_to_sessions() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        let sessions_dir = dir.join("sessions");
-        std::fs::create_dir_all(&sessions_dir).unwrap();
 
-        let (h1, r1) = start_test_session(&sessions_dir, "bcast-a").await;
-        let (h2, r2) = start_test_session(&sessions_dir, "bcast-b").await;
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        // Override env so manager finds sessions
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        let params = json!({
-            "topic": "deploy.start",
-            "payload": {"version": "1.0"},
-        });
-
-        let resp = handle_event_broadcast(json!("bc-1"), &params).await;
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-
-        if let RpcResponse::Success(r) = resp {
-            assert_eq!(r.result["topic"], "deploy.start");
-            assert_eq!(r.result["targeted"], 2);
-            assert_eq!(r.result["succeeded"], 2);
-            assert_eq!(r.result["failed"], 0);
-        } else {
-            panic!("Expected success response");
-        }
-
-        // Verify events landed on each session
-        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({})).await.unwrap();
-        let result = client::unwrap_result(resp).unwrap();
-        let events = result["events"].as_array().unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["topic"], "deploy.start");
-
-        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({})).await.unwrap();
-        let result = client::unwrap_result(resp).unwrap();
-        let events = result["events"].as_array().unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["topic"], "deploy.start");
-
-        h1.abort();
-        h2.abort();
-    }
-
-    #[tokio::test]
-    async fn broadcast_with_targets_filters() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        let sessions_dir = dir.join("sessions");
-        std::fs::create_dir_all(&sessions_dir).unwrap();
-
-        let (h1, r1) = start_test_session(&sessions_dir, "tgt-a").await;
-        let (h2, r2) = start_test_session(&sessions_dir, "tgt-b").await;
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        // Only target session a
-        let params = json!({
-            "topic": "test.only",
-            "payload": {},
-            "targets": [r1.id.as_str()],
-        });
-
-        let resp = handle_event_broadcast(json!("bc-2"), &params).await;
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-
-        if let RpcResponse::Success(r) = resp {
-            assert_eq!(r.result["targeted"], 1);
-            assert_eq!(r.result["succeeded"], 1);
-        } else {
-            panic!("Expected success response");
-        }
-
-        // Session b should have no events
-        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({})).await.unwrap();
-        let result = client::unwrap_result(resp).unwrap();
-        assert_eq!(result["count"], 0);
-
-        h1.abort();
-        h2.abort();
-    }
 
     #[tokio::test]
     async fn collect_aggregates_events() {
@@ -2269,16 +1926,6 @@ mod tests {
         h1.abort();
     }
 
-    #[tokio::test]
-    async fn broadcast_missing_topic_returns_error() {
-        let params = json!({"payload": {}});
-        let resp = handle_event_broadcast(json!("bc-err"), &params).await;
-        if let RpcResponse::Error(err) = resp {
-            assert!(err.error.message.contains("Missing"));
-        } else {
-            panic!("Expected error response");
-        }
-    }
 
     #[tokio::test]
     async fn whoami_resolves_by_session_id() {
@@ -2631,85 +2278,6 @@ mod tests {
         (lines, writer)
     }
 
-    // T-1413: gated to default feature — the OFF feature retires
-    // event.broadcast so this end-to-end happy path no longer applies.
-    // T-1166 cut (2026-05-11): pre-cut guard test — asserts legacy event.broadcast
-    // delivers end-to-end. With LEGACY_PRIMITIVES_ENABLED = false, the post-cut
-    // contract is method-not-found (covered by cut_path::route_returns_method_not_found_for_event_broadcast).
-    // Ignored at cut; T-1415 deletes this entire test post-bake.
-    #[cfg(not(feature = "legacy_primitives_disabled"))]
-    #[ignore = "T-1166 cut: legacy event.broadcast retired; T-1415 deletes this test"]
-    #[tokio::test]
-    async fn tcp_broadcast_delivers_to_sessions() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        let sessions_dir = dir.join("sessions");
-        std::fs::create_dir_all(&sessions_dir).unwrap();
-
-        let (h1, r1) = start_test_session(&sessions_dir, "tcp-bcast-a").await;
-        let (h2, r2) = start_test_session(&sessions_dir, "tcp-bcast-b").await;
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        let (hub_handle, shutdown_tx, _hub_socket, tcp_port, secret_hex) =
-            start_hub_with_tcp(&dir).await;
-
-        // Connect via TCP and authenticate with Execute scope
-        let (mut lines, mut writer) = tcp_connect_and_auth(
-            tcp_port,
-            &secret_hex,
-            termlink_session::auth::PermissionScope::Execute,
-        )
-        .await;
-
-        // Broadcast event via TCP connection
-        let req = json!({
-            "jsonrpc": "2.0",
-            "method": "event.broadcast",
-            "id": "bc-tcp-1",
-            "params": {
-                "topic": "deploy.tcp",
-                "payload": {"from": "remote-machine"},
-            }
-        });
-        writer
-            .write_all(format!("{}\n", req).as_bytes())
-            .await
-            .unwrap();
-        let resp_line = lines.next_line().await.unwrap().unwrap();
-        let resp: serde_json::Value = serde_json::from_str(&resp_line).unwrap();
-
-        assert_eq!(resp["id"], "bc-tcp-1");
-        assert_eq!(resp["result"]["topic"], "deploy.tcp");
-        assert_eq!(resp["result"]["targeted"], 2);
-        assert_eq!(resp["result"]["succeeded"], 2);
-        assert_eq!(resp["result"]["failed"], 0);
-
-        // Verify events landed on each session
-        let resp = client::rpc_call(r1.socket_path(), "event.poll", json!({}))
-            .await
-            .unwrap();
-        let result = client::unwrap_result(resp).unwrap();
-        let events = result["events"].as_array().unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["topic"], "deploy.tcp");
-        assert_eq!(events[0]["payload"]["from"], "remote-machine");
-
-        let resp = client::rpc_call(r2.socket_path(), "event.poll", json!({}))
-            .await
-            .unwrap();
-        let result = client::unwrap_result(resp).unwrap();
-        let events = result["events"].as_array().unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["topic"], "deploy.tcp");
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        shutdown_tx.send(true).unwrap();
-        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
-        h1.abort();
-        h2.abort();
-    }
 
     #[tokio::test]
     async fn tcp_collect_aggregates_events() {
@@ -3605,103 +3173,9 @@ mod tests {
 
     // === Inbox RPC Tests (T-1000) ===
 
-    #[tokio::test]
-    async fn inbox_status_returns_empty_when_no_transfers() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        let sessions_dir = dir.join("sessions");
-        std::fs::create_dir_all(&sessions_dir).unwrap();
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
 
-        let resp = handle_inbox_status(json!(1));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.result["total_transfers"], 0);
-                let targets = r.result["targets"].as_array().unwrap();
-                assert!(targets.is_empty());
-            }
-            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
-        }
 
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        let _ = std::fs::remove_dir_all(&dir);
-    }
 
-    #[test]
-    fn inbox_list_requires_target_param() {
-        let resp = handle_inbox_list(json!(1), &json!({}));
-        match resp {
-            RpcResponse::Error(e) => {
-                assert_eq!(e.error.code, -32602);
-                assert!(e.error.message.contains("target"));
-            }
-            RpcResponse::Success(_) => panic!("Expected error for missing target"),
-        }
-    }
-
-    #[tokio::test]
-    async fn inbox_list_returns_empty_for_unknown_target() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        std::fs::create_dir_all(&dir).unwrap();
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        let resp = handle_inbox_list(json!(1), &json!({"target": "nonexistent"}));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.result["target"], "nonexistent");
-                let transfers = r.result["transfers"].as_array().unwrap();
-                assert!(transfers.is_empty());
-            }
-            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
-        }
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[tokio::test]
-    async fn inbox_status_reflects_deposited_files() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        std::fs::create_dir_all(&dir).unwrap();
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        // Deposit a file event into the inbox
-        let deposited = crate::inbox::deposit(
-            "test-target",
-            "file.init",
-            &json!({"transfer_id": "xfer-test-1", "filename": "test.txt", "size": 100}),
-            Some("sender"),
-        );
-        assert!(deposited.unwrap_or(false), "Deposit should succeed");
-
-        // Now check status
-        let resp = handle_inbox_status(json!(1));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert!(r.result["total_transfers"].as_u64().unwrap() > 0);
-                let targets = r.result["targets"].as_array().unwrap();
-                assert!(!targets.is_empty());
-                assert_eq!(targets[0]["target"], "test-target");
-            }
-            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
-        }
-
-        // And list for that target
-        let resp = handle_inbox_list(json!(2), &json!({"target": "test-target"}));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.result["target"], "test-target");
-                let transfers = r.result["transfers"].as_array().unwrap();
-                assert!(!transfers.is_empty());
-            }
-            RpcResponse::Error(e) => panic!("Expected success, got error: {}", e.error.message),
-        }
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        let _ = std::fs::remove_dir_all(&dir);
-    }
 
     // === remote session lifecycle error-path tests (T-1007) ===
 
@@ -3800,77 +3274,8 @@ mod tests {
 
     // === inbox.clear RPC tests (T-1005) ===
 
-    #[test]
-    fn inbox_clear_requires_target_or_all() {
-        let resp = handle_inbox_clear(json!(1), &json!({}));
-        match resp {
-            RpcResponse::Error(e) => {
-                assert_eq!(e.error.code, -32602);
-            }
-            RpcResponse::Success(_) => panic!("Expected error for missing params"),
-        }
-    }
 
-    #[tokio::test]
-    async fn inbox_clear_target_removes_transfers() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        std::fs::create_dir_all(&dir).unwrap();
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
 
-        // Deposit
-        let _ = crate::inbox::deposit("clear-me", "file.init", &json!({"transfer_id": "x1"}), Some("s"));
-
-        // Clear
-        let resp = handle_inbox_clear(json!(1), &json!({"target": "clear-me"}));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.result["ok"], true);
-                assert_eq!(r.result["target"], "clear-me");
-            }
-            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-        }
-
-        // Verify empty
-        let resp = handle_inbox_status(json!(2));
-        if let RpcResponse::Success(r) = resp {
-            assert_eq!(r.result["total_transfers"], 0);
-        }
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[tokio::test]
-    async fn inbox_clear_all_removes_everything() {
-        let _lock = ENV_LOCK.lock().await;
-        let dir = test_dir();
-        std::fs::create_dir_all(&dir).unwrap();
-        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
-
-        // Deposit to two targets
-        let _ = crate::inbox::deposit("t1", "file.init", &json!({"transfer_id": "a"}), Some("s"));
-        let _ = crate::inbox::deposit("t2", "file.init", &json!({"transfer_id": "b"}), Some("s"));
-
-        // Clear all
-        let resp = handle_inbox_clear(json!(1), &json!({"all": true}));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.result["ok"], true);
-                assert_eq!(r.result["target"], "*");
-            }
-            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-        }
-
-        // Verify empty
-        let resp = handle_inbox_status(json!(2));
-        if let RpcResponse::Success(r) = resp {
-            assert_eq!(r.result["total_transfers"], 0);
-        }
-
-        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
-        let _ = std::fs::remove_dir_all(&dir);
-    }
 
     // T-1132
 
@@ -3898,281 +3303,10 @@ mod tests {
         }
     }
 
-    // T-1215: hub.capabilities method lists directly-handled methods so
-    // federating clients can decide channel.* vs event.broadcast at call time.
-    // T-1413: gated — under the OFF feature the array's "event.broadcast"
-    // entry is filtered out, so the assertion that it must be present
-    // would fail. The cut_path module below covers the OFF case.
-    // T-1166 cut (2026-05-11): pre-cut guard test — asserts legacy methods appear
-    // in the capabilities method list. Post-cut, cut_path::capabilities_methods_array_excludes_retired_names
-    // covers the inverse. Ignored at cut; T-1415 deletes.
-    #[cfg(not(feature = "legacy_primitives_disabled"))]
-    #[ignore = "T-1166 cut: legacy methods no longer advertised; T-1415 deletes this test"]
-    #[test]
-    fn hub_capabilities_returns_sorted_method_list() {
-        let resp = super::handle_hub_capabilities(json!(9));
-        match resp {
-            RpcResponse::Success(r) => {
-                assert_eq!(r.id, json!(9));
-                assert_eq!(r.result["hub_version"], env!("CARGO_PKG_VERSION"));
-                assert_eq!(
-                    r.result["protocol_version"],
-                    termlink_protocol::DATA_PLANE_VERSION
-                );
 
-                let methods = r.result["methods"]
-                    .as_array()
-                    .expect("methods should be an array");
-                let names: Vec<&str> = methods.iter().filter_map(|v| v.as_str()).collect();
 
-                for required in [
-                    "channel.post",
-                    "channel.subscribe",
-                    "event.broadcast",
-                    "hub.capabilities",
-                    "hub.version",
-                    "session.discover",
-                ] {
-                    assert!(
-                        names.contains(&required),
-                        "method list missing {required}: {names:?}",
-                    );
-                }
 
-                // Sorted ascending
-                let mut sorted = names.clone();
-                sorted.sort_unstable();
-                assert_eq!(names, sorted, "methods must be sorted");
 
-                // No duplicates
-                let mut dedup = names.clone();
-                dedup.dedup();
-                assert_eq!(dedup.len(), names.len(), "methods must be unique");
-            }
-            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-        }
-    }
-
-    // T-1405: hub.capabilities returns a `features` object with
-    // `legacy_primitives` set to true while T-1166 has not yet cut. Downstream
-    // consumers can wire startup checks against the existing true value;
-    // their failure path trips automatically when the flag flips to false.
-    // T-1413: gated to default-feature builds — the OFF feature flips the
-    // const and this assertion would otherwise fail. The OFF feature has
-    // its own dedicated test below (`hub_capabilities_advertises_legacy_primitives_off`).
-    // T-1166 cut (2026-05-11): pre-cut guard test — asserts capabilities.features.legacy_primitives = true.
-    // Post-cut, cut_path::capabilities_advertises_legacy_primitives_off covers the inverse.
-    // This test was the forcing function "must be true while pre-T-1166". Now post-T-1166.
-    // Ignored at cut; T-1415 deletes.
-    #[cfg(not(feature = "legacy_primitives_disabled"))]
-    #[ignore = "T-1166 cut: legacy_primitives feature now false; T-1415 deletes this test"]
-    #[test]
-    fn hub_capabilities_advertises_legacy_primitives_feature_flag() {
-        let resp = super::handle_hub_capabilities(json!(42));
-        match resp {
-            RpcResponse::Success(r) => {
-                let features = r.result.get("features").expect("features object missing");
-                let legacy = features
-                    .get("legacy_primitives")
-                    .expect("features.legacy_primitives missing")
-                    .as_bool()
-                    .expect("features.legacy_primitives must be bool");
-                assert!(
-                    legacy,
-                    "legacy_primitives must be true while pre-T-1166 (legacy methods still served)"
-                );
-            }
-            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-        }
-    }
-
-    // T-1411: confirm capabilities-flag value is sourced from the const
-    // (single source of truth for the T-1166 cut). When the const flips to
-    // false, this test plus `hub_capabilities_advertises_legacy_primitives_feature_flag`
-    // both flip in the same commit — the cut is structurally atomic.
-    #[test]
-    fn hub_capabilities_flag_value_matches_const() {
-        let resp = super::handle_hub_capabilities(json!(99));
-        match resp {
-            RpcResponse::Success(r) => {
-                let legacy = r.result["features"]["legacy_primitives"]
-                    .as_bool()
-                    .expect("features.legacy_primitives must be bool");
-                assert_eq!(
-                    legacy,
-                    super::LEGACY_PRIMITIVES_ENABLED,
-                    "capabilities flag must mirror LEGACY_PRIMITIVES_ENABLED const"
-                );
-            }
-            RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-        }
-    }
-
-    // T-1411: retired-method response is method-not-found (-32601) and
-    // names the migration target, so callers receiving it know how to
-    // self-serve. Pure builder test — exercises the helper directly so
-    // the flag-off path is covered without needing a runtime override.
-    #[test]
-    fn legacy_method_retired_response_shape() {
-        let resp = super::legacy_method_retired_response(json!(7), "event.broadcast");
-        match resp {
-            RpcResponse::Error(e) => {
-                assert_eq!(e.id, json!(7));
-                assert_eq!(e.error.code, -32601, "must be method-not-found");
-                let msg = &e.error.message;
-                assert!(msg.contains("event.broadcast"), "msg cites method: {msg}");
-                assert!(msg.contains("retired"), "msg uses 'retired': {msg}");
-                assert!(msg.contains("T-1166"), "msg cites task: {msg}");
-                assert!(msg.contains("channel."), "msg points to migration target: {msg}");
-                assert!(
-                    msg.contains("T-1166-retire-legacy-primitives.md"),
-                    "msg points to migration doc: {msg}"
-                );
-            }
-            RpcResponse::Success(_) => panic!("expected error response, got success"),
-        }
-    }
-
-    // T-1411: predicate identifies exactly the four router-handled legacy methods.
-    #[test]
-    fn is_retired_legacy_method_predicate() {
-        assert!(super::is_retired_legacy_method("event.broadcast"));
-        assert!(super::is_retired_legacy_method("inbox.list"));
-        assert!(super::is_retired_legacy_method("inbox.status"));
-        assert!(super::is_retired_legacy_method("inbox.clear"));
-        // Negatives — modern methods MUST NOT be filtered.
-        assert!(!super::is_retired_legacy_method("channel.post"));
-        assert!(!super::is_retired_legacy_method("session.discover"));
-        assert!(!super::is_retired_legacy_method("hub.capabilities"));
-        assert!(!super::is_retired_legacy_method("event.subscribe"));
-        // file.send/receive are session-side, never reach router — not in set.
-        assert!(!super::is_retired_legacy_method("file.send"));
-    }
-
-    // T-1413: flag-OFF path tests — gated by the `legacy_primitives_disabled`
-    // cargo feature. With the feature OFF (default), these don't compile in.
-    // With it ON (CI-only by default), they verify the post-T-1166 behavior:
-    // capabilities reports false, methods array excludes the 4 retired
-    // names, and route() returns -32601 for legacy method calls.
-    //
-    // Run: `cargo test -p termlink-hub --lib --features legacy_primitives_disabled`
-    #[cfg(feature = "legacy_primitives_disabled")]
-    mod cut_path {
-        use super::*;
-
-        #[test]
-        fn const_is_false_under_feature_flag() {
-            // T-1413: the cfg-driven const must be false when the feature is on.
-            assert!(
-                !super::super::LEGACY_PRIMITIVES_ENABLED,
-                "LEGACY_PRIMITIVES_ENABLED must be false under legacy_primitives_disabled feature"
-            );
-        }
-
-        #[test]
-        fn capabilities_advertises_legacy_primitives_off() {
-            let resp = super::super::handle_hub_capabilities(json!(101));
-            match resp {
-                RpcResponse::Success(r) => {
-                    let legacy = r.result["features"]["legacy_primitives"]
-                        .as_bool()
-                        .expect("features.legacy_primitives must be bool");
-                    assert!(!legacy, "post-cut: legacy_primitives must be false");
-                }
-                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-            }
-        }
-
-        // T-1632: post-cut capabilities response carries the control-plane
-        // version axis on the wire. CONTROL_PLANE_VERSION was bumped 2→3 at
-        // the T-1166 cut; this test locks the emit so older clients can
-        // distinguish a post-cut hub without having to read the methods array
-        // or the features flag.
-        #[test]
-        fn capabilities_emits_control_plane_version() {
-            let resp = super::super::handle_hub_capabilities(json!(103));
-            match resp {
-                RpcResponse::Success(r) => {
-                    assert_eq!(
-                        r.result["control_plane_version"],
-                        termlink_protocol::CONTROL_PLANE_VERSION
-                    );
-                    // The data-plane axis remains untouched.
-                    assert_eq!(
-                        r.result["protocol_version"],
-                        termlink_protocol::DATA_PLANE_VERSION
-                    );
-                }
-                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-            }
-        }
-
-        #[test]
-        fn capabilities_methods_array_excludes_retired_names() {
-            let resp = super::super::handle_hub_capabilities(json!(102));
-            match resp {
-                RpcResponse::Success(r) => {
-                    let methods = r.result["methods"]
-                        .as_array()
-                        .expect("methods array")
-                        .iter()
-                        .filter_map(|v| v.as_str())
-                        .collect::<Vec<_>>();
-                    for retired in
-                        ["event.broadcast", "inbox.list", "inbox.status", "inbox.clear"]
-                    {
-                        assert!(
-                            !methods.contains(&retired),
-                            "post-cut: '{retired}' must NOT appear in methods array, got {methods:?}",
-                        );
-                    }
-                    // Sanity: modern methods still present.
-                    assert!(methods.contains(&"channel.post"));
-                    assert!(methods.contains(&"session.discover"));
-                }
-                RpcResponse::Error(e) => panic!("Expected success: {}", e.error.message),
-            }
-        }
-
-        #[tokio::test]
-        async fn route_returns_method_not_found_for_event_broadcast() {
-            let req = Request {
-                jsonrpc: "2.0".to_string(),
-                id: Some(json!(201)),
-                method: "event.broadcast".to_string(),
-                params: json!({"msg_type": "test", "payload": {}}),
-            };
-            let resp = super::super::route(&req).await.expect("response");
-            match resp {
-                RpcResponse::Error(e) => {
-                    assert_eq!(e.error.code, -32601);
-                    assert!(e.error.message.contains("event.broadcast"));
-                    assert!(e.error.message.contains("retired"));
-                }
-                RpcResponse::Success(_) => panic!("expected -32601 error, got success"),
-            }
-        }
-
-        #[tokio::test]
-        async fn route_returns_method_not_found_for_each_inbox_method() {
-            for method in ["inbox.list", "inbox.status", "inbox.clear"] {
-                let req = Request {
-                    jsonrpc: "2.0".to_string(),
-                    id: Some(json!(202)),
-                    method: method.to_string(),
-                    params: json!({}),
-                };
-                let resp = super::super::route(&req).await.expect("response");
-                match resp {
-                    RpcResponse::Error(e) => {
-                        assert_eq!(e.error.code, -32601, "method {method}");
-                        assert!(e.error.message.contains(method));
-                    }
-                    RpcResponse::Success(_) => panic!("expected -32601 for {method}, got success"),
-                }
-            }
-        }
-    }
 
     // T-1298: topic-name validation at hub emit boundaries.
     #[test]
