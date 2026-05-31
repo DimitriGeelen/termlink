@@ -4,7 +4,7 @@ name: "T-1166 post-cut cleanup: delete retired primitive handlers + fallback pat
 description: >
   After Tier-2 cut (LEGACY_PRIMITIVES_ENABLED=false has been baked >=7d in production), delete the retired-primitive code entirely. Replaces the const + cfg-feature mechanism with permanent removal.
 
-status: captured
+status: started-work
 workflow_type: decommission
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-29T22:39:07Z
+last_update: 2026-05-31T13:37:50Z
 date_finished: null
 ---
 
@@ -173,3 +173,61 @@ fw work-on T-1415
 
 This is the destructive cut PL-094 promised. The bake window paid for
 the safety; now the abstraction can go.
+
+### 2026-05-31T13:27:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-05-31T12:50Z — hub source cleanup LANDED (commit f7b8d057) [agent, operator-authorized]
+
+User said "cut it now" after the T-1166 cut-gate-clear evidence
+(`cut_ready: true`, 7d zero legacy). This commit lands the structural
+cut at the hub layer.
+
+**Deleted (commit f7b8d057, net -889 LOC):**
+- `LEGACY_PRIMITIVES_ENABLED` const + T-1411/T-1413 cfg-feature gate
+- `legacy_method_retired_response()` + `is_retired_legacy_method()` helpers
+- `handle_event_broadcast` (114 LOC) + `handle_inbox_list/status/clear`
+- 8 match arms in `route()` for the 4 legacy method names — legacy names
+  now fall through to `forward_to_target` like any unknown method
+- `handle_hub_capabilities` filter branch; `features.legacy_primitives`
+  now hardcoded false
+- `mod cut_path` (cfg-gated test module, referenced deleted symbols)
+- 17 #[test]/#[tokio::test] fns referencing deleted handlers
+- `Cargo.toml [features] legacy_primitives_disabled = []`
+
+**Verification:**
+- `cargo test -p termlink-hub --lib` → **305/0 PASS**
+- `cargo test -p termlink-session --lib` → **326/0 PASS**
+- `cargo clippy -p termlink-hub --lib -- -D warnings` → clean
+- `cargo check --workspace --tests` → clean (1 pre-existing MCP warning)
+
+**Agent ACs status:**
+- [x] `grep handle_event_broadcast|handle_inbox_status|handle_inbox_list|handle_inbox_clear` in `crates/termlink-hub/src/` → 0 matches
+- [x] `cargo build -p termlink-hub` builds clean
+- [x] `cargo test -p termlink-hub --lib` passes (no `--features` flag needed)
+- [x] `cargo test -p termlink-session --lib` passes
+- [x] `crates/termlink-hub/Cargo.toml` no longer has `[features]` block
+- [x] `docs/migrations/T-1166-retire-legacy-primitives.md` updated with "CUT LANDED 2026-05-31" status header
+- [x] No new clippy warnings (hub crate)
+- [ ] `grep LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled` returns 0 across `crates/` — 2 matches remain in `crates/termlink-hub/tests/no_legacy_callers.rs` (the dedicated regression test referencing the OLD symbols by name in its assertion message — needs a tightening pass, deferred).
+- [ ] `grep call_legacy_inbox_|status_with_fallback|list_with_fallback|clear_with_fallback` returns 0 in non-test code — session-layer fallbacks RETAINED for fleet hosts not yet upgraded (separate follow-up commit after fleet upgrade).
+- [ ] `cargo test -p termlink-cli --lib` passes — `termlink` package is bin-only, no library tests; covered by workspace check (passing).
+- [ ] Workspace-wide clippy — deferred to next pass.
+
+**Deferred to subsequent commits (T-1415 continuation OR new sub-task):**
+1. `crates/termlink-session/src/inbox_channel.rs` — `*_with_fallback` paths.
+   Still valuable while fleet hosts (e.g. .121, .141) may have unupgraded
+   hubs; remove after fleet-wide upgrade is verified.
+2. `crates/termlink-protocol/src/control.rs` — `EVENT_BROADCAST` /
+   `INBOX_LIST` / etc consts. Still referenced by the retained session-layer
+   fallback code.
+3. `crates/termlink-hub/tests/no_legacy_callers.rs` — tighten assertion
+   message + rename now that the symbols it audits no longer exist.
+4. CLI `commands/file.rs` — operator check needed before deletion (file.*
+   may have UX-visible callers).
+5. MCP / topic_lint references — grep + delete remaining mentions.
+
+The structural cut is complete: the hub no longer serves the retired
+methods. The remaining cleanup is dead-code removal in client-side helper
+layers and protocol constants — important for code hygiene but not
+load-bearing for the cut itself.
