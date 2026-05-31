@@ -1147,3 +1147,32 @@ git status --shor'
   flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)'
   caller: 'human-ac-self-validate'
   reason: 'Mechanical RUBBER-STAMP — strings binary check for three MCP tool registrations. All three present in target/release/termlink (mtime 2026-05-31). Per memory [Validate Human ACs dont punt] + [Fresh re-smoke].'
+
+- timestamp: 2026-05-31T16:30Z
+  task: T-1889
+  gate: human-ac-tick-guard
+  bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
+  ac_kind: RUBBER-STAMP
+  rationale: |
+    Same-day fresh evidence captured in task Updates 2026-05-31T00:55Z:
+      - before=2261, after=2262, delta=1 (was 2 pre-fix)
+      - stderr captured: "skipping duplicate 192.168.10.107:9100 (same hub as 127.0.0.1:9100, fingerprint=d1bd50f5)"
+      - 4 hubs delivered vs 5 attempts pre-fix
+    Memory [Validate Human ACs, don't punt] + [Fresh re-smoke before rubber-stamp]
+    (fresh = <2wk, this is <16h). Re-broadcasting would pollute the agent-chat-arc
+    rail with no incremental signal. Validated by code inspection
+    (scripts/chat-arc-broadcast.sh:101 has T-1889 dedup block) + the captured smoke.
+  actor: claude-opus-4-7-via-claude-code
+
+- timestamp: 2026-05-31T16:30Z
+  task: T-1890
+  gate: human-ac-tick-guard
+  bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
+  ac_kind: RUBBER-STAMP
+  rationale: |
+    Re-ran AC Step 1 live this session:
+      bash scripts/agent-chat-arc-recent.sh --limit 10 --since 24 --exclude-heartbeats --json \
+        | jq -r '.posts[] | [.ts, .sender, .payload_preview] | @tsv' | sort | uniq -c | awk '$1>1'
+    Output: EMPTY (zero rows with count>1). Matches AC Expected.
+    Code inspection: scripts/agent-chat-arc-recent.sh:279-288 has T-1890 group_by dedup.
+  actor: claude-opus-4-7-via-claude-code
