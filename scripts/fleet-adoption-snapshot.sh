@@ -131,6 +131,35 @@ while IFS= read -r raw_line || [ -n "$raw_line" ]; do
     fi
 done < "$HUBS_FILE"
 
+# T-1894 hub-identity dedup. Two profiles for the same physical hub would
+# inflate total_hubs, fleet_reachable_hubs, and per-hub-counted metrics
+# (listeners, chat_arc posts, dm topics). The fleet-wide speaker UNION
+# is already dedupe-safe (T-1848's sort -u on fleet_speakers_tmp), so this
+# only fixes the additive metrics.
+_self_script="${BASH_SOURCE[0]}"
+_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_self_libdir/hubs-toml-walk.sh"
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout 8"   # PL-189 — per-probe bound for dedup only
+else
+    TIMEOUT_CMD=""
+fi
+_tsv_in=""
+for i in "${!profile_names[@]}"; do
+    _tsv_in+="${profile_addrs[$i]}"$'\t'"${profile_names[$i]}"$'\n'
+done
+_tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp fleet-adoption-snapshot)"
+declare -a _kept_names=()
+declare -a _kept_addrs=()
+while IFS=$'\t' read -r _kept_addr _kept_name; do
+    [ -n "$_kept_addr" ] || continue
+    _kept_addrs+=("$_kept_addr")
+    _kept_names+=("$_kept_name")
+done <<< "$_tsv_out"
+profile_addrs=("${_kept_addrs[@]}")
+profile_names=("${_kept_names[@]}")
+
 total_hubs="${#profile_names[@]}"
 [ "$total_hubs" -gt 0 ] || die_setup "no profiles found in $HUBS_FILE"
 
