@@ -2105,3 +2105,31 @@ learnings:
   date: 2026-05-29
   context: Added via context agent
   application: TBD
+- id: PL-193
+  learning: "Doorbell+mail rail unblocks operator-bottlenecked tasks at high leverage when (a) the bottleneck is precisely diagnosed in the task body, (b) a copy-pasteable fix recipe is included, (c) the cross-host DM or chat-arc broadcast names the target operator/agent and references the task ID. T-1166 (ring20-management acted on cross-host DM → .122 binary swap → cut_ready=true after 14d churn) and T-1699 (framework-agent acted on chat-arc broadcast + task body recipe → upstream commit be72baa5 matches recipe 1:1) both validate this on the same session 2026-05-30. Both took zero further coordination — a single DM/broadcast + the operator's autonomous pickup. This is what T-1830's drive-zero-adoption-gap looks like when adoption happens."
+  source: P-002
+  task: T-1699
+  date: 2026-05-29
+  context: Added via context agent
+  application: TBD
+- id: PL-194
+  learning: "channel.info on agent-chat-arc has asymmetric read-vs-write cost on slow hubs — write (channel post) completes within 8s ceiling even on .121/.141 but read (channel info, which scans backlog to compute count) times out. Operator impact: chat-arc-recent.sh fails to seek-to-tail (PL-188) on hubs with large backlogs + slow disk, yet broadcasts to those same hubs succeed. Future seek-to-tail implementations should avoid count-based cursor math on slow hubs — prefer subscribe with --since timestamp"
+  source: P-001
+  task: T-1870
+  date: 2026-05-29
+  context: Added via context agent
+  application: TBD
+- id: PL-195
+  learning: "/check-arc skill Step 1 reads 'session.identity_fingerprint' from whoami --json, but whoami returns SESSION info (pid/cwd/roles) not WIRE-LEVEL envelope sender_id. On shared hosts whoami also returns {ambiguous: true} when multiple termlink sessions exist. The actual self envelope-fp resolution path is: read sender_id from any recent local-hub post (e.g. termlink channel subscribe agent-presence --cursor 0 --limit 1 --json | jq -r .sender_id). On .107 this is d1993c2c3ec44c94 — the SHARED HOST envelope, not a per-session id. Per memory reference_shared_host_identity.md: T-1693 designs per-agent keys; until then, /check-arc enumerates DM topics keyed at host-fp, which is functionally 'inbox for any agent on this host'. /check-arc skill markdown should be updated to (a) drop the broken whoami path, (b) read self envelope-fp from a recent local-hub post, (c) document shared-host semantics. Filed as T-1874."
+  source: P-001
+  task: T-1452
+  date: 2026-05-30
+  context: Added via context agent
+  application: TBD
+- id: PL-196
+  learning: "Partial-complete tasks (status=work-completed, unchecked Human ACs) cannot have their Human ACs autonomously ticked via FW_ALLOW_HUMAN_AC_TICK=1. The work-completed gate in check-active-task.sh fires before the human-AC-tick hook is consulted, and the work-completed gate has no Tier-2 env-var bypass — only FW_SAFE_MODE=1, which must be set in the Claude Code process env (not reachable from inside a session). Sub-cause of G-008. Workaround when you discover mechanically-verifiable evidence on a partial-complete task: capture the evidence in a separate location (e.g. a related active task's Updates, or surface via fw task review for operator). Don't burn cycles trying to tick — the gate is structural."
+  source: P-002
+  task: T-1900
+  date: 2026-05-31
+  context: Added via context agent
+  application: TBD
