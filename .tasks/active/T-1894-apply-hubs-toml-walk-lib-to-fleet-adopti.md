@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T09:20:54Z
-last_update: 2026-05-31T09:20:54Z
+last_update: 2026-05-31T09:23:28Z
 date_finished: null
 ---
 
@@ -40,21 +40,6 @@ T-1848's UNION-via-`sort -u` on `fleet_speakers_tmp` already handles speaker ded
   3. `grep -q 'lib/hubs-toml-walk.sh' scripts/fleet-adoption-snapshot.sh && echo "sourced" || echo "not sourced"`
   **Expected:** Step 1 succeeds; Step 3 prints "sourced".
   **If not:** Capture the snapshot output and file a regression task.
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
 
 ## Verification
 
