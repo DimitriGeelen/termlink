@@ -4,7 +4,7 @@ name: "Restore OneDev → GitHub mirror — release pipeline silently broken sin
 description: >
   OneDev → GitHub mirror has been broken since 2026-05-02. GH HEAD frozen at b39fc916, OneDev HEAD at b179b0cb. 16 days of commits + 3 release tags (v0.10.0, v0.11.0, v0.11.1) never reached GitHub Releases. Homebrew install path broken. Operator-only: needs OneDev UI access + likely github-push-token rotation.
 
-status: issues
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-05-26T21:46:01Z
+last_update: 2026-05-31T15:48:37Z
 date_finished: null
 ---
 
@@ -366,3 +366,25 @@ as the recovery path.
 ### 2026-05-26T21:45:34Z — status-update [task-update-agent]
 - **Change:** status: started-work → issues
 - **Reason:** Self-correction: AEF mirror also broken; executor-mismatch diagnosis (2026-05-20 operator log) reaffirmed. Operator action still gated.
+
+### 2026-05-31T15:48:37Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
+
+### 2026-05-31T17:10Z — handed off to ring20-manager-vendored [agent autonomous]
+- **Why:** Operator pointed out ring20-manager is the OneDev admin reach
+  (OneDev runs at onedev.docker.ring20.geelenandcompany.com — inside ring20
+  infra). Prior session-handover line was sloppily recommending operator (dimitri)
+  do this when ring20-manager has the actual reach.
+- **Sent:** Full T-1695 ROOT CAUSE + two fix paths via `termlink agent contact
+  --target-fp 9219671e28054458` to `dm:9219671e28054458:d1993c2c3ec44c94`.
+  Delivered both locally (offset 21) and cross-posted to ring20-management hub
+  directly (offset 29 there). Payload anchored on 2026-05-20T08:40Z operator-pasted
+  build stderr, ruled out PAT path, asked for executor name (Path B) or
+  server-wide default change (Path A).
+- **Caveat:** ring20-manager-vendored heartbeats hourly but has no receipts on
+  this dm topic — same .141-pattern (emitter only, no attached Claude). Handoff
+  will sit unread until someone attaches a Claude session on .122. When they do,
+  this is the first thing waiting (and dm topic continuity is preserved — 21
+  prior envelopes of back-and-forth exist).
+- **Memory updated:** added project_g058_root_cause.md so future sessions don't
+  recite "PAT rotation" again.
