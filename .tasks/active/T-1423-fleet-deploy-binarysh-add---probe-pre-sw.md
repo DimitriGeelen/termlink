@@ -52,6 +52,18 @@ test -x scripts/fleet-deploy-binary.sh
 
 ## Updates
 
+### 2026-06-01T — closure-ready: --probe shipped, validated live in T-1903 [agent autonomous]
+
+All 6 Agent ACs ticked, no Human ACs defined. `--probe` flag is in production use:
+
+- T-1903 deployed 0.11.473 to 3 remote hubs (laptop-141, ring20-management, ring20-dashboard) using `scripts/fleet-deploy-binary.sh --probe --swap-restart`. Probe passed on each before swap; zero rollbacks.
+- Smaller follow-up T-1438 staged musl 0.9.1657 to .122 (operator-ready, not swapped) using `--probe` standalone — confirmed exec-ability without committing to swap.
+- `bash -n scripts/fleet-deploy-binary.sh` clean (this session).
+
+The PL-100 mitigation contract is honored: probe runs after assembly, before kill, abort with exit 5 + first-5-lines-of-stderr surfacing on non-zero. T-1903 commit 8698f25e is the canonical proof of utility.
+
+**Operator-actionable:** ready for `fw task update T-1423 --status work-completed`.
+
 ### 2026-04-30T20:05:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1423-fleet-deploy-binarysh-add---probe-pre-sw.md
