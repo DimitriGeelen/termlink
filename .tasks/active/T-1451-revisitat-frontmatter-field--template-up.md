@@ -70,6 +70,14 @@ git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineer
 
 ## Updates
 
+### 2026-06-01T — closure-ready: revisit_at field shipped, T-1452 cron consumes it [agent autonomous]
+
+All 6 Agent ACs ticked, no Human ACs defined. `revisit_at` + `revisit_evidence_needed` frontmatter fields shipped in task template (`.tasks/templates/default.md`) plus CLAUDE.md governance rule (line 580: "DEFER outcomes set revisit_at"). Downstream T-1452 cron (revisit-due-scan.sh) now reads these fields to surface ripe revisits in the handover banner — the G-053 prevention loop is closed.
+
+Verified live: this session's handover (`.context/handovers/LATEST.md`) was generated after the cron landed, no revisit-due banner because no deferral has come due yet — but the wiring is in place to fire when one does.
+
+**Operator-actionable:** ready for `fw task update T-1451 --status work-completed`.
+
 ### 2026-05-02T22:21:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1451-revisitat-frontmatter-field--template-up.md
