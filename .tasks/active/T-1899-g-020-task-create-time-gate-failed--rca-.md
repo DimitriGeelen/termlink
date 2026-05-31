@@ -12,7 +12,7 @@ tags: [governance, hook-gates, framework-agent, pickup, G-020]
 components: []
 related_tasks: [T-1898, T-469]
 created: 2026-05-31T17:52:28Z
-last_update: 2026-05-31T17:55:18Z
+last_update: 2026-05-31T17:56:14Z
 date_finished: null
 ---
 
@@ -126,10 +126,11 @@ S8. **Update memory.** Add a `feedback_*.md` entry capturing: "If you create a b
 <!-- @auto-tick-on-decide -->
 - [ ] [REVIEW] Review exploration findings and approve go/no-go on the framework-agent pickup
   **Steps:**
-  1. Run: `fw task review T-1899` (opens Watchtower)
+  1. Open Watchtower inception page: http://192.168.10.107:3003/inception/T-1899
+     (NOT /review/T-1899 — that's general task-AC review; inception decisions live on /inception/<id> with its own GO/NO-GO/DEFER form posting to /inception/<id>/decide)
   2. Review the Recommendation + proposed fix + pickup envelope draft
   3. Decide: GO (send pickup), NO-GO (don't send; reasons), DEFER (need more spike evidence)
-  4. Record decision via `fw inception decide T-1899 go|no-go|defer --rationale "..."`
+  4. Submit via the form on that page, OR via CLI: `fw inception decide T-1899 go|no-go|defer --rationale "..."`
   **Expected:** Decision recorded with rationale
   **If not:** Ask agent to deepen the spike or rework the proposed fix
 
