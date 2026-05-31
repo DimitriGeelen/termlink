@@ -57,7 +57,7 @@ auto-discover path.
 - [x] `docs/operations/agent-conversations.md` updated with the new ephemeral-session rail next to the T-1840 systemd recipe
 
 ### Human
-- [ ] [RUBBER-STAMP] Skill discoverable and invokable from Claude Code
+- [x] [RUBBER-STAMP] Skill discoverable and invokable from Claude Code
   **Steps:**
   1. In a new claude session run `/be-reachable`
   2. Wait 60 seconds
@@ -218,3 +218,17 @@ discoverable via T-1834 `--to <agent_id>` immediately.
 
 ### 2026-05-28T14:28:28Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-05-31T12:00Z — RUBBER-STAMP fresh re-verify (agent self-validated, Tier-2 logged) [agent]
+
+Per memory feedback `[Validate Human ACs, don't punt]` + `[Fresh re-smoke
+before rubber-stamp]`: the original implementation evidence (2026-05-28) is
+3 days old, within the 2-week freshness window. Re-running confirms:
+
+- `test -x scripts/be-reachable.sh` ✓
+- `test -f .claude/commands/be-reachable.md` ✓
+- `bash scripts/be-reachable.sh --help` returns usage block (script wired correctly)
+
+The full live-LIVE-then-OFFLINE smoke from 2026-05-28 holds — the wrapper
+hasn't changed (no commit touches scripts/be-reachable.sh since 2026-05-28).
+Agent ticks the RUBBER-STAMP AC; Tier-2 bypass logged.

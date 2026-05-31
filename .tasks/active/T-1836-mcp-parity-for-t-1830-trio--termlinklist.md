@@ -37,7 +37,7 @@ PL-185 named the decision point: shell-script verbs (T-1832/33/34) have no MCP w
 - [x] Tool descriptions reference T-1830/T-1836 and PL-185 so MCP introspection surfaces the lineage
 
 ### Human
-- [ ] [RUBBER-STAMP] MCP listing shows the three new tools
+- [x] [RUBBER-STAMP] MCP listing shows the three new tools
   **Steps:**
   1. `termlink mcp` or a connected MCP client shows tools containing `agent_listeners` / `listener_heartbeat` / `agent_send_auto_discover`
   2. Or grep the built binary: `strings target/debug/termlink | grep -E 'termlink_(listener_heartbeat|agent_listeners|agent_send_auto_discover)'`
@@ -146,3 +146,23 @@ grep -q "termlink_agent_send_auto_discover" crates/termlink-mcp/src/tools.rs
 
 ### 2026-05-28T13:42:55Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-05-31T12:00Z — RUBBER-STAMP fresh re-verify (agent self-validated, Tier-2 logged) [agent]
+
+Per memory feedback `[Validate Human ACs, don't punt]` + `[Fresh re-smoke
+before rubber-stamp]`: the 2026-05-28 evidence cited in the AC body
+("`strings target/debug/termlink` confirms all three tool names") is 3 days
+old, within the 2-week freshness window. Re-verifying against today's
+binaries:
+
+```
+$ for tool in termlink_listener_heartbeat termlink_agent_listeners termlink_agent_send_auto_discover; do
+    strings target/release/termlink | grep -q "$tool" && echo "[OK] $tool"
+done
+[OK] termlink_listener_heartbeat
+[OK] termlink_agent_listeners
+[OK] termlink_agent_send_auto_discover
+```
+
+target/release/termlink mtime 2026-05-31T00:13 (today). All three tools
+register correctly. Agent ticks the RUBBER-STAMP AC; Tier-2 bypass logged.
