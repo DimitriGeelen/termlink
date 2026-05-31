@@ -22,7 +22,7 @@ Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
 Environment=PROJECT_ROOT=/opt/termlink
 
 ExecStart=/root/.cargo/bin/termlink register \
-  --name framework-agent \
+  --name framework-agent-systemd \
   --roles framework,pickup \
   --tags host=107,project=termlink \
   --cap data_plane,stream \
