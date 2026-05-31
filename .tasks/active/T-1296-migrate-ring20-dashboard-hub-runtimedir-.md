@@ -4,15 +4,15 @@ name: "Migrate ring20-dashboard hub runtime_dir (.121) — same as T-1294"
 description: >
   Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashboard). T-1294 fixed .122 by moving runtime_dir from /tmp/termlink-0/ to /var/lib/termlink/ in ring20-watchdog.sh. .121 still runs on /tmp/termlink-0/ with the same systemd-tmpfiles 'D /tmp' wipe behavior, so it has the same G-011 cascade pattern (every CT 101 reboot wipes hub.secret, all peer caches go stale). Bonus: T-1294 introduced a regression where .122's watchdog peer-refresh function expands TERMLINK_RUNTIME_DIR to OUR local path (/var/lib/termlink/) but tries to extract from .121 — currently broken until .121 is also on /var/lib/termlink/. Completing this task heals both: .121 cascade prevention AND restores cross-host peer-refresh.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
-horizon: next
+horizon: now
 tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir, T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1291, T-935]
 created: 2026-04-26T14:27:17Z
-last_update: 2026-04-26T14:27:17Z
+last_update: 2026-05-31T21:19:29Z
 date_finished: null
 ---
 
@@ -88,6 +88,38 @@ termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'
 
 ## Updates
 
+### 2026-05-31T21:28Z — migration ALREADY APPLIED on .121 — 3 unticked ACs are stale, fresh evidence supports closure [agent autonomous]
+
+Routine post-T-1903 sweep discovered that this task's migration recipe was applied at some point in the past month but the ACs were never ticked. The task body still says `status: captured` while the field state is fully migrated.
+
+Live evidence from .121 (session tl-tfjl34mm):
+
+```
+$ termlink remote exec ring20-dashboard tl-tfjl34mm 'ls -la /var/lib/termlink/ && echo --- && ls -la /tmp/termlink-0/'
+
+drwxr-xr-x  4 root root    4096 May 31 20:24 .
+drwxr-xr-x 22 root root    4096 May  3 08:04 ..
+drwxr-xr-x  4 root root    4096 May 31 21:17 bus
+-rw-r--r--  1 root root     566 May  2 06:05 hub.cert.pem
+-rw-------  1 root root     241 May  2 06:05 hub.key.pem
+-rw-r--r--  1 root root       6 May 31 20:24 hub.pid
+-rw-------  1 root root      64 May  2 06:05 hub.secret
+---
+drwxr-xr-x  3 root root  4096 May 28 20:45 .
+drwxrwxrwt 19 root root 12288 May 31 21:17 ..
+drwx------  2 root root  4096 May 28 21:50 sessions
+```
+
+What the evidence proves, AC-by-AC:
+
+- **AC #2 (apply migration recipe):** `/var/lib/termlink/` is the live runtime_dir — hub.cert/.key/.secret all present, hub.pid recent. `/tmp/termlink-0/` no longer holds hub files (only the per-process sessions/ subdir, which is unrelated). Migration applied.
+- **AC #3 (re-pin + fleet doctor green):** This session's fleet doctor (2026-05-31T21:14Z) reports `[PASS] connected in 42ms (version: 0.11.473)` with pin=match for ring20-dashboard. Re-pin done at some point; current state is steady.
+- **AC #4 (CT 101 reboot persistence):** `hub.cert.pem`/`hub.key.pem`/`hub.secret` mtime is `May 2 06:05`. Container last boot is `May 28 20:45` (per `.` mtime of `/tmp/termlink-0/`). The files SURVIVED the May 28 reboot — that's the ground-truth invariant. Persist-if-present is working.
+
+**Operator-actionable:** ready to tick the 3 remaining RUBBER-STAMP boxes + `fw task update T-1296 --status work-completed`. Or, if preferred, transition the task to `started-work` first then `work-completed` since `captured` is the pre-work state.
+
+PL-021 prevention coverage extended: both ring20-management (T-1294) and ring20-dashboard (T-1296) are now off `/tmp/termlink-0/`. The volatile-/tmp root cause is closed across the proxmox CT fleet.
+
 ### 2026-04-26T14:27:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md
@@ -139,3 +171,7 @@ Executed via `termlink remote exec ring20-dashboard tl-4augvpzt`. Watchdog patch
 - Next reboot is the final test — `/var/lib/termlink` is on regular disk, not /tmp, survives both tmpfs wipe and tmpfiles.d boot-clean
 
 **Closes T-1296 + T-1294 root cause for ring20-dashboard.** All four field hubs now run with persistent runtime_dir on regular disk (.107 systemd, .122 systemd, .141 export-prefixed shell launch, .121 watchdog patched).
+
+### 2026-05-31T21:19:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
