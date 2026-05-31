@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1897: check-outbox.sh: refactor inline fp→status join to consume peer-presence-lookup.sh (close first-seen-wins bug + dedup)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T11:42:58Z
+# ============================================================================
+
+task_id: T-1897
+task_name: "check-outbox.sh: refactor inline fp→status join to consume peer-presence-lookup.sh (close first-seen-wins bug + dedup)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T11:38:07Z
+completed: 2026-05-31T11:42:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-31T13:42:20+02:00
+last_commit: 2026-05-31T13:42:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-outbox.sh refactor — consume scripts/peer-presence-lookup.sh. add RCA section (G-019 gate)
+
+# Key outcomes
+outcomes:
+  - "check-outbox.sh `--with-presence` branch replaced with a single call to `scripts/peer-presence-lookup.sh` (no inline section A/B/C remains)."
+  - "Net LOC reduction in check-outbox.sh (delete > add) — the helper subsumes ~75 LOC of inline join. Measured: -72 / +24 = net **-48 lines**."
+  - "Functional parity: `bash scripts/check-outbox.sh --with-presence --fleet --json` produces same shape as pre-refactor; `peer_status` field present; counts match (28 vs 29 topics; +1 new DM landed during the 2-min gap between the two runs)."
+  - "Smoke evidence captured in Updates: post-refactor confirmed via 28→29 topic parity + same status distribution; LIVE-preference algorithm proven via T-1896's self-fp test (d1993c2c → LIVE on workstation-107-public, where the inline first-seen-wins would have mis-routed to laptop-141 OFFLINE)."
+  - "No regression on the fail-open path: helper returning empty → rows render with `peer_status=UNKNOWN` + `check-outbox: presence lookup partial: ...` stderr diagnostic (matches pre-refactor behavior; verified by code review — `presence_err` flow preserved)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/check-outbox.sh"
+  - ".tasks/active/T-1897-check-outboxsh-refactor-inline-fpstatus-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T13:42:20"
+    action: "T-1897: check-outbox.sh refactor — consume scripts/peer-presence-lookup.sh"
+  - time: "2026-05-31T13:42:56"
+    action: "T-1897: add RCA section (G-019 gate)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 2
+  lines_added: 231
+  lines_removed: 86
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1897-check-outboxsh-refactor-inline-fpstatus-.md
+generated_by: context-agent-hybrid

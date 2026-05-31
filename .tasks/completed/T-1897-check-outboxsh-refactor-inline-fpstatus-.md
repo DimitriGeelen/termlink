@@ -4,7 +4,7 @@ name: "check-outbox.sh: refactor inline fp→status join to consume peer-presenc
 description: >
   check-outbox.sh: refactor inline fp→status join to consume peer-presence-lookup.sh (close first-seen-wins bug + dedup)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T11:38:07Z
-last_update: 2026-05-31T11:42:20Z
-date_finished: null
+last_update: 2026-05-31T11:42:56Z
+date_finished: 2026-05-31T11:42:56Z
 ---
 
 # T-1897: check-outbox.sh: refactor inline fp→status join to consume peer-presence-lookup.sh (close first-seen-wins bug + dedup)
@@ -191,3 +191,25 @@ algorithm.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1897-check-outboxsh-refactor-inline-fpstatus-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-fc892051
+- **Timestamp:** 2026-05-31T11:42:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — check-outbox.sh `--with-presence` branch replaced with a single call to `scripts/peer-presence-lookup.sh` (no inline section A/B/C remains).
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/peer-presence-lookup.sh in: check-outbox.sh `--with-presence` branch replaced with a single call to `scripts/peer-presence-lookup.sh` (no inline section A/B/C remains).`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 1
+     - evidence: `bash scripts/check-outbox.sh --help >/dev/null`
+
+### 2026-05-31T11:42:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
