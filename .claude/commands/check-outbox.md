@@ -17,8 +17,11 @@ detect this. Now: one command.
 |------|--------|
 | `/check-outbox` | Local hub only — fast, no fleet probe |
 | `/check-outbox --fleet` | Walk every hub in `~/.termlink/hubs.toml` (dedup by TLS fingerprint, T-1889 sibling) |
+| `/check-outbox --with-presence` | T-1895: enrich each row with peer's `[LIVE]`/`[STALE]`/`[OFFLINE]` listener status. Adds one cross-reference call to `agent-listeners-fleet.sh`. UNKNOWN (suppressed marker) when peer can't be located on any reachable hub. |
 | `/check-outbox --json` | Machine-readable; pair with `jq` |
 | `/check-outbox --include-self` | Include `dm:<self>:<self>` (default skips) |
+
+**Canonical use of `--with-presence`** (T-1457): T-1891 surfaced 5 unread DMs to peer `6604a2af` on `laptop-141`. Without `--with-presence`, the operator must run `/peers --all` separately to learn whether the peer has a LIVE listener. With it: the row reads `[OFFLINE] laptop-141 dm:6604a2af:d1993c2c peer=6604a2af… unread=5` — operator knows immediately that nudging via `/agent-handoff` is futile (no listener to ring), and `/broadcast-chat` is the only path. The suggestions tail auto-includes that hint when any row is OFFLINE/UNKNOWN.
 
 The wrapper is `scripts/check-outbox.sh`. Read-only by contract — no posts,
 no acks, no `KnownHubStore` writes.

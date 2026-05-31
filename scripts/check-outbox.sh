@@ -29,6 +29,9 @@
 #   check-outbox.sh --fleet                      # walk ~/.termlink/hubs.toml
 #   check-outbox.sh --hubs-file PATH             # custom hubs.toml
 #   check-outbox.sh --include-self               # include dm:<self>:<self>
+#   check-outbox.sh --with-presence              # T-1895: enrich each row with
+#                                                # peer's LIVE/STALE/OFFLINE status
+#                                                # via agent-listeners-fleet.sh
 #   check-outbox.sh --json
 set -u
 
@@ -38,6 +41,7 @@ PER_HUB_TIMEOUT=8
 FORMAT=human
 FLEET=0
 INCLUDE_SELF=0
+WITH_PRESENCE=0
 
 die() {
     if [ "$FORMAT" = json ]; then
@@ -49,7 +53,7 @@ die() {
 }
 
 usage() {
-    sed -n '2,32p' "$0"
+    sed -n '2,36p' "$0"
 }
 
 while [ $# -gt 0 ]; do
@@ -57,6 +61,7 @@ while [ $# -gt 0 ]; do
         --fleet)         FLEET=1; shift ;;
         --hubs-file)     HUBS_FILE="${2:-}"; FLEET=1; shift 2 ;;
         --include-self)  INCLUDE_SELF=1; shift ;;
+        --with-presence) WITH_PRESENCE=1; shift ;;
         --json)          FORMAT=json; shift ;;
         --timeout-secs)  PER_HUB_TIMEOUT="${2:-}"; shift 2 ;;
         -h|--help)       usage; exit 0 ;;
@@ -244,6 +249,95 @@ for i in "${!hub_names[@]}"; do
     done <<< "$dm_topics"
 done
 
+# T-1895 presence enrichment.
+# Maps each row's peer_fp -> peer_status by joining two reads:
+#
+#   A. For each hubs.toml profile, query `channel info agent-presence --hub <name>`
+#      to learn which IDENTITY fingerprints (16-char host fps, NOT TLS leaf-cert
+#      sha256) currently emit presence on that hub. Build identity_fp -> hub_name.
+#      Falls back to agent-chat-arc senders if presence is empty.
+#   B. Fetch the listener fleet via agent-listeners-fleet.sh; collapse to
+#      hub_name -> max(LIVE > STALE > OFFLINE).
+#   C. Join: row.peer_fp -> hub_name (via A) -> peer_status (via B).
+#
+# Failure-tolerant: if A or B fails, peer_status defaults to UNKNOWN and rows
+# render normally. UNKNOWN suppresses the inline marker.
+presence_err=""
+declare -A _fp_to_hub_name=()
+declare -A _hub_name_to_status=()
+if [ "$WITH_PRESENCE" -eq 1 ]; then
+    # A. Walk hubs.toml profiles, query presence + chat-arc per profile.
+    declare -a _prof_names=()
+    declare -a _prof_addrs=()
+    _cur_name=""
+    while IFS= read -r _raw; do
+        _l="${_raw%$'\r'}"; _l="${_l%%#*}"; _l="${_l#"${_l%%[![:space:]]*}"}"; _l="${_l%"${_l##*[![:space:]]}"}"
+        [ -z "$_l" ] && continue
+        if [[ "$_l" =~ ^\[hubs\.([A-Za-z0-9_.-]+)\][[:space:]]*$ ]]; then
+            _cur_name="${BASH_REMATCH[1]}"
+        elif [ -n "$_cur_name" ] && [[ "$_l" =~ ^address[[:space:]]*=[[:space:]]*\"([^\"]+)\"[[:space:]]*$ ]]; then
+            _prof_names+=("$_cur_name")
+            _prof_addrs+=("${BASH_REMATCH[1]}")
+            _cur_name=""
+        fi
+    done < "$HUBS_FILE"
+
+    for _i in "${!_prof_names[@]}"; do
+        _pn="${_prof_names[$_i]}"
+        # Try agent-presence first (matches the LIVE-presence source of truth).
+        _senders_json="$($TIMEOUT_CMD "$TERMLINK" channel info agent-presence --hub "$_pn" --json 2>/dev/null || true)"
+        _has_sender="$(printf '%s' "$_senders_json" | jq -r '.senders[]?.sender_id' 2>/dev/null | head -1)"
+        if [ -z "$_has_sender" ]; then
+            # Fallback to agent-chat-arc (presence topic may not exist on that hub).
+            _senders_json="$($TIMEOUT_CMD "$TERMLINK" channel info agent-chat-arc --hub "$_pn" --json 2>/dev/null || true)"
+        fi
+        while IFS= read -r _sid; do
+            [ -n "$_sid" ] || continue
+            # First-seen wins per fp.
+            [ -z "${_fp_to_hub_name[$_sid]:-}" ] && _fp_to_hub_name["$_sid"]="$_pn"
+        done < <(printf '%s' "$_senders_json" | jq -r '.senders[]?.sender_id' 2>/dev/null)
+    done
+
+    # B. Listener fleet → hub_name → max(status). The fleet wrapper's `hub` field
+    # holds the profile ADDRESS, so we invert addr -> name via _prof_*.
+    _listeners_json="$(timeout 15 bash scripts/agent-listeners-fleet.sh --include-offline --hubs-file "$HUBS_FILE" --json 2>/dev/null || true)"
+    if [ -z "$_listeners_json" ] || ! printf '%s' "$_listeners_json" | jq -e '.ok' >/dev/null 2>&1; then
+        presence_err="agent-listeners-fleet returned no data"
+    else
+        declare -A _addr_to_name=()
+        for _i in "${!_prof_names[@]}"; do
+            _addr_to_name["${_prof_addrs[$_i]}"]="${_prof_names[$_i]}"
+        done
+        while IFS=$'\t' read -r _l_hub_addr _l_status; do
+            [ -n "$_l_hub_addr" ] || continue
+            _l_name="${_addr_to_name[$_l_hub_addr]:-$_l_hub_addr}"
+            _cur="${_hub_name_to_status[$_l_name]:-OFFLINE}"
+            case "$_l_status" in
+                LIVE)    _hub_name_to_status["$_l_name"]=LIVE ;;
+                STALE)   [ "$_cur" != "LIVE" ] && _hub_name_to_status["$_l_name"]=STALE ;;
+                OFFLINE) [ "$_cur" != "LIVE" ] && [ "$_cur" != "STALE" ] && _hub_name_to_status["$_l_name"]=OFFLINE ;;
+            esac
+        done < <(printf '%s' "$_listeners_json" | jq -r '.listeners[]? | "\(.hub)\t\(.status)"' 2>/dev/null)
+    fi
+
+    # C. Enrich rows in place.
+    _tmp_enriched="$(mktemp -t check-outbox-enriched.XXXXXX)"
+    while IFS= read -r _row; do
+        [ -n "$_row" ] || continue
+        _peer_fp="$(printf '%s' "$_row" | jq -r '.peer_fp')"
+        _peer_hub_name="${_fp_to_hub_name[$_peer_fp]:-}"
+        if [ -z "$_peer_hub_name" ]; then
+            _peer_status="UNKNOWN"
+        else
+            _peer_status="${_hub_name_to_status[$_peer_hub_name]:-OFFLINE}"
+        fi
+        printf '%s' "$_row" | jq -c --arg s "$_peer_status" '. + {peer_status: $s}' >> "$_tmp_enriched"
+    done < "$tmp_rows"
+    mv "$_tmp_enriched" "$tmp_rows"
+
+    [ -n "$presence_err" ] && echo "check-outbox: presence lookup partial: $presence_err (rows shown without peer_status)" >&2
+fi
+
 # Render.
 rows_arr="$(jq -s -c 'sort_by(-.outbound_unread)' "$tmp_rows" 2>/dev/null || echo '[]')"
 n_rows="$(printf '%s' "$rows_arr" | jq 'length' 2>/dev/null || echo 0)"
@@ -271,13 +365,30 @@ else
         fi
     else
         echo "check-outbox: $n_rows topic(s) with unread peer (self=$self_fp_short…)"
+        # T-1895: when --with-presence was set, append [LIVE]/[STALE]/[OFFLINE] marker
+        # (UNKNOWN suppressed — no noise when presence lookup is unavailable).
         printf '%s\n' "$rows_arr" | jq -r '.[] |
-            "  \(.hub | tostring | .[0:18]) \(.topic | tostring | .[0:48]) peer=\(.peer_fp | tostring | .[0:8])…  unread=\(.outbound_unread)  (count=\(.count), peer_acked=\(.peer_acked))"
+            (.peer_status // "UNKNOWN") as $st |
+            (if $st == "LIVE" then "  [LIVE]   "
+             elif $st == "STALE" then "  [STALE]  "
+             elif $st == "OFFLINE" then "  [OFFLINE]"
+             else "           " end) as $marker |
+            "\($marker) \(.hub | tostring | .[0:18]) \(.topic | tostring | .[0:48]) peer=\(.peer_fp | tostring | .[0:8])…  unread=\(.outbound_unread)  (count=\(.count), peer_acked=\(.peer_acked))"
         '
         echo
         echo "DMs you sent that peer hasn't acked. If peer is unreachable, consider:"
         echo "  • /agent-handoff <peer> T-XXX \"<follow-up>\"     # nudge"
-        echo "  • /peers --all                                    # check if peer is LIVE"
+        # T-1895: only suggest /peers when --with-presence is OFF (otherwise the
+        # status is already inline). Always suggest broadcast for OFFLINE peers.
+        if [ "$WITH_PRESENCE" -eq 0 ]; then
+            echo "  • /peers --all                                    # check if peer is LIVE"
+            echo "  • /check-outbox --with-presence                   # inline LIVE/STALE/OFFLINE markers"
+        else
+            _any_offline="$(printf '%s' "$rows_arr" | jq -r '[.[] | select(.peer_status == "OFFLINE" or .peer_status == "UNKNOWN")] | length' 2>/dev/null || echo 0)"
+            if [ "$_any_offline" -gt 0 ]; then
+                echo "  • /broadcast-chat \"<follow-up>\"                # peer has no LIVE listener — broadcast may be the only path"
+            fi
+        fi
     fi
     if [ "$hubs_failed" -gt 0 ]; then
         echo "  ($hubs_failed hub(s) failed — see stderr lines above)" >&2
