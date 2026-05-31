@@ -103,8 +103,37 @@ while IFS= read -r raw_line || [ -n "$raw_line" ]; do
     fi
 done < "$HUBS_FILE"
 
+total_raw="${#profile_names[@]}"
+[ "$total_raw" -gt 0 ] || die "no profiles found in $HUBS_FILE"
+
+# T-1892 hub-identity dedup. Two profiles can list the same physical hub
+# under different addresses (canonical: workstation-107-public at
+# 192.168.10.107:9100 AND local-test at 127.0.0.1:9100 → same hub bound to
+# 0.0.0.0:9100). Without dedup the canary would run the selftest against
+# that hub twice, double-counting pass/fail tallies and producing
+# misleading G-060 alert deltas. Probe each address; first profile name
+# per TLS fingerprint wins.
+_self_script="${BASH_SOURCE[0]}"
+_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_self_libdir/hubs-toml-walk.sh"
+_tsv_in=""
+for i in "${!profile_names[@]}"; do
+    _tsv_in+="${profile_addrs[$i]}"$'\t'"${profile_names[$i]}"$'\n'
+done
+_tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp check-fleet-doorbell-mail-health)"
+declare -a _kept_names=()
+declare -a _kept_addrs=()
+while IFS=$'\t' read -r _kept_addr _kept_name; do
+    [ -n "$_kept_addr" ] || continue
+    _kept_addrs+=("$_kept_addr")
+    _kept_names+=("$_kept_name")
+done <<< "$_tsv_out"
+profile_addrs=("${_kept_addrs[@]}")
+profile_names=("${_kept_names[@]}")
+
 total="${#profile_names[@]}"
-[ "$total" -gt 0 ] || die "no profiles found in $HUBS_FILE"
+[ "$total" -gt 0 ] || die "no profiles found in $HUBS_FILE (after dedup)"
 
 # Per-profile sweep. Each entry is captured as a JSON object string so we can
 # stitch them into the final envelope without spawning jq per profile twice.

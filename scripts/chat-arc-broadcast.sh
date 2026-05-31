@@ -98,37 +98,17 @@ addrs="$(awk '
 
 [ -n "$addrs" ] || die "no hub addresses parsed from $HUBS_FILE"
 
-# T-1889 hub-identity dedup (PL-189 sibling):
-# two profiles can list the same physical hub
-# under different addresses (canonical example: workstation-107-public at
-# 192.168.10.107:9100 AND local-test at 127.0.0.1:9100 both hit the same
-# hub bound to 0.0.0.0:9100). Without dedup, every broadcast posts to that
-# hub twice. Probe each unique address; group by TLS leaf-cert fingerprint;
-# post once per group. Probe failures fall through (visibility of per-post
-# failure preserved — better to over-post than to silently drop a host).
-declare -A _fp_to_canonical=()
-deduped_addrs=""
-while IFS= read -r addr; do
-    [ -n "$addr" ] || continue
-    fp_out="$($TIMEOUT_CMD "$TERMLINK" hub probe "$addr" --json 2>/dev/null || true)"
-    fp="$(printf '%s' "$fp_out" | jq -r '.fingerprint // empty' 2>/dev/null || true)"
-    if [ -z "$fp" ]; then
-        # Probe failed — include the address anyway, can't dedup. The
-        # per-hub post-loop will surface the failure if it actually was a
-        # network issue.
-        deduped_addrs+="$addr"$'\n'
-        continue
-    fi
-    if [ -n "${_fp_to_canonical[$fp]:-}" ]; then
-        fp_short="${fp#sha256:}"
-        fp_short="${fp_short:0:8}"
-        echo "chat-arc-broadcast: skipping duplicate $addr (same hub as ${_fp_to_canonical[$fp]}, fingerprint=$fp_short)" >&2
-        continue
-    fi
-    _fp_to_canonical[$fp]="$addr"
-    deduped_addrs+="$addr"$'\n'
-done <<< "$addrs"
-addrs="$(printf '%s' "$deduped_addrs" | sed '/^$/d')"
+# T-1889 hub-identity dedup (PL-189 sibling), refactored T-1892 to use
+# the shared helper at scripts/lib/hubs-toml-walk.sh. Two profiles can
+# list the same physical hub under different addresses (canonical:
+# workstation-107-public at 192.168.10.107:9100 AND local-test at
+# 127.0.0.1:9100 both hit the same hub bound to 0.0.0.0:9100). Without
+# dedup, every broadcast posts to that hub twice.
+_self_script="${BASH_SOURCE[0]}"
+_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_self_libdir/hubs-toml-walk.sh"
+addrs="$(printf '%s\n' "$addrs" | dedup_addrs_by_fp chat-arc-broadcast | sed '/^$/d')"
 
 [ -n "$addrs" ] || die "no addresses left after dedup (all probes failed?)"
 
