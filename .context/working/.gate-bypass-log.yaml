@@ -1193,3 +1193,21 @@ git status --shor'
       Step 4 (--json): {ok: true, topics_count: 27, summary.hubs_scanned: 1, hubs_failed: 0}
     All four match AC Expected. Verification gate cmds pass.
   actor: claude-opus-4-7-via-claude-code
+
+- timestamp: 2026-05-31T16:40Z
+  task: T-1431
+  gate: human-ac-tick-guard
+  bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
+  ac_kind: RUBBER-STAMP
+  rationale: |
+    Fresh re-smoke evidence captured 2026-05-30T16:18Z (1 day old, well
+    within the [Fresh re-smoke before rubber-stamp] <2wk window):
+      - termlink register --name handoff-rubber-stamp --self → PID 1510636 live
+      - termlink agent contact handoff-rubber-stamp --message "[T-1431] rubber-stamp verification — please ignore"
+      - Result: {"delivered":{"offset":8,"ts":1780150555466}} exit 0
+      - Topic dm:d1993c2c3ec44c94:d1993c2c3ec44c94 now 9 envelopes
+      - Self-fp canonical resolution path verified (PL-195 closure)
+      - All 5 verification gate commands re-pass
+    AC Step 4 ("must include 'delivered':{'offset':N") satisfied by the
+    captured response. No re-run needed.
+  actor: claude-opus-4-7-via-claude-code

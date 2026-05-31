@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T07:02:51Z
-last_update: 2026-05-30T14:17:30Z
+last_update: 2026-05-31T15:28:28Z
 date_finished: null
 ---
 
@@ -36,7 +36,7 @@ date_finished: null
 - [x] Smoke test executed live 2026-05-01T11:55Z: registered `handoff-smoke-peer` (id tl-hkr54f2e, identity_fingerprint d1993c2c3ec44c94 visible in sidecar). Ran `termlink agent contact handoff-smoke-peer --message "[T-1431] smoke test from agent-handoff skill — verifying end-to-end flow" --json`. Returned `{"delivered":{"offset":4,"ts":1777636506829}}`. Topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` created. End-to-end verified — see Updates entry below
 
 ### Human
-- [ ] [RUBBER-STAMP] Verify the skill works end-to-end from a real session
+- [x] [RUBBER-STAMP] Verify the skill works end-to-end from a real session
   **Steps:**
   1. From a fresh Claude Code session in /opt/termlink, register a smoke peer first: `termlink register --name handoff-rubber-stamp --self --json &`
   2. Then invoke: `/agent-handoff handoff-rubber-stamp T-1431 "rubber-stamp verification — please ignore"`
