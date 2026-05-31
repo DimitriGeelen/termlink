@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T20:12:03Z
-last_update: 2026-05-31T20:12:03Z
+last_update: 2026-05-31T20:21:38Z
 date_finished: null
 ---
 
@@ -32,12 +32,12 @@ Deploy path: `scripts/fleet-deploy-binary.sh <hub> --probe --swap-restart`. The 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cargo build --release --target x86_64-unknown-linux-musl --bin termlink` completes; `target/x86_64-unknown-linux-musl/release/termlink --version` reports 0.11.472
-- [ ] laptop-141: `fleet-deploy-binary.sh laptop-141 --probe --swap-restart` succeeds (exit 0); fleet doctor reports laptop-141 on 0.11.472
-- [ ] ring20-management: `fleet-deploy-binary.sh ring20-management --probe --swap-restart` succeeds (exit 0); fleet doctor reports ring20-management on 0.11.472
-- [ ] ring20-dashboard: `fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart` succeeds (exit 0); fleet doctor reports ring20-dashboard on 0.11.472
-- [ ] Post-deploy fleet-wide check: `fleet doctor` reports zero 0.9.x hubs; the "Version skew" action item is empty
-- [ ] Any post-rotation auth-mismatch is healed via `fleet reauth <hub> --bootstrap-from auto` (T-1291); fleet verify reports zero `drift` rows
+- [x] `cargo build --release --target x86_64-unknown-linux-musl --bin termlink` completes; `target/x86_64-unknown-linux-musl/release/termlink --version` reports 0.11.472 — actual `0.11.473` (HEAD `3546b434` after T-1902 commit landed mid-build)
+- [x] laptop-141: `fleet-deploy-binary.sh laptop-141 --probe --swap-restart` succeeds (exit 0); fleet doctor reports laptop-141 on 0.11.472 — probe OK `termlink 0.11.473`, hub UP t=10s after swap, fleet doctor reports `version: 0.11.473` (0.9.0 → 0.11.473)
+- [x] ring20-management: `fleet-deploy-binary.sh ring20-management --probe --swap-restart` succeeds (exit 0); fleet doctor reports ring20-management on 0.11.472 — probe OK `0.11.473`, hub UP t=15s, fleet doctor `version: 0.11.473` (0.9.2127 → 0.11.473); 4 active sessions survived restart
+- [x] ring20-dashboard: `fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart` succeeds (exit 0); fleet doctor reports ring20-dashboard on 0.11.472 — probe OK `0.11.473`, hub UP t=15s, fleet doctor `version: 0.11.473` (0.9.2127 → 0.11.473)
+- [x] Post-deploy fleet-wide check: `fleet doctor` reports zero 0.9.x hubs; the "Version skew" action item is empty — 5/5 PASS, versions 0.11.472 (2 local) / 0.11.473 (3 remote), no 0.9.x left
+- [x] Any post-rotation auth-mismatch is healed via `fleet reauth <hub> --bootstrap-from auto` (T-1291); fleet verify reports zero `drift` rows — `fleet verify` reports `match` for all three remotes (persist-if-present held; no PL-021 rotation triggered); no heal needed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
