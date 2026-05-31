@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T07:02:51Z
-last_update: 2026-05-01T11:51:32Z
+last_update: 2026-05-30T14:17:30Z
 date_finished: null
 ---
 
@@ -41,8 +41,8 @@ date_finished: null
   1. From a fresh Claude Code session in /opt/termlink, register a smoke peer first: `termlink register --name handoff-rubber-stamp --self --json &`
   2. Then invoke: `/agent-handoff handoff-rubber-stamp T-1431 "rubber-stamp verification — please ignore"`
   3. Watch the output — should see task-existence check → whoami → contact → offset → task update sequence
-  4. `grep -A6 "handoff-posted" .tasks/active/T-1431-*.md | tail -8` — see the update entry
-  5. `termlink channel list --prefix dm: | grep handoff-rubber` (or grep your own fingerprint prefix) — confirm dm topic created
+  4. `grep -A6 "handoff-posted\|re-smoke-test" .tasks/active/T-1431-*.md | tail -16` — see the most recent update entry; must include `"delivered":{"offset":N` (that's the e2e proof: hub accepted the post)
+  5. `termlink channel list --prefix dm: | head -5` — confirm dm topics exist on local hub. (NOTE: DM topics are named `dm:<self-fp>:<peer-fp>` using 16-hex fingerprints, NOT friendly peer names. An earlier version of this Step grepped for `handoff-rubber` which can never match — fixed by T-1888.)
   **Expected:** end-to-end works without prompts, manual fallbacks, or improvisation
   **If not:** capture failure point in Updates and re-scope which step broke
 

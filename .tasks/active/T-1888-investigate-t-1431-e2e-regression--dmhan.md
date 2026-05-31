@@ -4,7 +4,7 @@ name: "Investigate T-1431 e2e regression — dm:handoff-rubber* missing on chat-
 description: >
   T-1884 S2 ran T-1431's [RUBBER-STAMP] Human AC Step 5: termlink channel list --prefix dm: | grep handoff-rubber — exit=1, no match. T-1431's AC asserts the skill works end-to-end. Either (a) the evidence smoke from 2026-05-30 was hub-local and dm topics were cleaned up since, or (b) the /agent-handoff skill regressed. Diagnose which, fix or refresh evidence accordingly. Source: docs/reports/T-1884-S2-results.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [bug]
 components: []
 related_tasks: [T-1431, T-1884]
 created: 2026-05-30T22:00:08Z
-last_update: 2026-05-30T22:00:08Z
+last_update: 2026-05-31T07:02:05Z
 date_finished: null
 ---
 
@@ -25,24 +25,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
+- [x] Determine current state of `dm:handoff-rubber*` topics on local hub — confirmed: zero matches (topics are fp-keyed, never name-keyed)
+- [x] Determine same state on each remote hub in `~/.termlink/hubs.toml` — N/A, local fp-keyed topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` exists with 11 envelopes, federation probe redundant
+- [x] Classify root cause: (d) other — verification AC misspecification, NOT skill regression
+- [x] Skill is healthy. Fixed T-1431 Step 5 with correct pattern + inline note explaining DM topic naming convention
+- [x] Documented finding in `## RCA`; T-1431 inline-references T-1888 as the fix source
 
 ## Verification
 
@@ -57,19 +44,13 @@ date_finished: null
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** T-1884 S2 ran T-1431's [RUBBER-STAMP] Human AC Step 5 (`termlink channel list --prefix dm: | grep handoff-rubber`) — exit 1, no match. Looked like e2e regression.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Step 5's grep pattern was misspecified. DM topics in TermLink are named `dm:<self-fp>:<peer-fp>` using 16-hex fingerprint pairs derived from identity keys — they NEVER include the friendly peer name (`handoff-rubber-stamp`). The actual topic created by the smoke is `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` (self-DM on shared host .107 — same host key for self and registered peer). Topic exists with 11 envelopes; skill works. Investigated and confirmed via `termlink channel info` showing count=11, single sender_id=d1993c2c3ec44c94.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** No validator existed that runs Human AC Steps against current state and reports drift between Steps and reality. T-1884's S2 was the first such pass; it caught this on the first run. The misspecified Step survived since 2026-05-01 because the AC was never executed against current topic-naming conventions — the operator would have noticed only at rubber-stamp time.
+
+**Prevention:** T-1885 (`fw independent-review`) v0.1 orchestrator is the structural prevention — it runs Step commands against current state for every unchecked Human AC, surfacing misspec-vs-regression confusion as INCONCLUSIVE/FAIL. This task is the prevention case that proves the orchestrator's value: a quality issue in the AC, not the skill, found by independent re-verification. Apply: ACs whose Steps reference topic names should always use the fingerprint-pair pattern, never the friendly name. Documented as a one-line note inline in T-1431 Step 5.
 
 ## Evolution
 
@@ -122,3 +103,14 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1888-investigate-t-1431-e2e-regression--dmhan.md
 - **Context:** Initial task creation
+
+### 2026-05-31T00:30Z — investigation-complete [agent autonomous]
+- **AC 1 (local):** `termlink channel list --prefix dm:` shows no `handoff-rubber` topic; correct fp-keyed self-DM topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` exists with `[forever]` retention.
+- **AC 2 (remote):** No need to probe remote hubs — local hub has the canonical fp-keyed topic with 11 envelopes (count=11 via `channel info`). Confirms the smoke landed and persists. The verification step on remote was redundant; root cause is local AC pattern, not federation.
+- **AC 3 (classify):** Root cause = (d) other — verification AC misspecification. NOT a skill regression. Skill works correctly: `delivered.offset` returned, topic carries envelopes.
+- **AC 4 (fix path):** Refreshed T-1431 Step 5 with the correct pattern + inline note explaining DM topic naming. No follow-up fix task needed (skill is healthy).
+- **AC 5 (RCA):** Documented above. T-1885 v0.1 (`fw independent-review`) is the structural prevention.
+- **Cross-reference:** This investigation is the canonical proof-of-value for T-1885 — the orchestrator surfaced a quality bug in the AC itself, which would have wasted operator time at rubber-stamp click.
+
+### 2026-05-31T07:02:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
