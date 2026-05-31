@@ -70,6 +70,47 @@ target/release/termlink fleet doctor --legacy-usage --json 2>&1 | head -1 | grep
 
 ## Updates
 
+### 2026-06-01T — Human REVIEW: cut-readiness signal is provably actionable [agent autonomous]
+
+Live evidence of the signal driving real decisions. The T-1166 cut already happened on .122 and .121 based on this signal — that's the canonical actionability proof. Re-captured this session:
+
+```
+$ termlink fleet doctor --legacy-usage
+
+=== T-1166 cut-readiness (7d window) ===
+Verdict: CUT-READY-DECAYING
+  total legacy invocations across fleet: 2
+  CLEAN (7d): laptop-141, ring20-dashboard, ring20-management
+  WITH TRAFFIC:
+    local-test: 1 legacy invocation(s) — last call 5h ago (decay residue)
+      └─ 1× addr:192.168.10.122
+    workstation-107-public: 1 legacy invocation(s) — last call 5h ago (decay residue)
+      └─ 1× addr:192.168.10.122
+  Top callers (fleet-wide):
+    2× addr:192.168.10.122
+  → no live legacy callers (no traffic in last 300s); residue is historical.
+  → operator may cut now or wait for the audit window to clear naturally.
+```
+
+The signal correctly:
+1. Distinguishes live traffic from historical decay (300s recency probe)
+2. Per-hub state classification (3/5 CLEAN, 2/5 with decay residue)
+3. Per-caller granularity (addr:192.168.10.122 — turns out a probe path on .122 hits a local fallback that touches a legacy method on .107 / 127.0.0.1; harmless self-loop)
+4. Verdict ladder: CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN
+5. Plain-English decision support ("operator may cut now or wait...")
+
+Direct probe of the underlying RPC also clean on both production hubs:
+
+```
+$ termlink_remote_call(hub=192.168.10.122:9100, method=hub.legacy_usage, scope=execute)
+  → total_legacy=0, by_method={}, last_legacy_ts_ms=null, audit_present=true
+
+$ termlink_remote_call(hub=192.168.10.121:9100, method=hub.legacy_usage, scope=execute)
+  → total_legacy=0, by_method={}, last_legacy_ts_ms=null, audit_present=true
+```
+
+**Operator-actionable:** ready to tick the [REVIEW] box + `fw task update T-1432 --status work-completed`.
+
 ### 2026-05-01T07:02:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1432-fw-fleet-doctor---legacy-usage--telemetr.md
