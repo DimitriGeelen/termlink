@@ -276,6 +276,26 @@ else
     sender_filter='true'
 fi
 
+# T-1890 — content-dedup envelopes before any downstream pass.
+# Same root cause as T-1889 on the read side: when hubs.toml has two
+# profiles that hit the same hub (canonical: workstation-107-public +
+# local-test → 0.0.0.0:9100), every envelope appears twice in the
+# concatenated stream. Group by (sender_id, ts, payload) and keep one
+# per group — content-based dedup is robust to both the wrappers-hit-
+# same-hub case AND legacy write-side duplicates (pre-T-1889).
+tmp_envs_deduped="$(mktemp -t chat-arc-recent.dedup.XXXXXX)"
+jq -s -c \
+    'group_by([(.sender_id // ""), (.ts // 0), ((.payload // .payload_b64 // "") | tostring)])
+     | map(.[0])
+     | .[]' \
+    "$tmp_envs" > "$tmp_envs_deduped" 2>/dev/null || true
+if [ -s "$tmp_envs_deduped" ]; then
+    mv "$tmp_envs_deduped" "$tmp_envs"
+else
+    rm -f "$tmp_envs_deduped"
+fi
+trap 'rm -f "$tmp_envs" "$tmp_envs_deduped"' EXIT
+
 # T-1861 — heartbeat exclusion. Heuristic: resolved-sender ends with
 # `-vendored` (T-1832/T-1840 emitter naming convention). Applied in
 # the filtered-population sense: posts where this matches are removed
