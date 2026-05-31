@@ -10,6 +10,14 @@ to `/agent-handoff`. Walks `dm:<self-fp>:*` topics, computes unread counts via
 - `/check-arc respond` → **Respond mode** (ack + reply). This is the form
   `agent-send.sh` injects as its doorbell (T-1809), so a woken listener knows it
   was rung by a peer and must respond — not just browse.
+- `/check-arc --with-presence` (T-1896) → **Browse mode with inline presence
+  marker.** For each unread DM row, prefix `[LIVE]`/`[STALE]`/`[OFFLINE]`
+  showing the SENDER peer's current listener status. Helps decide reply mode:
+  `/reply` lands if LIVE, wasted if OFFLINE (better to save the draft or
+  `/broadcast-chat`). INBOUND complement of `/check-outbox --with-presence`
+  (T-1895). Adds one batched cross-reference call to
+  `scripts/peer-presence-lookup.sh`. UNKNOWN (suppressed marker) when peer
+  can't be located on any reachable hub.
 
 This skill has two modes:
 
@@ -24,9 +32,15 @@ This skill has two modes:
   deterministic `scripts/agent-respond.sh` (T-1805) so the receipt is the exact
   shape `agent-send.sh` polls for.
 
-**Argument contract:** if the skill is invoked with the argument `respond` (i.e.
-`$ARGUMENTS` contains `respond`), branch to Step 6 (Respond mode) after Steps 1–4
-gather the unread set. Otherwise run Steps 1–5 (browse) and stop before Step 6.
+**Argument contract:**
+
+- If `$ARGUMENTS` contains `respond` → branch to Step 6 (Respond mode) after
+  Steps 1–4. The `--with-presence` flag is ignored in respond mode (presence
+  doesn't change the ack semantics — the doorbell wake means the peer is
+  blocked waiting regardless).
+- If `$ARGUMENTS` contains `--with-presence` → run Steps 1–5 (browse) AND
+  Step 3.5 (presence enrichment) between Step 3 and Step 4.
+- Otherwise → run Steps 1–5 (browse) and stop before Step 6.
 
 ## Step 1: Resolve self identity fingerprint
 
@@ -115,6 +129,38 @@ the operator having to know the offset. Capture as `latest_cid`. If empty
 (no envelope carries `metadata.conversation_id`), record `latest_cid=-`
 so the renderer can route the reply hint accordingly.
 
+## Step 3.5: Optional presence enrichment (--with-presence, T-1896)
+
+**Skip this step unless `$ARGUMENTS` contains `--with-presence`.**
+
+For each unread topic from Step 3, the SENDER side is the `<peer-fp>` (the
+non-self component of the `dm:<a>:<b>` topic). Batch-resolve each peer-fp to
+its current listener status via:
+
+```
+printf '%s\n' <peer-fp-1> <peer-fp-2> ... | scripts/peer-presence-lookup.sh
+```
+
+The helper returns TSV `<fp>\t<status>` per line, where status ∈
+{`LIVE`, `STALE`, `OFFLINE`, `UNKNOWN`}. ONE call covers every peer-fp
+(the helper walks `hubs.toml` + `agent-listeners-fleet.sh` once internally,
+regardless of input count).
+
+Build an in-memory map `peer_fp → peer_status` for Step 4 to render inline.
+
+If the helper exits non-zero or returns empty: render all rows as UNKNOWN
+(suppressed marker, blank pad — same as `/check-outbox --with-presence`'s
+fail-open behavior) and append the helper's stderr diagnostic to your output.
+
+Status semantics:
+- **LIVE** — peer has an emitting listener right now; `/reply` will land
+- **STALE** — peer's listener last advertised >grace_period ago; `/reply`
+  may land if listener reattaches, otherwise consider `/broadcast-chat`
+- **OFFLINE** — peer's hub is known but no listener of any state;
+  `/reply` queues but won't be read until peer returns
+- **UNKNOWN** — peer-fp not found on any reachable hub's presence;
+  treat as OFFLINE for reply-routing purposes
+
 ## Step 4: Render summary
 
 Print, sorted by unread count descending:
@@ -122,14 +168,14 @@ Print, sorted by unread count descending:
 ```
 check-arc: <N> topic(s) with pending DMs
 
-  dm:<peer-short>...    unread=<count>  latest_offset=<offset>
+  [STATUS] dm:<peer-short>...    unread=<count>  latest_offset=<offset>
     last sender:  <peer-fp-short>
     latest_cid:   <cid-or-->
     peek:         /recent-dm <peer-short> --since 720
     reply:        /reply <peer-short> "<text>"            # if latest_cid present
                   /reply <peer-short> "<text>" --ensure-cid  # if latest_cid is -
 
-  dm:<peer-short-2>...  unread=<count>  latest_offset=<offset>
+  [STATUS] dm:<peer-short-2>...  unread=<count>  latest_offset=<offset>
     ...
 
 To open a conversation interactively:
@@ -138,6 +184,15 @@ To open a conversation interactively:
 To ack a topic after reading:
   termlink channel ack <topic>
 ```
+
+**`[STATUS]` rendering (T-1896, only when `--with-presence` is set).**
+- `LIVE` / `STALE` / `OFFLINE` → render literal `[LIVE]` / `[STALE]` /
+  `[OFFLINE]` followed by one space.
+- `UNKNOWN` → render 9 spaces (column-aligned blank pad matching the
+  width of `[OFFLINE]`). Suppresses noise when presence lookup is
+  unavailable, while preserving column alignment for the human reader.
+- Without `--with-presence`: omit the `[STATUS]` prefix entirely (no
+  leading whitespace before `dm:`).
 
 **Reply-hint routing (T-1883).** The `reply:` line is conditional on
 `latest_cid` state, computed in Step 3:
@@ -153,6 +208,18 @@ thread (multi-cid topic — visible via `/recent-dm`'s CID column post-T-1881),
 they pass `--cid <CID>` explicitly. That third case is intentionally NOT
 rendered as a default hint — surfacing all three forms would clutter; the
 common path stays one line.
+
+**Tail suggestion adjustment (T-1896, `--with-presence` only).** After the
+last row, if ANY rendered row has `[OFFLINE]` or `[UNKNOWN]` status, append:
+
+```
+Tip: peer is not currently listening — /reply queues but won't be read
+until the peer returns. Consider /broadcast-chat "<text>" so any future
+listener on any hub sees it, or save the draft for when the peer's
+status changes.
+```
+
+When all rendered rows are `[LIVE]`/`[STALE]`, omit this tail.
 
 If zero unread across all dm topics:
 
@@ -238,6 +305,13 @@ broadcasts.
 
 ## Related
 
+- `/check-outbox --with-presence` (T-1895) — OUTBOUND symmetric companion;
+  this skill (T-1896) is the INBOUND mirror. Both call
+  `scripts/peer-presence-lookup.sh` for fp→status resolution. PL-116 (symmetric
+  SEND+RECEIVE deployment) is the structural principle behind the pairing.
+- `scripts/peer-presence-lookup.sh` (T-1896) — the batched fp→status helper
+  called in Step 3.5. Read-only; single hubs.toml walk + single
+  agent-listeners-fleet probe regardless of input fp count.
 - `/agent-handoff` (`T-1431`) — SEND side; this skill is RECEIVE
 - `/be-reachable` (`T-1841`) — establishes presence and therefore the
   sender_id this skill reads in Step 1
