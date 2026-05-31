@@ -62,6 +62,20 @@ cargo test -p termlink fleet_reauth_bootstrap_from_auto_missing_declaration
 
 ## Updates
 
+### 2026-06-01T — closure-ready: zero unticked ACs, feature shipped and load-bearing [agent autonomous]
+
+All 5 Agent ACs are ticked, no Human ACs defined. Feature has shipped: `bootstrap_from` per-profile in `~/.termlink/hubs.toml` + `--bootstrap-from auto` resolution. Verified load-bearing for downstream:
+
+- T-1680/T-1681/T-1683 (fleet doctor `--auto-heal` continuous + one-shot) all gate on declared `bootstrap_from`
+- T-1679 (`fleet reauth --all-drifted`) reads declared `bootstrap_from` per profile
+- T-1684 (`--auto-heal --dry-run` preview) emits the resolved bootstrap_from in stderr fires
+- T-1685 (`heal.log` audit trail) records `bootstrap_from` per heal event
+- T-1688 (`fleet bootstrap-check` preflight) validates declared anchors
+
+The whole auto-heal arc would not function without this declarative layer. Confirmed working: `~/.termlink/hubs.toml` on this host has `bootstrap_from = "ssh:192.168.10.122"` and `ssh:192.168.10.121` declarations across the proxmox CT profiles.
+
+**Operator-actionable:** ready for `fw task update T-1291 --status work-completed`.
+
 ### 2026-04-26T11:36:32Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1291-declarative-heal-manifest--bootstrapfrom.md
