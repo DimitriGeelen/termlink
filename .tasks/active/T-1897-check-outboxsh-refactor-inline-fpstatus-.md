@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T11:38:07Z
-last_update: 2026-05-31T11:38:07Z
+last_update: 2026-05-31T11:42:20Z
 date_finished: null
 ---
 
@@ -72,19 +72,43 @@ grep -q "peer-presence-lookup.sh" scripts/check-outbox.sh
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** check-outbox.sh `--with-presence` could mis-render a peer-fp as
+OFFLINE when their LIVE listener is on a hub that appears LATER in hubs.toml
+than another hub the same fp posts to. Concrete instance: self-fp
+d1993c2c3ec44c94 posts presence to both laptop-141 AND workstation-107-public
+(via /broadcast-chat fan-out). The inline mapping committed to laptop-141
+(first in hubs.toml ordering), which has no LIVE listener — so the row showed
+OFFLINE even though the LIVE listener was running on workstation-107-public.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Section A's "first-seen wins" rule (lines 296-297 of the prior
+check-outbox.sh, comment `# First-seen wins per fp.`) commits a peer-fp to the
+first hub where it's seen as a presence sender, then never reconsiders. The
+algorithm treats "fp is a presence sender on hub X" as a binding identity
+claim, when in reality it's just "this fp has posted here at some point."
+Broadcast fan-out makes the binding noisy across hubs.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** The inline join was written before the multi-hub
+fan-out pattern (broadcast skill T-1856) became common — at design time, peers
+were assumed to post presence to their own local hub only. Once
+/broadcast-chat shipped, the assumption broke silently because:
+(a) T-1457's canonical case (peer 6604a2af on laptop-141 only) didn't trip it
+(b) test smoke for --with-presence shipped against a single-listener fleet
+(c) no test fixture exercised the "fp on multiple hubs with LIVE on non-first" case
+The 75 LOC of inline join was also a duplication-of-truth risk: when the
+identical algorithm got extracted into peer-presence-lookup.sh for /check-arc
+(T-1896), the bug was found and fixed in the new copy but stayed latent in the
+old one until this refactor.
+
+**Prevention:**
+1. **Single source of truth** — `peer-presence-lookup.sh` is now the only
+   implementation of the fp→status join. Both /check-outbox and /check-arc
+   consume it. Correctness fixes land in one place.
+2. **Algorithm encoded as data structure** — `_fp_to_hubs[fp]` (multi-hub set)
+   makes the multi-residence reality explicit; the resolve walk is forced to
+   handle it. The prior `_fp_to_hub_name[fp]` (single hub) hid the case.
+3. **Helper exposed as testable verb** — `--all` + `--json` give cheap smoke
+   coverage. A regression test that asserts a known multi-hub fp routes to its
+   LIVE hub would catch the next "first-seen-wins drift."
 
 ## Evolution
 
