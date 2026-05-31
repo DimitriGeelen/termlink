@@ -1025,7 +1025,7 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
     let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
     let cache = termlink_session::hub_capabilities::shared_cache();
     let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-    let status = termlink_session::inbox_channel::status_with_fallback(&addr, cache, &mut ctx)
+    let status = termlink_session::inbox_channel::status_via_channel(&addr, cache, &mut ctx)
         .await
         .context("Failed to query inbox status from hub")?;
 
@@ -1063,7 +1063,7 @@ pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output
     let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
     let cache = termlink_session::hub_capabilities::shared_cache();
     let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-    let result = termlink_session::inbox_channel::clear_with_fallback(&addr, scope, cache, &mut ctx)
+    let result = termlink_session::inbox_channel::clear_via_channel(&addr, scope, cache, &mut ctx)
         .await
         .context("Failed to clear inbox via hub")?;
 
@@ -1087,7 +1087,7 @@ pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()
     let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
     let cache = termlink_session::hub_capabilities::shared_cache();
     let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-    let entries = termlink_session::inbox_channel::list_with_fallback(&addr, target, cache, &mut ctx)
+    let entries = termlink_session::inbox_channel::list_via_channel(&addr, target, cache, &mut ctx)
         .await
         .context("Failed to query inbox from hub")?;
 

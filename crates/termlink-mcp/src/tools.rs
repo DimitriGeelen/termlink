@@ -11723,7 +11723,7 @@ impl TermLinkTools {
         let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
         let cache = termlink_session::hub_capabilities::shared_cache();
         let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-        match termlink_session::inbox_channel::status_with_fallback(&addr, cache, &mut ctx).await {
+        match termlink_session::inbox_channel::status_via_channel(&addr, cache, &mut ctx).await {
             Ok(status) => serde_json::to_string_pretty(&status).unwrap_or_else(json_err),
             Err(e) => json_err(format!("inbox.status error: {e}")),
         }
@@ -11750,7 +11750,7 @@ impl TermLinkTools {
         let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
         let cache = termlink_session::hub_capabilities::shared_cache();
         let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-        match termlink_session::inbox_channel::clear_with_fallback(&addr, scope, cache, &mut ctx).await {
+        match termlink_session::inbox_channel::clear_via_channel(&addr, scope, cache, &mut ctx).await {
             Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
             Err(e) => json_err(format!("inbox.clear error: {e}")),
         }
@@ -11769,7 +11769,7 @@ impl TermLinkTools {
         let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
         let cache = termlink_session::hub_capabilities::shared_cache();
         let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-        match termlink_session::inbox_channel::list_with_fallback(&addr, &p.target, cache, &mut ctx).await {
+        match termlink_session::inbox_channel::list_via_channel(&addr, &p.target, cache, &mut ctx).await {
             Ok(entries) => serde_json::to_string_pretty(&serde_json::json!({ "transfers": entries }))
                 .unwrap_or_else(json_err),
             Err(e) => json_err(format!("inbox.list (channel-aware) failed: {e}")),
@@ -11895,7 +11895,7 @@ impl TermLinkTools {
 
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            match termlink_session::inbox_channel::status_with_fallback_with_client(
+            match termlink_session::inbox_channel::status_via_channel_with_client(
                 &mut rpc_client, &p.hub, cache, &mut ctx,
             ).await {
                 Ok(status) => serde_json::to_string_pretty(&serde_json::json!({
@@ -11929,7 +11929,7 @@ impl TermLinkTools {
 
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            match termlink_session::inbox_channel::list_with_fallback_with_client(
+            match termlink_session::inbox_channel::list_via_channel_with_client(
                 &mut rpc_client, &p.hub, &p.target, cache, &mut ctx,
             ).await {
                 Ok(entries) => serde_json::to_string_pretty(&serde_json::json!({
@@ -11973,7 +11973,7 @@ impl TermLinkTools {
 
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            match termlink_session::inbox_channel::clear_with_fallback_with_client(
+            match termlink_session::inbox_channel::clear_via_channel_with_client(
                 &mut rpc_client, &p.hub, clear_scope, cache, &mut ctx,
             ).await {
                 Ok(result) => serde_json::to_string_pretty(&serde_json::json!({

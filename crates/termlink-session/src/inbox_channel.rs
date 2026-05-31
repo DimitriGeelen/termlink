@@ -1,22 +1,20 @@
-//! T-1220 wedge a (T-1225): inbox.* receiver migration helper.
+//! T-1220 wedge a (T-1225): inbox.* receiver migration helper. Channel-only
+//! post T-1166 cut (T-1415 AC3 cleanup).
 //!
-//! Single async entry point that callers (T-1226 CLI local, T-1227 CLI remote,
-//! T-1228 MCP) use instead of the legacy `inbox.list` RPC. Probes capabilities
-//! via T-1215's `HubCapabilitiesCache`, dispatches to
-//! `channel.subscribe(topic="inbox:<target>")` when the peer hub supports it,
-//! falls back to legacy `inbox.list` otherwise. Reassembles per-transfer
-//! summaries from the file.init/chunk/complete event stream mirrored by T-1163
+//! Single async entry point that callers (CLI local, CLI remote, MCP) use to
+//! read / aggregate / trim inbox topics via `channel.subscribe` /
+//! `channel.list` / `channel.trim`. Reassembles per-transfer summaries from
+//! the file.init/chunk/complete event stream mirrored by T-1163
 //! (`channel::mirror_inbox_deposit`).
 //!
-//! Inception decisions (T-1220 GO):
-//! - Q1 cursor: in-memory per-target on `FallbackCtx` (no on-disk persistence).
-//! - Q2 capabilities probe timing: per-call via the shared cache (cheap on hits).
-//! - Q3 fallback: warn-once per `(host_port, kind)` + flag peer legacy-only on
-//!   `method-not-found`.
-//! - Q4 clear semantics: out of scope for the helper — wedge b/c/d advance the
-//!   local cursor only.
-//! - Q5 mixed-mode: dual-read merge layer is a follow-up; this wedge ships the
-//!   single-source dispatcher first.
+//! Naming: the `_with_fallback` suffix is historical (T-1225 era when a legacy
+//! `inbox.list`/`inbox.status`/`inbox.clear` RPC was the fallback). The hub
+//! source no longer exposes those legacy methods (T-1166 / T-1415 retirement),
+//! and the fleet is uniformly on a build that speaks `channel.*`. A hub that
+//! responds with `MethodNotFound` to `channel.subscribe` / `channel.list` /
+//! `channel.trim` is treated as a hard error rather than triggering a
+//! (non-existent) fallback path. Rename to drop `_with_fallback` is a separate
+//! cleanup slice.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io;
@@ -34,31 +32,9 @@ use crate::hub_capabilities::HubCapabilitiesCache;
 const TOPIC_PREFIX: &str = "inbox:";
 const RPC_METHOD_NOT_FOUND: i64 = -32601;
 
-/// T-1310: Inject `from` from `$TERMLINK_SESSION_ID` into legacy-RPC params
-/// when the caller did not already set it. Enables T-1309 caller-attribution
-/// breakdown to populate for `inbox.list` / `inbox.status` / `inbox.clear`
-/// calls that go through the legacy fallback path.
-///
-/// Empty/unset env var = no-op (params returned unchanged). Any value already
-/// set in `params["from"]` is preserved.
-pub(crate) fn params_with_session_from(mut params: Value) -> Value {
-    if !params.is_object() {
-        return params;
-    }
-    if params.get("from").is_some() {
-        return params;
-    }
-    if let Ok(sid) = std::env::var("TERMLINK_SESSION_ID")
-        && !sid.is_empty()
-    {
-        params["from"] = json!(sid);
-    }
-    params
-}
-
 /// Summary of one pending transfer in a target's inbox. Mirrors the
 /// `inbox::PendingTransfer` fields that current renderers actually consume so
-/// callers swap `inbox.list` → `list_with_fallback` without touching display
+/// callers swap `inbox.list` → `list_via_channel` without touching display
 /// code.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InboxEntry {
@@ -77,10 +53,15 @@ pub struct InboxEntry {
     pub complete: bool,
 }
 
-/// Per-call mutable state — cursor map + warn-once tracker + legacy-only flags.
+/// Per-call mutable state — cursor map + warn-once tracker + legacy-only flag.
 /// Callers that want process-wide sharing wrap a single instance in their own
 /// `Mutex`; T-1225 keeps construction explicit so test setups can stage cursors
 /// without globals.
+///
+/// T-1415: `inbox_channel.rs` no longer consults `legacy_only_peers`
+/// (channel-only since T-1166 cut). The field + flag_legacy_only / is_legacy_only
+/// methods are retained because `artifact.rs` still gates `file.*` event-emit
+/// fallback on them; retiring that path is a separate slice.
 #[derive(Debug, Default)]
 pub struct FallbackCtx {
     cursors: HashMap<String, u64>,
@@ -100,6 +81,8 @@ impl FallbackCtx {
     }
 
     /// Mark a peer as legacy-only so future calls skip the channel.* dispatch.
+    /// T-1415: no longer consulted by `inbox_channel.rs`; remains in use by
+    /// `artifact.rs` for the `file.*` event-emit fallback path.
     pub fn flag_legacy_only(&mut self, host_port: &str) {
         self.legacy_only_peers.insert(host_port.to_string());
     }
@@ -119,13 +102,16 @@ impl FallbackCtx {
     }
 }
 
-/// Probe + dispatch + reassemble. Single entry point for the wedge-b/d-local
-/// callers using an unauthenticated socket. Opens one `Client::connect_addr`
-/// for the whole probe→dispatch sequence.
+/// Dispatch + reassemble. Single entry point for callers using an
+/// unauthenticated socket. Opens one `Client::connect_addr` for the dispatch.
 ///
 /// For callers that already hold an authenticated `Client` (CLI remote / MCP
-/// remote), use `list_with_fallback_with_client` instead.
-pub async fn list_with_fallback(
+/// remote), use `list_via_channel_with_client` instead.
+///
+/// T-1415: name is historical (T-1166 cut removed the legacy `inbox.list`
+/// fallback). Hub must support `channel.subscribe`; `MethodNotFound` is now
+/// a hard error.
+pub async fn list_via_channel(
     addr: &TransportAddr,
     target: &str,
     cache: &HubCapabilitiesCache,
@@ -135,68 +121,43 @@ pub async fn list_with_fallback(
     let mut client = Client::connect_addr(addr)
         .await
         .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
-    list_with_fallback_with_client(&mut client, &host_port, target, cache, ctx).await
+    list_via_channel_with_client(&mut client, &host_port, target, cache, ctx).await
 }
 
 /// T-1231: Variant for callers who already hold an authenticated `Client`
 /// (CLI remote `cmd_remote_inbox_*`, MCP remote `termlink_remote_inbox_*`).
-/// Caller supplies the `host_port` string for cache-key + warn-once dedup.
-pub async fn list_with_fallback_with_client(
+/// Caller supplies the `host_port` string for warn-once dedup.
+///
+/// T-1415: cache parameter retained for ABI stability across the 12 callsites;
+/// pre-call cap probe was the only consumer and has been removed alongside
+/// the legacy fallback path. The hub MUST advertise / serve
+/// `channel.subscribe`; `MethodNotFound` is surfaced as an error.
+pub async fn list_via_channel_with_client(
     client: &mut Client,
     host_port: &str,
     target: &str,
-    cache: &HubCapabilitiesCache,
+    _cache: &HubCapabilitiesCache,
     ctx: &mut FallbackCtx,
 ) -> io::Result<Vec<InboxEntry>> {
     let topic = format!("{TOPIC_PREFIX}{target}");
-
-    let use_channel = if ctx.is_legacy_only(host_port) {
-        false
-    } else {
-        let methods = probe_caps_via_client(client, host_port, cache)
-            .await
-            .unwrap_or_default();
-        methods
-            .iter()
-            .any(|m| m == control::method::CHANNEL_SUBSCRIBE)
-    };
-
-    if use_channel {
-        let saved_cursor = ctx.cursors.get(&topic).copied().unwrap_or(0);
-        match call_channel_subscribe_via_client(client, &topic, saved_cursor).await {
-            Ok((messages, next_cursor)) => {
-                if ctx.warn_once(host_port, "channel.subscribe") {
-                    tracing::info!(
-                        host = %host_port,
-                        target = %target,
-                        "T-1225: using channel.subscribe (channel.* supported)"
-                    );
-                }
-                ctx.cursors.insert(topic, next_cursor);
-                return Ok(fold_envelopes(&messages));
+    let saved_cursor = ctx.cursors.get(&topic).copied().unwrap_or(0);
+    match call_channel_subscribe_via_client(client, &topic, saved_cursor).await {
+        Ok((messages, next_cursor)) => {
+            if ctx.warn_once(host_port, "channel.subscribe") {
+                tracing::info!(
+                    host = %host_port,
+                    target = %target,
+                    "T-1225: using channel.subscribe"
+                );
             }
-            Err(SubscribeError::MethodNotFound) => {
-                ctx.flag_legacy_only(host_port);
-                if ctx.warn_once(host_port, "channel.subscribe.missing") {
-                    tracing::warn!(
-                        host = %host_port,
-                        target = %target,
-                        "T-1225: channel.subscribe missing despite cap claim — flagging legacy-only"
-                    );
-                }
-            }
-            Err(SubscribeError::Other(e)) => return Err(e),
+            ctx.cursors.insert(topic, next_cursor);
+            Ok(fold_envelopes(&messages))
         }
+        Err(SubscribeError::MethodNotFound) => Err(io::Error::other(format!(
+            "hub at {host_port} does not support channel.subscribe — required since T-1166 retired legacy inbox.list (T-1415). Upgrade the remote hub."
+        ))),
+        Err(SubscribeError::Other(e)) => Err(e),
     }
-
-    if ctx.warn_once(host_port, "inbox.list") {
-        tracing::info!(
-            host = %host_port,
-            target = %target,
-            "T-1225: using legacy inbox.list (channel.* unavailable)"
-        );
-    }
-    call_legacy_inbox_list_via_client(client, target).await
 }
 
 /// Aggregate inbox status as returned by the legacy `inbox.status` RPC and
@@ -215,13 +176,14 @@ pub struct InboxStatusTarget {
     pub pending: u64,
 }
 
-/// Probe + dispatch + aggregate. Single entry point for inbox.status callers
-/// using an unauthenticated socket (T-1229c local CLI / T-1229d local MCP).
-/// Opens one `Client::connect_addr` for the whole probe→dispatch sequence.
+/// Dispatch + aggregate. Single entry point for inbox.status callers using an
+/// unauthenticated socket. Opens one `Client::connect_addr` for the dispatch.
 ///
 /// For callers holding an authenticated `Client`, use
-/// `status_with_fallback_with_client` (T-1229e/f remote variants).
-pub async fn status_with_fallback(
+/// `status_via_channel_with_client` (remote variants).
+///
+/// T-1415: name historical; channel-only post T-1166 cut.
+pub async fn status_via_channel(
     addr: &TransportAddr,
     cache: &HubCapabilitiesCache,
     ctx: &mut FallbackCtx,
@@ -230,59 +192,29 @@ pub async fn status_with_fallback(
     let mut client = Client::connect_addr(addr)
         .await
         .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
-    status_with_fallback_with_client(&mut client, &host_port, cache, ctx).await
+    status_via_channel_with_client(&mut client, &host_port, cache, ctx).await
 }
 
 /// T-1235: Variant for callers who already hold an authenticated `Client`.
-/// Caller supplies `host_port` for cache-key + warn-once dedup.
-pub async fn status_with_fallback_with_client(
+/// T-1415: channel-only — cache retained for ABI; `MethodNotFound` is an error.
+pub async fn status_via_channel_with_client(
     client: &mut Client,
     host_port: &str,
-    cache: &HubCapabilitiesCache,
+    _cache: &HubCapabilitiesCache,
     ctx: &mut FallbackCtx,
 ) -> io::Result<InboxStatus> {
-    let use_channel = if ctx.is_legacy_only(host_port) {
-        false
-    } else {
-        let methods = probe_caps_via_client(client, host_port, cache)
-            .await
-            .unwrap_or_default();
-        methods
-            .iter()
-            .any(|m| m == control::method::CHANNEL_LIST)
-    };
-
-    if use_channel {
-        match call_channel_list_via_client(client, TOPIC_PREFIX).await {
-            Ok(value) => {
-                if ctx.warn_once(host_port, "channel.list") {
-                    tracing::info!(
-                        host = %host_port,
-                        "T-1235: using channel.list (channel.* supported)"
-                    );
-                }
-                return Ok(aggregate_status_from_channel_list(&value));
+    match call_channel_list_via_client(client, TOPIC_PREFIX).await {
+        Ok(value) => {
+            if ctx.warn_once(host_port, "channel.list") {
+                tracing::info!(host = %host_port, "T-1235: using channel.list");
             }
-            Err(SubscribeError::MethodNotFound) => {
-                ctx.flag_legacy_only(host_port);
-                if ctx.warn_once(host_port, "channel.list.missing") {
-                    tracing::warn!(
-                        host = %host_port,
-                        "T-1235: channel.list missing despite cap claim — flagging legacy-only"
-                    );
-                }
-            }
-            Err(SubscribeError::Other(e)) => return Err(e),
+            Ok(aggregate_status_from_channel_list(&value))
         }
+        Err(SubscribeError::MethodNotFound) => Err(io::Error::other(format!(
+            "hub at {host_port} does not support channel.list — required since T-1166 retired legacy inbox.status (T-1415). Upgrade the remote hub."
+        ))),
+        Err(SubscribeError::Other(e)) => Err(e),
     }
-
-    if ctx.warn_once(host_port, "inbox.status") {
-        tracing::info!(
-            host = %host_port,
-            "T-1235: using legacy inbox.status (channel.* unavailable)"
-        );
-    }
-    call_legacy_inbox_status_via_client(client).await
 }
 
 /// Pure aggregation: sum per-topic counts from a `channel.list` reply
@@ -338,29 +270,6 @@ async fn call_channel_list_via_client(
     }
 }
 
-async fn call_legacy_inbox_status_via_client(
-    client: &mut Client,
-) -> io::Result<InboxStatus> {
-    // T-1310: inject $TERMLINK_SESSION_ID as `from` so T-1309's audit
-    // log captures who is calling the legacy primitive.
-    let params = params_with_session_from(json!({}));
-    let resp = client
-        .call("inbox.status", json!("inbox-st"), params)
-        .await
-        .map_err(|e| map_client_err("inbox.status", e))?;
-    match resp {
-        RpcResponse::Success(ok) => {
-            serde_json::from_value::<InboxStatus>(ok.result).map_err(|e| {
-                io::Error::other(format!("inbox.status decode: {e}"))
-            })
-        }
-        RpcResponse::Error(e) => Err(io::Error::other(format!(
-            "inbox.status error {}: {}",
-            e.error.code, e.error.message
-        ))),
-    }
-}
-
 /// Result of an inbox clear operation. Same shape as legacy `inbox.clear`
 /// reply (`{cleared, target}`) so the migration is a drop-in for renderers
 /// that read those two fields. T-1230c.
@@ -370,7 +279,7 @@ pub struct InboxClearResult {
     pub target: String,
 }
 
-/// Selector for `clear_with_fallback`: clear one target's spool, or all
+/// Selector for `clear_via_channel`: clear one target's spool, or all
 /// inbox targets in one call. T-1230c.
 #[derive(Debug, Clone)]
 pub enum ClearScope {
@@ -378,13 +287,14 @@ pub enum ClearScope {
     All,
 }
 
-/// Probe + dispatch + trim. Single entry point for inbox.clear callers
-/// using an unauthenticated socket (T-1230d local CLI / T-1230e local MCP).
-/// Opens one `Client::connect_addr` for the whole probe→dispatch sequence.
+/// Dispatch + trim. Single entry point for inbox.clear callers using an
+/// unauthenticated socket. Opens one `Client::connect_addr` for the dispatch.
 ///
 /// For callers holding an authenticated `Client`, use
-/// `clear_with_fallback_with_client` (T-1230f/g remote variants).
-pub async fn clear_with_fallback(
+/// `clear_via_channel_with_client` (remote variants).
+///
+/// T-1415: name historical; channel-only post T-1166 cut.
+pub async fn clear_via_channel(
     addr: &TransportAddr,
     scope: ClearScope,
     cache: &HubCapabilitiesCache,
@@ -394,60 +304,30 @@ pub async fn clear_with_fallback(
     let mut client = Client::connect_addr(addr)
         .await
         .map_err(|e| io::Error::other(format!("connect {host_port}: {e}")))?;
-    clear_with_fallback_with_client(&mut client, &host_port, scope, cache, ctx).await
+    clear_via_channel_with_client(&mut client, &host_port, scope, cache, ctx).await
 }
 
 /// T-1230c: Variant for callers who already hold an authenticated `Client`.
-/// Caller supplies `host_port` for cache-key + warn-once dedup.
-pub async fn clear_with_fallback_with_client(
+/// T-1415: channel-only — cache retained for ABI; `MethodNotFound` is an error.
+pub async fn clear_via_channel_with_client(
     client: &mut Client,
     host_port: &str,
     scope: ClearScope,
-    cache: &HubCapabilitiesCache,
+    _cache: &HubCapabilitiesCache,
     ctx: &mut FallbackCtx,
 ) -> io::Result<InboxClearResult> {
-    let use_channel = if ctx.is_legacy_only(host_port) {
-        false
-    } else {
-        let methods = probe_caps_via_client(client, host_port, cache)
-            .await
-            .unwrap_or_default();
-        methods.iter().any(|m| m == control::method::CHANNEL_TRIM)
-    };
-
-    if use_channel {
-        match clear_via_channel_trim(client, &scope).await {
-            Ok(result) => {
-                if ctx.warn_once(host_port, "channel.trim") {
-                    tracing::info!(
-                        host = %host_port,
-                        scope = ?scope,
-                        "T-1230c: using channel.trim (channel.* supported)"
-                    );
-                }
-                return Ok(result);
+    match clear_via_channel_trim(client, &scope).await {
+        Ok(result) => {
+            if ctx.warn_once(host_port, "channel.trim") {
+                tracing::info!(host = %host_port, scope = ?scope, "T-1230c: using channel.trim");
             }
-            Err(SubscribeError::MethodNotFound) => {
-                ctx.flag_legacy_only(host_port);
-                if ctx.warn_once(host_port, "channel.trim.missing") {
-                    tracing::warn!(
-                        host = %host_port,
-                        "T-1230c: channel.trim missing despite cap claim — flagging legacy-only"
-                    );
-                }
-            }
-            Err(SubscribeError::Other(e)) => return Err(e),
+            Ok(result)
         }
+        Err(SubscribeError::MethodNotFound) => Err(io::Error::other(format!(
+            "hub at {host_port} does not support channel.trim — required since T-1166 retired legacy inbox.clear (T-1415). Upgrade the remote hub."
+        ))),
+        Err(SubscribeError::Other(e)) => Err(e),
     }
-
-    if ctx.warn_once(host_port, "inbox.clear") {
-        tracing::info!(
-            host = %host_port,
-            scope = ?scope,
-            "T-1230c: using legacy inbox.clear (channel.* unavailable)"
-        );
-    }
-    call_legacy_inbox_clear_via_client(client, &scope).await
 }
 
 /// Channel-side clear: trim one topic, or list+trim every `inbox:*` topic.
@@ -526,47 +406,8 @@ async fn call_channel_trim_via_client(
     }
 }
 
-async fn call_legacy_inbox_clear_via_client(
-    client: &mut Client,
-    scope: &ClearScope,
-) -> io::Result<InboxClearResult> {
-    let params = match scope {
-        ClearScope::Target(target) => json!({"target": target}),
-        ClearScope::All => json!({"all": true}),
-    };
-    // T-1310: inject $TERMLINK_SESSION_ID as `from`.
-    let params = params_with_session_from(params);
-    let resp = client
-        .call("inbox.clear", json!("inbox-cl"), params)
-        .await
-        .map_err(|e| map_client_err("inbox.clear", e))?;
-    match resp {
-        RpcResponse::Success(ok) => {
-            let cleared = ok
-                .result
-                .get("cleared")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-            let target = ok
-                .result
-                .get("target")
-                .and_then(|v| v.as_str())
-                .unwrap_or(match scope {
-                    ClearScope::Target(t) => t.as_str(),
-                    ClearScope::All => "all",
-                })
-                .to_string();
-            Ok(InboxClearResult { cleared, target })
-        }
-        RpcResponse::Error(e) => Err(io::Error::other(format!(
-            "inbox.clear error {}: {}",
-            e.error.code, e.error.message
-        ))),
-    }
-}
-
-/// Internal error type for the channel-subscribe leg so `list_with_fallback`
-/// can react to method-not-found without parsing strings.
+/// Internal error type for the channel-subscribe leg so the channel-side
+/// callers can react to method-not-found without parsing strings.
 enum SubscribeError {
     MethodNotFound,
     Other(io::Error),
@@ -656,37 +497,6 @@ async fn call_channel_subscribe_via_client(
             "channel.subscribe error {}: {}",
             e.error.code, e.error.message
         )))),
-    }
-}
-
-async fn call_legacy_inbox_list_via_client(
-    client: &mut Client,
-    target: &str,
-) -> io::Result<Vec<InboxEntry>> {
-    // T-1310: inject $TERMLINK_SESSION_ID as `from`.
-    let params = params_with_session_from(json!({"target": target}));
-    let resp = client
-        .call("inbox.list", json!("inbox-l"), params)
-        .await
-        .map_err(|e| map_client_err("inbox.list", e))?;
-    match resp {
-        RpcResponse::Success(ok) => {
-            let arr = ok
-                .result
-                .get("transfers")
-                .and_then(|v| v.as_array())
-                .cloned()
-                .unwrap_or_default();
-            let entries = arr
-                .into_iter()
-                .filter_map(|v| serde_json::from_value::<InboxEntry>(v).ok())
-                .collect();
-            Ok(entries)
-        }
-        RpcResponse::Error(e) => Err(io::Error::other(format!(
-            "inbox.list error {}: {}",
-            e.error.code, e.error.message
-        ))),
     }
 }
 
@@ -819,40 +629,8 @@ mod tests {
         }
     }
 
-    /// T-1310: env-var helper covered by a single sequential test because
-    /// std::env::set_var/remove_var are process-global and `cargo test` runs
-    /// tests on multiple threads — separate #[test]s would race each other.
-    /// Each scenario is independently asserted; the EnvGuard restores prior
-    /// state on drop.
-    #[test]
-    fn params_with_session_from_all_scenarios() {
-        // Scenario 1: env unset → no from added
-        {
-            let _g = EnvGuard::unset("TERMLINK_SESSION_ID");
-            let out = params_with_session_from(json!({"target": "alpha"}));
-            assert!(out.get("from").is_none(), "no from when env unset");
-            assert_eq!(out["target"], "alpha");
-        }
-        // Scenario 2: env empty string → no from added
-        {
-            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "");
-            let out = params_with_session_from(json!({}));
-            assert!(out.get("from").is_none(), "no from when env empty");
-        }
-        // Scenario 3: env set + no existing from → injected
-        {
-            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "T-1310-test-session");
-            let out = params_with_session_from(json!({"target": "alpha"}));
-            assert_eq!(out["from"], "T-1310-test-session");
-            assert_eq!(out["target"], "alpha");
-        }
-        // Scenario 4: explicit from is preserved (env never overwrites)
-        {
-            let _g = EnvGuard::set("TERMLINK_SESSION_ID", "should-not-overwrite");
-            let out = params_with_session_from(json!({"from": "explicit-caller"}));
-            assert_eq!(out["from"], "explicit-caller");
-        }
-    }
+    // T-1415: params_with_session_from_all_scenarios test deleted — function
+    // it covered (params_with_session_from) deleted alongside legacy fallback paths.
 
     fn synth_msg(msg_type: &str, payload: Value) -> Value {
         let mirror = json!({"from": "session-A", "payload": payload});
@@ -1063,7 +841,7 @@ mod tests {
         assert!(s.targets.is_empty());
     }
 
-    // === T-1230c: clear_with_fallback aggregation tests ===
+    // === T-1230c: clear_via_channel aggregation tests ===
 
     #[test]
     fn topics_with_inbox_prefix_filters_and_strips_correctly() {

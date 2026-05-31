@@ -2088,7 +2088,7 @@ async fn cmd_remote_inbox_inner(
         RemoteInboxAction::Status { json } => {
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            let status = termlink_session::inbox_channel::status_with_fallback_with_client(
+            let status = termlink_session::inbox_channel::status_via_channel_with_client(
                 &mut rpc_client,
                 conn.hub,
                 cache,
@@ -2113,7 +2113,7 @@ async fn cmd_remote_inbox_inner(
         RemoteInboxAction::List { target, json } => {
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            let entries = termlink_session::inbox_channel::list_with_fallback_with_client(
+            let entries = termlink_session::inbox_channel::list_via_channel_with_client(
                 &mut rpc_client,
                 conn.hub,
                 &target,
@@ -2146,7 +2146,7 @@ async fn cmd_remote_inbox_inner(
             };
             let cache = termlink_session::hub_capabilities::shared_cache();
             let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-            let result = termlink_session::inbox_channel::clear_with_fallback_with_client(
+            let result = termlink_session::inbox_channel::clear_via_channel_with_client(
                 &mut rpc_client,
                 conn.hub,
                 scope,
@@ -6972,7 +6972,7 @@ async fn cmd_remote_doctor_inner(
     {
         let cache = termlink_session::hub_capabilities::shared_cache();
         let mut ctx = termlink_session::inbox_channel::FallbackCtx::new();
-        match termlink_session::inbox_channel::status_with_fallback_with_client(
+        match termlink_session::inbox_channel::status_via_channel_with_client(
             &mut rpc_client, conn.hub, cache, &mut ctx,
         ).await {
             Ok(status) => {

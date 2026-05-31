@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-31T19:19:35Z
+last_update: 2026-05-31T20:45:24Z
 date_finished: null
 ---
 
@@ -84,7 +84,7 @@ delete any remaining references.
 ### Agent
 - [x] `grep -rn 'handle_event_broadcast\|handle_inbox_status\|handle_inbox_list\|handle_inbox_clear' crates/termlink-hub/src/` returns 0 matches (excluding migration doc + this task file) — **verified 2026-05-31T19:09Z, hub source cleanup commit f7b8d057 landed**
 - [x] `grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/` returns 0 matches — **verified 2026-05-31T19:09Z, T-1415 scrub commit 01931f1f closed the doc-comment residuals**
-- [ ] `grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/` returns 0 matches in non-test code
+- [x] `grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/` returns 0 matches in non-test code — **verified 2026-05-31T20:54Z**. Session-shim cleanup landed: deleted 3 `call_legacy_inbox_*_via_client` helpers, removed `is_legacy_only`/`flag_legacy_only` gates from 3 `*_with_fallback*` callsites (channel-only now; `MethodNotFound` is a hard error with a clear "upgrade the remote hub" message), deleted `params_with_session_from` helper + test (only used by deleted legacy callers), renamed public API 6× `*_with_fallback*` → `*_via_channel*` and updated 13 callsites across termlink-mcp/tools.rs + termlink-cli/{remote,infrastructure}.rs. FallbackCtx.legacy_only_peers field + accessor methods PRESERVED for artifact.rs (file.* transfer fallback) — that cleanup is a separate slice. cargo build clean (only pre-existing termlink-mcp unused-assignment warning unrelated to T-1415); cargo test -p termlink-session --lib `325 passed`; cargo test -p termlink-hub --lib `305 passed`.
 - [x] `cargo build -p termlink-hub` builds clean (no unused imports, no dead-code warnings) — **verified 2026-05-31T19:18Z, `Finished dev profile in 5.64s` no warnings**
 - [x] `cargo test -p termlink-hub --lib` passes (no `--features` flag needed) — **verified 2026-05-31T19:18Z, `305 passed; 0 failed`**
 - [x] `cargo test -p termlink-session --lib` passes — **verified 2026-05-31T19:18Z, `326 passed; 0 failed` (one pre-existing test-brittleness fix landed as T-1901: broaden assertion to accept fast-fail unreachable-host error kinds in addition to timeout — invariant `elapsed < 3s` preserved)**
