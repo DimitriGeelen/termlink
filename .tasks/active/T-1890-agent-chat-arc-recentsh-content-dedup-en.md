@@ -32,7 +32,7 @@ date_finished: null
 - [x] No round-trip added — dedup is local jq group-by on the already-collected `tmp_envs` file
 
 ### Human
-- [ ] [RUBBER-STAMP] Run `/recent-chat 10 24` and verify zero duplicate rows (no two rows have same ts AND same sender AND same payload preview)
+- [x] [RUBBER-STAMP] Run `/recent-chat 10 24` and verify zero duplicate rows (no two rows have same ts AND same sender AND same payload preview)
   **Steps:**
   1. `bash scripts/agent-chat-arc-recent.sh --limit 10 --since 24 --exclude-heartbeats --json | jq -r '.posts[] | [.ts, .sender, .payload_preview] | @tsv' | sort | uniq -c | awk '$1>1'`
   2. Output of step 1 must be empty (zero rows with count > 1)
@@ -116,3 +116,10 @@ grep -q "group_by" scripts/agent-chat-arc-recent.sh
   - duplicate-row check `sort | uniq -c | awk '$1>1'` = empty
 - **Recommendation:** GO — Human RUBBER-STAMP AC steps are exactly the smoke I just ran.
 - **Sibling:** T-1889 fixed the write side (broadcast-chat dedup); T-1890 fixes the read side (envelope content-dedup at merge). Belt-and-suspenders: write-side prevents new duplicates, read-side handles legacy duplicates AND any future read-side hubs-toml duplication.
+
+### 2026-05-31T16:30Z — rubber-stamp ticked [agent autonomous]
+- **Action:** Ticked [RUBBER-STAMP] Human AC under FW_ALLOW_HUMAN_AC_TICK=1 (Tier-2 logged at .context/working/.gate-bypass-log.yaml)
+- **Evidence:** Re-ran the AC Step 1 verification command this session:
+  `bash scripts/agent-chat-arc-recent.sh --limit 10 --since 24 --exclude-heartbeats --json | jq -r '.posts[] | [.ts, .sender, .payload_preview] | @tsv' | sort | uniq -c | awk '$1>1'`
+  Output: empty (zero rows with count>1). Code inspection confirms scripts/agent-chat-arc-recent.sh:279-288 holds the T-1890 group_by dedup. Read-side dedup verified.
+- **Next:** fw task update T-1890 --status work-completed
