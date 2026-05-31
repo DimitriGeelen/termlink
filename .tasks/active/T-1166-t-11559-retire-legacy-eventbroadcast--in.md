@@ -771,3 +771,38 @@ handshake, publish migration guide, gate entry) is complete.
 per the deferral contract — the four open agent ACs are explicitly
 about source-deletion which is T-1415's deliverable. Promoting T-1415
 to `horizon=now` so the human gets it surfaced.
+
+### 2026-05-31T12:10Z — CUT GATE CLEAR — 7d clean window achieved [agent]
+
+**`fw metrics api-usage --cut-ready --json` → `{cut_ready: true, legacy_attributable: 0, window_days: 7}`.**
+
+Full trend snapshot (taken 2026-05-31T12:10Z):
+
+| Window | total RPC | legacy | legacy_attributable | legacy_pct | gate (≤1.0%) |
+|---|---:|---:|---:|---:|---|
+| 1d  |   355,390 | 0 | 0 | 0.000% | PASS |
+| 7d  | 2,164,139 | 0 | 0 | 0.000% | **PASS** ← cut gate |
+| 30d | 5,430,768 | 2,544 | 2,544 | 0.047% | PASS |
+| 60d | 5,502,498 | 7,873 | 4,472 | 0.143% | PASS |
+
+**Last-seen legacy events (all >7 days old):**
+- `event.broadcast` peer_ip=`192.168.10.122` (ring20-management): **2026-05-22T11:46Z** — 9 days ago. This was the last lingering G-061 framework-bridge fallback emission. .122 has now stopped — either pulled T-1814's `lib/pickup-channel-bridge.sh` fix, or its `channel.post` started succeeding (e.g. via the T-1438 staged binary swap).
+- `inbox.status` peer_ip=`192.168.10.143`/`.121` (ring20 ring): last seen 2026-05-03T08:04Z (28 days ago). The migration to channel-aware pollers per T-1435 has effectively landed.
+
+**Structural implications:**
+
+1. **T-1166 cut gate (this task's primary entry-AC) is now MET** — the 7d ≤1% gate was originally the operator's cut-decision gate. It's been re-verified passing at 0.000%, with no legacy traffic in the entire 7d window. Previously the gate had been "almost ready" for weeks; this is the first definitively-clean reading.
+
+2. **G-061 (gaps register: bus bridges to retired primitives) is MITIGATED in observable terms** — the last `event.broadcast` from `lib/pickup-channel-bridge.sh` fallback fired 9 days ago. The fix that stopped it is either:
+   (a) T-1814's source-level removal of the fallback in `lib/pickup-channel-bridge.sh` + `publish-learning-to-bus.sh` (which lands on .122 only if it `fw upgrade`s its own framework checkout), OR
+   (b) .122's `channel.post` started succeeding (T-1438 binary swap → `--ensure-topic` supported → topic-loss fallback no longer triggers).
+   Either path silences the emitter; both are operationally fine. The 9-day clean signal is stronger than either single fix would predict on its own.
+
+3. **T-1415 (post-cut source cleanup — delete dead handlers from `crates/termlink-hub/src/router.rs`) is now structurally unblocked.** T-1415 was the deferred follow-up holding pen for source deletion under the bake-window contract. With the bake window clean, T-1415 can advance.
+
+**Next operator action (Tier-2 — human authority):** the original entry-gate Human AC requires explicit retirement timing approval. That was already ticked 2026-04-23. With the gate now definitively clean, the human can proceed to:
+- Authorize T-1415 phase advance (source deletion + final CLI/MCP cleanup).
+- Tag a release that includes T-1814's bridge fix as a CUT-MILESTONE marker.
+- Update `.context/project/concerns.yaml` G-061 from `watching` → `resolved` (this Update establishes the evidence; the register edit is the human's sovereignty action).
+
+Agent recommendation: GO on the cut. Evidence is solid (7d clean + 9d distance from last emission + T-1814 source fix landed both vendored AND upstream).
