@@ -4,16 +4,16 @@ name: "chat-arc-recent: fallback to cursor-0 subscribe when channel info times o
 description: >
   chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194 mitigation)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: [T-1870, T-1871, T-1851]
 created: 2026-05-30T06:41:36Z
-last_update: 2026-05-30T06:41:36Z
-date_finished: null
+last_update: 2026-05-30T06:49:36Z
+date_finished: 2026-05-30T06:49:36Z
 ---
 
 # T-1872: chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194 mitigation)
@@ -156,3 +156,20 @@ bash scripts/agent-chat-arc-recent.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1872-chat-arc-recent-fallback-to-cursor-0-sub.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-f1e7a655
+- **Timestamp:** 2026-05-30T06:50:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/agent-chat-arc-recent.sh --help >/dev/null`
+
+### 2026-05-30T06:49:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

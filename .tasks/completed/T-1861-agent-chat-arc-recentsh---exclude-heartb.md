@@ -4,16 +4,16 @@ name: "agent-chat-arc-recent.sh --exclude-heartbeats + /pulse heartbeat-aware re
 description: >
   agent-chat-arc-recent.sh --exclude-heartbeats + /pulse heartbeat-aware render (T-1860 follow-on)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: []
 created: 2026-05-29T09:46:43Z
-last_update: 2026-05-29T09:46:43Z
-date_finished: null
+last_update: 2026-05-29T09:50:24Z
+date_finished: 2026-05-29T09:50:24Z
 ---
 
 # T-1861: agent-chat-arc-recent.sh --exclude-heartbeats + /pulse heartbeat-aware render (T-1860 follow-on)
@@ -177,3 +177,15 @@ grep -q 'exclude-heartbeats' .claude/commands/recent-chat.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1861-agent-chat-arc-recentsh---exclude-heartb.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-b14bdef0
+- **Timestamp:** 2026-05-29T09:50:41Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-29T09:50:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

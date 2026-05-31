@@ -4,16 +4,16 @@ name: "apply hubs-toml-walk lib to fleet-adoption-snapshot (T-1892 followup)"
 description: >
   apply hubs-toml-walk lib to fleet-adoption-snapshot (T-1892 followup)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/fleet-adoption-snapshot.sh, scripts/lib/hubs-toml-walk.sh]
 related_tasks: []
 created: 2026-05-31T09:20:54Z
-last_update: 2026-05-31T09:23:43Z
-date_finished: null
+last_update: 2026-05-31T09:59:50Z
+date_finished: 2026-05-31T09:59:50Z
 ---
 
 # T-1894: apply hubs-toml-walk lib to fleet-adoption-snapshot (T-1892 followup)
@@ -44,7 +44,7 @@ T-1848's UNION-via-`sort -u` on `fleet_speakers_tmp` already handles speaker ded
 ## Verification
 
 bash -n scripts/fleet-adoption-snapshot.sh
-grep -q "lib/hubs-toml-walk.sh" scripts/fleet-adoption-snapshot.sh
+grep -q "hubs-toml-walk.sh" scripts/fleet-adoption-snapshot.sh
 grep -q "dedup_addrs_by_fp" scripts/fleet-adoption-snapshot.sh
 
 ## RCA
@@ -127,3 +127,20 @@ grep -q "dedup_addrs_by_fp" scripts/fleet-adoption-snapshot.sh
 - **Step 1** `bash scripts/fleet-adoption-snapshot.sh --json | jq '.summary'`:
   `{"hubs":4,"reachable_hubs":4,"live_listeners":1,"chat_arc_posts":70,"unique_speakers":5,"dm_topics_active":131,"adoption_state":"HOT"}` — hubs=4 (was 5 raw), all reachable.
 - **Step 3** grep: sourced.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-46b2b0b7
+- **Timestamp:** 2026-05-31T09:59:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/fleet-adoption-snapshot.sh` sources `lib/hubs-toml-walk.sh` and applies `dedup_addrs_by_fp` to (profile_addrs, profile_names) TSV right after parse, before the per-hub probe loop.
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/hubs-toml-walk.sh in: `scripts/fleet-adoption-snapshot.sh` sources `lib/hubs-toml-walk.sh` and applies `dedup_addrs_by_fp` to (profile_addrs, profile_names) TSV right after`
+
+### 2026-05-31T09:59:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

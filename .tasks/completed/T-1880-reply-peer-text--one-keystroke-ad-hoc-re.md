@@ -4,7 +4,7 @@ name: "/reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE
 description: >
   Operator has /agent-handoff for first-contact send but no one-keystroke verb for ad-hoc reply to an existing thread. Currently must invoke bash scripts/agent-respond.sh --topic dm:... --conversation-id <??> --reply '...' which requires manual cid extraction from envelope metadata. Build (a) scripts/agent-reply.sh wrapper that resolves topic via peer-substring match + auto-extracts cid from the topic's latest envelope, delegates to agent-respond.sh for the actual ack+reply; (b) /reply slash skill that surfaces this with one-keystroke invocation. Complements /check-arc respond (which is the batch-iterate-unread pattern) — /reply is the targeted single-thread case.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T15:21:10Z
-last_update: 2026-05-30T15:21:10Z
-date_finished: null
+last_update: 2026-05-30T15:25:47Z
+date_finished: 2026-05-30T15:25:47Z
 ---
 
 # T-1880: /reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE symmetry)
@@ -128,3 +128,20 @@ bash -n scripts/agent-reply.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1880-reply-peer-text--one-keystroke-ad-hoc-re.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-11d19cbc
+- **Timestamp:** 2026-05-30T15:25:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Self-fp resolution uses the PL-195 canonical chain (`channel info agent-presence`, chat-arc fallback) — same as agent-send.sh/agent-respond.sh
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agent-send.sh/agent-respond.sh in: Self-fp resolution uses the PL-195 canonical chain (`channel info agent-presence`, chat-arc fallback) — same as agent-send.sh/agent-respond.sh`
+
+### 2026-05-30T15:25:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "agent-send.sh + agent-respond.sh — replace whoami self_fp routing with 
 description: >
   Both agent-send.sh and agent-respond.sh resolve self_fp via 'whoami | jq .session.identity_fingerprint' on the --peer-fp routing path (lines 146 + 67). The field is structurally null; the die call aborts. Operators using --peer-fp instead of --topic cannot send/respond on doorbell+mail. Apply the same channel info agent-presence path that closed T-1874 + T-1875.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-respond.sh]
 related_tasks: []
 created: 2026-05-30T08:24:15Z
-last_update: 2026-05-30T08:24:22Z
-date_finished: null
+last_update: 2026-05-30T08:26:43Z
+date_finished: 2026-05-30T08:26:43Z
 ---
 
 # T-1876: agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)
@@ -127,3 +127,15 @@ HF=$(timeout 8 termlink channel info agent-presence --json 2>/dev/null | jq -r '
 
 ### 2026-05-30T08:24:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-b8edb01e
+- **Timestamp:** 2026-05-30T08:26:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T08:26:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

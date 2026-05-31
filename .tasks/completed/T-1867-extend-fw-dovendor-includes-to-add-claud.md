@@ -4,7 +4,7 @@ name: "Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 
 description: >
   Phase 2 of T-1865 GO: structural change to .agentic-framework/bin/fw do_vendor() includes list (line 254-264) to add .claude/commands/ and scripts/ so the upstream toolkit propagates to consumer projects on next fw upgrade. Depends on T-1866 (toolkit must be upstream first). HIGH-IMPACT — affects every existing AEF consumer project. Requires careful review for upgrade-path conflicts (e.g. consumer-local skills that would be overwritten).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1868]
 created: 2026-05-29T12:04:41Z
-last_update: 2026-05-29T21:55:22Z
-date_finished: null
+last_update: 2026-05-29T22:24:48Z
+date_finished: 2026-05-29T22:24:48Z
 ---
 
 # T-1867: Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up #2)
@@ -294,3 +294,26 @@ agent-handoff.md  1da1e6032642    agent-respond.sh          7268831182b8
                                    be-reachable.sh           5b4717caec7a
                                    listener-heartbeat.sh     37d65a937701
 ```
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-81333b09
+- **Timestamp:** 2026-05-29T22:24:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — `lib/upgrade.sh` extended with a loop (placed next to the existing resume.md block at ~1060-1090) that iterates `lib/templates/skills/*.md` and `lib/templates/scripts/*.sh`, applies compare-and-update
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/upgrade.sh in: `lib/upgrade.sh` extended with a loop (placed next to the existing resume.md block at ~1060-1090) that iterates `lib/templates/skills/*.md` and `lib/t`
+- **AC#6 (Agent)** — /opt/termlink round-trip test: run upstream's `lib/upgrade.sh` flow against /opt/termlink, confirm: (a) the 11 scripts arrive at `/opt/termlink/scripts/` executable, (b) consumer-local script (e.g. /o
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/upgrade.sh in: /opt/termlink round-trip test: run upstream's `lib/upgrade.sh` flow against /opt/termlink, confirm: (a) the 11 scripts arrive at `/opt/termlink/script`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-29T22:24:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

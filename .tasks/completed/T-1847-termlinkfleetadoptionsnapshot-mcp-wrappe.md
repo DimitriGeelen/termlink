@@ -4,16 +4,16 @@ name: "termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)"
 description: >
   Add MCP tool wrapping scripts/fleet-adoption-snapshot.sh — agent-callable parity with termlink_agent_listeners_fleet (T-1839). Without this, MCP-side agents must shell out to inspect adoption_state.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [doorbell-mail, mcp, adoption, t-1843-followon]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-28T18:43:50Z
-last_update: 2026-05-28T18:43:50Z
-date_finished: null
+last_update: 2026-05-28T18:46:24Z
+date_finished: 2026-05-28T18:46:24Z
 ---
 
 # T-1847: termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)
@@ -119,3 +119,15 @@ grep -q 'FleetAdoptionSnapshotParams' crates/termlink-mcp/src/tools.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1847-termlinkfleetadoptionsnapshot-mcp-wrappe.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-90fd2962
+- **Timestamp:** 2026-05-28T18:46:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T18:46:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

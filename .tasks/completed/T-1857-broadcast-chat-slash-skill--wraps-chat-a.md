@@ -4,7 +4,7 @@ name: "/broadcast-chat slash skill — wraps chat-arc-broadcast.sh (T-1856 follo
 description: >
   /broadcast-chat slash skill — wraps chat-arc-broadcast.sh (T-1856 follow-on)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T21:55:41Z
-last_update: 2026-05-28T21:55:41Z
-date_finished: null
+last_update: 2026-05-28T21:57:36Z
+date_finished: 2026-05-28T21:57:36Z
 ---
 
 # T-1857: /broadcast-chat slash skill — wraps chat-arc-broadcast.sh (T-1856 follow-on)
@@ -132,3 +132,24 @@ grep -q "broadcast-chat" CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1857-broadcast-chat-slash-skill--wraps-chat-a.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7fc28ecd
+- **Timestamp:** 2026-05-28T21:57:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Skill pre-flights `bash scripts/chat-arc-broadcast.sh --help`, parses `$ARGUMENTS` so first positional becomes the broadcast text, surfaces the wrapper's stdout verbatim, declares itself NOT read-only
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/chat-arc-broadcast.sh in: Skill pre-flights `bash scripts/chat-arc-broadcast.sh --help`, parses `$ARGUMENTS` so first positional becomes the broadcast text, surfaces the wrappe`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-28T21:57:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "G-060 agent-chat-arc federation gap — RCA + decision on fix/accept/reti
 description: >
   Inception: G-060 agent-chat-arc federation gap — RCA + decision on fix/accept/retire
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: [federation, chat-arc, G-060, inception]
 components: []
 related_tasks: [T-1166, PL-176]
 created: 2026-05-21T18:55:32Z
-last_update: 2026-05-21T18:57:40Z
-date_finished: null
+last_update: 2026-05-30T12:25:55Z
+date_finished: 2026-05-30T12:25:55Z
 ---
 
 # T-1791: G-060 agent-chat-arc federation gap — RCA + decision on fix/accept/retire
@@ -162,12 +162,17 @@ What G-060 actually reveals is a mental-model gap that should be closed via docu
 
 ## Decision
 
-**Decision**: DEFER
+**Decision**: GO
 
-**Rationale**: TermLink has no inter-hub channel-topic federation primitive (T-1791 spikes: grep
-  returns 0 matches). 1800 vs 486 disparity is by design. T-1166 NOT blocked. 4 follow-ups committed in dc8ca1a05.
+**Rationale**: The three diagnostic spikes converged on a result outside the original four-hypothesis matrix: **TermLink has no inter-hub channel-topic federation primitive**, period. The "1800 vs 486 disparity" PL-176 observed is the design, not a bug. Channel topics with the same name on different hubs are independent state — the way two unrelated databases happen to have a table named `users`. PL-176's apparent "DM federation works" finding was actually cohort-agent manually cross-posting via `remote_call channel.post`, not a federation primitive at work.
 
-**Date**: 2026-05-21T20:12:07Z
+This reframe means none of the four originally-anticipated diagnoses (federation logic bug / load-driven loss / operational drift / measurement artefact) is dominant. The closest fit is H-d (measurement artefact) but refined: the artefact is conceptual, not arithmetic — PL-176 was comparing inconsistently cross-posted topics (chat-arc) against consistently cross-posted topics (DMs).
+
+T-1166 retirement of legacy fanout primitives is NOT blocked by G-060 under this corrected diagnosis. event.broadcast was also single-hub. Channel topics replace it at parity. The retirement can proceed.
+
+What G-060 actually reveals is a mental-model gap that should be closed via documentation + a reframed concern register entry, not code.
+
+**Date**: 2026-05-30T12:25:55Z
 
 ## Updates
 
@@ -182,3 +187,27 @@ What G-060 actually reveals is a mental-model gap that should be closed via docu
 - **Decision:** DEFER
 - **Rationale:** TermLink has no inter-hub channel-topic federation primitive (T-1791 spikes: grep
   returns 0 matches). 1800 vs 486 disparity is by design. T-1166 NOT blocked. 4 follow-ups committed in dc8ca1a05.
+
+### 2026-05-30T12:25:55Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The three diagnostic spikes converged on a result outside the original four-hypothesis matrix: **TermLink has no inter-hub channel-topic federation primitive**, period. The "1800 vs 486 disparity" PL-176 observed is the design, not a bug. Channel topics with the same name on different hubs are independent state — the way two unrelated databases happen to have a table named `users`. PL-176's apparent "DM federation works" finding was actually cohort-agent manually cross-posting via `remote_call channel.post`, not a federation primitive at work.
+
+This reframe means none of the four originally-anticipated diagnoses (federation logic bug / load-driven loss / operational drift / measurement artefact) is dominant. The closest fit is H-d (measurement artefact) but refined: the artefact is conceptual, not arithmetic — PL-176 was comparing inconsistently cross-posted topics (chat-arc) against consistently cross-posted topics (DMs).
+
+T-1166 retirement of legacy fanout primitives is NOT blocked by G-060 under this corrected diagnosis. event.broadcast was also single-hub. Channel topics replace it at parity. The retirement can proceed.
+
+What G-060 actually reveals is a mental-model gap that should be closed via documentation + a reframed concern register entry, not code.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8f7d9f70
+- **Timestamp:** 2026-05-30T12:25:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T12:25:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

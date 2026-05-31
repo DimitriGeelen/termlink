@@ -4,16 +4,16 @@ name: "agent-chat-arc-recent: surface failed hub names in JSON + human output (P
 description: >
   agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: [T-1845, T-1861, T-1851, T-1860]
 created: 2026-05-29T23:15:58Z
-last_update: 2026-05-29T23:15:58Z
-date_finished: null
+last_update: 2026-05-29T23:21:33Z
+date_finished: 2026-05-29T23:21:33Z
 ---
 
 # T-1870: agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)
@@ -138,3 +138,20 @@ bash scripts/agent-chat-arc-recent.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1870-agent-chat-arc-recent-surface-failed-hub.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-02738e1d
+- **Timestamp:** 2026-05-29T23:22:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/agent-chat-arc-recent.sh --help >/dev/null`
+
+### 2026-05-29T23:21:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

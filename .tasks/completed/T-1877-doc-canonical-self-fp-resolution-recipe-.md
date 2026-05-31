@@ -4,7 +4,7 @@ name: "Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (P
 description: >
   PL-195 fixed at 4 code sites (T-1874/1875/1876) but no doc tells operators or future arc-tool authors WHY whoami doesn't work and what the canonical path is. Add: (1) Failure-modes entry in doorbell-mail-operator-runbook.md describing the symptom and the channel-info path; (2) Short identity-resolution recipe in agent-conversations.md or arc-e2e.md for skill/script authors writing new arc tooling. Prevents the next PL-195 recurrence.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T12:18:23Z
-last_update: 2026-05-30T12:18:30Z
-date_finished: null
+last_update: 2026-05-30T12:20:13Z
+date_finished: 2026-05-30T12:20:13Z
 ---
 
 # T-1877: Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)
@@ -129,3 +129,15 @@ grep -qE "T-1693" docs/operations/doorbell-mail-operator-runbook.md
 
 ### 2026-05-30T12:18:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-b7012925
+- **Timestamp:** 2026-05-30T12:20:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T12:20:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

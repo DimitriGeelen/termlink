@@ -4,7 +4,7 @@ name: "Cron entry: fleet-adoption-snapshot.sh daily HOT/WARM/COLD log (T-1843 fo
 description: >
   Persist daily adoption_state log via cron, symmetric to T-1831 doorbell+mail-canary. Adoption is a positive signal so capture ALL output (not just drift). Operators get historical visibility into COLD/WARM/HOT transitions.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [doorbell-mail, cron, adoption, t-1843-followon]
 components: []
 related_tasks: []
 created: 2026-05-28T18:36:48Z
-last_update: 2026-05-28T18:36:48Z
-date_finished: null
+last_update: 2026-05-28T18:41:48Z
+date_finished: 2026-05-28T18:41:48Z
 ---
 
 # T-1846: Cron entry: fleet-adoption-snapshot.sh daily HOT/WARM/COLD log (T-1843 follow-on)
@@ -121,3 +121,15 @@ test -s .context/working/.fleet-adoption-snapshot.log
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1846-cron-entry-fleet-adoption-snapshotsh-dai.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-220ae633
+- **Timestamp:** 2026-05-28T18:41:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T18:41:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

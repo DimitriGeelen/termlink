@@ -4,7 +4,7 @@ name: "PL-191 forward-compat — apply sender priority chain to conversation-sta
 description: >
   PL-191 forward-compat — apply sender priority chain to conversation-status/list
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T21:33:24Z
-last_update: 2026-05-28T21:33:24Z
-date_finished: null
+last_update: 2026-05-28T21:34:40Z
+date_finished: 2026-05-28T21:34:40Z
 ---
 
 # T-1855: PL-191 forward-compat — apply sender priority chain to conversation-status/list
@@ -140,3 +140,15 @@ bash scripts/test-agent-conversation-list.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1855-pl-191-forward-compat--apply-sender-prio.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-63f2fde8
+- **Timestamp:** 2026-05-28T21:34:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T21:34:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "/check-arc Step 4+5 peek hints — point at /recent-dm and /recent-chat (
 description: >
   /check-arc Steps 4 and 5 currently emit verbose 'termlink channel subscribe <topic> --since-offset <last-acked> --limit <count>' as the peek hint per topic, requiring the operator to do cursor arithmetic. The canonical drill-in tools already exist: /recent-dm <peer-short> (T-1862, just got its PL-195 fix in T-1878) for DM topics, and /recent-chat (T-1851) for agent-chat-arc. Replace the verbose hints with the slash-skill calls to lower the floor on every check-arc → respond cycle.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T14:38:38Z
-last_update: 2026-05-30T14:38:38Z
-date_finished: null
+last_update: 2026-05-30T14:41:32Z
+date_finished: 2026-05-30T14:41:32Z
 ---
 
 # T-1879: /check-arc Step 4+5 peek hints — point at /recent-dm and /recent-chat (skill cross-link)
@@ -48,10 +48,14 @@ date_finished: null
 
 ## Verification
 
-grep -q "/recent-dm" .claude/commands/check-arc.md
-grep -q "/recent-chat" .claude/commands/check-arc.md
+grep -q "peek: /recent-dm" .claude/commands/check-arc.md
+grep -q "peek: /recent-chat" .claude/commands/check-arc.md
 grep -q "termlink channel ack" .claude/commands/check-arc.md
-! grep -q "termlink channel subscribe <topic> --since-offset <last-acked>" .claude/commands/check-arc.md
+# Note: the verbose "subscribe --since-offset" form remains in Step 6 (respond
+# mode programmatic read) by design — Step 6 is the agent's read path, not the
+# operator's peek hint. Only Steps 4/5 (the operator-facing peek hints) were
+# rewritten; verify they no longer carry that form.
+! awk '/^## Step 4/,/^## Step 6/' .claude/commands/check-arc.md | grep -q "channel subscribe.*--since-offset"
 
 ## RCA
 
@@ -120,3 +124,15 @@ grep -q "termlink channel ack" .claude/commands/check-arc.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1879-check-arc-step-45-peek-hints--point-at-r.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e1d24492
+- **Timestamp:** 2026-05-30T14:41:32Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T14:41:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

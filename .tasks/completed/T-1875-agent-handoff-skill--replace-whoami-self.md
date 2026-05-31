@@ -4,7 +4,7 @@ name: "/agent-handoff skill — replace whoami self-fp path with channel info re
 description: >
   PL-195 parallel: /agent-handoff Step 2 reads sender_id from whoami --json but on every host (shared or single) candidates[].sender_id is null. Skill currently logs 'unknown' on every handoff and Step 3.5/end-of-skill subscribe instructions inherit the same bad path. Apply the same channel info agent-presence fix that closed T-1874.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T08:19:40Z
-last_update: 2026-05-30T08:19:55Z
-date_finished: null
+last_update: 2026-05-30T08:22:07Z
+date_finished: 2026-05-30T08:22:07Z
 ---
 
 # T-1875: /agent-handoff skill — replace whoami self-fp path with channel info read (PL-195 parallel fix)
@@ -122,3 +122,15 @@ HF=$(timeout 8 termlink channel info agent-presence --json 2>/dev/null | jq -r '
 
 ### 2026-05-30T08:19:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9d00fd3a
+- **Timestamp:** 2026-05-30T08:22:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T08:22:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

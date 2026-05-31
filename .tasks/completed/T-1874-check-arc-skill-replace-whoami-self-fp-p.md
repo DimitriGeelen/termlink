@@ -4,7 +4,7 @@ name: "/check-arc skill: replace whoami self-fp path with recent-local-post send
 description: >
   PL-195 mitigation. /check-arc Step 1 reads whoami.session.identity_fingerprint which isnt the envelope sender_id. On shared hosts whoami is ambiguous. Fix: read sender_id from any recent local-hub post. See PL-195 for full context.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T07:53:19Z
-last_update: 2026-05-30T08:13:47Z
-date_finished: null
+last_update: 2026-05-30T08:16:51Z
+date_finished: 2026-05-30T08:16:51Z
 ---
 
 # T-1874: /check-arc skill: replace whoami self-fp path with recent-local-post sender_id read (shared-host fix)
@@ -126,3 +126,15 @@ test -n "$(timeout 8 termlink channel info agent-presence --json 2>/dev/null | j
 
 ### 2026-05-30T08:13:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9b47140f
+- **Timestamp:** 2026-05-30T08:16:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T08:16:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

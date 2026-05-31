@@ -4,7 +4,7 @@ name: "Doorbell+mail adoption gap — drive zero active conversations to non-zer
 description: >
   Inception: Doorbell+mail adoption gap — drive zero active conversations to non-zero
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T11:37:43Z
-last_update: 2026-05-28T11:37:43Z
-date_finished: null
+last_update: 2026-05-28T12:37:55Z
+date_finished: 2026-05-28T12:37:55Z
 ---
 
 # T-1830: Doorbell+mail adoption gap — drive zero active conversations to non-zero
@@ -46,15 +46,15 @@ date_finished: null
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -111,9 +111,35 @@ T-1829 live fleet validation 2026-05-28 PROVED runtime is healthy on all three r
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: T-1829 live fleet validation 2026-05-28 PROVED runtime is healthy on all three reachable hubs (.107/.121/.122 selftest PASS in 51/391/453 ms) yet active conversation count = 0 across 91 topics. T-1807 validated end-to-end determinism in May. The gap is NOT infrastructure (selftest passes everywhere) — it's coordination: (1) no discovery primitive for who's listening, (2) no convention for always-on /check-arc respond listeners, (3) agent-send.sh requires --peer-fp/--to-session that operators don't have without prior coordination. GO recommended for inception because the runtime work is done; the remaining work is socio-technical (protocol design + adoption convention). Inception should explore: (a) heartbeat/listener-presence topic, (b) discovery verb listing active listeners, (c) agent-send.sh auto-discover. Each could be a small build task — but the wiring decisions need a deliberate design pass first.
+
+**Date**: 2026-05-28T12:37:54Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-05-28T12:37:54Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** T-1829 live fleet validation 2026-05-28 PROVED runtime is healthy on all three reachable hubs (.107/.121/.122 selftest PASS in 51/391/453 ms) yet active conversation count = 0 across 91 topics. T-1807 validated end-to-end determinism in May. The gap is NOT infrastructure (selftest passes everywhere) — it's coordination: (1) no discovery primitive for who's listening, (2) no convention for always-on /check-arc respond listeners, (3) agent-send.sh requires --peer-fp/--to-session that operators don't have without prior coordination. GO recommended for inception because the runtime work is done; the remaining work is socio-technical (protocol design + adoption convention). Inception should explore: (a) heartbeat/listener-presence topic, (b) discovery verb listing active listeners, (c) agent-send.sh auto-discover. Each could be a small build task — but the wiring decisions need a deliberate design pass first.
+
+### 2026-05-28T12:37:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8023346d
+- **Timestamp:** 2026-05-28T12:37:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T12:37:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

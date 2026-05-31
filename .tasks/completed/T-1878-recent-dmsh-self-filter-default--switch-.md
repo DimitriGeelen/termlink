@@ -4,7 +4,7 @@ name: "recent-dm.sh self-filter default — switch from be-reachable agent_id to
 description: >
   recent-dm.sh defaults --self to ~/.termlink/be-reachable.state agent_id (e.g. root-claude-dimitrimintdev) but DM topics are keyed by envelope sender_id (host signing fp, e.g. d1993c2c3ec44c94). Result: default-mode silently filters away every real DM. Apply the PL-195 canonical fix (channel info agent-presence) used by check-arc/agent-handoff/agent-send/agent-respond.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T14:22:21Z
-last_update: 2026-05-30T14:22:21Z
-date_finished: null
+last_update: 2026-05-30T14:24:54Z
+date_finished: 2026-05-30T14:24:54Z
 ---
 
 # T-1878: recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope sender_id (PL-195 propagation)
@@ -121,3 +121,15 @@ bash scripts/recent-dm.sh --help 2>&1 | grep -qv "default: agent_id from"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1878-recent-dmsh-self-filter-default--switch-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-ba98168b
+- **Timestamp:** 2026-05-30T14:24:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-30T14:24:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

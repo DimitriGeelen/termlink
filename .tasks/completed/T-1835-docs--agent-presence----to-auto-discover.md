@@ -4,7 +4,7 @@ name: "docs — agent-presence + --to auto-discover (T-1830 adoption recipe in a
 description: >
   docs — agent-presence + --to auto-discover (T-1830 adoption recipe in agent-conversations.md)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T13:07:43Z
-last_update: 2026-05-28T13:07:43Z
-date_finished: null
+last_update: 2026-05-28T13:09:37Z
+date_finished: 2026-05-28T13:09:37Z
 ---
 
 # T-1835: docs — agent-presence + --to auto-discover (T-1830 adoption recipe in agent-conversations.md)
@@ -128,3 +128,15 @@ test -z "$(grep -E '\[TODO\]' docs/operations/agent-conversations.md || true)"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1835-docs--agent-presence----to-auto-discover.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-751dff03
+- **Timestamp:** 2026-05-28T13:09:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-28T13:09:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

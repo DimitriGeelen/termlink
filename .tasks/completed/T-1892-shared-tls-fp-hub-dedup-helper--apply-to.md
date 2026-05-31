@@ -4,16 +4,16 @@ name: "shared TLS-fp hub-dedup helper + apply to fleet-doorbell-mail-health cana
 description: >
   shared TLS-fp hub-dedup helper + apply to fleet-doorbell-mail-health canary
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/fleet-adoption-snapshot.sh, scripts/lib/hubs-toml-walk.sh]
 related_tasks: []
 created: 2026-05-31T09:12:29Z
-last_update: 2026-05-31T09:16:59Z
-date_finished: null
+last_update: 2026-05-31T09:59:08Z
+date_finished: 2026-05-31T09:59:08Z
 ---
 
 # T-1892: shared TLS-fp hub-dedup helper + apply to fleet-doorbell-mail-health canary
@@ -49,8 +49,8 @@ bash -n scripts/lib/hubs-toml-walk.sh
 bash -n scripts/check-fleet-doorbell-mail-health.sh
 bash -n scripts/chat-arc-broadcast.sh
 grep -q "dedup_addrs_by_fp" scripts/lib/hubs-toml-walk.sh
-grep -q "lib/hubs-toml-walk.sh" scripts/check-fleet-doorbell-mail-health.sh
-grep -q "lib/hubs-toml-walk.sh" scripts/chat-arc-broadcast.sh
+grep -q "hubs-toml-walk.sh" scripts/check-fleet-doorbell-mail-health.sh
+grep -q "hubs-toml-walk.sh" scripts/chat-arc-broadcast.sh
 bash scripts/check-fleet-doorbell-mail-health.sh --help 2>&1 | head -3 | grep -q "doorbell"
 
 ## RCA
@@ -143,3 +143,24 @@ bash scripts/check-fleet-doorbell-mail-health.sh --help 2>&1 | head -3 | grep -q
   `{"total":4,"pass":4,"fail":0,"unreachable":0}` — 4 reachable hubs (was 5 raw, 1 dedup-suppressed); all pass.
 - **Step 2** `tail -1 .context/working/.fleet-doorbell-mail-canary.log`: empty (cron has not fired alert; clean).
 - **Step 3** `grep -q 'hubs-toml-walk.sh' scripts/check-fleet-doorbell-mail-health.sh`: exit 0 (sourced via `. "$_self_libdir/hubs-toml-walk.sh"`). Note: the original AC grep was `lib/hubs-toml-walk.sh` — that literal substring does NOT appear because the code uses `$_self_libdir/hubs-toml-walk.sh`. The correct check is `hubs-toml-walk.sh` alone.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-438ed314
+- **Timestamp:** 2026-05-31T09:59:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — Real-config regression smoke (`~/.termlink/hubs.toml`, 5 raw profiles): canary reports `{total:4, pass:4, fail:0, unreachable:0}` — one duplicate suppressed with stderr naming it. Pre-fix would have d
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Real-config regression smoke (`~/.termlink/hubs.toml`, 5 raw profiles): canary reports `{total:4, pass:4, fail:0, unreachable:0}` — one duplicate supp`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-31T09:59:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,7 +4,7 @@ name: "/pulse: surface failed hubs from both halves in the rendered digest (T-18
 description: >
   /pulse: surface failed hubs from both halves in the rendered digest (T-1870 follow-on)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T23:22:34Z
-last_update: 2026-05-29T23:22:34Z
-date_finished: null
+last_update: 2026-05-29T23:24:29Z
+date_finished: 2026-05-29T23:24:29Z
 ---
 
 # T-1871: /pulse: surface failed hubs from both halves in the rendered digest (T-1870 follow-on)
@@ -141,3 +141,15 @@ test -f .claude/commands/pulse.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1871-agent-listeners-fleet-enrich-hubsfailed-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e795d42e
+- **Timestamp:** 2026-05-29T23:24:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-29T23:24:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

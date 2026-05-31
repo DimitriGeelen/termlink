@@ -4,7 +4,7 @@ name: "agent-send.sh --to <agent-id> auto-discover (T-1830 sub-build c) + heartb
 description: >
   agent-send.sh --to <agent-id> auto-discover (T-1830 sub-build c) + heartbeat pty_session
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T13:01:01Z
-last_update: 2026-05-28T13:01:01Z
-date_finished: null
+last_update: 2026-05-28T13:06:46Z
+date_finished: 2026-05-28T13:06:46Z
 ---
 
 # T-1834: agent-send.sh --to <agent-id> auto-discover (T-1830 sub-build c) + heartbeat pty_session
@@ -137,3 +137,27 @@ bash scripts/agent-send.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1834-agent-sendsh---to-agent-id-auto-discover.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-107f1783
+- **Timestamp:** 2026-05-28T13:07:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/listener-heartbeat.sh` extended: new optional `--pty-session NAME` flag. When provided, posts `metadata.pty_session=NAME`. When omitted, the field is absent from the envelope (not empty strin
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/listener-heartbeat.sh in: `scripts/listener-heartbeat.sh` extended: new optional `--pty-session NAME` flag. When provided, posts `metadata.pty_session=NAME`. When omitted, the `
+- **AC#3 (Agent)** — `scripts/agent-listeners.sh` extended: `pty_session` field surfaces in the JSON listener entry (omitted if absent in source envelope); not surfaced in text mode (table width is tight)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-listeners.sh in: `scripts/agent-listeners.sh` extended: `pty_session` field surfaces in the JSON listener entry (omitted if absent in source envelope); not surfaced in`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 12
+     - evidence: `bash scripts/agent-send.sh --help >/dev/null`
+
+### 2026-05-28T13:06:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

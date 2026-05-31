@@ -4,16 +4,16 @@ name: "Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 foll
 description: >
   fetch_topic_msgs is clamped to the hub's 1000-envelope page cap (T-1795). Fleet-aggregation verbs (presence, overview, by-project) genuinely want more history on busy fleets but can only get the most-recent 1000 in one page. Add bounded multi-page pagination (model on walk_topic_full) so a caller can request the most-recent N>1000 envelopes via multiple round-trips.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [chat-arc, fetch, T-1795]
-components: [crates/termlink-cli/src/commands/channel.rs]
+components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs]
 related_tasks: [T-1795]
 created: 2026-05-22T06:59:41Z
-last_update: 2026-05-27T20:45:22Z
-date_finished: null
+last_update: 2026-05-27T20:49:14Z
+date_finished: 2026-05-27T20:49:14Z
 ---
 
 # T-1796: Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 follow-up)
@@ -168,3 +168,16 @@ cargo test -p termlink --bin termlink fetch_topic_tail_cursor
 ### 2026-05-27T20:45:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7fa3da00
+- **Timestamp:** 2026-05-27T20:49:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-27T20:49:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Pagination helper + 5 unit tests + 3 regression tests; cargo check clean; verification 3/3 PASS

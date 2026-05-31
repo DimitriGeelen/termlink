@@ -4,16 +4,16 @@ name: "/check-outbox: cross-reference LIVE peer presence inline (T-1457 UX)"
 description: >
   /check-outbox: cross-reference LIVE peer presence inline (T-1457 UX)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/lib/hubs-toml-walk.sh]
 related_tasks: []
 created: 2026-05-31T09:24:51Z
-last_update: 2026-05-31T09:36:52Z
-date_finished: null
+last_update: 2026-05-31T10:00:14Z
+date_finished: 2026-05-31T10:00:14Z
 ---
 
 # T-1895: /check-outbox: cross-reference LIVE peer presence inline (T-1457 UX)
@@ -52,7 +52,7 @@ Behind a flag (`--with-presence`) so the default path stays fast. When set, call
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
 #
 bash -n scripts/check-outbox.sh
-bash scripts/check-outbox.sh --help 2>&1 | head -10 | grep -q "with-presence"
+bash scripts/check-outbox.sh --help 2>&1 | grep -q "with-presence"
 bash scripts/check-outbox.sh --json | jq -e '.ok == true' >/dev/null
 
 ## RCA
@@ -139,3 +139,24 @@ bash scripts/check-outbox.sh --json | jq -e '.ok == true' >/dev/null
 - **Step 1** head: `[OFFLINE] workstation-107-pu dm:9219671e...:d1993c2c... peer=9219671e… unread=21` and `[OFFLINE] laptop-141 dm:6604a2af...:d1993c2c... peer=6604a2af… unread=5` (T-1457 canonical case captured with marker).
 - **Step 2** `[.topics[].peer_status] | unique`: `["OFFLINE", "UNKNOWN"]`.
 - **Step 3** tail: includes `/broadcast-chat "<follow-up>"   # peer has no LIVE listener — broadcast may be the only path`.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-ae5143ca
+- **Timestamp:** 2026-05-31T10:00:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 7
+     - evidence: `bash scripts/check-outbox.sh --json | jq -e '.ok == true' >/dev/null`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-31T10:00:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

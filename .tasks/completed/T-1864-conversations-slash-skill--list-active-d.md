@@ -4,7 +4,7 @@ name: "/conversations slash skill — list active doorbell+mail threads on a top
 description: >
   /conversations slash skill — list active doorbell+mail threads on a topic (T-1827 wrap)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T10:28:31Z
-last_update: 2026-05-29T10:28:31Z
-date_finished: null
+last_update: 2026-05-29T10:30:36Z
+date_finished: 2026-05-29T10:30:36Z
 ---
 
 # T-1864: /conversations slash skill — list active doorbell+mail threads on a topic (T-1827 wrap)
@@ -138,3 +138,19 @@ grep -q "scripts/agent-conversation-list.sh" .claude/commands/conversations.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1864-conversations-slash-skill--list-active-d.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-eac0ce98
+- **Timestamp:** 2026-05-29T10:30:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-29T10:30:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

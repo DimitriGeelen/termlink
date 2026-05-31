@@ -4,7 +4,7 @@ name: "AEF integration scoping — doorbell+mail propagation vs explicit framewo
 description: >
   Inception: AEF integration scoping — doorbell+mail propagation vs explicit framework-agent coordination
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T11:12:20Z
-last_update: 2026-05-29T11:39:48Z
-date_finished: null
+last_update: 2026-05-29T12:03:02Z
+date_finished: 2026-05-29T12:03:02Z
 ---
 
 # T-1865: AEF integration scoping — doorbell+mail propagation vs explicit framework-agent coordination
@@ -127,15 +127,15 @@ Produces the actual handoff plan: cohort DM, OR upstream PR, OR docs only.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -226,7 +226,39 @@ Three spikes complete (full details in `docs/reports/T-1865-aef-integration-scop
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Three spikes complete (full details in `docs/reports/T-1865-aef-integration-scoping.md`). The binary-level rail (termlink CLI + hubs + MCP server) propagates automatically via brew/GitHub releases — that part of the user's question is "yes, it just works." BUT the operator toolkit (9 doorbell+mail slash skills + 7 supporting scripts + systemd presence-emitter template) is 100% termlink-project-local AND `fw upgrade`'s `do_vendor` includes list (`bin lib agents web docs .tasks/templates FRAMEWORK.md metrics.sh`, fw line 254-264) does NOT cover `.claude/commands/` or `scripts/`. Upstream AEF has the PATTERN for shipping framework skills (10 framework-default skills in `/opt/999-Agentic-Engineering-Framework/.claude/commands/`) but contains ZERO doorbell+mail awareness. So AEF consumers do NOT get the toolkit automatically — explicit vendor work is required. Recommended path: Phase 1 ships skill+script bundle upstream (direct commit via termlink_run, no behavioral change), Phase 2 extends `do_vendor` includes so the toolkit propagates to consumer projects on next `fw upgrade`. Coordination channel (cohort DM rail) is dormant — framework-agent has no live heartbeat, 1 chat post / 7 days — so coordination cannot be DM-driven; goes via upstream commit, with retroactive notification when framework-agent next surfaces.
+
+Evidence:
+
+- Upstream skill bundle present (10 skills, none doorbell+mail): Spike 1
+  `ls /opt/999-Agentic-Engineering-Framework/.claude/commands/`
+- Upstream scripts absent (only `spikes/` subdir): Spike 1 `ls .../scripts/`
+- `do_vendor` includes list omits both `.claude/commands/` and `scripts/`:
+  `.agentic-framework/bin/fw:254-264`
+- `fw upgrade` only sync's `.claude/commands/resume.md` via a separate
+  special-case path: `.agentic-framework/lib/upgrade.sh:172` + 1020-1051
+- Fleet has 1 listener (this host) as of 2026-05-29: Spike 3
+  `bash scripts/agent-listeners-fleet.sh --include-offline --json`
+- Cohort DM channel: 1 chat post in 168h, sender=this host: Spike 3
+  `bash scripts/recent-dm.sh d1993c2c --since 168 --filter-msg-type chat`
+
+Concrete follow-up tasks (NOT created until GO decision):
+
+- T-1866 (build) — vendor doorbell+mail skill + script bundle into upstream
+  `/opt/999-Agentic-Engineering-Framework` via termlink_run direct commit.
+- T-1867 (build) — extend `do_vendor` `includes` to add `.claude/commands/`
+  + `scripts/` so the toolkit propagates to consumers on next `fw upgrade`.
+  Affects EVERY consumer project — careful review required.
+- T-1868 (docs, optional) — operator runbook for hub deployment + presence
+  opt-in + identity setup.
+
+**Date**: 2026-05-29T12:03:02Z
 
 ## Updates
 
@@ -235,3 +267,49 @@ Three spikes complete (full details in `docs/reports/T-1865-aef-integration-scop
 
 ### 2026-05-29T11:39:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-05-29T12:03:02Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Three spikes complete (full details in `docs/reports/T-1865-aef-integration-scoping.md`). The binary-level rail (termlink CLI + hubs + MCP server) propagates automatically via brew/GitHub releases — that part of the user's question is "yes, it just works." BUT the operator toolkit (9 doorbell+mail slash skills + 7 supporting scripts + systemd presence-emitter template) is 100% termlink-project-local AND `fw upgrade`'s `do_vendor` includes list (`bin lib agents web docs .tasks/templates FRAMEWORK.md metrics.sh`, fw line 254-264) does NOT cover `.claude/commands/` or `scripts/`. Upstream AEF has the PATTERN for shipping framework skills (10 framework-default skills in `/opt/999-Agentic-Engineering-Framework/.claude/commands/`) but contains ZERO doorbell+mail awareness. So AEF consumers do NOT get the toolkit automatically — explicit vendor work is required. Recommended path: Phase 1 ships skill+script bundle upstream (direct commit via termlink_run, no behavioral change), Phase 2 extends `do_vendor` includes so the toolkit propagates to consumer projects on next `fw upgrade`. Coordination channel (cohort DM rail) is dormant — framework-agent has no live heartbeat, 1 chat post / 7 days — so coordination cannot be DM-driven; goes via upstream commit, with retroactive notification when framework-agent next surfaces.
+
+Evidence:
+
+- Upstream skill bundle present (10 skills, none doorbell+mail): Spike 1
+  `ls /opt/999-Agentic-Engineering-Framework/.claude/commands/`
+- Upstream scripts absent (only `spikes/` subdir): Spike 1 `ls .../scripts/`
+- `do_vendor` includes list omits both `.claude/commands/` and `scripts/`:
+  `.agentic-framework/bin/fw:254-264`
+- `fw upgrade` only sync's `.claude/commands/resume.md` via a separate
+  special-case path: `.agentic-framework/lib/upgrade.sh:172` + 1020-1051
+- Fleet has 1 listener (this host) as of 2026-05-29: Spike 3
+  `bash scripts/agent-listeners-fleet.sh --include-offline --json`
+- Cohort DM channel: 1 chat post in 168h, sender=this host: Spike 3
+  `bash scripts/recent-dm.sh d1993c2c --since 168 --filter-msg-type chat`
+
+Concrete follow-up tasks (NOT created until GO decision):
+
+- T-1866 (build) — vendor doorbell+mail skill + script bundle into upstream
+  `/opt/999-Agentic-Engineering-Framework` via termlink_run direct commit.
+- T-1867 (build) — extend `do_vendor` `includes` to add `.claude/commands/`
+  + `scripts/` so the toolkit propagates to consumers on next `fw upgrade`.
+  Affects EVERY consumer project — careful review required.
+- T-1868 (docs, optional) — operator runbook for hub deployment + presence
+  opt-in + identity setup.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-a9850124
+- **Timestamp:** 2026-05-29T12:03:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-29T12:03:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

@@ -4,16 +4,16 @@ name: "termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (
 description: >
   termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862 follow-on)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-29T10:24:08Z
-last_update: 2026-05-29T10:24:08Z
-date_finished: null
+last_update: 2026-05-29T10:27:01Z
+date_finished: 2026-05-29T10:27:01Z
 ---
 
 # T-1863: termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862 follow-on)
@@ -133,3 +133,20 @@ cargo check -p termlink-mcp 2>&1 | grep -q "Finished\|finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1863-termlinkrecentdm-mcp-wrapper--agent-call.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-1a0e6e2c
+- **Timestamp:** 2026-05-29T10:27:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — Tool description names the script (`scripts/recent-dm.sh`), parent skill (`/recent-dm`), parent task IDs (T-1862, T-1863), and the read-side discovery toolkit position — verified: description referenc
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/recent-dm.sh in: Tool description names the script (`scripts/recent-dm.sh`), parent skill (`/recent-dm`), parent task IDs (T-1862, T-1863), and the read-side discovery`
+
+### 2026-05-29T10:27:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

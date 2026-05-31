@@ -4,7 +4,7 @@ name: "PL-189 follow-on: timeout-wrap fleet-doorbell-mail-canary + selftest"
 description: >
   Apply timeout 8/30 bounding to scripts/check-fleet-doorbell-mail-health.sh + scripts/agent-conversation-selftest.sh. PL-189 captured the root cause (termlink channel info/subscribe has NO client-side timeout); T-1843 fixed fleet-adoption-snapshot. This closes the symmetric gap in the canary path — a single hanging hub must not wedge the whole sweep.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug, doorbell-mail, canary, pl-189]
 components: []
 related_tasks: []
 created: 2026-05-28T18:32:23Z
-last_update: 2026-05-28T18:32:23Z
-date_finished: null
+last_update: 2026-05-28T18:35:47Z
+date_finished: 2026-05-28T18:35:47Z
 ---
 
 # T-1845: PL-189 follow-on: timeout-wrap fleet-doorbell-mail-canary + selftest
@@ -118,3 +118,22 @@ bash scripts/test-fleet-adoption-snapshot.sh >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1845-pl-189-follow-on-timeout-wrap-fleet-door.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-8a4f95aa
+- **Timestamp:** 2026-05-28T18:36:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 3
+     - evidence: `bash scripts/check-fleet-doorbell-mail-health.sh --json | jq -e '.summary.total >= 1 and (.profiles | length) == .summary.total' >/dev/null`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 4
+     - evidence: `bash scripts/test-fleet-adoption-snapshot.sh >/dev/null`
+
+### 2026-05-28T18:35:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

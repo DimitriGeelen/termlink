@@ -4,7 +4,7 @@ name: "listener-heartbeat.sh — agent-presence heartbeat emitter (T-1830 sub-bu
 description: >
   listener-heartbeat.sh — agent-presence heartbeat emitter (T-1830 sub-build a)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T12:53:04Z
-last_update: 2026-05-28T12:53:04Z
-date_finished: null
+last_update: 2026-05-28T12:55:56Z
+date_finished: 2026-05-28T12:55:56Z
 ---
 
 # T-1832: listener-heartbeat.sh — agent-presence heartbeat emitter (T-1830 sub-build a)
@@ -132,3 +132,20 @@ bash scripts/listener-heartbeat.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1832-listener-heartbeatsh--agent-presence-hea.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-e29f5dd7
+- **Timestamp:** 2026-05-28T12:55:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 12
+     - evidence: `bash scripts/listener-heartbeat.sh --help >/dev/null`
+
+### 2026-05-28T12:55:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

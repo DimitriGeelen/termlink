@@ -4,16 +4,16 @@ name: "fleet secrets-audit --check-drift <hub.secret-path> — compare IP-keyed 
 description: >
   fleet secrets-audit --check-drift <hub.secret-path> — compare IP-keyed cache vs authoritative hub.secret (G-011 item 1, T-1820 follow-up #3)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-28T07:52:04Z
-last_update: 2026-05-28T07:52:04Z
-date_finished: null
+last_update: 2026-05-28T08:05:23Z
+date_finished: 2026-05-28T08:05:23Z
 ---
 
 # T-1822: fleet secrets-audit --check-drift <hub.secret-path> — compare IP-keyed cache vs authoritative hub.secret (G-011 item 1, T-1820 follow-up #3)
@@ -78,8 +78,8 @@ scanned, classifies as one of `ok-mirror` (content matches), `warn-drift`
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-cd /opt/termlink && cargo check -p termlink-cli 2>&1 | tail -5
-cd /opt/termlink && cargo test -p termlink-cli secrets_audit 2>&1 | tail -15
+cd /opt/termlink && cargo check -p termlink 2>&1 | tail -5
+cd /opt/termlink && cargo test -p termlink secrets_audit 2>&1 | tail -15
 
 ## RCA
 
@@ -182,3 +182,20 @@ produces the right verdict on its own.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1822-fleet-secrets-audit---check-drift-hubsec.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-a02aba7f
+- **Timestamp:** 2026-05-28T08:06:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#12 (Agent)** — Live-run on .107 against `/var/lib/termlink/hub.secret` — authoritative ok-mirror, 3 peer-cache files correctly flagged warn-drift (semantic note: broad-mode comparison; see Recommendation)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=var/lib/termlink/hub.secret in: Live-run on .107 against `/var/lib/termlink/hub.secret` — authoritative ok-mirror, 3 peer-cache files correctly flagged warn-drift (semantic note: bro`
+
+### 2026-05-28T08:05:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

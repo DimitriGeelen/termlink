@@ -4,7 +4,7 @@ name: "agent-listeners.sh — agent-presence discovery reader (T-1830 sub-build 
 description: >
   agent-listeners.sh — agent-presence discovery reader (T-1830 sub-build b)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T12:56:10Z
-last_update: 2026-05-28T12:56:10Z
-date_finished: null
+last_update: 2026-05-28T12:59:35Z
+date_finished: 2026-05-28T12:59:35Z
 ---
 
 # T-1833: agent-listeners.sh — agent-presence discovery reader (T-1830 sub-build b)
@@ -135,3 +135,25 @@ bash scripts/agent-listeners.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1833-agent-listenerssh--agent-presence-discov.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-17897717
+- **Timestamp:** 2026-05-28T13:00:13Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#10 (Agent)** — Live verification: with the heartbeat from T-1832 running (`bash scripts/listener-heartbeat.sh --agent-id live-T-1833 --interval 5 --listen-topic agent-chat-arc &`), `bash scripts/agent-listeners.sh -
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/listener-heartbeat.sh in: Live verification: with the heartbeat from T-1832 running (`bash scripts/listener-heartbeat.sh --agent-id live-T-1833 --interval 5 --listen-topic agen`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 12
+     - evidence: `bash scripts/agent-listeners.sh --help >/dev/null`
+
+### 2026-05-28T12:59:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

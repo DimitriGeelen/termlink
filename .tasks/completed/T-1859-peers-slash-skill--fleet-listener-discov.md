@@ -4,7 +4,7 @@ name: "/peers slash skill — fleet listener discovery (T-1837/1839 skill-layer 
 description: >
   /peers slash skill — fleet listener discovery (T-1837/1839 skill-layer wrap)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T22:43:57Z
-last_update: 2026-05-28T22:43:57Z
-date_finished: null
+last_update: 2026-05-28T22:46:27Z
+date_finished: 2026-05-28T22:46:27Z
 ---
 
 # T-1859: /peers slash skill — fleet listener discovery (T-1837/1839 skill-layer wrap)
@@ -164,3 +164,24 @@ grep -q "agent-listeners-fleet" .claude/commands/peers.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1859-peers-slash-skill--fleet-listener-discov.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-393ce444
+- **Timestamp:** 2026-05-28T22:46:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Skill calls `bash scripts/agent-listeners-fleet.sh --json` and surfaces output via Bash (no new helper script needed)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-listeners-fleet.sh in: Skill calls `bash scripts/agent-listeners-fleet.sh --json` and surfaces output via Bash (no new helper script needed)`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-28T22:46:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

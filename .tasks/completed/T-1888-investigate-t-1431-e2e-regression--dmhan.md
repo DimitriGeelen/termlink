@@ -4,7 +4,7 @@ name: "Investigate T-1431 e2e regression — dm:handoff-rubber* missing on chat-
 description: >
   T-1884 S2 ran T-1431's [RUBBER-STAMP] Human AC Step 5: termlink channel list --prefix dm: | grep handoff-rubber — exit=1, no match. T-1431's AC asserts the skill works end-to-end. Either (a) the evidence smoke from 2026-05-30 was hub-local and dm topics were cleaned up since, or (b) the /agent-handoff skill regressed. Diagnose which, fix or refresh evidence accordingly. Source: docs/reports/T-1884-S2-results.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: [bug]
 components: []
 related_tasks: [T-1431, T-1884]
 created: 2026-05-30T22:00:08Z
-last_update: 2026-05-31T07:02:05Z
-date_finished: null
+last_update: 2026-05-31T07:04:44Z
+date_finished: 2026-05-31T07:04:44Z
 ---
 
 # T-1888: Investigate T-1431 e2e regression — dm:handoff-rubber* missing on chat-arc
@@ -114,3 +114,20 @@ date_finished: null
 
 ### 2026-05-31T07:02:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7ec98833
+- **Timestamp:** 2026-05-31T07:04:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Determine same state on each remote hub in `~/.termlink/hubs.toml` — N/A, local fp-keyed topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` exists with 11 envelopes, federation probe redundant
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Determine same state on each remote hub in `~/.termlink/hubs.toml` — N/A, local fp-keyed topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` exists with 11 e`
+
+### 2026-05-31T07:04:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

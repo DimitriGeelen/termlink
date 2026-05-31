@@ -4,16 +4,16 @@ name: "apply hubs-toml-walk lib to agent-listeners-fleet (powers /peers + /pulse
 description: >
   apply hubs-toml-walk lib to agent-listeners-fleet (powers /peers + /pulse)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/lib/hubs-toml-walk.sh]
 related_tasks: []
 created: 2026-05-31T09:17:26Z
-last_update: 2026-05-31T09:20:20Z
-date_finished: null
+last_update: 2026-05-31T09:59:44Z
+date_finished: 2026-05-31T09:59:44Z
 ---
 
 # T-1893: apply hubs-toml-walk lib to agent-listeners-fleet (powers /peers + /pulse)
@@ -43,9 +43,9 @@ T-1892 shipped `scripts/lib/hubs-toml-walk.sh::dedup_addrs_by_fp`. `agent-listen
 ## Verification
 
 bash -n scripts/agent-listeners-fleet.sh
-grep -q "lib/hubs-toml-walk.sh" scripts/agent-listeners-fleet.sh
+grep -q "hubs-toml-walk.sh" scripts/agent-listeners-fleet.sh
 grep -q "dedup_addrs_by_fp" scripts/agent-listeners-fleet.sh
-bash scripts/agent-listeners-fleet.sh --help 2>&1 | head -3 | grep -q "fleet"
+bash scripts/agent-listeners-fleet.sh --help 2>&1 | head -3 | grep -q "hub"
 
 ## RCA
 
@@ -127,3 +127,20 @@ bash scripts/agent-listeners-fleet.sh --help 2>&1 | head -3 | grep -q "fleet"
 - **Step 1** `bash scripts/agent-listeners-fleet.sh --include-offline --json | jq '...'`:
   `{"hubs_scanned":4,"total_listeners":1,"live":1,"stale":0,"offline":0}` — 4 hubs (was 5), 1 LIVE peer preserved.
 - **Step 3** grep: sourced.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-9537de77
+- **Timestamp:** 2026-05-31T09:59:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/agent-listeners-fleet.sh` sources `lib/hubs-toml-walk.sh` and applies `dedup_addrs_by_fp` to profile_names + profile_addrs (TSV form, name-pairing preserved) right after parse, before the par
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/hubs-toml-walk.sh in: `scripts/agent-listeners-fleet.sh` sources `lib/hubs-toml-walk.sh` and applies `dedup_addrs_by_fp` to profile_names + profile_addrs (TSV form, name-pa`
+
+### 2026-05-31T09:59:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

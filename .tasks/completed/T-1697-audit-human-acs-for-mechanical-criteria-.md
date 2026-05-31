@@ -4,16 +4,16 @@ name: "Audit Human ACs for mechanical-criteria misclassification (G-059 punch li
 description: >
   Audit Human ACs for mechanical-criteria misclassification (G-059 punch list)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: [audit, framework-discipline, G-059, PL-169]
-components: []
+components: [scripts/t1697-human-ac-audit.py]
 related_tasks: [T-1480, T-1481]
 created: 2026-05-18T17:41:52Z
-last_update: 2026-05-27T20:37:41Z
-date_finished: null
+last_update: 2026-05-27T20:42:04Z
+date_finished: 2026-05-27T20:42:04Z
 ---
 
 # T-1697: Audit Human ACs for mechanical-criteria misclassification (G-059)
@@ -163,3 +163,16 @@ grep -qE "[0-9]+ mechanical, [0-9]+ human-only, [0-9]+ ambiguous" docs/reports/T
 ### 2026-05-27T20:37:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-5f37ca2a
+- **Timestamp:** 2026-05-27T20:42:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-05-27T20:42:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Punch list deliverable shipped — 26 mechanical / 136 human-only / 6 ambiguous; scanner idempotent; verification 6/6 PASS

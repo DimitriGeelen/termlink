@@ -4,16 +4,16 @@ name: "/recent-dm slash skill — per-peer DM conversation history (T-1830 doorb
 description: >
   /recent-dm slash skill — per-peer DM conversation history (T-1830 doorbell+mail arc read-side)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: []
 created: 2026-05-29T10:13:42Z
-last_update: 2026-05-29T10:13:42Z
-date_finished: null
+last_update: 2026-05-29T10:22:57Z
+date_finished: 2026-05-29T10:22:57Z
 ---
 
 # T-1862: /recent-dm slash skill — per-peer DM conversation history (T-1830 doorbell+mail arc read-side)
@@ -156,3 +156,20 @@ grep -q "scripts/recent-dm.sh" .claude/commands/recent-dm.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1862-recent-dm-slash-skill--per-peer-dm-conve.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-4074bf1f
+- **Timestamp:** 2026-05-29T10:22:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — `recent-dm.sh` resolves self agent_id from `~/.termlink/be-reachable.state` (or `--self <id>` override) — implemented; falls back to "no self filter" if no state
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/be-reachable.state in: `recent-dm.sh` resolves self agent_id from `~/.termlink/be-reachable.state` (or `--self <id>` override) — implemented; falls back to "no self filter" `
+
+### 2026-05-29T10:22:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

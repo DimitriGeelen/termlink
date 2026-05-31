@@ -4,7 +4,7 @@ name: "Cron-based fleet doorbell+mail health gate — daily selftest per hub in 
 description: >
   Cron-based fleet doorbell+mail health gate — daily selftest per hub in hubs.toml
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T12:43:50Z
-last_update: 2026-05-28T12:43:50Z
-date_finished: null
+last_update: 2026-05-28T12:52:08Z
+date_finished: 2026-05-28T12:52:08Z
 ---
 
 # T-1831: Cron-based fleet doorbell+mail health gate — daily selftest per hub in hubs.toml
@@ -25,16 +25,16 @@ T-1829 shipped `agent-conversation-selftest.sh` (loopback doorbell+mail validati
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-fleet-doorbell-mail-health.sh` exists, executable, with `--quiet` / `--json` / `--no-heartbeat` flags mirroring `check-mirror-freshness.sh`
-- [ ] Script reads `~/.termlink/hubs.toml` (or `--hubs-file <path>`) and iterates profiles; for each `[hubs.NAME]` runs `scripts/agent-conversation-selftest.sh --hub <address> --json` and parses `.verdict`
-- [ ] Exit 0 only when every reachable profile reports `verdict=pass`; exit 1 on any non-pass (drift) or unreachable; exit 2 on tooling error (missing hubs.toml, jq missing, etc.)
-- [ ] `--quiet` suppresses output on full-pass (cron-friendly — log only grows on drift, same as release-mirror-canary)
-- [ ] `--json` emits a single envelope: `{ok, profiles:[{name,address,verdict,elapsed_ms,error?}], summary:{total,pass,fail,unreachable}}`
-- [ ] Heartbeat file `.context/working/.fleet-doorbell-mail-canary.heartbeat` is touched before the network sweep (same convention as release-mirror-canary, suppressible via `--no-heartbeat`)
-- [ ] `.context/cron/fleet-doorbell-mail-canary.crontab` exists with USER-field syntax, runs daily at a non-colliding minute, append-only to `.context/working/.fleet-doorbell-mail-canary.log`
-- [ ] `scripts/test-check-fleet-doorbell-mail-health.sh` exists with at least: T1 `--help` exits 0 with usage, T2 unknown arg exits 2, T3 `--json` against `--hubs-file` with one local-only profile returns ok=true verdict=pass, T4 `--json` against `--hubs-file` with one unreachable profile returns ok=false summary.unreachable>=1
-- [ ] All tests pass
-- [ ] `fw audit` PASS — including cron-sync check picking up the new crontab
+- [x] `scripts/check-fleet-doorbell-mail-health.sh` exists, executable, with `--quiet` / `--json` / `--no-heartbeat` flags mirroring `check-mirror-freshness.sh`
+- [x] Script reads `~/.termlink/hubs.toml` (or `--hubs-file <path>`) and iterates profiles; for each `[hubs.NAME]` runs `scripts/agent-conversation-selftest.sh --hub <address> --json` and parses `.verdict`
+- [x] Exit 0 only when every reachable profile reports `verdict=pass`; exit 1 on any non-pass (drift) or unreachable; exit 2 on tooling error (missing hubs.toml, jq missing, etc.)
+- [x] `--quiet` suppresses output on full-pass (cron-friendly — log only grows on drift, same as release-mirror-canary)
+- [x] `--json` emits a single envelope: `{ok, profiles:[{name,address,verdict,elapsed_ms,error?}], summary:{total,pass,fail,unreachable}}`
+- [x] Heartbeat file `.context/working/.fleet-doorbell-mail-canary.heartbeat` is touched before the network sweep (same convention as release-mirror-canary, suppressible via `--no-heartbeat`)
+- [x] `.context/cron/fleet-doorbell-mail-canary.crontab` exists with USER-field syntax, runs daily at a non-colliding minute, append-only to `.context/working/.fleet-doorbell-mail-canary.log`
+- [x] `scripts/test-check-fleet-doorbell-mail-health.sh` exists with at least: T1 `--help` exits 0 with usage, T2 unknown arg exits 2, T3 `--json` against `--hubs-file` with one local-only profile returns ok=true verdict=pass, T4 `--json` against `--hubs-file` with one unreachable profile returns ok=false summary.unreachable>=1
+- [x] All tests pass
+- [x] `fw audit` PASS — including cron-sync check picking up the new crontab
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -132,3 +132,25 @@ bash scripts/check-fleet-doorbell-mail-health.sh --help >/dev/null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1831-cron-based-fleet-doorbellmail-health-gat.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-180b601f
+- **Timestamp:** 2026-05-28T12:52:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Script reads `~/.termlink/hubs.toml` (or `--hubs-file <path>`) and iterates profiles; for each `[hubs.NAME]` runs `scripts/agent-conversation-selftest.sh --hub <address> --json` and parses `.verdict`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Script reads `~/.termlink/hubs.toml` (or `--hubs-file <path>`) and iterates profiles; for each `[hubs.NAME]` runs `scripts/agent-conversation-selftest`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 13
+     - evidence: `bash scripts/check-fleet-doorbell-mail-health.sh --help >/dev/null`
+
+### 2026-05-28T12:52:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

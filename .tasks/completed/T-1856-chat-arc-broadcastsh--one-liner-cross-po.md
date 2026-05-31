@@ -4,7 +4,7 @@ name: "chat-arc-broadcast.sh — one-liner cross-post helper (G-060 mitigation)"
 description: >
   chat-arc-broadcast.sh — one-liner cross-post helper (G-060 mitigation)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T21:52:20Z
-last_update: 2026-05-28T21:52:20Z
-date_finished: null
+last_update: 2026-05-28T21:54:50Z
+date_finished: 2026-05-28T21:54:50Z
 ---
 
 # T-1856: chat-arc-broadcast.sh — one-liner cross-post helper (G-060 mitigation)
@@ -142,3 +142,31 @@ grep -q "chat-arc-broadcast.sh" docs/operations/channel-topic-semantics.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1856-chat-arc-broadcastsh--one-liner-cross-po.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-7621a154
+- **Timestamp:** 2026-05-28T21:54:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Walks every profile in `~/.termlink/hubs.toml` (default), posts to each unique address with `--msg-type chat --metadata agent_id=<from> --metadata _from=<from>` and `--ensure-topic`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/hubs.toml in: Walks every profile in `~/.termlink/hubs.toml` (default), posts to each unique address with `--msg-type chat --metadata agent_id=<from> --metadata _fr`
+- **AC#4 (Agent)** — Sender resolution priority: `--from` flag → `$TERMLINK_AGENT_ID` env → `jq -r .agent_id ~/.termlink/be-reachable.state` → exit 2 with hint
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink/be-reachable.state in: Sender resolution priority: `--from` flag → `$TERMLINK_AGENT_ID` env → `jq -r .agent_id ~/.termlink/be-reachable.state` → exit 2 with hint`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 10
+     - evidence: `bash scripts/chat-arc-broadcast.sh --help >/dev/null`
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-05-28T21:54:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,16 +4,16 @@ name: "recent-dm: surface conversation_id in render output"
 description: >
   recent-dm: surface conversation_id in render output
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: []
 created: 2026-05-30T16:10:50Z
-last_update: 2026-05-30T16:15:24Z
-date_finished: 2026-05-30T16:15:24Z
+last_update: 2026-05-30T16:18:55Z
+date_finished: 2026-05-30T16:18:55Z
 ---
 
 # T-1881: recent-dm: surface conversation_id in render output
@@ -124,8 +124,8 @@ bash -n scripts/recent-dm.sh
 
 ## Reviewer Verdict (v1.4)
 
-- **Scan ID:** R-5638cef6
-- **Timestamp:** 2026-05-30T16:16:18Z
+- **Scan ID:** R-d7b5a408
+- **Timestamp:** 2026-05-30T16:19:32Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
@@ -139,6 +139,8 @@ bash -n scripts/recent-dm.sh
      - evidence: `bash scripts/recent-dm.sh d1993c2c3ec44c94:d1993c2c3ec44c94 --limit 1 --since 24 --json | jq -e '.posts[0] | has("conversation_id")' >/dev/null`
   3. **empty-output-success** (partial, heuristic) @ Verification:line 8
      - evidence: `bash scripts/agent-chat-arc-recent.sh --limit 1 --since 24 --json >/dev/null`
-
 ### 2026-05-30T16:15:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+
+### 2026-05-30T16:18:55Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

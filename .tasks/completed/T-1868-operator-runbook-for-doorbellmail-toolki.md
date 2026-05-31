@@ -4,7 +4,7 @@ name: "Operator runbook for doorbell+mail toolkit (T-1865 follow-up #3, optional
 description: >
   Phase 3 of T-1865 GO (optional): docs/operations/doorbell-mail-operator-runbook.md covering hub deployment, secret deployment, /be-reachable opt-in, /pulse cold-start, /agent-handoff vs /broadcast-chat decision tree. Audience: AEF consumer-project operators who just got the toolkit via fw upgrade and need to know how to use it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1867]
 created: 2026-05-29T12:04:45Z
-last_update: 2026-05-29T22:25:48Z
-date_finished: null
+last_update: 2026-05-29T22:28:15Z
+date_finished: 2026-05-29T22:28:15Z
 ---
 
 # T-1868: Operator runbook for doorbell+mail toolkit (T-1865 follow-up #3, optional)
@@ -145,3 +145,21 @@ that `fw upgrade` has placed the skills + scripts at project root.
 ### 2026-05-29T22:25:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-2c2b7a69
+- **Timestamp:** 2026-05-29T22:28:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 2
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+  2. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `fleet-wide`
+
+### 2026-05-29T22:28:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
