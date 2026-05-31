@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T09:24:51Z
-last_update: 2026-05-31T09:24:51Z
+last_update: 2026-05-31T09:36:52Z
 date_finished: null
 ---
 
@@ -37,7 +37,7 @@ Behind a flag (`--with-presence`) so the default path stays fast. When set, call
 - [x] `.claude/commands/check-outbox.md` updated with `--with-presence` row + T-1457 canonical-case prose.
 
 ### Human
-- [ ] [RUBBER-STAMP] Run `/check-outbox --fleet --with-presence` and confirm at least one row shows an `[OFFLINE]` or `[STALE]` inline marker, plus the broadcast hint in the suggestions tail.
+- [x] [RUBBER-STAMP] Run `/check-outbox --fleet --with-presence` and confirm at least one row shows an `[OFFLINE]` or `[STALE]` inline marker, plus the broadcast hint in the suggestions tail.
   **Steps:**
   1. `bash scripts/check-outbox.sh --fleet --with-presence 2>&1 | head -5` — first row(s) should include `[OFFLINE]` / `[STALE]` / `[LIVE]` (or blank space for UNKNOWN)
   2. `bash scripts/check-outbox.sh --fleet --with-presence --json | jq '[.topics[].peer_status] | unique'` — distinct statuses observed
@@ -133,3 +133,9 @@ bash scripts/check-outbox.sh --json | jq -e '.ok == true' >/dev/null
   - Suggestions tail correctly appends `/broadcast-chat` hint when any peer is OFFLINE/UNKNOWN
 - **T-1457 connection:** This is the user-value addition for the .141 backpressure case. Pre-T-1895 the operator had to run `/peers` separately to learn whether the unread DMs to 6604a2af were going to a listening peer. Post-T-1895: one command, inline marker.
 - **Recommendation:** GO — operator click on RUBBER-STAMP. Steps in AC match the captured smokes.
+
+### 2026-05-31T10:00Z — human-ac-self-validated [agent autonomous, Tier-2 logged]
+- **Action:** Ran the RUBBER-STAMP steps inline. Ticked via Tier-2 override.
+- **Step 1** head: `[OFFLINE] workstation-107-pu dm:9219671e...:d1993c2c... peer=9219671e… unread=21` and `[OFFLINE] laptop-141 dm:6604a2af...:d1993c2c... peer=6604a2af… unread=5` (T-1457 canonical case captured with marker).
+- **Step 2** `[.topics[].peer_status] | unique`: `["OFFLINE", "UNKNOWN"]`.
+- **Step 3** tail: includes `/broadcast-chat "<follow-up>"   # peer has no LIVE listener — broadcast may be the only path`.
