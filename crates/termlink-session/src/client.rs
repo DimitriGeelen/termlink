@@ -425,10 +425,22 @@ mod tests {
             Err(e) => e,
             Ok(_) => unreachable!("checked is_err above"),
         };
+        // T-1901: accept any fast-fail error category. On hosts where the OS
+        // routing table black-holes TEST-NET-1 (192.0.2.0/24, RFC 5737), the
+        // connect hits the 1s timeout. On hosts with no route, the connect
+        // fast-fails with NetworkUnreachable / HostUnreachable / ECONNREFUSED
+        // — a sharper outcome than a timeout. Both are valid "the host is
+        // unreachable and we didn't hang for OS TCP retry" outcomes. The real
+        // invariant is the `elapsed < 3s` check above.
         let msg = e.to_string();
+        let kind = e.kind();
         assert!(
-            msg.contains("timeout") || e.kind() == std::io::ErrorKind::TimedOut,
-            "expected timeout-related error, got: {msg}"
+            msg.contains("timeout")
+                || kind == std::io::ErrorKind::TimedOut
+                || kind == std::io::ErrorKind::NetworkUnreachable
+                || kind == std::io::ErrorKind::HostUnreachable
+                || kind == std::io::ErrorKind::ConnectionRefused,
+            "expected timeout-related or unreachable-host error, got kind={kind:?} msg={msg}"
         );
     }
 }
