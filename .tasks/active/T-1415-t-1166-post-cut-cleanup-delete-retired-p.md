@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-31T15:30:20Z
+last_update: 2026-05-31T19:11:44Z
 date_finished: null
 ---
 
@@ -82,15 +82,15 @@ delete any remaining references.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `grep -rn 'handle_event_broadcast\|handle_inbox_status\|handle_inbox_list\|handle_inbox_clear' crates/termlink-hub/src/` returns 0 matches (excluding migration doc + this task file)
-- [ ] `grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/` returns 0 matches
+- [x] `grep -rn 'handle_event_broadcast\|handle_inbox_status\|handle_inbox_list\|handle_inbox_clear' crates/termlink-hub/src/` returns 0 matches (excluding migration doc + this task file) — **verified 2026-05-31T19:09Z, hub source cleanup commit f7b8d057 landed**
+- [x] `grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/` returns 0 matches — **verified 2026-05-31T19:09Z, T-1415 scrub commit 01931f1f closed the doc-comment residuals**
 - [ ] `grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/` returns 0 matches in non-test code
 - [ ] `cargo build -p termlink-hub` builds clean (no unused imports, no dead-code warnings)
 - [ ] `cargo test -p termlink-hub --lib` passes (no `--features` flag needed)
 - [ ] `cargo test -p termlink-session --lib` passes
 - [ ] `cargo test -p termlink-cli --lib` passes
-- [ ] `crates/termlink-hub/Cargo.toml` no longer has the `[features]` legacy_primitives_disabled entry
-- [ ] `docs/migrations/T-1166-retire-legacy-primitives.md` updated with "Source cleanup completed YYYY-MM-DD (T-1415)" line
+- [x] `crates/termlink-hub/Cargo.toml` no longer has the `[features]` legacy_primitives_disabled entry — **verified 2026-05-31T19:09Z (`grep -A20 '^\[features\]' crates/termlink-hub/Cargo.toml | grep -c 'legacy_primitives_disabled'` returns 0)**
+- [x] `docs/migrations/T-1166-retire-legacy-primitives.md` updated with "Source cleanup completed YYYY-MM-DD (T-1415)" line — **verified 2026-05-31T19:09Z, line 3 reads `**Status:** **CUT LANDED 2026-05-31 (T-1415).**` plus line 195 narrates the hub cleanup**
 - [ ] No new clippy warnings introduced (`cargo clippy -p termlink-hub -p termlink-session -p termlink-cli -- -D warnings`)
 
 ### Human
@@ -129,6 +129,18 @@ test -f .tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md || test
 -->
 
 ## Updates
+
+### 2026-05-31T19:10Z — AC verification sweep [agent autonomous, focus=T-1166→T-1415]
+
+Re-verified the 4 grep-class Agent ACs that the hub source cleanup (f7b8d057) and the LEGACY_PRIMITIVES_ENABLED scrub (01931f1f) closed:
+- AC: `handle_event_broadcast` / `handle_inbox_*` greps in `crates/termlink-hub/src/` → 0 hits.
+- AC: `LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled` greps in `crates/` → 0 hits.
+- AC: Cargo.toml `[features]` no longer carries `legacy_primitives_disabled` → confirmed.
+- AC: Migration doc carries the source-cleanup landed marker (line 3 + line 195) → confirmed.
+
+**Session shim cleanup remains as the open AC3 work** (grep for `call_legacy_inbox_|status_with_fallback|list_with_fallback|clear_with_fallback` in non-test code returns 34 hits across `crates/termlink-session/src/inbox_channel.rs`). These are the channel-aware variants that retain a fallback-to-legacy path; with all production hubs post-cut for 16+ days, the fallback is now dead code per the Inventory in this file (lines 54-60). The refactor touches CLI + MCP + remote.rs + tests and is risky enough to defer to an explicitly-scoped session; not landed autonomously this turn.
+
+**cargo build / cargo test ACs** were already verified in the 2026-05-31T12:50Z hub-source-cleanup commit context and only two further (small, scrub-only) commits to `crates/` have landed since — trust line intact, but a fresh `cargo test` re-pass is recommended before --status work-completed.
 
 ### 2026-04-30T07:07:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
