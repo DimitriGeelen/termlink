@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-062
+  type: gap
+  title: "Watchtower inception-decide path leaves staged work-tree evidence stranded — agent must invent wrap-up task to land it"
+  description: "Watchtower POST /inception/<task_id>/decide shells to `fw inception decide` which calls `update-task.sh --status work-completed`. update-task.sh uses `git mv` to atomically stage the active→completed rename (line 1244), generates the episodic YAML, clears focus.yaml to null (line 1267) — and never `git commit`s. Zero hits for `git commit` across lib/inception.sh and agents/task-create/update-task.sh. Composed with check-active-task.sh Gate 2 (G-013, line 308-321), this creates a stranding-by-construction: any pre-existing staged Edits referencing the just-decided task ID are refused by every subsequent commit attempt, because the task is no longer in active/. The agent's only escape is to file a NEW build task and commit under that task's ID with the original task referenced only in the body. T-1906 enumerated four hypotheses (all confirmed), evaluated three candidate fixes, and recommended GO-COMPOSED (T-1907 primary + T-1908 defence-in-depth)."
+  spec_reference: "T-1906 (inception); T-1907 (primary fix — auto-commit-while-clean); T-1908 (defence-in-depth — grace-period); docs/reports/T-1906-watchtower-decide-stranded-artifacts.md"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-06-01 live during T-1904 census: operator clicked GO via Watchtower with 310 lines of supporting evidence still staged; every subsequent agent commit attempt was refused until a wrap-up build task T-1905 was filed to land them. Two extra commits + G-020 paperwork."
+  detection_lag_days: 0
+  what_works_now: "The stranding is reactive-detectable — `check-active-task.sh` Gate 2 fires the unmistakable BLOCKED message. The wrap-up-task workaround eventually lands the work."
+  what_remains: "Build T-1907 + T-1908 (primary + defence-in-depth). Soak ≥7 days. Close G-062 when (a) T-1907 ships and (b) no new instance fires for the soak window."
+  mitigation_candidate: "T-1907 + T-1908"
+  status: watching
+  created: 2026-06-01
+  related_tasks: [T-1906, T-1907, T-1908, T-1904, T-1905]
+
 - id: G-061
   type: gap
   title: "Framework blind to bus bridges falling back to retired termlink primitives — undetected for weeks (T-1814 RCA)"
