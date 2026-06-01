@@ -9901,8 +9901,9 @@ impl TermLinkTools {
         if registrations.is_empty() {
             return serde_json::json!({
                 "ok": true,
-                "sessions": {},
+                "sessions": [],
                 "total_topics": 0,
+                "total_sessions": 0,
             }).to_string();
         }
 
@@ -9926,11 +9927,17 @@ impl TermLinkTools {
         }
 
         let total: usize = session_topics.values().map(|v| v.len()).sum();
+        let total_sessions = session_topics.len();
+        let sessions: Vec<serde_json::Value> = session_topics
+            .into_iter()
+            .map(|(name, topics)| serde_json::json!({"session": name, "topics": topics}))
+            .collect();
 
         let result = serde_json::json!({
             "ok": true,
-            "sessions": session_topics,
+            "sessions": sessions,
             "total_topics": total,
+            "total_sessions": total_sessions,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }

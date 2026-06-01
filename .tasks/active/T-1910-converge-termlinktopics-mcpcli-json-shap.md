@@ -4,7 +4,7 @@ name: "Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)"
 description: >
   MCP returns sessions as object map; CLI returns sessions as array with extra total_sessions field. Choose one shape; update divergent side; un-ignore parity_topics test.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:45Z
-last_update: 2026-06-01T11:34:45Z
+last_update: 2026-06-01T12:29:08Z
 date_finished: null
 ---
 
@@ -20,14 +20,54 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator-visible drift: the same logical operation "list event topics
+across sessions" returns two different JSON shapes depending on whether
+it's invoked via MCP (`termlink_topics`) or CLI (`termlink topics
+--json`):
+
+- **MCP**: `{"ok": true, "sessions": {"name": [...topics...]},
+  "total_topics": 0}` — sessions is an object map (BTreeMap serialized
+  directly).
+- **CLI**: `{"ok": true, "sessions": [{"session": "name", "topics":
+  [...]}], "total_topics": 0, "total_sessions": N}` — sessions is an
+  array of records with extra `total_sessions` field.
+
+Both implementations read the same data (`event.topics` RPC against each
+session, collected into `BTreeMap<String, Vec<String>>`) and only
+diverge at the JSON serialization step. See
+`crates/termlink-mcp/src/tools.rs:9888-9936` (MCP) and
+`crates/termlink-cli/src/commands/events.rs:1006-1077` (CLI).
+
+**Convergence direction:** align MCP to CLI shape (array-of-records +
+`total_sessions`). The array form preserves BTreeMap-sorted session
+ordering for human-readable output, and `total_sessions` is useful
+telemetry (operators inspecting fleet activity want to know fleet
+size, not just total topic count). MCP clients consuming this tool
+should see the same shape a CLI inspection would produce.
+
+T-1909 v0.1's `parity_topics` test caught this and is `#[ignore]`d
+pending convergence.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `termlink_topics` in `crates/termlink-mcp/src/tools.rs` returns
+      `sessions: [{"session": "name", "topics": [...]}]` (array of records)
+      instead of `sessions: {...}` (object map). Both the
+      empty-registrations early-return path AND the populated path emit
+      the same shape.
+- [ ] `termlink_topics` adds `total_sessions: N` field to the JSON
+      response (count of sessions with at least one topic, matching
+      `session_topics.len()` in CLI's code).
+- [ ] `parity_topics` test in `crates/termlink-mcp/tests/parity.rs` is
+      un-ignored. In-source diagnostic comment updated to note
+      convergence date + the structural fix.
+- [ ] `cargo test --release --test parity -p termlink-mcp --
+      --test-threads=1` exits 0 with `test result: ok. 4 passed; 0 failed;
+      1 ignored` (was: 3 passed; 0 failed; 2 ignored — topics now passes
+      parity, ping remains ignored for T-1911).
+- [ ] No regression of any other parity test (hub_status, version,
+      negative_self_test still pass).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,14 +86,8 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q "total_sessions" crates/termlink-mcp/src/tools.rs
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. 4 passed; 0 failed; 1 ignored"
 
 ## RCA
 
@@ -122,3 +156,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1910-converge-termlinktopics-mcpcli-json-shap.md
 - **Context:** Initial task creation
+
+### 2026-06-01T12:29:08Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

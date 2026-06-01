@@ -171,21 +171,21 @@ async fn parity_ping() {
 // ---------------------------------------------------------------------------
 // PAIR 2: termlink_topics  /  termlink topics --json
 //
-// FIRST CATCH (T-1909 v0.1 — 2026-06-01).
+// Was T-1909 v0.1 FIRST CATCH; converged 2026-06-01 via T-1910.
 //
-// MCP returns: {"ok": true, "sessions": {}, "total_topics": 0}
-//   — `sessions` is an object (map session-name → [topic, ...])
-// CLI returns: {"ok": true, "sessions": [], "total_sessions": 0, "total_topics": 0}
-//   — `sessions` is an array of {name, topics} records + extra `total_sessions` field
+// Original divergence: MCP returned `sessions: {}` (object map session-name
+// → topics), CLI returned `sessions: []` (array of {session, topics}
+// records) + extra `total_sessions` field. Same logical operation
+// (BTreeMap<String, Vec<String>>) serialized two different ways at the
+// edge.
 //
-// Different JSON shapes for the same logical operation. Exactly the
-// maintenance hazard T-1904 predicted (Layer-2/3 orchestration divergence).
-// Filed as a follow-up task to converge the two; the test is marked
-// #[ignore] until convergence lands.
+// Fix: MCP `termlink_topics` (`crates/termlink-mcp/src/tools.rs`) now
+// serializes to the same array-of-records shape + `total_sessions` count.
+// Array preserves BTreeMap-sorted ordering (operator-readable); total_sessions
+// is useful telemetry for fleet inspection.
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-#[ignore = "T-1909 first-catch: MCP returns sessions as object, CLI as array (see comment + follow-up task)"]
 async fn parity_topics() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-topics");
