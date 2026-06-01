@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:45Z
-last_update: 2026-06-01T12:29:08Z
+last_update: 2026-06-01T12:43:36Z
 date_finished: null
 ---
 
@@ -51,22 +51,22 @@ pending convergence.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_topics` in `crates/termlink-mcp/src/tools.rs` returns
+- [x] `termlink_topics` in `crates/termlink-mcp/src/tools.rs` returns
       `sessions: [{"session": "name", "topics": [...]}]` (array of records)
       instead of `sessions: {...}` (object map). Both the
       empty-registrations early-return path AND the populated path emit
       the same shape.
-- [ ] `termlink_topics` adds `total_sessions: N` field to the JSON
+- [x] `termlink_topics` adds `total_sessions: N` field to the JSON
       response (count of sessions with at least one topic, matching
       `session_topics.len()` in CLI's code).
-- [ ] `parity_topics` test in `crates/termlink-mcp/tests/parity.rs` is
+- [x] `parity_topics` test in `crates/termlink-mcp/tests/parity.rs` is
       un-ignored. In-source diagnostic comment updated to note
       convergence date + the structural fix.
-- [ ] `cargo test --release --test parity -p termlink-mcp --
+- [x] `cargo test --release --test parity -p termlink-mcp --
       --test-threads=1` exits 0 with `test result: ok. 4 passed; 0 failed;
       1 ignored` (was: 3 passed; 0 failed; 2 ignored — topics now passes
       parity, ping remains ignored for T-1911).
-- [ ] No regression of any other parity test (hub_status, version,
+- [x] No regression of any other parity test (hub_status, version,
       negative_self_test still pass).
 
 ### Human
