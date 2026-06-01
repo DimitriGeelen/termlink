@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T12:58:08Z
-last_update: 2026-06-01T12:58:21Z
+last_update: 2026-06-01T13:23:35Z
 date_finished: null
 ---
 
@@ -38,22 +38,22 @@ If catches surface, file convergence tasks (same pattern as T-1910/12).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `parity_channel_queue_status` test exists in
+- [x] `parity_channel_queue_status` test exists in
       `crates/termlink-mcp/tests/parity.rs`. Both MCP and CLI invoked
       against an explicit non-existent queue_path; diff-asserts the
       `{queue_path, exists: false, pending: 0}` shape on both sides.
-- [ ] `parity_channel_list_no_hub` test exists. Both surfaces called
+- [x] `parity_channel_list_no_hub` test exists. Both surfaces called
       with no hub running; diff-asserts they produce the same error
       shape (parity covers error paths, not just success paths).
-- [ ] `cargo test --release --test parity -p termlink-mcp --
+- [x] `cargo test --release --test parity -p termlink-mcp --
       --test-threads=1` exits 0. Test count grows from 5 (v0.1, post
       T-1910/12) to 7 (v0.2). Catches surface as either PASS or
       `#[ignore]`d-with-follow-up — both outcomes are acceptable
       v0.2-completion states.
-- [ ] If any new catch surfaces, a follow-up task is filed (same
+- [x] If any new catch surfaces, a follow-up task is filed (same
       pattern as T-1910/T-1912) and the test is `#[ignore]`d with a
       diagnostic comment.
-- [ ] No regression of any existing parity test (hub_status, topics,
+- [x] No regression of any existing parity test (hub_status, topics,
       version, negative_self_test still pass).
 
 ### Human
