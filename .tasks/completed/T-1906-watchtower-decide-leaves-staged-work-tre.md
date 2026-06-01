@@ -4,7 +4,7 @@ name: "Watchtower decide leaves staged work-tree artifacts stranded — investig
 description: >
   Inception: Watchtower decide leaves staged work-tree artifacts stranded — investigate auto-commit vs refuse-while-dirty
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T09:53:36Z
-last_update: 2026-06-01T09:56:42Z
-date_finished: null
+last_update: 2026-06-01T10:10:31Z
+date_finished: 2026-06-01T10:10:31Z
 ---
 
 # T-1906: Watchtower decide leaves staged work-tree artifacts stranded — investigate auto-commit vs refuse-while-dirty
@@ -141,15 +141,15 @@ Time-box: ~60 min, one session.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -248,7 +248,11 @@ mental model; (c) catches residue from edge cases at near-zero cost.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Investigation executed in this same session. All four hypotheses confirmed.
+
+**Date**: 2026-06-01T10:10:31Z
 
 ## Updates
 
@@ -257,3 +261,21 @@ mental model; (c) catches residue from edge cases at near-zero cost.
 
 ### 2026-06-01T09:54:45Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-01T10:10:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Investigation executed in this same session. All four hypotheses confirmed.
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-00dbd971
+- **Timestamp:** 2026-06-01T10:10:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-06-01T10:10:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
