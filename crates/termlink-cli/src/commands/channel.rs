@@ -198,6 +198,27 @@ fn hub_socket(hub: Option<&str>) -> Result<TransportAddr> {
     Ok(TransportAddr::unix(sock))
 }
 
+// T-1915: every cmd_channel_* taking `json_output: bool` needs --json on the
+// hub-down error path so pipelines into `jq` don't see a silent empty pipe.
+// T-1914 fixed cmd_channel_list inline; this helper DRYs that pattern across
+// all 45 channel.rs sites. On Err with json_output, exits 1 via
+// super::json_error_exit (matching T-1914's behavior). Without json_output,
+// returns Err unchanged so the human-format path renders the anyhow message.
+fn hub_socket_or_json_exit(hub: Option<&str>, json_output: bool) -> Result<TransportAddr> {
+    match hub_socket(hub) {
+        Ok(s) => Ok(s),
+        Err(e) => {
+            if json_output {
+                super::json_error_exit(json!({
+                    "ok": false,
+                    "error": format!("{e}"),
+                }));
+            }
+            Err(e)
+        }
+    }
+}
+
 /// `channel post` tolerates a missing socket (offline-queue fallback), so
 /// resolve the path without asserting it exists. T-1174. T-1385: returns
 /// TransportAddr for TCP-capable parsing.
@@ -315,7 +336,7 @@ pub(crate) async fn cmd_channel_create(
     json_output: bool,
 ) -> Result<()> {
     let retention_val = parse_retention(retention)?;
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let resp = rpc_call_authed(
         &sock,
         method::CHANNEL_CREATE,
@@ -1772,7 +1793,7 @@ pub(crate) async fn cmd_channel_dm(
         return Ok(());
     }
     // Auto-create the topic on either path (idempotent forever-retention).
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let created = ensure_topic(&sock, &topic).await?;
     // T-1429.5 (T-1430 deferred AC): self-describe on first create only.
     // The hub's `channel.create` returns `created=true` exactly once per
@@ -1874,7 +1895,7 @@ pub(crate) async fn cmd_channel_dm_list(
 ) -> Result<()> {
     let identity = load_identity_or_create()?;
     let my_id = identity.fingerprint().to_string();
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({}))
         .await
         .context("Hub rpc_call (channel.list) failed")?;
@@ -2103,7 +2124,7 @@ pub(crate) async fn cmd_channel_ack(
         (None, Some(since)) => {
             // T-1337: walk the topic and pick the highest offset whose ts
             // satisfies the anchor.
-            let sock = hub_socket(hub)?;
+            let sock = hub_socket_or_json_exit(hub, json_output)?;
             let envelopes = walk_topic_full(&sock, topic).await?;
             match latest_offset_since(&envelopes, since) {
                 Some(n) => n,
@@ -2122,7 +2143,7 @@ pub(crate) async fn cmd_channel_ack(
             }
         }
         (None, None) => {
-            let sock = hub_socket(hub)?;
+            let sock = hub_socket_or_json_exit(hub, json_output)?;
             match resolve_latest_offset(&sock, topic).await? {
                 Some(n) => n,
                 None => anyhow::bail!("Topic '{topic}' is empty — nothing to ack"),
@@ -2155,7 +2176,7 @@ pub(crate) async fn cmd_channel_receipts(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     use std::collections::HashMap;
     struct Receipt {
         up_to: u64,
@@ -2307,7 +2328,7 @@ pub(crate) async fn cmd_channel_react(
         }
     };
     let parent_str = parent_offset.to_string();
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
     let mut found: Option<u64> = None;
@@ -2521,7 +2542,7 @@ pub(crate) async fn cmd_channel_thread(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let mut all_msgs: Vec<Value> = Vec::new();
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
@@ -2710,7 +2731,7 @@ pub(crate) async fn cmd_channel_members(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = summarize_members_as_of(&envelopes, include_meta, as_of_ms);
 
@@ -2791,7 +2812,7 @@ pub(crate) async fn cmd_channel_ancestors(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
 
     use std::collections::HashMap;
@@ -2956,7 +2977,7 @@ pub(crate) async fn cmd_channel_info(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     // Pull retention + count from channel.list with the topic name as exact prefix.
     let list_resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({"prefix": topic}))
         .await
@@ -3149,7 +3170,7 @@ pub(crate) async fn cmd_channel_reply(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let mut latest: Option<u64> = None;
     let mut cursor: u64 = 0;
     let limit: u64 = 1000;
@@ -3236,7 +3257,7 @@ pub(crate) async fn cmd_channel_unread(
             id.fingerprint().to_string()
         }
     };
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
 
     // T-1329: prefer hub-side aggregation; fall back gracefully if old hub.
     let mut up_to: u64 = 0;
@@ -3570,7 +3591,7 @@ pub(crate) async fn cmd_channel_typing_list(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -3621,7 +3642,7 @@ pub(crate) async fn cmd_channel_forward(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     // Walk the source topic to find the envelope at offset. Walking is
     // consistent with how channel quote / channel ancestors do their
     // lookups — saves us from inventing a single-offset RPC convention.
@@ -3807,7 +3828,7 @@ pub(crate) async fn cmd_channel_pinned(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_pinned_set(&envelopes);
     if json_output {
@@ -3982,7 +4003,7 @@ pub(crate) async fn cmd_channel_starred(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let me_owned: Option<String> = if all {
         None
@@ -4247,7 +4268,7 @@ pub(crate) async fn cmd_channel_poll_results(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let state = compute_poll_state(&envelopes, poll_id).ok_or_else(|| {
         anyhow!(
@@ -4462,7 +4483,7 @@ pub(crate) async fn cmd_channel_digest(
         (None, Some(ms)) => ms,
         (None, None) => now_ms - 60 * 60_000, // default: last 60 minutes
     };
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let d = compute_digest(&envelopes, since_ms);
 
@@ -4611,7 +4632,7 @@ pub(crate) async fn cmd_channel_emoji_stats(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let mut rows = compute_emoji_stats(&envelopes);
     if let Some(n) = top {
@@ -4722,7 +4743,7 @@ pub(crate) async fn cmd_channel_snippet(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let snippet = compute_snippet(&envelopes, offset, lines).ok_or_else(|| {
         anyhow!(
@@ -4855,7 +4876,7 @@ pub(crate) async fn cmd_channel_reactions_of(
             id.fingerprint().to_string()
         }
     };
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_reactions_of(&envelopes, &scope);
     if json_output {
@@ -5062,7 +5083,7 @@ pub(crate) async fn cmd_channel_topic_stats(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let stats = compute_full_topic_stats(&envelopes);
     if json_output {
@@ -5191,7 +5212,7 @@ pub(crate) async fn cmd_channel_forwards_of(
             id.fingerprint().to_string()
         }
     };
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_forwards_of(&envelopes, &scope);
     if json_output {
@@ -5332,7 +5353,7 @@ pub(crate) async fn cmd_channel_replies_of(
             id.fingerprint().to_string()
         }
     };
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_replies_of(&envelopes, &scope);
     if json_output {
@@ -5453,7 +5474,7 @@ pub(crate) async fn cmd_channel_mentions_of(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_mentions_of(&envelopes, user);
     if json_output {
@@ -5586,7 +5607,7 @@ pub(crate) async fn cmd_channel_pin_history(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_pin_history(&envelopes);
     if json_output {
@@ -5693,7 +5714,7 @@ pub(crate) async fn cmd_channel_redactions(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_redactions(&envelopes);
     if json_output {
@@ -5808,7 +5829,7 @@ pub(crate) async fn cmd_channel_reactions_on(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_reactions_on(&envelopes, target);
     if json_output {
@@ -5956,7 +5977,7 @@ pub(crate) async fn cmd_channel_edit_stats(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_edit_stats(&envelopes);
     if json_output {
@@ -6136,7 +6157,7 @@ pub(crate) async fn cmd_channel_state(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_state(&envelopes, include_redacted);
     if json_output {
@@ -6346,7 +6367,7 @@ pub(crate) async fn cmd_channel_relations(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     // Refuse if the target isn't present at all (saves the user a confusing
     // empty report for a typo'd offset).
@@ -6527,7 +6548,7 @@ pub(crate) async fn cmd_channel_quote_stats(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_quote_stats(&envelopes);
     if json_output {
@@ -6598,7 +6619,7 @@ pub(crate) async fn cmd_channel_snapshot(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_snapshot(&envelopes, as_of_ms, include_redacted);
     if json_output {
@@ -6696,7 +6717,7 @@ pub(crate) async fn cmd_channel_state_since(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_state_since(&envelopes, since_ms, include_redacted);
     if json_output {
@@ -6840,7 +6861,7 @@ pub(crate) async fn cmd_channel_snapshot_diff(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let mut rows = compute_snapshot_diff(&envelopes, from_ms, to_ms, include_redacted);
     if !include_unchanged {
@@ -6990,7 +7011,7 @@ pub(crate) async fn cmd_channel_ack_history(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let rows = compute_ack_history(&envelopes, user);
     if json_output {
@@ -7129,7 +7150,7 @@ pub(crate) async fn cmd_channel_edits_of(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let report = match compute_edits_of(&envelopes, offset) {
         Some(r) => r,
@@ -7303,7 +7324,7 @@ pub(crate) async fn cmd_channel_threads(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     let mut rows = compute_threads_index(&envelopes);
     if let Some(n) = top {
@@ -7431,7 +7452,7 @@ pub(crate) async fn cmd_channel_ack_status(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     if envelopes.is_empty() {
         println!("Topic '{topic}' is empty.");
@@ -7635,7 +7656,7 @@ pub(crate) async fn cmd_channel_inbox(
         return Ok(());
     }
 
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({}))
         .await
         .context("Hub rpc_call (channel.list) failed")?;
@@ -7697,7 +7718,7 @@ pub(crate) async fn cmd_channel_quote(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
     use std::collections::HashMap;
     let mut by_off: HashMap<u64, Value> = HashMap::with_capacity(envelopes.len());
@@ -7884,7 +7905,7 @@ pub(crate) async fn cmd_channel_subscribe(
     // which conflicts_with --tail), emit the last N. Each entry is the
     // complete output for one envelope (1+ lines, with trailing newlines).
     let mut env_outputs: Vec<String> = Vec::new();
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     // T-1344: when --show-parent is on, seed an offset-keyed cache by walking
     // the topic once before the streaming loop. Live envelopes seen during
     // --follow are added to the cache as they arrive (see emission loop).
@@ -8374,22 +8395,7 @@ pub(crate) async fn cmd_channel_list(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    // T-1914: honor --json on the hub-down error path. Without this,
-    // `termlink channel list --json | jq` produces nothing parseable
-    // (CLI writes to stderr + empty stdout while MCP returns structured
-    // JSON error). T-1913 parity harness caught this drift.
-    let sock = match hub_socket(hub) {
-        Ok(s) => s,
-        Err(e) => {
-            if json_output {
-                super::json_error_exit(json!({
-                    "ok": false,
-                    "error": format!("{e}"),
-                }));
-            }
-            return Err(e);
-        }
-    };
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let params = match prefix {
         Some(p) => json!({"prefix": p}),
         None => json!({}),
@@ -8581,7 +8587,7 @@ pub(crate) async fn cmd_channel_mentions(
         }
     };
 
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let params = match prefix {
         Some(p) => json!({"prefix": p}),
         None => json!({}),
@@ -8736,7 +8742,7 @@ pub(crate) async fn cmd_channel_search(
             .map_err(|e| anyhow!("invalid regex pattern '{pattern}': {e}"))?;
     }
 
-    let sock = hub_socket(hub)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
     let envelopes = walk_topic_full(&sock, topic).await?;
 
     let mut hits: Vec<Value> = Vec::new();

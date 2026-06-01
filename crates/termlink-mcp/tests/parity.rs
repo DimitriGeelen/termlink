@@ -363,6 +363,44 @@ async fn parity_channel_list_no_hub() {
         .expect("channel list no-hub parity");
 }
 
+#[tokio::test]
+async fn parity_channel_create_no_hub() {
+    // T-1915: proves the hub_socket_or_json_exit helper rolls out to
+    // every cmd_channel_*. cmd_channel_create is a representative
+    // non-list site (T-1914 fixed cmd_channel_list inline; this test
+    // exercises a separate converted call site).
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-channel-create-no-hub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(
+        &client,
+        "termlink_channel_create",
+        json!({"name": "parity-test-topic"}),
+    )
+    .await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP channel_create response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    // CLI exits 1 when hub is down, but emits JSON to stdout via the
+    // T-1915 hub_socket_or_json_exit helper. call_cli tolerates non-zero
+    // exit and parses stdout as JSON.
+    let cli_json = call_cli(
+        &bin,
+        &dir.path,
+        &["channel", "create", "parity-test-topic", "--json"],
+    )
+    .expect("CLI channel create (JSON on stdout even with exit 1, T-1915)");
+
+    // Both sides: ok=false on hub-down. Error text differs (CLI includes
+    // socket path with tempdir; MCP says "no socket found"); strip those.
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid", "error"].into_iter().collect();
+    diff_json("channel_create_no_hub", &mcp_json, &cli_json, &ignore)
+        .expect("channel create no-hub parity");
+}
+
 // ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
