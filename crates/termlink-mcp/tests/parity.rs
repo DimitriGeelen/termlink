@@ -235,21 +235,22 @@ async fn parity_hub_status() {
 // ---------------------------------------------------------------------------
 // PAIR 4: termlink_version  /  termlink version --json
 //
-// THIRD CATCH (T-1909 v0.1 — 2026-06-01).
+// Was T-1909 v0.1 THIRD CATCH; converged 2026-06-01 via T-1912.
 //
-// MCP returns: {"commit":"unknown","mcp_tools":251,"ok":true,"target":"unknown","version":"0.9.0"}
-//   — reads from termlink-mcp crate's own Cargo.toml; no build-time git metadata.
-// CLI returns: {"commit":"8a1aafb0","mcp_tools":251,"ok":true,"target":"x86_64-unknown-linux-gnu","version":"0.11.501"}
-//   — reads from workspace bin's build.rs (git-tag-derived version + commit + target triple).
+// Original divergence: MCP `termlink_version` returned
+// `{"version":"0.9.0","commit":"unknown","target":"unknown"}` (read from
+// `termlink-mcp/Cargo.toml` because the crate had no build.rs) while CLI
+// `termlink version --json` returned the git-derived
+// `{"version":"0.11.501","commit":"8a1aafb0","target":"x86_64-..."}`.
 //
-// Two different version-source ground truths. The MCP server should report
-// the same version metadata as the CLI (operator-facing "what version am I
-// running" answer must be canonical, not split across surfaces). Filed as
-// follow-up to converge the version-source. Until convergence, ignored.
+// Fix: added `crates/termlink-mcp/build.rs` mirroring
+// `crates/termlink-cli/build.rs` — both crates now read the same
+// git-derived CARGO_PKG_VERSION / GIT_COMMIT / BUILD_TARGET. An operator
+// asking "what version am I running" via MCP gets the same answer as via
+// CLI.
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-#[ignore = "T-1909 third-catch: MCP reads crate Cargo.toml (0.9.0/unknown), CLI reads build.rs git metadata (see comment + follow-up task)"]
 async fn parity_version() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-version");

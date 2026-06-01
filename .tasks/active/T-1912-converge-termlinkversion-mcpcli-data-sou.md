@@ -4,7 +4,7 @@ name: "Converge termlink_version MCP/CLI data source (T-1909 third-catch)"
 description: >
   MCP returns crate Cargo.toml version (0.9.0/commit=unknown/target=unknown). CLI returns workspace build.rs git-derived (0.11.501/commit=8a1aafb0/target=x86_64-...). Both should report the same canonical version-source. Un-ignore parity_version when converged.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-01T11:34:57Z
+last_update: 2026-06-01T11:42:27Z
 date_finished: null
 ---
 
@@ -20,14 +20,50 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator-visible drift: an MCP client asking the termlink server "what
+version am I talking to?" via the `termlink_version` tool gets back
+`{"version":"0.9.0","commit":"unknown","target":"unknown"}` — the
+`termlink-mcp` crate's own Cargo.toml (frozen at 0.9.0). The same query
+via the CLI `termlink version --json` returns
+`{"version":"0.11.501","commit":"8a1aafb0","target":"x86_64-unknown-linux-gnu"}`
+— the workspace bin's `build.rs` git-derived metadata. Two different
+ground-truths for "what version is running" from the same binary.
+
+**Root cause:** `crates/termlink-cli/build.rs` injects
+`CARGO_PKG_VERSION` (from `git describe --tags`), `GIT_COMMIT`, and
+`BUILD_TARGET` as compile-time env vars consumed by
+`crates/termlink-cli/src/main.rs::Version`. The MCP server's
+`termlink_version` tool in `crates/termlink-mcp/src/tools.rs` uses the
+exact same `env!` / `option_env!` pattern, but `crates/termlink-mcp/`
+has no `build.rs` — so the env vars are unset (commit/target) or fall
+back to `termlink-mcp/Cargo.toml` (0.9.0 verbatim).
+
+T-1909 v0.1's `parity_version` test caught this and is `#[ignore]`d
+pending convergence. Detected via in-process MCP fixture + CLI assert
+diff. Full diagnostic in `crates/termlink-mcp/tests/parity.rs:223-248`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `crates/termlink-mcp/build.rs` exists and mirrors
+      `crates/termlink-cli/build.rs` (CARGO_PKG_VERSION override from
+      `git describe --tags`, GIT_COMMIT from `git rev-parse --short HEAD`,
+      BUILD_TARGET from `$TARGET`). Same `cargo:rerun-if-changed=` paths.
+- [ ] `cargo build -p termlink --release` rebuilds the binary; running
+      `target/release/termlink mcp-stdio` or invoking the MCP server
+      in-process now returns matching `version`/`commit`/`target` values
+      from both `termlink_version` (MCP) and `termlink version --json`
+      (CLI).
+- [ ] `parity_version` test in `crates/termlink-mcp/tests/parity.rs`
+      is un-ignored (`#[ignore]` attribute removed; in-source diagnostic
+      comment updated to note convergence date and the structural fix).
+- [ ] `cargo test --release --test parity -p termlink-mcp --
+      --test-threads=1` exits 0 with `test result: ok. 3 passed; 0 failed;
+      2 ignored` (was: 2 passed; 0 failed; 3 ignored — version now passes
+      parity).
+- [ ] No regression of `parity_hub_status` or `parity_negative_self_test`
+      (still pass). Other ignored tests stay ignored — T-1910 and T-1911
+      are independent fixes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,14 +82,11 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+test -f crates/termlink-mcp/build.rs
+grep -q "GIT_COMMIT" crates/termlink-mcp/build.rs
+grep -q "BUILD_TARGET" crates/termlink-mcp/build.rs
+grep -q "CARGO_PKG_VERSION" crates/termlink-mcp/build.rs
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. 3 passed; 0 failed; 2 ignored"
 
 ## RCA
 
@@ -122,3 +155,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1912-converge-termlinkversion-mcpcli-data-sou.md
 - **Context:** Initial task creation
+
+### 2026-06-01T11:42:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
