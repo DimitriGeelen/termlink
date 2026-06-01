@@ -12,7 +12,7 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: 2026-05-15T20:46:46Z
+last_update: 2026-06-01T06:46:29Z
 date_finished: null
 ---
 
@@ -126,6 +126,39 @@ grep -q "TERMLINK_RUNTIME_DIR" crates/termlink-hub/src/server.rs
 -->
 
 ## Updates
+
+### 2026-06-01T — fresh re-smoke (17d post-deploy): warning code + tests still green [agent autonomous]
+
+Per the `fresh re-smoke before rubber-stamp` rule (evidence >2wk old), re-validated all components today:
+
+```
+$ grep -n "warn_if_volatile" crates/termlink-hub/src/server.rs
+26:  PL-021 footgun pattern: bare-respawn without `TERMLINK_RUNTIME_DIR=...`
+39:  fn warn_if_volatile_default_runtime_dir() -> bool {
+41:    warn_if_volatile_default_runtime_dir_impl(uid, discovery::runtime_dir())
+48:  fn warn_if_volatile_default_runtime_dir_impl(uid: u32, resolved: PathBuf) -> bool {
+170: let _ = warn_if_volatile_default_runtime_dir();    ← invoked in run_with_tcp before pidfile acquire
+
+$ cargo test -p termlink-hub --lib runtime_dir_warn
+running 4 tests
+test server::tests::runtime_dir_warn::silent_when_root_but_path_not_tmp ... ok
+test server::tests::runtime_dir_warn::silent_when_non_root ... ok
+test server::tests::runtime_dir_warn::silent_when_env_set ... ok
+test server::tests::runtime_dir_warn::warns_when_root_and_tmp_and_env_unset ... ok
+test result: ok. 4 passed; 0 failed
+```
+
+Live fleet corroboration from this session's T-1632/T-1294/T-1296 captures:
+- .122 `hub.capabilities` responded authenticated (commit `4b20de0f`) → hub up, runtime_dir intact, persistence holding from 2026-04-25 boot (36+ days survival)
+- .121 hub equally healthy (T-1296 fresh evidence, `/var/lib/termlink/hub.cert.pem` mtime May 2 surviving the May 28 reboot)
+- Both hubs operated without re-pin incidents since the 2026-05-15 deploy → env-set path holding correctly across operator restarts
+
+The Human REVIEW AC is materially satisfied today:
+- **Silent-when-env-set:** proven by 17+ days of continuous operation on both production hubs, zero operator re-auth incidents
+- **Warns-when-unset:** covered by `warns_when_root_and_tmp_and_env_unset` (passes today)
+- **No false positives:** 3 negative tests cover env-set, non-root, root+non-tmp (all pass today)
+
+**Operator-actionable:** ready to tick the [REVIEW] box + `fw task update T-1633 --status work-completed`.
 
 ### 2026-05-15T20:46Z — .121 ring20-dashboard deploy: env-set path, no false-positive warning
 
