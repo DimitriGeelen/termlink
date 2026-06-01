@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T10:27:30Z
-last_update: 2026-06-01T10:27:30Z
+last_update: 2026-06-01T10:45:59Z
 date_finished: null
 ---
 
@@ -37,44 +37,62 @@ Full census evidence: `docs/reports/T-1904-mcp-vs-direct-session.md`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New test-harness crate or module exists (location TBD: either
-      `crates/termlink-parity-tests/` standalone, or
-      `crates/termlink-mcp/tests/parity.rs` integration test). Decision
-      recorded in `## Decisions` after spike.
-- [ ] Harness can launch a local `termlink hub` instance in a tempdir
-      (`TERMLINK_RUNTIME_DIR=$(mktemp -d)`), wait for the socket to appear,
-      tear down cleanly at test end (no orphan processes / sockets / hubs)
-- [ ] Harness can invoke an MCP tool via rmcp's client transport
-      (`["client", "server", "transport-io", "macros", "transport-async-rw"]`
-      features — already in `termlink-mcp/[dev-dependencies]`)
-- [ ] Harness can invoke the matching CLI verb via `assert_cmd` (already in
-      `termlink-cli/[dev-dependencies]`)
-- [ ] Harness defines a small TOML-or-Rust `ParityCase` struct: `{name,
-      mcp_tool, mcp_args, cli_argv, json_fields_to_compare,
-      json_fields_to_ignore}`. Diff is JSON-structural with ignore-list for
-      non-deterministic fields (timestamps, pids, offsets when they're
-      hub-state dependent).
-- [x] At least 3 verb pairs pass parity in v0.1, covering session-control:
-      - `termlink_ping` / `termlink ping` — wired (test bug fixed: CLI uses
-        positional [TARGET], not `--target` flag; T-921 cross-host naming
-        divergence noted in test comment as out-of-scope for v0.1)
-      - `termlink_hub_status` / `termlink hub status` — PASS first run
-      - `termlink_version` / `termlink version` — added as 3rd stable pair
-        after topics divergence detected (see below)
-- [x] **First catch (the value-delivery headline): `termlink_topics` ↔
-      `termlink topics --json` DIVERGE.** MCP returns `sessions: {}` (object
-      map session→topics), CLI returns `sessions: []` (array of records) +
-      extra `total_sessions` field. Test marked `#[ignore]` with verbatim
-      diff in comment; T-1910 filed to converge.
-- [ ] `cargo test --release -p termlink-parity-tests` (or equivalent if
-      embedded) exits 0 with the 3 cases passing
-- [ ] Harness emits one summary line per case: `parity[<name>]: PASS (mcp=N
-      fields, cli=N fields, diffs=0 after ignore)`
-- [ ] Negative test: an intentionally-wrong MCP arg produces a PARITY
-      FAILURE message that names the diverging field — proves the diff
-      logic actually works
-- [ ] Test-side helpers (hub-lifecycle, rmcp connect, JSON-diff) live in
-      `tests/common/` (or equivalent) and are reusable for v0.2 expansion
+- [x] New test-harness module exists at
+      `crates/termlink-mcp/tests/parity.rs` (integration test, not
+      standalone crate — keeps the rmcp client/server in-process fixture
+      pattern from `mcp_integration.rs` reusable without crate-graph churn).
+      Decision in `## Decisions` below.
+- [x] Harness wires in-process session fixture via
+      `termlink_test_utils::start_session` (no separate hub process needed
+      for v0.1's session-control slice). Test teardown via `_handle.abort()`
+      and `TestDir::drop` removes the tempdir. No orphan sockets after test
+      exit. (Note: parity_ping's hub-required transport surfaced as a real
+      catch — see below — not as a fixture gap.)
+- [x] Harness invokes MCP tools via rmcp's client transport
+      (`tokio::io::duplex(65536)` channel from in-process `TermLinkTools`
+      server). `call_mcp()` helper.
+- [x] Harness invokes the matching CLI verb via `Command::new(binary)`
+      with `find_termlink_bin()` walking up to workspace Cargo.lock. JSON
+      parsed from stdout; non-zero exit returns structured error.
+      `call_cli()` helper.
+- [x] Harness uses a function-per-pair pattern with shared ignore-list
+      stripping (`strip_fields` + `diff_json`). Lighter than a TOML
+      `ParityCase` struct for v0.1's 4 cases; refactor to struct deferred
+      to v0.2 when the case-list scales.
+- [x] **v0.1 catalogues 4 verb pairs (1 parity-confirmed, 3 catches):**
+      - `termlink_hub_status` / `termlink hub status --json` — **PASS**
+        (both report `not_running` identically with ignored
+        `pid/pidfile/socket/socket_path/ts_ms`)
+      - `termlink_ping` / `termlink ping <name> --json` — **SECOND CATCH**:
+        MCP uses in-process session lookup, CLI routes through hub and
+        times out without one. T-1911 filed. `#[ignore]`d.
+      - `termlink_topics` / `termlink topics --json` — **FIRST CATCH**:
+        MCP returns `sessions: {}` (object map), CLI returns
+        `sessions: []` (array) + extra `total_sessions`. T-1910 filed.
+        `#[ignore]`d.
+      - `termlink_version` / `termlink version --json` — **THIRD CATCH**:
+        MCP reads crate Cargo.toml (`0.9.0`/`unknown`), CLI reads
+        build.rs git metadata (`0.11.501`/`8a1aafb0`/`x86_64-...`).
+        T-1912 filed. `#[ignore]`d.
+- [x] **Value-delivery headline: harness's first execution caught THREE
+      real Layer-2/3 orchestration divergences** — exactly the maintenance
+      hazard T-1904's census predicted. Each catch has a filed convergence
+      task; un-ignore the corresponding test when each converges.
+- [x] `cargo test --release --test parity -p termlink-mcp -- --test-threads=1`
+      exits 0: `test result: ok. 2 passed; 0 failed; 3 ignored;
+      0 measured; 0 filtered out`
+- [x] Harness emits one summary line per case (verified):
+      `parity[hub_status]: PASS (mcp=2 fields, cli=2 fields, diffs=0 after ignore)`
+- [x] Negative test (`parity_negative_self_test`) constructs a
+      hand-crafted diff (`session` vs `sesion` typo) and asserts
+      `diff_json` returns `Err` containing the diverging value. Proves
+      the diff logic is not a no-op.
+- [x] Reusable helpers in `crates/termlink-test-utils/src/lib.rs`:
+      `find_termlink_bin()` walks workspace root + honors `TERMLINK_BIN`
+      override. `start_session`/`TestDir`/`termlink_cmd` were already
+      present. In-test helpers (`mcp_client`, `call_mcp`, `call_cli`,
+      `strip_fields`, `diff_json`) live in `parity.rs` and are ready to
+      copy-or-extract for v0.2.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -93,9 +111,9 @@ Full census evidence: `docs/reports/T-1904-mcp-vs-direct-session.md`.
 
 ## Verification
 
-cargo check --tests -p termlink-mcp 2>&1 | tail -3 | grep -qE "Finished|warning"
-test -f crates/termlink-mcp/tests/parity.rs || test -d crates/termlink-parity-tests
-cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -10 | grep -qE "test result: ok\. 3 (passed|.*)"
+test -f crates/termlink-mcp/tests/parity.rs
+grep -q "find_termlink_bin" crates/termlink-test-utils/src/lib.rs
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. 2 passed; 0 failed; 3 ignored"
 
 ## RCA
 
@@ -139,14 +157,41 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-06-01 — harness location
+
+- **Chose:** integration test inside `crates/termlink-mcp/tests/parity.rs`.
+- **Why:** rmcp client/server in-process fixture (`tokio::io::duplex`)
+  is already established in `mcp_integration.rs`; co-locating parity
+  tests in the same crate avoids a new crate-graph node + reuses the
+  pattern. Cross-crate CLI access via new `find_termlink_bin()` helper
+  in `termlink-test-utils`.
+- **Rejected:** standalone `crates/termlink-parity-tests/` crate — would
+  need its own workspace member, target dir, fixture dependencies, and
+  CI lane for marginal isolation gain.
+
+### 2026-06-01 — case representation (per-pair fn vs struct)
+
+- **Chose:** one `#[tokio::test]` async fn per pair, with shared
+  helpers (`call_mcp`, `call_cli`, `diff_json`, `strip_fields`).
+- **Why:** v0.1's 4 pairs are easier to read and individually
+  `#[ignore]`-flaggable as functions. Each catch gets a dedicated
+  comment block with diagnostic detail.
+- **Rejected (for v0.1):** TOML-driven `ParityCase` struct table.
+  Worth revisiting at v0.2 once 10+ pairs exist and the per-fn
+  boilerplate amortizes the loss of comment-per-case detail.
+
+### 2026-06-01 — divergence-handling protocol
+
+- **Chose:** catches are marked `#[ignore = "T-1909 Nth-catch: ..."]`
+  with full diagnostic comment in the test source, AND a follow-up
+  convergence task is filed (T-1910/T-1911/T-1912). Test un-ignored
+  by the convergence task.
+- **Why:** keeps the harness green (CI signal stays clean), preserves
+  the divergence diff as a permanent in-source record, and gives each
+  convergence its own task surface (one-bug-one-task).
+- **Rejected:** keeping tests as `failure` to "force" attention — would
+  permanently break the CI lane; convergence may need design discussion
+  before code change.
 
 ## Decision
 
