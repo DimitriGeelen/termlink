@@ -1019,6 +1019,13 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
     super::print_deprecation_warning("inbox status", "channel info");
     let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
+        // T-1916: honor --json on hub-down (same pattern events.rs uses inline).
+        if json_output {
+            super::json_error_exit(json!({
+                "ok": false,
+                "error": format!("Hub is not running (no socket at {})", hub_socket.display()),
+            }));
+        }
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
@@ -1046,11 +1053,24 @@ pub(crate) async fn cmd_inbox_status(json_output: bool) -> Result<()> {
 pub(crate) async fn cmd_inbox_clear(target: Option<&str>, all: bool, json_output: bool) -> Result<()> {
     super::print_deprecation_warning("inbox clear", "channel subscribe --cursor");
     if target.is_none() && !all {
+        if json_output {
+            super::json_error_exit(json!({
+                "ok": false,
+                "error": "Specify a target session name, or use --all to clear everything",
+            }));
+        }
         anyhow::bail!("Specify a target session name, or use --all to clear everything");
     }
 
     let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
+        // T-1916: honor --json on hub-down.
+        if json_output {
+            super::json_error_exit(json!({
+                "ok": false,
+                "error": format!("Hub is not running (no socket at {})", hub_socket.display()),
+            }));
+        }
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
@@ -1081,6 +1101,13 @@ pub(crate) async fn cmd_inbox_list(target: &str, json_output: bool) -> Result<()
     super::print_deprecation_warning("inbox list", "channel subscribe");
     let (_, hub_socket) = resolve_hub_paths();
     if !hub_socket.exists() {
+        // T-1916: honor --json on hub-down.
+        if json_output {
+            super::json_error_exit(json!({
+                "ok": false,
+                "error": format!("Hub is not running (no socket at {})", hub_socket.display()),
+            }));
+        }
         anyhow::bail!("Hub is not running (no socket at {})", hub_socket.display());
     }
 
