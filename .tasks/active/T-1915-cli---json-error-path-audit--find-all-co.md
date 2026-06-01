@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909, T-1913, T-1914]
 created: 2026-06-01T14:06:37Z
-last_update: 2026-06-01T16:37:04Z
+last_update: 2026-06-01T17:00:49Z
 date_finished: null
 ---
 
@@ -64,19 +64,13 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink channel <verb> --json | jq` produced silent empty output when the local hub was down for ~30 distinct CLI verbs (channel create / post / subscribe / ack / react / pin / etc.). Stdout was empty, error message went to stderr, jq saw nothing parseable.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `let sock = hub_socket(hub)?;` propagates the anyhow error via `?` *before* any code path branches on `json_output`. Once the function returns Err, anyhow's Display impl writes the message to stderr and the binary exits 1 with no stdout. T-1914 fixed exactly one site (cmd_channel_list) with an inline match/json_error_exit but didn't extract the pattern, leaving 45 other call sites carrying the same defect.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Two compounding gaps. (1) No structural test ever asserted that --json mode produces JSON on stdout for *any* error path — the convention was carried by author discipline. T-1909's parity harness only caught the one cmd_channel_list instance because it was the only command the harness tested at the time. (2) T-1914's inline fix was site-local rather than a helper, so subsequent authors saw "fix the next one the same way" rather than "use the helper." Pattern proliferation by copy-pasta instead of by shared abstraction.
+
+**Prevention:** (a) Introduced `hub_socket_or_json_exit(hub, json_output)` as the single source of truth — any future `cmd_channel_*` author calls the helper and gets correct --json behavior for free. (b) New parity test `parity_channel_create_no_hub` covers a representative non-list site; future verbs added to the parity harness will catch regressions on whichever verb is added. The same pattern (`*_or_json_exit` helper + parity test) is reusable in events.rs / kv.rs / agent.rs when those files get the same audit — see T-1915 follow-up scope tracked in this task's Decisions.
 
 ## Evolution
 
