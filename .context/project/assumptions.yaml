@@ -324,3 +324,40 @@ assumptions:
   linked_task: T-1904
   created: '2026-06-01'
   resolved_date: null
+- id: A-032
+  statement: Watchtower decide handler delegates to fw inception decide / Python equivalent
+    which performs file-move + episodic-write but not git commit of working-tree state
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1906
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-033
+  statement: Neither decide handler nor fw inception decide checks for unstaged/staged
+    edits to task file or research artifact before performing move (no precondition
+    enforcement)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1906
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-034
+  statement: check-active-task hook parses commit message for T-XXXX IDs and verifies
+    each is in .tasks/active/; rejects messages referencing tasks just moved to completed/
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1906
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-035
+  statement: No tolerate-completed-task-ref-for-K-minutes-after-close carveout exists
+    in the check-active-task hook
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1906
+  created: '2026-06-01'
+  resolved_date: null
