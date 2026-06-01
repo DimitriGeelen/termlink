@@ -288,3 +288,39 @@ assumptions:
   linked_task: T-1884
   created: '2026-05-30'
   resolved_date: '2026-05-30'
+- id: A-028
+  statement: termlink-mcp tool handlers use termlink_session::* and call shared primitives
+    directly (no separate logic implementation)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1904
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-029
+  statement: termlink-cli cmd_* handlers call termlink_session/hub library code DIRECTLY
+    (no MCP client, no in-process JSON-RPC)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1904
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-030
+  statement: termlink_remote_call MCP tool wraps hub-rpc JSON-RPC over TCP+TLS, NOT
+    the rmcp MCP protocol (two distinct protocols in play)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1904
+  created: '2026-06-01'
+  resolved_date: null
+- id: A-031
+  statement: 'No in-process MCP loopback exists: termlink components never spawn a
+    local termlink-mcp server to MCP-call a tool'
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-1904
+  created: '2026-06-01'
+  resolved_date: null
