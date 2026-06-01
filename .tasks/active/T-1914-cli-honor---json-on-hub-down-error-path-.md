@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909, T-1913]
 created: 2026-06-01T13:12:25Z
-last_update: 2026-06-01T14:07:26Z
+last_update: 2026-06-01T14:20:03Z
 date_finished: null
 ---
 
@@ -110,7 +110,6 @@ their error envelopes without anything failing.
 (re-enabled here). Any future regression that drops the JSON-on-stdout
 contract for hub-down will fail this test. T-1915 expands the same
 coverage to other CLI verbs with the same early-error pattern.
--->
 
 ## Evolution
 
