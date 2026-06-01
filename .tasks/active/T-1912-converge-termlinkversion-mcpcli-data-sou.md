@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-01T11:42:27Z
+last_update: 2026-06-01T11:58:01Z
 date_finished: null
 ---
 
@@ -45,23 +45,23 @@ diff. Full diagnostic in `crates/termlink-mcp/tests/parity.rs:223-248`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `crates/termlink-mcp/build.rs` exists and mirrors
+- [x] `crates/termlink-mcp/build.rs` exists and mirrors
       `crates/termlink-cli/build.rs` (CARGO_PKG_VERSION override from
       `git describe --tags`, GIT_COMMIT from `git rev-parse --short HEAD`,
       BUILD_TARGET from `$TARGET`). Same `cargo:rerun-if-changed=` paths.
-- [ ] `cargo build -p termlink --release` rebuilds the binary; running
+- [x] `cargo build -p termlink --release` rebuilds the binary; running
       `target/release/termlink mcp-stdio` or invoking the MCP server
       in-process now returns matching `version`/`commit`/`target` values
       from both `termlink_version` (MCP) and `termlink version --json`
       (CLI).
-- [ ] `parity_version` test in `crates/termlink-mcp/tests/parity.rs`
+- [x] `parity_version` test in `crates/termlink-mcp/tests/parity.rs`
       is un-ignored (`#[ignore]` attribute removed; in-source diagnostic
       comment updated to note convergence date and the structural fix).
-- [ ] `cargo test --release --test parity -p termlink-mcp --
+- [x] `cargo test --release --test parity -p termlink-mcp --
       --test-threads=1` exits 0 with `test result: ok. 3 passed; 0 failed;
       2 ignored` (was: 2 passed; 0 failed; 3 ignored — version now passes
       parity).
-- [ ] No regression of `parity_hub_status` or `parity_negative_self_test`
+- [x] No regression of `parity_hub_status` or `parity_negative_self_test`
       (still pass). Other ignored tests stay ignored — T-1910 and T-1911
       are independent fixes.
 
