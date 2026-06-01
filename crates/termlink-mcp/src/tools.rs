@@ -7891,7 +7891,14 @@ impl TermLinkTools {
                         metadata: serde_json::to_value(&s.metadata).unwrap_or_default(),
                     })
                     .collect();
-                serde_json::to_string_pretty(&infos).unwrap_or_else(|_| "[]".into())
+                // T-1918: wrap in {ok, sessions} envelope to match CLI
+                // `termlink list --json` shape. Was bare-array; now structurally
+                // identical to the hub-RPC envelope convention.
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": true,
+                    "sessions": infos,
+                }))
+                .unwrap_or_else(|_| r#"{"ok":true,"sessions":[]}"#.to_string())
             }
             Err(e) => json_err(e),
         }

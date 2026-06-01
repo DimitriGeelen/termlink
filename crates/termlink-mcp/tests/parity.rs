@@ -402,6 +402,54 @@ async fn parity_channel_create_no_hub() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 8 (v0.3, T-1918): termlink_list_sessions / termlink list --json
+//
+// Was T-1918 catch (manual diff): MCP returned bare array `[...]` while CLI
+// returned `{"ok": true, "sessions": [...]}` envelope. Same shape-divergence
+// class as T-1910 (topics) and T-1912 (version). Converged 2026-06-01 by
+// wrapping the MCP return in the envelope.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_list_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-list-sessions");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    let (_handle, _reg) = start_session(&dir.sessions_dir(), "parity-list-sess", vec![]).await;
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_list_sessions", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP list_sessions response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path, &["list", "--json"]).expect("CLI list --json");
+
+    // Both sides MUST agree on the envelope shape (`ok` + `sessions` keys).
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+    assert!(mcp_json["sessions"].is_array(), "MCP sessions not array: {mcp_json}");
+    assert!(cli_json["sessions"].is_array(), "CLI sessions not array: {cli_json}");
+
+    // Fields that differ per-run (timestamps, process state) — strip before diff.
+    // age/heartbeat_at are wall-clock-dependent; id/pid/socket_path are
+    // per-process; metadata carries cwd / data_socket / shell which are
+    // process-specific. Comparing only the structural shape + display_name.
+    let ignore: HashSet<&'static str> = [
+        "id", "pid", "uid", "age", "created_at", "heartbeat_at",
+        "socket_path", "metadata", "state", "capabilities",
+        "tags", "roles",
+        "ts_ms", "timestamp",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("list_sessions", &mcp_json, &cli_json, &ignore)
+        .expect("list_sessions parity");
+    _handle.abort();
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------
