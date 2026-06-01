@@ -216,6 +216,12 @@ pub fn termlink_cmd(binary: &Path, runtime_dir: &Path) -> Command {
 /// `target/debug/termlink`. Returns the first path that exists.
 ///
 /// Honors `TERMLINK_BIN` env var as an explicit override (CI / cross-compile).
+///
+/// **Note (T-1912):** This function does NOT rebuild the CLI binary. If
+/// you depend on git-derived version metadata being coherent between the
+/// CLI binary and the freshly-recompiled MCP test crate (e.g. comparing
+/// commit hashes), use [`find_termlink_bin_fresh`] instead, which runs
+/// `cargo build -p termlink --release` first.
 pub fn find_termlink_bin() -> Result<PathBuf, String> {
     if let Ok(override_path) = std::env::var("TERMLINK_BIN") {
         let p = PathBuf::from(override_path);
@@ -244,6 +250,38 @@ pub fn find_termlink_bin() -> Result<PathBuf, String> {
     Err(format!(
         "termlink binary not found in {cursor:?}/target/{{release,debug}}/. Run `cargo build -p termlink` first."
     ))
+}
+
+/// Like [`find_termlink_bin`], but first runs `cargo build -p termlink
+/// --release` (once per test process) so the binary reflects the current
+/// git state. Required for parity tests that compare git-derived
+/// metadata (commit, version) between the CLI binary and a freshly-
+/// recompiled MCP test crate.
+///
+/// Skips the build when `TERMLINK_BIN` is set (assumes the override is
+/// authoritative and may be a cross-compiled artifact).
+pub fn find_termlink_bin_fresh() -> Result<PathBuf, String> {
+    if std::env::var("TERMLINK_BIN").is_ok() {
+        return find_termlink_bin();
+    }
+    static BUILT: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
+    let build_result = BUILT.get_or_init(|| {
+        let output = Command::new("cargo")
+            .args(["build", "-p", "termlink", "--release", "--quiet"])
+            .output()
+            .map_err(|e| format!("spawn cargo build: {e}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "cargo build -p termlink --release failed: stderr={}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        Ok(())
+    });
+    match build_result {
+        Ok(()) => find_termlink_bin(),
+        Err(e) => Err(e.clone()),
+    }
 }
 
 // ---------------------------------------------------------------------------

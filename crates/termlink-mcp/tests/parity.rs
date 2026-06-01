@@ -18,7 +18,7 @@ use rmcp::{RoleClient, ServiceExt};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use termlink_test_utils::{find_termlink_bin, start_session, termlink_cmd, TestDir};
+use termlink_test_utils::{find_termlink_bin, find_termlink_bin_fresh, start_session, termlink_cmd, TestDir};
 use tokio::sync::Mutex;
 
 use termlink_mcp::TermLinkTools;
@@ -256,13 +256,26 @@ async fn parity_version() {
     let dir = TestDir::new("parity-version");
     unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
 
+    // Build-coherence: parity_version compares git-derived commit/version
+    // fields. The MCP test recompiles on every cargo-test invocation (gets
+    // the current HEAD's commit) but `target/release/termlink` is whatever
+    // the last cargo-build wrote. If the binary is stale, commit hashes
+    // diverge between CLI and MCP even when both sides' build.rs scripts
+    // work correctly. find_termlink_bin_fresh forces a build first.
+    let bin = find_termlink_bin_fresh().expect("build + find termlink binary");
+
     let client = mcp_client().await;
     let mcp_raw = call_mcp(&client, "termlink_version", json!({})).await;
     let mcp_json: Value = serde_json::from_str(&mcp_raw)
         .unwrap_or_else(|e| panic!("MCP version response not JSON: {e}\nraw: {mcp_raw}"));
 
-    let bin = find_termlink_bin().expect("find termlink binary");
     let cli_json = call_cli(&bin, &dir.path, &["version", "--json"]).expect("CLI version");
+
+    // Sanity: build.rs ran on both sides — neither reports "unknown".
+    assert_ne!(mcp_json["commit"], "unknown",
+        "MCP commit is 'unknown' — termlink-mcp/build.rs did not run. Got: {mcp_json}");
+    assert_ne!(cli_json["commit"], "unknown",
+        "CLI commit is 'unknown' — termlink-cli/build.rs did not run. Got: {cli_json}");
 
     let ignore: HashSet<&'static str> = ["ts_ms", "pid", "build_time", "uptime_ms"]
         .into_iter()
