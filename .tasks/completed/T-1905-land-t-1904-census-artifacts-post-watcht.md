@@ -4,7 +4,7 @@ name: "Land T-1904 census artifacts (post-Watchtower-GO)"
 description: >
   Land T-1904 census artifacts (post-Watchtower-GO)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T09:26:31Z
-last_update: 2026-06-01T09:26:31Z
-date_finished: null
+last_update: 2026-06-01T09:27:49Z
+date_finished: 2026-06-01T09:27:49Z
 ---
 
 # T-1905: Land T-1904 census artifacts (post-Watchtower-GO)
@@ -31,10 +31,10 @@ them under a build-task ID so the check-active-task hook accepts the commit
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.tasks/completed/T-1904-*.md` Recommendation section reflects GO-PARITY recommendation with matrix-row evidence (in working tree pre-commit)
-- [ ] `docs/reports/T-1904-mcp-vs-direct-session.md` Steps 1-5 sections are populated (no `_pending_` placeholders remaining in Findings)
-- [ ] `.context/episodic/T-1904.yaml` exists (Watchtower-generated at decision time)
-- [ ] These three files committed to main with task-traceable message (this commit)
+- [x] `.tasks/completed/T-1904-*.md` Recommendation section reflects GO-PARITY recommendation with matrix-row evidence (in working tree pre-commit)
+- [x] `docs/reports/T-1904-mcp-vs-direct-session.md` Steps 1-5 sections are populated (no `_pending_` placeholders remaining in Findings)
+- [x] `.context/episodic/T-1904.yaml` exists (Watchtower-generated at decision time)
+- [x] These three files committed to main with task-traceable message (commit f6dac995)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -125,3 +125,15 @@ test -f .context/episodic/T-1904.yaml
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1905-land-t-1904-census-artifacts-post-watcht.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-5db289f3
+- **Timestamp:** 2026-06-01T09:27:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-06-01T09:27:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

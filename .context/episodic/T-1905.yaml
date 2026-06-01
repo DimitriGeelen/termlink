@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1905: Land T-1904 census artifacts (post-Watchtower-GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T09:27:51Z
+# ============================================================================
+
+task_id: T-1905
+task_name: "Land T-1904 census artifacts (post-Watchtower-GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T09:26:31Z
+completed: 2026-06-01T09:27:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-01T11:27:31+02:00
+last_commit: 2026-06-01T11:27:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  land T-1904 census artifacts (post-Watchtower-GO)
+
+# Key outcomes
+outcomes:
+  - "`.tasks/completed/T-1904-*.md` Recommendation section reflects GO-PARITY recommendation with matrix-row evidence (in working tree pre-commit)"
+  - "`docs/reports/T-1904-mcp-vs-direct-session.md` Steps 1-5 sections are populated (no `_pending_` placeholders remaining in Findings)"
+  - "`.context/episodic/T-1904.yaml` exists (Watchtower-generated at decision time)"
+  - "These three files committed to main with task-traceable message (commit f6dac995)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1904.yaml"
+  - "docs/reports/T-1904-mcp-vs-direct-session.md"
+  - ".tasks/active/T-1905-land-t-1904-census-artifacts-post-watcht.md"
+  - ".tasks/completed/T-1904-mcp-client-vs-direct-session-how-does-te.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T11:27:31"
+    action: "T-1905: land T-1904 census artifacts (post-Watchtower-GO)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 522
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1905-land-t-1904-census-artifacts-post-watcht.md
+generated_by: context-agent-hybrid
