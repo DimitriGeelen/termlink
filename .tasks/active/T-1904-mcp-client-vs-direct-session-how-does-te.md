@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T08:22:21Z
-last_update: 2026-06-01T08:23:58Z
+last_update: 2026-06-01T08:24:27Z
 date_finished: null
 ---
 
@@ -25,22 +25,27 @@ need to perform an operation that the MCP server (`termlink-mcp`) exposes — e.
 `hub.capabilities`, `agent.contact` — do they go through an MCP client (proper protocol round-trip
 via JSON-RPC over stdio/TCP) or do they call into the session/hub library code directly?
 
-**Why this matters:**
+**Why this matters (refined post-Reviewer A):**
 
-1. **Surface validation.** If everything internal bypasses MCP and only external clients
-   (claude-code, etc.) hit `termlink-mcp`, then the MCP surface is structurally under-validated —
-   it works in tests but isn't exercised by the dogfooded path. Drift between CLI behavior and
-   MCP behavior is then invisible until an external consumer hits it.
-2. **Maintenance multiplier.** Two implementations of the same operation (CLI handler + MCP
-   tool handler) means every feature must be wired in twice. If they call a shared session
-   primitive, that's fine; if they re-derive the same logic, that's a divergence risk.
-3. **Performance.** Internal MCP-client round-trips add JSON ser/deserialize + transport
-   overhead that direct session calls do not pay. If the codebase has accidental in-process
-   MCP loopbacks they show up as latency that's hard to explain.
-4. **Goal alignment.** T-1166 has been about consolidating TermLink to a "channel" abstraction
-   exposed via MCP. If the CLI itself doesn't go through MCP, the consolidation lives only at
-   the external boundary — that's a partial win, and the next operator pull may be "make the
-   CLI a thin MCP client" to close the loop.
+1. **Two distinct validation gaps must be named separately:**
+   - **Logic-validation gap.** If MCP and CLI re-derive the same operation independently, behavior
+     diverges silently. *Cured by:* sharing a primitive (`session::*`).
+   - **Transport-validation gap.** If MCP and CLI share a primitive but the CLI never speaks MCP,
+     the rmcp **serialization + transport layer** is never exercised by dogfooded code — only by
+     external clients. Drift in the codec/transport then surfaces only to claude-code et al.
+     *Cured by:* either routing the CLI through MCP, OR a parity-test harness that calls both and
+     diffs outputs.
+   These two gaps pull in opposite directions and are independently load-bearing.
+2. **Maintenance multiplier.** Divergence is most likely to hide in **legacy** operations
+   (`inbox.push`, `file.send`, `event.broadcast`) — not the canonical new ones. The T-1166 cut
+   left some operations in deprecated states with potentially shimmed handlers; those are exactly
+   the surfaces where two implementations might quietly diverge.
+3. **Performance.** Internal MCP-client round-trips add JSON ser/deserialize + transport overhead
+   direct session calls don't pay. Accidental in-process MCP loopbacks would show up as latency
+   that's hard to explain.
+
+(Removed prior Why #4 — "T-1166 consolidation implies CLI-should-be-MCP-client" was post-hoc
+rationalization; nothing in T-1166 actually requires the CLI to speak MCP. Reviewer A catch.)
 
 **For whom:** TermLink maintainers (us, future agent sessions) and external integrators who depend
 on `termlink-mcp` matching CLI behavior 1:1.
@@ -51,49 +56,72 @@ whether the current dual-stack arrangement is intentional and stable.
 
 ## Assumptions
 
-A1. The `termlink-mcp` crate is a rmcp-based MCP server with one tool per public operation. Tools
-    dispatch into shared session/hub library code, not into a separate logic implementation.
-    (Register with `fw assumption add`.)
+A1. `termlink-mcp` tool handlers `use termlink_session::*` (or `termlink_hub::*`) and dispatch into
+    shared primitives — they do NOT re-implement the operation independently.
 
-A2. The `termlink-cli` crate's command handlers (`cmd_*` in `crates/termlink-cli/src/commands/`)
-    call session/hub library code DIRECTLY — they do not instantiate an MCP client and they do
-    not make in-process JSON-RPC calls to a colocated `termlink-mcp` server.
+A2-merged. `termlink-cli` `cmd_*` handlers call session/hub primitives DIRECTLY, with NO MCP client
+    of any kind — neither in-process rmcp loopback, nor subprocess+stdio to a spawned
+    `termlink-mcp`, nor in-process JSON-RPC. (Reviewer A: A2 and A4 merged — A4 was a strict
+    sub-case. Reviewer B: subprocess-loopback path must be explicitly disproven, not just inferred
+    from Cargo deps. Test: grep `termlink-cli` source for `rmcp` client imports AND for
+    `Command::new(... "termlink-mcp"...)` literals.)
 
-A3. The `termlink_remote_call` MCP tool (and similar) wrap a TCP+TLS RPC to a remote hub. That
-    TCP path is JSON-RPC at the hub-router layer, NOT the rmcp MCP protocol. I.e. there are two
-    distinct protocols in play: rmcp (claude-code ↔ termlink-mcp) and hub-rpc (termlink-mcp ↔
-    remote-hub, and termlink-cli ↔ remote-hub).
-
-A4. No in-process MCP loopback exists: termlink components never spawn a local `termlink-mcp`
-    server and connect to it as an MCP client just to call a tool.
+A3. `termlink_remote_call` and other cross-host MCP tools ride **hub-rpc JSON-RPC over TCP+TLS**,
+    NOT the rmcp MCP protocol. Two distinct protocols are in play:
+    rmcp (claude-code ↔ termlink-mcp) and hub-rpc (everything ↔ remote-hub).
 
 ## Exploration Plan
 
-Three time-boxed read-only spikes (≤15 min each, no code edits):
+**Methodology choice (operator-decided 2026-06-01): Option C — full census.** Instead of sampling
+one or a few operations, enumerate EVERY MCP tool exposed by `termlink-mcp` and produce a matrix
+of `<MCP-tool, CLI-command-equivalent, shared-primitive>` triples. The matrix is the evidence;
+the GO/NO-GO/DEFER decision follows from what the matrix reveals.
 
-**Spike 1 — Surface map (5 min).** Enumerate the three crates' public boundaries:
-- `crates/termlink-mcp/` — what tools are exposed? Do tool handlers `use termlink_session::*`?
-  Grep for `rmcp::tool`, `#[tool(`, or whatever macro registers the tools.
-- `crates/termlink-cli/` — what commands exist? Do they `use termlink_session::*` or
-  `use termlink_mcp::*`?
-- `crates/termlink-session/` and `crates/termlink-hub/` — the shared library layer everyone else
-  presumably depends on.
+Why census over sample: divergence by definition hides in cases the sample doesn't cover.
+Reviewer B's critique of the single-sample plan ("`channel post` is the easiest case, hides legacy
+divergence") only gets fully addressed by exhaustive coverage. The matrix also becomes a
+maintenance artifact going forward — answers "for any future MCP tool, is the CLI equivalent
+sharing a primitive?" without re-running the inception.
 
-**Spike 2 — Dependency direction (5 min).** Inspect `Cargo.toml` for each crate. Verify:
-- `termlink-mcp` depends on `termlink-session` / `termlink-hub` (yes expected)
-- `termlink-cli` depends on `termlink-session` / `termlink-hub` (yes expected)
-- `termlink-cli` does NOT depend on `termlink-mcp` (would invalidate A2/A4 if it does)
-- No circular deps via dev-deps or build-deps
+**Census procedure:**
 
-**Spike 3 — Sample one CLI path (5 min).** Pick `termlink channel post` (a representative new
-operation introduced for T-1166). Trace from `cmd_channel_post` → which session/hub function does
-it call? Then look at the corresponding MCP tool `termlink_channel_post` — does it call the same
-function? If both paths reach the same `session::channel::post()` primitive, that's the
-canonical dogfooded shape and the answer is "we share a library, not a protocol."
+1. **Crate-dep audit (5 min, Reviewer B item).** Inspect `Cargo.toml` for each crate. Verify
+   `termlink-cli` has NO Cargo dependency on `termlink-mcp`. Then grep `termlink-cli` source for
+   `rmcp::` client imports AND `Command::new` invocations targeting `termlink-mcp` — these
+   together settle A2-merged at the static level.
 
-Output: a one-page artifact at `docs/reports/T-1904-mcp-vs-direct-session.md` summarizing which
-of the four assumptions held, plus a recommendation (GO / NO-GO / DEFER) on whether further
-build work (e.g. "make CLI a thin MCP client" or "auto-test CLI vs MCP parity") is warranted.
+2. **Enumerate MCP tools (10 min).** Extract the full tool list from `crates/termlink-mcp/` —
+   identify the macro/registration pattern (`#[tool]`, `register_tool!`, an explicit registry, etc.),
+   produce a list of `<tool_name, handler_fn, handler_file:line>` for every tool exposed. Expected
+   count: ~150 per the deferred-tool list visible to claude-code today.
+
+3. **Enumerate CLI commands (10 min).** Extract the full subcommand list from
+   `crates/termlink-cli/` — likely from `cli.rs` clap definitions + the dispatch in `main.rs`.
+   Produce `<cli_path, cmd_fn, fn_file:line>` for every leaf command.
+
+4. **Join + classify (30-60 min, the bulk of the work).** For each MCP tool, find its CLI
+   equivalent (naming heuristic: `mcp__termlink__foo_bar` ↔ `termlink foo bar`; document
+   exceptions). For each pair, read both handler bodies and identify the shared primitive (or
+   note "no shared primitive — implementations diverge"). Classify each row:
+   - **SHARED** — both call the same `session::*` or `hub::*` function.
+   - **DIVERGENT** — both reach the same conceptual operation via different code paths.
+   - **MCP-ONLY** — no CLI equivalent exists.
+   - **CLI-ONLY** — no MCP equivalent exists.
+   - **CROSS-HOST** — operation rides hub-rpc (`termlink_remote_call`-class), not local
+     primitive; flag for A3 validation.
+
+5. **Distill findings (15 min).** Aggregate SHARED/DIVERGENT/MCP-ONLY/CLI-ONLY/CROSS-HOST counts.
+   Identify which subsystems show divergence. Cross-reference against the legacy operation list
+   (T-1166 retired set) to test the "divergence hides in legacy" hypothesis.
+
+**Time-box:** ~90 min total. NOT a single-session task — likely 1-2 fresh sessions to execute.
+
+**Output:** `docs/reports/T-1904-mcp-vs-direct-session.md` becomes the matrix artifact (a table
+with one row per MCP tool); the task file holds the methodology and the GO/NO-GO decision.
+
+**Out-of-scope reminder:** Fleet runtime probe (originally considered as a Spike 4) was NOT
+adopted in this scope. The architectural question is code-level; runtime dogfood is a separate
+inception/build task if needed later.
 
 ## Technical Constraints
 
@@ -141,20 +169,34 @@ build work (e.g. "make CLI a thin MCP client" or "auto-test CLI vs MCP parity") 
 ## Go/No-Go Criteria
 
 <!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->
-**GO if:**
-- CLI bypasses MCP today AND there is identifiable value in routing it through MCP
-  (e.g. parity testing, single source of truth, performance acceptable). File follow-up
-  build task to make CLI a thin MCP client.
+The census matrix produces five classification counts: SHARED / DIVERGENT / MCP-ONLY / CLI-ONLY /
+CROSS-HOST. Three operator-actionable branches follow:
 
-**NO-GO if:**
-- CLI and MCP already share a session-library layer (the canonical "factor below" pattern),
-  in which case "use MCP from the CLI" would add latency for no architectural win. Document
-  the finding in the research artifact + close.
+**GO — route the CLI through MCP** (file build task: "make CLI a thin MCP client") **if**:
+- Matrix shows DIVERGENT count is high (e.g. >20% of rows) AND legacy operations dominate
+  divergence, AND
+- Acceptable latency budget exists for the round-trip, AND
+- No simpler convergence path (shared primitive) is available for the divergent rows.
 
-**DEFER if:**
-- Investigation reveals partial sharing — some operations share a primitive, others diverge.
-  File one build task per divergence to converge them on a shared primitive (lower cost than
-  switching the CLI to MCP-client).
+**NO-GO — leave dual-stack as-is, status quo wins** **if**:
+- Matrix shows SHARED dominates (e.g. >90% of rows), the existing "factor below" pattern is
+  already healthy, AND
+- The remaining DIVERGENT rows are few enough to converge individually (each becomes a small
+  build task to share a primitive).
+
+**GO-PARITY — file build task: parity test harness** (Reviewer A's addition to the ladder) **if**:
+- Matrix shows SHARED dominates but the **transport-validation gap** is acknowledged as real, AND
+- Routing the CLI through MCP is unwarranted (latency cost), AND
+- A test harness that calls both CLI and MCP and diffs outputs catches the validation gap
+  cheaper than a CLI rewrite.
+
+**DEFER — partial findings** **if**:
+- Census can't complete in available time (file follow-on task with explicit subset scope), OR
+- Census reveals categories the current vocabulary doesn't classify cleanly (refine taxonomy,
+  re-run).
+
+Note: "DEFER" used here is the **decision-state** DEFER, distinct from the **filing-state**
+PENDING-EVIDENCE used at task creation (Reviewer A disambiguation).
 
 ## Verification
 
@@ -169,11 +211,18 @@ build work (e.g. "make CLI a thin MCP client" or "auto-test CLI vs MCP parity") 
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** PENDING-EVIDENCE (filing-state)
 
 **Rationale:**
 
-No evidence gathered yet — this inception IS the investigation. Operator-requested probe to determine whether termlink's CLI/internal callers use a proper MCP client to reach termlink-mcp, or whether they bypass the MCP layer and call the session/agent code directly. Answer informs whether termlink-mcp is structurally validated as a public surface or only exists as a wrapper for external consumers (claude-code, etc). DEFER means: produce findings, then file separate build tasks for any structural changes a GO would warrant.
+No evidence gathered yet — this inception IS the investigation. Operator-decided 2026-06-01 to
+adopt Option C (full census of ~150 MCP tools mapped to CLI commands and shared primitives).
+The matrix becomes the evidence base; the decision (GO / NO-GO / GO-PARITY / DEFER) follows from
+classification counts and which subsystems show divergence.
+
+Filing-state PENDING-EVIDENCE is distinct from decision-state DEFER per Reviewer A's
+disambiguation. Execution of the census is the next session's slice — too large for the budget
+remaining when this scope was finalized.
 
 **Evidence:**
 
