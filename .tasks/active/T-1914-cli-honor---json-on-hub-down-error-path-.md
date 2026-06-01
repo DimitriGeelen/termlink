@@ -4,7 +4,7 @@ name: "CLI: honor --json on hub-down error path (T-1913 fourth-catch)"
 description: >
   CLI 'termlink channel list --json' writes to stderr + empty stdout on hub-down (exit 1). MCP emits structured JSON error. Make CLI emit JSON error on stdout when --json is set, matching MCP shape. Likely affects more commands than just channel list — broader audit needed. Un-ignore parity_channel_list_no_hub when converged.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909, T-1913]
 created: 2026-06-01T13:12:25Z
-last_update: 2026-06-01T13:12:25Z
+last_update: 2026-06-01T13:35:40Z
 date_finished: null
 ---
 
@@ -20,14 +20,44 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Operator-visible bug surfaced by the T-1913 parity harness expansion:
+`termlink channel list --json | jq` produces nothing parseable when the
+hub is down. CLI writes "Error: Hub is not running…" to stderr with
+empty stdout (exit 1). The MCP equivalent (`termlink_channel_list`)
+correctly returns a structured JSON error.
+
+**Mechanism (`crates/termlink-cli/src/commands/channel.rs:8371-8389`):**
+`cmd_channel_list` calls `hub_socket(hub)?` first thing. When no hub
+is running, `hub_socket` does `anyhow::bail!("Hub is not running …")`
+which propagates up via `?` before the `if json_output { ... }` branch
+is ever reached. The framework's top-level error handler then prints
+the anyhow error to stderr.
+
+**Scope choice — narrow first slice:** fix `cmd_channel_list` only.
+The broader audit (every CLI command that errors before reaching its
+--json branch) is filed as a follow-up so this slice stays small.
+
+There's already a helper for this: `commands::mod::json_error_exit`
+prints a JSON value to stdout, flushes, and exits 1.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `cmd_channel_list` in `crates/termlink-cli/src/commands/channel.rs`
+      catches the `hub_socket` error: when `json_output` is true, emits
+      `{"ok": false, "error": "Hub is not running …"}` to stdout via
+      `json_error_exit` (matches MCP's shape from `tools.rs:24860`).
+- [ ] `parity_channel_list_no_hub` test in `crates/termlink-mcp/tests/
+      parity.rs` un-ignored (`#[ignore]` attribute removed; in-source
+      diagnostic comment updated to note convergence date + structural fix).
+- [ ] `cargo test --release --test parity -p termlink-mcp --
+      --test-threads=1` exits 0: `test result: ok. 6 passed; 0 failed;
+      1 ignored` (was: 5 passed; 0 failed; 2 ignored — channel_list_no_hub
+      now passes; ping T-1911 remains ignored).
+- [ ] Manual smoke: `target/release/termlink channel list --json` with
+      no hub running emits parseable JSON to stdout (validated via `jq`).
+- [ ] File T-19XX follow-up for the broader audit ("identify all CLI
+      commands that error before reaching their --json branch").
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,9 +76,8 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
+grep -q "json_error_exit" crates/termlink-cli/src/commands/channel.rs
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. 6 passed; 0 failed; 1 ignored"
 #
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
@@ -122,3 +151,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1914-cli-honor---json-on-hub-down-error-path-.md
 - **Context:** Initial task creation
+
+### 2026-06-01T13:35:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

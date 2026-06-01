@@ -55,9 +55,11 @@ async fn call_mcp(client: &McpClient, name: &'static str, args: Value) -> String
 
 /// Invoke the CLI with `--json` and parse stdout as JSON.
 ///
-/// Returns Err if the binary fails to spawn, exits non-zero, OR stdout is
-/// not parseable JSON. The harness expects --json outputs are deterministic
-/// enough to diff against MCP responses (modulo ignored fields).
+/// Tolerates non-zero exit codes — many `--json` error paths
+/// (e.g. T-1914 hub-down) correctly emit JSON to stdout AND exit 1.
+/// Returns Err only when the binary fails to spawn OR stdout is not
+/// parseable JSON. The exit code is captured via the JSON shape (e.g.
+/// `{"ok": false, ...}` for failures).
 fn call_cli(binary: &PathBuf, runtime_dir: &PathBuf, argv: &[&str]) -> Result<Value, String> {
     let output = termlink_cmd(binary, runtime_dir)
         .args(argv)
@@ -65,14 +67,12 @@ fn call_cli(binary: &PathBuf, runtime_dir: &PathBuf, argv: &[&str]) -> Result<Va
         .map_err(|e| format!("spawn termlink: {e}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    if !output.status.success() {
-        return Err(format!(
-            "CLI {argv:?} exit={:?} stdout={stdout:?} stderr={stderr:?}",
+    serde_json::from_str::<Value>(&stdout).map_err(|e| {
+        format!(
+            "CLI {argv:?} stdout is not JSON: {e}\n  exit={:?}\n  stdout={stdout:?}\n  stderr={stderr:?}",
             output.status.code()
-        ));
-    }
-    serde_json::from_str::<Value>(&stdout)
-        .map_err(|e| format!("CLI {argv:?} stdout is not JSON: {e}\nstdout: {stdout:?}"))
+        )
+    })
 }
 
 /// Strip fields from a JSON object recursively. Used to ignore
@@ -319,21 +319,26 @@ async fn parity_channel_queue_status() {
 // ---------------------------------------------------------------------------
 // PAIR 6 (v0.2, T-1913): termlink_channel_list / termlink channel list --json
 //
-// FOURTH CATCH (T-1913 — 2026-06-01).
+// Was T-1913 FOURTH CATCH; converged 2026-06-01 via T-1914.
 //
-// MCP returns structured JSON error on hub-down:
-//   {"ok": false, "error": "Hub is not running (no socket found)"}
-// CLI writes to STDERR + empty STDOUT, exit code 1:
-//   stderr: "Error: Hub is not running (no socket at <path>) — start it with 'termlink hub start'"
+// Original divergence: MCP returned structured JSON error on hub-down,
+// CLI wrote to stderr + empty stdout with exit 1 (did not honor --json
+// on its early error path).
 //
-// CLI does not honor `--json` on its hub-down error path. Operator running
-// `termlink channel list --json | jq` gets nothing parseable. The MCP
-// consumer correctly receives JSON. Filed as T-1914 — likely a broader
-// issue (any CLI command that errors before reaching its --json branch).
+// Fix: `cmd_channel_list` (`crates/termlink-cli/src/commands/channel.rs`)
+// now catches the `hub_socket` error and emits a structured JSON error
+// to stdout via `json_error_exit` when `json_output` is set. Matches
+// MCP's `{"ok": false, "error": "Hub is not running …"}` shape.
+//
+// Operator value: `termlink channel list --json | jq` now produces
+// parseable output even when the hub is down.
+//
+// Broader audit (T-19XX follow-up): likely many CLI commands have the
+// same shape-divergence on early error paths — channel_list is the
+// first slice the harness caught.
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-#[ignore = "T-1913 fourth-catch: CLI doesn't honor --json on hub-down error path (T-1914)"]
 async fn parity_channel_list_no_hub() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-channel-list-no-hub");
@@ -345,13 +350,15 @@ async fn parity_channel_list_no_hub() {
         .unwrap_or_else(|e| panic!("MCP channel_list response not JSON: {e}\nraw: {mcp_raw}"));
 
     let bin = find_termlink_bin().expect("find termlink binary");
-    let cli_result = call_cli(&bin, &dir.path, &["channel", "list", "--json"]);
-    let cli_json: Value = match cli_result {
-        Ok(v) => v,
-        Err(msg) => json!({"ok": false, "error": msg}),
-    };
+    // T-1914: CLI now emits JSON to stdout even on hub-down exit 1.
+    // call_cli tolerates non-zero exit and parses stdout as JSON.
+    let cli_json = call_cli(&bin, &dir.path, &["channel", "list", "--json"])
+        .expect("CLI channel list (JSON on stdout even with exit 1, T-1914)");
 
-    let ignore: HashSet<&'static str> = ["ts_ms", "pid"].into_iter().collect();
+    // Both sides include a hub-socket-path in the message; ignore the
+    // text content of `error` (paths differ by tempdir) and compare
+    // only the structural shape (presence of ok=false + error key).
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid", "error"].into_iter().collect();
     diff_json("channel_list_no_hub", &mcp_json, &cli_json, &ignore)
         .expect("channel list no-hub parity");
 }

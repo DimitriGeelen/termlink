@@ -8374,7 +8374,22 @@ pub(crate) async fn cmd_channel_list(
     hub: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let sock = hub_socket(hub)?;
+    // T-1914: honor --json on the hub-down error path. Without this,
+    // `termlink channel list --json | jq` produces nothing parseable
+    // (CLI writes to stderr + empty stdout while MCP returns structured
+    // JSON error). T-1913 parity harness caught this drift.
+    let sock = match hub_socket(hub) {
+        Ok(s) => s,
+        Err(e) => {
+            if json_output {
+                super::json_error_exit(json!({
+                    "ok": false,
+                    "error": format!("{e}"),
+                }));
+            }
+            return Err(e);
+        }
+    };
     let params = match prefix {
         Some(p) => json!({"prefix": p}),
         None => json!({}),
