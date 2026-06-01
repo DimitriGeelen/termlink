@@ -450,6 +450,55 @@ async fn parity_list_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1920: termlink_info — shared shape equality. MCP adds two intentional
+// MCP-only fields (mcp_tools, registered_endpoints) that have no CLI
+// equivalent; ignored in the diff. This test locks the SHARED subset so any
+// future drift in version/commit/target/runtime_dir/etc. is caught.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_info() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-info");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    // Build-coherence: info embeds git-derived version. MCP recompiles per
+    // cargo-test (sees HEAD); `target/release/termlink` reflects whatever
+    // the last `cargo build` wrote. Stale binary → version skew between
+    // CLI and MCP even though both report correctly. Same fix as
+    // parity_version (T-1912).
+    let bin = find_termlink_bin_fresh().expect("build + find termlink binary");
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_info", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP info response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let cli_json = call_cli(&bin, &dir.path, &["info", "--json"]).expect("CLI info --json");
+
+    // Both sides MUST agree on the envelope shape.
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+
+    // MCP-only fields: lock as intentional divergence.
+    // - `mcp_tools`: count of MCP tools served by this binary (CLI has no MCP server)
+    // - `registered_endpoints`: dynamic MCP endpoint count (MCP-server-only state)
+    // Stripping these from the diff documents that they are NOT bugs, but
+    // intentional MCP-side extensions to the shared info envelope.
+    let ignore: HashSet<&'static str> = [
+        // MCP-only (intentional divergence):
+        "mcp_tools", "registered_endpoints",
+        // Per-process / per-environment (not shape-relevant):
+        "commit", "target",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("info", &mcp_json, &cli_json, &ignore)
+        .expect("info parity");
+}
+
+// ---------------------------------------------------------------------------
 // T-1919: termlink_discover — was returning bare `[...]` array; CLI returns
 // `{ok: true, sessions: [...]}`. Catches the same shape-class as
 // parity_list_sessions but on the filter/discover code path.
