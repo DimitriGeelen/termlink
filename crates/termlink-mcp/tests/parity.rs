@@ -285,6 +285,78 @@ async fn parity_version() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 5 (v0.2, T-1913): termlink_channel_queue_status / termlink channel
+//                        queue-status --json
+//
+// Both sides read the local T-1161 offline-queue (no hub contact). For
+// the non-existent-queue case both should return identical
+// {queue_path, exists: false, pending: 0}.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_channel_queue_status() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-channel-queue-status");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    let queue_path = dir.path.join("nonexistent-queue.json");
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_channel_queue_status",
+        json!({"queue_path": queue_path.to_string_lossy()})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP channel_queue_status response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path,
+        &["channel", "queue-status", "--queue-path", queue_path.to_str().unwrap(), "--json"])
+        .expect("CLI channel queue-status");
+
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid"].into_iter().collect();
+    diff_json("channel_queue_status_empty", &mcp_json, &cli_json, &ignore)
+        .expect("channel queue_status parity");
+}
+
+// ---------------------------------------------------------------------------
+// PAIR 6 (v0.2, T-1913): termlink_channel_list / termlink channel list --json
+//
+// FOURTH CATCH (T-1913 — 2026-06-01).
+//
+// MCP returns structured JSON error on hub-down:
+//   {"ok": false, "error": "Hub is not running (no socket found)"}
+// CLI writes to STDERR + empty STDOUT, exit code 1:
+//   stderr: "Error: Hub is not running (no socket at <path>) — start it with 'termlink hub start'"
+//
+// CLI does not honor `--json` on its hub-down error path. Operator running
+// `termlink channel list --json | jq` gets nothing parseable. The MCP
+// consumer correctly receives JSON. Filed as T-1914 — likely a broader
+// issue (any CLI command that errors before reaching its --json branch).
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+#[ignore = "T-1913 fourth-catch: CLI doesn't honor --json on hub-down error path (T-1914)"]
+async fn parity_channel_list_no_hub() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-channel-list-no-hub");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_channel_list", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP channel_list response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_result = call_cli(&bin, &dir.path, &["channel", "list", "--json"]);
+    let cli_json: Value = match cli_result {
+        Ok(v) => v,
+        Err(msg) => json!({"ok": false, "error": msg}),
+    };
+
+    let ignore: HashSet<&'static str> = ["ts_ms", "pid"].into_iter().collect();
+    diff_json("channel_list_no_hub", &mcp_json, &cli_json, &ignore)
+        .expect("channel list no-hub parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------
