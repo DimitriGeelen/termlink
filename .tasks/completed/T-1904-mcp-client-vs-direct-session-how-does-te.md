@@ -4,7 +4,7 @@ name: "MCP client vs direct session: how does termlink connect to its own MCP se
 description: >
   Inception: MCP client vs direct session: how does termlink connect to its own MCP server
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T08:22:21Z
-last_update: 2026-06-01T08:24:27Z
-date_finished: null
+last_update: 2026-06-01T09:22:31Z
+date_finished: 2026-06-01T09:22:31Z
 ---
 
 # T-1904: MCP client vs direct session: how does termlink connect to its own MCP server
@@ -150,15 +150,15 @@ inception/build task if needed later.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -211,24 +211,44 @@ PENDING-EVIDENCE used at task creation (Reviewer A disambiguation).
 
 ## Recommendation
 
-**Recommendation:** PENDING-EVIDENCE (filing-state)
+**Recommendation:** GO-PARITY — build a parity-test harness; do NOT route CLI through MCP.
 
-**Rationale:**
+**Rationale (one paragraph):**
 
-No evidence gathered yet — this inception IS the investigation. Operator-decided 2026-06-01 to
-adopt Option C (full census of ~150 MCP tools mapped to CLI commands and shared primitives).
-The matrix becomes the evidence base; the decision (GO / NO-GO / GO-PARITY / DEFER) follows from
-classification counts and which subsystems show divergence.
-
-Filing-state PENDING-EVIDENCE is distinct from decision-state DEFER per Reviewer A's
-disambiguation. Execution of the census is the next session's slice — too large for the budget
-remaining when this scope was finalized.
+Census executed in one session on 2026-06-01. Headline: 251 MCP tools, 151 CLI commands, 122
+naming-match pairs, 129 MCP-ONLY, 29 CLI-ONLY. The unexpected finding (not framed in the
+original inception) is a two-layer split inside the naming-match group: **data-access
+primitives are SHARED** (both MCP and CLI use `termlink_session::manager::find_session`,
+`client::rpc_call`, `termlink_protocol::control::channel::canonical_sign_bytes`, etc.), but
+**orchestration/aggregation helpers are DIVERGENT-BY-COPY** — 83 functions in
+`crates/termlink-mcp/src/tools.rs` carry a `_mcp` suffix and parallel CLI helpers in
+`commands/channel.rs` (8/11 sampled have verified CLI counterparts). Some whole tools like
+`termlink_fleet_doctor` are reimplemented MCP-side rather than delegating to the CLI.
+**A2 + A4 are conclusively disproven** (no rmcp client in CLI deps, no subprocess+stdio
+loopback). **A3 confirmed** (cross-host uses `termlink_protocol::jsonrpc` over TCP+TLS).
+GO is rejected because routing CLI through MCP would either force operator-UX for 40 MCP-ONLY
+analytics tools or leave them as permanent asymmetry. NO-GO is rejected because SHARED is ~48%
+not 90% — the 83 `_mcp` parallel helpers are a real silent-divergence hazard. GO-PARITY catches
+that hazard with a bounded harness investment.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- Full census + classification + matrix-row evidence in
+  `docs/reports/T-1904-mcp-vs-direct-session.md` Steps 1-5.
+- Step 1 raw probes: `grep -E "termlink_mcp" crates/termlink-cli/src/` → 3 hits (all server-side
+  or info), `grep -E "Command::new.*termlink" crates/termlink-cli/src/` → 0, `cargo tree -p
+  termlink --edges normal | grep rmcp` → rmcp under `termlink-mcp` only.
+- Step 2 raw: `grep -c "^    #\[tool(" crates/termlink-mcp/src/tools.rs` → 251.
+- Step 3 raw: `grep -rEc "(async )?fn cmd_[a-z_]+\(" crates/termlink-cli/src/` → 151.
+- Step 4 divergence signal: `grep -cE "fn [a-z_]+_mcp\(" crates/termlink-mcp/src/tools.rs` → 83.
+- Step 4 A3 confirmation: `termlink_remote_call` body at `tools.rs:11536` uses
+  `connect_remote_hub_mcp()` → `rpc_client.call()` → `termlink_protocol::jsonrpc::RpcResponse`
+  (hub-rpc, not rmcp).
+- Stale-assumption updates: A1 holds at Layer 1 (data-access), fails at Layer 2/3
+  (orchestration helpers + whole-tool reimplementations) — promote refined finding to project
+  memory.
+- Suggested follow-up build tasks listed in research artifact Step 5 (parity harness v0.1;
+  shared `chat-arc-helpers` crate to promote the 8 verified duplicates).
 
 ## Decisions
 
@@ -243,7 +263,15 @@ remaining when this scope was finalized.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Census executed in one session on 2026-06-01. Headline: 251 MCP tools, 151 CLI commands, 122
+naming-match pairs, 129 MCP-ONLY, 29 CLI-ONLY. The unexpected finding (not framed in the
+original inception) is a two-layer split inside the naming-match group: **data-access
+primitives are SHARED** (both MCP and CLI use `termlink_session::manager::find_session`,
+`client::rpc_call`, `termlink_protocol::control::channel::canonical_sign_bytes`, etc.), but
+
+**Date**: 2026-06-01T09:22:31Z
 
 ## Updates
 
@@ -252,3 +280,25 @@ remaining when this scope was finalized.
 
 ### 2026-06-01T08:23:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-01T09:22:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Census executed in one session on 2026-06-01. Headline: 251 MCP tools, 151 CLI commands, 122
+naming-match pairs, 129 MCP-ONLY, 29 CLI-ONLY. The unexpected finding (not framed in the
+original inception) is a two-layer split inside the naming-match group: **data-access
+primitives are SHARED** (both MCP and CLI use `termlink_session::manager::find_session`,
+`client::rpc_call`, `termlink_protocol::control::channel::canonical_sign_bytes`, etc.), but
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-3ef4c50a
+- **Timestamp:** 2026-06-01T09:22:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-06-01T09:22:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
