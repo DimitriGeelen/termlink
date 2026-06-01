@@ -4839,6 +4839,13 @@ pub(crate) async fn cmd_net_test(
     if let Some(filter) = profile_filter {
         hub_names.retain(|n| n.as_str() == filter);
         if hub_names.is_empty() {
+            // T-1917: honor --json on the profile-not-found error path.
+            if json {
+                super::json_error_exit(json!({
+                    "ok": false,
+                    "error": format!("Hub profile '{}' not found. Run: termlink remote profile list", filter),
+                }));
+            }
             anyhow::bail!("Hub profile '{}' not found. Run: termlink remote profile list", filter);
         }
     }
