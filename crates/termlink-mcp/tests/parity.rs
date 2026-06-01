@@ -450,6 +450,49 @@ async fn parity_list_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1919: termlink_discover — was returning bare `[...]` array; CLI returns
+// `{ok: true, sessions: [...]}`. Catches the same shape-class as
+// parity_list_sessions but on the filter/discover code path.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_discover() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-discover");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    let (_handle, _reg) = start_session(&dir.sessions_dir(), "parity-discover-sess", vec![]).await;
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_discover", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP discover response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path, &["discover", "--json"]).expect("CLI discover --json");
+
+    // Both sides MUST agree on the envelope shape (`ok` + `sessions` keys).
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+    assert!(mcp_json["sessions"].is_array(), "MCP sessions not array: {mcp_json}");
+    assert!(cli_json["sessions"].is_array(), "CLI sessions not array: {cli_json}");
+
+    // Same ignore-list as parity_list_sessions — sessions carry per-process
+    // fields that are non-deterministic.
+    let ignore: HashSet<&'static str> = [
+        "id", "pid", "uid", "age", "created_at", "heartbeat_at",
+        "socket_path", "metadata", "state", "capabilities",
+        "tags", "roles",
+        "ts_ms", "timestamp",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("discover", &mcp_json, &cli_json, &ignore)
+        .expect("discover parity");
+    _handle.abort();
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

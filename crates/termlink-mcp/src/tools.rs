@@ -8229,11 +8229,20 @@ impl TermLinkTools {
                     "roles": s.roles,
                     "capabilities": s.capabilities,
                     "metadata": s.metadata,
+                    "socket_path": s.socket_path().display().to_string(),
                 })
             })
             .collect();
 
-        serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
+        // T-1919: wrap in {ok, sessions} envelope to match CLI
+        // `termlink discover --json` shape. Was bare-array; now structurally
+        // identical to the hub-RPC envelope convention. Also includes
+        // socket_path (CLI parity, was missing from MCP).
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "sessions": items,
+        }))
+        .unwrap_or_else(|_| r#"{"ok":true,"sessions":[]}"#.to_string())
     }
 
     #[tool(
