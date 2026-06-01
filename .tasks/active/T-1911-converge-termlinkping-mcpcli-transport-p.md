@@ -4,7 +4,7 @@ name: "Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)"
 description: >
   MCP termlink_ping reaches session via in-process lookup; CLI termlink ping routes through hub and times out without one. Either align MCP to use hub-routing, or give CLI an in-process fallback when hub absent. Un-ignore parity_ping when converged.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-01T11:34:57Z
+last_update: 2026-06-01T12:56:45Z
 date_finished: null
 ---
 
@@ -20,14 +20,67 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-1909 v0.1's `parity_ping` test fails because:
+
+- **MCP `termlink_ping`** (in-process within the test) succeeds against
+  the local session created by `start_session()` in the test fixture.
+- **CLI `termlink ping <name> --json`** (separate subprocess) returns
+  `{"ok":false,"error":"Ping timed out after 5s","latency_ms":5030,...}`
+  even though it points at the same TERMLINK_RUNTIME_DIR.
+
+**Surface analysis (NOT yet root-caused):**
+
+Both code paths look semantically identical:
+
+- MCP (`crates/termlink-mcp/src/tools.rs:7839`):
+  `manager::find_session(target)` → `client::rpc_call(socket_path, "termlink.ping", {})`
+- CLI (`crates/termlink-cli/src/commands/session.rs:643` →
+  `crates/termlink-cli/src/target.rs:188`): with `opts.hub = None`,
+  takes the local path:
+  `manager::find_session(opts.session)` → `client::rpc_call(socket_path, "termlink.ping", {})`
+
+The local path does NOT route through a hub when `--hub` is absent.
+So the "MCP uses in-process, CLI routes through hub" hypothesis in the
+T-1909 ignore comment is wrong. The real failure mode is unknown.
+
+**Working hypotheses for the timeout:**
+
+1. The test's tokio accept-loop fixture handles in-process callers
+   (MCP) but blocks/stalls on cross-process unix-socket callers
+   (CLI subprocess connecting to the same socket).
+2. CLI subprocess inherits a different runtime/env that causes
+   `find_session` to look in a different directory than MCP.
+3. `client::rpc_call` framing or protocol-version handshake differs
+   between in-process and subprocess callers in a way that the test
+   fixture's accept-loop can't satisfy.
+4. The `start_session` fixture only services one connection then
+   panics/exits (race between MCP and CLI calls in same test).
+
+**Detection evidence:**
+`crates/termlink-mcp/tests/parity.rs::parity_ping` reproduces the
+divergence deterministically. Test is `#[ignore]`d pending this work.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Root-cause the timeout via direct experiment: run `termlink ping`
+      against a manually-started session in the same TERMLINK_RUNTIME_DIR
+      where `termlink_ping` MCP also succeeds, BOTH from a fresh shell
+      AND from inside an integration test fixture. Document which side
+      of the in-process/subprocess split actually fails and why in the
+      `## Decisions` section.
+- [ ] Fix the root cause OR document why the divergence is intentional
+      (and remove `parity_ping` from the harness rather than leaving it
+      ignored forever).
+- [ ] `parity_ping` test in `crates/termlink-mcp/tests/parity.rs` is
+      un-ignored (or removed). In-source diagnostic comment updated
+      with the actual root cause + resolution.
+- [ ] `cargo test --release --test parity -p termlink-mcp --
+      --test-threads=1` exits 0 with `test result: ok. 5 passed; 0 failed;
+      0 ignored` (was: 4 passed; 0 failed; 1 ignored — ping converged or
+      removed) OR `test result: ok. 4 passed; 0 failed; 0 ignored` if
+      the test is removed.
+- [ ] No regression of any other parity test.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -46,14 +99,7 @@ date_finished: null
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. [45] passed; 0 failed; 0 ignored"
 
 ## RCA
 
@@ -122,3 +168,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1911-converge-termlinkping-mcpcli-transport-p.md
 - **Context:** Initial task creation
+
+### 2026-06-01T12:56:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
