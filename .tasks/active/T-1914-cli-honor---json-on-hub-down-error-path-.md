@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909, T-1913]
 created: 2026-06-01T13:12:25Z
-last_update: 2026-06-01T14:06:27Z
+last_update: 2026-06-01T14:07:26Z
 date_finished: null
 ---
 
@@ -86,18 +86,30 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink channel list --json | jq` produced nothing
+parseable when the hub was down. Operator pipelines silently broke at
+the `jq` step (empty stdin). The MCP equivalent
+(`termlink_channel_list`) correctly returned a JSON error in the same
+condition.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `cmd_channel_list` called `hub_socket(hub)?` as its
+first line. When no hub was running, `hub_socket` returned
+`anyhow::bail!("Hub is not running …")`. The `?` operator propagated
+the error to anyhow's top-level handler, which formatted it to stderr.
+Control flow exited `cmd_channel_list` BEFORE the `if json_output { …
+}` branch was reached — so `--json` was effectively ignored on this
+error path.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+**Why structurally allowed:** the project had no MCP/CLI parity test
+for channel-list error paths. Success-path JSON shape was tested
+(via existing integration tests), but error-path JSON behavior had no
+coverage. The MCP and CLI implementations were free to diverge in
+their error envelopes without anything failing.
+
+**Prevention:** T-1909 parity harness now covers `parity_channel_list_no_hub`
+(re-enabled here). Any future regression that drops the JSON-on-stdout
+contract for hub-down will fail this test. T-1915 expands the same
+coverage to other CLI verbs with the same early-error pattern.
 -->
 
 ## Evolution
