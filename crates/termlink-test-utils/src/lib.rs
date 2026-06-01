@@ -206,6 +206,46 @@ pub fn termlink_cmd(binary: &Path, runtime_dir: &Path) -> Command {
     cmd
 }
 
+/// Find the `termlink` CLI binary path for cross-crate integration tests.
+///
+/// CARGO_BIN_EXE_termlink is only set when the binary's own crate runs its
+/// tests — cross-crate tests (e.g. `termlink-mcp/tests/parity.rs` invoking
+/// the CLI for MCP/CLI parity checks, T-1909) need a workspace-root-relative
+/// path. Walks up from CARGO_MANIFEST_DIR to find Cargo.lock (workspace root)
+/// then tries `target/release/termlink` first, falling back to
+/// `target/debug/termlink`. Returns the first path that exists.
+///
+/// Honors `TERMLINK_BIN` env var as an explicit override (CI / cross-compile).
+pub fn find_termlink_bin() -> Result<PathBuf, String> {
+    if let Ok(override_path) = std::env::var("TERMLINK_BIN") {
+        let p = PathBuf::from(override_path);
+        if p.exists() {
+            return Ok(p);
+        }
+        return Err(format!("$TERMLINK_BIN points at {p:?} which does not exist"));
+    }
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .map_err(|_| "CARGO_MANIFEST_DIR not set — call from inside a cargo test".to_string())?;
+    let mut cursor = PathBuf::from(manifest_dir);
+    loop {
+        if cursor.join("Cargo.lock").exists() {
+            break;
+        }
+        if !cursor.pop() {
+            return Err("workspace root (Cargo.lock) not found".into());
+        }
+    }
+    for profile in &["release", "debug"] {
+        let candidate = cursor.join("target").join(profile).join("termlink");
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Err(format!(
+        "termlink binary not found in {cursor:?}/target/{{release,debug}}/. Run `cargo build -p termlink` first."
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Tests for the test utils themselves
 // ---------------------------------------------------------------------------
