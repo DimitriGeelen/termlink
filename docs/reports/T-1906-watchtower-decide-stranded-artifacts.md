@@ -142,13 +142,186 @@ session.
   (e.g. `/review` path, batch-close) that share the same gap and
   require broader scope
 
+## Findings (investigation executed 2026-06-01)
+
+### Spike 1 — Watchtower decide route
+`/inception/<task_id>/decide` POST handler at
+`.agentic-framework/web/blueprints/inception.py:478` shells out to
+`fw inception decide T-XXX <decision> --rationale "..." --from-watchtower`
+with a 30s timeout. **No git operations in this route.** A1 partially confirmed.
+
+### Spike 2 — `fw inception decide` implementation
+`fw inception decide` → `do_inception_decide` in
+`.agentic-framework/lib/inception.sh:384`. It in turn shells to
+`update-task.sh T-XXX --status work-completed` (line 696). The move from
+`active/` to `completed/` happens at
+`.agentic-framework/agents/task-create/update-task.sh:1244`:
+
+```
+git -C "$PROJECT_ROOT" mv "$TASK_FILE" "$DEST" 2>/dev/null || mv "$TASK_FILE" "$DEST"
+```
+
+T-1523 noted: `git mv` is used so both rename sides stage atomically. **But
+neither `update-task.sh` nor `inception.sh` does any `git commit`.** Zero
+hits for `git commit` in either file. A1 + A2 fully confirmed.
+
+Side note: `update-task.sh:1260` clears `focus.yaml` on completion
+(`current_task: null`). This is why the agent's first post-decide commit
+attempt hit a "focus is null" path before reaching the active/ gate.
+
+### Spike 3 — `check-active-task` hook gates
+`.agentic-framework/agents/context/check-active-task.sh` has two relevant gates:
+
+- **Gate 1 (line 247–306): Focus-drift detector (T-1730).** Regex pattern 3
+  (line 258–259) `(T-[0-9]+):` extracts the task ID from a git commit message.
+  If it differs from `$CURRENT_TASK` (focus.yaml), blocks unless `--switch-focus`
+  is passed (Tier 2 logged).
+
+- **Gate 2 (line 308–321): Active-task validator (G-013).** Checks
+  `find_task_file "$CURRENT_TASK" active` — if the focused task is not in
+  `active/`, hard-block with no override flag.
+
+A3 confirmed. The hook does NOT special-case "task is in completed/ but
+date_finished is recent."
+
+### Spike 4 — Grace-period / recently-completed concept
+```
+grep -rEn "grace_period|recently.?completed|completion.?window|just.?completed|date_finished.*ago" \
+  .agentic-framework/{lib,agents/context,agents/task-create}
+```
+→ zero hits. A4 confirmed.
+
+### Live-incident replay (matrix-of-blockers)
+
+Given the 2026-06-01 state immediately post-decide (T-1904 in completed/, focus
+nulled, staged Edits referencing T-1904):
+
+| Attempted commit | Gate 1 (focus-drift) | Gate 2 (active task) | Outcome |
+|---|---|---|---|
+| `git commit -m "T-1904: ..."` with focus=null | passes (no focus to drift from) | hits "focus null" earlier path | blocked |
+| `git commit -m "T-1904: ..."` with focus=T-1904 | passes (target==focus) | **BLOCKS** — T-1904 not in active/ | blocked |
+| `git commit -m "T-1904: ..."` with focus=T-1166 active | **BLOCKS** — drift T-1904≠T-1166 | (n/a) | blocked |
+| `git commit -m "T-1166: housekeeping ..."` with focus=T-1166 | passes | passes | **lands** |
+
+This explains why the wrap-up-task workaround was the minimum-viable escape:
+the agent had to invent a NEW active-task ID that the message could reference.
+
+## Candidate fixes — evaluation
+
+**(a) auto-commit-while-clean.** Modify `do_inception_decide` to:
+1. `git add` scope-related uncommitted edits before update-task.sh move.
+   Scope = `.tasks/active/T-XXX-*.md` + `docs/reports/T-XXX-*`.
+2. Let update-task.sh do its `git mv` (already staged).
+3. After update-task.sh completes (including episodic write), do one
+   `git commit -m "T-XXX: decision recorded — <DECISION> (<rationale-first-line>)"`.
+
+Pros:
+- Eliminates stranding by definition. One commit captures decision + evidence.
+- No hook changes needed.
+- Aligns with operator's mental model: "click GO → it lands."
+
+Cons:
+- `do_inception_decide` becomes responsible for git operations (new concern).
+- If git fails mid-flow, needs careful rollback (the existing `primary_landed` logic
+  in the Watchtower route already wrestles with side-effect failure separation —
+  this stays in-scope of that pattern).
+- Auto-staging must be scoped to T-XXX-related paths to avoid sweeping in
+  unrelated WIP. The glob is bounded so this is a code hygiene concern, not a
+  correctness blocker.
+
+**(b) refuse-while-dirty.** Modify Watchtower decide route to:
+1. Before shelling to `fw inception decide`, run
+   `git diff --quiet HEAD -- .tasks/active/T-XXX-* docs/reports/T-XXX-*`
+2. If exit non-zero (dirty): refuse with operator-actionable error.
+3. Operator commits first, then re-clicks decide.
+
+Pros:
+- Conservative — no git operations in decide path itself.
+- Failure mode visible at decide time, not after.
+
+Cons:
+- Adds friction the operator's mental model doesn't want.
+- **Composes badly with inception 2-commit cap.** If the agent has already used
+  both commits and now has staged Edits, the operator can't commit *because of
+  the cap*, but also can't decide *because of dirty state*. Genuine deadlock,
+  requires manual override. The live T-1904 incident would have hit this exactly.
+- Operator has to context-switch between "review and decide" mode and
+  "shell-and-commit" mode.
+
+**(c) tolerate-completed-task-ref-on-followup-commit.** Modify
+`check-active-task.sh` Gate 2 to:
+1. If task is in `completed/`, read `date_finished` from frontmatter.
+2. If within last 30 min: allow (emit stderr NOTE).
+3. Otherwise: continue blocking.
+
+Pros:
+- Smallest code change — one branch in one hook.
+- No coupling between decide path and git operations.
+- Helps with edge cases beyond the inception incident: parallel sessions,
+  batch-close paths, future decide-paths we haven't designed.
+
+Cons:
+- K=30 is arbitrary. Too short → still blocks legitimate cases.
+  Too long → defeats P-002's "active task required" intent.
+- Reactive, not preventive. Allows the bad pattern to happen.
+
+## Composition analysis
+
+(a) and (b) are mutually exclusive at the structural level — both try to
+ensure no dirty state at decide-completion, just from opposite directions.
+(c) is independent of both — it's about recovery, not prevention.
+
 ## Recommendation
 
-**PENDING-EVIDENCE (filing-state)** — Investigation not yet executed.
+**GO-COMPOSED — ship (a) as primary + (c) as defence-in-depth.**
 
-Execution awaits operator sign-off on the inception scope. The plan is
-self-contained enough that another session can execute it without
-re-litigating scope.
+Why (a) over (b):
+- Operator UX is significantly better. The decide click "just works" — no
+  friction trips.
+- The whole *point* of using Watchtower is to compress decision-with-evidence
+  into one step.
+- The auto-add scope concern is bounded — paths derivable from task ID.
+- (b) preserves the 2-commit cap deadlock: agent caps out → operator clicks
+  decide → refused → "but I can't commit because I'm capped!".
+
+Why (c) as defence-in-depth:
+- Even with (a), edge cases will appear (race conditions, batch-decide paths,
+  `fw inception decide` called from CLI without a clean tree, parallel-agent
+  scenarios). (c) catches residue without trapping the agent.
+- K=30 min is conservative; the natural window for "agent landing supporting
+  evidence" is seconds-to-minutes.
+
+### Follow-up build tasks (file post-GO)
+
+1. **T-XXXX (primary, ~6 hr):** `do_inception_decide` auto-commits scope-related
+   edits before the active→completed move. Scope =
+   `.tasks/active/T-XXX-*.md` + `docs/reports/T-XXX-*` glob. Single commit
+   `T-XXX: decision recorded — <DECISION> (<rationale-first-line>)`. Failure
+   handling: if git operations fail, abort decide BEFORE the move (no
+   half-applied state). Test against T-1904 incident replay.
+
+2. **T-XXXX (defence-in-depth, ~2 hr):** check-active-task.sh Gate 2 allows
+   commits referencing a completed task whose `date_finished` is within last
+   30 min. Read `date_finished` from frontmatter. Emit stderr NOTE explaining
+   the carveout. No flag needed — automatic + bounded.
+
+3. **(optional, ~1 hr):** `do_inception_decide` emits an audit-trail entry
+   to `.context/working/.inception-auto-commit.log` so future RCAs can trace
+   which commits were synthesized by the decide path.
+
+### Stale-assumption updates
+
+- A1 ✓ confirmed in full.
+- A2 ✓ confirmed in full.
+- A3 ✓ confirmed — Gate 2 is the load-bearing blocker.
+- A4 ✓ confirmed — zero grace-period concept exists.
+
+### File a G-class concern?
+
+Recommended: **YES — file G-XXX "Watchtower decide path leaves staged
+working-tree evidence stranded" as medium severity, status=watching**, with
+the live T-1904 incident as the source observation. Close the G-class entry
+when the primary fix lands and stays green for ≥7 days.
 
 ## Dialogue Log
 

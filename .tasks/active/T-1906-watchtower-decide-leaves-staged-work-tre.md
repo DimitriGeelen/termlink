@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T09:53:36Z
-last_update: 2026-06-01T09:54:45Z
+last_update: 2026-06-01T09:56:42Z
 date_finished: null
 ---
 
@@ -195,17 +195,45 @@ Time-box: ~60 min, one session.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO-COMPOSED — ship fix (a) auto-commit-while-clean as primary + fix (c) tolerate-completed-task-ref-on-followup as defence-in-depth.
 
-**Rationale:**
+**Rationale (one paragraph):**
 
-Filing-state PENDING-EVIDENCE. Need to investigate which path of Watchtower's decide handler moves the task file, why it does not stage/commit the operator's working-tree edits, what hooks then block the agent from landing those edits under the original task ID, and which of (a) auto-commit-while-clean (b) refuse-while-dirty (c) tolerate-completed-task-ref-on-followup-commit best closes the gap. Recommendation will be filed after investigation.
+Investigation executed in this same session. All four hypotheses confirmed.
+**Decide path** (Watchtower POST → `fw inception decide` →
+`do_inception_decide` → `update-task.sh`) performs the `git mv` from
+active/→completed/ at update-task.sh:1244 **but never `git commit`**. Zero
+hits for `git commit` across `inception.sh` + `update-task.sh`. **Blocker**
+is `check-active-task.sh` Gate 2 (G-013, line 308–321): `find_task_file
+"$CURRENT_TASK" active` returns empty when the task has just been moved, so
+the hook refuses any subsequent commit referencing that task ID. Zero
+grace-period concept exists in the framework. Three candidate fixes
+evaluated: (a) makes the decide path auto-commit scope-related edits, (b)
+refuses-while-dirty, (c) lets the hook tolerate recently-completed task refs.
+(b) deadlocks against the inception 2-commit cap (agent caps out → can't
+commit dirty state → operator can't decide); rejected. (a)+(c) compose
+well: (a) is preventive and matches operator's "click GO → it lands"
+mental model; (c) catches residue from edge cases at near-zero cost.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- Full trace + matrix-of-blockers + candidate-fix analysis in
+  `docs/reports/T-1906-watchtower-decide-stranded-artifacts.md` Spikes 1–4
+  + Composition analysis section.
+- Decide path: `.agentic-framework/web/blueprints/inception.py:478`
+  → `fw inception decide` → `.agentic-framework/lib/inception.sh:384`
+  `do_inception_decide` → `.agentic-framework/agents/task-create/update-task.sh:696,1244,1260`.
+- Blocker gate: `.agentic-framework/agents/context/check-active-task.sh:308-321`
+  (G-013 active-task validator).
+- Grace-period absence: `grep -rEn "grace_period|recently.?completed|date_finished.*ago"
+  .agentic-framework/{lib,agents/context,agents/task-create}` → 0 hits.
+- Live-incident matrix: research artifact's "Live-incident replay" table
+  shows all four commit-attempt permutations and why each blocks.
+- Suggested follow-up build tasks listed in research artifact under
+  "Follow-up build tasks (file post-GO)" — primary (~6 hr), defence-in-depth (~2 hr),
+  optional audit-log (~1 hr).
+- Recommended companion action: file `G-XXX` concern (medium / watching)
+  to track until primary fix has been green for ≥7 days.
 
 ## Decisions
 
