@@ -5931,10 +5931,14 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
 
     if profiles.is_empty() {
         if json {
+            // T-1930: align empty-hubs envelope with MCP termlink_fleet_verify
+            // (tools.rs:12378). Added `ok: true`, renamed `note` → `message`,
+            // updated text to match MCP's operator-actionable phrasing.
             println!("{}", serde_json::json!({
+                "ok": true,
                 "verdict": "match",
                 "profiles": [],
-                "note": "no hubs configured",
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
             }));
         } else {
             println!("No hubs configured in {}", crate::config::hubs_config_path().display());

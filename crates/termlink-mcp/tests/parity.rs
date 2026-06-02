@@ -978,6 +978,53 @@ async fn parity_net_test_no_hubs() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 18: termlink_fleet_verify  /  termlink fleet verify --json
+//
+// T-1930 (PL-198 follow-up). Pre-convergence census (empty-hubs branch):
+//   MCP: {ok: true, verdict: "match", profiles: [], message: "No hubs configured in ~/.termlink/hubs.toml"}
+//   CLI: {verdict: "match", profiles: [], note: "no hubs configured"} — missing ok, different field name + text
+//
+// Convergence: CLI added `ok: true`, renamed `note` → `message`, aligned
+// text. Both sides now emit identical 4-key envelope on empty-hubs.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_fleet_verify_no_hubs() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-fleet-verify");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_fleet_verify", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP fleet_verify response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["fleet", "verify", "--json"]);
+    let output = cmd.output().expect("CLI fleet verify --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI fleet_verify response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    assert_eq!(mcp_json["ok"], json!(true), "MCP ok: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI ok (T-1930 added): {cli_json}");
+    assert_eq!(mcp_json["verdict"], json!("match"), "MCP verdict: {mcp_json}");
+    assert_eq!(cli_json["verdict"], json!("match"), "CLI verdict: {cli_json}");
+    assert_eq!(mcp_json["profiles"], json!([]), "MCP profiles: {mcp_json}");
+    assert_eq!(cli_json["profiles"], json!([]), "CLI profiles: {cli_json}");
+    assert!(mcp_json["message"].is_string(), "MCP message: {mcp_json}");
+    assert!(cli_json["message"].is_string(), "CLI message (T-1930 renamed from note): {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("fleet_verify", &mcp_json, &cli_json, &ignore)
+        .expect("fleet_verify parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------
