@@ -868,6 +868,65 @@ async fn parity_tofu_verify_no_pin() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 16: termlink_hub_probe  /  termlink hub probe <addr> --json
+//
+// T-1928 (PL-198 follow-up, sibling of T-1927). Pre-convergence census:
+//   MCP success/fail both wrapped {ok, address, fingerprint, error}
+//   CLI success: {address, fingerprint} only — no `ok`, no `error`
+//   CLI failure: non-JSON (anyhow bail to stderr) — violated --json contract
+//
+// Convergence (CLI side only — MCP shape was already canonical): added
+// `ok` + `error` fields to CLI success branch, routed failure through
+// json_error_exit. Both sides now emit identical 4-key envelope:
+// {ok, address, fingerprint, error}.
+//
+// Fixture: same `127.0.0.1:1` fast-fail trick as parity_tofu_verify.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_hub_probe() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-hub-probe");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let addr = "127.0.0.1:1";
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_hub_probe", json!({"address": addr})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP hub_probe response not JSON: {e}\nraw: {mcp_raw}"));
+
+    // T-1928: use find_termlink_bin_fresh to guarantee the CLI binary
+    // reflects the in-tree code (the T-1928 envelope changes are in CLI;
+    // a stale on-disk binary would silently regress the parity check).
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    // CLI exits 1 on probe failure (via json_error_exit) so call_cli's
+    // tolerance of non-zero exit codes is required here.
+    let cli_json = call_cli(&bin, &dir.path, &["hub", "probe", addr, "--json"])
+        .expect("CLI hub probe --json");
+
+    // Spot-check the convergence: both sides report ok=false with structured error.
+    assert_eq!(mcp_json["ok"], json!(false),
+        "MCP ok should be false on probe failure: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(false),
+        "CLI ok should be false on probe failure (T-1928 added): {cli_json}");
+    assert_eq!(mcp_json["fingerprint"], serde_json::Value::Null,
+        "MCP fingerprint should be null: {mcp_json}");
+    assert_eq!(cli_json["fingerprint"], serde_json::Value::Null,
+        "CLI fingerprint should be null: {cli_json}");
+    assert!(mcp_json["error"].is_string(),
+        "MCP error should be populated string: {mcp_json}");
+    assert!(cli_json["error"].is_string(),
+        "CLI error should be populated string (T-1928 added): {cli_json}");
+
+    // Strip `error` from diff (libc/tokio message text is environment-sensitive,
+    // see parity_tofu_verify rationale).
+    let ignore: HashSet<&'static str> = ["error"].into_iter().collect();
+    diff_json("hub_probe", &mcp_json, &cli_json, &ignore)
+        .expect("hub_probe parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

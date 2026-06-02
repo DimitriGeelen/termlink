@@ -993,24 +993,37 @@ pub(crate) async fn cmd_hub_probe(addr: &str, json_output: bool) -> Result<()> {
     // T-1675: bound the probe at 10s to match `fleet verify` / `fleet doctor
     // --include-pin-check` defaults — otherwise an unreachable host holds
     // the operator's terminal for the OS TCP retry budget (30-60+s).
-    let (_der, fingerprint) = termlink_session::tofu::probe_cert_with_timeout(
+    //
+    // T-1928: align --json envelope with MCP `termlink_hub_probe`. Both
+    // sides now emit {ok, address, fingerprint, error}. Failure path
+    // routes through json_error_exit so consumers of --json can parse
+    // the error instead of getting a non-JSON anyhow bail to stderr.
+    let probe = termlink_session::tofu::probe_cert_with_timeout(
         addr, std::time::Duration::from_secs(10),
-    )
-        .await
-        .map_err(|e| anyhow::anyhow!(e))?;
+    ).await;
 
-    if json_output {
-        println!(
-            "{}",
-            json!({
+    match (probe, json_output) {
+        (Ok((_der, fingerprint)), true) => {
+            println!("{}", json!({
+                "ok": true,
                 "address": addr,
                 "fingerprint": fingerprint,
-            })
-        );
-    } else {
-        println!("{fingerprint}");
+                "error": serde_json::Value::Null,
+            }));
+            Ok(())
+        }
+        (Ok((_der, fingerprint)), false) => {
+            println!("{fingerprint}");
+            Ok(())
+        }
+        (Err(e), true) => super::json_error_exit(json!({
+            "ok": false,
+            "address": addr,
+            "fingerprint": serde_json::Value::Null,
+            "error": e,
+        })),
+        (Err(e), false) => Err(anyhow::anyhow!(e)),
     }
-    Ok(())
 }
 
 // === Inbox Commands (T-997) ===
