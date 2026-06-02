@@ -1081,6 +1081,57 @@ async fn parity_fleet_history_no_log() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 20 (T-1933): termlink_whoami / termlink whoami --json — empty-state
+// no-sessions parity. Both sides must return the canonical "no live sessions
+// on this hub" envelope (`{ok: false, ambiguous: false, candidates: [], hint:
+// "..."}`). Pre-T-1933: MCP was MISSING (no termlink_whoami tool) — LLM
+// agents calling MCP could not query identity. T-1933 added the MCP tool
+// with the same resolution chain (session_hint > name_hint >
+// TERMLINK_SESSION_ID > PID-walk > candidates).
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_whoami_no_sessions() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-whoami-empty");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+    unsafe { std::env::remove_var("TERMLINK_SESSION_ID") };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_whoami", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP whoami response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.env_remove("TERMLINK_SESSION_ID");
+    cmd.args(["whoami", "--json"]);
+    let output = cmd.output().expect("CLI whoami --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI whoami response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    // Both sides MUST agree: empty store → ok=false + ambiguous=false +
+    // candidates=[] + hint set. This is the LLM-agent-facing answer to
+    // "who am I?" when nobody is registered.
+    assert_eq!(mcp_json["ok"], json!(false), "MCP ok=false: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(false), "CLI ok=false: {cli_json}");
+    assert_eq!(mcp_json["ambiguous"], json!(false), "MCP ambiguous=false: {mcp_json}");
+    assert_eq!(cli_json["ambiguous"], json!(false), "CLI ambiguous=false: {cli_json}");
+    assert_eq!(mcp_json["candidates"], json!([]), "MCP candidates=[]: {mcp_json}");
+    assert_eq!(cli_json["candidates"], json!([]), "CLI candidates=[]: {cli_json}");
+    assert!(mcp_json["hint"].is_string(), "MCP hint string: {mcp_json}");
+    assert!(cli_json["hint"].is_string(), "CLI hint string: {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("whoami_no_sessions", &mcp_json, &cli_json, &ignore)
+        .expect("whoami_no_sessions parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

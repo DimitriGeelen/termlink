@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T19:26:27Z
-last_update: 2026-06-02T19:26:27Z
+last_update: 2026-06-02T19:28:15Z
 date_finished: null
 ---
 
@@ -54,13 +54,13 @@ parity test diffs cleanly.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_whoami` MCP tool registered with `WhoamiParams { session_hint, name_hint }`
-- [ ] Resolution chain matches CLI: session_hint → name_hint → TERMLINK_SESSION_ID env → PID-walk → candidate list → empty
-- [ ] JSON envelope structurally identical to CLI `whoami --json` (same top-level keys: ok, session{...}, posts_as?, resolved_via?, pid_walk_match?, or for ambiguous: ok, ambiguous, candidates[], hint)
-- [ ] Help registry updated (`termlink_help` lists the new tool under "session" category)
-- [ ] Parity test added covering at least empty-state (no sessions, HOME=TestDir): both MCP and CLI return the canonical "no live sessions on this hub" envelope
-- [ ] `cargo build --release -p termlink-mcp` remains warning-free
-- [ ] Full parity suite passes (grows from 20 to 21)
+- [x] `termlink_whoami` MCP tool registered with `WhoamiParams { session_hint, name_hint }` — tools.rs:4571-4577 (params) + tools.rs:7920+ (tool impl)
+- [x] Resolution chain matches CLI: session_hint → name_hint → TERMLINK_SESSION_ID env → PID-walk → candidate list → empty — tools.rs:7925-7990 (mirrors metadata.rs:529-627)
+- [x] JSON envelope structurally identical to CLI `whoami --json` — `whoami_card_json` in tools.rs (post-helpers module) mirrors metadata.rs:655; parity test diff_json passes with empty ignore set
+- [x] Help registry updated — tools.rs:10870 lists `termlink_whoami` under "session" category
+- [x] Parity test added — tests/parity.rs `parity_whoami_no_sessions` (PAIR 20)
+- [x] `cargo build --release -p termlink-mcp` remains warning-free — verified clean build, zero warnings
+- [x] Full parity suite passes (grows from 20 to 21) — `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 489.29s`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

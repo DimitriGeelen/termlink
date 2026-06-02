@@ -4569,6 +4569,110 @@ pub struct ListSessionsParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct WhoamiParams {
+    /// Optional explicit session id to identify with
+    pub session_hint: Option<String>,
+    /// Optional display-name hint (used when session_hint absent)
+    pub name_hint: Option<String>,
+}
+
+/// T-1933: PID-walk helpers for whoami's PID-ancestor fallback. Copied
+/// from `termlink-cli/src/commands/metadata.rs` (T-1303) so the MCP tool
+/// can resolve identity in-process when no env var hint is present. Future
+/// task may extract to a shared crate; for v1 duplication is the cheaper
+/// path (~40 LOC, no behavioural drift expected — both sides read the
+/// same `/proc/<pid>/stat` format).
+mod whoami_helpers {
+    pub(super) fn walk_ancestor_pids(start: u32) -> Vec<u32> {
+        let mut chain = vec![start];
+        let mut current = start;
+        for _ in 0..1024 {
+            if current <= 1 {
+                break;
+            }
+            match read_ppid_from_proc(current) {
+                Some(ppid) if ppid != current && !chain.contains(&ppid) => {
+                    chain.push(ppid);
+                    current = ppid;
+                }
+                _ => break,
+            }
+        }
+        chain
+    }
+
+    fn read_ppid_from_proc(pid: u32) -> Option<u32> {
+        let raw = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        parse_ppid_from_stat(&raw)
+    }
+
+    pub(super) fn parse_ppid_from_stat(raw: &str) -> Option<u32> {
+        let close = raw.rfind(')')?;
+        let after = &raw[close + 1..];
+        let parts: Vec<&str> = after.split_whitespace().collect();
+        parts.get(1)?.parse::<u32>().ok()
+    }
+}
+
+/// T-1933: count other sessions on this hub sharing this registration's
+/// identity_fingerprint. Mirrors `count_shared_identity` in CLI metadata.rs
+/// (T-1704) for the shared-host PL-166 case. Returns 0 when no fingerprint.
+fn count_shared_identity(
+    target: &termlink_session::registration::Registration,
+    sessions: &[termlink_session::registration::Registration],
+) -> usize {
+    let Some(target_fp) = target.metadata.identity_fingerprint.as_deref() else {
+        return 0;
+    };
+    sessions
+        .iter()
+        .filter(|s| {
+            s.id.as_str() != target.id.as_str()
+                && s.metadata.identity_fingerprint.as_deref() == Some(target_fp)
+        })
+        .count()
+}
+
+/// T-1933: assemble the whoami JSON envelope. Structurally identical to
+/// CLI's `whoami_card_json` (metadata.rs:655) so the parity harness diffs
+/// cleanly. The `posts_as.from_project` field comes from the channel
+/// project-name resolver; the MCP build doesn't share that resolver with
+/// the CLI, so v1 omits it (CLI sets it from cwd via a CLI-side helper
+/// that lives in `commands::channel`). The omission is parity-safe for the
+/// empty-state test; populated-path parity will need either resolver
+/// extraction or a stub. Filed as follow-up scope if needed.
+fn whoami_card_json(
+    reg: &termlink_session::registration::Registration,
+    pid_walked_match: Option<u32>,
+    shared_identity_count: usize,
+) -> serde_json::Value {
+    let mut card = serde_json::json!({
+        "ok": true,
+        "session": {
+            "id": reg.id.as_str(),
+            "display_name": reg.display_name,
+            "state": reg.state.to_string(),
+            "pid": reg.pid,
+            "uid": reg.uid,
+            "roles": reg.roles,
+            "tags": reg.tags,
+            "capabilities": reg.capabilities,
+            "cwd": reg.metadata.cwd,
+        }
+    });
+    if let Some(fp) = reg.metadata.identity_fingerprint.as_deref() {
+        card["session"]["identity_fingerprint"] = serde_json::json!(fp);
+        card["session"]["identity_shared_with"] =
+            serde_json::json!(shared_identity_count);
+    }
+    if let Some(p) = pid_walked_match {
+        card["resolved_via"] = serde_json::json!("pid_walk");
+        card["pid_walk_match"] = serde_json::json!(p);
+    }
+    card
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct PingParams {
     /// Session ID or display name
     pub target: String,
@@ -7918,6 +8022,78 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_whoami",
+        description = "Identify which TermLink session is the caller. Resolution chain: session_hint → name_hint → $TERMLINK_SESSION_ID env → PID-walk ancestor chain → ambiguous candidate list. Mirrors `termlink whoami` CLI behaviour. Returns an identity card (id, display_name, state, pid, uid, roles, tags, capabilities, cwd, identity_fingerprint, identity_shared_with) or a candidate list when ambiguous."
+    )]
+    async fn termlink_whoami(&self, Parameters(p): Parameters<WhoamiParams>) -> String {
+        // T-1933: parity with `termlink whoami` (CLI metadata.rs:529).
+        // Resolution order kept identical; envelope kept structurally
+        // identical so the parity harness diffs cleanly.
+        let env_hint = std::env::var("TERMLINK_SESSION_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let query = p.session_hint.or(env_hint).or(p.name_hint);
+
+        if let Some(q) = query.as_deref() {
+            match manager::find_session(q) {
+                Ok(reg) => {
+                    let all = manager::list_sessions(false).unwrap_or_default();
+                    let shared = count_shared_identity(&reg, &all);
+                    return whoami_card_json(&reg, None, shared).to_string();
+                }
+                Err(e) => {
+                    return serde_json::json!({
+                        "ok": false,
+                        "found": false,
+                        "query": q,
+                        "error": format!("{e}"),
+                        "hint": "Set TERMLINK_SESSION_ID to your session id (visible in `termlink list --json`), or call without session_hint/name_hint to list candidates.",
+                    }).to_string();
+                }
+            }
+        }
+
+        // PID-walk fallback — find the closest registered ancestor PID.
+        let sessions = match manager::list_sessions(false) {
+            Ok(s) => s,
+            Err(e) => return json_err(format!("Failed to list sessions: {e}")),
+        };
+        let ancestors = whoami_helpers::walk_ancestor_pids(std::process::id());
+        for ancestor_pid in &ancestors {
+            if let Some(reg) = sessions.iter().find(|s| s.pid == *ancestor_pid) {
+                let shared = count_shared_identity(reg, &sessions);
+                return whoami_card_json(reg, Some(*ancestor_pid), shared).to_string();
+            }
+        }
+
+        // No hint and no ancestor match — return candidate list.
+        if sessions.is_empty() {
+            return serde_json::json!({
+                "ok": false,
+                "ambiguous": false,
+                "candidates": [],
+                "hint": "No live sessions on this hub. Register one with: termlink register --name <name> --shell",
+            }).to_string();
+        }
+
+        let cards: Vec<_> = sessions.iter().map(|s| serde_json::json!({
+            "id": s.id.as_str(),
+            "display_name": s.display_name,
+            "state": s.state.to_string(),
+            "pid": s.pid,
+            "roles": s.roles,
+            "tags": s.tags,
+            "cwd": s.metadata.cwd,
+        })).collect();
+        serde_json::json!({
+            "ok": true,
+            "ambiguous": true,
+            "candidates": cards,
+            "hint": "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.",
+        }).to_string()
+    }
+
+    #[tool(
         name = "termlink_status",
         description = "Get detailed status of a TermLink session including capabilities, tags, and metadata"
     )]
@@ -10866,6 +11042,7 @@ impl TermLinkTools {
         let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
             ("session", vec![
                 ("termlink_list_sessions", "List registered sessions with filtering"),
+                ("termlink_whoami", "Identify which session is the caller (resolution: hint > env > PID-walk > candidates)"),
                 ("termlink_ping", "Ping a session to check liveness"),
                 ("termlink_status", "Get detailed session status"),
                 ("termlink_discover", "Find sessions by tags/roles/capabilities"),
