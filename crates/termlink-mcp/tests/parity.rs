@@ -927,6 +927,57 @@ async fn parity_hub_probe() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 17: termlink_net_test  /  termlink net test --json
+//
+// T-1929 (PL-198 follow-up). Pre-convergence census (empty-hubs branch):
+//   MCP: {ok, hubs:[], summary:{total:0,...}, message: "No hubs configured..."}
+//   CLI: {ok, hubs:[], summary:{total:0,...}} — missing `message`
+//
+// Convergence: CLI gained `message` field matching MCP text. Both sides
+// now emit identical 4-key envelope on empty-hubs.
+//
+// Fixture: set HOME to TestDir so config::load_hubs_config() reads an
+// empty (non-existent) ~/.termlink/hubs.toml. Same trick as
+// parity_tofu_list — guarantees we hit the empty branch deterministically.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_net_test_no_hubs() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-net-test");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_net_test", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP net_test response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    // CLI: explicitly set HOME so config loader sees the same (empty) hubs.toml.
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["net", "test", "--json"]);
+    let output = cmd.output().expect("CLI net test --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI net_test response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    // Spot-check both sides have the expected empty envelope.
+    assert_eq!(mcp_json["ok"], json!(true), "MCP ok: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI ok: {cli_json}");
+    assert_eq!(mcp_json["hubs"], json!([]), "MCP hubs should be []: {mcp_json}");
+    assert_eq!(cli_json["hubs"], json!([]), "CLI hubs should be []: {cli_json}");
+    assert!(mcp_json["message"].is_string(), "MCP message missing: {mcp_json}");
+    assert!(cli_json["message"].is_string(), "CLI message missing (T-1929 added): {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("net_test", &mcp_json, &cli_json, &ignore)
+        .expect("net_test parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

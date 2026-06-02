@@ -4824,9 +4824,13 @@ pub(crate) async fn cmd_net_test(
     let config = crate::config::load_hubs_config();
     if config.hubs.is_empty() {
         if json {
+            // T-1929: align with MCP termlink_net_test — both sides now
+            // emit `message` on the empty-hubs branch so JSON consumers
+            // see the same operator hint that the human branch prints.
             println!("{}", serde_json::to_string_pretty(&json!({
                 "ok": true, "hubs": [],
                 "summary": {"total": 0, "healthy": 0, "degraded": 0, "unreachable": 0},
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
             }))?);
         } else {
             eprintln!("No hubs configured. Add hubs with: termlink remote profile add <name> <host:port> --secret-file <path>");
