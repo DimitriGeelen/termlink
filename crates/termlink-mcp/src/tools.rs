@@ -7844,7 +7844,20 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(|_| "PONG".into()),
+                // T-1911: align envelope with CLI `termlink ping <name> --json`
+                // (commands/session.rs:677-685). Wrap result with {ok:true,
+                // target, ...result}. `latency_ms` is CLI-only (subprocess
+                // measures wall-clock; in-process MCP call has no meaningful
+                // analog) — parity test strips it via the ignore list.
+                Ok(result) => {
+                    let mut wrapped = serde_json::json!({"ok": true, "target": p.target});
+                    if let Some(obj) = result.as_object() {
+                        for (k, v) in obj {
+                            wrapped[k] = v.clone();
+                        }
+                    }
+                    serde_json::to_string_pretty(&wrapped).unwrap_or_else(|_| "PONG".into())
+                }
                 Err(e) => json_err(format!("ping failed: {e}")),
             },
             Err(e) => json_err(format!("connection failed: {e}")),

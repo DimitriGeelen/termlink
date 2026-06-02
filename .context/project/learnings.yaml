@@ -2133,3 +2133,24 @@ learnings:
   date: 2026-05-31
   context: Added via context agent
   application: TBD
+- id: PL-197
+  learning: "When a CLI command accepts --json and contacts a hub, the error path needs explicit 'if json { json_error_exit(...) }' BEFORE anyhow::bail! — bail propagates via ? and anyhow Display writes to stderr with exit 1, leaving stdout empty and breaking jq pipelines. T-1915 introduced hub_socket_or_json_exit helper for channel.rs (45 sites). T-1916/T-1917 inline-fixed 4 sibling sites in infrastructure.rs and remote.rs. Remaining flag-validation sites (operator-misuse pre-flight) are a separate category."
+  source: P-001
+  task: T-1915
+  date: 2026-06-01
+  context: Added via context agent
+  application: TBD
+- id: PL-198
+  learning: "MCP/CLI envelope convergence pattern: when MCP tool returns bare hub-RPC result and the corresponding CLI command wraps via wrap_ok or {ok:true, ...result-spread}, MCP misses the envelope. Fix: mirror CLI's spread-merge in MCP (let mut wrapped = json!({\"ok\": true}); for (k,v) in result.as_object() { wrapped[k] = v.clone(); }). Find candidates: grep 'to_string_pretty(&result).unwrap_or_else(json_err)' in tools.rs, then check CLI side for wrap_ok or manual spread. Converged this arc: list_sessions T-1918, discover T-1919, status T-1921, clean T-1922, kv_list T-1924, event_poll T-1925. Remaining: event_subscribe (CLI does custom first-event flattening, different fix), kv_watch (no CLI equivalent, convention-only), channel_create (both bare, two-sided fix needed)."
+  source: D2
+  task: T-1925
+  date: 2026-06-02
+  context: Added via context agent
+  application: TBD
+- id: PL-199
+  learning: "Parity harness pattern: mixing sync subprocess I/O with tokio::spawn in #[tokio::test] requires multi_thread runtime flavor. Default current_thread blocks the runtime when the test calls Command::output(), so spawned accept_loop tasks never run and the subprocess times out on socket roundtrip. Symptom: test passes for in-memory MCP path (tokio::io::duplex) but times out for CLI-subprocess path. Fix: #[tokio::test(flavor = \"multi_thread\", worker_threads = 2)]. Affects parity_ping, parity_status; hub-less parity tests don't need it. Root cause masked T-1909's correctness ignore reason for 1 day. Source: T-1911."
+  source: P-001
+  task: T-1911
+  date: 2026-06-02
+  context: Added via context agent
+  application: TBD

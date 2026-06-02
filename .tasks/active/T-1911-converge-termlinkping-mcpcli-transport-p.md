@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-01T12:56:45Z
+last_update: 2026-06-02T10:38:09Z
 date_finished: null
 ---
 
@@ -63,24 +63,25 @@ divergence deterministically. Test is `#[ignore]`d pending this work.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Root-cause the timeout via direct experiment: run `termlink ping`
-      against a manually-started session in the same TERMLINK_RUNTIME_DIR
-      where `termlink_ping` MCP also succeeds, BOTH from a fresh shell
-      AND from inside an integration test fixture. Document which side
-      of the in-process/subprocess split actually fails and why in the
-      `## Decisions` section.
-- [ ] Fix the root cause OR document why the divergence is intentional
-      (and remove `parity_ping` from the harness rather than leaving it
-      ignored forever).
-- [ ] `parity_ping` test in `crates/termlink-mcp/tests/parity.rs` is
-      un-ignored (or removed). In-source diagnostic comment updated
-      with the actual root cause + resolution.
-- [ ] `cargo test --release --test parity -p termlink-mcp --
-      --test-threads=1` exits 0 with `test result: ok. 5 passed; 0 failed;
-      0 ignored` (was: 4 passed; 0 failed; 1 ignored — ping converged or
-      removed) OR `test result: ok. 4 passed; 0 failed; 0 ignored` if
-      the test is removed.
-- [ ] No regression of any other parity test.
+- [x] Root cause identified and recorded in `## Decisions`. The original
+      transport-divergence hypothesis was wrong; the real cause was the
+      test fixture's tokio runtime flavor.
+- [x] `parity_ping` un-ignored. In-source comment block (parity.rs:141-156)
+      replaces the original wrong-hypothesis ignore reason with the actual
+      root cause and the multi_thread fix.
+- [x] `parity_status` un-ignored. Same multi_thread fix applied. Source-side
+      envelope work from T-1921 already in place; this just unblocks
+      the test.
+- [x] `termlink_ping` MCP envelope converged with CLI: `{ok:true, target,
+      ...result}`. Was bare `{display_name, id, state}` — caller would
+      have seen shape drift if the CLI subprocess had ever reached the
+      session. Now structurally identical to `termlink ping <name> --json`
+      (modulo CLI-only `latency_ms`, stripped by the parity test).
+- [x] `cargo test --release --test parity -p termlink-mcp --
+      --test-threads=1` exits 0 with `test result: ok. 14 passed;
+      0 failed; 0 ignored` (was 12 passed + 2 ignored). Both previously-
+      ignored tests now exercise the real socket roundtrip.
+- [x] No regression of any other parity test.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -103,19 +104,47 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `parity_ping` (and later `parity_status`) test failed with
+the CLI subprocess's ping returning `{"ok":false,"error":"Ping timed out
+after 5s","latency_ms":5030}` even though the MCP in-process call against
+the same session, in the same TERMLINK_RUNTIME_DIR, on the same socket,
+succeeded immediately. The T-1909 v0.1 ignore comment hypothesized a
+transport divergence (MCP in-process / CLI through-hub) but inspection of
+`call_session` (commands/target.rs:188) showed both paths take the same
+local-socket route when `--hub` is absent.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `call_cli` (parity.rs:63) uses synchronous
+`std::process::Command::output()` to spawn and wait on the CLI subprocess.
+`#[tokio::test]` defaults to the `current_thread` runtime — single-threaded
+cooperative scheduling. The test's `start_session` spawns
+`server::run_accept_loop` via `tokio::spawn`. When the test then calls
+`call_cli`, the test thread blocks for up to 5s inside `.output()`. The
+accept_loop task is ready but the runtime is blocked — it never gets to
+run. The CLI subprocess connects to the unix socket file (kernel queues
+the connection), sends its JSON-RPC request, waits 5s for a response,
+times out. The test process never `accept()`s.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+MCP-side works because its transport is `tokio::io::duplex` — in-memory
+async pipes that progress cooperatively without needing the kernel or
+a thread to make I/O progress.
+
+**Why structurally allowed:** The parity harness was added in T-1909 with
+the default `#[tokio::test]` attribute. No prior parity test exercised a
+socket roundtrip with synchronous subprocess I/O (parity_topics looked
+similar but tested an empty topic state, so both sides returned empty —
+the test passed accidentally without proving the socket worked). The bug
+was latent until parity_ping/parity_status — the first tests that needed
+a real wire-level roundtrip — were added and immediately hit it.
+
+**Prevention:**
+1. **The fix itself blocks the next instance.** Any future parity test
+   that needs a socket roundtrip MUST use `#[tokio::test(flavor =
+   "multi_thread", worker_threads = 2)]`. The parity.rs:141-156 comment
+   block documents why; the hub-less tests (parity_topics et al.) stay
+   on current_thread to keep cheap.
+2. **PL-199 (this learning)** captures the pattern for future agents
+   writing harness code that mixes async-runtime tasks with sync
+   subprocess I/O.
 
 ## Evolution
 
@@ -143,14 +172,37 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-06-02 — runtime flavor vs. spawn_blocking vs. tokio::process
+- **Chose:** `#[tokio::test(flavor = "multi_thread", worker_threads = 2)]`
+  on the two affected tests (parity_ping, parity_status). Keep
+  `call_cli` synchronous via `std::process::Command::output()`. Leave
+  hub-less tests on the default current_thread flavor.
+- **Why:** Smallest blast radius. The fix sits at the test boundary
+  (test attribute) without changing the harness's `call_cli` helper
+  that the hub-less tests already rely on. `worker_threads = 2` is
+  the minimum that lets accept_loop run while the test thread is
+  blocked on subprocess I/O (one worker for each).
+- **Rejected:**
+  - Switching `call_cli` to `tokio::process::Command::output().await`:
+    would force the whole harness async-only and propagate the change
+    into ~12 hub-less tests that don't need it. More churn.
+  - Using `tokio::task::spawn_blocking` to wrap `.output()`: still
+    needs a multi-thread runtime to actually run the blocking pool, so
+    it's the same fix with extra boilerplate.
+
+### 2026-06-02 — termlink_ping envelope: spread-merge wrap
+- **Chose:** Wrap the hub's `result` into `{ok:true, target,
+  ...result}` matching CLI `cmd_ping` (commands/session.rs:677-685).
+  `latency_ms` stays CLI-only; the parity test strips it via the
+  ignore list since MCP in-process has no meaningful wall-clock
+  analog.
+- **Why:** Consistent with PL-198's wrap_ok spread-merge pattern. The
+  bare hub result lacked `ok` and `target`, which would have surprised
+  any caller expecting CLI parity.
+- **Rejected:** Echoing only `{ok, target, id, display_name, state}`
+  by hand-listing fields — would break forward-compat the moment the
+  hub adds a new field to the ping result. The spread-merge picks up
+  new fields automatically.
 
 ## Decision
 
@@ -170,4 +222,10 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 - **Context:** Initial task creation
 
 ### 2026-06-01T12:56:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-06-01T12:58:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+
+### 2026-06-02T10:38:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

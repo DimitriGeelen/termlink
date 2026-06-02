@@ -138,8 +138,22 @@ fn diff_json(name: &str, mcp: &Value, cli: &Value, ignore: &HashSet<&'static str
 // Until convergence, ignored.
 // ---------------------------------------------------------------------------
 
-#[tokio::test]
-#[ignore = "T-1909 second-catch: MCP uses in-process session lookup, CLI routes through hub (see comment + follow-up task)"]
+// T-1911 third-catch FIX (2026-06-02): `call_cli` uses synchronous
+// `std::process::Command::output()` which blocks the test's tokio runtime
+// thread. On the default `current_thread` flavor, the in-process accept_loop
+// (spawned via `tokio::spawn` from `start_session`) cannot run while the test
+// thread is blocked on the subprocess. Result: the CLI subprocess connects
+// to the unix socket but the test process never `accept()`s, so the CLI
+// times out after 5s. MCP works because its transport is in-memory
+// (`tokio::io::duplex`) and progresses cooperatively under one runtime.
+//
+// The fix is multi-thread tokio runtime so accept_loop can run on a worker
+// thread while the test thread is blocked in subprocess I/O. Applies to
+// every parity test that needs a socket roundtrip (parity_ping,
+// parity_status). Hub-less tests (parity_topics, parity_list_sessions,
+// parity_discover, parity_clean, parity_tofu_list, parity_info, etc.) do
+// not need the socket so they pass on current_thread too.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_ping() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-ping");
@@ -536,8 +550,10 @@ async fn parity_clean() {
 // CLI wraps it in `{ok:true, ...result}`. Same shape-class as T-1918.
 // ---------------------------------------------------------------------------
 
-#[tokio::test]
-#[ignore = "T-1911 third-catch: CLI subprocess cannot reach in-process test session over socket (same infrastructure gap as parity_ping). Source-side fix is in place — MCP now wraps query.status result in {ok, ...result} matching CLI. Test unblocks when T-1911 lands."]
+// T-1911: same multi_thread fix as parity_ping. Socket roundtrip needs the
+// accept_loop to run on a worker thread while the test thread is blocked
+// on the synchronous CLI subprocess.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_status() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-status");
