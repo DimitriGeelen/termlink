@@ -450,6 +450,48 @@ async fn parity_list_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1921: termlink_status — MCP was returning raw hub `query.status` result;
+// CLI wraps it in `{ok:true, ...result}`. Same shape-class as T-1918.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+#[ignore = "T-1911 third-catch: CLI subprocess cannot reach in-process test session over socket (same infrastructure gap as parity_ping). Source-side fix is in place — MCP now wraps query.status result in {ok, ...result} matching CLI. Test unblocks when T-1911 lands."]
+async fn parity_status() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-status");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    let (_handle, reg) = start_session(&dir.sessions_dir(), "parity-status-sess", vec![]).await;
+    let session_name = reg.display_name.as_str();
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_status", json!({"target": session_name})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP status response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path, &["status", session_name, "--json"])
+        .expect("CLI status --json");
+
+    // Both sides MUST agree on the envelope.
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+
+    // Per-process fields stripped (same as parity_list_sessions).
+    let ignore: HashSet<&'static str> = [
+        "id", "pid", "uid", "age", "created_at", "heartbeat_at",
+        "socket_path", "metadata", "state", "capabilities",
+        "tags", "roles",
+        "ts_ms", "timestamp",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("status", &mcp_json, &cli_json, &ignore)
+        .expect("status parity");
+    _handle.abort();
+}
+
+// ---------------------------------------------------------------------------
 // T-1920: termlink_info — shared shape equality. MCP adds two intentional
 // MCP-only fields (mcp_tools, registered_endpoints) that have no CLI
 // equivalent; ignored in the diff. This test locks the SHARED subset so any

@@ -7916,7 +7916,18 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Ok(result) => {
+                    // T-1921: wrap in {ok:true, ...result} envelope to match CLI
+                    // `termlink status --json` shape (session.rs:737-743). Was bare;
+                    // now structurally identical to the CLI's spread-merge.
+                    let mut wrapped = serde_json::json!({"ok": true});
+                    if let Some(obj) = result.as_object() {
+                        for (k, v) in obj {
+                            wrapped[k] = v.clone();
+                        }
+                    }
+                    serde_json::to_string_pretty(&wrapped).unwrap_or_else(json_err)
+                }
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
