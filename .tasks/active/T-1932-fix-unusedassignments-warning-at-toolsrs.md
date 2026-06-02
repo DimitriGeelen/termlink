@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T18:35:11Z
-last_update: 2026-06-02T18:35:11Z
+last_update: 2026-06-02T18:39:55Z
 date_finished: null
 ---
 
@@ -75,7 +75,7 @@ trip on it.
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-cargo build --release -p termlink-mcp 2>&1 | grep -c "unused_assignments" | grep -qE "^0$"
+! cargo build --release -p termlink-mcp 2>&1 | grep -q "unused_assignments"
 
 ## RCA
 
