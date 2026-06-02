@@ -8470,8 +8470,18 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "kv.list", serde_json::json!({})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(result) => serde_json::to_string_pretty(&result)
-                    .unwrap_or_else(json_err),
+                Ok(result) => {
+                    // T-1924: wrap in {ok:true, ...result} envelope matching CLI's
+                    // `wrap_ok(&result)` spread-merge (metadata.rs:401-409). Was bare;
+                    // now structurally identical to `termlink kv list --json`.
+                    let mut wrapped = serde_json::json!({"ok": true});
+                    if let Some(obj) = result.as_object() {
+                        for (k, v) in obj {
+                            wrapped[k] = v.clone();
+                        }
+                    }
+                    serde_json::to_string_pretty(&wrapped).unwrap_or_else(json_err)
+                }
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
