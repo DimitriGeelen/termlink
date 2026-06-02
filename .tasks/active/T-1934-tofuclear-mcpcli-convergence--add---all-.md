@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T20:39:37Z
-last_update: 2026-06-02T20:39:37Z
+last_update: 2026-06-02T20:40:47Z
 date_finished: null
 ---
 
@@ -39,11 +39,11 @@ PL-172 (MCP feature parity strip) precedent.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `TofuClearParams` extended with `all: Option<bool>` (default false); MCP branches: `all=true` → `store.clear_all()` returns `{ok: true, cleared: N}`; `all=false` requires `host`
-- [ ] CLI `cmd_tofu_clear` single-host JSON includes `message` field — same string class as MCP
-- [ ] Two new parity tests: tofu_clear --all empty + tofu_clear single-host miss
-- [ ] Full parity suite passes (grows from 21 to 23)
-- [ ] `cargo build --release -p termlink-mcp` + `-p termlink` remain warning-free
+- [x] `TofuClearParams` extended with `all: Option<bool>` (default false); MCP branches: `all=true` → `store.clear_all()` returns `{ok: true, cleared: N}`; `all=false` requires `host` — tools.rs:7641-7647 (params) + tools.rs:12415-12440 (tool)
+- [x] CLI `cmd_tofu_clear` single-host JSON includes `message` field — infrastructure.rs:1204-1220 mirror of MCP string
+- [x] Two new parity tests: `parity_tofu_clear_all_empty` (PAIR 21) + `parity_tofu_clear_single_miss` (PAIR 22) — tests/parity.rs end
+- [x] Full parity suite passes — `test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 445.91s`
+- [x] `cargo build --release -p termlink-mcp` + `-p termlink` remain warning-free — `Finished release profile [optimized] target(s) in 20m 05s` (combined build, no warnings emitted)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

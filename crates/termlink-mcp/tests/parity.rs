@@ -1132,6 +1132,91 @@ async fn parity_whoami_no_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 21 (T-1934): termlink_tofu_clear --all / termlink tofu clear --all
+// Empty-store bulk wipe. Both sides must return `{ok: true, cleared: 0}`.
+// Pre-T-1934: MCP HAD NO --all branch (host required). T-1934 added the
+// branch and this test locks the shape against future drift.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_tofu_clear_all_empty() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-tofu-clear-all");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_tofu_clear", json!({"all": true})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP tofu_clear --all response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["tofu", "clear", "--all", "--json"]);
+    let output = cmd.output().expect("CLI tofu clear --all --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI tofu_clear response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    assert_eq!(mcp_json["ok"], json!(true), "MCP ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI ok=true: {cli_json}");
+    assert_eq!(mcp_json["cleared"], json!(0), "MCP cleared=0: {mcp_json}");
+    assert_eq!(cli_json["cleared"], json!(0), "CLI cleared=0: {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("tofu_clear_all_empty", &mcp_json, &cli_json, &ignore)
+        .expect("tofu_clear_all_empty parity");
+}
+
+// ---------------------------------------------------------------------------
+// PAIR 22 (T-1934): termlink_tofu_clear single-host miss / termlink tofu
+// clear <host> --json on a non-existent entry. Pre-T-1934: MCP returned
+// `{ok, host, removed, message}`, CLI only `{ok, host, removed}`. Now both
+// sides emit `message` for symmetric envelope consumed via --json.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_tofu_clear_single_miss() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-tofu-clear-miss");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let target = "192.168.10.99:9100"; // non-existent in empty store
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_tofu_clear", json!({"host": target})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP tofu_clear miss response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["tofu", "clear", target, "--json"]);
+    let output = cmd.output().expect("CLI tofu clear --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI tofu_clear response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    assert_eq!(mcp_json["ok"], json!(false), "MCP ok=false (miss): {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(false), "CLI ok=false (miss): {cli_json}");
+    assert_eq!(mcp_json["removed"], json!(false), "MCP removed=false: {mcp_json}");
+    assert_eq!(cli_json["removed"], json!(false), "CLI removed=false: {cli_json}");
+    assert_eq!(mcp_json["host"], json!(target), "MCP host: {mcp_json}");
+    assert_eq!(cli_json["host"], json!(target), "CLI host: {cli_json}");
+    assert!(mcp_json["message"].is_string(), "MCP message string: {mcp_json}");
+    assert!(cli_json["message"].is_string(),
+        "CLI message string (T-1934 added): {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("tofu_clear_single_miss", &mcp_json, &cli_json, &ignore)
+        .expect("tofu_clear_single_miss parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

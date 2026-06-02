@@ -1203,7 +1203,18 @@ pub(crate) fn cmd_tofu_clear(host: Option<&str>, all: bool, json_output: bool) -
     } else if let Some(host_port) = host {
         let existed = store.remove(host_port);
         if json_output {
-            println!("{}", json!({"ok": existed, "host": host_port, "removed": existed}));
+            // T-1934: emit `message` for parity with MCP `termlink_tofu_clear`.
+            let message = if existed {
+                format!("Removed TOFU entry for {host_port}. Next connection will re-trust.")
+            } else {
+                format!("No TOFU entry found for '{host_port}'")
+            };
+            println!("{}", json!({
+                "ok": existed,
+                "host": host_port,
+                "removed": existed,
+                "message": message,
+            }));
         } else if existed {
             println!("Removed TOFU entry for {}", host_port);
             println!("  Next connection will re-trust (TOFU)");

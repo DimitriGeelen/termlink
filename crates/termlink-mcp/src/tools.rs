@@ -7640,8 +7640,10 @@ pub struct NetTestParams {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct TofuClearParams {
-    /// Host:port to clear (e.g., "192.168.10.109:9100")
-    pub host: String,
+    /// Host:port to clear (e.g., "192.168.10.109:9100"). Required unless `all=true`.
+    pub host: Option<String>,
+    /// Clear all TOFU entries (mirrors CLI `tofu clear --all`). T-1934.
+    pub all: Option<bool>,
 }
 
 // T-1040: Resolve hub pidfile and socket, checking default runtime dir first,
@@ -12410,19 +12412,32 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_tofu_clear",
-        description = "Clear a trusted hub certificate from the TOFU store. After clearing, the next connection to this hub will re-trust its certificate (TOFU). Use this when a hub has been restarted and generated a new TLS certificate."
+        description = "Clear trusted hub certificate(s) from the TOFU store. Pass `host` for single-host clear OR `all: true` for bulk wipe (mirrors CLI `tofu clear --all`). After clearing, next connection re-trusts (TOFU). Use after a hub restart that regenerated its cert."
     )]
     async fn termlink_tofu_clear(&self, Parameters(p): Parameters<TofuClearParams>) -> String {
         let store = termlink_session::tofu::KnownHubStore::default_store();
-        let existed = store.remove(&p.host);
+        // T-1934: bulk-clear branch — parity with `tofu clear --all`.
+        if p.all.unwrap_or(false) {
+            let count = store.clear_all();
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "cleared": count,
+            })).unwrap_or_else(json_err);
+        }
+        // Single-host branch — `host` is required when `all` is false.
+        let host = match p.host.as_deref() {
+            Some(h) => h,
+            None => return json_err("'host' is required when 'all' is false".to_string()),
+        };
+        let existed = store.remove(host);
         serde_json::to_string_pretty(&serde_json::json!({
             "ok": existed,
-            "host": p.host,
+            "host": host,
             "removed": existed,
             "message": if existed {
-                format!("Removed TOFU entry for {}. Next connection will re-trust.", p.host)
+                format!("Removed TOFU entry for {host}. Next connection will re-trust.")
             } else {
-                format!("No TOFU entry found for '{}'", p.host)
+                format!("No TOFU entry found for '{host}'")
             },
         })).unwrap_or_else(json_err)
     }
@@ -34015,13 +34030,27 @@ YW\tJ
     fn tofu_clear_params_parses() {
         let json = serde_json::json!({"host": "192.168.10.109:9100"});
         let p: TofuClearParams = serde_json::from_value(json).unwrap();
-        assert_eq!(p.host, "192.168.10.109:9100");
+        assert_eq!(p.host.as_deref(), Some("192.168.10.109:9100"));
+        assert_eq!(p.all, None);
     }
 
     #[test]
-    fn tofu_clear_params_missing_host() {
+    fn tofu_clear_params_all_only() {
+        // T-1934: `all=true` with no host is valid.
+        let json = serde_json::json!({"all": true});
+        let p: TofuClearParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.host, None);
+        assert_eq!(p.all, Some(true));
+    }
+
+    #[test]
+    fn tofu_clear_params_empty_parses_as_invalid_at_runtime() {
+        // T-1934: empty params parse successfully (both fields optional);
+        // the tool body emits an error when host is absent and all is false.
         let json = serde_json::json!({});
-        assert!(serde_json::from_value::<TofuClearParams>(json).is_err());
+        let p: TofuClearParams = serde_json::from_value(json).unwrap();
+        assert_eq!(p.host, None);
+        assert_eq!(p.all, None);
     }
 
     #[test]
