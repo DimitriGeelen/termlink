@@ -1025,6 +1025,62 @@ async fn parity_fleet_verify_no_hubs() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 19: termlink_fleet_history  /  termlink fleet history --json
+//
+// T-1931 (PL-198 follow-up). Pre-convergence census (empty-log branch):
+//   MCP summary: {total, per_hub, since_days, hub_filter, log_path}
+//   CLI summary: {total, per_hub, log_path} — missing since_days, hub_filter
+//
+// Convergence: CLI summary gained `since_days` + `hub_filter` (echoed
+// inputs, useful for consumers caching responses). Both sides now emit
+// identical 5-key summary.
+//
+// Fixture: HOME=TestDir so both sides see no rotation.log and hit the
+// empty-log branch.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_fleet_history_no_log() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-fleet-history");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    // Default args (since_days=7, hub=null, include_heals=false) — matches
+    // the CLI default invocation `termlink fleet history --json`.
+    let mcp_raw = call_mcp(&client, "termlink_fleet_history", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP fleet_history response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["fleet", "history", "--json"]);
+    let output = cmd.output().expect("CLI fleet history --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI fleet_history response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    assert_eq!(mcp_json["ok"], json!(true), "MCP ok: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI ok: {cli_json}");
+    assert_eq!(mcp_json["entries"], json!([]), "MCP entries: {mcp_json}");
+    assert_eq!(cli_json["entries"], json!([]), "CLI entries: {cli_json}");
+    assert_eq!(mcp_json["summary"]["since_days"], json!(7), "MCP since_days: {mcp_json}");
+    assert_eq!(cli_json["summary"]["since_days"], json!(7),
+        "CLI since_days (T-1931 added): {cli_json}");
+    assert_eq!(mcp_json["summary"]["hub_filter"], serde_json::Value::Null,
+        "MCP hub_filter: {mcp_json}");
+    assert_eq!(cli_json["summary"]["hub_filter"], serde_json::Value::Null,
+        "CLI hub_filter (T-1931 added): {cli_json}");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("fleet_history", &mcp_json, &cli_json, &ignore)
+        .expect("fleet_history parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

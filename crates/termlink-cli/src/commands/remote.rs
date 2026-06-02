@@ -2655,10 +2655,20 @@ pub(crate) fn cmd_fleet_history(
     let rotation_path = path.clone();
     if !path.exists() && !include_heals {
         if json_out {
+            // T-1931: align summary with MCP termlink_fleet_history
+            // (tools.rs:13202). Both sides now echo `since_days` +
+            // `hub_filter` in summary — useful for consumers caching
+            // responses (no need to track what they asked for).
             println!("{}", serde_json::json!({
                 "ok": true,
                 "entries": [],
-                "summary": {"total": 0, "per_hub": {}, "log_path": path.display().to_string()},
+                "summary": {
+                    "total": 0,
+                    "per_hub": {},
+                    "since_days": since_days,
+                    "hub_filter": hub,
+                    "log_path": path.display().to_string(),
+                },
                 "hint": "no rotation history yet — run `fleet doctor --watch` to start capturing"
             }));
         } else {
