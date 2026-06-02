@@ -9129,7 +9129,9 @@ impl TermLinkTools {
         use termlink_session::discovery;
 
         let sessions_dir = discovery::sessions_dir();
-        let mut cleaned_sessions: Vec<String> = Vec::new();
+        // T-1922: align to CLI shape — collect full session objects
+        // (id, display_name, pid, created_at) instead of bare Vec<String>.
+        let mut sessions: Vec<serde_json::Value> = Vec::new();
         let mut cleaned_sockets = 0u32;
         let mut cleaned_hub = false;
 
@@ -9137,7 +9139,12 @@ impl TermLinkTools {
         match manager::clean_stale_sessions(&sessions_dir, true) {
             Ok(stale) => {
                 for s in &stale {
-                    cleaned_sessions.push(s.display_name.clone());
+                    sessions.push(serde_json::json!({
+                        "id": s.id,
+                        "display_name": s.display_name,
+                        "pid": s.pid,
+                        "created_at": s.created_at,
+                    }));
                 }
             }
             Err(e) => {
@@ -9172,11 +9179,18 @@ impl TermLinkTools {
             cleaned_hub = true;
         }
 
+        // T-1922: envelope shape matches CLI `termlink clean --json`:
+        // {ok, action, count, sessions}. The CLI supports dry_run; MCP
+        // currently always executes (action="removed"). cleaned_sockets,
+        // cleaned_hub, total are MCP-extra fields (CLI is sessions-only).
         let result = serde_json::json!({
-            "cleaned_sessions": cleaned_sessions,
+            "ok": true,
+            "action": "removed",
+            "count": sessions.len(),
+            "sessions": sessions,
             "cleaned_sockets": cleaned_sockets,
             "cleaned_hub": cleaned_hub,
-            "total": cleaned_sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
+            "total": sessions.len() as u32 + cleaned_sockets + if cleaned_hub { 1 } else { 0 },
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }

@@ -450,6 +450,47 @@ async fn parity_list_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1922: termlink_clean — MCP was returning `{cleaned_sessions: [String]}`
+// vs CLI's `{ok, action, count, sessions: [object]}`. Locked the shared
+// shape (ok, count, sessions array of objects). MCP-extra fields
+// (cleaned_sockets, cleaned_hub, total) stripped as intentional extension.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_clean() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-clean");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_clean", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP clean response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    let cli_json = call_cli(&bin, &dir.path, &["clean", "--json"]).expect("CLI clean --json");
+
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+    assert!(mcp_json["sessions"].is_array(), "MCP sessions not array: {mcp_json}");
+    assert!(cli_json["sessions"].is_array(), "CLI sessions not array: {cli_json}");
+
+    // MCP-extra fields stripped — intentional MCP-only extension.
+    // dry_run: CLI-only param echo; MCP always acts (skip).
+    let ignore: HashSet<&'static str> = [
+        // MCP-only:
+        "cleaned_sockets", "cleaned_hub", "total",
+        // CLI-only:
+        "dry_run",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("clean", &mcp_json, &cli_json, &ignore)
+        .expect("clean parity");
+}
+
+// ---------------------------------------------------------------------------
 // T-1921: termlink_status — MCP was returning raw hub `query.status` result;
 // CLI wraps it in `{ok:true, ...result}`. Same shape-class as T-1918.
 // ---------------------------------------------------------------------------
