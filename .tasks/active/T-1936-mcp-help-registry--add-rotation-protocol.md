@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T22:55:51Z
-last_update: 2026-06-02T22:55:51Z
+last_update: 2026-06-02T23:00:04Z
 date_finished: null
 ---
 
@@ -26,11 +26,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `tofu` category exists in `termlink_help` registry with entries for `termlink_tofu_list`, `termlink_tofu_verify`, `termlink_tofu_clear`
-- [ ] `fleet` category exists with entries for `termlink_fleet_verify`, `termlink_fleet_doctor`, `termlink_fleet_history`, `termlink_fleet_status`, `termlink_fleet_bootstrap_check`, `termlink_fleet_reauth`, `termlink_fleet_secrets_audit`, `termlink_fleet_adoption_snapshot`
-- [ ] `hub` category extended with `termlink_hub_probe`, `termlink_hub_fingerprint`, `termlink_hub_export_secret`, `termlink_hub_restart`
-- [ ] Unknown-category error message lists `tofu` and `fleet` in its enumeration
-- [ ] `cargo build --release -p termlink-mcp` is warning-free
+- [x] `tofu` category exists in `termlink_help` registry with entries for `termlink_tofu_list`, `termlink_tofu_verify`, `termlink_tofu_clear` — crates/termlink-mcp/src/tools.rs:11094-11098
+- [x] `fleet` category exists with entries for `termlink_fleet_verify`, `termlink_fleet_doctor`, `termlink_fleet_history`, `termlink_fleet_status`, `termlink_fleet_bootstrap_check`, `termlink_fleet_reauth`, `termlink_fleet_secrets_audit`, `termlink_fleet_adoption_snapshot` — crates/termlink-mcp/src/tools.rs:11099-11108
+- [x] `hub` category extended with `termlink_hub_probe`, `termlink_hub_fingerprint`, `termlink_hub_export_secret`, `termlink_hub_restart` — crates/termlink-mcp/src/tools.rs:11088-11093
+- [x] Unknown-category error message lists `tofu` and `fleet` in its enumeration — crates/termlink-mcp/src/tools.rs:11151
+- [x] `cargo build --release -p termlink-mcp` is warning-free — verified 2026-06-02 (cargo build released in 1m51s, zero warnings; grep "warning:" returns no match)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
