@@ -23212,7 +23212,14 @@ impl TermLinkTools {
         let mut max_run: u64 = 1;
         let mut max_run_end: i64 = days[0];
         let mut cur_run: u64 = 1;
-        let mut cur_run_end: i64 = days[0];
+        // T-1932: the only read of cur_run_end (L23232 below) lives inside
+        // the loop, and the loop unconditionally re-assigns cur_run_end
+        // before that read. When days.len()==1 the loop is skipped and
+        // cur_run_end is never observed. Init is therefore always dead;
+        // suppress the warning explicitly rather than restructuring the
+        // tight loop.
+        #[allow(unused_assignments)]
+        let mut cur_run_end: i64 = 0;
         for i in 1..days.len() {
             if days[i] == days[i-1] + 1 {
                 cur_run += 1;
