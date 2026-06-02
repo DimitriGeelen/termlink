@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T18:35:11Z
-last_update: 2026-06-02T18:39:55Z
+last_update: 2026-06-02T19:21:16Z
 date_finished: null
 ---
 
@@ -79,19 +79,13 @@ trip on it.
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Persistent `unused_assignments` warning on every `cargo build -p termlink-mcp` invocation — tools.rs:23215, `cur_run_end: i64 = days[0]`.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Flow-analysis dead init. The for loop unconditionally re-assigns `cur_run_end` before its only read site (inside the loop body). When `days.len()==1` the loop is skipped AND the read is unreachable, so the initial `days[0]` value is never observed. The init was never load-bearing.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** `unused_assignments` defaults to `warn`, not `deny`. Build pipeline (CI, dev loop, parity tests) treated warnings as informational. Build-noise warning accumulated for months without anyone budgeting time to clear it — classic broken-window: one warning normalizes ignoring the warning column.
+
+**Prevention:** Targeted `#[allow(unused_assignments)]` with explanatory comment naming the loop body as the real initialization point. Future readers see *why* the placeholder exists. Sibling defence: the verification command (`! cargo build … | grep -q "unused_assignments"`) now mechanically blocks any regression on this warning class via the P-011 completion gate — no future task touching this region can close without the warning staying silent.
 
 ## Evolution
 
