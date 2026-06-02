@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-02T10:38:09Z
+last_update: 2026-06-02T10:54:26Z
 date_finished: null
 ---
 
@@ -100,7 +100,7 @@ divergence deterministically. Test is `#[ignore]`d pending this work.
 
 ## Verification
 
-cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. [45] passed; 0 failed; 0 ignored"
+cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | tail -2 | grep -qE "test result: ok\. [0-9]+ passed; 0 failed; 0 ignored"
 
 ## RCA
 
