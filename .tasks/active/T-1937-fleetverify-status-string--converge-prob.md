@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T23:03:44Z
-last_update: 2026-06-02T23:03:44Z
+last_update: 2026-06-02T23:39:39Z
 date_finished: null
 ---
 
@@ -26,15 +26,15 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `cmd_fleet_verify` in remote.rs emits `"probe-failed"` (not `"probe-fail"`) as per-hub `status` value
-- [ ] `cmd_fleet_verify` aggregate `verdict` uses `"probe-failed"` and exit-code match arm updated
-- [ ] `cmd_fleet_doctor` --include-pin-check pin-check summary uses `"probe-failed"` as per-hub status AND as aggregate verdict
-- [ ] `cmd_fleet_reauth_all` task-state classification uses `"probe-failed"`
-- [ ] MCP `termlink_fleet_verify` in tools.rs emits `"probe-failed"` symmetrically with CLI
-- [ ] Plain-mode print strings (operator-visible) updated to `probe-failed`
-- [ ] No remaining `"probe-fail"` (status value) literal in remote.rs or tools.rs
-- [ ] `cargo build --release -p termlink -p termlink-mcp` is warning-free
-- [ ] Existing parity tests still pass
+- [x] `cmd_fleet_verify` in remote.rs emits `"probe-failed"` (not `"probe-fail"`) as per-hub `status` value — remote.rs:6002, 6017
+- [x] `cmd_fleet_verify` aggregate `verdict` uses `"probe-failed"` and exit-code match arm updated — remote.rs:6029, 6049, 6067
+- [x] `cmd_fleet_doctor` --include-pin-check pin-check summary uses `"probe-failed"` as per-hub status AND as aggregate verdict — remote.rs:3833, 4120, 4129, 4134
+- [x] `cmd_fleet_reauth_all` task-state classification uses `"probe-failed"` — remote.rs:5819, 5833, 5843
+- [x] MCP `termlink_fleet_verify` in tools.rs emits `"probe-failed"` symmetrically with CLI — tools.rs:12624, 12639, 12652, 12655
+- [x] Plain-mode print strings (operator-visible) updated to `probe-failed` — remote.rs:4134
+- [x] No remaining `"probe-fail"` (status value) literal in remote.rs or tools.rs — verified via `grep -nE '"probe-fail"'` returning no match (exit 1)
+- [x] `cargo build --release -p termlink -p termlink-mcp` is warning-free — verified 2026-06-02 (release build finished in 8m07s, zero warnings)
+- [x] Existing parity tests still pass — verified: 24 passed, 0 failed (no regression from prior 24/24 baseline)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
