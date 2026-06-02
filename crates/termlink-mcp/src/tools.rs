@@ -11038,7 +11038,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, diagnostics."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
@@ -11086,6 +11086,25 @@ impl TermLinkTools {
                 ("termlink_hub_status", "Check hub running status"),
                 ("termlink_hub_start", "Start the event hub (pass tcp_addr for cross-host)"),
                 ("termlink_hub_stop", "Stop the event hub"),
+                ("termlink_hub_restart", "Restart the event hub"),
+                ("termlink_hub_probe", "Pre-pin TLS probe — confirm a remote hub is up and capture its current fingerprint"),
+                ("termlink_hub_fingerprint", "TLS fingerprint of the local hub for peers to pin"),
+                ("termlink_hub_export_secret", "Read local hub.secret for out-of-band share (G-011 R3 authoritative source)"),
+            ]),
+            ("tofu", vec![
+                ("termlink_tofu_list", "List TOFU-pinned hub fingerprints from ~/.termlink/known_hubs"),
+                ("termlink_tofu_verify", "Per-host TOFU pin verification — compares wire fingerprint vs pinned. Status: match / drift / no-pin / probe-failed"),
+                ("termlink_tofu_clear", "Clear TOFU pin for a host (or all hosts with --all). Next connection will re-trust"),
+            ]),
+            ("fleet", vec![
+                ("termlink_fleet_verify", "Fleet-wide TOFU pin verification across all profiles in hubs.toml — drift dominates"),
+                ("termlink_fleet_doctor", "Auth + TLS health sweep across all profiles. Detects auth-mismatch (secret rotation) and pin-drift (cert rotation)"),
+                ("termlink_fleet_history", "Retrospective rotation/heal history from ~/.termlink/rotation.log + heal.log. Filter by --hub, --since-days, --include-heals"),
+                ("termlink_fleet_status", "Per-profile connectivity status across the fleet"),
+                ("termlink_fleet_bootstrap_check", "Validate declared bootstrap_from channels return parseable 64-hex secrets BEFORE auto-heal fires (preflight)"),
+                ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
+                ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
+                ("termlink_fleet_adoption_snapshot", "Snapshot fleet-wide adoption state across profiles"),
             ]),
             ("remote", vec![
                 ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
@@ -11136,7 +11155,7 @@ impl TermLinkTools {
         }
 
         if filter.is_some() && tool_count == 0 {
-            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, remote, batch, dispatch, tokens, diagnostics", filter.unwrap()));
+            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, diagnostics", filter.unwrap()));
         }
 
         result["total_tools"] = serde_json::json!(tool_count);
