@@ -450,6 +450,47 @@ async fn parity_list_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1923: termlink_tofu_list — already-converged shape lock. Both MCP and
+// CLI already return `{ok, count, entries: [{host, fingerprint, first_seen,
+// last_seen}]}`. This test ensures future drift fails CI rather than slips.
+// HOME override isolates the TOFU store (~/.termlink/known_hubs) so the
+// test sees an empty store regardless of host state.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_tofu_list() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-tofu-list");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_tofu_list", json!({})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP tofu_list response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    // CLI subprocess: explicitly set HOME so it sees the same empty TOFU store.
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["tofu", "list", "--json"]);
+    let output = cmd.output().expect("CLI tofu list --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI tofu_list response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    assert_eq!(mcp_json["ok"], json!(true), "MCP envelope missing ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI envelope missing ok=true: {cli_json}");
+    assert_eq!(mcp_json["count"], json!(0), "MCP count should be 0 in empty store");
+    assert_eq!(cli_json["count"], json!(0), "CLI count should be 0 in empty store");
+
+    let ignore: HashSet<&'static str> = HashSet::new();
+    diff_json("tofu_list", &mcp_json, &cli_json, &ignore)
+        .expect("tofu_list parity");
+}
+
+// ---------------------------------------------------------------------------
 // T-1922: termlink_clean — MCP was returning `{cleaned_sessions: [String]}`
 // vs CLI's `{ok, action, count, sessions: [object]}`. Locked the shared
 // shape (ok, count, sessions array of objects). MCP-extra fields
