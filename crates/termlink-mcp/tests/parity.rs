@@ -682,6 +682,117 @@ async fn parity_discover() {
 }
 
 // ---------------------------------------------------------------------------
+// T-1926: kv full cycle — set → get → list → del.
+//
+// Locks the kv RPC envelope shapes against future drift. KV is heavily used
+// by callers; a shape regression here would silently break MCP integrations
+// that assume CLI-equivalent JSON.
+//
+// Uses multi_thread runtime per PL-199 (T-1911) — KV calls hit the session
+// over the unix socket; sync CLI subprocess would otherwise starve the
+// accept_loop task on a current_thread runtime.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_kv_full_cycle() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-kv");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    let (_handle, reg) = start_session(&dir.sessions_dir(), "parity-kv-sess", vec![]).await;
+    let session_name = reg.display_name.as_str();
+
+    let client = mcp_client().await;
+    let bin = find_termlink_bin().expect("find termlink binary");
+
+    // ts_ms and timestamp are non-deterministic fields some handlers may
+    // emit on responses. Strip uniformly across the four phases.
+    let ignore: HashSet<&'static str> = ["ts_ms", "timestamp"].into_iter().collect();
+
+    // Strategy: run the FULL MCP cycle first (set→get→list→del), then the
+    // FULL CLI cycle. Each side starts from an empty kv store and the
+    // intermediate del leaves it empty again. This makes `replaced=false`
+    // and `deleted=true` on both sides — value parity, not just shape parity.
+
+    // ---- MCP cycle ---------------------------------------------------------
+    let mcp_set = call_mcp(
+        &client,
+        "termlink_kv_set",
+        json!({"target": session_name, "key": "color", "value": "blue"}),
+    )
+    .await;
+    let mcp_set_json: Value = serde_json::from_str(&mcp_set)
+        .unwrap_or_else(|e| panic!("MCP kv_set response not JSON: {e}\nraw: {mcp_set}"));
+    let mcp_get = call_mcp(
+        &client,
+        "termlink_kv_get",
+        json!({"target": session_name, "key": "color"}),
+    )
+    .await;
+    let mcp_get_json: Value = serde_json::from_str(&mcp_get)
+        .unwrap_or_else(|e| panic!("MCP kv_get response not JSON: {e}\nraw: {mcp_get}"));
+    let mcp_list = call_mcp(
+        &client,
+        "termlink_kv_list",
+        json!({"target": session_name}),
+    )
+    .await;
+    let mcp_list_json: Value = serde_json::from_str(&mcp_list)
+        .unwrap_or_else(|e| panic!("MCP kv_list response not JSON: {e}\nraw: {mcp_list}"));
+    let mcp_del = call_mcp(
+        &client,
+        "termlink_kv_del",
+        json!({"target": session_name, "key": "color"}),
+    )
+    .await;
+    let mcp_del_json: Value = serde_json::from_str(&mcp_del)
+        .unwrap_or_else(|e| panic!("MCP kv_del response not JSON: {e}\nraw: {mcp_del}"));
+
+    // ---- CLI cycle (fresh state — MCP del cleared the store) ---------------
+    let cli_set_json = call_cli(
+        &bin,
+        &dir.path,
+        &["kv", session_name, "--json", "set", "color", "\"blue\""],
+    )
+    .expect("CLI kv set --json");
+    let cli_get_json = call_cli(
+        &bin,
+        &dir.path,
+        &["kv", session_name, "--json", "get", "color"],
+    )
+    .expect("CLI kv get --json");
+    let cli_list_json = call_cli(
+        &bin,
+        &dir.path,
+        &["kv", session_name, "--json", "list"],
+    )
+    .expect("CLI kv list --json");
+    let cli_del_json = call_cli(
+        &bin,
+        &dir.path,
+        &["kv", session_name, "--json", "del", "color"],
+    )
+    .expect("CLI kv del --json");
+
+    // ---- Envelope assertions -----------------------------------------------
+    for (name, j) in [
+        ("MCP kv_set", &mcp_set_json), ("MCP kv_get", &mcp_get_json),
+        ("MCP kv_list", &mcp_list_json), ("MCP kv_del", &mcp_del_json),
+        ("CLI kv set", &cli_set_json), ("CLI kv get", &cli_get_json),
+        ("CLI kv list", &cli_list_json), ("CLI kv del", &cli_del_json),
+    ] {
+        assert_eq!(j["ok"], json!(true), "{name} missing ok=true: {j}");
+    }
+
+    // ---- Pairwise shape diffs ----------------------------------------------
+    diff_json("kv_set", &mcp_set_json, &cli_set_json, &ignore).expect("kv_set parity");
+    diff_json("kv_get", &mcp_get_json, &cli_get_json, &ignore).expect("kv_get parity");
+    diff_json("kv_list", &mcp_list_json, &cli_list_json, &ignore).expect("kv_list parity");
+    diff_json("kv_del", &mcp_del_json, &cli_del_json, &ignore).expect("kv_del parity");
+
+    _handle.abort();
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------
