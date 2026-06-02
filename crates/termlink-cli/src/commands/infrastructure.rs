@@ -1238,15 +1238,27 @@ pub(crate) async fn cmd_tofu_verify(host: &str, json_output: bool) -> Result<()>
         };
 
     if json_output {
+        // T-1927: envelope aligned with MCP `termlink_tofu_verify`.
+        // - `ok` reflects pin-matches-wire (status=="match")
+        // - `actions` carries heal hints for drift cases (empty otherwise)
+        let ok = status == "match";
+        let actions: Vec<String> = if status == "drift" {
+            vec![
+                format!("Heal: termlink fleet reauth <profile-for-{}> --bootstrap-from auto", host),
+                format!("Re-pin: termlink tofu clear {}", host),
+            ]
+        } else { Vec::new() };
         println!(
             "{}",
             json!({
+                "ok": ok,
                 "address": host,
+                "status": status,
                 "wire": wire_fp,
                 "pinned": pinned,
                 "match": match_flag,
-                "status": status,
                 "probe_error": probe_err,
+                "actions": actions,
             })
         );
         return Ok(());

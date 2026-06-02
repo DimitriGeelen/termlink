@@ -793,6 +793,81 @@ async fn parity_kv_full_cycle() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 15: termlink_tofu_verify  /  termlink tofu verify <addr> --json
+//
+// T-1927 (PL-198 follow-up). Pre-convergence census:
+//   MCP `status="probe-fail"` vs CLI `status="probe-failed"`
+//   MCP `error` field vs CLI `probe_error` field
+//   MCP missing `match: bool|null` (CLI had it)
+//   MCP had `ok` + `actions` that CLI lacked
+//
+// Convergence: MCP renamed (probe-fail → probe-failed, error → probe_error)
+// + added `match`. CLI gained `ok` + `actions`. Both sides now emit
+// identical 8-key envelope: {ok, address, status, wire, pinned, match,
+// probe_error, actions}.
+//
+// Fixture strategy: use `127.0.0.1:1` (privileged port, refused). TCP
+// connect fails fast with ECONNREFUSED instead of waiting the full 10s
+// probe timeout. Both sides should return status="probe-failed" with
+// non-empty `probe_error`. We strip `probe_error` from the diff (the
+// underlying ConnRefused message is deterministic on Linux but we don't
+// want to lock against a libc string).
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn parity_tofu_verify_no_pin() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-tofu-verify");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+
+    // Pick an address guaranteed to fail TCP connect fast. Port 1 on
+    // loopback is privileged-but-refused on a stock Linux box (no
+    // server listening there). Probe will fail before TLS even starts.
+    let addr = "127.0.0.1:1";
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(&client, "termlink_tofu_verify", json!({"address": addr})).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP tofu_verify response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin().expect("find termlink binary");
+    // CLI: tofu verify exits non-zero on probe-failed (exit 3) so we
+    // use call_cli which tolerates non-zero. We also set HOME so both
+    // sides see the same (empty) ~/.termlink/known_hubs.
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.args(["tofu", "verify", addr, "--json"]);
+    let output = cmd.output().expect("CLI tofu verify --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI tofu_verify response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    // Spot-check the convergence: both sides report probe-failed.
+    assert_eq!(mcp_json["status"], json!("probe-failed"),
+        "MCP status should be 'probe-failed' (T-1927 rename from 'probe-fail'): {mcp_json}");
+    assert_eq!(cli_json["status"], json!("probe-failed"),
+        "CLI status should be 'probe-failed': {cli_json}");
+    assert_eq!(mcp_json["ok"], json!(false), "MCP ok should be false on probe-failed: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(false), "CLI ok should be false on probe-failed (T-1927 added): {cli_json}");
+    assert!(mcp_json["probe_error"].is_string(),
+        "MCP probe_error should be populated (T-1927 rename from 'error'): {mcp_json}");
+    assert!(cli_json["probe_error"].is_string(),
+        "CLI probe_error should be populated: {cli_json}");
+    assert!(mcp_json["actions"].is_array(), "MCP actions missing: {mcp_json}");
+    assert!(cli_json["actions"].is_array(), "CLI actions missing (T-1927 added): {cli_json}");
+
+    // Strip `probe_error` from the diff — the libc/tokio connect-error
+    // message text is environment-sensitive ("Connection refused
+    // (os error 111)" on Linux). We've already asserted it's populated
+    // on both sides above; locking the exact string buys nothing.
+    let ignore: HashSet<&'static str> = ["probe_error"].into_iter().collect();
+    diff_json("tofu_verify", &mcp_json, &cli_json, &ignore)
+        .expect("tofu_verify parity");
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE TEST: a hand-crafted diff MUST be detected as a parity failure.
 // Proves the harness's diff logic is not a no-op.
 // ---------------------------------------------------------------------------

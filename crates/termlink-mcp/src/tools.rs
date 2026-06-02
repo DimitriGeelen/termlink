@@ -12572,13 +12572,17 @@ impl TermLinkTools {
             &p.address, std::time::Duration::from_secs(10),
         ).await;
 
-        let (status, wire, error): (&str, Option<String>, Option<String>) = match probe_result {
+        // T-1927: envelope converged with CLI `tofu verify --json` shape.
+        // - status: "probe-failed" (NOT "probe-fail" — matches CLI)
+        // - probe_error: probe error message (renamed from `error`)
+        // - match: Some(bool) when probe succeeded, None when probe failed
+        let (status, wire, match_flag, probe_error): (&str, Option<String>, Option<bool>, Option<String>) = match probe_result {
             Ok((_, wire)) => match &pinned {
-                Some(pin) if pin == &wire => ("match", Some(wire), None),
-                Some(_) => ("drift", Some(wire), None),
-                None => ("no-pin", Some(wire), None),
+                Some(pin) if pin == &wire => ("match", Some(wire), Some(true), None),
+                Some(_) => ("drift", Some(wire), Some(false), None),
+                None => ("no-pin", Some(wire), None, None),
             },
-            Err(e) => ("probe-fail", None, Some(e)),
+            Err(e) => ("probe-failed", None, None, Some(e)),
         };
 
         let ok = status == "match";
@@ -12595,7 +12599,8 @@ impl TermLinkTools {
             "status": status,
             "wire": wire,
             "pinned": pinned,
-            "error": error,
+            "match": match_flag,
+            "probe_error": probe_error,
             "actions": actions,
         })).unwrap_or_else(json_err)
     }
