@@ -1132,6 +1132,75 @@ async fn parity_whoami_no_sessions() {
 }
 
 // ---------------------------------------------------------------------------
+// PAIR 23 (T-1935): termlink_whoami / termlink whoami --json populated-path
+// parity. One session registered, query via name_hint. T-1933 shipped the
+// empty-state test; this slice locks the LLM agent's actual production
+// flow — give it a name, get the identity card back. Per-process fields
+// (id, pid, uid, timestamps, socket_path, identity FP, cwd) are run-variant
+// and stripped before diff. The shape + display_name + ok-flag are what
+// stay locked.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parity_whoami_session_match() {
+    let _lock = ENV_LOCK.lock().await;
+    let dir = TestDir::new("parity-whoami-pop");
+    unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir.path) };
+    unsafe { std::env::set_var("HOME", &dir.path) };
+    unsafe { std::env::remove_var("TERMLINK_SESSION_ID") };
+    let (_handle, reg) = start_session(&dir.sessions_dir(), "parity-whoami-sess", vec![]).await;
+    let session_name = reg.display_name.as_str();
+
+    let client = mcp_client().await;
+    let mcp_raw = call_mcp(
+        &client,
+        "termlink_whoami",
+        json!({"name_hint": session_name}),
+    ).await;
+    let mcp_json: Value = serde_json::from_str(&mcp_raw)
+        .unwrap_or_else(|e| panic!("MCP whoami response not JSON: {e}\nraw: {mcp_raw}"));
+
+    let bin = find_termlink_bin_fresh().expect("find termlink binary (fresh)");
+    let mut cmd = termlink_cmd(&bin, &dir.path);
+    cmd.env("HOME", &dir.path);
+    cmd.env_remove("TERMLINK_SESSION_ID");
+    cmd.args(["whoami", "--name", session_name, "--json"]);
+    let output = cmd.output().expect("CLI whoami --name --json");
+    let cli_json: Value = serde_json::from_slice(&output.stdout)
+        .unwrap_or_else(|e| panic!("CLI whoami response not JSON: {e}\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)));
+
+    // Both sides MUST agree: found a session, display_name matches.
+    assert_eq!(mcp_json["ok"], json!(true), "MCP ok=true: {mcp_json}");
+    assert_eq!(cli_json["ok"], json!(true), "CLI ok=true: {cli_json}");
+    assert_eq!(mcp_json["session"]["display_name"], json!(session_name),
+        "MCP display_name: {mcp_json}");
+    assert_eq!(cli_json["session"]["display_name"], json!(session_name),
+        "CLI display_name: {cli_json}");
+
+    // Per-process / wall-clock / per-host fields stripped before structural
+    // diff. `posts_as` is intentionally stripped: T-1933 v1 omits the
+    // CLI-side `resolve_project_name_from` cwd→project resolver from MCP
+    // (see Decisions in T-1935 task file). The optional CLI enrichment
+    // does not block envelope parity.
+    let ignore: HashSet<&'static str> = [
+        "id", "pid", "uid", "age", "created_at", "heartbeat_at",
+        "socket_path", "metadata", "state", "capabilities",
+        "tags", "roles", "cwd",
+        "identity_fingerprint", "identity_shared_with",
+        "ts_ms", "timestamp",
+        "posts_as",
+    ]
+    .into_iter()
+    .collect();
+
+    diff_json("whoami_session_match", &mcp_json, &cli_json, &ignore)
+        .expect("whoami_session_match parity");
+    _handle.abort();
+}
+
+// ---------------------------------------------------------------------------
 // PAIR 21 (T-1934): termlink_tofu_clear --all / termlink tofu clear --all
 // Empty-store bulk wipe. Both sides must return `{ok: true, cleared: 0}`.
 // Pre-T-1934: MCP HAD NO --all branch (host required). T-1934 added the

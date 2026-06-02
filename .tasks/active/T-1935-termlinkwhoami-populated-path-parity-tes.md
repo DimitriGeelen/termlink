@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T22:00:31Z
-last_update: 2026-06-02T22:00:31Z
+last_update: 2026-06-02T22:01:32Z
 date_finished: null
 ---
 
@@ -43,12 +43,12 @@ module (separate slice). Document the choice in Decisions.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New test `parity_whoami_session_match` in tests/parity.rs registers one session via `start_session`, calls MCP `termlink_whoami({name_hint: "<display>"})` AND CLI `whoami --name <display> --json`
-- [ ] Both responses asserted `ok=true` + non-null `session.display_name` matching the registered name
-- [ ] `diff_json` passes after stripping per-process / wall-clock / per-host fields
-- [ ] If `posts_as` differs, decision recorded in `## Decisions` (ignore vs extract) — defer extraction to a follow-up task
-- [ ] Full parity suite passes (grows from 23 to 24)
-- [ ] `cargo build --release -p termlink-mcp` remains warning-free
+- [x] New test `parity_whoami_session_match` in tests/parity.rs registers one session, calls both sides with name_hint — tests/parity.rs PAIR 23
+- [x] Both responses asserted `ok=true` + matching `session.display_name` — explicit assertions in test
+- [x] `diff_json` passes after stripping per-process / wall-clock / per-host fields — `test parity_whoami_session_match ... ok`
+- [x] `posts_as` divergence detected and stripped via ignore-set; decision recorded in ## Decisions
+- [x] Full parity suite passes — `test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 429.01s`
+- [x] `cargo build --release -p termlink-mcp` remains warning-free — clean build, no warnings
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -120,14 +120,11 @@ cargo test --release -p termlink-mcp --test parity 2>&1 | grep -qE "test result:
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-06-02 — posts_as.from_project: strip in parity diff (don't extract resolver yet)
+
+- **Chose:** add `posts_as` to the parity test's ignore-set; do not extract `resolve_project_name_from` into a shared module
+- **Why:** the field is an optional CLI-side enrichment (driven by cwd→project lookup); LLM agents calling MCP get a complete identity card without it, and an MCP consumer that needs it can derive from the session's `cwd` field. Extracting the resolver costs ~80 LOC of refactor + a new shared crate dep direction for one optional field — value/cost ratio is unfavorable until a real MCP consumer needs it
+- **Rejected:** (a) extract resolver to shared crate — defer until a consumer asks; (b) duplicate the resolver into MCP — duplication risk drifts, currently nobody is asking. A T-1935 follow-up task can land the extraction if/when warranted
 
 ## Decision
 
