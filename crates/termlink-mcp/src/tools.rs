@@ -4184,16 +4184,16 @@ fn inject_pin_check(
 
 /// T-1708: pin-check summary verdict — mirror of CLI's fleet_doctor
 /// `pin_check_summary` (T-1666) and termlink_fleet_verify rollup. Pure
-/// fn so the precedence rules (drift > probe-fail > no-pin > match) are
+/// fn so the precedence rules (drift > probe-failed > no-pin > match) are
 /// unit-testable from `profiles` JSON without running real probes.
 fn aggregate_pin_check_summary(profiles: &[serde_json::Value]) -> serde_json::Value {
     let any_drift = profiles.iter().any(|p| p["status"] == "drift");
-    let any_probe_fail = profiles.iter().any(|p| p["status"] == "probe-fail");
+    let any_probe_fail = profiles.iter().any(|p| p["status"] == "probe-failed");
     let any_no_pin = profiles.iter().any(|p| p["status"] == "no-pin");
     let verdict = if any_drift {
         "drift"
     } else if any_probe_fail {
-        "probe-fail"
+        "probe-failed"
     } else if any_no_pin {
         "no-pin"
     } else {
@@ -6889,7 +6889,7 @@ pub struct FleetDoctorParams {
     /// clamped 1..=90). Ignored when `legacy_usage` is unset/false.
     pub legacy_window_days: Option<u64>,
     /// Opt-in: parallel TLS-probe every configured hub and report
-    /// per-profile pin status (match / drift / no-pin / probe-fail)
+    /// per-profile pin status (match / drift / no-pin / probe-failed)
     /// alongside auth diagnostics — single-call answer to
     /// "auth-mismatch OR cert-drift OR both?". Reuses the same primitives
     /// as `termlink_fleet_verify` so the two agree on rotation state.
@@ -7017,7 +7017,7 @@ pub(crate) fn derive_watch_conn_mcp(hub: &serde_json::Value) -> String {
 
 /// T-1713: classification of a single hub for auto-heal preview purposes.
 /// `pin_status` is the pin_check.status field ("match" / "drift" / "no-pin"
-/// / "probe-fail") or `None` when include_pin_check was off. `conn` is the
+/// / "probe-failed") or `None` when include_pin_check was off. `conn` is the
 /// output of `derive_watch_conn_mcp`. `has_bootstrap_from` is whether the
 /// hub profile declares `bootstrap_from` in hubs.toml.
 ///
@@ -7265,7 +7265,7 @@ pub struct FleetStatusParams {
 // T-1661: Fleet verify params (TLS pin drift check)
 #[derive(Deserialize, JsonSchema)]
 pub struct FleetVerifyParams {
-    /// If true, the verdict still surfaces no-pin/probe-fail but the
+    /// If true, the verdict still surfaces no-pin/probe-failed but the
     /// `ok` rollup field treats them as non-failures. Use when an agent
     /// only wants to flag actual rotation events.
     pub exit_on_drift_only: Option<bool>,
@@ -12581,7 +12581,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_verify",
-        description = "Probe every hub in ~/.termlink/hubs.toml via TLS handshake and compare wire fingerprint vs the stored TOFU pin. Pure read-only diagnostic: no authentication, no cert/secret mutation. Returns per-profile status (match / drift / no-pin / probe-fail) plus a fleet rollup verdict where drift dominates. Use to detect hub rotation BEFORE auth-bearing workloads fail."
+        description = "Probe every hub in ~/.termlink/hubs.toml via TLS handshake and compare wire fingerprint vs the stored TOFU pin. Pure read-only diagnostic: no authentication, no cert/secret mutation. Returns per-profile status (match / drift / no-pin / probe-failed) plus a fleet rollup verdict where drift dominates. Use to detect hub rotation BEFORE auth-bearing workloads fail."
     )]
     async fn termlink_fleet_verify(&self, Parameters(p): Parameters<FleetVerifyParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -12621,7 +12621,7 @@ impl TermLinkTools {
                     results.push(serde_json::json!({
                         "name": "<join-error>",
                         "address": "<unknown>",
-                        "status": "probe-fail",
+                        "status": "probe-failed",
                         "wire": serde_json::Value::Null,
                         "pinned": serde_json::Value::Null,
                         "error": format!("task panic: {e}"),
@@ -12636,7 +12636,7 @@ impl TermLinkTools {
                     Some(_) => ("drift", Some(wire), None),
                     None => ("no-pin", Some(wire), None),
                 },
-                Err(e) => ("probe-fail", None, Some(e)),
+                Err(e) => ("probe-failed", None, Some(e)),
             };
             results.push(serde_json::json!({
                 "name": name,
@@ -12649,10 +12649,10 @@ impl TermLinkTools {
         }
 
         let any_drift = results.iter().any(|r| r["status"] == "drift");
-        let any_probe_fail = results.iter().any(|r| r["status"] == "probe-fail");
+        let any_probe_fail = results.iter().any(|r| r["status"] == "probe-failed");
         let any_no_pin = results.iter().any(|r| r["status"] == "no-pin");
         let verdict = if any_drift { "drift" }
-            else if any_probe_fail { "probe-fail" }
+            else if any_probe_fail { "probe-failed" }
             else if any_no_pin { "no-pin" }
             else { "match" };
 
@@ -12773,7 +12773,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_tofu_verify",
-        description = "Probe a single hub via TLS and compare its wire fingerprint against the stored TOFU pin in `~/.termlink/known_hubs`. Pure read-only diagnostic: no authentication, no profile required, no `KnownHubStore` mutation. Returns status (match / drift / no-pin / probe-fail) plus heal hints when drift detected. Use for per-host rotation diagnosis when termlink_fleet_verify would be overkill or too slow."
+        description = "Probe a single hub via TLS and compare its wire fingerprint against the stored TOFU pin in `~/.termlink/known_hubs`. Pure read-only diagnostic: no authentication, no profile required, no `KnownHubStore` mutation. Returns status (match / drift / no-pin / probe-failed) plus heal hints when drift detected. Use for per-host rotation diagnosis when termlink_fleet_verify would be overkill or too slow."
     )]
     async fn termlink_tofu_verify(&self, Parameters(p): Parameters<TofuVerifyParams>) -> String {
         let store = termlink_session::tofu::KnownHubStore::default_store();
@@ -12784,7 +12784,7 @@ impl TermLinkTools {
         ).await;
 
         // T-1927: envelope converged with CLI `tofu verify --json` shape.
-        // - status: "probe-failed" (NOT "probe-fail" — matches CLI)
+        // - status: "probe-failed" (T-1927 convention, T-1937 universalized across rotation-protocol family)
         // - probe_error: probe error message (renamed from `error`)
         // - match: Some(bool) when probe succeeded, None when probe failed
         let (status, wire, match_flag, probe_error): (&str, Option<String>, Option<bool>, Option<String>) = match probe_result {
@@ -13028,7 +13028,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-fail) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'. Pass `topic_durability: true` (T-1709, MCP parity for CLI `--topic-durability`/T-1446) to also probe each hub's `hub.bus_state` and aggregate the G-050 durability verdict (DURABLE / VOLATILE / UNCERTAIN) in `bus_state_summary` — VOLATILE means the hub's runtime_dir lives on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-failed) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'. Pass `topic_durability: true` (T-1709, MCP parity for CLI `--topic-durability`/T-1446) to also probe each hub's `hub.bus_state` and aggregate the G-050 durability verdict (DURABLE / VOLATILE / UNCERTAIN) in `bus_state_summary` — VOLATILE means the hub's runtime_dir lives on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -13093,7 +13093,7 @@ impl TermLinkTools {
                             Some(_) => ("drift", Some(wire), pinned.clone(), None),
                             None => ("no-pin", Some(wire), None, None),
                         },
-                        Err(e) => ("probe-fail", None, pinned.clone(), Some(e)),
+                        Err(e) => ("probe-failed", None, pinned.clone(), Some(e)),
                     };
                     out.insert(address, entry);
                 }
@@ -34224,11 +34224,11 @@ YW\tJ
 
     #[test]
     fn fleet_doctor_pin_check_verdict_drift_dominates() {
-        // drift beats probe-fail beats no-pin beats match
+        // drift beats probe-failed beats no-pin beats match
         let profiles = vec![
             serde_json::json!({"name": "h1", "status": "match"}),
             serde_json::json!({"name": "h2", "status": "no-pin"}),
-            serde_json::json!({"name": "h3", "status": "probe-fail"}),
+            serde_json::json!({"name": "h3", "status": "probe-failed"}),
             serde_json::json!({"name": "h4", "status": "drift"}),
         ];
         let s = aggregate_pin_check_summary(&profiles);
@@ -34242,11 +34242,11 @@ YW\tJ
     fn fleet_doctor_pin_check_verdict_probe_fail_when_no_drift() {
         let profiles = vec![
             serde_json::json!({"name": "h1", "status": "match"}),
-            serde_json::json!({"name": "h2", "status": "probe-fail"}),
+            serde_json::json!({"name": "h2", "status": "probe-failed"}),
             serde_json::json!({"name": "h3", "status": "no-pin"}),
         ];
         let s = aggregate_pin_check_summary(&profiles);
-        assert_eq!(s["verdict"], "probe-fail");
+        assert_eq!(s["verdict"], "probe-failed");
         assert_eq!(s["any_drift"], false);
         assert_eq!(s["any_probe_fail"], true);
     }
@@ -35610,13 +35610,13 @@ not-json
     #[test]
     fn classify_auto_heal_preview_no_pin_or_probe_fail_is_not_drift() {
         // Only pin_status=="drift" counts as the cert-drift trigger.
-        // no-pin and probe-fail should NOT trigger an auto-heal preview.
+        // no-pin and probe-failed should NOT trigger an auto-heal preview.
         assert_eq!(
             classify_auto_heal_preview(Some("no-pin"), "ok", true),
             AutoHealAction::NoAction
         );
         assert_eq!(
-            classify_auto_heal_preview(Some("probe-fail"), "ok", true),
+            classify_auto_heal_preview(Some("probe-failed"), "ok", true),
             AutoHealAction::NoAction
         );
     }

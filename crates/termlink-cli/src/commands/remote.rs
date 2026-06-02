@@ -3830,7 +3830,7 @@ pub(crate) async fn cmd_fleet_doctor(
                         Some(_) => ("drift", Some(wire), pinned.clone(), None),
                         None => ("no-pin", Some(wire), None, None),
                     },
-                    Err(e) => ("probe-fail", None, pinned.clone(), Some(e)),
+                    Err(e) => ("probe-failed", None, pinned.clone(), Some(e)),
                 };
                 out.insert(address, entry);
             }
@@ -4117,7 +4117,7 @@ pub(crate) async fn cmd_fleet_doctor(
                         }
                     },
                     "no-pin" => no_pin_count += 1,
-                    "probe-fail" => probe_fail_count += 1,
+                    "probe-failed" => probe_fail_count += 1,
                     _ => {}
                 }
                 if let Some(obj) = hub_obj.as_object_mut() {
@@ -4126,12 +4126,12 @@ pub(crate) async fn cmd_fleet_doctor(
             }
         }
         let verdict = if drift_count > 0 { "drift" }
-            else if probe_fail_count > 0 { "probe-fail" }
+            else if probe_fail_count > 0 { "probe-failed" }
             else if no_pin_count > 0 { "no-pin" }
             else { "match" };
 
         if !json {
-            eprintln!("Pin check: {} (match={}, drift={}, no-pin={}, probe-fail={})",
+            eprintln!("Pin check: {} (match={}, drift={}, no-pin={}, probe-failed={})",
                 verdict, match_count, drift_count, no_pin_count, probe_fail_count);
             for (name, pinned, wire) in &drift_hubs {
                 let short = |s: &str| s.chars().skip(7).take(12).collect::<String>();  // "sha256:" + 12 chars
@@ -5763,7 +5763,7 @@ pub(crate) fn cmd_fleet_reauth(
 ///
 /// Probes every profile in `~/.termlink/hubs.toml` (parallel, 10s per-probe
 /// timeout via `probe_cert_with_timeout`), classifies each into
-/// match/drift/no-pin/probe-fail (same logic as `cmd_fleet_verify`), then for
+/// match/drift/no-pin/probe-failed (same logic as `cmd_fleet_verify`), then for
 /// every `drift` profile with a declared `bootstrap_from` it invokes the
 /// Tier-2 bootstrap heal. Per-profile failures do NOT abort the loop —
 /// operators want the rest of the fleet healed even if one heal fails.
@@ -5816,7 +5816,7 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
         let (probe_name, address, probe_result) = match handle.await {
             Ok(t) => t,
             Err(e) => {
-                rows.push((name.clone(), "probe-fail", "skip", format!("task panic: {e}")));
+                rows.push((name.clone(), "probe-failed", "skip", format!("task panic: {e}")));
                 any_failure = true;
                 continue;
             }
@@ -5830,7 +5830,7 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
                 Some(_) => "drift",
                 None => "no-pin",
             },
-            Err(_) => "probe-fail",
+            Err(_) => "probe-failed",
         };
 
         match status {
@@ -5840,7 +5840,7 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
             "no-pin" => {
                 rows.push((name.clone(), status, "n/a", "no entry in known_hubs".into()));
             }
-            "probe-fail" => {
+            "probe-failed" => {
                 let err = match probe_result {
                     Err(e) => e,
                     _ => "unreachable".into(),
@@ -5922,10 +5922,10 @@ pub(crate) async fn cmd_fleet_reauth_all() -> Result<()> {
 /// Verdict precedence (drift dominates):
 ///   match     — every reachable hub matches its pin
 ///   drift     — at least one hub rotated (heal required)
-///   probe-fail — at least one hub unreachable / TLS error (no drift)
-///   no-pin    — at least one hub not in KnownHubStore (no drift/probe-fail)
+///   probe-failed — at least one hub unreachable / TLS error (no drift)
+///   no-pin    — at least one hub not in KnownHubStore (no drift/probe-failed)
 ///
-/// Exit code mapping: match=0, drift=1, no-pin=2, probe-fail=3.
+/// Exit code mapping: match=0, drift=1, no-pin=2, probe-failed=3.
 /// `--exit-on-drift-only` collapses 2/3 to 0 (only page on actual rotation).
 pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Result<()> {
     let config = crate::config::load_hubs_config();
@@ -5999,7 +5999,7 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
                 results.push(ProfileResult {
                     name: "<join-error>".to_string(),
                     address: "<unknown>".to_string(),
-                    status: "probe-fail",
+                    status: "probe-failed",
                     wire: None,
                     pinned: None,
                     error: Some(format!("task panic: {e}")),
@@ -6014,19 +6014,19 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
                 Some(_) => ("drift", Some(wire), None),
                 None => ("no-pin", Some(wire), None),
             },
-            Err(e) => ("probe-fail", None, Some(e)),
+            Err(e) => ("probe-failed", None, Some(e)),
         };
         results.push(ProfileResult { name, address, status, wire, pinned, error });
     }
 
-    // Fleet rollup — drift > probe-fail > no-pin > match.
+    // Fleet rollup — drift > probe-failed > no-pin > match.
     let any_drift = results.iter().any(|r| r.status == "drift");
-    let any_probe_fail = results.iter().any(|r| r.status == "probe-fail");
+    let any_probe_fail = results.iter().any(|r| r.status == "probe-failed");
     let any_no_pin = results.iter().any(|r| r.status == "no-pin");
     let verdict = if any_drift {
         "drift"
     } else if any_probe_fail {
-        "probe-fail"
+        "probe-failed"
     } else if any_no_pin {
         "no-pin"
     } else {
@@ -6046,7 +6046,7 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
                 "match" => "pin matches wire".to_string(),
                 "drift" => "ROTATED — heal required".to_string(),
                 "no-pin" => "no entry in known_hubs".to_string(),
-                "probe-fail" => r.error.clone().unwrap_or_else(|| "unreachable".to_string()),
+                "probe-failed" => r.error.clone().unwrap_or_else(|| "unreachable".to_string()),
                 _ => String::new(),
             };
             println!("{:<24} {:<28} {:<11} {}", r.name, r.address, r.status, note);
@@ -6064,7 +6064,7 @@ pub(crate) async fn cmd_fleet_verify(json: bool, exit_on_drift_only: bool) -> Re
         "match" => 0,
         "drift" => 1,
         "no-pin" => if exit_on_drift_only { 0 } else { 2 },
-        "probe-fail" => if exit_on_drift_only { 0 } else { 3 },
+        "probe-failed" => if exit_on_drift_only { 0 } else { 3 },
         _ => 0,
     };
     if exit != 0 {
