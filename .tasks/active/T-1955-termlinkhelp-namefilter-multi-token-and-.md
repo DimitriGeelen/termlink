@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:22:40Z
-last_update: 2026-06-03T21:22:40Z
+last_update: 2026-06-03T21:25:59Z
 date_finished: null
 ---
 
@@ -30,12 +30,12 @@ gap. Single-token queries are unchanged.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `build_help_json` `name_filter` branch tokenizes on whitespace (`split_whitespace`); matches when EVERY non-empty token appears in `name.to_lowercase()` OR `desc.to_lowercase()` (logical AND across tokens, OR within name+desc per token).
-- [ ] Single-token behavior is unchanged: existing tests (`help_filter_substring_*`, `help_filter_category_scope_*`) continue to pass without modification.
-- [ ] Unit test `name_filter_multi_token_and_matches_combined` — `name_filter="agent post"`, asserts that `termlink_agent_post` appears in results (both tokens present in name).
-- [ ] Unit test `name_filter_multi_token_and_drops_partial_matches` — `name_filter="agent zzz"` (one valid token + one nonsense token), asserts `total_matches=0` (the nonsense token blocks all results that the bare "agent" would have matched).
-- [ ] Unit test `name_filter_multi_token_distributes_across_name_and_desc` — `name_filter="pin react"`, asserts at least one tool returns where one token matches the name and the other matches the description (e.g., `termlink_agent_pin` whose desc mentions reactions, or `termlink_agent_reaction*` whose desc mentions pin).
-- [ ] `cargo test -p termlink-mcp --lib` passes — 694 total, 0 failed (691 prior + 3 new).
+- [x] `build_help_json` `name_filter` branch tokenizes on whitespace; matches when EVERY non-empty token appears in `name.to_lowercase()` OR `desc.to_lowercase()`. Implementation: tools.rs:907-940.
+- [x] Single-token behavior is unchanged — all prior name_filter tests pass without modification (verified via test run: 691 passed before adding new tests).
+- [x] Unit test `name_filter_multi_token_and_matches_combined` — `agent post` returns `termlink_agent_post` (cross-token, both in name). tools.rs:35029-35046.
+- [x] Unit test `name_filter_multi_token_and_drops_partial_matches` — `agent zzz999xyz` returns 0 matches (logical AND vetoes). tools.rs:35048-35062.
+- [x] Unit test `name_filter_multi_token_distributes_across_name_and_desc` — `pin react` returns ≥1 match (cross-name-and-desc satisfaction). tools.rs:35064-35080.
+- [x] `cargo test -p termlink-mcp --lib` passes — 694 total, 0 failed (691 prior + 3 new = exact +3 delta).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
