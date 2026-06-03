@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:40:11Z
-last_update: 2026-06-03T20:40:11Z
+last_update: 2026-06-03T20:42:22Z
 date_finished: null
 ---
 
@@ -44,9 +44,12 @@ Pattern: append `(chat-arc)` to each, matching the T-1947 convention.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All 7 listed tools get `(chat-arc)` suffix appended to their help description
-- [ ] No new duplicate descriptions introduced (`awk` dedup count remains 0)
-- [ ] `cargo test -p termlink-mcp --lib` still passes 682
+- [x] All 7 listed tools get `(chat-arc)` suffix appended to their help description
+  - Evidence: commit `f9a98cf4` — agent_typing/ack_status/reaction_summary/top_reacted/top_replied/first_post_by/topic_metadata_history all now explicitly cite "chat-arc"
+- [x] No new duplicate descriptions introduced (`awk` dedup count remains 0)
+  - Evidence: `awk '/^fn help_categories/,/^}$/' ... | sort | uniq -d | wc -l` → `0`
+- [x] `cargo test -p termlink-mcp --lib` still passes 682
+  - Evidence: `test result: ok. 682 passed; 0 failed; 0 ignored; 0 measured`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
