@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T00:33:24Z
-last_update: 2026-06-03T00:33:24Z
+last_update: 2026-06-03T00:36:52Z
 date_finished: null
 ---
 
@@ -26,15 +26,15 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `agent_chat` category exists in `termlink_help` registry with at least `agent_post`, `agent_reply`, `agent_quote`, `agent_edit`, `agent_redact`, `agent_react`, `agent_pin`, `agent_star`, `chat_arc_broadcast`
-- [ ] `agent_read` category exists with at least `agent_recent`, `agent_on_thread`, `agent_threads`, `agent_history`, `agent_timeline`, `agent_digest`, `agent_search`
-- [ ] `agent_presence` category exists with at least `agent_presence_now`, `agent_listeners`, `agent_listeners_fleet`, `agent_peers`, `agent_who_is`, `agent_contact`, `agent_ping`, `recent_dm`
-- [ ] `agent_inbox` category exists with at least `agent_inbox`, `agent_unread`, `agent_dms`, `agent_ack`
-- [ ] `agent_thread` category exists with at least `agent_thread`, `agent_thread_authors`, `agent_thread_summary`, `agent_ancestors`, `agent_replies_of`, `agent_pin_history`, `agent_edits_of`
-- [ ] `agent_poll` category exists with `agent_poll_start`, `agent_poll_vote`, `agent_poll_end`
-- [ ] Unknown-category error message lists all 6 new categories
-- [ ] Tool description mentions the new categories so LLMs see them in tool-listing
-- [ ] `cargo build --release -p termlink-mcp` is warning-free
+- [x] `agent_chat` category exists in `termlink_help` registry with `agent_post`, `agent_reply`, `agent_quote`, `agent_forward`, `agent_edit`, `agent_redact`, `agent_react`, `agent_pin`, `agent_star`, `agent_describe`, `chat_arc_broadcast` — crates/termlink-mcp/src/tools.rs:11118-11129
+- [x] `agent_read` category exists with `agent_recent`, `agent_recent_window`, `agent_recent_dm`, `agent_on_thread`, `agent_threads`, `agent_history`, `agent_timeline`, `agent_digest`, `agent_search`, `agent_search_thread`, `agent_recent_decisions`, `agent_envelope`, `agent_chat_arc_recent`, `agent_redactions` — tools.rs:11130-11144
+- [x] `agent_presence` category exists with `agent_presence_now`, `agent_listeners`, `agent_listeners_fleet`, `agent_active_now`, `agent_active_in_thread`, `agent_peers`, `agent_who_is`, `agent_identity`, `agent_info`, `agent_state`, `agent_contact`, `agent_ping`, `agent_ask`, `listener_heartbeat`, `check_fleet_doorbell_mail_health` — tools.rs:11145-11160
+- [x] `agent_inbox` category exists with `agent_inbox`, `agent_unread`, `agent_dms`, `agent_mentions`, `agent_ack`, `agent_ack_history`, `agent_ack_status`, `agent_response_received` — tools.rs:11161-11169
+- [x] `agent_thread` category exists with `agent_thread`, `agent_thread_authors`, `agent_thread_summary`, `agent_thread_path`, `agent_thread_depth`, `agent_ancestors`, `agent_replies_of`, `agent_followups`, `agent_followups_to`, `agent_edits_of`, `agent_pin_history`, `agent_pinned`, `agent_pinned_history`, `agent_starred`, `agent_starred_history`, `agent_reactions`, `agent_relations` — tools.rs:11170-11187
+- [x] `agent_poll` category exists with `agent_poll_start`, `agent_poll_vote`, `agent_poll_end` — tools.rs:11188-11192
+- [x] Unknown-category error message lists all 6 new categories — tools.rs:11225
+- [x] Tool description mentions the new categories so LLMs see them in tool-listing — tools.rs:11041
+- [x] `cargo build --release -p termlink-mcp` is warning-free — verified 2026-06-03 (release build finished in 1m35s)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
