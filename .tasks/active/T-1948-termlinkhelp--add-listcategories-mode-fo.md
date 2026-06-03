@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:26:03Z
-last_update: 2026-06-03T20:26:03Z
+last_update: 2026-06-03T20:29:26Z
 date_finished: null
 ---
 
@@ -39,13 +39,20 @@ no meaningful composition (overview is overview).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` struct gets `list_categories: Option<bool>` field with rustdoc
-- [ ] `build_help_json` branches to category-list mode when set, returning `{categories: [{name, tool_count}, ...], total_categories, total_tools}`
-- [ ] `termlink_help` wrapper passes the new param through
-- [ ] Top-level `termlink_help` tool description mentions the new mode so LLMs discover it
-- [ ] Unit test: `help_list_categories_returns_just_counts` — verifies all 27 categories appear with correct counts and no per-tool fields
-- [ ] Unit test: `help_list_categories_overrides_filters` — verifies category/name_filter args are ignored when list_categories=true
-- [ ] `cargo test -p termlink-mcp --lib` passes 681 (679 + 2 new)
+- [x] `HelpParams` struct gets `list_categories: Option<bool>` field with rustdoc
+  - Evidence: `crates/termlink-mcp/src/tools.rs:7249` (5-line rustdoc explaining cold-start usage)
+- [x] `build_help_json` branches to category-list mode when set, returning `{categories: [{name, tool_count}, ...], total_categories, total_tools}`
+  - Evidence: `crates/termlink-mcp/src/tools.rs:576-592` (top-of-function short-circuit, new `list_categories: bool` param)
+- [x] `termlink_help` wrapper passes the new param through
+  - Evidence: `crates/termlink-mcp/src/tools.rs:11473-11474` (`p.list_categories.unwrap_or(false)` → `build_help_json(..., list_cats)`)
+- [x] Top-level `termlink_help` tool description mentions the new mode so LLMs discover it
+  - Evidence: `crates/termlink-mcp/src/tools.rs:11463` — description now says "Three modes" with explicit list_categories description (T-1948 marker)
+- [x] Unit test: `help_list_categories_returns_just_counts` — verifies all 27 categories appear with correct counts and no per-tool fields
+  - Evidence: `crates/termlink-mcp/src/tools.rs:34471` — uses real `help_categories()` (not fixture), asserts entry has `name`+`tool_count`, asserts no `tools`/`matches` leakage
+- [x] Unit test: `help_list_categories_overrides_filters` — verifies category/name_filter args are ignored when list_categories=true
+  - Evidence: `crates/termlink-mcp/src/tools.rs:34497` — passes nonsense category + nonsense needle, still gets full overview
+- [x] `cargo test -p termlink-mcp --lib` passes 681 (679 + 2 new)
+  - Evidence: `test result: ok. 681 passed; 0 failed; 0 ignored; 0 measured` — +2 from prior 679 baseline
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
