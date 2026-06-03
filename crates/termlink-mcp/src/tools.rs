@@ -907,15 +907,29 @@ fn build_help_json(
     let needle = name_filter.map(str::to_lowercase);
 
     if let Some(needle) = needle.as_deref() {
+        // T-1955: multi-token AND search. Split on whitespace into tokens;
+        // a tool matches when EVERY non-empty token appears somewhere in
+        // its name OR description. Single-token queries (no whitespace)
+        // collapse to the prior single-substring behavior — existing tests
+        // continue to pass unchanged. Closes the intent-search gap where
+        // LLMs querying `"send message"`, `"agent post"`, `"pin react"` etc.
+        // previously got empty/spurious results because the exact phrase
+        // rarely appears verbatim.
+        let tokens: Vec<&str> = needle.split_whitespace().collect();
         let mut matches: Vec<serde_json::Value> = Vec::new();
         for (cat_name, tools) in categories {
             if let Some(f) = category && *cat_name != f {
                 continue;
             }
             for (name, desc) in tools {
-                if name.to_lowercase().contains(needle)
-                    || desc.to_lowercase().contains(needle)
-                {
+                let name_lc = name.to_lowercase();
+                let desc_lc = desc.to_lowercase();
+                // Empty tokens slice = empty needle = match nothing (mirrors
+                // the prior `contains("")` behavior of matching everything is
+                // intentionally NOT preserved — empty queries are degenerate).
+                let all_match = !tokens.is_empty()
+                    && tokens.iter().all(|t| name_lc.contains(t) || desc_lc.contains(t));
+                if all_match {
                     matches.push(serde_json::json!({
                         "category": cat_name,
                         "name": name,
@@ -35038,6 +35052,58 @@ YW\tJ
         assert!(
             err.contains("list_categories") || err.contains("name_filter"),
             "error hint should mention a discovery mode: {err}"
+        );
+    }
+
+    #[test]
+    fn name_filter_multi_token_and_matches_combined() {
+        // T-1955: `agent post` should now match `termlink_agent_post` —
+        // both tokens present in the name. Before T-1955 this returned 0
+        // matches because the exact phrase "agent post" doesn't appear
+        // anywhere literally (the tool name has an underscore separator).
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("agent post"), false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let matches = v["matches"].as_array().expect("matches must be array");
+        let names: Vec<&str> = matches
+            .iter()
+            .filter_map(|m| m["name"].as_str())
+            .collect();
+        assert!(
+            names.contains(&"termlink_agent_post"),
+            "expected termlink_agent_post in multi-token results — got {names:?}"
+        );
+    }
+
+    #[test]
+    fn name_filter_multi_token_and_drops_partial_matches() {
+        // T-1955: logical AND semantics — adding a nonsense token to a
+        // valid one zeroes out all results. The bare token "agent" by
+        // itself would surface dozens of tools; pairing with "zzz999xyz"
+        // (no tool contains that string) reduces it to 0.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("agent zzz999xyz"), false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(
+            v["total_matches"], 0,
+            "nonsense token must veto all matches under logical-AND semantics; got {v}"
+        );
+    }
+
+    #[test]
+    fn name_filter_multi_token_distributes_across_name_and_desc() {
+        // T-1955: a token may match the name while another matches the
+        // description — `pin react` should surface at least one tool where
+        // these two intent words combine. `termlink_agent_pin` whose
+        // description references reactions OR `termlink_agent_react` whose
+        // description mentions pinning satisfies this.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("pin react"), false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let total = v["total_matches"].as_u64().unwrap_or(0);
+        assert!(
+            total >= 1,
+            "expected ≥1 match for cross-name-and-desc tokens; got {total}"
         );
     }
 
