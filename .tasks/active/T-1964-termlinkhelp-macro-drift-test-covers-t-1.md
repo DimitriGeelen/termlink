@@ -4,7 +4,7 @@ name: "termlink_help macro drift test covers T-1963 summary fields"
 description: >
   Extend the T-1962 drift-detection test to require the termlink_help macro description mentions T-1963's new fields: 'summary', 'total_deprecated', 'largest_categories', 'smallest_categories', 'deprecated_by_category'. Locks the schema-doc contract so future return-shape additions cannot ship without macro-text updates.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:38:36Z
-last_update: 2026-06-03T22:38:36Z
+last_update: 2026-06-03T22:40:13Z
 date_finished: null
 ---
 
@@ -30,11 +30,11 @@ mode + 5 new fields. Lock them in.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `help_macro_description_documents_post_t1953_fields` test extended with: `summary`, `total_deprecated`, `largest_categories`, `smallest_categories`, `deprecated_by_category`
-- [ ] Each new entry tagged with `T-1963` ticket reference for traceability
-- [ ] Test passes against current macro text (proves the T-1963 macro update was complete)
-- [ ] `cargo test --lib --package termlink-mcp -- help_macro_description` reports `1 passed`
-- [ ] Full suite passes — 714+ tests, 0 failed
+- [x] `help_macro_description_documents_post_t1953_fields` test extended — `tools.rs:35648-35657`
+- [x] Each new entry tagged with `T-1963` ticket reference — `("summary", "T-1963 (mode name)")`, `("total_deprecated", "T-1963")`, `("largest_categories", "T-1963")`, `("smallest_categories", "T-1963")`, `("deprecated_by_category", "T-1963")`
+- [x] Test passes against current macro text — `running 1 test ... test result: ok. 1 passed`
+- [x] `cargo test --lib --package termlink-mcp -- help_macro_description` reports `1 passed`
+- [x] Full suite passes — 714 tests, 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -131,3 +131,6 @@ cargo test --lib --package termlink-mcp -- help_macro_description 2>&1 | tail -1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1964-termlinkhelp-macro-drift-test-covers-t-1.md
 - **Context:** Initial task creation
+
+### 2026-06-03T22:39:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
