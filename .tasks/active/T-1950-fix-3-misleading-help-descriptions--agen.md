@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:35:19Z
-last_update: 2026-06-03T20:35:19Z
+last_update: 2026-06-03T20:37:21Z
 date_finished: null
 ---
 
@@ -51,11 +51,16 @@ sourced from the macro `description = …` text. Bounded — 3 lines.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_agent_digest` help description rewritten to describe period-summary semantics (not "fleet digest")
-- [ ] `termlink_agent_peers` help description rewritten to describe chat-arc participant directory (not "fleet")
-- [ ] `termlink_remote_doctor` help description rewritten to drop the misleading "fleet doctor" phrasing
-- [ ] `cargo test -p termlink-mcp --lib` still passes 682 (no regression)
-- [ ] All help/full cross-check mismatches found by the audit query are resolved (re-run the awk pipeline → 0 matches except the acceptable `termlink_fleet_status` case)
+- [x] `termlink_agent_digest` help description rewritten to describe period-summary semantics (not "fleet digest")
+  - Evidence: now reads `"Period summary of chat-arc (by_msg_type, top_senders, latest offsets)"` — matches macro `description = "Period summary on agent-chat-arc..."`. Commit `dbd36a67`
+- [x] `termlink_agent_peers` help description rewritten to describe chat-arc participant directory (not "fleet")
+  - Evidence: now reads `"Chat-arc participant directory (senders who have posted)"` — matches macro `description = "Participant directory for agent-chat-arc..."`. Commit `dbd36a67`
+- [x] `termlink_remote_doctor` help description rewritten to drop the misleading "fleet doctor" phrasing
+  - Evidence: now reads `"Health check on one remote hub (connectivity/sessions/inbox)"` — matches macro `description = "Health check a remote hub — connectivity, sessions, inbox status..."`. Commit `dbd36a67`
+- [x] `cargo test -p termlink-mcp --lib` still passes 682 (no regression)
+  - Evidence: `test result: ok. 682 passed; 0 failed; 0 ignored; 0 measured` — phantom/coverage/list_categories/unknown-cat invariants all still hold
+- [x] All help/full cross-check mismatches found by the audit query are resolved (re-run the awk pipeline → 0 matches except the acceptable `termlink_fleet_status` case)
+  - Evidence: re-running the keyword-mismatch awk pipeline now surfaces only `termlink_fleet_status` (description says "all configured hubs" which IS the fleet — acceptable). 3 previous mismatches no longer appear
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
