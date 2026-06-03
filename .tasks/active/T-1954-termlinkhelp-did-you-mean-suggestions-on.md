@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:15:54Z
-last_update: 2026-06-03T21:15:54Z
+last_update: 2026-06-03T21:20:55Z
 date_finished: null
 ---
 
@@ -29,13 +29,13 @@ makes the error self-correcting in one round-trip. Same pattern for
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New helper `nearest_tools(unknown, &all_names, limit)` and `nearest_categories(unknown, &cats, limit)` added to tools.rs — substring overlap + Levenshtein edit distance, sorted ascending by distance.
-- [ ] `tool_detail` unknown-tool error path now includes `did_you_mean: [...]` (up to 5 entries) in JSON alongside existing `error` hint.
-- [ ] `category=<unknown>` error path includes `did_you_mean: [...]` of nearest category names.
-- [ ] Unit test `tool_detail_unknown_includes_suggestions` — `tool_detail="termlink_post"`, asserts `did_you_mean` contains both `termlink_agent_post` and `termlink_channel_post` (substring match).
-- [ ] Unit test `tool_detail_typo_includes_suggestions` — `tool_detail="termlink_agent_recents"` (typo), asserts `did_you_mean` contains `termlink_agent_recent` (Levenshtein).
-- [ ] Unit test `category_unknown_includes_suggestions` — `category="chanel"`, asserts `did_you_mean` contains a `channel*` category.
-- [ ] `cargo test -p termlink-mcp --lib` passes — 691 total, 0 failed (688 prior + 3 new).
+- [x] New helpers added to tools.rs: `levenshtein()`, `tool_distance_score()` (with semantic-name substring boost — strips `termlink_` prefix before containment check), `nearest_tools()`, `nearest_categories()`. Implementation: tools.rs:749-820.
+- [x] `tool_detail` unknown-tool error path returns JSON `{error, did_you_mean: [...]}` (up to 5 entries). Implementation: tools.rs:842-852.
+- [x] `category=<unknown>` error path returns JSON `{error, did_you_mean: [...]}`. Implementation: tools.rs:899-913.
+- [x] Unit test `tool_detail_unknown_includes_suggestions` — `termlink_post` yields both `termlink_agent_post` and `termlink_channel_post` in did_you_mean (pure Levenshtein would have favored `termlink_ping` instead — substring boost validated). tools.rs:35028-35051.
+- [x] Unit test `tool_detail_typo_includes_suggestions` — `termlink_agent_recents` yields `termlink_agent_recent` (single-char typo, edit distance 1). tools.rs:35053-35069.
+- [x] Unit test `category_unknown_includes_suggestions` — `chanel` yields at least one `channel*` category. tools.rs:35071-35087.
+- [x] `cargo test -p termlink-mcp --lib` passes — 691 total, 0 failed (688 prior + 3 new = exact +3 delta).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
