@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T00:39:31Z
-last_update: 2026-06-03T00:39:31Z
+last_update: 2026-06-03T00:42:24Z
 date_finished: null
 ---
 
@@ -26,13 +26,13 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `channel` category exists in `termlink_help` with core primitives: `channel_create`, `channel_list`, `channel_post`, `channel_reply`, `channel_subscribe`, `channel_info`, `channel_describe`, `channel_snapshot`, `channel_state`, `channel_unread`, `channel_ack`
-- [ ] `channel_threading` category exists with `channel_thread`, `channel_threads`, `channel_ancestors`, `channel_replies_of`, `channel_quote`, `channel_quote_stats`, `channel_relations`
-- [ ] `channel_moderation` category exists with `channel_edit`, `channel_edits_of`, `channel_redact`, `channel_redactions`, `channel_pin`, `channel_pin_history`, `channel_pinned`, `channel_forward`, `channel_forwards_of`
-- [ ] `channel_engagement` category exists with `channel_react`, `channel_reactions_of`, `channel_reactions_on`, `channel_star`, `channel_starred`, `channel_mentions`, `channel_mentions_of`, `channel_search`, `channel_snippet`, `channel_digest`
-- [ ] Unknown-category error message lists all 4 new categories
-- [ ] Tool description mentions the new channel categories
-- [ ] `cargo build --release -p termlink-mcp` is warning-free
+- [x] `channel` category exists in `termlink_help` with core primitives + ack family — tools.rs:11117-11135
+- [x] `channel_threading` category exists with thread/quote/relations — tools.rs:11136-11144
+- [x] `channel_moderation` category exists with edit/redact/pin/forward — tools.rs:11145-11156
+- [x] `channel_engagement` category exists with react/star/search/mentions — tools.rs:11157-11169
+- [x] Unknown-category error message lists all 4 new categories — tools.rs:11295
+- [x] Tool description mentions the new channel categories — tools.rs:11041
+- [x] `cargo build --release -p termlink-mcp` is warning-free — verified 2026-06-03 (release build finished in 1m29s)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
