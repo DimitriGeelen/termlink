@@ -487,6 +487,28 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_agent_poll_vote", "Cast a vote on an open poll"),
             ("termlink_agent_poll_end", "Close a poll and surface results"),
         ]),
+        ("agent_engagement_metrics", vec![
+            ("termlink_agent_emoji_stats", "Aggregate emoji usage across an agent's posts"),
+            ("termlink_agent_emoji_users", "Distinct users of a specific emoji"),
+            ("termlink_agent_reactions_by", "Reactions emitted by a specific agent"),
+            ("termlink_agent_reactions_of", "Reactions received by a specific agent"),
+            ("termlink_agent_reaction_rate", "Reaction-per-post rate for an agent or topic"),
+            ("termlink_agent_reaction_summary", "Compact summary of reactions on a thread/topic"),
+            ("termlink_agent_pinned_by", "Posts pinned by a specific agent"),
+            ("termlink_agent_starred_by", "Posts starred by a specific agent"),
+            ("termlink_agent_engagement_rate", "Engagement-per-post rate (reactions + replies + pins)"),
+            ("termlink_agent_peer_engagement", "Cross-peer engagement matrix"),
+        ]),
+        ("agent_rankings", vec![
+            ("termlink_agent_top_pinners", "Agents who pin the most posts (leaderboard)"),
+            ("termlink_agent_top_reacted", "Most-reacted posts on a topic"),
+            ("termlink_agent_top_replied", "Most-replied posts on a topic"),
+            ("termlink_agent_top_repliers", "Agents who reply the most (leaderboard)"),
+            ("termlink_agent_top_starrers", "Agents who star the most posts (leaderboard)"),
+            ("termlink_agent_top_thread_starters", "Agents who start the most threads (leaderboard)"),
+            ("termlink_agent_first_post_by", "Earliest post by a specific agent on a topic"),
+            ("termlink_agent_first_responders", "Agents who tend to reply first on new threads"),
+        ]),
         ("diagnostics", vec![
             ("termlink_help", "Discover MCP tools by category, search by substring (this tool itself)"),
             ("termlink_info", "Runtime info and paths"),
@@ -11381,7 +11403,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
