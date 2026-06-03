@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:49:17Z
-last_update: 2026-06-03T15:49:17Z
+last_update: 2026-06-03T15:52:31Z
 date_finished: null
 ---
 
@@ -43,11 +43,16 @@ channel_queue_status, channel_poll_*).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All 18 Tier-1 entries added to `help_categories()` in the right category
-- [ ] Duplicate `termlink_agent_ask` removed from `diagnostics` (kept in `agent_presence`)
-- [ ] `cargo test -p termlink-mcp --lib help_` passes (including the T-1941 phantom guard, which verifies every NEW entry maps to a real tool)
-- [ ] `cargo build -p termlink-mcp` is warning-free
-- [ ] No duplicate tool names within `help_categories()` (single-occurrence invariant — assert via inline awk check, no new test)
+- [x] All 18 Tier-1 entries added to `help_categories()` in the right category
+  - Evidence: 5 diagnostics adds + 6 remote adds + 1 agent_read add (recent_dm) + 4 agent_presence adds + 2 agent_chat adds (typing/typers) in `crates/termlink-mcp/src/tools.rs` `help_categories()`
+- [x] Duplicate `termlink_agent_ask` removed from `diagnostics` (kept in `agent_presence`)
+  - Evidence: diagnostics block in `help_categories()` no longer lists agent_ask; still present in agent_presence
+- [x] `cargo test -p termlink-mcp --lib help_` passes (including the T-1941 phantom guard)
+  - Evidence: `test result: ok. 6 passed; 0 failed` — `help_registry_has_no_phantom_entries` would have failed if any of the 18 new names didn't resolve
+- [x] `cargo build -p termlink-mcp` is warning-free
+  - Evidence: `cargo build -p termlink-mcp 2>&1 | grep -E "warning|error"` returned empty
+- [x] No duplicate tool names within `help_categories()`
+  - Evidence: `awk '/^fn help_categories/,/^\}$/' tools.rs | grep -oE '"termlink_[a-z_]+",' | sort | uniq -c | awk '$1 > 1'` returned empty
 
 ## Verification
 
