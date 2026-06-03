@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T23:03:44Z
-last_update: 2026-06-02T23:39:39Z
+last_update: 2026-06-02T23:40:15Z
 date_finished: null
 ---
 
@@ -67,6 +67,16 @@ date_finished: null
 cargo test --release -p termlink-mcp --test parity 2>&1 | grep -qE "test result: ok\."
 
 ## RCA
+
+**Symptom:** Three rotation-protocol commands (`fleet_verify`, `fleet_doctor --include-pin-check`, `fleet_reauth_all`) emitted the status string `"probe-fail"` while sibling `tofu_verify` (converged in T-1927) emitted `"probe-failed"`. Operators and LLM consumers parsing rotation-protocol output had to handle BOTH strings depending on which verb produced the line.
+
+**Root cause:** When T-1927 converged `tofu_verify` on `"probe-failed"`, the sibling commands using the same conceptual status were not part of that slice. No structural mechanism existed to detect divergent status strings within a tool family — T-1927 was a per-verb fix, not a family-wide convention.
+
+**Why structurally allowed:** The parity harness validates per-pair envelope shapes (CLI vs MCP for the same verb), not cross-verb consistency within a family. There is no lint asserting "all rotation-protocol verbs use the same enumeration for analogous status states." Two valid envelope shapes can disagree on a status spelling and both still pass parity.
+
+**Prevention:** This RCA is informational — the convergence itself prevents the next user-facing instance. A family-level consistency lint (assert: rotation-protocol family status strings drawn from one enum) would be the structural prevention, but that's deferred until the family grows enough to justify the tooling cost. For now, the matched 24/24 parity test count plus the elimination grep (`! grep '"probe-fail"'`) in this task's Verification block guards regression.
+
+**Note on title-triggered classification:** The word "fail" in "probe-fail" triggered the G-019 bug-class gate even though this is alignment/convention work, not a bug fix. RCA is filled for substrate clarity rather than to document a defect.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
