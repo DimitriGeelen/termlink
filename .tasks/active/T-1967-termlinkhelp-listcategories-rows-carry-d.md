@@ -4,7 +4,7 @@ name: "termlink_help list_categories rows carry deprecated_count"
 description: >
   Enrich every list_categories row with deprecated_count: number — the count of deprecated tools in that category (derived from is_deprecated() on each tool's description). Composes with existing {name, tool_count, description} to complete the category-shape signal at discovery time. Drift-proof — derived live.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:49:06Z
-last_update: 2026-06-03T22:49:06Z
+last_update: 2026-06-03T22:51:39Z
 date_finished: null
 ---
 
@@ -30,13 +30,13 @@ LLM has to invoke summary mode (T-1963) or scan default mode. Adding
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every list_categories row includes `deprecated_count: number`
-- [ ] Value equals the count of tools in that category where `is_deprecated(desc)` returns true
-- [ ] Macro description mentions the new field per T-1962 drift-test contract
-- [ ] Drift test (T-1964) extended with `deprecated_count`
-- [ ] Invariant test: for every category, list_categories `deprecated_count` matches a parallel walk that counts is_deprecated() applications
-- [ ] Invariant test: sum of all `deprecated_count` values across list_categories rows equals `summary.total_deprecated` (cross-mode consistency)
-- [ ] Full suite passes — 718+ tests, 0 failed
+- [x] Every list_categories row includes `deprecated_count: number` — `crates/termlink-mcp/src/tools.rs:1101-1107` (filter+count loop) + `1112` (json key)
+- [x] Value equals `tools.iter().filter(|(_,d)| is_deprecated(d)).count()` — same site, single-source derivation
+- [x] Macro description updated for `list_categories` envelope — `tools.rs:12018` `{categories:[{name,tool_count,description,deprecated_count}], ...}`
+- [x] Drift test (T-1964) extended with `deprecated_count` — `tools.rs:35666-35671`
+- [x] Invariant test: `list_categories_rows_carry_deprecated_count` walks every row, recomputes, asserts equality — `tools.rs:35715-35759`
+- [x] Invariant test: `list_categories_deprecated_sum_matches_summary` asserts cross-mode arithmetic identity (sum of per-row == summary.total_deprecated) — `tools.rs:35761-35784`
+- [x] Full suite passes — 718 tests (+2 from 716), 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -134,3 +134,6 @@ cargo test --lib --package termlink-mcp -- list_categories_deprecated_sum_matche
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1967-termlinkhelp-listcategories-rows-carry-d.md
 - **Context:** Initial task creation
+
+### 2026-06-03T22:49:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
