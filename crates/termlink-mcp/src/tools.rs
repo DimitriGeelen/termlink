@@ -746,6 +746,83 @@ fn param_to_json(p: &ParamInfo) -> serde_json::Value {
     v
 }
 
+/// T-1954: classic two-row Levenshtein edit distance. Used by `nearest_tools`
+/// and `nearest_categories` to rank candidates by similarity to an unknown
+/// input. O(n*m) per pair; with ~252 tools averaging 20 chars, a single call
+/// is well under 100k ops — negligible against the JSON serialization cost.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let (n, m) = (a_chars.len(), b_chars.len());
+    if n == 0 {
+        return m;
+    }
+    if m == 0 {
+        return n;
+    }
+    let mut prev: Vec<usize> = (0..=m).collect();
+    let mut curr: Vec<usize> = vec![0; m + 1];
+    for i in 1..=n {
+        curr[0] = i;
+        for j in 1..=m {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1)
+                .min(curr[j - 1] + 1)
+                .min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[m]
+}
+
+/// T-1954: score a candidate against `unknown`. Strips the shared `termlink_`
+/// prefix to compare semantic names (the part the LLM actually cares about),
+/// then applies a strong containment boost: if either semantic name contains
+/// the other as substring, the score drops to 1 (regardless of length
+/// difference). Without this, pure Levenshtein favors short names — e.g.
+/// `termlink_post` ranks `termlink_ping` (lev=3) ahead of
+/// `termlink_agent_post` (lev=6), even though the latter is exactly what
+/// the LLM was reaching for.
+fn tool_distance_score(unknown: &str, candidate: &str) -> usize {
+    let u_strip = unknown.strip_prefix("termlink_").unwrap_or(unknown);
+    let c_strip = candidate.strip_prefix("termlink_").unwrap_or(candidate);
+    if !u_strip.is_empty()
+        && !c_strip.is_empty()
+        && (c_strip.contains(u_strip) || u_strip.contains(c_strip))
+    {
+        return 1;
+    }
+    levenshtein(unknown, candidate)
+}
+
+/// T-1954: rank all tool names from `help_categories()` by `tool_distance_score`
+/// and return the top `limit` names. Used in the `tool_detail` unknown-tool
+/// error path to seed a `did_you_mean` array so LLM consumers self-correct
+/// in one round-trip.
+fn nearest_tools(unknown: &str, categories: &[(&str, Vec<(&str, &str)>)], limit: usize) -> Vec<String> {
+    let mut scored: Vec<(usize, &str)> = Vec::new();
+    for (_, tools) in categories {
+        for (name, _) in tools {
+            let d = tool_distance_score(unknown, name);
+            scored.push((d, *name));
+        }
+    }
+    scored.sort_by_key(|(d, name)| (*d, name.len()));
+    scored.into_iter().take(limit).map(|(_, n)| n.to_string()).collect()
+}
+
+/// T-1954: rank category names from `help_categories()` by Levenshtein
+/// distance to `unknown`. Used by the `category=<unknown>` error path so the
+/// LLM gets typo suggestions instead of having to flip to `list_categories`.
+fn nearest_categories(unknown: &str, categories: &[(&str, Vec<(&str, &str)>)], limit: usize) -> Vec<String> {
+    let mut scored: Vec<(usize, &str)> = categories
+        .iter()
+        .map(|(name, _)| (levenshtein(unknown, name), *name))
+        .collect();
+    scored.sort_by_key(|(d, name)| (*d, name.len()));
+    scored.into_iter().take(limit).map(|(_, n)| n.to_string()).collect()
+}
+
 /// T-1940: shared filter logic for `termlink_help` so it's directly unit-testable
 /// without standing up the full MCP server. `category` scopes which categories
 /// are considered; `name_filter` triggers flat substring search across each
@@ -795,9 +872,18 @@ fn build_help_json(
             });
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
-        return json_err(format!(
-            "Unknown tool '{target}'. Use `list_categories=true` to browse categories, or `name_filter` to search by substring."
-        ));
+        // T-1954: self-correcting error — include `did_you_mean` suggestions
+        // (up to 5 nearest tool names by Levenshtein) so an LLM that mis-spelled
+        // or partially-named a tool gets the correct identifier without a
+        // follow-up `list_categories` call.
+        let suggestions = nearest_tools(target, categories, 5);
+        let err_obj = serde_json::json!({
+            "error": format!(
+                "Unknown tool '{target}'. Use `list_categories=true` to browse categories, or `name_filter` to search by substring."
+            ),
+            "did_you_mean": suggestions,
+        });
+        return serde_json::to_string_pretty(&err_obj).unwrap_or_else(json_err);
     }
 
     if list_categories {
@@ -877,11 +963,18 @@ fn build_help_json(
         // the function walks, so the hint cannot drift from `help_categories()`.
         // Prior hard-coded list silently went stale at T-1943/44/45 (6 missing).
         let available: Vec<&str> = categories.iter().map(|(name, _)| *name).collect();
-        return json_err(format!(
-            "Unknown category '{}'. Available: {}",
-            category.unwrap(),
-            available.join(", ")
-        ));
+        let unknown_name = category.unwrap();
+        // T-1954: include `did_you_mean` (5 nearest categories by Levenshtein)
+        // so typos like "chanel" -> "channel" resolve in one round-trip.
+        let suggestions = nearest_categories(unknown_name, categories, 5);
+        let err_obj = serde_json::json!({
+            "error": format!(
+                "Unknown category '{unknown_name}'. Available: {}",
+                available.join(", ")
+            ),
+            "did_you_mean": suggestions,
+        });
+        return serde_json::to_string_pretty(&err_obj).unwrap_or_else(json_err);
     }
 
     result["total_tools"] = serde_json::json!(tool_count);
@@ -34945,6 +35038,66 @@ YW\tJ
         assert!(
             err.contains("list_categories") || err.contains("name_filter"),
             "error hint should mention a discovery mode: {err}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_unknown_includes_suggestions() {
+        // T-1954: passing a near-miss tool name (`termlink_post` — common
+        // partial that LLMs guess) must surface `did_you_mean` with the
+        // closest real candidates by Levenshtein distance. Eliminates the
+        // round-trip where an LLM has to fall back to name_filter='post'.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_post"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert!(v["error"].is_string(), "error must populate");
+        let suggestions = v["did_you_mean"]
+            .as_array()
+            .expect("did_you_mean must be present as array");
+        let names: Vec<&str> = suggestions.iter().filter_map(|x| x.as_str()).collect();
+        assert!(
+            names.contains(&"termlink_agent_post"),
+            "did_you_mean should include termlink_agent_post — got {names:?}"
+        );
+        assert!(
+            names.contains(&"termlink_channel_post"),
+            "did_you_mean should include termlink_channel_post — got {names:?}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_typo_includes_suggestions() {
+        // T-1954: pure typo (single-char edit) must surface the correct tool
+        // at the top of did_you_mean. `termlink_agent_recents` → expected
+        // `termlink_agent_recent` at distance 1.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_recents"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let suggestions = v["did_you_mean"]
+            .as_array()
+            .expect("did_you_mean must be present as array");
+        let names: Vec<&str> = suggestions.iter().filter_map(|x| x.as_str()).collect();
+        assert!(
+            names.contains(&"termlink_agent_recent"),
+            "did_you_mean must surface termlink_agent_recent for a single-char typo — got {names:?}"
+        );
+    }
+
+    #[test]
+    fn category_unknown_includes_suggestions() {
+        // T-1954: typo'd category (`chanel` → `channel*`) must surface a
+        // channel-family category in did_you_mean.
+        let cats = help_categories();
+        let out = build_help_json(&cats, Some("chanel"), None, false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert!(v["error"].is_string(), "error must populate");
+        let suggestions = v["did_you_mean"]
+            .as_array()
+            .expect("did_you_mean must be present as array");
+        let names: Vec<&str> = suggestions.iter().filter_map(|x| x.as_str()).collect();
+        assert!(
+            names.iter().any(|n| n.contains("channel")),
+            "did_you_mean must surface at least one channel-family category — got {names:?}"
         );
     }
 
