@@ -888,6 +888,59 @@ fn related_tools(target: &str, categories: &[(&str, Vec<(&str, &str)>)], limit: 
     out
 }
 
+/// T-1959: find cross-category tools sharing the same trailing verb (last
+/// `_`-separated segment) as `target`. Complements `related_tools` (which
+/// only finds same-domain siblings sharing the first-3-segment prefix). For
+/// `termlink_agent_post`, returns `[termlink_channel_post, termlink_broadcast?]`
+/// (cross-domain verb mates) but NOT `termlink_agent_reply` (already in
+/// `related_tools`).
+///
+/// **Count-bound noise gate.** Common-verb suffixes like `_status` (7+ uses),
+/// `_list`, `_start`, `_get`, `_set` are so widely shared that surfacing the
+/// whole family adds noise rather than signal. When the cognate set exceeds
+/// `max_count`, the function returns an empty Vec — the caller must treat
+/// "empty" as "skip the field" (so the LLM sees absence, not noise).
+///
+/// "Different first segment" guards against intra-domain dupes: a target's
+/// own family (already in `related_tools`) should not also appear here.
+/// `termlink` is the universal first segment for these tools, so we actually
+/// compare the SECOND segment (the domain prefix: `agent`, `channel`, `hub`).
+fn verb_cognates(target: &str, categories: &[(&str, Vec<(&str, &str)>)], max_count: usize) -> Vec<String> {
+    let segs: Vec<&str> = target.split('_').collect();
+    if segs.len() < 3 {
+        // Single-segment targets (`termlink_run`) and two-segment targets
+        // (`termlink_ping`) have no domain to differentiate from. Cognates
+        // are not meaningful here.
+        return Vec::new();
+    }
+    let target_verb = *segs.last().expect("checked len above");
+    let target_domain = segs[1]; // index 1 = domain (segs[0] is always "termlink")
+
+    let mut cognates: Vec<String> = Vec::new();
+    for (_, tools) in categories {
+        for (name, _) in tools {
+            if *name == target {
+                continue;
+            }
+            let other_segs: Vec<&str> = name.split('_').collect();
+            if other_segs.len() < 3 {
+                continue;
+            }
+            let other_verb = *other_segs.last().unwrap();
+            let other_domain = other_segs[1];
+            if other_verb == target_verb && other_domain != target_domain {
+                cognates.push((*name).to_string());
+            }
+        }
+    }
+    // Noise gate: if the cognate family is too large, the verb itself isn't
+    // distinctive enough — return empty so the caller omits the field.
+    if cognates.len() > max_count {
+        return Vec::new();
+    }
+    cognates
+}
+
 /// T-1954: rank category names from `help_categories()` by Levenshtein
 /// distance to `unknown`. Used by the `category=<unknown>` error path so the
 /// LLM gets typo suggestions instead of having to flip to `list_categories`.
@@ -942,7 +995,15 @@ fn build_help_json(
             // T-1956: include sibling tools (same 3-segment name prefix) so
             // the LLM sees the verb family without a second round-trip.
             let related = related_tools(target, categories, 10);
-            let out = serde_json::json!({
+            // T-1959: include cross-category verb cognates — tools sharing
+            // the trailing verb but in a different domain (e.g. `agent_post`
+            // → `channel_post`, `broadcast`). Field is omitted when the verb
+            // family exceeds the noise gate (common-verb suffixes like
+            // `_status`, `_list`); the LLM should treat absence as "no
+            // useful cognates", distinct from `related_tools` whose presence
+            // is unconditional. Cap at 5 — gate fires above that.
+            let cognates = verb_cognates(target, categories, 5);
+            let mut out = serde_json::json!({
                 "tool": target,
                 "name": target,
                 "category": cat,
@@ -951,6 +1012,9 @@ fn build_help_json(
                 "parameters": params,
                 "related_tools": related,
             });
+            if !cognates.is_empty() {
+                out["verb_cognates"] = serde_json::json!(cognates);
+            }
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
         // T-1958: if the target matches a known category name, the LLM most
@@ -35260,6 +35324,75 @@ YW\tJ
             !names.contains(&"termlink_agent_post"),
             "related_tools must exclude the target itself — got {names:?}"
         );
+    }
+
+    #[test]
+    fn verb_cognates_finds_cross_category_post() {
+        // T-1959: for `termlink_agent_post`, verb_cognates should surface
+        // `termlink_channel_post` (cross-domain verb mate) and must NOT
+        // contain `termlink_agent_*` siblings (those belong in related_tools).
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let cognates = v["verb_cognates"]
+            .as_array()
+            .expect("verb_cognates must be present for low-cardinality verb families");
+        let names: Vec<&str> = cognates.iter().filter_map(|n| n.as_str()).collect();
+        assert!(
+            names.contains(&"termlink_channel_post"),
+            "verb_cognates must surface termlink_channel_post — got {names:?}"
+        );
+        for n in &names {
+            // No intra-domain mates — those belong in related_tools.
+            assert!(
+                !n.starts_with("termlink_agent_"),
+                "verb_cognates must exclude same-domain siblings (agent_*) — got {n}"
+            );
+        }
+    }
+
+    #[test]
+    fn verb_cognates_omits_common_verb() {
+        // T-1959: `_status` is shared across hub/inbox/fleet/dispatch/remote_inbox/
+        // channel_queue families — at least 6 distinct uses. The noise gate
+        // (>5 cognates) must omit the field entirely so the LLM doesn't
+        // receive a noisy listing of every domain's status verb.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_hub_status"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert!(
+            v["verb_cognates"].is_null(),
+            "verb_cognates must be omitted when verb family exceeds noise gate — got {:?}",
+            v["verb_cognates"]
+        );
+        // Sanity: related_tools (intra-domain) should still be present.
+        assert!(
+            v["related_tools"].is_array(),
+            "related_tools must remain present even when verb_cognates is omitted"
+        );
+    }
+
+    #[test]
+    fn verb_cognates_never_includes_self() {
+        // T-1959: even when the verb family is small enough to surface,
+        // self-reference is invalid. Sweep over every tool with verb_cognates
+        // present and assert exclusion.
+        let cats = help_categories();
+        let names: Vec<&str> = cats
+            .iter()
+            .flat_map(|(_, tools)| tools.iter().map(|(n, _)| *n))
+            .collect();
+        for target in names {
+            let out = build_help_json(&cats, None, None, false, Some(target));
+            let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+            if let Some(arr) = v["verb_cognates"].as_array() {
+                let cog_names: Vec<&str> = arr.iter().filter_map(|n| n.as_str()).collect();
+                assert!(
+                    !cog_names.contains(&target),
+                    "verb_cognates for {target} must exclude self — got {cog_names:?}"
+                );
+            }
+        }
     }
 
     #[test]
