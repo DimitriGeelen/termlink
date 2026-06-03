@@ -4,7 +4,7 @@ name: "termlink_help essentials=true mode — canonical entry-point per category
 description: >
   Add essentials=true mode to termlink_help returning the first non-deprecated tool of each category as a flat list. Auto-derived from help_categories() registry order — drift-proof. Gives MCP clients a focused starter set (~27 tools out of 252) for cold-start learning without curating an essentials list manually.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T23:01:48Z
-last_update: 2026-06-03T23:01:48Z
+last_update: 2026-06-03T23:08:47Z
 date_finished: null
 ---
 
@@ -32,17 +32,17 @@ starter set auto-derived from registry order.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams.essentials: Option<bool>` field added with struct doc
-- [ ] `build_help_json` handles `essentials=true` returning `{essentials: [{name, category, description}], total}`
-- [ ] Each entry is the FIRST non-deprecated tool of its category (registry order)
-- [ ] Categories whose tools are ALL deprecated are skipped (no row emitted)
-- [ ] `essentials` mode is in precedence order: tool_detail > essentials > summary > list_categories > name_filter
-- [ ] Macro description mentions `essentials` mode + return shape (T-1962 drift-test contract)
-- [ ] Drift test (T-1964) extended with `essentials`
-- [ ] Invariant test: no entry has `deprecated=true`
-- [ ] Invariant test: each category contributes ≤1 entry
-- [ ] Invariant test: every entry's name is a real tool in `help_categories()`
-- [ ] Full suite passes — 721+ tests, 0 failed
+- [x] `HelpParams.essentials: Option<bool>` field added with struct doc — `crates/termlink-mcp/src/tools.rs:7837-7846`
+- [x] `build_help_json` handles `essentials=true` returning `{essentials: [{name, category, description}], total}` — `tools.rs:1070-1087`
+- [x] Each entry is the FIRST non-deprecated tool of its category — `tools.rs:1074` uses `tools.iter().find(|(_, d)| !is_deprecated(d))`
+- [x] Categories whose tools are ALL deprecated are skipped — `find()` returns None → category contributes no row; verified by `help_essentials_skips_all_deprecated_categories`
+- [x] `essentials` mode in precedence order (essentials > summary > list_categories > name_filter, below tool_detail) — `tools.rs:1070` branch placed before summary branch; verified by `help_essentials_takes_precedence_over_summary_and_lower`
+- [x] Macro description updated for `essentials` mode + return shape — `tools.rs:12028` "Six modes: ... (6) essentials=true returns ..."
+- [x] Drift test (T-1964) extended with `essentials` — `tools.rs:35741-35742`
+- [x] Invariant test: no entry has `deprecated=true` — `help_essentials_picks_one_non_deprecated_per_category` walks every emitted row and asserts `!is_deprecated(desc)` (`tools.rs:35810-35850`)
+- [x] Invariant test: each category contributes ≤1 entry — same test uses `seen_cats.insert()` and asserts the insertion was new
+- [x] Invariant test: every entry's name is a real tool — both `help_essentials_picks_one_non_deprecated_per_category` AND `help_essentials_first_non_deprecated_in_registry_order` cross-look-up the registry by name and panic on miss
+- [x] Full suite passes — 722 tests (+4 from 718), 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -139,3 +139,6 @@ cargo test --lib --package termlink-mcp -- help_essentials 2>&1 | tail -5 | grep
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1968-termlinkhelp-essentialstrue-mode--canoni.md
 - **Context:** Initial task creation
+
+### 2026-06-03T23:02:37Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
