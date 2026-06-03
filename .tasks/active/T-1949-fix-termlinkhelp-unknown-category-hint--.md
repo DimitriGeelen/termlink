@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:30:53Z
-last_update: 2026-06-03T20:30:53Z
+last_update: 2026-06-03T20:33:04Z
 date_finished: null
 ---
 
@@ -38,9 +38,12 @@ update in the error string. Fix: derive the hint from `help_categories()`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Hard-coded category list in `build_help_json` unknown-category error replaced with a derivation from the `categories` slice (same source the function already walks)
-- [ ] Unit test: `help_unknown_category_hint_lists_all_real_categories` — verifies the error hint mentions every category present in `help_categories()`, dynamically (no hard-coded list in the test either)
-- [ ] `cargo test -p termlink-mcp --lib` passes 682 (681 + 1 new)
+- [x] Hard-coded category list in `build_help_json` unknown-category error replaced with a derivation from the `categories` slice (same source the function already walks)
+  - Evidence: `crates/termlink-mcp/src/tools.rs:647-657` — `let available: Vec<&str> = categories.iter().map(|(name, _)| *name).collect();` + `available.join(", ")`. Commit `a879d58d`
+- [x] Unit test: `help_unknown_category_hint_lists_all_real_categories` — verifies the error hint mentions every category present in `help_categories()`, dynamically (no hard-coded list in the test either)
+  - Evidence: `crates/termlink-mcp/src/tools.rs:34472` — walks `help_categories()` and asserts each cat name appears in `err`. Test passes.
+- [x] `cargo test -p termlink-mcp --lib` passes 682 (681 + 1 new)
+  - Evidence: `test result: ok. 682 passed; 0 failed; 0 ignored; 0 measured` — +1 from prior 681 baseline
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
