@@ -12012,7 +12012,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Four modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description in one round-trip, closing the 3-step pattern (T-1952). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count,description}], total_categories, total_tools}` — the per-category one-line `description` (T-1957) lets you route at category-discovery time without drilling in. `tool_detail` returns `{tool, name, category, short_description, full_description}` or an error with a discovery hint when the tool is unknown."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Four modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,name,description,deprecated}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count,description}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time. `tool_detail` returns `{tool, name, category, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35551,6 +35551,45 @@ YW\tJ
         assert!(
             any_flagged,
             "inbox name_filter must surface at least one deprecated match — got {arr:?}"
+        );
+    }
+
+    #[test]
+    fn help_macro_description_documents_post_t1953_fields() {
+        // T-1962: drift-detection — the termlink_help #[tool(description=...)]
+        // macro string is the schema documentation LLMs see at discovery time.
+        // T-1953..T-1961 added fields to return envelopes; the description must
+        // mention each one so consumers can rely on the schema. Sweep the
+        // source for the macro string and assert all expected field names appear.
+        let src = include_str!("./tools.rs");
+        // Locate the termlink_help #[tool(...)] block. Anchor on the unique
+        // `name = "termlink_help"` literal, then walk to the closing `)]`.
+        let anchor = src
+            .find("name = \"termlink_help\"")
+            .expect("termlink_help #[tool(name=...)] must exist");
+        let tail = &src[anchor..];
+        let close = tail
+            .find(")]")
+            .expect("termlink_help #[tool(...)] must close with )]");
+        let macro_block = &tail[..close];
+
+        let required_fields: &[(&str, &str)] = &[
+            ("parameters", "T-1953"),
+            ("verb_cognates", "T-1959"),
+            ("category_hint", "T-1958"),
+            ("deprecated", "T-1960/T-1961"),
+            ("description", "T-1957 (per-category)"),
+        ];
+        let mut missing: Vec<&str> = Vec::new();
+        for (field, _ticket) in required_fields {
+            if !macro_block.contains(field) {
+                missing.push(field);
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "termlink_help macro description missing field references: {missing:?}\n\
+             Each entry is a field LLMs should see documented at schema-discovery time."
         );
     }
 
