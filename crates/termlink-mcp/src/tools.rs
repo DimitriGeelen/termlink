@@ -1146,10 +1146,19 @@ fn build_help_json(
         let mut total_tools = 0usize;
         for (cat_name, tools) in categories {
             let desc = descriptions.get(cat_name).copied().unwrap_or("");
+            // T-1967: per-category deprecated_count completes the shape
+            // signal at discovery time. Composes with summary-mode's
+            // `deprecated_by_category` (same data, different shape) — the
+            // cross-mode-consistency invariant test locks them together.
+            let dep_count = tools
+                .iter()
+                .filter(|(_, d)| is_deprecated(d))
+                .count();
             cats_json.push(serde_json::json!({
                 "name": cat_name,
                 "tool_count": tools.len(),
                 "description": desc,
+                "deprecated_count": dep_count,
             }));
             total_tools += tools.len();
         }
@@ -12098,7 +12107,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Five modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10). `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Five modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10). `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35682,6 +35691,12 @@ YW\tJ
             // a broken self-description.
             ("category_description", "T-1965"),
             ("category_tool_count", "T-1965"),
+            // T-1967: per-row deprecated_count in list_categories. The
+            // bare `deprecated` token is already in the required list for
+            // T-1960/T-1961 (deprecated flag); adding the suffixed form
+            // catches the case where someone replaces only the bare flag
+            // and leaves the per-row count documentation broken.
+            ("deprecated_count", "T-1967"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -35745,6 +35760,74 @@ YW\tJ
             inbox_status["deprecated"].as_bool(),
             Some(true),
             "termlink_inbox_status row must be flagged deprecated in default mode"
+        );
+    }
+
+    #[test]
+    fn list_categories_rows_carry_deprecated_count() {
+        // T-1967: every list_categories row must carry `deprecated_count`
+        // equal to a parallel walk that counts is_deprecated() applications
+        // for that category's tools. Locks the per-row arithmetic against
+        // a future regression where the filter predicate diverges from the
+        // shared `is_deprecated()` source-of-truth.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, true, None, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let arr = v["categories"]
+            .as_array()
+            .expect("list_categories must return `categories` array");
+        let mut errors: Vec<String> = Vec::new();
+        for entry in arr {
+            let name = entry["name"]
+                .as_str()
+                .unwrap_or_else(|| panic!("list_categories row missing name: {entry:?}"));
+            let dc = entry["deprecated_count"].as_u64().unwrap_or(u64::MAX);
+            if dc == u64::MAX {
+                errors.push(format!("{name}: deprecated_count missing or non-numeric"));
+                continue;
+            }
+            // Look up the same category in the registry and recompute
+            let (_, tools) = cats
+                .iter()
+                .find(|(n, _)| *n == name)
+                .unwrap_or_else(|| panic!("list_categories row '{name}' has no registry match"));
+            let expected = tools.iter().filter(|(_, d)| is_deprecated(d)).count() as u64;
+            if dc != expected {
+                errors.push(format!(
+                    "{name}: list_categories deprecated_count={dc}, recompute={expected}"
+                ));
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "list_categories deprecated_count drift on {} row(s):\n  {}",
+            errors.len(),
+            errors.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn list_categories_deprecated_sum_matches_summary() {
+        // T-1967: cross-mode arithmetic consistency. Sum of per-row
+        // `deprecated_count` in list_categories must equal the
+        // `total_deprecated` returned by summary mode. Both come from the
+        // same registry + same `is_deprecated()` predicate; divergence
+        // means one mode iterated wrong (e.g. skipped an empty category).
+        let cats = help_categories();
+        let lc_out = build_help_json(&cats, None, None, true, None, false);
+        let lc: serde_json::Value = serde_json::from_str(&lc_out).unwrap();
+        let lc_sum: u64 = lc["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["deprecated_count"].as_u64().unwrap_or(0))
+            .sum();
+        let sum_out = build_help_json(&cats, None, None, false, None, true);
+        let sm: serde_json::Value = serde_json::from_str(&sum_out).unwrap();
+        let sm_total = sm["total_deprecated"].as_u64().unwrap();
+        assert_eq!(
+            lc_sum, sm_total,
+            "list_categories sum of deprecated_count ({lc_sum}) must equal summary.total_deprecated ({sm_total})"
         );
     }
 
