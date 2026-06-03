@@ -570,7 +570,26 @@ fn build_help_json(
     categories: &[(&str, Vec<(&str, &str)>)],
     category: Option<&str>,
     name_filter: Option<&str>,
+    list_categories: bool,
 ) -> String {
+    if list_categories {
+        let mut cats_json: Vec<serde_json::Value> = Vec::new();
+        let mut total_tools = 0usize;
+        for (cat_name, tools) in categories {
+            cats_json.push(serde_json::json!({
+                "name": cat_name,
+                "tool_count": tools.len(),
+            }));
+            total_tools += tools.len();
+        }
+        let out = serde_json::json!({
+            "categories": cats_json,
+            "total_categories": categories.len(),
+            "total_tools": total_tools,
+        });
+        return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
+    }
+
     let needle = name_filter.map(str::to_lowercase);
 
     if let Some(needle) = needle.as_deref() {
@@ -7245,6 +7264,12 @@ pub struct HelpParams {
     /// Use when you know roughly what you want (e.g. "redact", "fleet", "thread")
     /// but not the exact category. T-1940.
     pub name_filter: Option<String>,
+    /// Overview mode: when true, returns only category names + tool counts
+    /// (`{categories: [{name, tool_count}, ...], total_categories, total_tools}`).
+    /// Use for cold-start two-step discovery — get the ~27-row overview, then
+    /// drill in via `category=<name>` for the per-tool detail. When set,
+    /// `category` and `name_filter` are ignored. T-1948.
+    pub list_categories: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -11435,7 +11460,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Three modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — get the overview first, then drill in via `category=<name>` (T-1948). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count}], total_categories, total_tools}`."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -11443,7 +11468,8 @@ impl TermLinkTools {
         let categories = help_categories();
         let filter = p.category.as_deref();
         let name_filter = p.name_filter.as_deref();
-        build_help_json(&categories, filter, name_filter)
+        let list_cats = p.list_categories.unwrap_or(false);
+        build_help_json(&categories, filter, name_filter, list_cats)
     }
 
 
@@ -34380,7 +34406,7 @@ YW\tJ
     #[test]
     fn help_name_filter_finds_redact() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("redact"));
+        let out = build_help_json(&cats, None, Some("redact"), false);
         let v: serde_json::Value = serde_json::from_str(&out).expect("valid json");
         let matches = v["matches"].as_array().expect("matches array");
         let names: Vec<&str> = matches.iter().map(|m| m["name"].as_str().unwrap()).collect();
@@ -34394,9 +34420,9 @@ YW\tJ
     #[test]
     fn help_name_filter_case_insensitive() {
         let cats = help_fixture();
-        let lower = build_help_json(&cats, None, Some("redact"));
-        let upper = build_help_json(&cats, None, Some("REDACT"));
-        let mixed = build_help_json(&cats, None, Some("Redact"));
+        let lower = build_help_json(&cats, None, Some("redact"), false);
+        let upper = build_help_json(&cats, None, Some("REDACT"), false);
+        let mixed = build_help_json(&cats, None, Some("Redact"), false);
         let lower_v: serde_json::Value = serde_json::from_str(&lower).unwrap();
         let upper_v: serde_json::Value = serde_json::from_str(&upper).unwrap();
         let mixed_v: serde_json::Value = serde_json::from_str(&mixed).unwrap();
@@ -34408,7 +34434,7 @@ YW\tJ
     fn help_name_filter_with_category() {
         let cats = help_fixture();
         // Scoping to channel_moderation must drop agent_redact even though it matches.
-        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"));
+        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"), false);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let names: Vec<&str> = v["matches"].as_array().unwrap().iter()
             .map(|m| m["name"].as_str().unwrap()).collect();
@@ -34420,7 +34446,7 @@ YW\tJ
     #[test]
     fn help_name_filter_zero_matches_gives_hint() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("nonexistent-needle"));
+        let out = build_help_json(&cats, None, Some("nonexistent-needle"), false);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 0);
         assert!(v["hint"].is_string(), "hint missing on empty result");
@@ -34432,10 +34458,55 @@ YW\tJ
     fn help_name_filter_matches_description() {
         // T-1940: substring also searches descriptions, not just names.
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("Health sweep"));
+        let out = build_help_json(&cats, None, Some("Health sweep"), false);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 1);
         assert_eq!(v["matches"][0]["name"], "termlink_fleet_doctor");
+    }
+
+    #[test]
+    fn help_list_categories_returns_just_counts() {
+        // T-1948: overview mode — return only category names + tool counts,
+        // no per-tool fields. Use the real `help_categories()` so the
+        // total_categories assertion has meaning (fixture only has 2).
+        let cats = help_categories();
+        let expected_cat_count = cats.len();
+        let expected_tool_count: usize = cats.iter().map(|(_, t)| t.len()).sum();
+
+        let out = build_help_json(&cats, None, None, true);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+
+        assert_eq!(v["total_categories"], expected_cat_count);
+        assert_eq!(v["total_tools"], expected_tool_count);
+
+        let arr = v["categories"].as_array().expect("categories must be array");
+        assert_eq!(arr.len(), expected_cat_count);
+        for entry in arr {
+            assert!(entry["name"].is_string(), "category entry missing name");
+            assert!(entry["tool_count"].is_number(), "category entry missing tool_count");
+            // Overview mode must NOT leak per-tool fields.
+            assert!(entry["tools"].is_null(), "overview leaked tools array");
+            assert!(entry["matches"].is_null(), "overview leaked matches array");
+        }
+    }
+
+    #[test]
+    fn help_list_categories_overrides_filters() {
+        // T-1948: when list_categories=true, both `category` and `name_filter`
+        // must be ignored — overview is overview. Passing nonsense filters
+        // alongside the flag must still yield the full overview, not an empty
+        // result or an error.
+        let cats = help_fixture();
+        let out = build_help_json(
+            &cats,
+            Some("nonexistent-category"),
+            Some("nonexistent-needle"),
+            true,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["total_categories"], cats.len());
+        let arr = v["categories"].as_array().unwrap();
+        assert_eq!(arr.len(), cats.len());
     }
 
     #[test]
