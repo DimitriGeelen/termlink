@@ -1094,12 +1094,19 @@ fn build_help_json(
     // the contract: zero deprecated entries, one-per-category cap, every
     // entry resolves to a real registry row.
     if essentials {
+        // T-1969: per-row `category_description` from `category_descriptions()`
+        // so the cold-start view carries both the canonical tool name AND
+        // the semantic context of its category in one entry. Empty strings
+        // would be a drift signal (bijective-coverage invariant prevents).
+        let cat_descs = category_descriptions();
         let mut rows: Vec<serde_json::Value> = Vec::new();
         for (cat_name, tools) in categories {
             if let Some((name, desc)) = tools.iter().find(|(_, d)| !is_deprecated(d)) {
+                let cat_desc = cat_descs.get(cat_name).copied().unwrap_or("");
                 rows.push(serde_json::json!({
                     "name": name,
                     "category": cat_name,
+                    "category_description": cat_desc,
                     "description": desc,
                 }));
             }
@@ -12147,7 +12154,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,description}], total}` — a focused ~27-tool starter set for cold-start learning, auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10). `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10). `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35804,6 +35811,39 @@ YW\tJ
             inbox_status["deprecated"].as_bool(),
             Some(true),
             "termlink_inbox_status row must be flagged deprecated in default mode"
+        );
+    }
+
+    #[test]
+    fn essentials_rows_carry_category_description() {
+        // T-1969: every essentials row must carry a non-empty
+        // `category_description` matching the live `category_descriptions()`
+        // entry for its category. Walks the real registry; any drift surfaces
+        // here before LLMs see a broken cold-start view.
+        let cats = help_categories();
+        let descs = category_descriptions();
+        let out = build_help_json(&cats, None, None, false, None, false, true);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let arr = v["essentials"].as_array().unwrap();
+        let mut errors: Vec<String> = Vec::new();
+        for entry in arr {
+            let cat = entry["category"].as_str().unwrap();
+            let got = entry["category_description"].as_str().unwrap_or("");
+            let expected = descs.get(cat).copied().unwrap_or("");
+            if got.is_empty() {
+                errors.push(format!("{cat}: category_description is empty"));
+            }
+            if got != expected {
+                errors.push(format!(
+                    "{cat}: got='{got}', expected='{expected}'"
+                ));
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "essentials category_description drift on {} row(s):\n  {}",
+            errors.len(),
+            errors.join("\n  ")
         );
     }
 
