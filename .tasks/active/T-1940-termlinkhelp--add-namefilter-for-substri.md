@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T05:32:22Z
-last_update: 2026-06-03T05:32:22Z
+last_update: 2026-06-03T05:42:49Z
 date_finished: null
 ---
 
@@ -26,16 +26,16 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `HelpParams` struct gains `name_filter: Option<String>` field with JsonSchema doc
-- [ ] When `name_filter` is set, `termlink_help` returns a flat `matches` array of `{category, name, description}` for tools whose name OR description contains the filter (case-insensitive)
-- [ ] `name_filter` works alone OR combined with `category` (intersection — filter applies within the selected category)
-- [ ] Empty filter result returns `{matches: [], total_matches: 0}` with informative `hint` field — not an error (allows agent to retry)
-- [ ] Tool description in `#[tool(...)]` attribute mentions the new param
-- [ ] Unit test: `help_name_filter_finds_redact` confirms searching "redact" surfaces channel_redact + agent_redact + redactions verbs
-- [ ] Unit test: `help_name_filter_case_insensitive` confirms "REDACT" matches the same set
-- [ ] Unit test: `help_name_filter_with_category` confirms combined filter respects both constraints
-- [ ] `cargo build --release -p termlink-mcp` warning-free
-- [ ] `cargo test --release -p termlink-mcp` passes (no regression)
+- [x] `HelpParams` struct gains `name_filter: Option<String>` field with JsonSchema doc — tools.rs:6858
+- [x] When `name_filter` is set, `termlink_help` returns a flat `matches` array of `{category, name, description}` for tools whose name OR description contains the filter (case-insensitive) — tools.rs build_help_json() lines 252-308
+- [x] `name_filter` works alone OR combined with `category` (intersection — filter applies within the selected category) — tested by `help_name_filter_with_category`
+- [x] Empty filter result returns `{matches: [], total_matches: 0}` with informative `hint` field — tested by `help_name_filter_zero_matches_gives_hint`
+- [x] Tool description in `#[tool(...)]` attribute mentions the new param — tools.rs:11041
+- [x] Unit test: `help_name_filter_finds_redact` confirms searching "redact" surfaces channel_redact + agent_redact + redactions verbs — tools.rs:34283
+- [x] Unit test: `help_name_filter_case_insensitive` confirms "REDACT" matches the same set — tools.rs:34298
+- [x] Unit test: `help_name_filter_with_category` confirms combined filter respects both constraints — tools.rs:34310
+- [x] `cargo build --release -p termlink-mcp` warning-free — verified 2026-06-03 (1m46s)
+- [x] `cargo test --release -p termlink-mcp` passes (no regression) — 677 passed, 0 failed (5 new + 672 pre-existing)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
