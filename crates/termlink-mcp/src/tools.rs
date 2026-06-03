@@ -34477,6 +34477,49 @@ YW\tJ
     }
 
     #[test]
+    fn help_registry_covers_all_real_tools() {
+        // T-1946: reverse-direction invariant — every real `#[tool(name = "...")]`
+        // macro entry MUST have a corresponding entry in `help_categories()`.
+        // T-1941's `help_registry_has_no_phantom_entries` guards the forward
+        // direction (help entry → real tool). This guards the reverse (real
+        // tool → help entry). Together they lock the bi-directional
+        // discoverability invariant established at T-1945 (100% coverage):
+        // LLM consumers calling `termlink_help` see every tool, and every
+        // surfaced name actually exists.
+        //
+        // Failure mode: a developer adds a new `#[tool(name = "...")]` macro
+        // but forgets to add it to `help_categories()`. The new tool exists
+        // but is invisible to discovery. This test names the missing tool(s)
+        // so the fix is obvious — add them to the appropriate category in
+        // `help_categories()`.
+        use std::collections::HashSet;
+        let src = include_str!("./tools.rs");
+        let re = regex::Regex::new(r#"name *= *"(termlink_[a-z_]+)""#).unwrap();
+        let real: HashSet<&str> = re
+            .captures_iter(src)
+            .map(|c| c.get(1).unwrap().as_str())
+            .collect();
+        assert!(
+            !real.is_empty(),
+            "regex extracted zero real tool names — pattern likely broken"
+        );
+
+        let cats = help_categories();
+        let surfaced: HashSet<&str> = cats
+            .iter()
+            .flat_map(|(_cat, tools)| tools.iter().map(|(name, _desc)| *name))
+            .collect();
+
+        let mut missing: Vec<&str> = real.difference(&surfaced).copied().collect();
+        missing.sort();
+        assert!(
+            missing.is_empty(),
+            "help registry is missing {} real tool(s) — add to help_categories(): {missing:?}",
+            missing.len()
+        );
+    }
+
+    #[test]
     fn fleet_doctor_params_defaults() {
         let json = serde_json::json!({});
         let p: FleetDoctorParams = serde_json::from_value(json).unwrap();
