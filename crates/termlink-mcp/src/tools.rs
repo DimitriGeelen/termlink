@@ -953,6 +953,23 @@ fn build_help_json(
             });
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
+        // T-1958: if the target matches a known category name, the LLM most
+        // likely confused tool_detail (per-tool drill-in) with category
+        // (category-scoped listing). Random did_you_mean by Levenshtein
+        // would not help — surface the diagnosis directly via a dedicated
+        // `category_hint` field with copy-pasteable corrective syntax, and
+        // adjust the error line so it reads "is a category, not a tool".
+        if categories.iter().any(|(name, _)| *name == target) {
+            let err_obj = serde_json::json!({
+                "error": format!(
+                    "'{target}' is a category, not a tool. Pass it as `category=\"{target}\"` (to list its tools) or use `list_categories=true` for the overview."
+                ),
+                "category_hint": format!(
+                    "category=\"{target}\" -or- list_categories=true"
+                ),
+            });
+            return serde_json::to_string_pretty(&err_obj).unwrap_or_else(json_err);
+        }
         // T-1954: self-correcting error — include `did_you_mean` suggestions
         // (up to 5 nearest tool names by Levenshtein) so an LLM that mis-spelled
         // or partially-named a tool gets the correct identifier without a
@@ -35336,6 +35353,64 @@ YW\tJ
         assert!(
             names.contains(&"termlink_agent_recent"),
             "did_you_mean must surface termlink_agent_recent for a single-char typo — got {names:?}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_category_name_emits_category_hint() {
+        // T-1958: when the LLM passes a category name to tool_detail, the
+        // error path must point at `category=<name>` rather than emit
+        // unrelated did_you_mean tool-name suggestions by Levenshtein. The
+        // `category_hint` field carries copy-pasteable corrective syntax.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("channel"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+
+        let err = v["error"].as_str().expect("error must populate");
+        assert!(
+            err.contains("category"),
+            "error must call out category/tool confusion: {err}"
+        );
+        assert!(
+            err.contains("channel"),
+            "error must echo the user's input: {err}"
+        );
+
+        let hint = v["category_hint"]
+            .as_str()
+            .expect("category_hint must populate when target is a known category");
+        assert!(
+            hint.contains("category=\"channel\""),
+            "category_hint must surface copy-pasteable corrective syntax: {hint}"
+        );
+
+        // When the diagnosis is the category-confusion class, did_you_mean is
+        // semantically wrong (would suggest random tools, not categories).
+        // Verify it's absent so the LLM doesn't follow a misleading suggestion.
+        assert!(
+            v["did_you_mean"].is_null(),
+            "did_you_mean must be absent for category-name confusion path: {v:?}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_unknown_no_category_hint() {
+        // T-1958 regression guard for T-1954: when the input is a true
+        // unknown (not a category name and not a near-miss tool typo), the
+        // error path must keep the did_you_mean behavior and NOT emit a
+        // category_hint — otherwise we'd shadow the typo-correction path.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("bogus_xyz_unknown"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+
+        assert!(v["error"].is_string(), "error must populate");
+        assert!(
+            v["category_hint"].is_null(),
+            "category_hint must be absent for non-category inputs: {v:?}"
+        );
+        assert!(
+            v["did_you_mean"].is_array(),
+            "did_you_mean must still be emitted for non-category unknowns (T-1954 regression guard)"
         );
     }
 
