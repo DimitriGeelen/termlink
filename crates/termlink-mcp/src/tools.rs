@@ -811,6 +811,38 @@ fn nearest_tools(unknown: &str, categories: &[(&str, Vec<(&str, &str)>)], limit:
     scored.into_iter().take(limit).map(|(_, n)| n.to_string()).collect()
 }
 
+/// T-1956: find tools sharing the same name-prefix verb family as `target`.
+/// Splits target on `_`, takes the first 3 segments (or all if fewer), and
+/// returns up to `limit` other tool names starting with that prefix. The
+/// target itself is always excluded. Closes the workflow-continuity gap:
+/// when an LLM resolves `tool_detail` for `termlink_agent_react`, it sees
+/// the sibling family (`reactions`, `reactions_by`, `reaction_summary`,
+/// `reaction_rate`) in the same response — no second round-trip via
+/// `name_filter` or `category` to find the rest of the verb family.
+fn related_tools(target: &str, categories: &[(&str, Vec<(&str, &str)>)], limit: usize) -> Vec<String> {
+    let segments: Vec<&str> = target.split('_').collect();
+    if segments.len() < 2 {
+        return Vec::new();
+    }
+    // First 3 segments form the family prefix — empirically the right
+    // granularity: 2 segments is too broad (all tools start with
+    // `termlink_*`), 4 segments is too narrow (most verbs are 3-segment).
+    let take = segments.len().min(3);
+    let prefix = segments[..take].join("_");
+    let mut out: Vec<String> = Vec::new();
+    for (_, tools) in categories {
+        for (name, _) in tools {
+            if *name != target && name.starts_with(&prefix) {
+                out.push((*name).to_string());
+                if out.len() >= limit {
+                    return out;
+                }
+            }
+        }
+    }
+    out
+}
+
 /// T-1954: rank category names from `help_categories()` by Levenshtein
 /// distance to `unknown`. Used by the `category=<unknown>` error path so the
 /// LLM gets typo suggestions instead of having to flip to `list_categories`.
@@ -862,6 +894,9 @@ fn build_help_json(
                 .get(target)
                 .map(|fields| fields.iter().map(param_to_json).collect())
                 .unwrap_or_default();
+            // T-1956: include sibling tools (same 3-segment name prefix) so
+            // the LLM sees the verb family without a second round-trip.
+            let related = related_tools(target, categories, 10);
             let out = serde_json::json!({
                 "tool": target,
                 "name": target,
@@ -869,6 +904,7 @@ fn build_help_json(
                 "short_description": short,
                 "full_description": full_desc,
                 "parameters": params,
+                "related_tools": related,
             });
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
@@ -35052,6 +35088,50 @@ YW\tJ
         assert!(
             err.contains("list_categories") || err.contains("name_filter"),
             "error hint should mention a discovery mode: {err}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_related_tools_finds_family() {
+        // T-1956: drilling into `termlink_agent_react` must surface the
+        // verb-family siblings (other tools sharing the 3-segment prefix
+        // `termlink_agent_react`). The exact set varies as new tools are
+        // added but at least one of the known-stable reaction-family tools
+        // must appear.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_react"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let related = v["related_tools"]
+            .as_array()
+            .expect("tool_detail response must include related_tools array");
+        let names: Vec<&str> = related.iter().filter_map(|n| n.as_str()).collect();
+        let expected_siblings = [
+            "termlink_agent_reactions",
+            "termlink_agent_reaction_summary",
+            "termlink_agent_reaction_rate",
+            "termlink_agent_reactions_by",
+        ];
+        let hit = expected_siblings.iter().any(|s| names.contains(s));
+        assert!(
+            hit,
+            "related_tools must surface at least one reaction-family sibling — got {names:?}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_related_tools_excludes_self() {
+        // T-1956: related_tools must never contain the target tool itself,
+        // even if its own name matches the family prefix exactly.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let related = v["related_tools"]
+            .as_array()
+            .expect("tool_detail response must include related_tools array");
+        let names: Vec<&str> = related.iter().filter_map(|n| n.as_str()).collect();
+        assert!(
+            !names.contains(&"termlink_agent_post"),
+            "related_tools must exclude the target itself — got {names:?}"
         );
     }
 
