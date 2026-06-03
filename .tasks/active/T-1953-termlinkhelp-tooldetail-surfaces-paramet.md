@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:05:10Z
-last_update: 2026-06-03T21:05:10Z
+last_update: 2026-06-03T21:13:36Z
 date_finished: null
 ---
 
@@ -29,12 +29,13 @@ at tools.rs:570), auto-covering all 252 tools with zero curation.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New `tool_params()` extractor function added to tools.rs — cached `OnceLock<HashMap<&'static str, Vec<ParamInfo>>>`, regex-derived from `include_str!("./tools.rs")` (parallels `tool_descriptions()` at tools.rs:570).
-- [ ] `build_help_json` `tool_detail` branch includes `parameters: [{name, type, optional, doc?}]` in JSON response when the tool's param struct can be resolved. Tools with empty param structs (e.g. `AgentHelpParams {}`) return `parameters: []`.
-- [ ] New unit test: `tool_params_extracts_known_tool` — asserts that for at least one known tool (e.g. `termlink_help`), the extractor returns the expected field list (`category`, `name_filter`, `list_categories`, `tool_detail` — all `Option`, so optional=true).
-- [ ] New unit test: `tool_detail_response_includes_parameters` — calls `build_help_json` with `tool_detail=Some("termlink_help")`, asserts the response JSON contains a `parameters` array with the expected 4 entries.
-- [ ] `cargo check -p termlink-mcp --tests` passes.
-- [ ] `cargo test -p termlink-mcp --lib` passes — all prior tests + new ones (≥687 total, up from 685).
+- [x] New `tool_params()` extractor function added to tools.rs — cached `OnceLock<HashMap<String, Vec<ParamInfo>>>`, regex-derived from `include_str!("./tools.rs")` (parallels `tool_descriptions()` at tools.rs:570). Implementation: `ParamInfo` struct + `parse_struct_fields()` helper + `tool_params()` at tools.rs:592-700 (commit `778625a4`).
+- [x] `build_help_json` `tool_detail` branch includes `parameters: [{name, type, optional, doc?}]` in JSON response when the tool's param struct can be resolved. Tools with empty param structs return `parameters: []` (key present, array empty — distinguishes "no params" from "extraction failed"). Implementation: tools.rs:729-738.
+- [x] New unit test: `tool_params_extracts_known_tool` — asserts that for `termlink_help`, the extractor returns the 4 expected fields (category/name_filter/list_categories/tool_detail), all marked optional. Implementation: tools.rs:34939-34970.
+- [x] New unit test: `tool_detail_response_includes_parameters` — calls `build_help_json` with `tool_detail=Some("termlink_help")`, asserts response JSON contains a `parameters` array with ≥4 entries, each having name/type/optional. Implementation: tools.rs:34972-35010.
+- [x] Bonus unit test: `tool_params_covers_majority_of_real_tools` — guards against Phase-1 regex regressions by asserting >50% tool coverage (caught the `[^{]` vs `[^)]` bug during dev — `Parameters(p)` has inner parens that the original `[^)]*` regex stopped at). Implementation: tools.rs:35012-35033.
+- [x] `cargo check -p termlink-mcp --tests` passes (clean build, 20s).
+- [x] `cargo test -p termlink-mcp --lib` passes — 688 total, 0 failed (685 prior + 3 new = exact +3 delta, no regressions).
 
 ## Verification
 
