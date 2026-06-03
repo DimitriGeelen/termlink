@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:40:30Z
-last_update: 2026-06-03T15:40:30Z
+last_update: 2026-06-03T15:46:29Z
 date_finished: null
 ---
 
@@ -36,10 +36,14 @@ so this class of bug cannot regress.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Drop the 2 phantom entries (`termlink_agent_forward`, `termlink_agent_recent_dm`) from the help registry in `tools.rs`
-- [ ] Add a unit test in `mod tests` that walks the full help registry (via `help_categories()` or equivalent) and asserts every `(name, _)` tuple is present in a fixture set of real tool names
-- [ ] `cargo test -p termlink-mcp --lib` passes (all pre-existing + new test green)
-- [ ] `cargo build -p termlink-mcp` is warning-free
+- [x] Drop the 2 phantom entries (`termlink_agent_forward`, `termlink_agent_recent_dm`) from the help registry in `tools.rs`
+  - Evidence: removed from agent_chat + agent_read categories; registry extracted to `help_categories()` free fn at `crates/termlink-mcp/src/tools.rs:249`
+- [x] Add a unit test in `mod tests` that walks the full help registry (via `help_categories()` or equivalent) and asserts every `(name, _)` tuple is present in a fixture set of real tool names
+  - Evidence: `help_registry_has_no_phantom_entries` at `crates/termlink-mcp/src/tools.rs:34357` — scans tools.rs source via `include_str!` for `name = "termlink_*"` patterns and asserts every help tuple resolves
+- [x] `cargo test -p termlink-mcp --lib` passes (all pre-existing + new test green)
+  - Evidence: `test result: ok. 678 passed; 0 failed` (was 677, +1 phantom guard)
+- [x] `cargo build -p termlink-mcp` is warning-free
+  - Evidence: `cargo build -p termlink-mcp 2>&1 | grep -E "warning|error"` returned empty
 
 ## Verification
 
@@ -56,19 +60,14 @@ cd /opt/termlink && cargo test -p termlink-mcp --lib help_ 2>&1 | tail -20 | gre
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink_help` returned 2 tool names (`termlink_agent_forward`, `termlink_agent_recent_dm`) that resolve to no real tool. An LLM consumer that discovered them via help and tried to call them got a tool-not-found error from the MCP router.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The help registry was a hardcoded `Vec<(&str, Vec<(&str, &str)>)>` literal inline inside `async fn termlink_help`, hand-maintained against the real `#[tool(name = "...")]` macro table. The two tables drifted as tools were renamed/removed and the registry wasn't updated in lockstep.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** There was no test bridging the help registry to the real tool name table. Help-vs-real drift was invisible until an LLM consumer hit a phantom name in production. The inline-literal shape also made it hard to introspect from a test.
+
+**Prevention:** `help_registry_has_no_phantom_entries` (new) scans `tools.rs` source via `include_str!` for `name = "termlink_*"` macro entries at test-runtime and asserts every entry in `help_categories()` resolves to a real tool. This catches the NEXT phantom regardless of which category or category-add introduces it — distinct from the fix itself (drop the 2 stale entries). Test runs in the standard `cargo test -p termlink-mcp --lib` suite.
+
 
 ## Evolution
 
