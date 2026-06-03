@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:54:35Z
-last_update: 2026-06-03T21:54:35Z
+last_update: 2026-06-03T21:57:27Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New `verb_cognates(target, categories, max_count)` function returns the names of tools whose LAST `_`-separated segment matches `target`'s last segment AND whose FIRST segment differs from `target`'s first segment (preventing intra-domain dupes already covered by `related_tools`). Returns empty when the cognate count exceeds `max_count` (configurable noise gate).
-- [ ] `build_help_json` tool_detail mode emits `verb_cognates: [...]` when non-empty; when the count exceeds 5 the field is omitted entirely (NOT an empty array — distinct from "no cognates" vs "too noisy to surface").
-- [ ] `related_tools` (intra-domain) preserved unchanged in tool_detail response. Both fields can coexist.
-- [ ] New test `verb_cognates_finds_cross_category_post` — passes `tool_detail="termlink_agent_post"`, asserts `verb_cognates` includes `termlink_channel_post` and excludes `termlink_agent_*` siblings (those belong in `related_tools`).
-- [ ] New test `verb_cognates_omits_common_verb` — passes `tool_detail="termlink_hub_status"`, asserts `verb_cognates` field absent (the `_status` family exceeds the 5-cognate noise gate).
-- [ ] New test `verb_cognates_never_includes_self` — for any tool, `verb_cognates` (when present) must not include the target itself.
-- [ ] Full lib test suite reports 703 passed (+3), 0 failed.
+- [x] New `verb_cognates(target, categories, max_count)` function returns cross-category verb mates and respects the noise gate. — `crates/termlink-mcp/src/tools.rs:909-948` (compares `segs[1]` since `segs[0]` is always "termlink"; noise gate at `cognates.len() > max_count`).
+- [x] `build_help_json` tool_detail mode emits `verb_cognates: [...]` when non-empty; field omitted entirely when count exceeds 5. — `tools.rs:1015-1018` (mutable JSON, conditional insert); max_count=5 passed at the call site.
+- [x] `related_tools` (intra-domain) preserved unchanged. Both fields coexist. — `tools.rs:1014` (related_tools field still unconditional); regression-verified by `verb_cognates_omits_common_verb` test which asserts related_tools array still present even when cognates omitted.
+- [x] New test `verb_cognates_finds_cross_category_post` — `tools.rs:35329-35353`, passes — `termlink_channel_post` surfaced, no `termlink_agent_*` intra-domain dupes leak.
+- [x] New test `verb_cognates_omits_common_verb` — `tools.rs:35355-35375`, passes — `_status` family exceeds noise gate; field absent.
+- [x] New test `verb_cognates_never_includes_self` — `tools.rs:35377-35399`, passes — sweeps EVERY tool and asserts self-exclusion.
+- [x] Full lib test suite: `test result: ok. 703 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
