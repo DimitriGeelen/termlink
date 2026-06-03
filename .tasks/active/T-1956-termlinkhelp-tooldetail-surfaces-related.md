@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:27:57Z
-last_update: 2026-06-03T21:27:57Z
+last_update: 2026-06-03T21:30:14Z
 date_finished: null
 ---
 
@@ -32,11 +32,11 @@ family `termlink_agent_react*`). Excludes the tool itself.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New helper `related_tools(target, categories) -> Vec<&str>` added to tools.rs — splits target on `_`, takes first 3 segments as the family prefix, returns all other tool names starting with that prefix. Capped at 10.
-- [ ] `build_help_json` `tool_detail` branch includes `related_tools: [...]` in the success JSON response. Empty array when the tool has no siblings.
-- [ ] Unit test `tool_detail_related_tools_finds_family` — `tool_detail="termlink_agent_react"` returns `related_tools` containing at least one of `termlink_agent_reactions`, `termlink_agent_reaction_summary`, `termlink_agent_reaction_rate` (verb-family siblings).
-- [ ] Unit test `tool_detail_related_tools_excludes_self` — `related_tools` never contains the target tool's own name.
-- [ ] `cargo test -p termlink-mcp --lib` passes — 696 total, 0 failed (694 prior + 2 new).
+- [x] New helper `related_tools(target, categories, limit) -> Vec<String>` at tools.rs:823-852 — splits target on `_`, takes first 3 segments as family prefix, returns siblings starting with that prefix (excluding self). Cap honored (10 in callsite).
+- [x] `build_help_json` `tool_detail` success branch includes `related_tools: [...]` in JSON response. Implementation: tools.rs:803-806.
+- [x] Unit test `tool_detail_related_tools_finds_family` — `termlink_agent_react` returns at least one of the reaction-family siblings (reactions/reaction_summary/reaction_rate/reactions_by). tools.rs:35029-35054.
+- [x] Unit test `tool_detail_related_tools_excludes_self` — `termlink_agent_post` related_tools never contains itself. tools.rs:35056-35071.
+- [x] `cargo test -p termlink-mcp --lib` passes — 696 total, 0 failed (694 prior + 2 new = exact +2 delta).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
