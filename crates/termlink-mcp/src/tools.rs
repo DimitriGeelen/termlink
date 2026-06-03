@@ -1159,8 +1159,15 @@ fn build_help_json(
         if let Some(f) = category && *cat_name != f {
             continue;
         }
+        // T-1961: include deprecated flag in default-mode rows so an LLM
+        // enumerating all tools sees the routing signal in the same shape
+        // as name_filter and tool_detail responses (T-1960 consistency).
         let tools_json: Vec<serde_json::Value> = tools.iter()
-            .map(|(name, desc)| serde_json::json!({"name": name, "description": desc}))
+            .map(|(name, desc)| serde_json::json!({
+                "name": name,
+                "description": desc,
+                "deprecated": is_deprecated(desc),
+            }))
             .collect();
         tool_count += tools_json.len();
         result[cat_name] = serde_json::json!(tools_json);
@@ -35544,6 +35551,58 @@ YW\tJ
         assert!(
             any_flagged,
             "inbox name_filter must surface at least one deprecated match — got {arr:?}"
+        );
+    }
+
+    #[test]
+    fn help_default_mode_rows_carry_deprecated_field() {
+        // T-1961: every per-tool row in default-mode output must include
+        // the deprecated flag, matching the T-1960 contract for tool_detail
+        // and name_filter. Sweep the real registry; one missing row fails.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let obj = v.as_object().expect("default mode returns an object");
+        let mut missing: Vec<String> = Vec::new();
+        for (cat, entries) in obj {
+            if cat == "total_tools" {
+                continue;
+            }
+            let arr = entries
+                .as_array()
+                .unwrap_or_else(|| panic!("category {cat} must be an array of rows"));
+            for row in arr {
+                let name = row["name"].as_str().unwrap_or("<missing-name>");
+                if !row["deprecated"].is_boolean() {
+                    missing.push(format!("{cat}/{name}"));
+                }
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "default-mode rows missing `deprecated` field: {missing:?}"
+        );
+    }
+
+    #[test]
+    fn help_default_mode_flags_known_legacy_tools() {
+        // T-1961: at least one row in `diagnostics` (e.g. termlink_inbox_status)
+        // must surface deprecated=true. Locks the consistency between
+        // default-mode rows and the T-1960 derivation rules.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let diagnostics = v["diagnostics"]
+            .as_array()
+            .expect("diagnostics category must be present in default mode");
+        let inbox_status = diagnostics
+            .iter()
+            .find(|row| row["name"].as_str() == Some("termlink_inbox_status"))
+            .expect("termlink_inbox_status must be present in diagnostics");
+        assert_eq!(
+            inbox_status["deprecated"].as_bool(),
+            Some(true),
+            "termlink_inbox_status row must be flagged deprecated in default mode"
         );
     }
 
