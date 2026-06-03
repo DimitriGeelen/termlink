@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T22:00:42Z
-last_update: 2026-06-03T22:00:42Z
+last_update: 2026-06-03T22:03:19Z
 date_finished: null
 ---
 
@@ -25,14 +25,14 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New `is_deprecated(description: &str) -> bool` pure function classifies a short description as deprecated when (case-insensitive) it contains any of: "legacy", "retirement", "deprecated", "T-1166". Single source of truth for derivation.
-- [ ] `build_help_json` tool_detail mode adds `deprecated: bool` field to the response so an LLM drilling into one tool sees the retirement status without parsing the description string.
-- [ ] `build_help_json` name_filter mode adds `deprecated: bool` to each match row so search results carry the routing signal (LLM ranks live tools higher than retiring ones).
-- [ ] New test `is_deprecated_flags_known_legacy_tools` — sweeps the real registry, asserts every tool whose description contains a marker phrase is flagged. At minimum: `termlink_inbox_status`, `termlink_inbox_list`, `termlink_inbox_clear`, `termlink_remote_inbox_status`, `termlink_remote_inbox_list`, `termlink_remote_inbox_clear`.
-- [ ] New test `is_deprecated_excludes_live_tools` — asserts live tools (`termlink_agent_post`, `termlink_channel_post`, `termlink_help`, `termlink_doctor`) are NOT flagged.
-- [ ] New test `tool_detail_response_includes_deprecated_field` — asserts the field is present (true OR false, both meaningful) so LLMs can rely on its presence rather than guessing absence semantics.
-- [ ] New test `name_filter_matches_carry_deprecated_field` — asserts every match row includes the flag.
-- [ ] Full lib test suite reports 707 passed (+4), 0 failed.
+- [x] New `is_deprecated(description: &str) -> bool` pure function: case-insensitive contains of "legacy", "retirement", "deprecated", "t-1166". — `crates/termlink-mcp/src/tools.rs:564-571`.
+- [x] `tool_detail` adds `deprecated: bool` to response. — `tools.rs:1001-1017`.
+- [x] `name_filter` adds `deprecated: bool` to each match row. — `tools.rs:982-991`.
+- [x] Test `is_deprecated_flags_known_legacy_tools` — `tools.rs:35402-35434`, passes.
+- [x] Test `is_deprecated_excludes_live_tools` — `tools.rs:35436-35464`, passes.
+- [x] Test `tool_detail_response_includes_deprecated_field` — `tools.rs:35466-35498`, passes (asserts both true and false paths).
+- [x] Test `name_filter_matches_carry_deprecated_field` — `tools.rs:35500-35525`, passes.
+- [x] Full lib suite: `test result: ok. 707 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
