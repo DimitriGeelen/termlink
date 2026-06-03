@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T22:05:04Z
-last_update: 2026-06-03T22:05:04Z
+last_update: 2026-06-03T22:07:35Z
 date_finished: null
 ---
 
@@ -25,11 +25,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `build_help_json` default mode (no `name_filter`, no `tool_detail`, no `list_categories`) emits `deprecated: bool` on every per-tool row alongside `name` and `description`. Same `is_deprecated()` source-of-truth as T-1960.
-- [ ] New test `help_default_mode_rows_carry_deprecated_field` — asserts every per-tool row across every category carries the field. Real registry, no fixtures.
-- [ ] New test `help_default_mode_flags_known_legacy_tools` — asserts at least one row in the `diagnostics` category (`termlink_inbox_status`) is flagged true.
-- [ ] Existing default-mode tests still pass (regression: same shape, additive field).
-- [ ] Full lib test suite reports 709 passed (+2), 0 failed.
+- [x] `build_help_json` default mode emits `deprecated: bool` per row. — `crates/termlink-mcp/src/tools.rs:1162-1170` (same `is_deprecated()` from T-1960).
+- [x] Test `help_default_mode_rows_carry_deprecated_field` — `tools.rs:35557-35585`, passes — sweeps every row in every default-mode category.
+- [x] Test `help_default_mode_flags_known_legacy_tools` — `tools.rs:35587-35608`, passes — verifies `termlink_inbox_status` row flagged true.
+- [x] Existing default-mode tests still pass — additive field only, no shape change.
+- [x] Full lib suite: `test result: ok. 709 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
