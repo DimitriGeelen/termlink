@@ -561,6 +561,34 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
     ]
 }
 
+/// T-1952: extract `(tool_name, full_description)` pairs from this source file
+/// by regex over `include_str!("./tools.rs")`. Cached in a `OnceLock` so the
+/// scan runs once per process. Returns `&'static HashMap` so callers can look
+/// up by name with cheap borrowed references. Used by `termlink_help`'s
+/// `tool_detail` mode to surface the full macro description without needing
+/// the LLM to invoke the tool first.
+fn tool_descriptions() -> &'static std::collections::HashMap<&'static str, &'static str> {
+    static MAP: std::sync::OnceLock<std::collections::HashMap<&'static str, &'static str>> =
+        std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        let src: &'static str = include_str!("./tools.rs");
+        // Multi-line: `name = "X",\n        description = "Y..."`
+        // Y can contain escape sequences (\", \n, etc) — regex `(?:[^"\\]|\\.)*`
+        // matches a balanced string-literal body.
+        let re = regex::Regex::new(
+            r#"name *= *"(termlink_[a-z_]+)" *,\s*description *= *"((?:[^"\\]|\\.)*)""#,
+        )
+        .expect("tool_descriptions regex must compile");
+        let mut map = std::collections::HashMap::new();
+        for cap in re.captures_iter(src) {
+            let name = cap.get(1).unwrap().as_str();
+            let desc = cap.get(2).unwrap().as_str();
+            map.insert(name, desc);
+        }
+        map
+    })
+}
+
 /// T-1940: shared filter logic for `termlink_help` so it's directly unit-testable
 /// without standing up the full MCP server. `category` scopes which categories
 /// are considered; `name_filter` triggers flat substring search across each
@@ -571,7 +599,41 @@ fn build_help_json(
     category: Option<&str>,
     name_filter: Option<&str>,
     list_categories: bool,
+    tool_detail: Option<&str>,
 ) -> String {
+    // T-1952: drill-in mode — return one tool's category + short + full description.
+    if let Some(target) = tool_detail {
+        let descs = tool_descriptions();
+        let full = descs.get(target);
+        let mut found_category: Option<&str> = None;
+        let mut found_short: Option<&str> = None;
+        for (cat_name, tools) in categories {
+            for (name, desc) in tools {
+                if *name == target {
+                    found_category = Some(cat_name);
+                    found_short = Some(desc);
+                    break;
+                }
+            }
+            if found_category.is_some() {
+                break;
+            }
+        }
+        if let (Some(cat), Some(short), Some(full_desc)) = (found_category, found_short, full) {
+            let out = serde_json::json!({
+                "tool": target,
+                "name": target,
+                "category": cat,
+                "short_description": short,
+                "full_description": full_desc,
+            });
+            return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
+        }
+        return json_err(format!(
+            "Unknown tool '{target}'. Use `list_categories=true` to browse categories, or `name_filter` to search by substring."
+        ));
+    }
+
     if list_categories {
         let mut cats_json: Vec<serde_json::Value> = Vec::new();
         let mut total_tools = 0usize;
@@ -7278,6 +7340,12 @@ pub struct HelpParams {
     /// drill in via `category=<name>` for the per-tool detail. When set,
     /// `category` and `name_filter` are ignored. T-1948.
     pub list_categories: Option<bool>,
+    /// Drill-in mode: pass a tool name (e.g. `termlink_agent_post`) to get its
+    /// category + short registry description + the full `#[tool(description=…)]`
+    /// macro text in one round-trip. Closes the 3-step discovery loop
+    /// (list_categories → category → tool_detail). When set, all other params
+    /// are ignored. T-1952.
+    pub tool_detail: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -11468,7 +11536,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Three modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — get the overview first, then drill in via `category=<name>` (T-1948). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count}], total_categories, total_tools}`."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Four modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description in one round-trip, closing the 3-step pattern (T-1952). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count}], total_categories, total_tools}`. `tool_detail` returns `{tool, name, category, short_description, full_description}` or an error with a discovery hint when the tool is unknown."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -11477,7 +11545,8 @@ impl TermLinkTools {
         let filter = p.category.as_deref();
         let name_filter = p.name_filter.as_deref();
         let list_cats = p.list_categories.unwrap_or(false);
-        build_help_json(&categories, filter, name_filter, list_cats)
+        let detail = p.tool_detail.as_deref();
+        build_help_json(&categories, filter, name_filter, list_cats, detail)
     }
 
 
@@ -34414,7 +34483,7 @@ YW\tJ
     #[test]
     fn help_name_filter_finds_redact() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("redact"), false);
+        let out = build_help_json(&cats, None, Some("redact"), false, None);
         let v: serde_json::Value = serde_json::from_str(&out).expect("valid json");
         let matches = v["matches"].as_array().expect("matches array");
         let names: Vec<&str> = matches.iter().map(|m| m["name"].as_str().unwrap()).collect();
@@ -34428,9 +34497,9 @@ YW\tJ
     #[test]
     fn help_name_filter_case_insensitive() {
         let cats = help_fixture();
-        let lower = build_help_json(&cats, None, Some("redact"), false);
-        let upper = build_help_json(&cats, None, Some("REDACT"), false);
-        let mixed = build_help_json(&cats, None, Some("Redact"), false);
+        let lower = build_help_json(&cats, None, Some("redact"), false, None);
+        let upper = build_help_json(&cats, None, Some("REDACT"), false, None);
+        let mixed = build_help_json(&cats, None, Some("Redact"), false, None);
         let lower_v: serde_json::Value = serde_json::from_str(&lower).unwrap();
         let upper_v: serde_json::Value = serde_json::from_str(&upper).unwrap();
         let mixed_v: serde_json::Value = serde_json::from_str(&mixed).unwrap();
@@ -34442,7 +34511,7 @@ YW\tJ
     fn help_name_filter_with_category() {
         let cats = help_fixture();
         // Scoping to channel_moderation must drop agent_redact even though it matches.
-        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"), false);
+        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"), false, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let names: Vec<&str> = v["matches"].as_array().unwrap().iter()
             .map(|m| m["name"].as_str().unwrap()).collect();
@@ -34454,7 +34523,7 @@ YW\tJ
     #[test]
     fn help_name_filter_zero_matches_gives_hint() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("nonexistent-needle"), false);
+        let out = build_help_json(&cats, None, Some("nonexistent-needle"), false, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 0);
         assert!(v["hint"].is_string(), "hint missing on empty result");
@@ -34466,7 +34535,7 @@ YW\tJ
     fn help_name_filter_matches_description() {
         // T-1940: substring also searches descriptions, not just names.
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("Health sweep"), false);
+        let out = build_help_json(&cats, None, Some("Health sweep"), false, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 1);
         assert_eq!(v["matches"][0]["name"], "termlink_fleet_doctor");
@@ -34481,7 +34550,7 @@ YW\tJ
         let expected_cat_count = cats.len();
         let expected_tool_count: usize = cats.iter().map(|(_, t)| t.len()).sum();
 
-        let out = build_help_json(&cats, None, None, true);
+        let out = build_help_json(&cats, None, None, true, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
 
         assert_eq!(v["total_categories"], expected_cat_count);
@@ -34508,7 +34577,7 @@ YW\tJ
         // Prevents regression of the silent drift observed at T-1943/44/45,
         // where 6 categories were added but the hard-coded hint went stale.
         let cats = help_categories();
-        let out = build_help_json(&cats, Some("nonexistent-category"), None, false);
+        let out = build_help_json(&cats, Some("nonexistent-category"), None, false, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let err = v["error"]
             .as_str()
@@ -34542,11 +34611,77 @@ YW\tJ
             Some("nonexistent-category"),
             Some("nonexistent-needle"),
             true,
+            None,
         );
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_categories"], cats.len());
         let arr = v["categories"].as_array().unwrap();
         assert_eq!(arr.len(), cats.len());
+    }
+
+    #[test]
+    fn tool_descriptions_extracts_all_real_tools() {
+        // T-1952: the regex-based extractor must catch every `#[tool(name=…)]`
+        // entry. Sanity-check against the phantom-guard's source-scan: same
+        // tool name set must appear in both. If the regex misses descriptions
+        // for valid tools, tool_detail mode will return "Unknown tool" for them.
+        use std::collections::HashSet;
+        let src = include_str!("./tools.rs");
+        let name_re = regex::Regex::new(r#"name *= *"(termlink_[a-z_]+)""#).unwrap();
+        let real: HashSet<&str> = name_re
+            .captures_iter(src)
+            .map(|c| c.get(1).unwrap().as_str())
+            .collect();
+        let descs = tool_descriptions();
+        let extracted: HashSet<&str> = descs.keys().copied().collect();
+        let mut missing: Vec<&str> = real.difference(&extracted).copied().collect();
+        missing.sort();
+        assert!(
+            missing.is_empty(),
+            "tool_descriptions regex missed {} tool(s): {missing:?}",
+            missing.len()
+        );
+    }
+
+    #[test]
+    fn help_tool_detail_returns_full_description() {
+        // T-1952: drill-in mode returns category + short (from help_categories)
+        // + full (from macro) descriptions in one call.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_help"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+
+        assert_eq!(v["tool"], "termlink_help");
+        assert_eq!(v["name"], "termlink_help");
+        assert!(v["category"].is_string());
+        assert!(v["short_description"].is_string());
+        let full = v["full_description"].as_str().expect("full_description must populate");
+        // termlink_help's macro description mentions "Four modes" (post-T-1952) —
+        // any value mode-related is acceptable; the key invariant is non-empty.
+        assert!(!full.is_empty(), "full_description should not be empty");
+        assert!(
+            full.len() > v["short_description"].as_str().unwrap().len(),
+            "full_description should be longer than short_description"
+        );
+    }
+
+    #[test]
+    fn help_tool_detail_unknown_returns_error() {
+        // T-1952: unknown tool name yields error with discovery hint.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_does_not_exist"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let err = v["error"]
+            .as_str()
+            .expect("error path must populate `error` field");
+        assert!(
+            err.contains("termlink_does_not_exist"),
+            "error must echo the unknown tool name: {err}"
+        );
+        assert!(
+            err.contains("list_categories") || err.contains("name_filter"),
+            "error hint should mention a discovery mode: {err}"
+        );
     }
 
     #[test]
