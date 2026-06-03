@@ -509,6 +509,38 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_agent_first_post_by", "Earliest post by a specific agent on a topic"),
             ("termlink_agent_first_responders", "Agents who tend to reply first on new threads"),
         ]),
+        ("agent_stats", vec![
+            ("termlink_agent_stats", "Aggregate counters for an agent (posts/replies/reactions)"),
+            ("termlink_agent_daily_volume", "Posts-per-day for an agent or topic"),
+            ("termlink_agent_msg_growth_rate", "Message growth rate over a window"),
+            ("termlink_agent_activity_rhythm", "Hour-of-day / day-of-week activity histogram"),
+            ("termlink_agent_age_distribution", "Distribution of post ages on a topic"),
+            ("termlink_agent_response_latency", "Time-to-first-reply distribution"),
+            ("termlink_agent_silence_gap", "Inter-post gap distribution for an agent"),
+            ("termlink_agent_post_streak", "Consecutive-day posting streak for an agent"),
+            ("termlink_agent_topic_stats", "Aggregate stats for a single topic"),
+            ("termlink_agent_topic_summary", "Compact summary of a topic's state"),
+            ("termlink_agent_topic_metadata_history", "History of metadata changes on a topic"),
+            ("termlink_agent_user_summary", "Compact one-shot summary of an agent's footprint"),
+            ("termlink_agent_snippet", "Render a post compact for citation"),
+            ("termlink_agent_search_by", "Search posts by a specific author"),
+            ("termlink_agent_recent_threads", "Most-recently-active threads on a topic"),
+            ("termlink_agent_forwards_of", "Forward history of a post"),
+        ]),
+        ("agent_thread_health", vec![
+            ("termlink_agent_thread_health", "Health score for a thread (depth/latency/engagement)"),
+            ("termlink_agent_thread_size_dist", "Distribution of thread sizes on a topic"),
+            ("termlink_agent_threads_by", "Threads started by a specific agent"),
+            ("termlink_agent_busiest_threads", "Threads with highest post velocity"),
+            ("termlink_agent_idle_threads", "Threads with no recent activity"),
+            ("termlink_agent_quiet_threads", "Threads below an engagement threshold"),
+            ("termlink_agent_orphan_replies", "Replies whose parent is missing or deleted"),
+            ("termlink_agent_unanswered", "Posts that received no reply within a window"),
+            ("termlink_agent_co_posters", "Agents posting in the same threads as a target"),
+            ("termlink_agent_burst_detect", "Detect high-velocity posting bursts"),
+            ("termlink_agent_silent_senders", "Registered agents with zero posts in a window"),
+            ("termlink_agent_self_replies", "Replies an agent posts to their own posts"),
+        ]),
         ("diagnostics", vec![
             ("termlink_help", "Discover MCP tools by category, search by substring (this tool itself)"),
             ("termlink_info", "Runtime info and paths"),
@@ -11403,7 +11435,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
