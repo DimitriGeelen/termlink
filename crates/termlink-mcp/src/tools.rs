@@ -243,6 +243,78 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// T-1940: shared filter logic for `termlink_help` so it's directly unit-testable
+/// without standing up the full MCP server. `category` scopes which categories
+/// are considered; `name_filter` triggers flat substring search across each
+/// tool's name AND description (case-insensitive). When both are set the search
+/// is scoped to the named category.
+fn build_help_json(
+    categories: &[(&str, Vec<(&str, &str)>)],
+    category: Option<&str>,
+    name_filter: Option<&str>,
+) -> String {
+    let needle = name_filter.map(str::to_lowercase);
+
+    if let Some(needle) = needle.as_deref() {
+        let mut matches: Vec<serde_json::Value> = Vec::new();
+        for (cat_name, tools) in categories {
+            if let Some(f) = category && *cat_name != f {
+                continue;
+            }
+            for (name, desc) in tools {
+                if name.to_lowercase().contains(needle)
+                    || desc.to_lowercase().contains(needle)
+                {
+                    matches.push(serde_json::json!({
+                        "category": cat_name,
+                        "name": name,
+                        "description": desc,
+                    }));
+                }
+            }
+        }
+        let total = matches.len();
+        let mut out = serde_json::json!({
+            "matches": matches,
+            "total_matches": total,
+        });
+        if total == 0 {
+            let hint = if let Some(c) = category {
+                format!(
+                    "No tools in category '{c}' match '{needle}'. Try removing the category filter or using a broader substring."
+                )
+            } else {
+                format!(
+                    "No tools matched '{needle}'. Try a different substring; the search is case-insensitive over both names and descriptions."
+                )
+            };
+            out["hint"] = serde_json::json!(hint);
+        }
+        return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
+    }
+
+    let mut result = serde_json::json!({});
+    let mut tool_count = 0;
+
+    for (cat_name, tools) in categories {
+        if let Some(f) = category && *cat_name != f {
+            continue;
+        }
+        let tools_json: Vec<serde_json::Value> = tools.iter()
+            .map(|(name, desc)| serde_json::json!({"name": name, "description": desc}))
+            .collect();
+        tool_count += tools_json.len();
+        result[cat_name] = serde_json::json!(tools_json);
+    }
+
+    if category.is_some() && tool_count == 0 {
+        return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel, channel_threading, channel_moderation, channel_engagement, agent_chat, agent_read, agent_presence, agent_inbox, agent_thread, agent_poll, diagnostics", category.unwrap()));
+    }
+
+    result["total_tools"] = serde_json::json!(tool_count);
+    serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
+}
+
 /// T-1715: parse a `termlink_agent_contact` `target` argument into
 /// `(name, optional_project)`. Mirrors `commands::agent::parse_contact_target`
 /// (CLI, T-1448 (b)). Accepts:
@@ -6846,8 +6918,15 @@ pub struct BatchRunParams {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct HelpParams {
-    /// Filter by category: session, execution, events, kv, files, hub, batch, dispatch, tokens, diagnostics. Omit to see all.
+    /// Filter by category: session, execution, events, kv, files, hub, tofu, fleet,
+    /// remote, batch, dispatch, tokens, channel*, agent_*, diagnostics. Omit to see all.
     pub category: Option<String>,
+    /// Substring-search across tool names AND descriptions (case-insensitive).
+    /// Returns a flat `matches` array of `{category, name, description}`.
+    /// Combine with `category` to scope the search within one category.
+    /// Use when you know roughly what you want (e.g. "redact", "fleet", "thread")
+    /// but not the exact category. T-1940.
+    pub name_filter: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -11038,7 +11117,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
@@ -11273,26 +11352,8 @@ impl TermLinkTools {
         ];
 
         let filter = p.category.as_deref();
-        let mut result = serde_json::json!({});
-        let mut tool_count = 0;
-
-        for (cat_name, tools) in &categories {
-            if let Some(f) = filter && *cat_name != f {
-                continue;
-            }
-            let tools_json: Vec<serde_json::Value> = tools.iter()
-                .map(|(name, desc)| serde_json::json!({"name": name, "description": desc}))
-                .collect();
-            tool_count += tools_json.len();
-            result[cat_name] = serde_json::json!(tools_json);
-        }
-
-        if filter.is_some() && tool_count == 0 {
-            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel, channel_threading, channel_moderation, channel_engagement, agent_chat, agent_read, agent_presence, agent_inbox, agent_thread, agent_poll, diagnostics", filter.unwrap()));
-        }
-
-        result["total_tools"] = serde_json::json!(tool_count);
-        serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
+        let name_filter = p.name_filter.as_deref();
+        build_help_json(&categories, filter, name_filter)
     }
 
     #[tool(
@@ -34203,6 +34264,87 @@ YW\tJ
         let p: TofuClearParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.host, None);
         assert_eq!(p.all, None);
+    }
+
+    // T-1940: name_filter substring-search across help registry.
+    // Tests use a synthetic mini-registry so the assertion targets the
+    // filter logic itself rather than the (volatile) production category list.
+    fn help_fixture() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
+        vec![
+            ("channel_moderation", vec![
+                ("termlink_channel_redact", "Retract a post — content erased, marker kept"),
+                ("termlink_channel_edit", "Edit a prior post in-place"),
+                ("termlink_channel_redactions", "All redactions on a topic"),
+            ]),
+            ("agent_chat", vec![
+                ("termlink_agent_redact", "Retract a post — content erased, marker preserved"),
+                ("termlink_agent_post", "Post a message on agent-chat-arc"),
+            ]),
+            ("fleet", vec![
+                ("termlink_fleet_doctor", "Health sweep across all profiles"),
+            ]),
+        ]
+    }
+
+    #[test]
+    fn help_name_filter_finds_redact() {
+        let cats = help_fixture();
+        let out = build_help_json(&cats, None, Some("redact"));
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid json");
+        let matches = v["matches"].as_array().expect("matches array");
+        let names: Vec<&str> = matches.iter().map(|m| m["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"termlink_channel_redact"), "got {names:?}");
+        assert!(names.contains(&"termlink_agent_redact"), "got {names:?}");
+        assert!(names.contains(&"termlink_channel_redactions"), "got {names:?}");
+        assert!(!names.contains(&"termlink_fleet_doctor"), "got {names:?}");
+        assert_eq!(v["total_matches"], 3);
+    }
+
+    #[test]
+    fn help_name_filter_case_insensitive() {
+        let cats = help_fixture();
+        let lower = build_help_json(&cats, None, Some("redact"));
+        let upper = build_help_json(&cats, None, Some("REDACT"));
+        let mixed = build_help_json(&cats, None, Some("Redact"));
+        let lower_v: serde_json::Value = serde_json::from_str(&lower).unwrap();
+        let upper_v: serde_json::Value = serde_json::from_str(&upper).unwrap();
+        let mixed_v: serde_json::Value = serde_json::from_str(&mixed).unwrap();
+        assert_eq!(lower_v["total_matches"], upper_v["total_matches"]);
+        assert_eq!(lower_v["total_matches"], mixed_v["total_matches"]);
+    }
+
+    #[test]
+    fn help_name_filter_with_category() {
+        let cats = help_fixture();
+        // Scoping to channel_moderation must drop agent_redact even though it matches.
+        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let names: Vec<&str> = v["matches"].as_array().unwrap().iter()
+            .map(|m| m["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"termlink_channel_redact"));
+        assert!(names.contains(&"termlink_channel_redactions"));
+        assert!(!names.contains(&"termlink_agent_redact"), "agent_redact leaked across categories: {names:?}");
+    }
+
+    #[test]
+    fn help_name_filter_zero_matches_gives_hint() {
+        let cats = help_fixture();
+        let out = build_help_json(&cats, None, Some("nonexistent-needle"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["total_matches"], 0);
+        assert!(v["hint"].is_string(), "hint missing on empty result");
+        let hint = v["hint"].as_str().unwrap();
+        assert!(hint.contains("nonexistent-needle"), "hint must echo the search needle: {hint}");
+    }
+
+    #[test]
+    fn help_name_filter_matches_description() {
+        // T-1940: substring also searches descriptions, not just names.
+        let cats = help_fixture();
+        let out = build_help_json(&cats, None, Some("Health sweep"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["total_matches"], 1);
+        assert_eq!(v["matches"][0]["name"], "termlink_fleet_doctor");
     }
 
     #[test]
