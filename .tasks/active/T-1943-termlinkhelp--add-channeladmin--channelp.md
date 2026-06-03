@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:53:47Z
-last_update: 2026-06-03T15:53:47Z
+last_update: 2026-06-03T15:55:46Z
 date_finished: null
 ---
 
@@ -35,11 +35,16 @@ LLM-facing description is up-to-date with the available filters.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `channel_admin` category added to `help_categories()` with 4 entries
-- [ ] `channel_poll` category added to `help_categories()` with 4 entries
-- [ ] `termlink_help` `#[tool(description = ...)]` lists both new categories in its inline filter hint
-- [ ] `cargo test -p termlink-mcp --lib help_` passes (phantom guard verifies all 8 new entries)
-- [ ] `cargo build -p termlink-mcp` is warning-free
+- [x] `channel_admin` category added to `help_categories()` with 4 entries
+  - Evidence: 4 tuples (channel_members, channel_queue_status, channel_typing_emit, channel_typing_list) inserted before `agent_chat` in `crates/termlink-mcp/src/tools.rs` `help_categories()`
+- [x] `channel_poll` category added to `help_categories()` with 4 entries
+  - Evidence: 4 tuples (channel_poll_start/vote/end/results) alongside `channel_admin`; symmetric with `agent_poll`
+- [x] `termlink_help` `#[tool(description = ...)]` lists both new categories
+  - Evidence: description at `tools.rs:11384` now lists `channel_admin (members/queue/typing), channel_poll` and hints `typing` under agent_chat + `listen` under agent_presence
+- [x] `cargo test -p termlink-mcp --lib help_` passes (phantom guard verifies all 8 new entries)
+  - Evidence: `test result: ok. 6 passed; 0 failed` — `help_registry_has_no_phantom_entries` would have failed if any of the 8 new names didn't resolve
+- [x] `cargo build -p termlink-mcp` is warning-free
+  - Evidence: `cargo build -p termlink-mcp 2>&1 | grep -E "warning|error"` returned empty
 
 ## Verification
 
