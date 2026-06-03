@@ -4,7 +4,7 @@ name: "termlink_help essentials rows carry category_description"
 description: >
   Enrich essentials mode rows with category_description (T-1957 source). Gives LLMs cold-starting via the essentials view both the canonical tool name AND the category's purpose in one entry. Drift-proof — derived live from category_descriptions().
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T23:09:45Z
-last_update: 2026-06-03T23:09:45Z
+last_update: 2026-06-03T23:11:45Z
 date_finished: null
 ---
 
@@ -32,10 +32,10 @@ coverage invariant.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every essentials row includes `category_description: string` sourced from `category_descriptions()`
-- [ ] Macro description updated to mention `category_description` in the essentials envelope shape
-- [ ] Invariant test: every essentials row's `category_description` is non-empty and matches what `category_descriptions()` returns for that category
-- [ ] Full suite passes — 723+ tests, 0 failed
+- [x] Every essentials row includes `category_description: string` — `crates/termlink-mcp/src/tools.rs:1075-1086` (lookup + json key)
+- [x] Macro description updated for essentials envelope shape — `tools.rs:12028` `{essentials:[{name,category,category_description,description}], total}` + parenthetical T-1969 reference
+- [x] Invariant test: `essentials_rows_carry_category_description` walks every emitted row, asserts non-empty AND matches `category_descriptions()` lookup — `tools.rs:35820-35850`
+- [x] Full suite passes — 723 tests (+1 from 722), 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,3 +132,6 @@ cargo test --lib --package termlink-mcp -- essentials_rows_carry_category_descri
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1969-termlinkhelp-essentials-rows-carry-categ.md
 - **Context:** Initial task creation
+
+### 2026-06-03T23:10:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
