@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:14:56Z
-last_update: 2026-06-03T20:14:56Z
+last_update: 2026-06-03T20:17:01Z
 date_finished: null
 ---
 
@@ -38,10 +38,14 @@ is obvious.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `help_registry_covers_all_real_tools` test added in the `#[cfg(test)] mod tests` block alongside the phantom guard
-- [ ] Test passes on current source (252/252 coverage)
-- [ ] Failure mode produces an actionable message naming each missing tool
-- [ ] `cargo test -p termlink-mcp --lib` passes (counts up from 678 → 679)
+- [x] `help_registry_covers_all_real_tools` test added in the `#[cfg(test)] mod tests` block alongside the phantom guard
+  - Evidence: `crates/termlink-mcp/src/tools.rs:34480` (immediately after phantom guard at line 34442)
+- [x] Test passes on current source (252/252 coverage)
+  - Evidence: `cargo test -p termlink-mcp --lib help_registry -- --nocapture` → `2 passed; 0 failed` (phantom + coverage)
+- [x] Failure mode produces an actionable message naming each missing tool
+  - Evidence: assert message at `tools.rs:34516-34520` — `"help registry is missing {} real tool(s) — add to help_categories(): {missing:?}"` with `missing` sorted alphabetically
+- [x] `cargo test -p termlink-mcp --lib` passes (counts up from 678 → 679)
+  - Evidence: `test result: ok. 679 passed; 0 failed; 0 ignored; 0 measured` — confirmed +1 from prior 678 baseline
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
