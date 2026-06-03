@@ -645,7 +645,15 @@ fn build_help_json(
     }
 
     if category.is_some() && tool_count == 0 {
-        return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel, channel_threading, channel_moderation, channel_engagement, agent_chat, agent_read, agent_presence, agent_inbox, agent_thread, agent_poll, diagnostics", category.unwrap()));
+        // T-1949: derive the available-categories list from the same source
+        // the function walks, so the hint cannot drift from `help_categories()`.
+        // Prior hard-coded list silently went stale at T-1943/44/45 (6 missing).
+        let available: Vec<&str> = categories.iter().map(|(name, _)| *name).collect();
+        return json_err(format!(
+            "Unknown category '{}'. Available: {}",
+            category.unwrap(),
+            available.join(", ")
+        ));
     }
 
     result["total_tools"] = serde_json::json!(tool_count);
@@ -34488,6 +34496,38 @@ YW\tJ
             assert!(entry["tools"].is_null(), "overview leaked tools array");
             assert!(entry["matches"].is_null(), "overview leaked matches array");
         }
+    }
+
+    #[test]
+    fn help_unknown_category_hint_lists_all_real_categories() {
+        // T-1949: the "Unknown category" error must mention every category
+        // present in `help_categories()`. Test against the real registry, not
+        // a fixture, so adding a category without wiring the hint will fail
+        // this test (and the runtime derivation makes that wiring automatic).
+        //
+        // Prevents regression of the silent drift observed at T-1943/44/45,
+        // where 6 categories were added but the hard-coded hint went stale.
+        let cats = help_categories();
+        let out = build_help_json(&cats, Some("nonexistent-category"), None, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let err = v["error"]
+            .as_str()
+            .expect("error path must populate `error` field");
+        assert!(
+            err.contains("nonexistent-category"),
+            "error must echo the user input: {err}"
+        );
+        let mut missing: Vec<&str> = Vec::new();
+        for (cat_name, _tools) in cats.iter() {
+            if !err.contains(cat_name) {
+                missing.push(cat_name);
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "unknown-category hint failed to mention {} category/ies: {missing:?}\nfull hint: {err}",
+            missing.len()
+        );
     }
 
     #[test]
