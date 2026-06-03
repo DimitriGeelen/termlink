@@ -561,6 +561,51 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
     ]
 }
 
+/// T-1957: per-category one-line purpose strings, surfaced by `termlink_help`'s
+/// `list_categories` mode so an LLM cold-discovering the registry can route by
+/// domain without drilling into each category. Map key set MUST equal the set
+/// of category names from `help_categories()` — enforced by
+/// `category_descriptions_covers_all_categories` test. Adding a category
+/// without a description fails CI.
+fn category_descriptions() -> &'static std::collections::HashMap<&'static str, &'static str> {
+    static MAP: std::sync::OnceLock<std::collections::HashMap<&'static str, &'static str>> =
+        std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        let mut m: std::collections::HashMap<&'static str, &'static str> =
+            std::collections::HashMap::new();
+        m.insert("session", "Register, discover, ping, and inspect terminal sessions on a hub");
+        m.insert("execution", "Run commands and signals on a target session");
+        m.insert("events", "Session-scoped event bus — emit, poll, subscribe, wait");
+        m.insert("kv", "Distributed key-value store per session (set/get/list/del/watch)");
+        m.insert("files", "Send and receive files between sessions");
+        m.insert("hub", "Hub lifecycle and observability — start, stop, restart, status");
+        m.insert("tofu", "TLS trust-on-first-use pinning — list, verify, clear known hubs");
+        m.insert("fleet", "Multi-hub diagnostics — doctor, verify, history, status, bootstrap-check");
+        m.insert("remote", "Cross-hub RPC — exec, inject, ping, doctor, inbox-ops via SSH+TLS");
+        m.insert("batch", "Parallel fan-out of common ops across many sessions (run/exec/ping/tag)");
+        m.insert("dispatch", "Background LLM-call dispatch + status polling");
+        m.insert("tokens", "Operator token mint and inspection");
+        m.insert("channel", "Multi-writer channel topics — create, post, subscribe, list (pre-agent abstraction)");
+        m.insert("channel_threading", "Reply chains on channel topics");
+        m.insert("channel_moderation", "Channel topic moderation — pin, redact, edit");
+        m.insert("channel_engagement", "Channel topic engagement — reactions, stars, polls (low-level)");
+        m.insert("channel_admin", "Channel topic administration — members, queue health, typing presence");
+        m.insert("channel_poll", "Channel topic poll lifecycle");
+        m.insert("agent_chat", "Multi-agent chat — post, reply, edit, typing on agent-chat-arc and DMs");
+        m.insert("agent_read", "Read agent chat history — recent posts, threads, timeline, search");
+        m.insert("agent_presence", "Multi-agent presence — who's online, peers, contact, ping");
+        m.insert("agent_inbox", "Per-agent inbox semantics — unread counts, DMs, acknowledgements");
+        m.insert("agent_thread", "Agent thread lifecycle — paths, summaries, depths, authors");
+        m.insert("agent_poll", "Agent-scoped poll lifecycle (start/vote/end)");
+        m.insert("agent_engagement_metrics", "Reaction / pin / star analytics across the agent rail");
+        m.insert("agent_rankings", "Leaderboards — top responders, top reacted, first repliers, top thread starters");
+        m.insert("agent_stats", "Counters, distributions, growth and activity-rhythm metrics");
+        m.insert("agent_thread_health", "Thread-quality signals — busiest, idle, orphan, silence-gap");
+        m.insert("diagnostics", "Help, info, doctor, version, raw PTY ops, legacy inbox primitives (T-1166 WIP)");
+        m
+    })
+}
+
 /// T-1952: extract `(tool_name, full_description)` pairs from this source file
 /// by regex over `include_str!("./tools.rs")`. Cached in a `OnceLock` so the
 /// scan runs once per process. Returns `&'static HashMap` so callers can look
@@ -923,12 +968,21 @@ fn build_help_json(
     }
 
     if list_categories {
+        // T-1957: emit per-category one-line `description` alongside name +
+        // tool_count so an LLM cold-discovering the registry can route by
+        // domain in one round-trip instead of drilling into each category.
+        // Source-of-truth is `category_descriptions()`; the
+        // `category_descriptions_covers_all_categories` invariant test
+        // prevents drift when a new category lands without a description.
+        let descriptions = category_descriptions();
         let mut cats_json: Vec<serde_json::Value> = Vec::new();
         let mut total_tools = 0usize;
         for (cat_name, tools) in categories {
+            let desc = descriptions.get(cat_name).copied().unwrap_or("");
             cats_json.push(serde_json::json!({
                 "name": cat_name,
                 "tool_count": tools.len(),
+                "description": desc,
             }));
             total_tools += tools.len();
         }
@@ -7643,11 +7697,13 @@ pub struct HelpParams {
     /// Use when you know roughly what you want (e.g. "redact", "fleet", "thread")
     /// but not the exact category. T-1940.
     pub name_filter: Option<String>,
-    /// Overview mode: when true, returns only category names + tool counts
-    /// (`{categories: [{name, tool_count}, ...], total_categories, total_tools}`).
-    /// Use for cold-start two-step discovery — get the ~27-row overview, then
-    /// drill in via `category=<name>` for the per-tool detail. When set,
-    /// `category` and `name_filter` are ignored. T-1948.
+    /// Overview mode: when true, returns category names + tool counts + a
+    /// one-line `description` per category
+    /// (`{categories: [{name, tool_count, description}, ...], total_categories, total_tools}`).
+    /// Use for cold-start two-step discovery — get the ~27-row overview with
+    /// purpose hints, then drill in via `category=<name>` for the per-tool
+    /// detail. When set, `category` and `name_filter` are ignored. T-1948 +
+    /// T-1957 (per-category description).
     pub list_categories: Option<bool>,
     /// Drill-in mode: pass a tool name (e.g. `termlink_agent_post`) to get its
     /// category + short registry description + the full `#[tool(description=…)]`
@@ -11845,7 +11901,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Four modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description in one round-trip, closing the 3-step pattern (T-1952). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count}], total_categories, total_tools}`. `tool_detail` returns `{tool, name, category, short_description, full_description}` or an error with a discovery hint when the tool is unknown."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Four modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive substring search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just the category names + tool counts for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description in one round-trip, closing the 3-step pattern (T-1952). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description}, ...], ..., total_tools}`. `name_filter` returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results. `list_categories` returns `{categories:[{name,tool_count,description}], total_categories, total_tools}` — the per-category one-line `description` (T-1957) lets you route at category-discovery time without drilling in. `tool_detail` returns `{tool, name, category, short_description, full_description}` or an error with a discovery hint when the tool is unknown."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -34926,6 +34982,60 @@ YW\tJ
         assert_eq!(v["total_categories"], cats.len());
         let arr = v["categories"].as_array().unwrap();
         assert_eq!(arr.len(), cats.len());
+    }
+
+    #[test]
+    fn help_list_categories_includes_descriptions() {
+        // T-1957: list_categories mode must emit a non-empty `description`
+        // for every category row alongside `name` and `tool_count`. This is
+        // the operator-facing routing hint — empty descriptions would make
+        // the field decorative-only.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, true, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let arr = v["categories"].as_array().expect("categories must be array");
+        let mut empty: Vec<String> = Vec::new();
+        for entry in arr {
+            let name = entry["name"].as_str().expect("name must be string");
+            match entry["description"].as_str() {
+                Some(d) if !d.is_empty() => {}
+                _ => empty.push(name.to_string()),
+            }
+        }
+        assert!(
+            empty.is_empty(),
+            "categories missing non-empty description: {empty:?}"
+        );
+    }
+
+    #[test]
+    fn category_descriptions_covers_all_categories() {
+        // T-1957: structural invariant — the descriptions map's key set must
+        // equal the set of category names from `help_categories()`. Adding a
+        // category without a description (or vice-versa) fails this test, so
+        // drift cannot land silently. Mirrors the T-1949 unknown-category
+        // hint derivation pattern (single source of truth).
+        use std::collections::HashSet;
+        let cats = help_categories();
+        let cat_names: HashSet<&str> = cats.iter().map(|(n, _)| *n).collect();
+        let descs = category_descriptions();
+        let desc_keys: HashSet<&str> = descs.keys().copied().collect();
+
+        let mut missing_desc: Vec<&str> =
+            cat_names.difference(&desc_keys).copied().collect();
+        missing_desc.sort();
+        assert!(
+            missing_desc.is_empty(),
+            "categories with no description entry: {missing_desc:?}"
+        );
+
+        let mut orphan_desc: Vec<&str> =
+            desc_keys.difference(&cat_names).copied().collect();
+        orphan_desc.sort();
+        assert!(
+            orphan_desc.is_empty(),
+            "description map has entries for unknown categories: {orphan_desc:?}"
+        );
     }
 
     #[test]
