@@ -4,7 +4,7 @@ name: "termlink_help name_filter matches carry category_tool_count"
 description: >
   Enrich each name_filter match row with category_tool_count (size of the match's category) so an LLM ranking search results sees the namespace bound — a match in an 8-tool category is easier to learn than one in a 40-tool category. Composes with the existing {category, name, description, deprecated} shape. Drift-proof — derived live from help_categories().
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:45:23Z
-last_update: 2026-06-03T22:45:23Z
+last_update: 2026-06-03T22:48:06Z
 date_finished: null
 ---
 
@@ -31,11 +31,12 @@ prefer matches in smaller categories (tighter namespace, easier to learn).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Every name_filter match row includes `category_tool_count: number`
-- [ ] Value equals the live `tools.len()` of the match's category in `help_categories()`
-- [ ] Macro description mentions the new field per T-1962 drift-test contract (note: T-1965 already added `category_tool_count` to required_fields — confirmation only)
-- [ ] Invariant test: walk every category, run name_filter against each tool's name, verify the returned match carries the correct category_tool_count
-- [ ] Full suite passes — 716+ tests, 0 failed
+- [x] Every name_filter match row includes `category_tool_count: number` — `crates/termlink-mcp/src/tools.rs:1118-1144` (search loop) + `1127` capture
+- [x] Value equals the live `tools.len()` of the match's category — `cat_size = tools.len()` captured per-category at `tools.rs:1124`, attached to every match row
+- [x] Macro description updated for `name_filter` envelope — `tools.rs:12018` `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}`
+- [x] Drift test (T-1964) already covers `category_tool_count` per T-1965 addition — `tools.rs:35664` confirmed
+- [x] Invariant test: `name_filter_match_rows_carry_category_tool_count` walks every category, searches by first tool, verifies match's `category_tool_count` matches `tools.len()` — `tools.rs:35715-35759`
+- [x] Full suite passes — 716 tests (+1 from 715), 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,3 +133,6 @@ cargo test --lib --package termlink-mcp -- name_filter_match_rows_carry_category
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1966-termlinkhelp-namefilter-matches-carry-ca.md
 - **Context:** Initial task creation
+
+### 2026-06-03T22:46:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
