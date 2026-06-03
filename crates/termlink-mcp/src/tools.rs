@@ -589,6 +589,163 @@ fn tool_descriptions() -> &'static std::collections::HashMap<&'static str, &'sta
     })
 }
 
+/// T-1953: parameter info for a single field on a tool's `Parameters<…>` struct.
+/// Built by `tool_params()` via regex over `include_str!("./tools.rs")`. Owned
+/// strings keep lifetime gymnastics out of the cached map. `optional` is true
+/// iff the type starts with `Option<` — the convention for nullable params
+/// across all `*Params` structs in this file.
+#[derive(Clone)]
+struct ParamInfo {
+    name: String,
+    type_str: String,
+    optional: bool,
+    doc: Option<String>,
+}
+
+/// T-1953: parse the body of a `pub struct …Params { ... }` block into a list
+/// of `ParamInfo`. Line-oriented because it deals cleanly with nested generics
+/// (`Option<HashMap<String, String>>`) that a comma-stopped regex would split
+/// mid-type. Accumulates consecutive `///` lines as a single doc string and
+/// attaches them to the next `pub` field. Any non-doc non-pub non-empty line
+/// resets the doc accumulator so straddling fields cannot inherit stale text.
+fn parse_struct_fields(body: &str) -> Vec<ParamInfo> {
+    let mut fields = Vec::new();
+    let mut pending_doc: Vec<String> = Vec::new();
+    for line in body.lines() {
+        let t = line.trim();
+        if let Some(d) = t.strip_prefix("///") {
+            pending_doc.push(d.trim().to_string());
+        } else if let Some(rest) = t.strip_prefix("pub ") {
+            if let Some(colon) = rest.find(':') {
+                let name = rest[..colon].trim().to_string();
+                let mut type_str = rest[colon + 1..].trim().to_string();
+                if type_str.ends_with(',') {
+                    type_str.pop();
+                    type_str = type_str.trim().to_string();
+                }
+                let optional = type_str.starts_with("Option<");
+                let doc = if pending_doc.is_empty() {
+                    None
+                } else {
+                    Some(pending_doc.join(" "))
+                };
+                fields.push(ParamInfo {
+                    name,
+                    type_str,
+                    optional,
+                    doc,
+                });
+            }
+            pending_doc.clear();
+        } else if !t.is_empty() {
+            pending_doc.clear();
+        }
+    }
+    fields
+}
+
+/// T-1953: extract `(tool_name, [ParamInfo])` pairs from this source file via
+/// a two-phase regex scan (parallels `tool_descriptions()` at line ~570).
+///
+/// Phase 1 binds tool name → param struct name by matching the `#[tool(name=…)]`
+/// macro back-to-back with its `async fn <same_name>(… Parameters<XParams>)`
+/// handler signature (backreference enforces same identifier). The bounded
+/// `[\s\S]{0,3000}?` window keeps the match scoped to the immediate adjacent
+/// declaration so a later tool's macro can't accidentally bind to an earlier
+/// fn signature.
+///
+/// Phase 2 walks every `pub struct …Params { … }` block and uses
+/// `parse_struct_fields` to extract field name + type + optional + doc.
+///
+/// Phase 3 joins the two via the struct-name key.
+///
+/// Cached in a `OnceLock` so the scan runs once per process. Returns owned
+/// `String` keys/values to avoid `'static` lifetime issues with the include_str!
+/// haystack across closure boundaries. Used by `termlink_help`'s `tool_detail`
+/// mode to surface parameter shapes alongside descriptions, so LLM consumers
+/// can call a tool correctly on the first invocation without invoke-to-error
+/// schema discovery.
+fn tool_params() -> &'static std::collections::HashMap<String, Vec<ParamInfo>> {
+    static MAP: std::sync::OnceLock<std::collections::HashMap<String, Vec<ParamInfo>>> =
+        std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        let src: &'static str = include_str!("./tools.rs");
+
+        // Phase 1: tool_name -> param_struct_name
+        //
+        // Match the fn signature directly. Convention across this file (and
+        // the rmcp #[tool] macro examples) is that the `name = "termlink_X"`
+        // attribute and the `async fn termlink_X` identifier are the same
+        // string — so the fn name IS the tool name. Earlier draft tried to
+        // pair `name=` and `async fn` with a bounded lazy window, but
+        // `termlink_help`'s 3500-char description blew past the limit and
+        // dropped its entry. Skipping the macro-pair phase and going straight
+        // to the fn signature is both simpler and complete.
+        //
+        // `[^{]*?` lazily skips over the parameter list contents — including
+        // nested parens from `Parameters(p): Parameters<XParams>` — and stops
+        // at the function body's opening brace. `[^)]*` would stop at the
+        // closing paren of `Parameters(p)` before reaching `Parameters<`.
+        let tool_re = regex::Regex::new(
+            r#"async fn (termlink_[a-z_]+)\([^{]*?Parameters<(\w+)>"#,
+        )
+        .expect("tool_params phase1 regex must compile");
+
+        let mut tool_to_struct: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for cap in tool_re.captures_iter(src) {
+            let fn_name = cap.get(1).unwrap().as_str();
+            let struct_name = cap.get(2).unwrap().as_str();
+            tool_to_struct
+                .entry(fn_name.to_string())
+                .or_insert_with(|| struct_name.to_string());
+        }
+
+        // Phase 2: struct_name -> Vec<ParamInfo>
+        //
+        // Anchor the closing brace on `\n}` (start-of-line) rather than the
+        // first `}` — some `Params` doc comments contain `{...}` examples
+        // (e.g. HelpParams' `name_filter` doc mentions `{matches:[...]}`)
+        // which a naive `[^}]*` body match would truncate at. Rust struct
+        // bodies always close with `}` at column 0, so this is robust.
+        let struct_re = regex::Regex::new(r#"pub struct (\w+Params)\s*\{\n([\s\S]*?)\n\}"#)
+            .expect("tool_params phase2 regex must compile");
+
+        let mut struct_to_fields: std::collections::HashMap<String, Vec<ParamInfo>> =
+            std::collections::HashMap::new();
+        for cap in struct_re.captures_iter(src) {
+            let struct_name = cap.get(1).unwrap().as_str();
+            let body = cap.get(2).unwrap().as_str();
+            struct_to_fields.insert(struct_name.to_string(), parse_struct_fields(body));
+        }
+
+        // Phase 3: join
+        let mut out: std::collections::HashMap<String, Vec<ParamInfo>> =
+            std::collections::HashMap::new();
+        for (tool, struct_name) in tool_to_struct.iter() {
+            let fields = struct_to_fields
+                .get(struct_name)
+                .cloned()
+                .unwrap_or_default();
+            out.insert(tool.clone(), fields);
+        }
+        out
+    })
+}
+
+/// T-1953: render a `ParamInfo` as a JSON object for the `tool_detail` response.
+fn param_to_json(p: &ParamInfo) -> serde_json::Value {
+    let mut v = serde_json::json!({
+        "name": p.name,
+        "type": p.type_str,
+        "optional": p.optional,
+    });
+    if let Some(doc) = &p.doc {
+        v["doc"] = serde_json::json!(doc);
+    }
+    v
+}
+
 /// T-1940: shared filter logic for `termlink_help` so it's directly unit-testable
 /// without standing up the full MCP server. `category` scopes which categories
 /// are considered; `name_filter` triggers flat substring search across each
@@ -620,12 +777,21 @@ fn build_help_json(
             }
         }
         if let (Some(cat), Some(short), Some(full_desc)) = (found_category, found_short, full) {
+            // T-1953: include parameter schema derived from source regex. Tools
+            // with empty param structs (e.g. `AgentHelpParams {}`) return [],
+            // not absent — so the LLM can distinguish "no params" from "we
+            // couldn't extract them" by the presence of the key itself.
+            let params: Vec<serde_json::Value> = tool_params()
+                .get(target)
+                .map(|fields| fields.iter().map(param_to_json).collect())
+                .unwrap_or_default();
             let out = serde_json::json!({
                 "tool": target,
                 "name": target,
                 "category": cat,
                 "short_description": short,
                 "full_description": full_desc,
+                "parameters": params,
             });
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
@@ -34662,6 +34828,104 @@ YW\tJ
         assert!(
             full.len() > v["short_description"].as_str().unwrap().len(),
             "full_description should be longer than short_description"
+        );
+    }
+
+    #[test]
+    fn tool_params_extracts_known_tool() {
+        // T-1953: the regex-based param extractor must correctly resolve a
+        // known tool's `Parameters<…>` struct and surface every field. Use
+        // `termlink_help` because its `HelpParams` is stable and small
+        // (4 fields, all Option<…>).
+        let params = tool_params();
+        let help_params = params
+            .get("termlink_help")
+            .expect("termlink_help must have a parameter entry");
+        let names: Vec<&str> = help_params.iter().map(|p| p.name.as_str()).collect();
+        assert!(
+            names.contains(&"category"),
+            "HelpParams.category missing — got {names:?}"
+        );
+        assert!(
+            names.contains(&"name_filter"),
+            "HelpParams.name_filter missing — got {names:?}"
+        );
+        assert!(
+            names.contains(&"list_categories"),
+            "HelpParams.list_categories missing — got {names:?}"
+        );
+        assert!(
+            names.contains(&"tool_detail"),
+            "HelpParams.tool_detail missing — got {names:?}"
+        );
+        // All HelpParams fields are Option<…>, so optional must be true for each.
+        for p in help_params {
+            assert!(
+                p.optional,
+                "HelpParams.{} should be optional (Option<…>) but resolved as required (type={})",
+                p.name, p.type_str
+            );
+        }
+    }
+
+    #[test]
+    fn tool_detail_response_includes_parameters() {
+        // T-1953: tool_detail mode must include a `parameters` array in the
+        // JSON response so LLM consumers see ground-truth field shapes
+        // alongside descriptions.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_help"));
+        let parsed: serde_json::Value =
+            serde_json::from_str(&out).expect("response must be valid JSON");
+        let params = parsed
+            .get("parameters")
+            .expect("response missing `parameters` key");
+        let arr = params
+            .as_array()
+            .expect("`parameters` must be an array");
+        assert!(
+            arr.len() >= 4,
+            "expected ≥4 parameters on termlink_help, got {}",
+            arr.len()
+        );
+        let names: Vec<&str> = arr
+            .iter()
+            .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+            .collect();
+        assert!(
+            names.contains(&"tool_detail"),
+            "tool_detail param missing from response — got {names:?}"
+        );
+        // Each entry must have name + type + optional fields populated.
+        for entry in arr {
+            assert!(entry.get("name").is_some(), "param entry missing name");
+            assert!(entry.get("type").is_some(), "param entry missing type");
+            assert!(
+                entry.get("optional").is_some(),
+                "param entry missing optional flag"
+            );
+        }
+    }
+
+    #[test]
+    fn tool_params_covers_majority_of_real_tools() {
+        // T-1953: sanity check — the param extractor should resolve the vast
+        // majority of tools (some may legitimately lack a Parameters<…> arg).
+        // Assert >50% coverage so a regex regression that breaks Phase 1
+        // (tool→struct binding) gets caught structurally.
+        use std::collections::HashSet;
+        let src = include_str!("./tools.rs");
+        let name_re = regex::Regex::new(r#"name *= *"(termlink_[a-z_]+)""#).unwrap();
+        let real: HashSet<&str> = name_re
+            .captures_iter(src)
+            .map(|c| c.get(1).unwrap().as_str())
+            .collect();
+        let params = tool_params();
+        let coverage = params.len();
+        let total = real.len();
+        assert!(
+            coverage * 2 > total,
+            "tool_params resolved only {coverage}/{total} tools (< 50%) — Phase 1 regex likely broken"
         );
     }
 
