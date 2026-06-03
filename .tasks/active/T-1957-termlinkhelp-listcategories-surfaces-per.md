@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:44:57Z
-last_update: 2026-06-03T21:44:57Z
+last_update: 2026-06-03T21:48:35Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ T-1948 introduced `list_categories: bool` for cold-start two-step discovery. The
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `tools.rs::category_descriptions()` (or equivalent) returns a `&'static HashMap<&'static str, &'static str>` populated with one-line purpose strings for every category present in `help_categories()`.
-- [ ] `build_help_json` in `list_categories` mode includes `"description"` per row alongside `name` and `tool_count`. Existing `total_categories` and `total_tools` fields preserved.
-- [ ] `HelpParams.list_categories` doc-comment and the `#[tool(description=...)]` macro for `termlink_help` mention the new `description` field in the return-shape documentation so LLMs see it via `tool_detail`.
-- [ ] New test `help_list_categories_includes_descriptions` asserts every row in the JSON output has a non-empty `description` field.
-- [ ] New test `category_descriptions_covers_all_categories` (structural invariant) asserts the descriptions map's key set equals the set of names from `help_categories()` — drift-detection so adding a category without a description fails CI.
-- [ ] Existing tests `help_list_categories_returns_just_counts` and `help_list_categories_overrides_filters` still pass (with the description field added but other shape preserved).
-- [ ] Full lib test suite (`cargo test --lib --package termlink-mcp`) reports the prior pass count + the new tests, 0 failures.
+- [x] `tools.rs::category_descriptions()` (or equivalent) returns a `&'static HashMap<&'static str, &'static str>` populated with one-line purpose strings for every category present in `help_categories()`. — `crates/termlink-mcp/src/tools.rs:570-610` (OnceLock-cached, 27 entries, one per category).
+- [x] `build_help_json` in `list_categories` mode includes `"description"` per row alongside `name` and `tool_count`. Existing `total_categories` and `total_tools` fields preserved. — `crates/termlink-mcp/src/tools.rs:976-996` (looks up `category_descriptions().get(cat_name)`, inserts as third field).
+- [x] `HelpParams.list_categories` doc-comment and the `#[tool(description=...)]` macro for `termlink_help` mention the new `description` field in the return-shape documentation so LLMs see it via `tool_detail`. — `tools.rs:7700-7707` (HelpParams doc) and `tools.rs:11904` (macro: `{categories:[{name,tool_count,description}], ...}`).
+- [x] New test `help_list_categories_includes_descriptions` asserts every row in the JSON output has a non-empty `description` field. — `tools.rs:34987-35008`, passes (1/1).
+- [x] New test `category_descriptions_covers_all_categories` (structural invariant) asserts the descriptions map's key set equals the set of names from `help_categories()` — drift-detection so adding a category without a description fails CI. — `tools.rs:35010-35040` (checks both directions: missing-desc + orphan-desc), passes (1/1).
+- [x] Existing tests `help_list_categories_returns_just_counts` and `help_list_categories_overrides_filters` still pass (with the description field added but other shape preserved). — 4 list_categories tests run together: all 4 pass.
+- [x] Full lib test suite (`cargo test --lib --package termlink-mcp`) reports the prior pass count + the new tests, 0 failures. — `test result: ok. 698 passed; 0 failed` (+2 from 696, matches the 2 new tests).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
