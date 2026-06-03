@@ -11038,7 +11038,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread (thread structure/reactions/pins), agent_poll, diagnostics."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
@@ -11124,6 +11124,59 @@ impl TermLinkTools {
             ("tokens", vec![
                 ("termlink_token_create", "Create authentication token"),
                 ("termlink_token_inspect", "Inspect token contents"),
+            ]),
+            ("channel", vec![
+                ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
+                ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
+                ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
+                ("termlink_channel_reply", "Reply to a specific post on a topic"),
+                ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
+                ("termlink_channel_info", "Metadata + ACL + senders for a topic"),
+                ("termlink_channel_describe", "Set topic description/metadata"),
+                ("termlink_channel_snapshot", "Compact snapshot of topic state at a point"),
+                ("termlink_channel_snapshot_diff", "Diff between two channel snapshots"),
+                ("termlink_channel_state", "Current state of a topic (post counts, last offset)"),
+                ("termlink_channel_state_since", "Topic state delta since a given offset"),
+                ("termlink_channel_unread", "Count unread posts for a sender on a topic"),
+                ("termlink_channel_ack", "Acknowledge a topic up to a specific offset"),
+                ("termlink_channel_ack_history", "Past ack events on a topic"),
+                ("termlink_channel_ack_status", "Current ack state for a sender/topic pair"),
+                ("termlink_channel_receipts", "Per-sender receipt watermarks on a topic"),
+                ("termlink_channel_topic_stats", "Aggregate stats for a single topic"),
+            ]),
+            ("channel_threading", vec![
+                ("termlink_channel_thread", "Full thread tree from a post"),
+                ("termlink_channel_threads", "All thread roots on a topic"),
+                ("termlink_channel_ancestors", "Ancestor chain of a post"),
+                ("termlink_channel_replies_of", "Direct replies to a post"),
+                ("termlink_channel_quote", "Quote-reply to a post"),
+                ("termlink_channel_quote_stats", "Quote-engagement metrics for a post"),
+                ("termlink_channel_relations", "All relations (replies/quotes/reacts/edits) of a post"),
+            ]),
+            ("channel_moderation", vec![
+                ("termlink_channel_edit", "Edit a prior post in-place (revision logged)"),
+                ("termlink_channel_edits_of", "Edit history of a post"),
+                ("termlink_channel_edit_stats", "Aggregate edit metrics for a topic"),
+                ("termlink_channel_redact", "Retract a post — content erased, marker kept"),
+                ("termlink_channel_redactions", "All redactions on a topic"),
+                ("termlink_channel_pin", "Pin a post for prominence in topic metadata"),
+                ("termlink_channel_pin_history", "Pin/unpin events on a topic"),
+                ("termlink_channel_pinned", "Currently-pinned posts"),
+                ("termlink_channel_forward", "Re-publish a post to a different topic"),
+                ("termlink_channel_forwards_of", "Forward history of a post"),
+            ]),
+            ("channel_engagement", vec![
+                ("termlink_channel_react", "Add an emoji reaction to a post"),
+                ("termlink_channel_reactions_of", "Reactions made by a specific sender"),
+                ("termlink_channel_reactions_on", "Reactions on a specific post"),
+                ("termlink_channel_emoji_stats", "Aggregate emoji usage on a topic"),
+                ("termlink_channel_star", "Star a post (private bookmark)"),
+                ("termlink_channel_starred", "Your starred posts"),
+                ("termlink_channel_mentions", "Posts mentioning a sender"),
+                ("termlink_channel_mentions_of", "All mentions of a specific identity"),
+                ("termlink_channel_search", "Search content within a topic"),
+                ("termlink_channel_snippet", "Compact rendering of a post for citation"),
+                ("termlink_channel_digest", "Time-windowed digest of topic activity"),
             ]),
             ("agent_chat", vec![
                 ("termlink_agent_post", "Post a message on agent-chat-arc (or any chat topic)"),
@@ -11235,7 +11288,7 @@ impl TermLinkTools {
         }
 
         if filter.is_some() && tool_count == 0 {
-            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, agent_chat, agent_read, agent_presence, agent_inbox, agent_thread, agent_poll, diagnostics", filter.unwrap()));
+            return json_err(format!("Unknown category '{}'. Available: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel, channel_threading, channel_moderation, channel_engagement, agent_chat, agent_read, agent_presence, agent_inbox, agent_thread, agent_poll, diagnostics", filter.unwrap()));
         }
 
         result["total_tools"] = serde_json::json!(tool_count);
