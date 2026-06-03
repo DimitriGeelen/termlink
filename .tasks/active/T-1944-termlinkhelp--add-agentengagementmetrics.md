@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:56:57Z
-last_update: 2026-06-03T15:56:57Z
+last_update: 2026-06-03T15:58:57Z
 date_finished: null
 ---
 
@@ -39,12 +39,18 @@ demand justifies.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `agent_engagement_metrics` category added to `help_categories()` with all 10 entries
-- [ ] `agent_rankings` category added to `help_categories()` with all 8 entries
-- [ ] `termlink_help` `#[tool(description = ...)]` lists both new categories
-- [ ] `cargo test -p termlink-mcp --lib help_` passes (phantom guard verifies all 18 new entries map to real tools)
-- [ ] `cargo build -p termlink-mcp` is warning-free
-- [ ] No duplicate tool names within `help_categories()`
+- [x] `agent_engagement_metrics` category added to `help_categories()` with all 10 entries
+  - Evidence: 10 tuples (emoji_stats, emoji_users, reactions_by/of, reaction_rate/summary, pinned_by, starred_by, engagement_rate, peer_engagement) after `agent_poll` in `crates/termlink-mcp/src/tools.rs` `help_categories()`
+- [x] `agent_rankings` category added to `help_categories()` with all 8 entries
+  - Evidence: 8 tuples (top_pinners, top_reacted, top_replied, top_repliers, top_starrers, top_thread_starters, first_post_by, first_responders) alongside `agent_engagement_metrics`
+- [x] `termlink_help` `#[tool(description = ...)]` lists both new categories
+  - Evidence: description at `tools.rs:11384` lists `agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards)`
+- [x] `cargo test -p termlink-mcp --lib help_` passes (phantom guard verifies all 18 new entries map to real tools)
+  - Evidence: `test result: ok. 6 passed; 0 failed`
+- [x] `cargo build -p termlink-mcp` is warning-free
+  - Evidence: `cargo build -p termlink-mcp 2>&1 | grep -E "warning|error"` returned empty
+- [x] No duplicate tool names within `help_categories()`
+  - Evidence: `awk ... | uniq -c | awk '$1 > 1'` returned empty
 
 ## Verification
 
