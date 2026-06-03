@@ -4,7 +4,7 @@ name: "termlink_help summary mode — aggregate registry stats"
 description: >
   Add summary=true mode to termlink_help returning aggregate registry stats: total_tools, total_categories, total_deprecated, deprecated_by_category (non-zero only), largest_categories (top 5), smallest_categories (bottom 5). Drift-proof — all derived from help_categories() + is_deprecated(). Gives MCP-client consumers an O(1) cold-start snapshot of the API surface shape.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:30:37Z
-last_update: 2026-06-03T22:30:37Z
+last_update: 2026-06-03T22:36:54Z
 date_finished: null
 ---
 
@@ -32,15 +32,15 @@ cold-start snapshot. Drift-proof: all numbers derived live from
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams.summary: Option<bool>` field added, documented in struct doc
-- [ ] `build_help_json` recognizes `summary=true` and returns `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}`
-- [ ] `deprecated_by_category` emits only non-zero entries (sorted alpha by category name for stable output)
-- [ ] `largest_categories` and `smallest_categories` are arrays of `{name, tool_count}` sorted descending and ascending respectively, capped at 5
-- [ ] `summary` takes precedence over `list_categories` / `name_filter` / `category` (ignored when summary set), mirroring T-1948 / T-1952 precedence semantics
-- [ ] Invariant test: `total_tools` matches the sum of all category tool counts (no off-by-one)
-- [ ] Invariant test: `total_deprecated` equals the sum of `deprecated_by_category` values
-- [ ] Invariant test: every entry in `largest_categories` and `smallest_categories` is a real category from `help_categories()`
-- [ ] `cargo test --lib --package termlink-mcp` passes (711+ tests)
+- [x] `HelpParams.summary: Option<bool>` field added, documented in struct doc — `crates/termlink-mcp/src/tools.rs:7825-7836`
+- [x] `build_help_json` recognizes `summary=true` and returns `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` — `tools.rs:1070-1118`
+- [x] `deprecated_by_category` emits only non-zero entries (BTreeMap keyed by category name → alpha-sorted output) — `tools.rs:1083-1086`
+- [x] `largest_categories` and `smallest_categories` are arrays of `{name, tool_count}` sorted descending and ascending respectively, capped at 5 — `tools.rs:1093-1108`
+- [x] `summary` takes precedence over `list_categories` / `name_filter` / `category` (branch placed before `list_categories` and `name_filter`) — `tools.rs:1070`
+- [x] Invariant test: `help_summary_totals_match_registry` — `tools.rs:35714-35734`
+- [x] Invariant test: `help_summary_deprecated_arithmetic_consistent` — `tools.rs:35736-35774`
+- [x] Invariant test: `help_summary_largest_smallest_are_real_categories` — `tools.rs:35776-35821`
+- [x] `cargo test --lib --package termlink-mcp` passes — 714 tests (+4 from 710 baseline)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,3 +137,6 @@ cargo test --lib --package termlink-mcp -- help_summary 2>&1 | tail -20 | grep -
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1963-termlinkhelp-summary-mode--aggregate-reg.md
 - **Context:** Initial task creation
+
+### 2026-06-03T22:31:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
