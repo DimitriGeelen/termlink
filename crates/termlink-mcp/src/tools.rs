@@ -561,6 +561,20 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
     ]
 }
 
+/// T-1960: classify a tool's short description as deprecated when it contains
+/// any of the marker phrases used by the registry to flag retirement-WIP or
+/// already-legacy tools. Pure derivation — no hand-curated allow/deny list to
+/// drift. When the T-1166 inbox retirement lands and the registry is updated
+/// to drop "legacy primitive" wording, the flag auto-clears. The case-
+/// insensitive match avoids false negatives from sentence-case usage.
+fn is_deprecated(description: &str) -> bool {
+    let d = description.to_lowercase();
+    d.contains("legacy")
+        || d.contains("retirement")
+        || d.contains("deprecated")
+        || d.contains("t-1166")
+}
+
 /// T-1957: per-category one-line purpose strings, surfaced by `termlink_help`'s
 /// `list_categories` mode so an LLM cold-discovering the registry can route by
 /// domain without drilling into each category. Map key set MUST equal the set
@@ -1003,6 +1017,10 @@ fn build_help_json(
             // useful cognates", distinct from `related_tools` whose presence
             // is unconditional. Cap at 5 — gate fires above that.
             let cognates = verb_cognates(target, categories, 5);
+            // T-1960: surface deprecation status derived from the short
+            // description. LLMs use this to deprioritize retiring tools
+            // (T-1166 inbox primitives) and prefer current alternatives.
+            let deprecated = is_deprecated(short);
             let mut out = serde_json::json!({
                 "tool": target,
                 "name": target,
@@ -1011,6 +1029,7 @@ fn build_help_json(
                 "full_description": full_desc,
                 "parameters": params,
                 "related_tools": related,
+                "deprecated": deprecated,
             });
             if !cognates.is_empty() {
                 out["verb_cognates"] = serde_json::json!(cognates);
@@ -1101,10 +1120,14 @@ fn build_help_json(
                 let all_match = !tokens.is_empty()
                     && tokens.iter().all(|t| name_lc.contains(t) || desc_lc.contains(t));
                 if all_match {
+                    // T-1960: include deprecated flag so search results carry
+                    // the retirement signal — LLMs deprioritize legacy tools
+                    // without needing a follow-up tool_detail call to discover.
                     matches.push(serde_json::json!({
                         "category": cat_name,
                         "name": name,
                         "description": desc,
+                        "deprecated": is_deprecated(desc),
                     }));
                 }
             }
@@ -35393,6 +35416,135 @@ YW\tJ
                 );
             }
         }
+    }
+
+    #[test]
+    fn is_deprecated_flags_known_legacy_tools() {
+        // T-1960: every tool whose description carries a marker phrase must
+        // classify as deprecated. Sweep the real registry — adding a new
+        // marker tool without it being flagged fails this assertion.
+        let cats = help_categories();
+        let expected_flagged: Vec<&str> = vec![
+            "termlink_inbox_status",
+            "termlink_inbox_list",
+            "termlink_inbox_clear",
+            "termlink_remote_inbox_status",
+            "termlink_remote_inbox_list",
+            "termlink_remote_inbox_clear",
+        ];
+        let mut missing: Vec<&str> = Vec::new();
+        for target in &expected_flagged {
+            let mut found = false;
+            'outer: for (_, tools) in cats.iter() {
+                for (name, desc) in tools {
+                    if name == target {
+                        found = true;
+                        if !is_deprecated(desc) {
+                            missing.push(target);
+                        }
+                        break 'outer;
+                    }
+                }
+            }
+            assert!(found, "expected-flagged tool {target} not in registry");
+        }
+        assert!(
+            missing.is_empty(),
+            "tools NOT flagged but expected to be: {missing:?}"
+        );
+    }
+
+    #[test]
+    fn is_deprecated_excludes_live_tools() {
+        // T-1960: live tools must not be falsely flagged. Sweep canonical
+        // live tools and assert is_deprecated returns false on their
+        // descriptions in the real registry.
+        let cats = help_categories();
+        let live_tools: Vec<&str> = vec![
+            "termlink_agent_post",
+            "termlink_channel_post",
+            "termlink_help",
+            "termlink_doctor",
+        ];
+        let mut falsely_flagged: Vec<&str> = Vec::new();
+        for target in &live_tools {
+            'outer: for (_, tools) in cats.iter() {
+                for (name, desc) in tools {
+                    if name == target {
+                        if is_deprecated(desc) {
+                            falsely_flagged.push(target);
+                        }
+                        break 'outer;
+                    }
+                }
+            }
+        }
+        assert!(
+            falsely_flagged.is_empty(),
+            "live tools incorrectly flagged as deprecated: {falsely_flagged:?}"
+        );
+    }
+
+    #[test]
+    fn tool_detail_response_includes_deprecated_field() {
+        // T-1960: the field must be present for ANY tool — both true and
+        // false are valid, but the field's presence is the contract. LLMs
+        // rely on presence; absence would force a follow-up call to
+        // disambiguate.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, Some("termlink_inbox_status"));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert!(
+            v["deprecated"].is_boolean(),
+            "tool_detail must include `deprecated` as bool — got {:?}",
+            v["deprecated"]
+        );
+        assert_eq!(
+            v["deprecated"].as_bool().unwrap(),
+            true,
+            "termlink_inbox_status must be flagged deprecated"
+        );
+
+        // Also verify a live tool — same field present, false value.
+        let out2 = build_help_json(&cats, None, None, false, Some("termlink_agent_post"));
+        let v2: serde_json::Value = serde_json::from_str(&out2).unwrap();
+        assert!(
+            v2["deprecated"].is_boolean(),
+            "tool_detail must include `deprecated` for live tools too"
+        );
+        assert_eq!(
+            v2["deprecated"].as_bool().unwrap(),
+            false,
+            "termlink_agent_post must NOT be flagged deprecated"
+        );
+    }
+
+    #[test]
+    fn name_filter_matches_carry_deprecated_field() {
+        // T-1960: every match row carries the routing signal so search
+        // results are immediately rankable without a follow-up tool_detail.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("inbox"), false, None);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let arr = v["matches"]
+            .as_array()
+            .expect("name_filter must return matches array");
+        assert!(!arr.is_empty(), "inbox search must yield matches");
+        for entry in arr {
+            assert!(
+                entry["deprecated"].is_boolean(),
+                "match row missing `deprecated` field: {entry:?}"
+            );
+        }
+        // At least one of the inbox matches must be flagged true — that's
+        // the whole point of surfacing this for "inbox" search results.
+        let any_flagged = arr
+            .iter()
+            .any(|e| e["deprecated"].as_bool().unwrap_or(false));
+        assert!(
+            any_flagged,
+            "inbox name_filter must surface at least one deprecated match — got {arr:?}"
+        );
     }
 
     #[test]
