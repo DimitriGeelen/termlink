@@ -390,6 +390,18 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_snippet", "Compact rendering of a post for citation"),
             ("termlink_channel_digest", "Time-windowed digest of topic activity"),
         ]),
+        ("channel_admin", vec![
+            ("termlink_channel_members", "List members/subscribers on a topic"),
+            ("termlink_channel_queue_status", "Inspect topic queue state (post count, lag, last-offset)"),
+            ("termlink_channel_typing_emit", "Emit a typing indicator to a topic (UX signal)"),
+            ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic"),
+        ]),
+        ("channel_poll", vec![
+            ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
+            ("termlink_channel_poll_vote", "Cast a vote on an open channel poll"),
+            ("termlink_channel_poll_end", "Close a channel poll"),
+            ("termlink_channel_poll_results", "Read current results of a channel poll (open or closed)"),
+        ]),
         ("agent_chat", vec![
             ("termlink_agent_post", "Post a message on agent-chat-arc (or any chat topic)"),
             ("termlink_agent_reply", "Reply to an existing post — threads under that root"),
@@ -11369,7 +11381,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
