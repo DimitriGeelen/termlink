@@ -4,7 +4,7 @@ name: "termlink_help tool_detail enriches with category_description + category_t
 description: >
   Extend tool_detail return envelope with category-context fields: category_description (from T-1957 category_descriptions()) and category_tool_count (size of the target's category). Drift-proof — both derived live. Gives LLMs drilling into one tool the sizing + semantic context of its category without a second round-trip.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:41:18Z
-last_update: 2026-06-03T22:41:18Z
+last_update: 2026-06-03T22:44:08Z
 date_finished: null
 ---
 
@@ -31,14 +31,14 @@ category is large (40+ tools) the LLM knows to browse siblings deeper.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `tool_detail` return envelope includes `category_description: string` (sourced from `category_descriptions()`)
-- [ ] `tool_detail` return envelope includes `category_tool_count: number` (size of the target's category)
-- [ ] Both fields are present on EVERY tool_detail success response (not optional)
-- [ ] Macro description mentions both new fields per T-1962 drift-test contract
-- [ ] Drift test (T-1964) extended with `category_description` and `category_tool_count`
-- [ ] Invariant test: for every tool in `help_categories()`, `tool_detail` returns `category_tool_count` equal to its category's `tools.len()`
-- [ ] Invariant test: `category_description` is non-empty for every tool's category (composes with T-1957 bijective-coverage guarantee)
-- [ ] Full suite passes — 716+ tests, 0 failed
+- [x] `tool_detail` return envelope includes `category_description: string` — `crates/termlink-mcp/src/tools.rs:1028-1042`
+- [x] `tool_detail` return envelope includes `category_tool_count: number` — same site, sourced from `found_cat_size` captured during the registry walk at `tools.rs:990-1000`
+- [x] Both fields are present on EVERY tool_detail success response — locked by `tool_detail_carries_category_context_for_every_tool` (walks every tool in `help_categories()`)
+- [x] Macro description updated with both new fields — `tools.rs:12018` `tool_detail returns {...category_description, category_tool_count...}`
+- [x] Drift test (T-1964) extended with `category_description` and `category_tool_count` — `tools.rs:35658-35664`
+- [x] Invariant test: `category_tool_count` matches category size for every tool — `tool_detail_carries_category_context_for_every_tool` at `tools.rs:35715-35761`
+- [x] Invariant test: `category_description` non-empty for every tool's category — same test, fails on any empty string
+- [x] Full suite passes — 715 tests (+1 from 714), 0 failed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,3 +136,6 @@ cargo test --lib --package termlink-mcp -- help_macro_description 2>&1 | tail -5
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1965-termlinkhelp-tooldetail-enriches-with-ca.md
 - **Context:** Initial task creation
+
+### 2026-06-03T22:42:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
