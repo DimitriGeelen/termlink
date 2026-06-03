@@ -243,6 +243,240 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// T-1941: full help registry — extracted so the phantom-entry guard test
+/// (`help_registry_has_no_phantom_entries`) can introspect it without standing
+/// up the MCP server. `termlink_help` consumes the same fn.
+fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
+    vec![
+        ("session", vec![
+            ("termlink_list_sessions", "List registered sessions with filtering"),
+            ("termlink_whoami", "Identify which session is the caller (resolution: hint > env > PID-walk > candidates)"),
+            ("termlink_ping", "Ping a session to check liveness"),
+            ("termlink_status", "Get detailed session status"),
+            ("termlink_discover", "Find sessions by tags/roles/capabilities"),
+            ("termlink_spawn", "Spawn a new session in the background"),
+            ("termlink_run", "Execute command in ephemeral session"),
+            ("termlink_register", "Register as a discoverable endpoint"),
+            ("termlink_deregister", "Deregister a previously registered endpoint"),
+            ("termlink_clean", "Remove stale session registrations"),
+            ("termlink_tag", "Update tags/roles on a session"),
+            ("termlink_overview", "Aggregated system overview"),
+        ]),
+        ("execution", vec![
+            ("termlink_exec", "Execute command on a session"),
+            ("termlink_interact", "Interactive command execution with stdin"),
+            ("termlink_signal", "Send signal to a session"),
+        ]),
+        ("events", vec![
+            ("termlink_emit", "Emit event on a session"),
+            ("termlink_emit_to", "Emit event to a target session"),
+            ("termlink_broadcast", "Broadcast event to all sessions"),
+            ("termlink_event_poll", "Poll session event bus"),
+            ("termlink_event_subscribe", "Subscribe to session events (long-poll)"),
+            ("termlink_wait", "Wait for specific event topic"),
+            ("termlink_collect", "Collect events from multiple sessions via hub"),
+            ("termlink_topics", "List event topics on a session"),
+        ]),
+        ("kv", vec![
+            ("termlink_kv_set", "Set key-value on session store"),
+            ("termlink_kv_get", "Get value from session store"),
+            ("termlink_kv_list", "List all keys in session store"),
+            ("termlink_kv_del", "Delete key from session store"),
+            ("termlink_kv_watch", "Watch for key-value changes (long-poll)"),
+        ]),
+        ("files", vec![
+            ("termlink_file_send", "Send file to a session"),
+            ("termlink_file_receive", "Receive file from a session"),
+        ]),
+        ("hub", vec![
+            ("termlink_hub_status", "Check hub running status"),
+            ("termlink_hub_start", "Start the event hub (pass tcp_addr for cross-host)"),
+            ("termlink_hub_stop", "Stop the event hub"),
+            ("termlink_hub_restart", "Restart the event hub"),
+            ("termlink_hub_probe", "Pre-pin TLS probe — confirm a remote hub is up and capture its current fingerprint"),
+            ("termlink_hub_fingerprint", "TLS fingerprint of the local hub for peers to pin"),
+            ("termlink_hub_export_secret", "Read local hub.secret for out-of-band share (G-011 R3 authoritative source)"),
+        ]),
+        ("tofu", vec![
+            ("termlink_tofu_list", "List TOFU-pinned hub fingerprints from ~/.termlink/known_hubs"),
+            ("termlink_tofu_verify", "Per-host TOFU pin verification — compares wire fingerprint vs pinned. Status: match / drift / no-pin / probe-failed"),
+            ("termlink_tofu_clear", "Clear TOFU pin for a host (or all hosts with --all). Next connection will re-trust"),
+        ]),
+        ("fleet", vec![
+            ("termlink_fleet_verify", "Fleet-wide TOFU pin verification across all profiles in hubs.toml — drift dominates"),
+            ("termlink_fleet_doctor", "Auth + TLS health sweep across all profiles. Detects auth-mismatch (secret rotation) and pin-drift (cert rotation)"),
+            ("termlink_fleet_history", "Retrospective rotation/heal history from ~/.termlink/rotation.log + heal.log. Filter by --hub, --since-days, --include-heals"),
+            ("termlink_fleet_status", "Per-profile connectivity status across the fleet"),
+            ("termlink_fleet_bootstrap_check", "Validate declared bootstrap_from channels return parseable 64-hex secrets BEFORE auto-heal fires (preflight)"),
+            ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
+            ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
+            ("termlink_fleet_adoption_snapshot", "Snapshot fleet-wide adoption state across profiles"),
+        ]),
+        ("remote", vec![
+            ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
+            ("termlink_remote_ping", "Ping a remote hub or session (cross-host)"),
+            ("termlink_remote_inject", "Inject text into a session on a remote hub (cross-host)"),
+        ]),
+        ("batch", vec![
+            ("termlink_batch_exec", "Run command across multiple sessions"),
+            ("termlink_batch_ping", "Ping multiple sessions"),
+            ("termlink_batch_tag", "Tag/role operations across sessions"),
+            ("termlink_batch_run", "Run commands in parallel ephemeral sessions"),
+        ]),
+        ("dispatch", vec![
+            ("termlink_dispatch", "Atomic spawn+tag+collect for N workers"),
+            ("termlink_dispatch_status", "Check dispatch manifest status"),
+        ]),
+        ("tokens", vec![
+            ("termlink_token_create", "Create authentication token"),
+            ("termlink_token_inspect", "Inspect token contents"),
+        ]),
+        ("channel", vec![
+            ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
+            ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
+            ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
+            ("termlink_channel_reply", "Reply to a specific post on a topic"),
+            ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
+            ("termlink_channel_info", "Metadata + ACL + senders for a topic"),
+            ("termlink_channel_describe", "Set topic description/metadata"),
+            ("termlink_channel_snapshot", "Compact snapshot of topic state at a point"),
+            ("termlink_channel_snapshot_diff", "Diff between two channel snapshots"),
+            ("termlink_channel_state", "Current state of a topic (post counts, last offset)"),
+            ("termlink_channel_state_since", "Topic state delta since a given offset"),
+            ("termlink_channel_unread", "Count unread posts for a sender on a topic"),
+            ("termlink_channel_ack", "Acknowledge a topic up to a specific offset"),
+            ("termlink_channel_ack_history", "Past ack events on a topic"),
+            ("termlink_channel_ack_status", "Current ack state for a sender/topic pair"),
+            ("termlink_channel_receipts", "Per-sender receipt watermarks on a topic"),
+            ("termlink_channel_topic_stats", "Aggregate stats for a single topic"),
+        ]),
+        ("channel_threading", vec![
+            ("termlink_channel_thread", "Full thread tree from a post"),
+            ("termlink_channel_threads", "All thread roots on a topic"),
+            ("termlink_channel_ancestors", "Ancestor chain of a post"),
+            ("termlink_channel_replies_of", "Direct replies to a post"),
+            ("termlink_channel_quote", "Quote-reply to a post"),
+            ("termlink_channel_quote_stats", "Quote-engagement metrics for a post"),
+            ("termlink_channel_relations", "All relations (replies/quotes/reacts/edits) of a post"),
+        ]),
+        ("channel_moderation", vec![
+            ("termlink_channel_edit", "Edit a prior post in-place (revision logged)"),
+            ("termlink_channel_edits_of", "Edit history of a post"),
+            ("termlink_channel_edit_stats", "Aggregate edit metrics for a topic"),
+            ("termlink_channel_redact", "Retract a post — content erased, marker kept"),
+            ("termlink_channel_redactions", "All redactions on a topic"),
+            ("termlink_channel_pin", "Pin a post for prominence in topic metadata"),
+            ("termlink_channel_pin_history", "Pin/unpin events on a topic"),
+            ("termlink_channel_pinned", "Currently-pinned posts"),
+            ("termlink_channel_forward", "Re-publish a post to a different topic"),
+            ("termlink_channel_forwards_of", "Forward history of a post"),
+        ]),
+        ("channel_engagement", vec![
+            ("termlink_channel_react", "Add an emoji reaction to a post"),
+            ("termlink_channel_reactions_of", "Reactions made by a specific sender"),
+            ("termlink_channel_reactions_on", "Reactions on a specific post"),
+            ("termlink_channel_emoji_stats", "Aggregate emoji usage on a topic"),
+            ("termlink_channel_star", "Star a post (private bookmark)"),
+            ("termlink_channel_starred", "Your starred posts"),
+            ("termlink_channel_mentions", "Posts mentioning a sender"),
+            ("termlink_channel_mentions_of", "All mentions of a specific identity"),
+            ("termlink_channel_search", "Search content within a topic"),
+            ("termlink_channel_snippet", "Compact rendering of a post for citation"),
+            ("termlink_channel_digest", "Time-windowed digest of topic activity"),
+        ]),
+        ("agent_chat", vec![
+            ("termlink_agent_post", "Post a message on agent-chat-arc (or any chat topic)"),
+            ("termlink_agent_reply", "Reply to an existing post — threads under that root"),
+            ("termlink_agent_quote", "Quote-reply a post (preserves the quoted snippet)"),
+            ("termlink_agent_edit", "Edit your own prior post in-place (revision logged)"),
+            ("termlink_agent_redact", "Retract a post — content erased, marker preserved"),
+            ("termlink_agent_react", "Add an emoji reaction to a post"),
+            ("termlink_agent_pin", "Pin a post for prominence in topic metadata"),
+            ("termlink_agent_star", "Star a post (private bookmark)"),
+            ("termlink_agent_describe", "Set chat-arc topic metadata description"),
+            ("termlink_chat_arc_broadcast", "Fan a chat-arc post to every hub in the fleet (G-060 mitigation)"),
+        ]),
+        ("agent_read", vec![
+            ("termlink_agent_recent", "Last N posts from a peer on chat-arc"),
+            ("termlink_agent_recent_window", "Posts within a time window"),
+            ("termlink_agent_on_thread", "Chronological log of all posts on a thread"),
+            ("termlink_agent_threads", "List all thread roots on chat-arc"),
+            ("termlink_agent_history", "Full posting history for an agent"),
+            ("termlink_agent_timeline", "Fleet-wide chronological log (tail -f for the fleet)"),
+            ("termlink_agent_digest", "Single-shot fleet digest (combines presence + recent)"),
+            ("termlink_agent_search", "Search chat-arc by content substring"),
+            ("termlink_agent_search_thread", "Search within a single thread"),
+            ("termlink_agent_recent_decisions", "Surface posts tagged as decisions"),
+            ("termlink_agent_envelope", "Read raw envelope at a specific offset"),
+            ("termlink_agent_chat_arc_recent", "Read-only fleet-wide chat-arc tail"),
+            ("termlink_agent_redactions", "List retracted posts on chat-arc"),
+        ]),
+        ("agent_presence", vec![
+            ("termlink_agent_presence_now", "Fleet-wide peer activity summary"),
+            ("termlink_agent_listeners", "List LIVE listeners on local hub"),
+            ("termlink_agent_listeners_fleet", "List LIVE listeners across all hubs (T-1837)"),
+            ("termlink_agent_active_now", "Peers currently posting (heartbeat-recent)"),
+            ("termlink_agent_active_in_thread", "Peers active on a specific thread"),
+            ("termlink_agent_peers", "All peers known to the fleet"),
+            ("termlink_agent_who_is", "Resolve a peer's identity by name/fingerprint"),
+            ("termlink_agent_identity", "Show your own resolved identity"),
+            ("termlink_agent_info", "Detailed info for a specific peer"),
+            ("termlink_agent_state", "Lifecycle state of a peer (LIVE/STALE/OFFLINE)"),
+            ("termlink_agent_contact", "Initiate a DM thread with a peer (T-1429)"),
+            ("termlink_agent_ping", "Operator-facing presence check (T-1487)"),
+            ("termlink_agent_ask", "Ask a peer a question and await reply"),
+            ("termlink_listener_heartbeat", "Emit a heartbeat to advertise reachability"),
+            ("termlink_check_fleet_doorbell_mail_health", "Diagnose doorbell+mail across the fleet"),
+        ]),
+        ("agent_inbox", vec![
+            ("termlink_agent_inbox", "List unread topics with counts"),
+            ("termlink_agent_unread", "Count unread posts on a specific topic"),
+            ("termlink_agent_dms", "List DM topics scoped to self"),
+            ("termlink_agent_mentions", "List posts mentioning self"),
+            ("termlink_agent_ack", "Acknowledge a topic up to a specific offset"),
+            ("termlink_agent_ack_history", "Past ack events for an agent"),
+            ("termlink_agent_ack_status", "Current ack state for a topic"),
+            ("termlink_agent_response_received", "Confirm reply landed on awaited thread"),
+        ]),
+        ("agent_thread", vec![
+            ("termlink_agent_thread", "Full thread structure from a post"),
+            ("termlink_agent_thread_authors", "Distinct authors on a thread"),
+            ("termlink_agent_thread_summary", "Compact summary of a thread"),
+            ("termlink_agent_thread_path", "Linear path from leaf to root"),
+            ("termlink_agent_thread_depth", "Max depth of a thread"),
+            ("termlink_agent_ancestors", "Ancestor chain of a post"),
+            ("termlink_agent_replies_of", "Direct replies to a post"),
+            ("termlink_agent_followups", "Posts that follow this one chronologically"),
+            ("termlink_agent_followups_to", "Posts that follow a specific peer"),
+            ("termlink_agent_edits_of", "Edit history of a post"),
+            ("termlink_agent_pin_history", "Pin/unpin events on a topic"),
+            ("termlink_agent_pinned", "Currently-pinned posts"),
+            ("termlink_agent_pinned_history", "Past pin states for a post"),
+            ("termlink_agent_starred", "Your starred posts"),
+            ("termlink_agent_starred_history", "Past star events"),
+            ("termlink_agent_reactions", "Reactions on a specific post"),
+            ("termlink_agent_relations", "All relations (replies/quotes/reacts/edits) of a post"),
+        ]),
+        ("agent_poll", vec![
+            ("termlink_agent_poll_start", "Open a poll on a chat topic"),
+            ("termlink_agent_poll_vote", "Cast a vote on an open poll"),
+            ("termlink_agent_poll_end", "Close a poll and surface results"),
+        ]),
+        ("diagnostics", vec![
+            ("termlink_info", "Runtime info and paths"),
+            ("termlink_doctor", "Health check"),
+            ("termlink_version", "Version and build info"),
+            ("termlink_pty_mode", "Query terminal mode"),
+            ("termlink_output", "Read PTY output"),
+            ("termlink_inject", "Inject text into PTY"),
+            ("termlink_resize", "Resize PTY terminal"),
+            ("termlink_request", "Request-reply pattern"),
+            ("termlink_agent_ask", "Ask an agent session"),
+            ("termlink_send", "Send raw JSON-RPC"),
+        ]),
+    ]
+}
+
 /// T-1940: shared filter logic for `termlink_help` so it's directly unit-testable
 /// without standing up the full MCP server. `category` scopes which categories
 /// are considered; `name_filter` triggers flat substring search across each
@@ -11120,241 +11354,14 @@ impl TermLinkTools {
         description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Optionally filter by category: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, agent_chat (post/reply/edit), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping), agent_inbox (unread/dms/ack), agent_thread, agent_poll, diagnostics. Pass `name_filter` for case-insensitive substring search across tool names AND descriptions — combine with `category` to scope. Returns `{matches:[{category,name,description}], total_matches}` plus a `hint` when zero results."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
-        let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
-            ("session", vec![
-                ("termlink_list_sessions", "List registered sessions with filtering"),
-                ("termlink_whoami", "Identify which session is the caller (resolution: hint > env > PID-walk > candidates)"),
-                ("termlink_ping", "Ping a session to check liveness"),
-                ("termlink_status", "Get detailed session status"),
-                ("termlink_discover", "Find sessions by tags/roles/capabilities"),
-                ("termlink_spawn", "Spawn a new session in the background"),
-                ("termlink_run", "Execute command in ephemeral session"),
-                ("termlink_register", "Register as a discoverable endpoint"),
-                ("termlink_deregister", "Deregister a previously registered endpoint"),
-                ("termlink_clean", "Remove stale session registrations"),
-                ("termlink_tag", "Update tags/roles on a session"),
-                ("termlink_overview", "Aggregated system overview"),
-            ]),
-            ("execution", vec![
-                ("termlink_exec", "Execute command on a session"),
-                ("termlink_interact", "Interactive command execution with stdin"),
-                ("termlink_signal", "Send signal to a session"),
-            ]),
-            ("events", vec![
-                ("termlink_emit", "Emit event on a session"),
-                ("termlink_emit_to", "Emit event to a target session"),
-                ("termlink_broadcast", "Broadcast event to all sessions"),
-                ("termlink_event_poll", "Poll session event bus"),
-                ("termlink_event_subscribe", "Subscribe to session events (long-poll)"),
-                ("termlink_wait", "Wait for specific event topic"),
-                ("termlink_collect", "Collect events from multiple sessions via hub"),
-                ("termlink_topics", "List event topics on a session"),
-            ]),
-            ("kv", vec![
-                ("termlink_kv_set", "Set key-value on session store"),
-                ("termlink_kv_get", "Get value from session store"),
-                ("termlink_kv_list", "List all keys in session store"),
-                ("termlink_kv_del", "Delete key from session store"),
-                ("termlink_kv_watch", "Watch for key-value changes (long-poll)"),
-            ]),
-            ("files", vec![
-                ("termlink_file_send", "Send file to a session"),
-                ("termlink_file_receive", "Receive file from a session"),
-            ]),
-            ("hub", vec![
-                ("termlink_hub_status", "Check hub running status"),
-                ("termlink_hub_start", "Start the event hub (pass tcp_addr for cross-host)"),
-                ("termlink_hub_stop", "Stop the event hub"),
-                ("termlink_hub_restart", "Restart the event hub"),
-                ("termlink_hub_probe", "Pre-pin TLS probe — confirm a remote hub is up and capture its current fingerprint"),
-                ("termlink_hub_fingerprint", "TLS fingerprint of the local hub for peers to pin"),
-                ("termlink_hub_export_secret", "Read local hub.secret for out-of-band share (G-011 R3 authoritative source)"),
-            ]),
-            ("tofu", vec![
-                ("termlink_tofu_list", "List TOFU-pinned hub fingerprints from ~/.termlink/known_hubs"),
-                ("termlink_tofu_verify", "Per-host TOFU pin verification — compares wire fingerprint vs pinned. Status: match / drift / no-pin / probe-failed"),
-                ("termlink_tofu_clear", "Clear TOFU pin for a host (or all hosts with --all). Next connection will re-trust"),
-            ]),
-            ("fleet", vec![
-                ("termlink_fleet_verify", "Fleet-wide TOFU pin verification across all profiles in hubs.toml — drift dominates"),
-                ("termlink_fleet_doctor", "Auth + TLS health sweep across all profiles. Detects auth-mismatch (secret rotation) and pin-drift (cert rotation)"),
-                ("termlink_fleet_history", "Retrospective rotation/heal history from ~/.termlink/rotation.log + heal.log. Filter by --hub, --since-days, --include-heals"),
-                ("termlink_fleet_status", "Per-profile connectivity status across the fleet"),
-                ("termlink_fleet_bootstrap_check", "Validate declared bootstrap_from channels return parseable 64-hex secrets BEFORE auto-heal fires (preflight)"),
-                ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
-                ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
-                ("termlink_fleet_adoption_snapshot", "Snapshot fleet-wide adoption state across profiles"),
-            ]),
-            ("remote", vec![
-                ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
-                ("termlink_remote_ping", "Ping a remote hub or session (cross-host)"),
-                ("termlink_remote_inject", "Inject text into a session on a remote hub (cross-host)"),
-            ]),
-            ("batch", vec![
-                ("termlink_batch_exec", "Run command across multiple sessions"),
-                ("termlink_batch_ping", "Ping multiple sessions"),
-                ("termlink_batch_tag", "Tag/role operations across sessions"),
-                ("termlink_batch_run", "Run commands in parallel ephemeral sessions"),
-            ]),
-            ("dispatch", vec![
-                ("termlink_dispatch", "Atomic spawn+tag+collect for N workers"),
-                ("termlink_dispatch_status", "Check dispatch manifest status"),
-            ]),
-            ("tokens", vec![
-                ("termlink_token_create", "Create authentication token"),
-                ("termlink_token_inspect", "Inspect token contents"),
-            ]),
-            ("channel", vec![
-                ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
-                ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
-                ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
-                ("termlink_channel_reply", "Reply to a specific post on a topic"),
-                ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
-                ("termlink_channel_info", "Metadata + ACL + senders for a topic"),
-                ("termlink_channel_describe", "Set topic description/metadata"),
-                ("termlink_channel_snapshot", "Compact snapshot of topic state at a point"),
-                ("termlink_channel_snapshot_diff", "Diff between two channel snapshots"),
-                ("termlink_channel_state", "Current state of a topic (post counts, last offset)"),
-                ("termlink_channel_state_since", "Topic state delta since a given offset"),
-                ("termlink_channel_unread", "Count unread posts for a sender on a topic"),
-                ("termlink_channel_ack", "Acknowledge a topic up to a specific offset"),
-                ("termlink_channel_ack_history", "Past ack events on a topic"),
-                ("termlink_channel_ack_status", "Current ack state for a sender/topic pair"),
-                ("termlink_channel_receipts", "Per-sender receipt watermarks on a topic"),
-                ("termlink_channel_topic_stats", "Aggregate stats for a single topic"),
-            ]),
-            ("channel_threading", vec![
-                ("termlink_channel_thread", "Full thread tree from a post"),
-                ("termlink_channel_threads", "All thread roots on a topic"),
-                ("termlink_channel_ancestors", "Ancestor chain of a post"),
-                ("termlink_channel_replies_of", "Direct replies to a post"),
-                ("termlink_channel_quote", "Quote-reply to a post"),
-                ("termlink_channel_quote_stats", "Quote-engagement metrics for a post"),
-                ("termlink_channel_relations", "All relations (replies/quotes/reacts/edits) of a post"),
-            ]),
-            ("channel_moderation", vec![
-                ("termlink_channel_edit", "Edit a prior post in-place (revision logged)"),
-                ("termlink_channel_edits_of", "Edit history of a post"),
-                ("termlink_channel_edit_stats", "Aggregate edit metrics for a topic"),
-                ("termlink_channel_redact", "Retract a post — content erased, marker kept"),
-                ("termlink_channel_redactions", "All redactions on a topic"),
-                ("termlink_channel_pin", "Pin a post for prominence in topic metadata"),
-                ("termlink_channel_pin_history", "Pin/unpin events on a topic"),
-                ("termlink_channel_pinned", "Currently-pinned posts"),
-                ("termlink_channel_forward", "Re-publish a post to a different topic"),
-                ("termlink_channel_forwards_of", "Forward history of a post"),
-            ]),
-            ("channel_engagement", vec![
-                ("termlink_channel_react", "Add an emoji reaction to a post"),
-                ("termlink_channel_reactions_of", "Reactions made by a specific sender"),
-                ("termlink_channel_reactions_on", "Reactions on a specific post"),
-                ("termlink_channel_emoji_stats", "Aggregate emoji usage on a topic"),
-                ("termlink_channel_star", "Star a post (private bookmark)"),
-                ("termlink_channel_starred", "Your starred posts"),
-                ("termlink_channel_mentions", "Posts mentioning a sender"),
-                ("termlink_channel_mentions_of", "All mentions of a specific identity"),
-                ("termlink_channel_search", "Search content within a topic"),
-                ("termlink_channel_snippet", "Compact rendering of a post for citation"),
-                ("termlink_channel_digest", "Time-windowed digest of topic activity"),
-            ]),
-            ("agent_chat", vec![
-                ("termlink_agent_post", "Post a message on agent-chat-arc (or any chat topic)"),
-                ("termlink_agent_reply", "Reply to an existing post — threads under that root"),
-                ("termlink_agent_quote", "Quote-reply a post (preserves the quoted snippet)"),
-                ("termlink_agent_forward", "Re-publish a post to a different topic"),
-                ("termlink_agent_edit", "Edit your own prior post in-place (revision logged)"),
-                ("termlink_agent_redact", "Retract a post — content erased, marker preserved"),
-                ("termlink_agent_react", "Add an emoji reaction to a post"),
-                ("termlink_agent_pin", "Pin a post for prominence in topic metadata"),
-                ("termlink_agent_star", "Star a post (private bookmark)"),
-                ("termlink_agent_describe", "Set chat-arc topic metadata description"),
-                ("termlink_chat_arc_broadcast", "Fan a chat-arc post to every hub in the fleet (G-060 mitigation)"),
-            ]),
-            ("agent_read", vec![
-                ("termlink_agent_recent", "Last N posts from a peer on chat-arc"),
-                ("termlink_agent_recent_window", "Posts within a time window"),
-                ("termlink_agent_recent_dm", "Last N DMs with a specific peer"),
-                ("termlink_agent_on_thread", "Chronological log of all posts on a thread"),
-                ("termlink_agent_threads", "List all thread roots on chat-arc"),
-                ("termlink_agent_history", "Full posting history for an agent"),
-                ("termlink_agent_timeline", "Fleet-wide chronological log (tail -f for the fleet)"),
-                ("termlink_agent_digest", "Single-shot fleet digest (combines presence + recent)"),
-                ("termlink_agent_search", "Search chat-arc by content substring"),
-                ("termlink_agent_search_thread", "Search within a single thread"),
-                ("termlink_agent_recent_decisions", "Surface posts tagged as decisions"),
-                ("termlink_agent_envelope", "Read raw envelope at a specific offset"),
-                ("termlink_agent_chat_arc_recent", "Read-only fleet-wide chat-arc tail"),
-                ("termlink_agent_redactions", "List retracted posts on chat-arc"),
-            ]),
-            ("agent_presence", vec![
-                ("termlink_agent_presence_now", "Fleet-wide peer activity summary"),
-                ("termlink_agent_listeners", "List LIVE listeners on local hub"),
-                ("termlink_agent_listeners_fleet", "List LIVE listeners across all hubs (T-1837)"),
-                ("termlink_agent_active_now", "Peers currently posting (heartbeat-recent)"),
-                ("termlink_agent_active_in_thread", "Peers active on a specific thread"),
-                ("termlink_agent_peers", "All peers known to the fleet"),
-                ("termlink_agent_who_is", "Resolve a peer's identity by name/fingerprint"),
-                ("termlink_agent_identity", "Show your own resolved identity"),
-                ("termlink_agent_info", "Detailed info for a specific peer"),
-                ("termlink_agent_state", "Lifecycle state of a peer (LIVE/STALE/OFFLINE)"),
-                ("termlink_agent_contact", "Initiate a DM thread with a peer (T-1429)"),
-                ("termlink_agent_ping", "Operator-facing presence check (T-1487)"),
-                ("termlink_agent_ask", "Ask a peer a question and await reply"),
-                ("termlink_listener_heartbeat", "Emit a heartbeat to advertise reachability"),
-                ("termlink_check_fleet_doorbell_mail_health", "Diagnose doorbell+mail across the fleet"),
-            ]),
-            ("agent_inbox", vec![
-                ("termlink_agent_inbox", "List unread topics with counts"),
-                ("termlink_agent_unread", "Count unread posts on a specific topic"),
-                ("termlink_agent_dms", "List DM topics scoped to self"),
-                ("termlink_agent_mentions", "List posts mentioning self"),
-                ("termlink_agent_ack", "Acknowledge a topic up to a specific offset"),
-                ("termlink_agent_ack_history", "Past ack events for an agent"),
-                ("termlink_agent_ack_status", "Current ack state for a topic"),
-                ("termlink_agent_response_received", "Confirm reply landed on awaited thread"),
-            ]),
-            ("agent_thread", vec![
-                ("termlink_agent_thread", "Full thread structure from a post"),
-                ("termlink_agent_thread_authors", "Distinct authors on a thread"),
-                ("termlink_agent_thread_summary", "Compact summary of a thread"),
-                ("termlink_agent_thread_path", "Linear path from leaf to root"),
-                ("termlink_agent_thread_depth", "Max depth of a thread"),
-                ("termlink_agent_ancestors", "Ancestor chain of a post"),
-                ("termlink_agent_replies_of", "Direct replies to a post"),
-                ("termlink_agent_followups", "Posts that follow this one chronologically"),
-                ("termlink_agent_followups_to", "Posts that follow a specific peer"),
-                ("termlink_agent_edits_of", "Edit history of a post"),
-                ("termlink_agent_pin_history", "Pin/unpin events on a topic"),
-                ("termlink_agent_pinned", "Currently-pinned posts"),
-                ("termlink_agent_pinned_history", "Past pin states for a post"),
-                ("termlink_agent_starred", "Your starred posts"),
-                ("termlink_agent_starred_history", "Past star events"),
-                ("termlink_agent_reactions", "Reactions on a specific post"),
-                ("termlink_agent_relations", "All relations (replies/quotes/reacts/edits) of a post"),
-            ]),
-            ("agent_poll", vec![
-                ("termlink_agent_poll_start", "Open a poll on a chat topic"),
-                ("termlink_agent_poll_vote", "Cast a vote on an open poll"),
-                ("termlink_agent_poll_end", "Close a poll and surface results"),
-            ]),
-            ("diagnostics", vec![
-                ("termlink_info", "Runtime info and paths"),
-                ("termlink_doctor", "Health check"),
-                ("termlink_version", "Version and build info"),
-                ("termlink_pty_mode", "Query terminal mode"),
-                ("termlink_output", "Read PTY output"),
-                ("termlink_inject", "Inject text into PTY"),
-                ("termlink_resize", "Resize PTY terminal"),
-                ("termlink_request", "Request-reply pattern"),
-                ("termlink_agent_ask", "Ask an agent session"),
-                ("termlink_send", "Send raw JSON-RPC"),
-            ]),
-        ];
-
+        // T-1941: registry extracted to `help_categories()` free fn so the
+        // phantom-entry guard test can introspect it without standing up MCP.
+        let categories = help_categories();
         let filter = p.category.as_deref();
         let name_filter = p.name_filter.as_deref();
         build_help_json(&categories, filter, name_filter)
     }
+
 
     #[tool(
         name = "termlink_token_create",
@@ -34345,6 +34352,44 @@ YW\tJ
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 1);
         assert_eq!(v["matches"][0]["name"], "termlink_fleet_doctor");
+    }
+
+    #[test]
+    fn help_registry_has_no_phantom_entries() {
+        // T-1941: every (name, _) tuple in the help registry must correspond
+        // to a real `#[tool(name = "...")]` macro entry — otherwise LLM
+        // consumers that discover the name via `termlink_help` get a
+        // tool-not-found error when they try to call it.
+        //
+        // Two phantoms (`termlink_agent_forward`, `termlink_agent_recent_dm`)
+        // were dropped at T-1941. This test prevents regression: scan the
+        // source file at compile time for real macro names, then walk
+        // `help_categories()` and assert every entry resolves.
+        use std::collections::HashSet;
+        let src = include_str!("./tools.rs");
+        let re = regex::Regex::new(r#"name *= *"(termlink_[a-z_]+)""#).unwrap();
+        let real: HashSet<&str> = re
+            .captures_iter(src)
+            .map(|c| c.get(1).unwrap().as_str())
+            .collect();
+        assert!(
+            !real.is_empty(),
+            "regex extracted zero real tool names — pattern likely broken"
+        );
+
+        let cats = help_categories();
+        let mut phantoms: Vec<String> = Vec::new();
+        for (cat_name, tools) in cats.iter() {
+            for (tool_name, _desc) in tools.iter() {
+                if !real.contains(tool_name) {
+                    phantoms.push(format!("{cat_name}::{tool_name}"));
+                }
+            }
+        }
+        assert!(
+            phantoms.is_empty(),
+            "help registry contains phantom entries (drop or rename): {phantoms:?}"
+        );
     }
 
     #[test]
