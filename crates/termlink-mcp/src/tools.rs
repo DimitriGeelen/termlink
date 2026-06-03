@@ -35646,6 +35646,15 @@ YW\tJ
             ("category_hint", "T-1958"),
             ("deprecated", "T-1960/T-1961"),
             ("description", "T-1957 (per-category)"),
+            // T-1964: lock T-1963 summary-mode return fields into the
+            // schema-doc contract. If a future change removes/renames any
+            // of these from the macro string, the test fires before LLMs
+            // see a broken self-description.
+            ("summary", "T-1963 (mode name)"),
+            ("total_deprecated", "T-1963"),
+            ("largest_categories", "T-1963"),
+            ("smallest_categories", "T-1963"),
+            ("deprecated_by_category", "T-1963"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
