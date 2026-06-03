@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:50:40Z
-last_update: 2026-06-03T21:50:40Z
+last_update: 2026-06-03T21:53:01Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] When `tool_detail=<value>` and `<value>` matches a category name from `help_categories()`, the error envelope includes a `category_hint` field with copy-pasteable corrective syntax (`category=<value>` or `list_categories=true`).
-- [ ] When `tool_detail=<value>` and `<value>` is NOT a category name, existing behavior unchanged — `did_you_mean` array preserved, no `category_hint` emitted.
-- [ ] The error message itself (the `error` field) acknowledges the category match — "'<value>' is a category, not a tool" — instead of the generic "Unknown tool" line, so the LLM sees the diagnosis even if it ignores the hint field.
-- [ ] New test `tool_detail_category_name_emits_category_hint` (positive case) — passes `tool_detail="channel"`, asserts `category_hint` present + `error` contains category-specific language.
-- [ ] New test `tool_detail_unknown_no_category_hint` (negative case) — passes `tool_detail="bogus_xyz"`, asserts `category_hint` absent + `did_you_mean` still present (regression guard for T-1954).
-- [ ] Full lib test suite reports 700 passed (+2), 0 failed.
+- [x] When `tool_detail=<value>` and `<value>` matches a category name from `help_categories()`, the error envelope includes a `category_hint` field with copy-pasteable corrective syntax (`category=<value>` or `list_categories=true`). — `crates/termlink-mcp/src/tools.rs:956-968` (category-match branch fires before did_you_mean path).
+- [x] When `tool_detail=<value>` and `<value>` is NOT a category name, existing behavior unchanged — `did_you_mean` array preserved, no `category_hint` emitted. — same site: the original did_you_mean branch is the fall-through; verified by regression test `tool_detail_unknown_no_category_hint`.
+- [x] The error message itself (the `error` field) acknowledges the category match — "'<value>' is a category, not a tool" — instead of the generic "Unknown tool" line, so the LLM sees the diagnosis even if it ignores the hint field. — `tools.rs:959` (string literal).
+- [x] New test `tool_detail_category_name_emits_category_hint` (positive case) — `tools.rs:35360-35395`, passes (1/1) — verifies error language, category_hint presence + content, did_you_mean absent.
+- [x] New test `tool_detail_unknown_no_category_hint` (negative case) — `tools.rs:35397-35415`, passes (1/1) — verifies category_hint absent + did_you_mean present for non-category unknowns.
+- [x] Full lib test suite reports 700 passed (+2), 0 failed. — `test result: ok. 700 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
