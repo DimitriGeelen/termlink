@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:46:58Z
-last_update: 2026-06-03T20:46:58Z
+last_update: 2026-06-03T20:51:52Z
 date_finished: null
 ---
 
@@ -44,16 +44,26 @@ extraction is paid once per process.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` struct gets `tool_detail: Option<String>` field with rustdoc
-- [ ] New free fn `tool_descriptions() -> &'static HashMap<&'static str, &'static str>` extracts (name, full_desc) pairs from `tools.rs` via include_str! + regex, cached via `OnceLock`
-- [ ] `build_help_json` branches to detail mode when set, returning `{tool, name, category, short_description, full_description}`
-- [ ] Detail mode returns error with available-modes hint when tool name not found (not just empty result)
-- [ ] `termlink_help` wrapper passes the new param through
-- [ ] Top-level `termlink_help` tool description mentions tool_detail mode
-- [ ] Unit test: `help_tool_detail_returns_full_description` — verifies a known tool returns both short (registry) and full (macro) descriptions with category
-- [ ] Unit test: `help_tool_detail_unknown_returns_error` — verifies error path with actionable hint
-- [ ] Unit test: `tool_descriptions_extracts_all_real_tools` — sanity check the regex catches every `#[tool(name=…)]` entry (parallels phantom-guard pattern)
-- [ ] `cargo test -p termlink-mcp --lib` passes 685 (682 + 3 new)
+- [x] `HelpParams` struct gets `tool_detail: Option<String>` field with rustdoc
+  - Evidence: 5-line rustdoc on the new field at tools.rs (commit `3d1278da`); explains 3-step discovery pattern
+- [x] New free fn `tool_descriptions() -> &'static HashMap<&'static str, &'static str>` extracts (name, full_desc) pairs from `tools.rs` via include_str! + regex, cached via `OnceLock`
+  - Evidence: new fn at the top of `build_help_json` block; uses `OnceLock` + `include_str!("./tools.rs")` + `regex::Regex` matching `name = "X",\s*description = "Y..."`
+- [x] `build_help_json` branches to detail mode when set, returning `{tool, name, category, short_description, full_description}`
+  - Evidence: detail branch at top of `build_help_json` returns `{tool, name, category, short_description, full_description}` JSON
+- [x] Detail mode returns error with available-modes hint when tool name not found (not just empty result)
+  - Evidence: `json_err(format!("Unknown tool '{target}'. Use list_categories=true ... or name_filter ..."))`
+- [x] `termlink_help` wrapper passes the new param through
+  - Evidence: `let detail = p.tool_detail.as_deref();` then `build_help_json(..., detail)`
+- [x] Top-level `termlink_help` tool description mentions tool_detail mode
+  - Evidence: description now says "Four modes: ... (4) `tool_detail=<tool_name>` returns one tool's category + short ... + FULL macro description (T-1952)"
+- [x] Unit test: `help_tool_detail_returns_full_description` — verifies a known tool returns both short (registry) and full (macro) descriptions with category
+  - Evidence: test passes — calls `tool_detail=Some("termlink_help")`, asserts category/short/full all populated and full > short in length
+- [x] Unit test: `help_tool_detail_unknown_returns_error` — verifies error path with actionable hint
+  - Evidence: test passes — calls `tool_detail=Some("termlink_does_not_exist")`, asserts error echoes the name and mentions a discovery mode
+- [x] Unit test: `tool_descriptions_extracts_all_real_tools` — sanity check the regex catches every `#[tool(name=…)]` entry (parallels phantom-guard pattern)
+  - Evidence: test passes — compares phantom-guard's regex-extracted name set against `tool_descriptions()` keys, asserts no missing
+- [x] `cargo test -p termlink-mcp --lib` passes 685 (682 + 3 new)
+  - Evidence: `test result: ok. 685 passed; 0 failed; 0 ignored; 0 measured` — +3 from prior 682 baseline
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
