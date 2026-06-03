@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T19:45:49Z
-last_update: 2026-06-03T19:45:49Z
+last_update: 2026-06-03T19:48:40Z
 date_finished: null
 ---
 
@@ -40,12 +40,18 @@ discovery arc from the other direction.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `agent_stats` category added to `help_categories()` with all 16 entries
-- [ ] `agent_thread_health` category added to `help_categories()` with all 12 entries
-- [ ] `termlink_help` `#[tool(description = ...)]` lists both new categories
-- [ ] `cargo test -p termlink-mcp --lib help_` passes (phantom guard verifies all 28 new entries map to real tools)
-- [ ] `cargo build -p termlink-mcp` is warning-free
-- [ ] Coverage: 100% of real `termlink_*` tools surfaced — verified by `comm -23 <(grep real-names) <(grep help-listed)` returning empty
+- [x] `agent_stats` category added to `help_categories()` with all 16 entries
+  - Evidence: 16 tuples (stats, daily_volume, msg_growth_rate, activity_rhythm, age_distribution, response_latency, silence_gap, post_streak, topic_stats, topic_summary, topic_metadata_history, user_summary, snippet, search_by, recent_threads, forwards_of) after `agent_rankings` in `crates/termlink-mcp/src/tools.rs` `help_categories()`
+- [x] `agent_thread_health` category added to `help_categories()` with all 12 entries
+  - Evidence: 12 tuples (thread_health, thread_size_dist, threads_by, busiest_threads, idle_threads, quiet_threads, orphan_replies, unanswered, co_posters, burst_detect, silent_senders, self_replies) alongside `agent_stats`
+- [x] `termlink_help` `#[tool(description = ...)]` lists both new categories
+  - Evidence: description at `tools.rs:11384` lists `agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan)`
+- [x] `cargo test -p termlink-mcp --lib help_` passes
+  - Evidence: `test result: ok. 6 passed; 0 failed` — phantom guard validates all 28 new entries resolve to real tools
+- [x] `cargo build -p termlink-mcp` is warning-free
+  - Evidence: `cargo build -p termlink-mcp 2>&1 | grep -E "warning|error"` returned empty
+- [x] Coverage: 100% of real `termlink_*` tools surfaced
+  - Evidence: `real=252 surfaced=252 missing=0` per `comm -23` diff of `name = "..."` macro names vs `help_categories()` tuples
 
 ## Verification
 
