@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T22:09:06Z
-last_update: 2026-06-03T22:09:06Z
+last_update: 2026-06-03T22:11:14Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_help` `#[tool(description=...)]` macro string mentions `parameters` in the tool_detail return-shape section (T-1953).
-- [ ] Macro string mentions `verb_cognates` and explains it as "cross-domain verb mates, omitted when noisy" (T-1959).
-- [ ] Macro string mentions `category_hint` as an alternative to `did_you_mean` for category-name confusion (T-1958).
-- [ ] Macro string mentions `deprecated` in default / name_filter / tool_detail return-shape sections (T-1960 + T-1961).
-- [ ] Macro string mentions per-category `description` field in list_categories return shape (T-1957). (Already partially landed at T-1957; re-verify it's still there.)
-- [ ] New test `help_macro_description_documents_post_t1953_fields` — extracts the macro description via regex from `tools.rs` source, asserts all 5 field names appear. Drift-detection — landing a new field without updating the description fails this test.
-- [ ] Full lib test suite reports 710 passed (+1), 0 failed.
+- [x] Macro string mentions `parameters` — `crates/termlink-mcp/src/tools.rs:12015` (in tool_detail return-shape sentence; also called out in the "drill-in" listing).
+- [x] Macro string mentions `verb_cognates` — `tools.rs:12015` ("cross-domain tools sharing the trailing verb (omitted when noisy)").
+- [x] Macro string mentions `category_hint` — `tools.rs:12015` ("OR `category_hint` (T-1958, when the passed value is actually a category name)").
+- [x] Macro string mentions `deprecated` — `tools.rs:12015` (called out in both default return shape AND name_filter return shape).
+- [x] Macro string mentions per-category `description` — `tools.rs:12015` ("the per-category `description` (T-1957) lets you route at category-discovery time").
+- [x] New test `help_macro_description_documents_post_t1953_fields` — `tools.rs:35557-35596`, passes — sweeps the macro block extracted from source, asserts all 5 field names present.
+- [x] Full lib suite: `test result: ok. 710 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
