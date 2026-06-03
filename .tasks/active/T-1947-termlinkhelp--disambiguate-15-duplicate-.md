@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:19:00Z
-last_update: 2026-06-03T20:19:00Z
+last_update: 2026-06-03T20:24:03Z
 date_finished: null
 ---
 
@@ -44,10 +44,14 @@ need the fix.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] All 15 `agent_*` entries in the duplicate set get `" (chat-arc)"` suffix in `help_categories()`
-- [ ] All 15 `channel_*` entries in the duplicate set get `" (any topic)"` suffix in `help_categories()`
-- [ ] No two entries in `help_categories()` share an identical description after the fix (verified by `awk` dedup count = 0)
-- [ ] `cargo test -p termlink-mcp --lib` still passes 679 (no regression in phantom/coverage guards)
+- [x] All 15 `agent_*` entries in the duplicate set get `" (chat-arc)"` suffix in `help_categories()`
+  - Evidence: 15 agent_* entries patched — `ack`, `react`, `topic_stats`, `relations`, `ancestors`, `pinned`, `replies_of`, `edits_of`, `forwards_of`, `typers`, `pin`, `pin_history`, `reactions`, `star`, `starred`. Commit `24736fff`
+- [x] All 15 `channel_*` entries in the duplicate set get `" (any topic)"` suffix in `help_categories()`
+  - Evidence: 15 channel_* entries patched — `ack`, `react`, `topic_stats`, `relations`, `ancestors`, `pinned`, `replies_of`, `edits_of`, `forwards_of`, `typing_list`, `pin`, `pin_history`, `reactions_on`, `star`, `starred`. Commit `24736fff`
+- [x] No two entries in `help_categories()` share an identical description after the fix (verified by `awk` dedup count = 0)
+  - Evidence: `awk '/^fn help_categories/,/^}$/' crates/termlink-mcp/src/tools.rs | grep -oE '\("termlink_[a-z_]+", "[^"]+"\)' | sed -E 's/.*", "(.*)"\)/\1/' | sort | uniq -d | wc -l` → `0`
+- [x] `cargo test -p termlink-mcp --lib` still passes 679 (no regression in phantom/coverage guards)
+  - Evidence: `test result: ok. 679 passed; 0 failed; 0 ignored; 0 measured` — invariants from T-1941 + T-1946 both still hold
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
