@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:52:02Z
-last_update: 2026-06-04T05:53:05Z
+last_update: 2026-06-04T05:54:44Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ MCP arc cycle 10 slice 3. T-1971 surfaces `parameter_count` only in `tool_detail
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `name_filter` matches rows add `parameter_count` field (integer, == tool_params lookup → vec.len(), 0 when not in registry)
-- [ ] Default-mode tool rows add `parameter_count` field, same source
-- [ ] Macro doc-string shape lines updated to include `parameter_count` in BOTH `name_filter` and default-mode envelope shapes
-- [ ] Drift test: already covers `parameter_count` (T-1971); no extension needed (verify the existing required_fields entry covers both new sites since the macro contains the token wherever it appears)
-- [ ] Invariant test: `name_filter` row `parameter_count` matches the `tool_detail` parameter_count for the same tool name — cross-mode consistency
-- [ ] Invariant test: default-mode row `parameter_count` matches `tool_detail` for the same tool — cross-mode consistency
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 733+ tests, 0 failed)
+- [x] `name_filter` matches rows add `parameter_count` field (integer, == tool_params lookup → vec.len(), 0 when not in registry) (tools.rs:1265-1283, `tool_params().get(*name).map(|v| v.len()).unwrap_or(0)`)
+- [x] Default-mode tool rows add `parameter_count` field, same source (tools.rs:1322-1337)
+- [x] Macro doc-string shape lines updated to include `parameter_count` in BOTH `name_filter` and default-mode envelope shapes (tools.rs:12215, default shape `{name, description, deprecated, parameter_count}` + name_filter shape `{...parameter_count}` with T-1972 annotations)
+- [x] Drift test: already covers `parameter_count` (T-1971) — the existing required_fields entry (tools.rs:35823) matches anywhere in the macro string, which now contains 3 occurrences (tool_detail + default + name_filter)
+- [x] Invariant test: `name_filter` row `parameter_count` matches the `tool_detail` parameter_count for the same tool name — cross-mode consistency (tools.rs:36399-36430 name_filter_rows_parameter_count_matches_tool_detail)
+- [x] Invariant test: default-mode row `parameter_count` matches `tool_detail` for the same tool — cross-mode consistency (tools.rs:36432-36464 default_mode_rows_parameter_count_matches_tool_detail)
+- [x] `cargo test --lib --package termlink-mcp` passes (733 tests, 0 failed; +2 from T-1971 baseline of 731)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
