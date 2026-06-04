@@ -1288,13 +1288,20 @@ fn build_help_json(
                     // description carries a `(use NAME instead)` marker. Field
                     // is omitted on live tools and on deprecated tools without
                     // a hint — LLMs can rely on its presence as a routing flag.
+                    // T-1972: include parameter_count on every row (extends
+                    // T-1971's tool_detail signal to bulk-listing mode). LLMs
+                    // can rank multi-match results by arity without per-tool
+                    // drill-in. Source is the same tool_params() map; O(1)
+                    // lookup. Zero when the tool has no registered params.
                     let dep = is_deprecated(desc);
+                    let pc = tool_params().get(*name).map(|v| v.len()).unwrap_or(0);
                     let mut row = serde_json::json!({
                         "category": cat_name,
                         "category_tool_count": cat_size,
                         "name": name,
                         "description": desc,
                         "deprecated": dep,
+                        "parameter_count": pc,
                     });
                     if dep {
                         if let Some(hint) = extract_replacement_hint(desc) {
@@ -1338,13 +1345,19 @@ fn build_help_json(
         // T-1970: include replacement_hint when deprecated AND a `(use NAME
         // instead)` marker is present in the description. Field is omitted
         // otherwise for shape consistency with tool_detail / name_filter.
+        // T-1972: include parameter_count on every row (extends T-1971's
+        // tool_detail signal to default-mode bulk listing). O(1) per-tool
+        // lookup against the same tool_params() source — keeps the three
+        // bulk-listing shapes (tool_detail, name_filter, default) symmetric.
         let tools_json: Vec<serde_json::Value> = tools.iter()
             .map(|(name, desc)| {
                 let dep = is_deprecated(desc);
+                let pc = tool_params().get(*name).map(|v| v.len()).unwrap_or(0);
                 let mut row = serde_json::json!({
                     "name": name,
                     "description": desc,
                     "deprecated": dep,
+                    "parameter_count": pc,
                 });
                 if dep {
                     if let Some(hint) = extract_replacement_hint(desc) {
@@ -12219,7 +12232,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -36391,6 +36404,76 @@ YW\tJ
         assert!(
             errors.is_empty(),
             "category-context drift on {} tool(s):\n  {}",
+            errors.len(),
+            errors.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn name_filter_rows_parameter_count_matches_tool_detail() {
+        // T-1972: cross-mode consistency. For every tool matched by a
+        // broad-enough name_filter (`termlink_` matches the whole registry),
+        // the row's `parameter_count` MUST equal what tool_detail returns
+        // for the same name. Locks the two bulk-listing-mode shapes to the
+        // same tool_params() source — a divergence here means one path is
+        // synthesizing arity instead of reading the registry.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("termlink_"), false, None, false, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let matches = v["matches"].as_array().expect("matches array");
+        let mut errors: Vec<String> = Vec::new();
+        for row in matches {
+            let name = row["name"].as_str().unwrap();
+            let nf_pc = row["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false);
+            let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
+            let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+            if nf_pc != td_pc {
+                errors.push(format!(
+                    "{name}: name_filter parameter_count={nf_pc}, tool_detail={td_pc}"
+                ));
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "{} name_filter/tool_detail parameter_count divergence(s):\n  {}",
+            errors.len(),
+            errors.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn default_mode_rows_parameter_count_matches_tool_detail() {
+        // T-1972: cross-mode consistency, default-mode counterpart.
+        // Walks every category × every row, asserts the per-row
+        // `parameter_count` equals what tool_detail reports for the
+        // same tool. Mirror-image of name_filter test above.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, None, false, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let obj = v.as_object().expect("default mode returns object");
+        let mut errors: Vec<String> = Vec::new();
+        for (cat, entries) in obj {
+            if cat == "total_tools" {
+                continue;
+            }
+            let arr = entries.as_array().expect("rows array");
+            for row in arr {
+                let name = row["name"].as_str().unwrap();
+                let dm_pc = row["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false);
+                let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
+                let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+                if dm_pc != td_pc {
+                    errors.push(format!(
+                        "{cat}/{name}: default parameter_count={dm_pc}, tool_detail={td_pc}"
+                    ));
+                }
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "{} default/tool_detail parameter_count divergence(s):\n  {}",
             errors.len(),
             errors.join("\n  ")
         );
