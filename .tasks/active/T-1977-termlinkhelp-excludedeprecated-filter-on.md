@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:10:05Z
-last_update: 2026-06-04T07:11:07Z
+last_update: 2026-06-04T07:14:59Z
 date_finished: null
 ---
 
@@ -25,15 +25,15 @@ Cycle 11 of `termlink_help` hardening — slice 2 (slice 1 = T-1976 min_paramete
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` gains `exclude_deprecated: Option<bool>` field
-- [ ] `build_help_json` signature accepts `exclude_deprecated: bool` argument; all callers migrated
-- [ ] `name_filter` branch drops rows where `is_deprecated(desc)` AND `exclude_deprecated==true`
-- [ ] Standalone-arity-filter branch ALSO applies the deprecated gate (same `if`-block)
-- [ ] Test: `exclude_deprecated_drops_deprecated_rows` — query `name_filter="inbox"` with `exclude_deprecated=true` returns zero rows with `deprecated==true`
-- [ ] Test: `exclude_deprecated_off_keeps_deprecated_rows` — same query without flag returns at least one `deprecated==true` row (baseline)
-- [ ] Test: `exclude_deprecated_composes_with_min_max` — `min=1, exclude_deprecated=true, name_filter="inbox"` returns only live AND arity≥1 rows
-- [ ] Drift test gains required field `("exclude_deprecated", "T-1977")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 743 + 3 = 746
+- [x] `HelpParams` gains `exclude_deprecated: Option<bool>` field
+- [x] `build_help_json` signature accepts `exclude_deprecated: bool` argument; all callers migrated
+- [x] `name_filter` branch drops rows where `is_deprecated(desc)` AND `exclude_deprecated==true`
+- [x] Standalone-arity-filter branch ALSO applies the deprecated gate (same `if`-block)
+- [x] Test: `exclude_deprecated_drops_deprecated_rows` — query `name_filter="inbox"` with `exclude_deprecated=true` returns zero rows with `deprecated==true`
+- [x] Test: `exclude_deprecated_off_keeps_deprecated_rows` — same query without flag returns at least one `deprecated==true` row (baseline)
+- [x] Test: `exclude_deprecated_composes_with_min_max` — `min=1, exclude_deprecated=true, name_filter="inbox"` returns only live AND arity≥1 rows
+- [x] Drift test gains required field `("exclude_deprecated", "T-1977")`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 743 + 3 = 746
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
