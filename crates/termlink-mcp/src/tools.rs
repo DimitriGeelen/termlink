@@ -319,9 +319,9 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_remote_doctor", "Health check on one remote hub (connectivity/sessions/inbox)"),
             ("termlink_remote_exec", "Execute command on a session via remote hub (cross-host)"),
             ("termlink_remote_list", "List remote hubs declared in ~/.termlink/hubs.toml"),
-            ("termlink_remote_inbox_status", "Inbox status on a remote hub (legacy primitive, T-1166 retirement WIP)"),
-            ("termlink_remote_inbox_list", "List inbox messages on a remote hub (legacy primitive)"),
-            ("termlink_remote_inbox_clear", "Clear inbox on a remote hub (legacy primitive)"),
+            ("termlink_remote_inbox_status", "Inbox status on a remote hub (legacy primitive, T-1166 retirement WIP) (use termlink_channel_subscribe instead)"),
+            ("termlink_remote_inbox_list", "List inbox messages on a remote hub (legacy primitive) (use termlink_channel_subscribe instead)"),
+            ("termlink_remote_inbox_clear", "Clear inbox on a remote hub (legacy primitive) (use termlink_channel_subscribe instead)"),
         ]),
         ("batch", vec![
             ("termlink_batch_exec", "Run command across multiple sessions"),
@@ -554,9 +554,9 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_send", "Send raw JSON-RPC"),
             ("termlink_events", "List event topics on a session (live snapshot, distinct from event_poll/subscribe)"),
             ("termlink_net_test", "Basic TCP/TLS connectivity test against a target host:port"),
-            ("termlink_inbox_status", "Legacy inbox primitive — message count + last activity (T-1166 retirement WIP)"),
-            ("termlink_inbox_list", "Legacy inbox primitive — list messages (T-1166 retirement WIP)"),
-            ("termlink_inbox_clear", "Legacy inbox primitive — clear messages (T-1166 retirement WIP)"),
+            ("termlink_inbox_status", "Legacy inbox primitive — message count + last activity (T-1166 retirement WIP) (use termlink_channel_subscribe instead)"),
+            ("termlink_inbox_list", "Legacy inbox primitive — list messages (T-1166 retirement WIP) (use termlink_channel_subscribe instead)"),
+            ("termlink_inbox_clear", "Legacy inbox primitive — clear messages (T-1166 retirement WIP) (use termlink_channel_subscribe instead)"),
         ]),
     ]
 }
@@ -573,6 +573,32 @@ fn is_deprecated(description: &str) -> bool {
         || d.contains("retirement")
         || d.contains("deprecated")
         || d.contains("t-1166")
+}
+
+/// T-1970: extract a replacement-tool hint from a deprecated tool's description.
+/// Looks for the literal pattern `(use NAME instead)` and returns NAME. The
+/// marker lives in the description text so that:
+///   - new deprecated tools opt in by appending `(use X instead)` to their description
+///   - when the deprecated tool is deleted (T-1166 land), the hint disappears
+///     automatically with the tool — zero curated lists to drift
+///   - the parser is conservative: no fuzzy matching, exact `(use ` + ` instead)`
+///     fences, single name (no spaces) between them. Returns the inner name
+///     trimmed of whitespace, or None if no marker is present / malformed.
+/// Surfaced in tool_detail, name_filter matches, and default-mode rows when the
+/// tool is deprecated. Locked by the
+/// `every_deprecated_tool_has_replacement_hint` and
+/// `extract_replacement_hint_returns_none_on_live_tools` invariant tests.
+fn extract_replacement_hint(description: &str) -> Option<&str> {
+    let start_marker = "(use ";
+    let end_marker = " instead)";
+    let start = description.find(start_marker)? + start_marker.len();
+    let rest = &description[start..];
+    let end = rest.find(end_marker)?;
+    let name = rest[..end].trim();
+    if name.is_empty() || name.contains(char::is_whitespace) {
+        return None;
+    }
+    Some(name)
 }
 
 /// T-1957: per-category one-line purpose strings, surfaced by `termlink_help`'s
@@ -1050,6 +1076,15 @@ fn build_help_json(
             if !cognates.is_empty() {
                 out["verb_cognates"] = serde_json::json!(cognates);
             }
+            // T-1970: surface replacement_hint when the deprecated marker
+            // includes `(use NAME instead)`. Live tools and deprecated tools
+            // without a marker stay quiet (field omitted) — distinct from a
+            // populated null which would force the LLM to handle two shapes.
+            if deprecated {
+                if let Some(hint) = extract_replacement_hint(short) {
+                    out["replacement_hint"] = serde_json::json!(hint);
+                }
+            }
             return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
         }
         // T-1958: if the target matches a known category name, the LLM most
@@ -1242,13 +1277,24 @@ fn build_help_json(
                     // the retirement signal — LLMs deprioritize legacy tools
                     // without needing a follow-up tool_detail call to discover.
                     // T-1966: include category_tool_count for namespace sizing.
-                    matches.push(serde_json::json!({
+                    // T-1970: include replacement_hint when deprecated AND the
+                    // description carries a `(use NAME instead)` marker. Field
+                    // is omitted on live tools and on deprecated tools without
+                    // a hint — LLMs can rely on its presence as a routing flag.
+                    let dep = is_deprecated(desc);
+                    let mut row = serde_json::json!({
                         "category": cat_name,
                         "category_tool_count": cat_size,
                         "name": name,
                         "description": desc,
-                        "deprecated": is_deprecated(desc),
-                    }));
+                        "deprecated": dep,
+                    });
+                    if dep {
+                        if let Some(hint) = extract_replacement_hint(desc) {
+                            row["replacement_hint"] = serde_json::json!(hint);
+                        }
+                    }
+                    matches.push(row);
                 }
             }
         }
@@ -1282,12 +1328,24 @@ fn build_help_json(
         // T-1961: include deprecated flag in default-mode rows so an LLM
         // enumerating all tools sees the routing signal in the same shape
         // as name_filter and tool_detail responses (T-1960 consistency).
+        // T-1970: include replacement_hint when deprecated AND a `(use NAME
+        // instead)` marker is present in the description. Field is omitted
+        // otherwise for shape consistency with tool_detail / name_filter.
         let tools_json: Vec<serde_json::Value> = tools.iter()
-            .map(|(name, desc)| serde_json::json!({
-                "name": name,
-                "description": desc,
-                "deprecated": is_deprecated(desc),
-            }))
+            .map(|(name, desc)| {
+                let dep = is_deprecated(desc);
+                let mut row = serde_json::json!({
+                    "name": name,
+                    "description": desc,
+                    "deprecated": dep,
+                });
+                if dep {
+                    if let Some(hint) = extract_replacement_hint(desc) {
+                        row["replacement_hint"] = serde_json::json!(hint);
+                    }
+                }
+                row
+            })
             .collect();
         tool_count += tools_json.len();
         result[cat_name] = serde_json::json!(tools_json);
@@ -12154,7 +12212,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10). `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35748,6 +35806,10 @@ YW\tJ
             ("deprecated_count", "T-1967"),
             // T-1968: essentials mode — canonical entry-point per category.
             ("essentials", "T-1968 (mode name)"),
+            // T-1970: replacement_hint on deprecated tools — parsed from
+            // `(use NAME instead)` marker in the description. Surfaced in
+            // tool_detail, name_filter matches, and default-mode rows.
+            ("replacement_hint", "T-1970"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -35811,6 +35873,191 @@ YW\tJ
             inbox_status["deprecated"].as_bool(),
             Some(true),
             "termlink_inbox_status row must be flagged deprecated in default mode"
+        );
+    }
+
+    #[test]
+    fn extract_replacement_hint_parses_valid_marker() {
+        // T-1970: positive shape test for the parser. The marker is a
+        // literal `(use NAME instead)` substring and NAME is returned
+        // trimmed. Other text around it is ignored.
+        assert_eq!(
+            extract_replacement_hint("Legacy primitive (use termlink_channel_subscribe instead)"),
+            Some("termlink_channel_subscribe")
+        );
+        assert_eq!(
+            extract_replacement_hint("foo (use bar instead) baz"),
+            Some("bar")
+        );
+    }
+
+    #[test]
+    fn extract_replacement_hint_rejects_malformed_markers() {
+        // T-1970: the parser refuses ambiguous shapes — empty payload,
+        // whitespace inside the name, missing closing fence. Ambiguity
+        // would force LLMs to second-guess the hint; cleaner to omit.
+        assert_eq!(extract_replacement_hint("(use  instead)"), None);
+        assert_eq!(
+            extract_replacement_hint("(use a b c instead)"),
+            None,
+            "multi-word name is ambiguous (which is the canonical replacement?)"
+        );
+        assert_eq!(
+            extract_replacement_hint("use termlink_channel_subscribe instead"),
+            None,
+            "missing parentheses → no marker"
+        );
+        assert_eq!(
+            extract_replacement_hint("(use termlink_channel_subscribe)"),
+            None,
+            "missing ` instead)` fence → no marker"
+        );
+        assert_eq!(
+            extract_replacement_hint("Plain description with no marker"),
+            None
+        );
+    }
+
+    #[test]
+    fn every_deprecated_tool_has_replacement_hint() {
+        // T-1970: every tool flagged deprecated by the description-marker
+        // rule (is_deprecated) MUST also carry a parseable replacement_hint.
+        // A new deprecated tool that ships without the `(use X instead)`
+        // marker fails CI here, so the LLM-routing contract cannot silently
+        // regress. When T-1166 lands and deprecated tools are deleted, this
+        // test trivially passes (empty set).
+        let cats = help_categories();
+        let mut missing: Vec<String> = Vec::new();
+        for (cat_name, tools) in &cats {
+            for (name, desc) in tools {
+                if is_deprecated(desc) && extract_replacement_hint(desc).is_none() {
+                    missing.push(format!("{cat_name}/{name}: '{desc}'"));
+                }
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "{} deprecated tool(s) missing `(use X instead)` marker:\n  {}",
+            missing.len(),
+            missing.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn extract_replacement_hint_returns_none_on_live_tools() {
+        // T-1970: the converse of the above — no live (non-deprecated)
+        // tool may accidentally carry a `(use X instead)` marker, since
+        // that would mislead the LLM into routing away from a healthy
+        // primitive. Sweep the real registry; any positive match fails.
+        let cats = help_categories();
+        let mut spurious: Vec<String> = Vec::new();
+        for (cat_name, tools) in &cats {
+            for (name, desc) in tools {
+                if !is_deprecated(desc) && extract_replacement_hint(desc).is_some() {
+                    spurious.push(format!("{cat_name}/{name}: '{desc}'"));
+                }
+            }
+        }
+        assert!(
+            spurious.is_empty(),
+            "{} live tool(s) carry a stray `(use X instead)` marker:\n  {}",
+            spurious.len(),
+            spurious.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn tool_detail_surfaces_replacement_hint_on_deprecated() {
+        // T-1970: tool_detail on a known-deprecated tool must include
+        // `replacement_hint`; on a known-live tool must NOT include it.
+        // The asymmetry (presence as signal) is what makes the field
+        // useful to the LLM without forcing two-shape handling.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats,
+            None,
+            None,
+            false,
+            Some("termlink_inbox_status"),
+            false,
+            false,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["deprecated"].as_bool(), Some(true));
+        assert_eq!(
+            v["replacement_hint"].as_str(),
+            Some("termlink_channel_subscribe"),
+            "tool_detail on termlink_inbox_status must carry replacement_hint"
+        );
+
+        let out2 = build_help_json(&cats, None, None, false, Some("termlink_ping"), false, false);
+        let v2: serde_json::Value = serde_json::from_str(&out2).unwrap();
+        assert_eq!(v2["deprecated"].as_bool(), Some(false));
+        assert!(
+            v2.get("replacement_hint").is_none(),
+            "tool_detail on a live tool must NOT carry replacement_hint (got {:?})",
+            v2.get("replacement_hint")
+        );
+    }
+
+    #[test]
+    fn name_filter_matches_carry_replacement_hint_for_deprecated() {
+        // T-1970: name_filter rows whose `deprecated=true` carry
+        // `replacement_hint`; rows with `deprecated=false` do not. Searches
+        // for "inbox" which finds both legacy primitives AND live tools
+        // (depending on the registry); each row checked individually.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, Some("inbox"), false, None, false, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let matches = v["matches"].as_array().expect("name_filter returns matches array");
+        let mut errors: Vec<String> = Vec::new();
+        for row in matches {
+            let name = row["name"].as_str().unwrap_or("?");
+            let dep = row["deprecated"].as_bool().unwrap_or(false);
+            let has = row.get("replacement_hint").is_some();
+            match (dep, has) {
+                (true, false) => errors.push(format!("{name}: deprecated but no replacement_hint")),
+                (false, true) => errors.push(format!("{name}: live but carries replacement_hint")),
+                _ => {}
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "name_filter replacement_hint asymmetry violated:\n  {}",
+            errors.join("\n  ")
+        );
+    }
+
+    #[test]
+    fn default_mode_rows_carry_replacement_hint_for_deprecated() {
+        // T-1970: default-mode rows match name_filter / tool_detail
+        // shape — deprecated rows carry `replacement_hint`, live ones
+        // omit it. Walks every category × every row.
+        let cats = help_categories();
+        let out = build_help_json(&cats, None, None, false, None, false, false);
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let obj = v.as_object().expect("default mode returns an object");
+        let mut errors: Vec<String> = Vec::new();
+        for (cat, entries) in obj {
+            if cat == "total_tools" {
+                continue;
+            }
+            let arr = entries.as_array().expect("category rows must be array");
+            for row in arr {
+                let name = row["name"].as_str().unwrap_or("?");
+                let dep = row["deprecated"].as_bool().unwrap_or(false);
+                let has = row.get("replacement_hint").is_some();
+                match (dep, has) {
+                    (true, false) => errors.push(format!("{cat}/{name}: deprecated but no replacement_hint")),
+                    (false, true) => errors.push(format!("{cat}/{name}: live but carries replacement_hint")),
+                    _ => {}
+                }
+            }
+        }
+        assert!(
+            errors.is_empty(),
+            "default-mode replacement_hint asymmetry violated:\n  {}",
+            errors.join("\n  ")
         );
     }
 
