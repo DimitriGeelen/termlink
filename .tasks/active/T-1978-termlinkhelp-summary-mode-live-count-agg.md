@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:16:29Z
-last_update: 2026-06-04T07:17:12Z
+last_update: 2026-06-04T07:19:31Z
 date_finished: null
 ---
 
@@ -25,14 +25,14 @@ Cycle 11 of `termlink_help` hardening — slice 3 (slices 1-2 = T-1976 min_param
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Summary mode adds `total_live_tools` field (== total_tools - total_deprecated)
-- [ ] Summary mode adds `total_live_categories` field (count of categories with >=1 live tool)
-- [ ] Summary mode adds `largest_live_categories` field — top-5 categories by LIVE tool count, `[{name, live_tool_count}, ...]` shape
-- [ ] Test: `summary_total_live_tools_equals_total_minus_deprecated` — arithmetic invariant locks the derivation
-- [ ] Test: `summary_largest_live_categories_ranked_by_live_count` — top entry has highest live count; live_tool_count > 0 for every entry
-- [ ] Test: `summary_total_live_categories_matches_walk` — independent walk of categories with >=1 live tool equals the reported count
-- [ ] Drift test gains 3 required fields: `total_live_tools`, `total_live_categories`, `largest_live_categories`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 746 + 3 = 749
+- [x] Summary mode adds `total_live_tools` field (== total_tools - total_deprecated)
+- [x] Summary mode adds `total_live_categories` field (count of categories with >=1 live tool)
+- [x] Summary mode adds `largest_live_categories` field — top-5 categories by LIVE tool count, `[{name, live_tool_count}, ...]` shape
+- [x] Test: `summary_total_live_tools_equals_total_minus_deprecated` — arithmetic invariant locks the derivation
+- [x] Test: `summary_largest_live_categories_ranked_by_live_count` — top entry has highest live count; live_tool_count > 0 for every entry
+- [x] Test: `summary_total_live_categories_matches_walk` — independent walk of categories with >=1 live tool equals the reported count
+- [x] Drift test gains 3 required fields: `total_live_tools`, `total_live_categories`, `largest_live_categories`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 746 + 3 = 749
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
