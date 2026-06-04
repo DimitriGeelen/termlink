@@ -12,7 +12,7 @@ tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []
 created: 2026-06-04T08:20:54Z
-last_update: 2026-06-04T08:30:53Z
+last_update: 2026-06-04T08:34:59Z
 date_finished: null
 ---
 
@@ -30,7 +30,7 @@ Operator-driven investigation + restoration. User reports persistent "errors wit
 - [x] Probe federation gap: confirm whether posts made FROM .107 to local channel still relay to .122 hub, or whether cross-host posts must use `--hub <addr>` workaround
 - [x] Attempt listener restoration on .122 via `termlink remote exec ring20-management <session-id>` — start a presence-emitter for at least one stable session
 - [x] Verify agent-presence on .122 has ≥1 LIVE listener after restoration attempt (`bash scripts/agent-listeners.sh --hub 192.168.10.122:9100 --include-offline --json`)
-- [ ] If restoration succeeds, ack the .122-side DM inbox via `termlink channel ack <topic> --hub 192.168.10.122:9100` (operator-explicit) — **DEFERRED to .122-side operator (would self-ack my own outbound from .107 side)**
+- [x] If restoration succeeds, ack the .122-side DM inbox via `termlink channel ack <topic> --hub 192.168.10.122:9100` (operator-explicit) — **DECIDED: do NOT ack from .107 side; documented in Updates. Acking my own outbound (offsets 27-29 are from this session) would create false read-state. .122-side operator will run `/check-arc` post-restoration from a .122 session and ack from there.**
 - [x] Record findings in task Updates AND register a learning if any structural gap is identified (e.g. federation regression, listener-not-self-healing) — PL-200 registered
 - [x] If federation gap is a code defect, file a follow-up task (separate from T-1985) with reproduction steps — T-1986 filed
 
