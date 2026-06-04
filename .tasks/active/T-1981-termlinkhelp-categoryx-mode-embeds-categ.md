@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:28:27Z
-last_update: 2026-06-04T07:29:11Z
+last_update: 2026-06-04T07:31:12Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ Cycle 11 slice 6. Closes the round-trip count for category-drill flow: currently
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `category=X` envelope gains top-level `category_meta` object: `{name, description, tool_count, deprecated_count, live_tool_count}`
-- [ ] `category=X` with no category description (unlikely; guarded by existing invariant) emits `description: ""` not absent — stable shape
-- [ ] Test: `category_mode_envelope_carries_category_meta` — `category=channel` returns `category_meta` block with correct counts
-- [ ] Test: `category_meta_counts_match_list_categories` — same category's counts equal what `list_categories` reports for that name
-- [ ] Test: `category_meta_present_for_every_category` — walks every category, asserts `category_meta` block is present and counts match arithmetic
-- [ ] Drift test gains required field `("category_meta", "T-1981")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 755 + 3 = 758
+- [x] `category=X` envelope gains top-level `category_meta` object: `{name, description, tool_count, deprecated_count, live_tool_count}`
+- [x] `category=X` with no category description (unlikely; guarded by existing invariant) emits `description: ""` not absent — stable shape
+- [x] Test: `category_mode_envelope_carries_category_meta` — `category=channel` returns `category_meta` block with correct counts
+- [x] Test: `category_meta_counts_match_list_categories` — same category's counts equal what `list_categories` reports for that name
+- [x] Test: `category_meta_present_for_every_category` — walks every category, asserts `category_meta` block is present and counts match arithmetic
+- [x] Drift test gains required field `("category_meta", "T-1981")`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 755 + 3 = 758
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
