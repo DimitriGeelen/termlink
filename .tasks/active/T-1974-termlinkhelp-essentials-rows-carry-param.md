@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:59:54Z
-last_update: 2026-06-04T06:00:51Z
+last_update: 2026-06-04T06:02:03Z
 date_finished: null
 ---
 
@@ -25,11 +25,11 @@ MCP arc cycle 10 slice 5, completes the parameter_count axis. After T-1971/T-197
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `essentials` mode rows add `parameter_count` field — integer, == tool_params lookup → vec.len(), 0 when not in registry
-- [ ] Macro doc-string essentials shape updated to include `parameter_count` (`{name, category, category_description, description, parameter_count}`)
-- [ ] Drift test required_fields already covers `parameter_count` (T-1971); no extension needed
-- [ ] Invariant test: every essentials row's `parameter_count` matches `tool_detail.parameter_count` for the same tool name — cross-mode consistency
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 737+ tests, 0 failed)
+- [x] `essentials` mode rows add `parameter_count` field — integer, == tool_params lookup → vec.len(), 0 when not in registry (tools.rs:1148-1162)
+- [x] Macro doc-string essentials shape updated to include `parameter_count` (tools.rs:12215, essentials shape now `{name,category,category_description,description,parameter_count}` with T-1974 annotation)
+- [x] Drift test required_fields already covers `parameter_count` (T-1971); no extension needed — the existing required_fields entry catches every macro occurrence
+- [x] Invariant test: every essentials row's `parameter_count` matches `tool_detail.parameter_count` for the same tool name — cross-mode consistency (tools.rs:35912-35940 essentials_rows_carry_parameter_count_matching_tool_detail)
+- [x] `cargo test --lib --package termlink-mcp` passes (737 tests, 0 failed; +1 from T-1973 baseline of 736)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
