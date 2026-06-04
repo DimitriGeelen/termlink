@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:01:32Z
-last_update: 2026-06-04T07:02:17Z
+last_update: 2026-06-04T07:08:22Z
 date_finished: null
 ---
 
@@ -25,15 +25,15 @@ Cycle 11 of `termlink_help` hardening. T-1975 introduced `max_parameters` (upper
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` gains `min_parameters: Option<usize>` field, symmetric with existing `max_parameters` (T-1975)
-- [ ] `build_help_json` signature accepts `min_parameters: Option<usize>` argument; all callers (incl. tests) migrated
-- [ ] `name_filter` branch applies BOTH bounds — `pc >= min && pc <= max` when either is `Some`
+- [x] `HelpParams` gains `min_parameters: Option<usize>` field, symmetric with existing `max_parameters` (T-1975)
+- [x] `build_help_json` signature accepts `min_parameters: Option<usize>` argument; all callers (incl. tests) migrated
+- [x] `name_filter` branch applies BOTH bounds — `pc >= min && pc <= max` when either is `Some`
 - [ ] Standalone-arity-filter branch (no `needle`) now triggers when EITHER bound is `Some` (was only `max`)
 - [ ] Test: `min_parameters_n_filters_lower_bound` — `min_parameters=5` on standalone returns only tools with arity >= 5
 - [ ] Test: `min_max_parameters_compose_for_range` — `min=2, max=4, name_filter="channel"` returns only tools with arity in [2,4] AND name/desc match
 - [ ] Test: `min_parameters_standalone_matches_arity_walk` — standalone count with `min=K` equals manual walk of `tool_params()` filtering arity >= K
 - [ ] Drift test gains required field `("min_parameters", "T-1976")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 740 + 3 = 743
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 740 + 3 = 743
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
