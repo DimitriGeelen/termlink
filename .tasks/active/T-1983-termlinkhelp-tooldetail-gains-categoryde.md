@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:39:59Z
-last_update: 2026-06-04T07:40:45Z
+last_update: 2026-06-04T07:43:09Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ Cycle 11 slice 8 — completion of per-mode category-metadata symmetry. T-1965 a
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `tool_detail` JSON gains `category_deprecated_count` field (== count of deprecated tools in the same category)
-- [ ] `tool_detail` JSON gains `category_live_tool_count` field (== `category_tool_count` - `category_deprecated_count`)
-- [ ] Test: `tool_detail_category_counts_consistent_with_walk` — both fields match independent per-category walks
-- [ ] Test: `tool_detail_category_counts_sum_to_tool_count` — live + deprecated == category_tool_count
-- [ ] Test: `tool_detail_category_counts_match_list_categories_row` — counts match what list_categories reports for the same category
-- [ ] Drift test gains 2 required fields: `category_deprecated_count`, `category_live_tool_count`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 761 + 3 = 764
+- [x] `tool_detail` JSON gains `category_deprecated_count` field (== count of deprecated tools in the same category)
+- [x] `tool_detail` JSON gains `category_live_tool_count` field (== `category_tool_count` - `category_deprecated_count`)
+- [x] Test: `tool_detail_category_counts_consistent_with_walk` — both fields match independent per-category walks
+- [x] Test: `tool_detail_category_counts_sum_to_tool_count` — live + deprecated == category_tool_count
+- [x] Test: `tool_detail_category_counts_match_list_categories_row` — counts match what list_categories reports for the same category
+- [x] Drift test gains 2 required fields: `category_deprecated_count`, `category_live_tool_count`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 761 + 3 = 764
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
