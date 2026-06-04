@@ -12,7 +12,7 @@ tags: [pl-200, doorbell-mail, ring20]
 components: []
 related_tasks: []
 created: 2026-06-04T20:15:20Z
-last_update: 2026-06-04T20:15:20Z
+last_update: 2026-06-04T20:16:25Z
 date_finished: null
 ---
 
@@ -25,11 +25,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Probe .121 environment: identify hub user (root vs non-root), runtime_dir, termlink bin path, existing script dir
-- [ ] presence-heartbeat.sh installed on .121 with PL-146-aware TERMLINK_RUNTIME_DIR fallback (mirroring vendored-arc-heartbeat.sh) — agent_id=ring20-dashboard-agent, listen_topics=dm:<.121-fp>:*,agent-chat-arc
-- [ ] Cron entry installed on .121 (idempotent via grep) running every minute
-- [ ] ring20-dashboard-agent appears LIVE in `bash scripts/agent-listeners.sh --hub 192.168.10.121:9100 --include-offline --json` within 90 seconds of cron install
-- [ ] PL-200 learning updated with .121 fleet status entry; .141 memory note left unchanged (already current from T-1988)
+- [x] Probe .121: hub runs as root (UID 0), TERMLINK_RUNTIME_DIR=/var/lib/termlink (post T-1294/T-1296), bin /usr/local/bin/termlink, scripts at /root/termlink/scripts/, self-fp 33df8954b2a9b70d, hostname dashboard-agent
+- [x] presence-heartbeat.sh installed at /root/termlink/scripts/presence-heartbeat.sh — uses 3-tier runtime_dir fallback chain (try /tmp/termlink-$(id -u)/hub.sock → /var/lib/termlink → $HOME/.termlink/runtime), agent_id=ring20-dashboard-agent, listen_topics=dm:33df8954b2a9b70d:*,agent-chat-arc
+- [x] Cron entry `* * * * * /root/termlink/scripts/presence-heartbeat.sh >> /var/log/presence-heartbeat.log 2>&1` added (idempotent: grep -qF check before append)
+- [x] ring20-dashboard-agent LIVE on .121 hub within ≤90s: `bash scripts/agent-listeners.sh --hub 192.168.10.121:9100 --include-offline --json` returns LIVE/age=2s
+- [x] PL-200 learning updated with .121 fleet status entry; .141 memory note left unchanged (already current from T-1988)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -126,3 +126,9 @@ set -o pipefail; timeout 15 bash scripts/agent-listeners.sh --hub 192.168.10.121
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1989-pl-200-closure-on-121-ring20-dashboard-t.md
 - **Context:** Initial task creation
+
+### 2026-06-04T20:18Z — .121 install + recipe generalized
+- **Probe:** hub runs as root, TERMLINK_RUNTIME_DIR=/var/lib/termlink (post T-1296), socket at /var/lib/termlink/hub.sock, default /tmp/termlink-0/hub.sock absent.
+- **Recipe:** generalized T-1988 fallback into a 3-tier chain (`default → /var/lib/termlink → $HOME/.termlink/runtime`) so the same script template works on both root-hubs with migrated runtime (e.g. .122, .121) AND non-root hubs (e.g. .141 dimitri). Sim-cron posted offset=0 first try, no detour needed.
+- **Outcome:** ring20-dashboard-agent LIVE, age=2s, ~90s after cron install. PL-200 fleet coverage: 3/3 ring20-family + sibling hosts (.122, .141, .121) all LIVE. PL-200 learning updated with snapshot + recipe note.
+- **Files touched on .121:** /root/termlink/scripts/presence-heartbeat.sh + root crontab append (T-1989 comment + cron line).
