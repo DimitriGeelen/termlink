@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:32:24Z
-last_update: 2026-06-04T07:33:10Z
+last_update: 2026-06-04T07:39:12Z
 date_finished: null
 ---
 
@@ -25,15 +25,15 @@ Cycle 11 slice 7 — the symmetric inverse of T-1977's `exclude_deprecated`. LLM
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` gains `deprecated_only: Option<bool>` field
-- [ ] `build_help_json` signature accepts `deprecated_only: bool` argument; all callers migrated
-- [ ] `name_filter` / standalone-arity-filter branch drops rows where `!is_deprecated(desc)` AND `deprecated_only==true`
-- [ ] When both `exclude_deprecated` AND `deprecated_only` are true, result is empty + hint mentions the conflict
-- [ ] Test: `deprecated_only_keeps_only_deprecated_rows` — `name_filter="inbox", deprecated_only=true` returns rows ALL marked `deprecated: true`
-- [ ] Test: `deprecated_only_with_exclude_deprecated_is_empty_with_hint` — both flags true yields empty matches array and a hint mentioning the conflict
-- [ ] Test: `deprecated_only_composes_with_min_parameters` — `min=1, deprecated_only=true, name_filter="inbox"` returns deprecated AND arity>=1 rows
-- [ ] Drift test gains required field `("deprecated_only", "T-1982")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 758 + 3 = 761
+- [x] `HelpParams` gains `deprecated_only: Option<bool>` field
+- [x] `build_help_json` signature accepts `deprecated_only: bool` argument; all callers migrated
+- [x] `name_filter` / standalone-arity-filter branch drops rows where `!is_deprecated(desc)` AND `deprecated_only==true`
+- [x] When both `exclude_deprecated` AND `deprecated_only` are true, result is empty + hint mentions the conflict
+- [x] Test: `deprecated_only_keeps_only_deprecated_rows` — `name_filter="inbox", deprecated_only=true` returns rows ALL marked `deprecated: true`
+- [x] Test: `deprecated_only_with_exclude_deprecated_is_empty_with_hint` — both flags true yields empty matches array and a hint mentioning the conflict
+- [x] Test: `deprecated_only_composes_with_min_parameters` — `min=1, deprecated_only=true, name_filter="inbox"` returns deprecated AND arity>=1 rows
+- [x] Drift test gains required field `("deprecated_only", "T-1982")`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 758 + 3 = 761
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
