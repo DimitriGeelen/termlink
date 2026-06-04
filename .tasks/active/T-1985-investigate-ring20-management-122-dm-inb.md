@@ -12,7 +12,7 @@ tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []
 created: 2026-06-04T08:20:54Z
-last_update: 2026-06-04T08:27:41Z
+last_update: 2026-06-04T08:30:53Z
 date_finished: null
 ---
 
@@ -25,14 +25,14 @@ Operator-driven investigation + restoration. User reports persistent "errors wit
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Read .122-side `dm:9219671e28054458:d1993c2c3ec44c94` offsets 22-29 (8 unread) — capture summary of operationally hot items in task Updates
-- [ ] Read `dm:33df8954b2a9b70d:ring20-management-agent` (4 posts) — identify what was sent and from whom
-- [ ] Probe federation gap: confirm whether posts made FROM .107 to local channel still relay to .122 hub, or whether cross-host posts must use `--hub <addr>` workaround
-- [ ] Attempt listener restoration on .122 via `termlink remote exec ring20-management <session-id>` — start a presence-emitter for at least one stable session
-- [ ] Verify agent-presence on .122 has ≥1 LIVE listener after restoration attempt (`bash scripts/agent-listeners.sh --hub 192.168.10.122:9100 --include-offline --json`)
-- [ ] If restoration succeeds, ack the .122-side DM inbox via `termlink channel ack <topic> --hub 192.168.10.122:9100` (operator-explicit)
-- [ ] Record findings in task Updates AND register a learning if any structural gap is identified (e.g. federation regression, listener-not-self-healing)
-- [ ] If federation gap is a code defect, file a follow-up task (separate from T-1985) with reproduction steps
+- [x] Read .122-side `dm:9219671e28054458:d1993c2c3ec44c94` offsets 22-29 (8 unread) — capture summary of operationally hot items in task Updates
+- [x] Read `dm:33df8954b2a9b70d:ring20-management-agent` (4 posts) — identify what was sent and from whom
+- [x] Probe federation gap: confirm whether posts made FROM .107 to local channel still relay to .122 hub, or whether cross-host posts must use `--hub <addr>` workaround
+- [x] Attempt listener restoration on .122 via `termlink remote exec ring20-management <session-id>` — start a presence-emitter for at least one stable session
+- [x] Verify agent-presence on .122 has ≥1 LIVE listener after restoration attempt (`bash scripts/agent-listeners.sh --hub 192.168.10.122:9100 --include-offline --json`)
+- [ ] If restoration succeeds, ack the .122-side DM inbox via `termlink channel ack <topic> --hub 192.168.10.122:9100` (operator-explicit) — **DEFERRED to .122-side operator (would self-ack my own outbound from .107 side)**
+- [x] Record findings in task Updates AND register a learning if any structural gap is identified (e.g. federation regression, listener-not-self-healing) — PL-200 registered
+- [x] If federation gap is a code defect, file a follow-up task (separate from T-1985) with reproduction steps — T-1986 filed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -131,6 +131,29 @@ set -o pipefail; timeout 15 termlink remote ping ring20-management 2>&1 | grep -
 
 ### 2026-06-04T08:26:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-04T08:37:00Z — listener restoration LANDED (AC 4 + 5 satisfied)
+
+**Action:** Installed agent-presence emitter on .122 via `termlink remote exec ring20-management tl-dorwh74y`:
+
+1. Wrote `/root/termlink/scripts/presence-heartbeat.sh` (heredoc-rendered, T-1830 metadata convention) — chmod +x, smoke-tested OK
+2. Added crontab entry `* * * * * /root/termlink/scripts/presence-heartbeat.sh >> /var/log/presence-heartbeat.log 2>&1` next to the existing T-1438 hourly chat-arc heartbeat
+3. agent_id=`ring20-management-agent`, listen_topics=`dm:9219671e28054458:d1993c2c3ec44c94,agent-chat-arc`, interval_secs=60 (matches every-minute cron)
+
+**Verification (T+90s after install):**
+- agent-presence on .122 now has 3 posts (one-shot + smoke + 1 cron-fired)
+- `agent-listeners --hub 192.168.10.122:9100`: 1 LIVE listener, age_secs=42 (within 2x=120s LIVE window)
+- `/var/log/presence-heartbeat.log` exists (size 0 — script redirects stdout to /dev/null, log empty on success is correct)
+
+**Peers can now reach .122 via:**
+- `/agent-handoff ring20-management-agent T-XXX "<msg>"` from any session that has discovered the .122 hub via fleet config
+- `termlink agent contact ring20-management-agent --hub 192.168.10.122:9100`
+
+**AC 6 (ack .122-side DM inbox) — DEFERRED to operator:**
+
+The 30 unread DMs on `dm:9219671e28054458:d1993c2c3ec44c94` include items I (root-claude on .107) authored (offsets 27-29). Acking from .107 side would mark MY own outbound messages as "read by me" — self-deception. The .122-side agent must do the ack from .122 once they pick up their inbox via `/check-arc` (now possible since presence is live). Surfaced to operator in session report.
+
+**AC 8 (federation gap follow-up): FILED as T-1986** — separate code task to bisect hub relay regression against T-1166 cut commits.
 
 ### 2026-06-04T08:35:00Z — investigation findings (AC 1 + 2 + 3 + 4 partial)
 

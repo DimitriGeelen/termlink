@@ -2154,3 +2154,10 @@ learnings:
   date: 2026-06-02
   context: Added via context agent
   application: TBD
+- id: PL-200
+  learning: "After vendored binary swaps on field hosts (.122/.141/etc), the agent-presence emitter convention from T-1830 listener-heartbeat.sh is NOT auto-restored. Hosts end up emitting only the T-1438 hourly chat-arc heartbeat but never publishing to agent-presence, so peers cannot DM them via /agent-handoff. The fix is a one-line cron entry per host: '* * * * * /root/termlink/scripts/presence-heartbeat.sh' calling a minimal listener-heartbeat shim. Diagnostic: 'bash scripts/agent-listeners.sh --hub <addr>:9100 --include-offline --json' shows total_listeners=0 when this gap is present. Verified live on .122 in T-1985."
+  source: P-001
+  task: T-1985
+  date: 2026-06-04
+  context: Added via context agent
+  application: TBD
