@@ -2155,9 +2155,9 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-200
-  learning: "After vendored binary swaps on field hosts (.122/.141/etc), the agent-presence emitter convention from T-1830 listener-heartbeat.sh is NOT auto-restored. Hosts end up emitting only the T-1438 hourly chat-arc heartbeat but never publishing to agent-presence, so peers cannot DM them via /agent-handoff. The fix is a one-line cron entry per host: '* * * * * /root/termlink/scripts/presence-heartbeat.sh' calling a minimal listener-heartbeat shim. Diagnostic: 'bash scripts/agent-listeners.sh --hub <addr>:9100 --include-offline --json' shows total_listeners=0 when this gap is present. Verified live on .122 in T-1985."
+  learning: "After vendored binary swaps on field hosts (.122/.141/etc), the agent-presence emitter convention from T-1830 listener-heartbeat.sh is NOT auto-restored. Hosts end up emitting only the T-1438 hourly chat-arc heartbeat but never publishing to agent-presence, so peers cannot DM them via /agent-handoff. The fix is a one-line cron entry per host: '* * * * * /root/termlink/scripts/presence-heartbeat.sh' calling a minimal listener-heartbeat shim. Diagnostic: 'bash scripts/agent-listeners.sh --hub <addr>:9100 --include-offline --json' shows total_listeners=0 when this gap is present. Verified live on .122 in T-1985. PL-146 GOTCHA (T-1988): on hosts where the hub runs as non-root (e.g. .141 dimitri UID 1000), the cron script MUST resolve TERMLINK_RUNTIME_DIR via the vendored-arc-heartbeat.sh fallback (check $HOME/.termlink/runtime/hub.sock), otherwise the cron post silently queues locally with 'hub unreachable' and never delivers — verified live on .141 when the .122-template-cloned script failed in cron until the fallback was added. Fleet status 2026-06-04T20:13Z: .122 ring20-management-agent LIVE (T-1985), .141 laptop-141-agent LIVE (T-1988). .107 root-claude-dimitrimintdev OFFLINE (~1.4d — be-reachable not active in current session, ephemeral). .121 ring20-dashboard listener absent entirely (same gap, not yet patched — candidate for T-1989)."
   source: P-001
   task: T-1985
   date: 2026-06-04
-  context: Added via context agent
+  context: Added via context agent; extended in T-1988 with PL-146 gotcha + fleet status snapshot
   application: TBD

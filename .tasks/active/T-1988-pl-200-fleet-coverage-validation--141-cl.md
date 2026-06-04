@@ -12,7 +12,7 @@ tags: [pl-200, doorbell-mail, ring20, fleet]
 components: []
 related_tasks: []
 created: 2026-06-04T19:57:51Z
-last_update: 2026-06-04T19:57:51Z
+last_update: 2026-06-04T19:58:34Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ T-1987 closed the .122 dm-poller cron (every 2 min, surfaces inbound DMs to /var
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Test DM posted from this .107 session to ring20-management-agent's DM topic via `--hub 192.168.10.122:9100` (or local hub with federation gated)
-- [ ] Within 4 minutes (2 dm-poller cycles), the test DM payload appears in /var/log/dm-inbox.log on .122 (verified via remote exec)
-- [ ] .141 laptop-141 has /root/termlink/scripts/presence-heartbeat.sh installed (matches .122 template; agent_id=laptop-141-agent, listen_topics include dm:<141-fp>:*,agent-chat-arc)
-- [ ] .141 has `* * * * * /root/termlink/scripts/presence-heartbeat.sh ...` in its crontab (idempotent — checked before append)
-- [ ] Within 90 seconds of cron install, laptop-141-agent appears LIVE in `bash scripts/agent-listeners-fleet.sh` output
-- [ ] PL-200 learning gets a status-update entry confirming `.122 + .141` fleet coverage achieved
+- [x] Test DM posted from this .107 session to ring20-management-agent's DM topic via `--hub 192.168.10.122:9100` (offset=30, ts=1780603129417, nonce=T1988-end2end-20260604-195849Z)
+- [x] Within 4 minutes (2 dm-poller cycles), the test DM payload appears in /var/log/dm-inbox.log on .122 (poller fired at 20:00:01Z, new_envelopes=1, payload + nonce surfaced with sender attribution `d1993c2c3ec44c94 (010-termlink)`)
+- [x] .141 laptop-141 has presence-heartbeat.sh installed (at `/mnt/c/ntb-acd-plugin/termlink/scripts/presence-heartbeat.sh` — script path differs from .122 due to .141's WSL2 layout, but agent_id=laptop-141-agent, listen_topics=dm:6604a2af482f0cf7:*,agent-chat-arc both correct)
+- [x] .141 has `* * * * * PATH=... /mnt/c/ntb-acd-plugin/termlink/scripts/presence-heartbeat.sh ...` in dimitri's crontab (idempotent: `grep -qF "presence-heartbeat.sh"` guard before append)
+- [x] laptop-141-agent appears LIVE in `bash scripts/agent-listeners-fleet.sh` output (90s after PL-146 fix landed; first attempt with .122-template-clone failed silently due to PL-146)
+- [x] PL-200 learning got a status-update entry confirming `.122 + .141` fleet coverage + PL-146 cron-env gotcha + .121 flagged for follow-up
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,3 +127,20 @@ set -o pipefail; bash scripts/agent-listeners-fleet.sh --include-offline --json 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1988-pl-200-fleet-coverage-validation--141-cl.md
 - **Context:** Initial task creation
+
+### 2026-06-04T20:00Z — .122 end-to-end rail proven
+- **Posted:** `dm:9219671e28054458:d1993c2c3ec44c94` --hub 192.168.10.122:9100 offset=30 nonce=T1988-end2end-20260604-195849Z
+- **Surfaced:** /var/log/dm-inbox.log on .122 via dm-poller fire at 20:00:01Z (`new_envelopes=1`)
+- **Sender attribution:** d1993c2c3ec44c94 (010-termlink) — confirms PL-195 shared-host signing
+- **T-1987 status:** end-to-end validated (was only verified for historical 36-envelope backlog before)
+
+### 2026-06-04T20:13Z — .141 install + PL-146 gotcha
+- **Discovered:** .122 template doesn't port cleanly to .141 — cron runs as dimitri (UID 1000), `${HOME:-/root}/.termlink/runtime/hub.sock` resolution needed (PL-146). Cloning .122 script verbatim caused silent post-queueing with `Queued to agent-presence — queue_id=22 (hub unreachable; will flush on next reconnect)` — every cron fire enqueued locally instead of delivering.
+- **Fix:** mirrored the runtime-dir fallback block from `scripts/vendored-arc-heartbeat.sh` (the working T-1438 hourly chat-arc heartbeat). One sim-cron test drained 4 queued posts + posted offset=5. Next live cron cycle landed clean (laptop-141-agent LIVE, age=18s).
+- **Files touched on .141:** `/mnt/c/ntb-acd-plugin/termlink/scripts/presence-heartbeat.sh` + dimitri crontab append (T-1988 comment + cron line)
+- **PL-200 updated:** status entry with PL-146 gotcha + fleet snapshot + .121 flagged for T-1989 follow-up.
+
+### 2026-06-04T20:14Z — fleet status snapshot
+- 2 LIVE: ring20-management-agent (.122, T-1985) + laptop-141-agent (.141, T-1988)
+- 1 OFFLINE: root-claude-dimitrimintdev (.107, age ~1.4d — be-reachable not active in this session, ephemeral; not PL-200)
+- .121 ring20-dashboard: no listener entry at all — same PL-200 gap as .141 was, T-1989 candidate
