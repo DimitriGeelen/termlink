@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:20:38Z
-last_update: 2026-06-04T07:21:19Z
+last_update: 2026-06-04T07:23:07Z
 date_finished: null
 ---
 
@@ -25,12 +25,12 @@ Cycle 11 slice 4 (slices 1-3 = T-1976, T-1977, T-1978). T-1978 extended summary 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Each `list_categories` row gains `live_tool_count` field (== `tool_count` - `deprecated_count`)
-- [ ] Test: `list_categories_live_tool_count_matches_arithmetic` — every row's `live_tool_count` equals `tool_count - deprecated_count`
-- [ ] Test: `list_categories_live_tool_count_matches_walk` — independent walk of categories computing `is_deprecated()` per tool equals reported `live_tool_count`
-- [ ] Test: `list_categories_live_tool_count_sums_to_summary_total_live_tools` — registry-wide sum equals summary mode's `total_live_tools` (cross-mode arithmetic with T-1978)
-- [ ] Drift test gains required field `("live_tool_count", "T-1979")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 749 + 3 = 752
+- [x] Each `list_categories` row gains `live_tool_count` field (== `tool_count` - `deprecated_count`)
+- [x] Test: `list_categories_live_tool_count_matches_arithmetic` — every row's `live_tool_count` equals `tool_count - deprecated_count`
+- [x] Test: `list_categories_live_tool_count_matches_walk` — independent walk of categories computing `is_deprecated()` per tool equals reported `live_tool_count`
+- [x] Test: `list_categories_live_tool_count_sums_to_summary_total_live_tools` — registry-wide sum equals summary mode's `total_live_tools` (cross-mode arithmetic with T-1978)
+- [x] Drift test gains required field `("live_tool_count", "T-1979")`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 749 + 3 = 752
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
