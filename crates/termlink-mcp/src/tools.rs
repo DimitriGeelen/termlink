@@ -1180,6 +1180,11 @@ fn build_help_json(
         let mut total_deprecated = 0usize;
         let mut dep_by_cat: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
         let mut cat_sizes: Vec<(&str, usize)> = Vec::with_capacity(categories.len());
+        // T-1978: parallel per-category live-count tracking. Each entry is
+        // (cat_name, live_count) where live_count = tools.len() - dep_in_cat.
+        // Feeds total_live_categories (count of entries with live_count > 0)
+        // and largest_live_categories (top-5 by live_count).
+        let mut live_cat_sizes: Vec<(&str, usize)> = Vec::with_capacity(categories.len());
         for (cat_name, tools) in categories {
             total_tools += tools.len();
             let mut dep_in_cat = 0usize;
@@ -1193,6 +1198,7 @@ fn build_help_json(
                 dep_by_cat.insert(*cat_name, dep_in_cat);
             }
             cat_sizes.push((*cat_name, tools.len()));
+            live_cat_sizes.push((*cat_name, tools.len() - dep_in_cat));
         }
         // Largest / smallest categories, capped at 5. Tie-break by name for
         // deterministic output (the cat_sizes vec is already in registry
@@ -1235,6 +1241,24 @@ fn build_help_json(
         let highest_arity_tools: Vec<serde_json::Value> = arities.iter().take(5)
             .map(|(n, c)| serde_json::json!({"name": n, "parameter_count": c}))
             .collect();
+        // T-1978: live-count aggregates derived from the per-category dep
+        // counts. total_live_tools is the registry-wide live count;
+        // total_live_categories counts categories with at least one live
+        // tool; largest_live_categories is the top-5 by live_tool_count.
+        // Same source of truth as `total_deprecated` and `dep_by_cat` —
+        // the per-category walk above feeds all three.
+        let total_live_tools = total_tools - total_deprecated;
+        let total_live_categories = live_cat_sizes
+            .iter()
+            .filter(|(_, n)| *n > 0)
+            .count();
+        let mut live_by_desc = live_cat_sizes.clone();
+        live_by_desc.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        let largest_live_categories: Vec<serde_json::Value> = live_by_desc.iter()
+            .filter(|(_, n)| *n > 0)
+            .take(5)
+            .map(|(n, c)| serde_json::json!({"name": n, "live_tool_count": c}))
+            .collect();
         let out = serde_json::json!({
             "total_tools": total_tools,
             "total_categories": categories.len(),
@@ -1245,6 +1269,9 @@ fn build_help_json(
             "total_parameters": total_parameters,
             "zero_arity_tools": zero_arity_tools,
             "highest_arity_tools": highest_arity_tools,
+            "total_live_tools": total_live_tools,
+            "total_live_categories": total_live_categories,
+            "largest_live_categories": largest_live_categories,
         });
         return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
     }
@@ -12347,7 +12374,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35965,6 +35992,11 @@ YW\tJ
             // T-1977: exclude_deprecated server-side filter — suppresses
             // retirement-WIP rows from name_filter / standalone-arity searches.
             ("exclude_deprecated", "T-1977"),
+            // T-1978: summary-mode live-count aggregates — post-retirement
+            // namespace sizing without client-side arithmetic.
+            ("total_live_tools", "T-1978"),
+            ("total_live_categories", "T-1978"),
+            ("largest_live_categories", "T-1978"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -37057,6 +37089,73 @@ YW\tJ
                 "{name}: row does not match needle 'inbox'"
             );
         }
+    }
+
+    #[test]
+    fn summary_total_live_tools_equals_total_minus_deprecated() {
+        // T-1978: arithmetic invariant locking the derivation. If a future
+        // change miscounts live tools (e.g. forgets to subtract deprecated),
+        // the identity breaks here before the LLM-facing envelope drifts.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, true, false, None, None, false,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let total = v["total_tools"].as_u64().unwrap_or(u64::MAX);
+        let dep = v["total_deprecated"].as_u64().unwrap_or(u64::MAX);
+        let live = v["total_live_tools"].as_u64().unwrap_or(u64::MAX);
+        assert_eq!(
+            live,
+            total - dep,
+            "total_live_tools={live} but total_tools - total_deprecated = {} - {} = {}",
+            total, dep, total - dep
+        );
+    }
+
+    #[test]
+    fn summary_largest_live_categories_ranked_by_live_count() {
+        // T-1978: largest_live_categories rows must (a) be sorted by
+        // live_tool_count descending, (b) every row must have
+        // live_tool_count > 0 (zero-live categories are filtered out
+        // because they carry no signal for prioritization).
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, true, false, None, None, false,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let rows = v["largest_live_categories"].as_array().expect("array");
+        assert!(!rows.is_empty(), "largest_live_categories must be non-empty");
+        let mut prev: Option<u64> = None;
+        for row in rows {
+            let n = row["live_tool_count"].as_u64().unwrap_or(u64::MAX);
+            assert!(n > 0, "largest_live_categories must filter zero-live entries");
+            if let Some(p) = prev {
+                assert!(p >= n, "largest_live_categories not descending: {p} < {n}");
+            }
+            prev = Some(n);
+        }
+    }
+
+    #[test]
+    fn summary_total_live_categories_matches_walk() {
+        // T-1978: independent walk locking the count to the per-category
+        // live derivation. Computes the number of categories where at
+        // least one tool's `is_deprecated()` returns false, and asserts
+        // it equals summary.total_live_categories.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, true, false, None, None, false,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let reported = v["total_live_categories"].as_u64().unwrap_or(u64::MAX) as usize;
+        let walked = cats
+            .iter()
+            .filter(|(_, tools)| tools.iter().any(|(_, desc)| !is_deprecated(desc)))
+            .count();
+        assert_eq!(
+            reported, walked,
+            "summary.total_live_categories={reported} but walked-live-categories={walked}"
+        );
     }
 
     #[test]
