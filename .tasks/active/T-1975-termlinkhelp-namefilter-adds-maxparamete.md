@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T06:03:29Z
-last_update: 2026-06-04T06:04:19Z
+last_update: 2026-06-04T06:10:28Z
 date_finished: null
 ---
 
@@ -25,17 +25,17 @@ MCP arc cycle 10 slice 6. Adds `max_parameters: Option<usize>` to `HelpParams`. 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `HelpParams` gains `max_parameters: Option<usize>` field with doc comment
-- [ ] `termlink_help` method threads the field through to `build_help_json`
-- [ ] `build_help_json` signature gains `max_parameters: Option<usize>` argument
-- [ ] When `max_parameters` is set, `name_filter` mode suppresses match rows whose `parameter_count` > threshold
-- [ ] When `max_parameters` is set WITHOUT `name_filter`, walks the registry and returns matches in the same envelope shape (so callers get one consistent format for "find by arity" queries)
-- [ ] Macro doc-string updated: mentions `max_parameters`, describes combined-with-name_filter and standalone use, documents the new envelope when standalone (still `{matches:[...], total_matches}` shape)
-- [ ] Drift test required_fields includes `max_parameters` as a documented field
-- [ ] Invariant test: with `max_parameters=0`, every returned row has `parameter_count == 0`
-- [ ] Invariant test: with `max_parameters=N`, every returned row has `parameter_count <= N`
-- [ ] Invariant test: standalone `max_parameters` (no name_filter) total_matches equals summary.zero_arity_tools when threshold=0 — composes with T-1973
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 740+ tests, 0 failed)
+- [x] `HelpParams` gains `max_parameters: Option<usize>` field with doc comment (tools.rs:8079-8087)
+- [x] `termlink_help` method threads the field through to `build_help_json` (tools.rs:12289-12290)
+- [x] `build_help_json` signature gains `max_parameters: Option<usize>` argument (tools.rs:1001-1010); all 64 callers migrated
+- [x] When `max_parameters` is set, `name_filter` mode suppresses match rows whose `parameter_count` > threshold (tools.rs:1340-1347 arity_predicate gate)
+- [x] When `max_parameters` is set WITHOUT `name_filter`, walks the registry and returns matches in the same envelope shape (tools.rs:1290-1297, `standalone_arity_filter` opens the search branch with empty-needle = match-all)
+- [x] Macro doc-string updated: mentions `max_parameters`, describes combined-with-name_filter and standalone use (tools.rs:12310, T-1975 block appended to name_filter shape line)
+- [x] Drift test required_fields includes `max_parameters` (tools.rs:35840-35842)
+- [x] Invariant test: with `max_parameters=0`, every returned row has `parameter_count == 0` (tools.rs:36694-36713 max_parameters_zero_returns_only_zero_arity_tools)
+- [x] Invariant test: with `max_parameters=N`, every returned row has `parameter_count <= N` (tools.rs:36715-36744 max_parameters_n_caps_arity_in_matches)
+- [x] Invariant test: standalone `max_parameters=0` total_matches equals summary.zero_arity_tools (tools.rs:36746-36768 max_parameters_standalone_count_matches_summary_zero_arity_tools)
+- [x] `cargo test --lib --package termlink-mcp` passes (740 tests, 0 failed; +3 from T-1974 baseline of 737)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
