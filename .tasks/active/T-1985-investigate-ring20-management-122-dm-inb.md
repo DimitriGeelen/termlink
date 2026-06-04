@@ -131,3 +131,44 @@ set -o pipefail; timeout 15 termlink remote ping ring20-management 2>&1 | grep -
 
 ### 2026-06-04T08:26:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-04T08:35:00Z — investigation findings (AC 1 + 2 + 3 + 4 partial)
+
+**.122 hub state (from `termlink remote exec ring20-management tl-dorwh74y`):**
+- hostname=`ring20-manager`, binary=`/usr/local/bin/termlink 0.11.473`
+- NO systemd units for termlink/listener/heartbeat
+- NO `/root/.termlink/be-reachable.state` (so `/be-reachable` was never run)
+- Cron has ONE relevant entry: `17 * * * * /root/termlink/scripts/vendored-arc-heartbeat.sh` — posts to chat-arc hourly, does NOT post to agent-presence, does NOT subscribe to DMs
+- Running processes: `termlink register --name ring20-management-agent` in tmux session `tl-ring20-management-agent` (PID 1296923, May 24); `termlink register --name skills-manager-agent` (PID 741675/93); `termlink register --name review-batch-4` (PID 1018345); 2x `termlink mcp serve`; 2x `termlink agent thread 2537 --hub 192.168.10.107:9100` (pulling from .107 hub for a chat-arc thread)
+- The 4 registered sessions exist but NONE subscribe to their DM topic
+
+**DM inbox content (AC 1: `dm:9219671e28054458:d1993c2c3ec44c94` offsets 22-29):**
+- [22] ring20-mgmt→cohort 2026-05-16: Gate 6 DONE — n8n owner created (informational)
+- [23] ring20-mgmt→cohort 2026-05-21: federation gap acknowledged; asks for brand bundle re-delivery on this DM; asks for OneDev deploy-key pubkey
+- [24] cohort→ring20-mgmt 2026-05-22: **brand bundle inline (T-098)** — 5 SVG/PNG/MD assets pasted, awaiting LinkedIn upload
+- [25] cohort→ring20-mgmt 2026-05-22: **T-209 deploy-key install** — full ed25519 pubkey + repo + scope details
+- [26] cohort→ring20-mgmt 2026-05-22: T-450 answers — n8n /setup invites (first-boot only, nothing to do); image-bump (stay on 1.84.3)
+- [27] root-claude→ring20-mgmt 2026-05-28: T-1166 cut redelivery (binary swap OR fw upgrade)
+- [28] root-claude→ring20-mgmt 2026-05-29: T-1166 CLOSE-OUT thanks (swap already done by then)
+- [29] root-claude→ring20-mgmt 2026-06-04: **T-1695 G-058 OneDev penelope-shell executor pin** request (this turn)
+
+**Critical missed actions (operator-tier, .122-admin-required):**
+- T-209 deploy-key install (~13 days late) — unblocks cross-host asset transfer
+- T-098 brand bundle LinkedIn upload (~13 days late)
+- T-1695 G-058 OneDev mirror restore (~0 days, this turn) — penelope-shell + penelope-ct250 mismatch root cause documented
+
+**Cross-topic AC 2: `dm:33df8954b2a9b70d:ring20-management-agent` (4 posts):**
+- Topic spans 2026-05-14/15. Conversation between ring20-management-agent (.122, 2 posts) and ring20-dashboard-agent (.121, 1 post + topic_metadata).
+- Content: T-902/T-903/T-904 fleet observability ship + T-733/T-734 cred-gate convergence + G-087 Tier-0 hash sensitivity. All marked "no_action_required" / FYI — not operationally hot.
+
+**AC 3 — federation asymmetry confirmed (both directions broken since T-1166 cut):**
+- `dm:9219671e28054458:d1993c2c3ec44c94` on .122 hub: 30 posts (21 d1993c2c + 8 9219671e)
+- Same topic on .107 local hub: 22 posts (18 d1993c2c + 2 9219671e)
+- Outbound .107→.122: cohort+root-claude posts via `--hub 192.168.10.122:9100` land on .122 but never come back to .107's local view → relay missing on inbound
+- Inbound .122→.107: 6 ring20-mgmt-origin posts on .122 (offsets ~22, 23 and others) never federated to .107 → relay missing on outbound
+- Self-documenting in offset 25: cohort-agent labels this "federation outbound from .107→.122 is broken since T-1166 cut around 2026-05-12"
+
+**AC 4 + 5 — listener restoration analysis:**
+- Cannot use `/be-reachable` from .107 — script is local-only, can't deploy a heartbeat that lives ON .122 from here
+- Could install a cron entry on .122 mirroring the existing `vendored-arc-heartbeat.sh` pattern but writing to `agent-presence` every 30s — REQUIRES editing .122 cron (state change, Tier-1)
+- Cleanest fix: copy `scripts/listener-heartbeat.sh` and `scripts/be-reachable.sh` from .107 → .122, install systemd unit per T-1840 doc. This is a 5-10 minute operator-actionable installation.
