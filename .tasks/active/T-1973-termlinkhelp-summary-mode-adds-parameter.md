@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:56:06Z
-last_update: 2026-06-04T05:56:46Z
+last_update: 2026-06-04T05:58:42Z
 date_finished: null
 ---
 
@@ -25,15 +25,15 @@ MCP arc cycle 10 slice 4. T-1963 introduced `summary` mode (aggregate registry s
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `summary` envelope adds `total_parameters` field — integer, sum of `tool_params()[name].len()` over every tool
-- [ ] `summary` envelope adds `zero_arity_tools` field — integer, count of tools whose `tool_params()` entry is None or empty
-- [ ] `summary` envelope adds `highest_arity_tools` field — array of `{name, parameter_count}` rows, top 5 by parameter_count (ties broken by name asc for determinism)
-- [ ] Macro doc-string shape for summary mode updated to include the three new fields
-- [ ] Drift test extended: add `total_parameters`, `zero_arity_tools`, `highest_arity_tools` to required_fields
-- [ ] Invariant test: `total_parameters` equals the sum of per-tool `tool_detail.parameter_count` over the full registry — cross-mode arithmetic
-- [ ] Invariant test: `zero_arity_tools` equals the count of tools whose `tool_detail.parameter_count == 0`
-- [ ] Invariant test: `highest_arity_tools` rows are sorted descending by parameter_count, capped at 5, and each row's count matches the registry
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 736+ tests, 0 failed)
+- [x] `summary` envelope adds `total_parameters` field — integer, sum of `tool_params()[name].len()` over every tool (tools.rs:1212-1227, accumulated during the registry walk)
+- [x] `summary` envelope adds `zero_arity_tools` field — integer, count of tools whose `tool_params()` entry is None or empty (tools.rs:1219-1222, counted alongside total)
+- [x] `summary` envelope adds `highest_arity_tools` field — array of `{name, parameter_count}` rows, top 5 by parameter_count, ties broken by name asc for determinism (tools.rs:1228-1232)
+- [x] Macro doc-string shape for summary mode updated to include the three new fields (tools.rs:12215, T-1973 block appended to summary line)
+- [x] Drift test extended: `total_parameters`, `zero_arity_tools`, `highest_arity_tools` added to required_fields (tools.rs:35831-35836)
+- [x] Invariant test: `total_parameters` equals the sum of per-tool `tool_detail.parameter_count` over the full registry (tools.rs:36694-36715 help_summary_total_parameters_matches_sum_over_tool_detail)
+- [x] Invariant test: `zero_arity_tools` equals the count of tools whose `tool_detail.parameter_count == 0` (tools.rs:36717-36738 help_summary_zero_arity_tools_matches_walk_count)
+- [x] Invariant test: `highest_arity_tools` rows are sorted descending by parameter_count, capped at 5, and each row's count matches the registry (tools.rs:36740-36789 help_summary_highest_arity_tools_ranked_and_real)
+- [x] `cargo test --lib --package termlink-mcp` passes (736 tests, 0 failed; +3 from T-1972 baseline of 733)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
