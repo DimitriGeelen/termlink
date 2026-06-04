@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:42:54Z
-last_update: 2026-06-04T05:43:46Z
+last_update: 2026-06-04T05:47:30Z
 date_finished: null
 ---
 
@@ -25,15 +25,15 @@ MCP arc cycle 10, slice 1. Cycle 9 closed at T-1969 with a 6-mode `termlink_help
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `extract_replacement_hint(description: &str) -> Option<&str>` parser added to tools.rs, matches the literal pattern `(use <name> instead)` and returns `<name>`; returns None when no marker present
-- [ ] All 6 deprecated tool descriptions updated to end with `(use termlink_channel_subscribe instead)` — the canonical replacement per CLAUDE.md T-1166 retirement plan
-- [ ] `tool_detail` envelope adds `replacement_hint` field — populated for deprecated tools, omitted for live tools
-- [ ] `name_filter` matches rows add `replacement_hint` field when the matched tool is deprecated
-- [ ] Default mode tool entries add `replacement_hint` field when deprecated
-- [ ] Drift test extended to assert the new fields appear in the rmcp `#[tool(description=...)]` macro doc string
-- [ ] Invariant test: every deprecated tool has a non-empty `replacement_hint`
-- [ ] Invariant test: `extract_replacement_hint` returns None on every non-deprecated tool's description
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 723+N tests, 0 failed)
+- [x] `extract_replacement_hint(description: &str) -> Option<&str>` parser added to tools.rs, matches the literal pattern `(use <name> instead)` and returns `<name>`; returns None when no marker present (tools.rs:589-605)
+- [x] All 6 deprecated tool descriptions updated to end with `(use termlink_channel_subscribe instead)` — the canonical replacement per CLAUDE.md T-1166 retirement plan (tools.rs:322-324 for remote_inbox_*, tools.rs:557-559 for inbox_*)
+- [x] `tool_detail` envelope adds `replacement_hint` field — populated for deprecated tools, omitted for live tools (tools.rs:1078-1086)
+- [x] `name_filter` matches rows add `replacement_hint` field when the matched tool is deprecated (tools.rs:1265-1280)
+- [x] Default mode tool entries add `replacement_hint` field when deprecated (tools.rs:1311-1330)
+- [x] Drift test extended to assert the new fields appear in the rmcp `#[tool(description=...)]` macro doc string (tools.rs:35817-35821 adds `replacement_hint` to required_fields; macro updated tools.rs:12215 with `replacement_hint?` shape + T-1970 description block)
+- [x] Invariant test: every deprecated tool has a non-empty `replacement_hint` (tools.rs:35923-35946 every_deprecated_tool_has_replacement_hint)
+- [x] Invariant test: `extract_replacement_hint` returns None on every non-deprecated tool's description (tools.rs:35948-35968 extract_replacement_hint_returns_none_on_live_tools)
+- [x] `cargo test --lib --package termlink-mcp` passes (730 tests passed, 0 failed; +7 from cycle-9 baseline of 723)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
