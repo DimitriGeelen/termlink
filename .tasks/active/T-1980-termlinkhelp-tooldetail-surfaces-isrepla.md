@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:24:14Z
-last_update: 2026-06-04T07:24:56Z
+last_update: 2026-06-04T07:27:31Z
 date_finished: null
 ---
 
@@ -25,13 +25,13 @@ Cycle 11 slice 5. T-1970 added `replacement_hint` (forward navigation: deprecate
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New helper `tool_replacement_back_refs() -> &'static HashMap<&'static str, Vec<&'static str>>` walks every category once on first call
-- [ ] `tool_detail` JSON gains `is_replacement_for` field — `Vec<String>` of deprecated tool names pointing at this tool, sorted alphabetically for deterministic output
-- [ ] Test: `is_replacement_for_includes_inbox_for_channel_subscribe` — `tool_detail=termlink_channel_subscribe` returns `is_replacement_for` containing every deprecated `termlink_*inbox_*` tool that carries the marker
-- [ ] Test: `is_replacement_for_empty_for_tool_with_no_back_refs` — a tool that no deprecated description points at returns `is_replacement_for: []`
-- [ ] Test: `is_replacement_for_is_inverse_of_replacement_hint` — for every deprecated tool with `replacement_hint=X`, the tool_detail of X has the deprecated tool in `is_replacement_for[]`
-- [ ] Drift test gains required field `("is_replacement_for", "T-1980")`
-- [ ] `cargo test --lib --package termlink-mcp` passes; new test count == 752 + 3 = 755
+- [x] New helper `tool_replacement_back_refs() -> &'static HashMap<&'static str, Vec<&'static str>>` walks every category once on first call
+- [x] `tool_detail` JSON gains `is_replacement_for` field — `Vec<String>` of deprecated tool names pointing at this tool, sorted alphabetically for deterministic output
+- [x] Test: `is_replacement_for_includes_inbox_for_channel_subscribe` — `tool_detail=termlink_channel_subscribe` returns `is_replacement_for` containing every deprecated `termlink_*inbox_*` tool that carries the marker
+- [x] Test: `is_replacement_for_empty_for_tool_with_no_back_refs` — a tool that no deprecated description points at returns `is_replacement_for: []`
+- [x] Test: `is_replacement_for_is_inverse_of_replacement_hint` — for every deprecated tool with `replacement_hint=X`, the tool_detail of X has the deprecated tool in `is_replacement_for[]`
+- [x] Drift test gains required field `("is_replacement_for", "T-1980")`
+- [x] `cargo test --lib --package termlink-mcp` passes; new test count == 752 + 3 = 755
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
