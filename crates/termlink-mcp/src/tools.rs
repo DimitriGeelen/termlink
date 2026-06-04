@@ -1202,6 +1202,30 @@ fn build_help_json(
             dep_by_cat.iter().map(|(k, v)| (k.to_string(), serde_json::json!(v)))
                 .collect::<serde_json::Map<_, _>>()
         );
+        // T-1973: arity aggregates composing T-1971/T-1972's per-tool
+        // parameter_count signal into registry-wide rollups. Walk every
+        // tool once; collect (name, arity) into a vec for the top-5
+        // ranking and accumulate the count totals as we go. Source is
+        // the same tool_params() map that backs every per-tool envelope
+        // — invariants assert the cross-mode arithmetic identity.
+        let mut total_parameters = 0usize;
+        let mut zero_arity_tools = 0usize;
+        let mut arities: Vec<(&str, usize)> = Vec::with_capacity(total_tools);
+        for (_, tools) in categories {
+            for (name, _) in tools {
+                let pc = tool_params().get(*name).map(|v| v.len()).unwrap_or(0);
+                total_parameters += pc;
+                if pc == 0 {
+                    zero_arity_tools += 1;
+                }
+                arities.push((*name, pc));
+            }
+        }
+        // Top 5 by arity desc, tie-break by name asc for determinism.
+        arities.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        let highest_arity_tools: Vec<serde_json::Value> = arities.iter().take(5)
+            .map(|(n, c)| serde_json::json!({"name": n, "parameter_count": c}))
+            .collect();
         let out = serde_json::json!({
             "total_tools": total_tools,
             "total_categories": categories.len(),
@@ -1209,6 +1233,9 @@ fn build_help_json(
             "deprecated_by_category": dep_obj,
             "largest_categories": largest,
             "smallest_categories": smallest,
+            "total_parameters": total_parameters,
+            "zero_arity_tools": zero_arity_tools,
+            "highest_arity_tools": highest_arity_tools,
         });
         return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
     }
@@ -12232,7 +12259,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969); auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -35833,6 +35860,10 @@ YW\tJ
             // T-1971: parameter_count on tool_detail — O(1) arity signal
             // for cost-aware routing without walking parameters[].
             ("parameter_count", "T-1971"),
+            // T-1973: summary-mode arity aggregates composing T-1971/T-1972.
+            ("total_parameters", "T-1973"),
+            ("zero_arity_tools", "T-1973"),
+            ("highest_arity_tools", "T-1973"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -36628,6 +36659,104 @@ YW\tJ
             let a = w[0]["tool_count"].as_u64().unwrap();
             let b = w[1]["tool_count"].as_u64().unwrap();
             assert!(a <= b, "smallest_categories must be ascending — {a} > {b}");
+        }
+    }
+
+    #[test]
+    fn help_summary_total_parameters_matches_sum_over_tool_detail() {
+        // T-1973: cross-mode arithmetic. summary.total_parameters MUST
+        // equal the sum of tool_detail.parameter_count across every tool.
+        // Both paths go through tool_params() — divergence would mean one
+        // of them is computing arity from a different source.
+        let cats = help_categories();
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false);
+        let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
+        let summary_total = summary["total_parameters"].as_u64().unwrap_or(u64::MAX) as usize;
+        let mut walked_total = 0usize;
+        for (_, tools) in &cats {
+            for (name, _) in tools {
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false);
+                let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
+                walked_total += td["parameter_count"].as_u64().unwrap_or(0) as usize;
+            }
+        }
+        assert_eq!(
+            summary_total, walked_total,
+            "summary.total_parameters={summary_total} but sum-over-tool_detail={walked_total}"
+        );
+    }
+
+    #[test]
+    fn help_summary_zero_arity_tools_matches_walk_count() {
+        // T-1973: zero_arity_tools MUST equal the count of tools whose
+        // tool_detail.parameter_count == 0. Walks the same registry.
+        let cats = help_categories();
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false);
+        let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
+        let summary_zero = summary["zero_arity_tools"].as_u64().unwrap_or(u64::MAX) as usize;
+        let mut walked_zero = 0usize;
+        for (_, tools) in &cats {
+            for (name, _) in tools {
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false);
+                let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
+                if td["parameter_count"].as_u64().unwrap_or(u64::MAX) == 0 {
+                    walked_zero += 1;
+                }
+            }
+        }
+        assert_eq!(
+            summary_zero, walked_zero,
+            "summary.zero_arity_tools={summary_zero} but walked-zero count={walked_zero}"
+        );
+    }
+
+    #[test]
+    fn help_summary_highest_arity_tools_ranked_and_real() {
+        // T-1973: highest_arity_tools rows must (a) cap at 5, (b) be sorted
+        // descending by parameter_count, (c) each row's parameter_count
+        // must match tool_detail for that name, (d) every row name resolves
+        // to a real registry tool. Locks the ranking contract end-to-end.
+        let cats = help_categories();
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false);
+        let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
+        let arr = summary["highest_arity_tools"]
+            .as_array()
+            .expect("highest_arity_tools must be an array");
+        assert!(
+            arr.len() <= 5,
+            "highest_arity_tools must cap at 5 — got {}",
+            arr.len()
+        );
+        let known: std::collections::HashSet<&str> = cats
+            .iter()
+            .flat_map(|(_, tools)| tools.iter().map(|(n, _)| *n))
+            .collect();
+        // (b) descending order check
+        for w in arr.windows(2) {
+            let a = w[0]["parameter_count"].as_u64().unwrap();
+            let b = w[1]["parameter_count"].as_u64().unwrap();
+            assert!(
+                a >= b,
+                "highest_arity_tools must be descending — {a} < {b}"
+            );
+        }
+        // (a) (c) (d) per-row checks
+        for entry in arr {
+            let name = entry["name"]
+                .as_str()
+                .unwrap_or_else(|| panic!("highest_arity_tools row missing name: {entry:?}"));
+            assert!(
+                known.contains(name),
+                "highest_arity_tools references unknown tool '{name}'"
+            );
+            let pc = entry["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false);
+            let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
+            let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
+            assert_eq!(
+                pc, td_pc,
+                "{name}: highest_arity_tools row pc={pc}, tool_detail pc={td_pc}"
+            );
         }
     }
 
