@@ -4,7 +4,7 @@ name: "Federation gap .107↔.122 — dm topic posts don't relay since T-1166 cu
 description: >
   Both-direction hub relay gap. dm:9219671e28054458:d1993c2c3ec44c94 has 30 posts on .122 (21 d1993c2c + 8 9219671e) but only 22 posts on .107 (18 d1993c2c + 2 9219671e). 8 of .107's d1993c2c posts to that topic were made via --hub 192.168.10.122:9100 and landed on .122 but did NOT come back via federation to local .107 hub. Conversely, 6 of .122's 9219671e posts (incl. offsets 22, 23) never appeared on .107's local view. Both directions appear broken since the T-1166 legacy-primitive cut (~2026-05-12). Self-documenting evidence in offset 25 of the dm topic, by cohort-agent. T-1985 investigation found, scoped, and dispatched (presence listener restored as immediate user-visible fix). Scope here: (1) inspect hub relay path in crates/termlink-hub for channel.post replication logic; (2) repro by posting a test envelope to .107 and verifying it federates to .122; (3) bisect against T-1166 cut commits; (4) propose fix or document expected behavior if federation was intentionally severed in T-1166. Predecessor: T-1166 (legacy primitive cut). Related: G-060 (channel topic per-hub semantics).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: [fleet, federation, hub-relay, t-1166-followup]
 components: []
 related_tasks: []
 created: 2026-06-04T08:33:05Z
-last_update: 2026-06-04T08:33:05Z
+last_update: 2026-06-04T08:36:04Z
 date_finished: null
 ---
 
@@ -20,14 +20,16 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Premise disproven** — same shape as T-1665 close. The "federation gap" framing assumed that DM topics SHOULD federate across hubs and that T-1166 broke that. Per PL-176 + `docs/operations/channel-topic-semantics.md` (G-060 mitigation), TermLink has NO inter-hub channel-topic federation primitive. Channel topics are hub-local BY DESIGN, not by regression. The 22-vs-30 post count delta observed in T-1985 between .107 and .122 views of the same DM topic is the documented architecture — the cohort-agent's "federation broken since T-1166 cut" self-description in offset 25 was also a misdiagnosis (it predated PL-176's filing on 2026-05-21). T-1166 didn't break anything here; it just made the absence-of-federation more visible after the legacy primitive `event.broadcast` (which had naive fan-out) was retired.
+
+Closing as premise-disproven. The user-visible problem (cross-host messages not reaching their target) is real, but the structural answer is operator UX + discipline (use `--hub <addr>` or `scripts/chat-arc-broadcast.sh`), not a federation primitive. T-1985 shipped the immediate fix (presence listener on .122 so DMs CAN be sent reliably via `--hub`).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Verify PL-176 + channel-topic-semantics.md document the per-hub design (confirmed in T-1985 close investigation)
+- [x] Note T-1986 was filed before re-checking the related-knowledge surface (PL-176 was already listed in `fw work-on T-1986` related-knowledge output)
+- [x] No code change required; the perceived gap is operator-visibility, addressed by existing tooling (`--hub`, `chat-arc-broadcast.sh`, `/agent-handoff`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -54,6 +56,7 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+grep -q "NO inter-hub channel-topic federation primitive" /opt/termlink/.context/project/learnings.yaml
 
 ## RCA
 
@@ -122,3 +125,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1986-federation-gap-107122--dm-topic-posts-do.md
 - **Context:** Initial task creation
+
+### 2026-06-04T08:36:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
