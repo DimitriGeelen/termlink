@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail surfaces parameter_count (cycle 10 slice 2)"
 description: >
   MCP arc cycle 10 slice 2: add parameter_count field to tool_detail envelope, auto-derived from parameters.len(). Lets LLMs compare tool complexity at-a-glance without walking the parameters array — useful for cold-start triage. Drift-proof: sourced from the same parse_tool_parameters() output that already populates parameters[].
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:48:32Z
-last_update: 2026-06-04T05:48:32Z
+last_update: 2026-06-04T05:50:51Z
 date_finished: null
 ---
 
@@ -25,11 +25,11 @@ MCP arc cycle 10 slice 2, follow-on to T-1970. `tool_detail` already returns `pa
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `tool_detail` envelope adds `parameter_count` field — integer, equals `parameters.len()`
-- [ ] Macro doc-string shape line updated to include `parameter_count` in the documented `tool_detail` envelope shape
-- [ ] Drift test extended to include `parameter_count` in required_fields
-- [ ] Invariant test: `parameter_count` equals `parameters.len()` for every tool — walks the registry via tool_detail
-- [ ] `cargo test --lib --package termlink-mcp` passes (expect 732+ tests, 0 failed)
+- [x] `tool_detail` envelope adds `parameter_count` field — integer, equals `parameters.len()` (tools.rs:1066-1071, computed as `params.len()` before envelope construction)
+- [x] Macro doc-string shape line updated to include `parameter_count` in the documented `tool_detail` envelope shape (tools.rs:12215, shape now reads `{..., parameters, parameter_count, related_tools, ...}` with T-1971 annotation)
+- [x] Drift test extended to include `parameter_count` in required_fields (tools.rs:35823-35825, `("parameter_count", "T-1971")`)
+- [x] Invariant test: `parameter_count` equals `parameters.len()` for every tool — walks the registry via tool_detail (tools.rs:36400-36439, `tool_detail_parameter_count_matches_parameters_length`)
+- [x] `cargo test --lib --package termlink-mcp` passes (731 tests, 0 failed; +1 from T-1970 baseline of 730)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -125,3 +125,6 @@ cargo test --lib --package termlink-mcp --quiet 2>&1 | tail -5 | grep -q "test r
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1971-termlinkhelp-tooldetail-surfaces-paramet.md
 - **Context:** Initial task creation
+
+### 2026-06-04T05:49:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
