@@ -12,7 +12,7 @@ tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []
 created: 2026-06-04T08:52:05Z
-last_update: 2026-06-04T08:53:17Z
+last_update: 2026-06-04T08:55:26Z
 date_finished: null
 ---
 
@@ -32,7 +32,7 @@ Completes the doorbell+mail rail on .122. T-1985 shipped the presence side (peer
 - [x] Crontab entry `*/2 * * * *` calls the script, cron stdout/stderr → `/var/log/dm-poller.log`
 - [x] **DECIDED no seed: first-fire captures historical backlog** — gives operator immediate `tail /var/log/dm-inbox.log` view of all 36 envelopes across 3 topics. Subsequent fires only see deltas (idempotent via state file).
 - [x] Smoke test: run script once manually; verify state file written + N inbox lines (758 lines from 36 envelopes — multi-line payloads spread across log lines, each prefix-stamped with topic + ts)
-- [ ] Cron-fired verification (T+3min): `/var/log/dm-poller.log` shows ≥1 timestamped fire — pending, will mark on next cron boundary
+- [x] Cron-fired verification (T+3min): `/var/log/dm-poller.log` shows fire at `[2026-06-04T08:56:01Z] dm-poller fire / dm-poller done, topics=3 new_envelopes=0` — verified 0 false-positives on first cron run
 - [x] Idempotent: smoke-run-2 (1 second after smoke-run-1) added 0 new envelopes; state file unchanged; inbox log line count stable at 758
 
 ### Human
