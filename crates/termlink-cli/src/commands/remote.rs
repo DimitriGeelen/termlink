@@ -6481,10 +6481,17 @@ pub(crate) fn cmd_fleet_secrets_audit(
 
     // T-1824 R1: --target-cache requires --check-drift. Standalone makes no
     // sense (there's nothing to compare against). Exit 2 = usage error.
+    // T-2009 (cycle 13 #6): honor --json on this usage error — scripts wrapping
+    // `termlink fleet secrets-audit --json ...` need a stable envelope on
+    // stdout, not bare stderr text. Shape matches T-2008 / execution.rs /
+    // identity.rs convention: {ok:false, error:<msg>}. Exit code unchanged.
     if target_cache.is_some() && check_drift.is_none() {
-        eprintln!(
-            "error: --target-cache requires --check-drift <PATH> (the target needs an authoritative to compare against)"
-        );
+        let msg = "--target-cache requires --check-drift <PATH> (the target needs an authoritative to compare against)";
+        if json {
+            println!("{}", json!({"ok": false, "error": msg}));
+        } else {
+            eprintln!("error: {msg}");
+        }
         std::process::exit(2);
     }
 
