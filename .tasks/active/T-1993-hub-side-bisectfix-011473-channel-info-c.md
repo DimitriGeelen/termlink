@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:35:50Z
-last_update: 2026-06-05T23:02:26Z
+last_update: 2026-06-05T23:10:40Z
 date_finished: null
 ---
 
@@ -280,3 +280,40 @@ environmental hypothesis is ruled out.
 ### 2026-06-05T23:02:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-06T01:30Z — Spike 1 result: .107 5/5 clean confirms host-axis [agent autonomous]
+
+Ran the same load pattern against .107 (the "clean" host per T-1991) from
+the same .107 CLI used to confirm .122 wedge:
+
+```
+Trial 1: rc=0 time=.794321901
+Trial 2: rc=0 time=.881293707
+Trial 3: rc=0 time=.740357539
+Trial 4: rc=0 time=.724821674
+Trial 5: rc=0 time=.856842917
+```
+
+**5/5 SUCCESS, sub-1s.** Topic size: 13441 envelopes — 9× larger than
+.122's 1503. Same CLI binary (termlink 0.11.472). Same `channel info
+agent-presence --json --hub <addr>` command, only the hub address differs.
+
+**This unambiguously confirms A-NEW-1 (host-environment axis) and
+disproves any remaining version-axis hypothesis.** The clean host has
+the larger topic; the flaky host has the smaller topic; same CLI; same
+network path (.107-source, LAN to both). The only meaningful difference
+is the hub host itself.
+
+**Strengthened recommendation:** GO on filing a new follow-up task
+(env-spike on .122) — NOT a code-bisect. The env-spike should test:
+- (a) Disk I/O wait on .122 (`iostat`, `vmstat`)
+- (b) FD limit / `ulimit -n` on the hub process
+- (c) Container memory pressure (`free`, `cgroup` mem.usage_in_bytes)
+- (d) Whether `/var/lib/termlink/` (per T-1294 migration) is on a fast
+  or slow filesystem
+- (e) Whether the presence-heartbeat cron's write rate is wedging file
+  reads (Spike 3 from Exploration Plan)
+
+Implementation effort estimate for env-spike: 1–2 hours, observational
+only, no hub restart needed. Filing as a separate task post-decide so
+this inception can close.
