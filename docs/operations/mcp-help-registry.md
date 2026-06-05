@@ -1,13 +1,24 @@
-# `termlink_help` — paged-ranked-filtered-projected discovery API
+# `termlink_help` / `termlink help` — paged-ranked-filtered-projected discovery API
 
-The `termlink_help` MCP tool is the discovery surface that LLM agents call
-first to learn what TermLink offers. T-1984..T-2000 expanded it from "dump
-every tool" into a real paged-ranked-filtered-projected API. This doc is the
-operator + LLM-client-author reference for the resulting shape.
+The help registry has two co-equal surfaces:
+
+- **MCP** — `termlink_help(...)` — the discovery tool LLM agents call first
+- **CLI** — `termlink help [flags]` — the shell-side parity verb (T-2002, cycle 13 #1)
+
+Both wrap the same internal `build_help_json` registry; shape parity is locked
+by `build_cli_help_json_matches_mcp_shape` in `crates/termlink-mcp/src/tools.rs`.
+**Adding an axis on one surface requires adding it on the other** — the test
+catches drift at compile/test time. T-1984..T-2000 (cycle 12) expanded the
+MCP shape; T-2002 (cycle 13) brought the CLI to parity.
+
+This doc is the operator + LLM-client-author reference for the resulting shape.
 
 ## TL;DR — the canonical cold-start call
 
+Same axis surface, both interfaces:
+
 ```python
+# MCP (LLM agent path)
 termlink_help(
     sort_by='required_arity',                     # cost-aware ranking
     limit=20, offset=0,                           # paginated window
@@ -18,9 +29,42 @@ termlink_help(
 )
 ```
 
-Returns ~20 rows, ~1.5KB total, ranked by call cost ascending, scoped to two
-namespaces minus one, projected to two keys per row. Pre-arc the no-arg call
-dumped the entire registry (~50KB, unranked, unscoped).
+```bash
+# CLI (shell operator path) — same shape, kebab-case flags
+termlink help --json \
+    --sort-by required_arity \
+    --limit 20 --offset 0 \
+    --exclude-deprecated \
+    --categories channel,agent_chat \
+    --exclude-categories agent_inbox \
+    --fields name,parameter_required_count
+```
+
+Both return ~20 rows, ~1.5KB total JSON, ranked by call cost ascending,
+scoped to two namespaces minus one, projected to two keys per row. Pre-arc
+the no-arg MCP call dumped the entire registry (~50KB, unranked, unscoped);
+pre-T-2002 the CLI had no `help` subcommand at all (only clap's auto-generated
+3KB usage banner).
+
+### Shell-only ergonomics
+
+The CLI also defaults to a **human-readable** render when `--json` is omitted —
+categorized listing for bare `termlink help`, per-row listing for `--name-filter`
+matches, drill-in render for `--tool-detail`, etc. The `--json` flag flips to
+the raw envelope for `jq` piping.
+
+Quick recipes:
+
+```bash
+termlink help --list-categories          # 29-line category index (~1.5KB)
+termlink help --summary                  # 17-line stats: totals, biggest cats
+termlink help --essentials               # 29-row starter set, one per category
+termlink help --tool-detail termlink_channel_post   # full drill-in
+termlink help --name-filter inbox        # substring search across names+descs
+```
+
+Multi-value flags accept comma-separated values: `--categories channel,agent_chat`,
+`--fields name,description,parameter_count`, `--exclude-categories agent_inbox,batch`.
 
 ## Seven axes
 
@@ -173,6 +217,7 @@ field but forgot to document it" failure mode at compile time.
 | `3efc2b9b` | T-1998 | `fields` projection |
 | (T-1999) | T-1999 | `categories` array |
 | (T-2000) | T-2000 | `exclude_categories` array |
+| `59cdc224` | T-2002 | **CLI parity** — `termlink help` subcommand + shape-parity test (cycle 13 #1) |
 
 See learning PL-202 in `.context/project/learnings.yaml` for the slice
 recipe (Python depth-tracking caller-patch script, drift-table token,
