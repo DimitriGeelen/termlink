@@ -1411,7 +1411,19 @@ fn build_help_json(
     // every rich-API tool, symmetric with T-1975's `max_parameters=0`.
     let standalone_arity_filter =
         needle.is_none() && (max_parameters.is_some() || min_parameters.is_some());
-    if needle.is_some() || standalone_arity_filter {
+    // T-1997: extend the no-needle bulk-listing trigger to ALSO route on
+    // pagination/sort args. Cold-start `termlink_help()` with no args still
+    // routes to the legacy categories-keyed default branch (backcompat —
+    // all existing callers see the same envelope). The moment ANY paging
+    // signal (limit, offset, sort_by) is set, the response collapses to
+    // the name_filter `matches[]` flat shape — paged-ranked discovery
+    // across the whole registry (or scoped via `category`). This is the
+    // largest practical context-eat reduction: LLM clients that issue
+    // `termlink_help(limit=10)` first now see 10 rows instead of 200+.
+    let bulk_paging_no_needle =
+        needle.is_none() && (limit.is_some() || offset.is_some() || sort_by.is_some());
+    let bulk_flat_listing_no_needle = standalone_arity_filter || bulk_paging_no_needle;
+    if needle.is_some() || bulk_flat_listing_no_needle {
         let needle_ref = needle.as_deref().unwrap_or("");
         // T-1955: multi-token AND search. Split on whitespace into tokens;
         // a tool matches when EVERY non-empty token appears somewhere in
@@ -1442,7 +1454,11 @@ fn build_help_json(
                 // tokens as "match all" so the arity threshold becomes the
                 // sole predicate. Preserves the no-match semantics for
                 // explicit-but-empty name_filter strings.
-                let name_predicate = if standalone_arity_filter {
+                // T-1997: extended — when bulk_flat_listing_no_needle is set
+                // (paging/sort with no needle), also treat empty tokens as
+                // "match all" so the flat shape carries the whole registry
+                // before filter/sort/page.
+                let name_predicate = if bulk_flat_listing_no_needle {
                     true
                 } else {
                     !tokens.is_empty()
@@ -1644,6 +1660,28 @@ fn build_help_json(
                 };
                 format!(
                     "No tools matched arity threshold ({bounds}). Try relaxing the bound; the registry has tools of varied arities."
+                )
+            } else if bulk_paging_no_needle {
+                // T-1997: pure pagination/sort with no needle and no arity
+                // bound landed on an empty result. Realistically this only
+                // happens when `category=X` scopes to a namespace with zero
+                // tools (or with exclude_deprecated stripping a
+                // deprecated-only category to zero). Surface a hint that
+                // names the active filter rather than the misleading
+                // "match ''" message from the generic branch.
+                let cat_part = match category {
+                    Some(c) => format!(" in category '{c}'"),
+                    None => String::new(),
+                };
+                let dep_part = if exclude_deprecated {
+                    " with exclude_deprecated=true"
+                } else if deprecated_only {
+                    " with deprecated_only=true"
+                } else {
+                    ""
+                };
+                format!(
+                    "No tools to paginate{cat_part}{dep_part}. Try removing the category/deprecated filter or check `list_categories=true` for available namespaces."
                 )
             } else if let Some(c) = category {
                 format!(
@@ -38683,6 +38721,171 @@ YW\tJ
                 default_order, sorted_order,
                 "stable sort violated within arity={arity} bucket: \
                  default order {default_order:?} vs sorted order {sorted_order:?}"
+            );
+        }
+    }
+
+    // Helper: build_help_json call with NO needle, for T-1997 bulk-paging tests.
+    fn help_no_needle(
+        cats: &[(&str, Vec<(&str, &str)>)],
+        category: Option<&str>,
+        exclude_deprecated: bool,
+        limit: Option<usize>,
+        offset: Option<usize>,
+        sort_by: Option<&str>,
+    ) -> serde_json::Value {
+        let out = build_help_json(
+            cats, category, None, false, None, false, false,
+            None, None, exclude_deprecated, false, limit, offset, sort_by);
+        serde_json::from_str(&out).expect("valid JSON")
+    }
+
+    #[test]
+    fn bare_limit_routes_to_flat() {
+        // T-1997: `termlink_help(limit=10)` with no needle, no arity, no sort
+        // collapses into `matches[]` shape (paginated) instead of the legacy
+        // categories-keyed dump.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, Some(10), None, None);
+        assert!(
+            v.get("matches").is_some(),
+            "bare limit must route to flat matches[] shape"
+        );
+        let matches = v["matches"].as_array().unwrap();
+        assert_eq!(matches.len(), 10, "limit=10 must yield 10 rows");
+        let total_matched = v["total_matched"].as_u64().expect("total_matched");
+        assert!(total_matched >= 100, "registry should exceed 100 tools, got {total_matched}");
+        assert_eq!(v["limit_applied"], true);
+        // Categories-keyed legacy fields MUST NOT appear.
+        assert!(v.get("total_tools").is_none(), "flat shape must not carry total_tools");
+    }
+
+    #[test]
+    fn bare_offset_routes_to_flat() {
+        // T-1997: `termlink_help(offset=5)` alone routes to flat shape — the
+        // window starts at row 5 and runs to the end of the registry.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, None, Some(5), None);
+        assert!(v.get("matches").is_some());
+        assert_eq!(v["offset"], 5);
+        // No limit, so the whole post-offset registry is returned.
+        let matches = v["matches"].as_array().unwrap();
+        let total_matched = v["total_matched"].as_u64().unwrap() as usize;
+        assert_eq!(
+            matches.len(), total_matched - 5,
+            "offset=5 + no limit must return total-5 rows"
+        );
+    }
+
+    #[test]
+    fn bare_sort_by_routes_to_flat() {
+        // T-1997: `termlink_help(sort_by='name')` alone routes to flat shape
+        // and returns the entire registry alphabetically.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, None, None, Some("name"));
+        assert!(v.get("matches").is_some());
+        assert_eq!(v["sort_by_applied"], "name");
+        let matches = v["matches"].as_array().unwrap();
+        assert!(matches.len() >= 100, "should carry the full registry");
+        for window in matches.windows(2) {
+            let a = window[0]["name"].as_str().unwrap();
+            let b = window[1]["name"].as_str().unwrap();
+            assert!(a <= b, "alphabetical order violated: {a} > {b}");
+        }
+    }
+
+    #[test]
+    fn category_with_limit_paginates_namespace() {
+        // T-1997: `termlink_help(category='channel', limit=5)` scopes to the
+        // category, returns 5 rows, and `total_matched` equals the full
+        // category size (so the client can paginate the rest).
+        let cats = help_categories();
+        // Pick a category from the registry.
+        let cat_name = cats.iter().map(|(n, _)| *n).find(|n| {
+            cats.iter().find(|(c, _)| c == n).map(|(_, t)| t.len() >= 10).unwrap_or(false)
+        }).expect("at least one category with ≥10 tools");
+        let cat_size = cats.iter().find(|(c, _)| *c == cat_name).unwrap().1.len();
+        let v = help_no_needle(&cats, Some(cat_name), false, Some(5), None, None);
+        assert!(v.get("matches").is_some(), "category+limit must route to flat shape");
+        let matches = v["matches"].as_array().unwrap();
+        assert_eq!(matches.len(), 5);
+        assert_eq!(v["total_matched"].as_u64().unwrap() as usize, cat_size);
+        for row in matches {
+            assert_eq!(row["category"], cat_name, "row must be in the requested category");
+        }
+    }
+
+    #[test]
+    fn sort_by_with_limit_yields_top_n_registrywide() {
+        // T-1997: `termlink_help(sort_by='required_arity', limit=10)` returns
+        // the 10 cheapest-to-call tools (lowest parameter_required_count)
+        // across the entire registry. The killer cold-start ranking query.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, Some(10), None, Some("required_arity"));
+        let matches = v["matches"].as_array().unwrap();
+        assert_eq!(matches.len(), 10);
+        assert_eq!(v["sort_by_applied"], "required_arity");
+        for window in matches.windows(2) {
+            let a = window[0]["parameter_required_count"].as_u64().unwrap();
+            let b = window[1]["parameter_required_count"].as_u64().unwrap();
+            assert!(a <= b);
+        }
+        // First row must have the registry-wide minimum required_arity (== 0
+        // for any zero-required-arity tool — there are many).
+        let first_req = matches[0]["parameter_required_count"].as_u64().unwrap();
+        assert_eq!(first_req, 0, "top-1 by required_arity must hit 0-required");
+    }
+
+    #[test]
+    fn no_paging_args_preserves_categories_keyed_envelope_backcompat() {
+        // T-1997: the bare no-arg call `termlink_help()` (no needle, no
+        // arity, no limit/offset/sort) MUST still return the legacy
+        // categories-keyed object envelope. This is the load-bearing
+        // backcompat assertion — every pre-T-1997 caller depends on this.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, None, None, None);
+        assert!(
+            v.get("matches").is_none(),
+            "legacy no-arg call must NOT emit flat matches[] shape"
+        );
+        assert!(
+            v.get("total_tools").is_some(),
+            "legacy no-arg call must carry total_tools"
+        );
+        // Spot-check that at least one category is present as a top-level key.
+        let any_category_present = cats.iter().any(|(name, _)| v.get(name).is_some());
+        assert!(any_category_present, "categories-keyed envelope expected");
+    }
+
+    #[test]
+    fn paging_envelope_omits_categories_keys() {
+        // T-1997: the inverse of the backcompat test — when paging IS set,
+        // the categories-keyed top-level fields MUST NOT appear alongside
+        // matches[]. Prevents the two-shape ambiguity.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, false, Some(5), None, None);
+        for (cat_name, _) in &cats {
+            assert!(
+                v.get(*cat_name).is_none(),
+                "paged response must not carry category key '{cat_name}'"
+            );
+        }
+        assert!(v.get("total_tools").is_none());
+    }
+
+    #[test]
+    fn exclude_deprecated_composes_with_bare_limit() {
+        // T-1997: filters apply BEFORE pagination in the flat branch even
+        // when there's no needle. `exclude_deprecated=true, limit=10` returns
+        // 10 live tools registry-wide, never a deprecated row.
+        let cats = help_categories();
+        let v = help_no_needle(&cats, None, /*exclude_deprecated=*/true, Some(10), None, None);
+        let matches = v["matches"].as_array().unwrap();
+        assert_eq!(matches.len(), 10);
+        for row in matches {
+            assert_eq!(
+                row["deprecated"].as_bool(), Some(false),
+                "exclude_deprecated must filter before pagination"
             );
         }
     }
