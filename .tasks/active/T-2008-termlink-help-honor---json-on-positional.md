@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T20:39:19Z
-last_update: 2026-06-05T20:52:19Z
+last_update: 2026-06-05T20:52:38Z
 date_finished: null
 ---
 
@@ -74,9 +74,9 @@ before exiting 2. Plain-text path stays for non-JSON callers.
 
 cargo test -p termlink --bins commands::help::tests --quiet
 test -x target/release/termlink
-target/release/termlink help --tool-detail foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--tool-detail' in d['error'], d"
-target/release/termlink help --name-filter foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--name-filter' in d['error'], d"
-target/release/termlink help --category channel --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--category' in d['error'], d"
+python3 -c "import subprocess,json; r=subprocess.run(['target/release/termlink','help','--tool-detail','foo','--json','bogus'],capture_output=True); d=json.loads(r.stdout); assert d['ok'] is False and '--tool-detail' in d['error'], d; assert r.returncode==2, r.returncode; assert r.stderr==b'', r.stderr"
+python3 -c "import subprocess,json; r=subprocess.run(['target/release/termlink','help','--name-filter','foo','--json','bogus'],capture_output=True); d=json.loads(r.stdout); assert d['ok'] is False and '--name-filter' in d['error'], d; assert r.returncode==2, r.returncode; assert r.stderr==b'', r.stderr"
+python3 -c "import subprocess,json; r=subprocess.run(['target/release/termlink','help','--category','channel','--json','bogus'],capture_output=True); d=json.loads(r.stdout); assert d['ok'] is False and '--category' in d['error'], d; assert r.returncode==2, r.returncode; assert r.stderr==b'', r.stderr"
 
 ## RCA
 
