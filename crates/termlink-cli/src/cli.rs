@@ -1079,7 +1079,14 @@ pub(crate) enum Command {
     ///   termlink help --json --sort-by required_arity --limit 20 \
     ///     --exclude-deprecated --categories channel,agent_chat \
     ///     --fields name,parameter_required_count
+    ///
+    /// T-2004: positional `<target>` ergonomic shortcut:
+    ///   termlink help channel             → equivalent to --name-filter channel
+    ///   termlink help termlink_channel_post  → equivalent to --tool-detail (exact match)
     Help {
+        /// Optional target: exact tool name → drill in; substring → search names+descriptions (T-2004)
+        target: Option<String>,
+
         /// Output as JSON (raw envelope; matches MCP termlink_help shape)
         #[arg(long)]
         json: bool,

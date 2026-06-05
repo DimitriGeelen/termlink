@@ -13,6 +13,7 @@ use serde_json::Value;
 /// and shadows the clap variant structure so renaming the variant doesn't
 /// ripple through the function signature.
 pub(crate) struct HelpInvocation {
+    pub target: Option<String>,
     pub json: bool,
     pub category: Option<String>,
     pub name_filter: Option<String>,
@@ -32,6 +33,44 @@ pub(crate) struct HelpInvocation {
     pub exclude_categories: Vec<String>,
 }
 
+/// Outcome of routing the positional `<target>` arg (T-2004).
+/// `Drilled` → exact tool-name match → tool_detail. `Filtered` → substring →
+/// name_filter. `Inactive` → no positional supplied; pass-through.
+#[derive(Debug, PartialEq, Eq)]
+enum PositionalRoute {
+    Drilled(String),
+    Filtered(String),
+    Inactive,
+}
+
+/// Decide what to do with the optional positional `<target>` arg.
+/// Returns `Err` with a user-facing message if the positional conflicts
+/// with explicit `--tool-detail` or `--name-filter` flags.
+fn resolve_positional(
+    target: Option<String>,
+    explicit_tool_detail: bool,
+    explicit_name_filter: bool,
+) -> Result<PositionalRoute, String> {
+    let Some(t) = target else {
+        return Ok(PositionalRoute::Inactive);
+    };
+    if explicit_tool_detail {
+        return Err(format!(
+            "positional <target>='{t}' conflicts with --tool-detail. Pick one — drop the positional or drop the flag.",
+        ));
+    }
+    if explicit_name_filter {
+        return Err(format!(
+            "positional <target>='{t}' conflicts with --name-filter. Pick one — drop the positional or drop the flag.",
+        ));
+    }
+    if termlink_mcp::registry_tool_names().contains(t.as_str()) {
+        Ok(PositionalRoute::Drilled(t))
+    } else {
+        Ok(PositionalRoute::Filtered(t))
+    }
+}
+
 pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
     // Clap's Vec<String> with value_delimiter=',' defaults to empty when the
     // flag isn't passed; the MCP wrapper distinguishes "unset" (None) from
@@ -41,11 +80,28 @@ pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
     let categories = empty_to_none(inv.categories);
     let exclude_categories = empty_to_none(inv.exclude_categories);
 
+    // T-2004: positional <target> routing — exact tool match → tool_detail,
+    // substring → name_filter. Conflicts with explicit --tool-detail or
+    // --name-filter bail with a usage hint.
+    let (tool_detail, name_filter) = match resolve_positional(
+        inv.target,
+        inv.tool_detail.is_some(),
+        inv.name_filter.is_some(),
+    ) {
+        Ok(PositionalRoute::Drilled(name)) => (Some(name), inv.name_filter),
+        Ok(PositionalRoute::Filtered(needle)) => (inv.tool_detail, Some(needle)),
+        Ok(PositionalRoute::Inactive) => (inv.tool_detail, inv.name_filter),
+        Err(msg) => {
+            eprintln!("error: {msg}");
+            std::process::exit(2);
+        }
+    };
+
     let json_str = termlink_mcp::build_cli_help_json(
         inv.category,
-        inv.name_filter,
+        name_filter,
         inv.list_categories,
-        inv.tool_detail,
+        tool_detail,
         inv.summary,
         inv.essentials,
         inv.max_parameters,
@@ -415,6 +471,7 @@ mod tests {
 
     fn invocation_default() -> HelpInvocation {
         HelpInvocation {
+            target: None,
             json: true,
             category: None,
             name_filter: None,
@@ -433,6 +490,60 @@ mod tests {
             categories: Vec::new(),
             exclude_categories: Vec::new(),
         }
+    }
+
+    /// T-2004: positional `<target>` that exactly matches a registered tool
+    /// name routes to `tool_detail` (drill-in) — same behavior as the explicit
+    /// `--tool-detail <name>` flag.
+    #[test]
+    fn positional_exact_tool_routes_to_tool_detail() {
+        let route = resolve_positional(
+            Some("termlink_channel_post".to_string()),
+            false,
+            false,
+        );
+        assert_eq!(route, Ok(PositionalRoute::Drilled("termlink_channel_post".to_string())));
+    }
+
+    /// T-2004: positional `<target>` that doesn't match any known tool name
+    /// routes to `name_filter` (substring search).
+    #[test]
+    fn positional_non_tool_routes_to_name_filter() {
+        let route = resolve_positional(Some("channel".to_string()), false, false);
+        assert_eq!(route, Ok(PositionalRoute::Filtered("channel".to_string())));
+        // Garbage strings still route to name_filter — the registry returns
+        // zero matches with a "did you mean" hint.
+        let route = resolve_positional(Some("zzzzz".to_string()), false, false);
+        assert_eq!(route, Ok(PositionalRoute::Filtered("zzzzz".to_string())));
+    }
+
+    /// T-2004: explicit `--tool-detail` AND a positional `<target>` conflict —
+    /// caller intent is ambiguous, refuse with a hint.
+    #[test]
+    fn positional_with_explicit_tool_detail_errors() {
+        let err = resolve_positional(Some("channel".to_string()), true, false)
+            .unwrap_err();
+        assert!(err.contains("--tool-detail"), "err mentions conflicting flag");
+        assert!(err.contains("'channel'"), "err echoes the positional");
+    }
+
+    /// T-2004: explicit `--name-filter` AND a positional `<target>` conflict —
+    /// same as the tool_detail case.
+    #[test]
+    fn positional_with_explicit_name_filter_errors() {
+        let err = resolve_positional(Some("channel".to_string()), false, true)
+            .unwrap_err();
+        assert!(err.contains("--name-filter"), "err mentions conflicting flag");
+    }
+
+    /// T-2004: no positional → inactive route → all upstream flags pass through.
+    #[test]
+    fn no_positional_is_inactive() {
+        let route = resolve_positional(None, false, false);
+        assert_eq!(route, Ok(PositionalRoute::Inactive));
+        // Explicit flags without positional are NOT a conflict.
+        let route = resolve_positional(None, true, true);
+        assert_eq!(route, Ok(PositionalRoute::Inactive));
     }
 
     #[test]

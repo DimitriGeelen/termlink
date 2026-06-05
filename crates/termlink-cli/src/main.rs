@@ -1500,6 +1500,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Command::Help {
+            target,
             json,
             category,
             name_filter,
@@ -1519,6 +1520,7 @@ async fn main() -> Result<()> {
             exclude_categories,
         } => {
             commands::help::run(commands::help::HelpInvocation {
+                target,
                 json,
                 category,
                 name_filter,

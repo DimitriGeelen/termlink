@@ -1921,6 +1921,23 @@ fn build_help_json(
     serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
 }
 
+/// T-2004 (cycle 13 #2): set of every tool name registered in the help registry.
+/// Computed once via `OnceLock`; subsequent calls return cached reference.
+///
+/// Use case: positional-arg routing for `termlink help <target>` — the CLI
+/// checks `registry_tool_names().contains(target)` to decide whether to
+/// dispatch as `tool_detail` (exact match) or `name_filter` (substring).
+pub fn registry_tool_names() -> &'static std::collections::HashSet<&'static str> {
+    static SET: std::sync::OnceLock<std::collections::HashSet<&'static str>> =
+        std::sync::OnceLock::new();
+    SET.get_or_init(|| {
+        help_categories()
+            .into_iter()
+            .flat_map(|(_, rows)| rows.into_iter().map(|(name, _)| name))
+            .collect()
+    })
+}
+
 /// T-2002 (cycle 13 #1): CLI-callable wrapper around `build_help_json` so the
 /// `termlink help` shell subcommand can emit the same JSON envelope as the
 /// MCP `termlink_help` tool. Shape-parity invariant: for matching axis values
