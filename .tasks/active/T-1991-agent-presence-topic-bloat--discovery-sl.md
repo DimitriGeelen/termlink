@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:23:56Z
-last_update: 2026-06-05T09:24:16Z
+last_update: 2026-06-05T09:35:08Z
 date_finished: null
 ---
 
@@ -122,11 +122,16 @@ follow-up tasks created at decide-time.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO
 
 **Rationale:**
 
-Need spike: actual measurements of channel subscribe latency vs cursor depth on .107 (13441 envelopes) and .122 (1493 envelopes). T-1844 already added cursor=count-limit windowing client-side, but if the hub seeks to cursor by scanning, the cost is still O(count). Decision points: (a) does hub seek require scan? (b) right fix — retention policy / topic rotation / hub-side index. Cannot recommend GO/NO-GO until spike data exists.
+Filing-time recommendation was DEFER pending spike data. Spike complete; data clean.
+The regression is real, reproducible at 45% sequential timeout rate on .122
+`channel info agent-presence`, fleet-wide on every 0.11.473 hub. Two follow-up tasks
+will be filed at decide-time: (1) operator-side client cache for
+`scripts/agent-listeners.sh` (small build), (2) hub-side bisect+fix of the
+0.11.473 regression (inception → build). Updated recommendation: GO on both.
 
 **Evidence:**
 
