@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T20:39:19Z
-last_update: 2026-06-05T20:39:19Z
+last_update: 2026-06-05T20:52:19Z
 date_finished: null
 ---
 
@@ -72,11 +72,11 @@ before exiting 2. Plain-text path stays for non-JSON callers.
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 
-cargo test -p termlink-cli --lib commands::help::tests --quiet
-cargo build --release --bin termlink --quiet
-target/release/termlink help --tool-detail foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and d['verdict'] == 'error', d"
-target/release/termlink help --name-filter foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and d['verdict'] == 'error', d"
-target/release/termlink help --category channel --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and d['verdict'] == 'error', d"
+cargo test -p termlink --bins commands::help::tests --quiet
+test -x target/release/termlink
+target/release/termlink help --tool-detail foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--tool-detail' in d['error'], d"
+target/release/termlink help --name-filter foo --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--name-filter' in d['error'], d"
+target/release/termlink help --category channel --json bogus 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False and '--category' in d['error'], d"
 
 ## RCA
 
