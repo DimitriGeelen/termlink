@@ -1,0 +1,37 @@
+# T-2010: Extend agents/audit/audit.sh cron-misload lint with byte-identical diff check
+#
+# Background: T-1722's lint detects USER-field crontabs without an /etc/cron.d/
+# install. T-1887 showed it doesn't catch source-vs-install content drift (the
+# install file can exist with the right name but be byte-different from the
+# source). This patch adds a `diff -q` step on the PASS branch.
+#
+# Applies to: .agentic-framework/agents/audit/audit.sh (vendored).
+# Upstream:    agents/audit/audit.sh in DimitriGeelen/agentic-engineering-framework
+# Re-apply after fw upgrade: cd /opt/termlink && patch -p1 < .context/framework-patches/T-2010-cron-lint-byte-identical.patch
+#
+# Author:  T-2010, 2026-06-06
+# Related: T-1887 (the silent-drift incident), T-2011 (upstream propagation)
+
+--- a/agents/audit/audit.sh
++++ b/agents/audit/audit.sh
+@@ -808,7 +808,18 @@
+             fi
+         fi
+         if [ -n "$_cf_install" ]; then
+-            pass "cron(${_cf_base}): USER-field syntax installed at $_cf_install"
++            # T-2010: confirm install is byte-identical to source. T-1722's
++            # install-by-name check passes when the file exists with the right
++            # name, but does not catch source-drift (T-1887: 7-line difference
++            # between source and install lived for 9 days). diff -q here closes
++            # that gap; on drift, surface the same install-hint shape as the
++            # missing-install path below.
++            if diff -q "$_cf" "$_cf_install" >/dev/null 2>&1; then
++                pass "cron(${_cf_base}): byte-identical install at $_cf_install"
++            else
++                fail "cron(${_cf_base}): installed at $_cf_install but content drifted from source" \
++                     "Source: $_cf differs from install. T-2010 prevention of PL-173/G-058 silent regression." \
++                     "Reinstall: sudo cp $_cf $_cf_install && sudo systemctl reload cron"
++            fi
+         else
+             fail "cron(${_cf_base}): USER-field syntax but no install in $_cron_lint_target_dir" \
+                  "Source: $_cf. Dormant — scheduled jobs are not running (PL-173 / G-058 prevention)." \

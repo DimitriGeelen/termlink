@@ -808,7 +808,19 @@ if [ -d "$_cron_lint_dir" ]; then
             fi
         fi
         if [ -n "$_cf_install" ]; then
-            pass "cron(${_cf_base}): USER-field syntax installed at $_cf_install"
+            # T-2010: confirm install is byte-identical to source. T-1722's
+            # install-by-name check passes when the file exists with the right
+            # name, but does not catch source-drift (T-1887: 7-line difference
+            # between source and install lived for 9 days). diff -q here closes
+            # that gap; on drift, surface the same install-hint shape as the
+            # missing-install path below.
+            if diff -q "$_cf" "$_cf_install" >/dev/null 2>&1; then
+                pass "cron(${_cf_base}): byte-identical install at $_cf_install"
+            else
+                fail "cron(${_cf_base}): installed at $_cf_install but content drifted from source" \
+                     "Source: $_cf differs from install. T-2010 prevention of PL-173/G-058 silent regression." \
+                     "Reinstall: sudo cp $_cf $_cf_install && sudo systemctl reload cron"
+            fi
         else
             fail "cron(${_cf_base}): USER-field syntax but no install in $_cron_lint_target_dir" \
                  "Source: $_cf. Dormant — scheduled jobs are not running (PL-173 / G-058 prevention)." \
