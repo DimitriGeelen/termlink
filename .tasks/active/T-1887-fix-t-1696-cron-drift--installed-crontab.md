@@ -12,7 +12,7 @@ tags: [bug]
 components: []
 related_tasks: [T-1696, T-1884]
 created: 2026-05-30T22:00:02Z
-last_update: 2026-06-05T22:37:20Z
+last_update: 2026-06-05T22:38:53Z
 date_finished: null
 ---
 
@@ -88,8 +88,9 @@ source-side addition landed.
    `.context/cron/*.crontab` source file, if a corresponding
    `/etc/cron.d/<basename>` exists, fail-loud when they differ. This
    catches the next instance of "source updated, install forgotten"
-   automatically in the daily audit cadence. **Filed as follow-up
-   T-XXXX** (see Updates).
+   automatically in the daily audit cadence. **Filed as T-2010**
+   (`Extend fw audit cron lint to detect content-drift between source
+   and /etc/cron.d/`).
 2. **Optional `fw cron install` verb** — a CLI verb that reads every
    `.context/cron/*.crontab` source, prints a diff vs `/etc/cron.d/`,
    and offers to `sudo cp` each drifted entry. Lower priority than
@@ -190,9 +191,9 @@ post-install. Operator can click those three boxes with mechanical
 confidence: just re-run T-1696 step 1 (`diff ... && echo IDENTICAL`)
 to confirm, then tick.
 
-**Follow-up filed.** T-1722's cron-misload lint scope misses
-content-drift vs source — the RCA's Prevention §1 names this as a
-new task. Will file separately as a "T-1722 lint extension" follow-up
-so the next "source updated but install forgotten" instance is caught
-automatically by `fw audit` instead of requiring another T-1884-style
-ad-hoc dry-run.
+**Follow-up filed.** T-2010 (`Extend fw audit cron lint to detect
+content-drift between source and /etc/cron.d/`) captures the RCA's
+Prevention §1 — extends T-1722's lint scope so the next "source
+updated but install forgotten" instance is caught automatically by
+`fw audit` instead of requiring another T-1884-style ad-hoc dry-run.
+captured / agent / horizon=now.
