@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-06-05T21:39:54Z
+last_update: 2026-06-05T21:45:10Z
 date_finished: null
 ---
 
@@ -297,3 +297,42 @@ fallback simplifies the error message to the actual root cause
 package name doesn't exist + AC10: clippy scope pulls transitive crate
 warnings) are documentation defects, not work. T-1415 closure still
 gates on operator action — owner remains `human`.
+
+### 2026-06-05T22:10Z — no_legacy_callers.rs allowlist tightened + drift guard [agent autonomous, focus=T-1415]
+
+**Scope.** Inventory item 3 in T-1415's 16:50Z deferred list — tighten the
+regression test now that the symbols it audits no longer exist in 4 of 6
+allowlisted files. Per simulator-equivalent classifier pass:
+
+| File | caller-shaped legacy literals | Action |
+|------|------------------------------|--------|
+| `crates/termlink-hub/src/router.rs` | 3 (lines 809-811: `"inbox.list"`, `"inbox.status"`, `"inbox.clear"` in the `hub.capabilities` methods list) | **kept** — separate follow-up needed |
+| `crates/termlink-hub/src/rpc_audit.rs` | 6 (lines 32-37: the `LEGACY_METHODS` definition list itself) | **kept** — load-bearing |
+| `crates/termlink-cli/src/commands/events.rs` | 0 (T-1401 fallback deleted) | **removed** from allowlist |
+| `crates/termlink-cli/src/commands/infrastructure.rs` | 0 (this slice + earlier cleanup) | **removed** |
+| `crates/termlink-mcp/src/tools.rs` | 0 | **removed** |
+| `crates/termlink-session/src/inbox_channel.rs` | 0 (T-1415 AC3 cleanup, May 31) | **removed** |
+
+**File touched:** `crates/termlink-hub/tests/no_legacy_callers.rs`
+- ALLOWLIST shrunk from 6 to 2 entries.
+- Module docstring rewritten to reflect post-retirement purpose ("regression
+  guard — calls would speak a method the hub returns -32601 for, silently
+  broken") instead of bake-window framing.
+- Added `allowlist_is_load_bearing` test — strengthened drift guard that
+  fails if any allowlisted file no longer contains ≥1 caller-shaped legacy
+  literal. Closes the failure mode where a future cleanup empties a file
+  but forgets to drop the now-dead allowlist row — silently masking new
+  callers added later. The 4 just-removed entries would have been caught by
+  this test as soon as it landed.
+
+**Verification:**
+- `cargo test -p termlink-hub --test no_legacy_callers` — **4/0 PASS**
+  (3 original tests + 1 new drift guard). The new test passes with the
+  shrunk allowlist, confirming both remaining entries are load-bearing.
+
+**Follow-up (separate slice).** `router.rs` lines 809-811 advertise
+`inbox.list`/`inbox.status`/`inbox.clear` in the hub-capabilities
+methods list, but route() no longer serves them — capability consumers
+get told the methods exist, then -32601 on actual call. Same dead-
+advertisement problem applies to `EVENT_BROADCAST` at line 799. That's
+a small bounded slice for next time.

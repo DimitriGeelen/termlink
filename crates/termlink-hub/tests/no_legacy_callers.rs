@@ -1,19 +1,28 @@
-//! T-1406: Regression guard — no new direct callers of legacy primitives.
+//! T-1406 → T-1415: Regression guard — no in-repo direct callers of retired
+//! legacy primitives.
 //!
-//! During the T-1166 bake window, any new in-repo direct caller of
+//! Original purpose (T-1166 bake window): catch new direct callers of
 //! `event.broadcast`, `inbox.list`, `inbox.status`, `inbox.clear`, `file.send`,
-//! or `file.receive` increases legacy traffic and slows the gate. This test
-//! walks `crates/**/src/**/*.rs` and fails if any source file outside the
-//! allowlist contains one of these method strings as a quoted literal at a
-//! caller-shaped use-site.
+//! or `file.receive` that would slow the retirement gate.
 //!
-//! Allowlisted files (intentional callers — fallback paths or definitions):
-//! - `crates/termlink-hub/src/router.rs` — the router that handles them
-//! - `crates/termlink-hub/src/rpc_audit.rs` — the legacy method definition list
-//! - `crates/termlink-cli/src/commands/events.rs` — `cmd_broadcast` legacy fallback (T-1401)
-//! - `crates/termlink-cli/src/commands/infrastructure.rs` — `fw doctor` legacy fallback (T-1400)
-//! - `crates/termlink-mcp/src/tools.rs` — MCP broadcast + doctor legacy fallbacks (T-1400 / T-1403)
-//! - `crates/termlink-session/src/inbox_channel.rs` — channel-first wrapper, legacy fallback path
+//! Post-retirement purpose (after T-1415's source-cleanup landed): the same
+//! guard now catches regressions — any new direct caller would speak a method
+//! the hub returns -32601 for, which is silently broken. The walker fails if
+//! any source file outside the allowlist contains one of these method strings
+//! as a quoted literal at a caller-shaped use-site.
+//!
+//! Allowlisted files (the only intentional remaining references):
+//! - `crates/termlink-hub/src/router.rs` — `hub.capabilities` method-name list
+//!   advertised by the hub (separate cleanup needed; tracked in T-1415 inventory)
+//! - `crates/termlink-hub/src/rpc_audit.rs` — the legacy-method definition list
+//!   itself (this is what enumerates the retired set; deleting it removes the
+//!   detection vocabulary)
+//!
+//! Allowlist entries removed in T-1415's parallel cleanup (2026-06-05):
+//! - `events.rs`, `infrastructure.rs`, `tools.rs`, `inbox_channel.rs` —
+//!   their legacy-fallback paths were deleted in May/June 2026; the entries
+//!   were stale (no caller-shaped legacy literals remained). `allowlist_is_load_bearing`
+//!   below now catches future drift of this kind.
 //!
 //! Skipped use-sites (definitionally not callers):
 //! - Comment lines (`//`, `///`, `//!`, leading `*` inside block comments)
@@ -21,8 +30,7 @@
 //! - Match-arm patterns (`"..." =>`, `| "..."`)
 //! - Code inside `#[cfg(test)]` modules, `#[test]` fns, and `#[tokio::test]` fns
 //!
-//! Test files (`tests/`, `_test.rs`, `benches/`) are skipped wholesale — they
-//! may legitimately exercise the legacy path to assert backward-compat behaviour.
+//! Test files (`tests/`, `_test.rs`, `benches/`) are skipped wholesale.
 //!
 //! Any new hit is a regression. The migration recipe in
 //! `docs/migrations/T-1166-retire-legacy-primitives.md` shows the channel-based
@@ -42,10 +50,6 @@ const LEGACY_METHODS: &[&str] = &[
 const ALLOWLIST: &[&str] = &[
     "crates/termlink-hub/src/router.rs",
     "crates/termlink-hub/src/rpc_audit.rs",
-    "crates/termlink-cli/src/commands/events.rs",
-    "crates/termlink-cli/src/commands/infrastructure.rs",
-    "crates/termlink-mcp/src/tools.rs",
-    "crates/termlink-session/src/inbox_channel.rs",
 ];
 
 #[test]
@@ -105,6 +109,59 @@ fn allowlist_entries_exist() {
         missing.is_empty(),
         "T-1406: allowlist contains paths that no longer exist:\n  {}",
         missing.join("\n  "),
+    );
+}
+
+#[test]
+fn allowlist_is_load_bearing() {
+    // T-1415: stronger than `allowlist_entries_exist` — every allowlisted
+    // file must ACTUALLY contain ≥1 caller-shaped legacy literal. Otherwise
+    // the entry is stale (the legacy callers were already cleaned up) and
+    // should be removed from ALLOWLIST. Catches the failure mode where a
+    // future cleanup removes the last legacy reference from a file but
+    // forgets to delete its allowlist row — the dead row would silently
+    // mask any new caller that's added later.
+    let root = workspace_root();
+    let mut stale: Vec<(&str, String)> = Vec::new();
+    for entry in ALLOWLIST {
+        let body = match std::fs::read_to_string(root.join(entry)) {
+            Ok(b) => b,
+            Err(e) => {
+                stale.push((entry, format!("unreadable: {e}")));
+                continue;
+            }
+        };
+        let mut tracker = TestBlockTracker::new();
+        let mut hits = 0usize;
+        for line in body.lines() {
+            tracker.step(line);
+            if tracker.inside_test() {
+                continue;
+            }
+            if !is_caller_line(line) {
+                continue;
+            }
+            for method in LEGACY_METHODS {
+                if line.contains(&format!("\"{method}\"")) {
+                    hits += 1;
+                    break;
+                }
+            }
+        }
+        if hits == 0 {
+            stale.push((entry, "no caller-shaped legacy literals — entry is dead".to_string()));
+        }
+    }
+    assert!(
+        stale.is_empty(),
+        "T-1415: ALLOWLIST contains stale entries (no remaining caller-shaped\n\
+         legacy literals — the cleanup that removed the callers should have\n\
+         removed the row):\n  {}",
+        stale
+            .iter()
+            .map(|(f, why)| format!("{f} — {why}"))
+            .collect::<Vec<_>>()
+            .join("\n  "),
     );
 }
 
