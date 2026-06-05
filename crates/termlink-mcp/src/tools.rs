@@ -1065,6 +1065,7 @@ fn build_help_json(
     sort_by: Option<&str>,
     fields: Option<&[String]>,
     categories_filter: Option<&[String]>,
+    exclude_categories_filter: Option<&[String]>,
 ) -> String {
     // T-1952: drill-in mode — return one tool's category + short + full description.
     if let Some(target) = tool_detail {
@@ -1448,6 +1449,28 @@ fn build_help_json(
         }
     }
     let categories_array_active = !categories_applied_values.is_empty();
+    // T-2000: classify the requested `exclude_categories` filter against the
+    // real registry up front. Same input-validation shape as T-1999 —
+    // unknown names propagate via envelope, recognized ones drive the
+    // per-category skip in the loop.
+    let mut exclude_categories_applied_values: Vec<String> = Vec::new();
+    let mut exclude_categories_unknown_values: Vec<String> = Vec::new();
+    if let Some(requested) = exclude_categories_filter
+        && !requested.is_empty()
+    {
+        let registry_names: std::collections::HashSet<&str> =
+            categories.iter().map(|(n, _)| *n).collect();
+        for req in requested {
+            if registry_names.contains(req.as_str()) {
+                if !exclude_categories_applied_values.iter().any(|v| v == req) {
+                    exclude_categories_applied_values.push(req.clone());
+                }
+            } else if !exclude_categories_unknown_values.iter().any(|v| v == req) {
+                exclude_categories_unknown_values.push(req.clone());
+            }
+        }
+    }
+    let exclude_categories_active = !exclude_categories_applied_values.is_empty();
     if needle.is_some() || bulk_flat_listing_no_needle {
         let needle_ref = needle.as_deref().unwrap_or("");
         // T-1955: multi-token AND search. Split on whitespace into tokens;
@@ -1472,6 +1495,14 @@ fn build_help_json(
                 true
             };
             if !in_scope {
+                continue;
+            }
+            // T-2000: exclusion wins on overlap. When `exclude_categories`
+            // is set and the current namespace is in it, drop the
+            // category even if it passed the positive scope above.
+            if exclude_categories_active
+                && exclude_categories_applied_values.iter().any(|c| c == *cat_name)
+            {
                 continue;
             }
             // T-1966: capture the sibling count once per category so each
@@ -1732,6 +1763,15 @@ fn build_help_json(
         }
         if !categories_unknown_values.is_empty() {
             out["categories_unknown"] = serde_json::json!(categories_unknown_values);
+        }
+        // T-2000: surface the negative-filter result. Same emission rule —
+        // recognized in exclude_categories_applied, dropped in
+        // exclude_categories_unknown.
+        if !exclude_categories_applied_values.is_empty() {
+            out["exclude_categories_applied"] = serde_json::json!(exclude_categories_applied_values);
+        }
+        if !exclude_categories_unknown_values.is_empty() {
+            out["exclude_categories_unknown"] = serde_json::json!(exclude_categories_unknown_values);
         }
         if pre_cap_total == 0 {
             // T-1975 + T-1976: hint composition mentions every active predicate.
@@ -8633,6 +8673,20 @@ pub struct HelpParams {
     /// `category` if set, otherwise no scope). Without `categories`,
     /// behavior unchanged (backward compat). T-1999.
     pub categories: Option<Vec<String>>,
+    /// Negative multi-namespace filter for `name_filter` and bulk-flat-listing
+    /// mode. When set to a non-empty array, drops rows whose category is in
+    /// the set — use it to exclude noise namespaces from registry-wide
+    /// queries (e.g. `exclude_categories=['agent_chat','agent_inbox']` for
+    /// a query over everything except the messaging-arc rows). Composes
+    /// with `categories` and single `category`: when both positive and
+    /// negative are set, exclusion wins on overlap (intersection-minus-
+    /// exclusion semantic). Unknown names dropped from the filter AND
+    /// surfaced via envelope `exclude_categories_unknown`; recognized
+    /// ones echoed via `exclude_categories_applied`. Empty
+    /// `exclude_categories:[]` is degenerate and treated as no exclusion.
+    /// Without `exclude_categories`, behavior unchanged (backward compat).
+    /// T-2000.
+    pub exclude_categories: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -12823,7 +12877,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `parameter_required_count` (T-1995) carries the count of `optional==false` params alongside — pairs with `parameter_count` for the true cost signal: a tool with `(parameter_count=12, parameter_required_count=2)` is cheap to call (only 2 args mandatory) where one with `(parameter_count=4, parameter_required_count=4)` is not. LLM clients ranking matches should prefer LOW `parameter_required_count` for first-call ergonomics. When called with a `category` filter, the envelope additionally embeds a top-level `category_meta` block (T-1981) `{name, description, tool_count, deprecated_count, live_tool_count}` — closes the round-trip on the list_categories → category drill so LLMs see the namespace metadata at the same response as the row enumeration. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `limit` (T-1984) is a deterministic pagination cap for `name_filter` (and standalone-arity-filter) mode — when set, `matches[]` is truncated to the first N (category × registry order is stable across calls), and the envelope gains `total_matched` (pre-cap count) and `limit_applied` (bool, true iff truncation actually happened) so LLM clients can detect overflow and decide whether to widen filters or paginate. `limit=0` returns an empty `matches[]` but still surfaces `total_matched` and `limit_applied=true` when matches existed pre-cap, so a calling agent can size the result before pulling it. Without `limit`, the envelope shape is unchanged for backward compat. `offset` (T-1994) is the pagination cursor that pairs with `limit` to complete the paging API — `offset=10, limit=10` returns rows 10..20 of the deterministic-order filtered set; filters (arity, deprecated, category) run BEFORE offset so the window slices the filtered universe. The envelope echoes `offset` and emits `next_offset` (== offset + matches.len()) when more results lie beyond the current page; `next_offset` is absent when exhausted (the LLM-client stop condition). `offset` past the end returns an empty `matches[]` with `total_matched` still set so the caller sees the overshoot. Without `offset` the envelope shape is unchanged for backward compat. `sort_by` (T-1996) is a deterministic sort axis for `name_filter` mode that pairs with `limit`/`offset` to give a server-side ranked-page API — values `name` (alphabetical ASC), `arity` (parameter_count ASC), `required_arity` (parameter_required_count ASC), and `category` (category alphabetical, registry-walk tiebreak). Sort runs AFTER filters and BEFORE pagination so the offset/limit window slices the sorted sequence; the sort is stable so registry order survives as the tiebreak (pagination invariants hold). The envelope emits `sort_by_applied` echoing the axis on success; unrecognized values emit `sort_by_unknown` (and the response stays in registry order) so the LLM client sees its preferred ranking was dropped instead of misreading the result. Pairs especially well with `parameter_required_count` — `sort_by='required_arity', limit=10` returns the ten cheapest-to-call matches. `fields` (T-1998) is a strict row projection for `name_filter` and bulk-flat-listing modes: when set to a non-empty list, every row in `matches[]` is filtered to retain ONLY the requested keys from the allowed set {name, category, category_tool_count, description, deprecated, parameter_count, parameter_required_count, replacement_hint}. No implicit `name` retention — the caller includes it if they want it. The envelope emits `fields_applied` echoing the recognized fields and `fields_unknown` listing dropped invalid names so the LLM client sees its silently-ignored input rather than misreading the row shape. Pairs with `limit`/`sort_by` to shrink paged responses by ~80% when prose descriptions aren't needed: `fields=['name','parameter_required_count'], sort_by='required_arity', limit=20` returns 20 cheap-to-call name+arity rows for a downstream ranking pass without paying the description payload. `categories` (T-1999) is a multi-namespace scope filter for `name_filter` and bulk-flat-listing modes — when set to a non-empty array, takes precedence over single `category` and filters to rows whose category is in the set. Unknown category names dropped from the filter AND surfaced via envelope `categories_unknown`; recognized ones echoed via `categories_applied`. Use it for messaging-arc tools via `categories=['channel','agent_chat','agent_inbox']` in one round-trip instead of three separate calls. `deprecated_only` (T-1982) is the symmetric inverse: when true, suppresses LIVE rows, surfacing only the retirement-WIP set — composes with `name_filter` + arity + `category` for migration-planning queries (e.g. `name_filter='inbox', deprecated_only=true` lists every retirement-WIP inbox tool). If both `exclude_deprecated` and `deprecated_only` are true the intersection is empty and the response carries a hint explaining the conflict. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count,live_tool_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip; `live_tool_count` (T-1979) carries the effective post-retirement namespace size (== tool_count - deprecated_count) so LLMs see the live surface at the same round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `category_deprecated_count` + `category_live_tool_count` (T-1983) complete the namespace-metadata picture (post-retirement effective size of the tool's category), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `is_replacement_for` (T-1980) is the reverse — the alphabetically-sorted list of deprecated tools whose descriptions point at this name (empty array when none); together with `replacement_hint` it forms a bidirectional retirement-graph navigator. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `parameter_required_count` (T-1995) carries the count of `optional==false` params alongside — pairs with `parameter_count` for the true cost signal: a tool with `(parameter_count=12, parameter_required_count=2)` is cheap to call (only 2 args mandatory) where one with `(parameter_count=4, parameter_required_count=4)` is not. LLM clients ranking matches should prefer LOW `parameter_required_count` for first-call ergonomics. When called with a `category` filter, the envelope additionally embeds a top-level `category_meta` block (T-1981) `{name, description, tool_count, deprecated_count, live_tool_count}` — closes the round-trip on the list_categories → category drill so LLMs see the namespace metadata at the same response as the row enumeration. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `limit` (T-1984) is a deterministic pagination cap for `name_filter` (and standalone-arity-filter) mode — when set, `matches[]` is truncated to the first N (category × registry order is stable across calls), and the envelope gains `total_matched` (pre-cap count) and `limit_applied` (bool, true iff truncation actually happened) so LLM clients can detect overflow and decide whether to widen filters or paginate. `limit=0` returns an empty `matches[]` but still surfaces `total_matched` and `limit_applied=true` when matches existed pre-cap, so a calling agent can size the result before pulling it. Without `limit`, the envelope shape is unchanged for backward compat. `offset` (T-1994) is the pagination cursor that pairs with `limit` to complete the paging API — `offset=10, limit=10` returns rows 10..20 of the deterministic-order filtered set; filters (arity, deprecated, category) run BEFORE offset so the window slices the filtered universe. The envelope echoes `offset` and emits `next_offset` (== offset + matches.len()) when more results lie beyond the current page; `next_offset` is absent when exhausted (the LLM-client stop condition). `offset` past the end returns an empty `matches[]` with `total_matched` still set so the caller sees the overshoot. Without `offset` the envelope shape is unchanged for backward compat. `sort_by` (T-1996) is a deterministic sort axis for `name_filter` mode that pairs with `limit`/`offset` to give a server-side ranked-page API — values `name` (alphabetical ASC), `arity` (parameter_count ASC), `required_arity` (parameter_required_count ASC), and `category` (category alphabetical, registry-walk tiebreak). Sort runs AFTER filters and BEFORE pagination so the offset/limit window slices the sorted sequence; the sort is stable so registry order survives as the tiebreak (pagination invariants hold). The envelope emits `sort_by_applied` echoing the axis on success; unrecognized values emit `sort_by_unknown` (and the response stays in registry order) so the LLM client sees its preferred ranking was dropped instead of misreading the result. Pairs especially well with `parameter_required_count` — `sort_by='required_arity', limit=10` returns the ten cheapest-to-call matches. `fields` (T-1998) is a strict row projection for `name_filter` and bulk-flat-listing modes: when set to a non-empty list, every row in `matches[]` is filtered to retain ONLY the requested keys from the allowed set {name, category, category_tool_count, description, deprecated, parameter_count, parameter_required_count, replacement_hint}. No implicit `name` retention — the caller includes it if they want it. The envelope emits `fields_applied` echoing the recognized fields and `fields_unknown` listing dropped invalid names so the LLM client sees its silently-ignored input rather than misreading the row shape. Pairs with `limit`/`sort_by` to shrink paged responses by ~80% when prose descriptions aren't needed: `fields=['name','parameter_required_count'], sort_by='required_arity', limit=20` returns 20 cheap-to-call name+arity rows for a downstream ranking pass without paying the description payload. `categories` (T-1999) is a multi-namespace scope filter for `name_filter` and bulk-flat-listing modes — when set to a non-empty array, takes precedence over single `category` and filters to rows whose category is in the set. Unknown category names dropped from the filter AND surfaced via envelope `categories_unknown`; recognized ones echoed via `categories_applied`. Use it for messaging-arc tools via `categories=['channel','agent_chat','agent_inbox']` in one round-trip instead of three separate calls. `exclude_categories` (T-2000) is the negative twin — drops rows whose category is in the array, useful for excluding noise namespaces from registry-wide queries. Exclusion wins on overlap with `categories`/`category` (intersection-minus-exclusion). Unknown names dropped from the filter AND surfaced via envelope `exclude_categories_unknown`; recognized ones echoed via `exclude_categories_applied`. `deprecated_only` (T-1982) is the symmetric inverse: when true, suppresses LIVE rows, surfacing only the retirement-WIP set — composes with `name_filter` + arity + `category` for migration-planning queries (e.g. `name_filter='inbox', deprecated_only=true` lists every retirement-WIP inbox tool). If both `exclude_deprecated` and `deprecated_only` are true the intersection is empty and the response carries a hint explaining the conflict. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count,live_tool_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip; `live_tool_count` (T-1979) carries the effective post-retirement namespace size (== tool_count - deprecated_count) so LLMs see the live surface at the same round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `category_deprecated_count` + `category_live_tool_count` (T-1983) complete the namespace-metadata picture (post-retirement effective size of the tool's category), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `is_replacement_for` (T-1980) is the reverse — the alphabetically-sorted list of deprecated tools whose descriptions point at this name (empty array when none); together with `replacement_hint` it forms a bidirectional retirement-graph navigator. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -12844,7 +12898,8 @@ impl TermLinkTools {
         let sort_by = p.sort_by.as_deref();
         let fields = p.fields.as_deref();
         let categories_filter = p.categories.as_deref();
-        build_help_json(&categories, filter, name_filter, list_cats, detail, summary, essentials, max_params, min_params, exclude_dep, dep_only, limit, offset, sort_by, fields, categories_filter)
+        let exclude_categories_filter = p.exclude_categories.as_deref();
+        build_help_json(&categories, filter, name_filter, list_cats, detail, summary, essentials, max_params, min_params, exclude_dep, dep_only, limit, offset, sort_by, fields, categories_filter, exclude_categories_filter)
     }
 
 
@@ -35781,7 +35836,7 @@ YW\tJ
     #[test]
     fn help_name_filter_finds_redact() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).expect("valid json");
         let matches = v["matches"].as_array().expect("matches array");
         let names: Vec<&str> = matches.iter().map(|m| m["name"].as_str().unwrap()).collect();
@@ -35795,9 +35850,9 @@ YW\tJ
     #[test]
     fn help_name_filter_case_insensitive() {
         let cats = help_fixture();
-        let lower = build_help_json(&cats, None, Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None);
-        let upper = build_help_json(&cats, None, Some("REDACT"), false, None, false, false, None, None, false, false, None, None, None, None, None);
-        let mixed = build_help_json(&cats, None, Some("Redact"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let lower = build_help_json(&cats, None, Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
+        let upper = build_help_json(&cats, None, Some("REDACT"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
+        let mixed = build_help_json(&cats, None, Some("Redact"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let lower_v: serde_json::Value = serde_json::from_str(&lower).unwrap();
         let upper_v: serde_json::Value = serde_json::from_str(&upper).unwrap();
         let mixed_v: serde_json::Value = serde_json::from_str(&mixed).unwrap();
@@ -35809,7 +35864,7 @@ YW\tJ
     fn help_name_filter_with_category() {
         let cats = help_fixture();
         // Scoping to channel_moderation must drop agent_redact even though it matches.
-        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, Some("channel_moderation"), Some("redact"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let names: Vec<&str> = v["matches"].as_array().unwrap().iter()
             .map(|m| m["name"].as_str().unwrap()).collect();
@@ -35821,7 +35876,7 @@ YW\tJ
     #[test]
     fn help_name_filter_zero_matches_gives_hint() {
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("nonexistent-needle"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("nonexistent-needle"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 0);
         assert!(v["hint"].is_string(), "hint missing on empty result");
@@ -35833,7 +35888,7 @@ YW\tJ
     fn help_name_filter_matches_description() {
         // T-1940: substring also searches descriptions, not just names.
         let cats = help_fixture();
-        let out = build_help_json(&cats, None, Some("Health sweep"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("Health sweep"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_matches"], 1);
         assert_eq!(v["matches"][0]["name"], "termlink_fleet_doctor");
@@ -35848,7 +35903,7 @@ YW\tJ
         let expected_cat_count = cats.len();
         let expected_tool_count: usize = cats.iter().map(|(_, t)| t.len()).sum();
 
-        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
 
         assert_eq!(v["total_categories"], expected_cat_count);
@@ -35875,7 +35930,7 @@ YW\tJ
         // Prevents regression of the silent drift observed at T-1943/44/45,
         // where 6 categories were added but the hard-coded hint went stale.
         let cats = help_categories();
-        let out = build_help_json(&cats, Some("nonexistent-category"), None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, Some("nonexistent-category"), None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let err = v["error"]
             .as_str()
@@ -35917,7 +35972,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["total_categories"], cats.len());
         let arr = v["categories"].as_array().unwrap();
@@ -35931,7 +35986,7 @@ YW\tJ
         // the operator-facing routing hint — empty descriptions would make
         // the field decorative-only.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["categories"].as_array().expect("categories must be array");
         let mut empty: Vec<String> = Vec::new();
@@ -36007,7 +36062,7 @@ YW\tJ
         // T-1952: drill-in mode returns category + short (from help_categories)
         // + full (from macro) descriptions in one call.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_help"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_help"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
 
         assert_eq!(v["tool"], "termlink_help");
@@ -36067,7 +36122,7 @@ YW\tJ
         // JSON response so LLM consumers see ground-truth field shapes
         // alongside descriptions.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_help"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_help"), false, false, None, None, false, false, None, None, None, None, None, None);
         let parsed: serde_json::Value =
             serde_json::from_str(&out).expect("response must be valid JSON");
         let params = parsed
@@ -36126,7 +36181,7 @@ YW\tJ
     fn help_tool_detail_unknown_returns_error() {
         // T-1952: unknown tool name yields error with discovery hint.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_does_not_exist"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_does_not_exist"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let err = v["error"]
             .as_str()
@@ -36149,7 +36204,7 @@ YW\tJ
         // added but at least one of the known-stable reaction-family tools
         // must appear.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_react"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_react"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let related = v["related_tools"]
             .as_array()
@@ -36173,7 +36228,7 @@ YW\tJ
         // T-1956: related_tools must never contain the target tool itself,
         // even if its own name matches the family prefix exactly.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let related = v["related_tools"]
             .as_array()
@@ -36191,7 +36246,7 @@ YW\tJ
         // `termlink_channel_post` (cross-domain verb mate) and must NOT
         // contain `termlink_agent_*` siblings (those belong in related_tools).
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let cognates = v["verb_cognates"]
             .as_array()
@@ -36217,7 +36272,7 @@ YW\tJ
         // (>5 cognates) must omit the field entirely so the LLM doesn't
         // receive a noisy listing of every domain's status verb.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_hub_status"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_hub_status"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(
             v["verb_cognates"].is_null(),
@@ -36242,7 +36297,7 @@ YW\tJ
             .flat_map(|(_, tools)| tools.iter().map(|(n, _)| *n))
             .collect();
         for target in names {
-            let out = build_help_json(&cats, None, None, false, Some(target), false, false, None, None, false, false, None, None, None, None, None);
+            let out = build_help_json(&cats, None, None, false, Some(target), false, false, None, None, false, false, None, None, None, None, None, None);
             let v: serde_json::Value = serde_json::from_str(&out).unwrap();
             if let Some(arr) = v["verb_cognates"].as_array() {
                 let cog_names: Vec<&str> = arr.iter().filter_map(|n| n.as_str()).collect();
@@ -36328,7 +36383,7 @@ YW\tJ
         // rely on presence; absence would force a follow-up call to
         // disambiguate.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_inbox_status"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_inbox_status"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(
             v["deprecated"].is_boolean(),
@@ -36342,7 +36397,7 @@ YW\tJ
         );
 
         // Also verify a live tool — same field present, false value.
-        let out2 = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None);
+        let out2 = build_help_json(&cats, None, None, false, Some("termlink_agent_post"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v2: serde_json::Value = serde_json::from_str(&out2).unwrap();
         assert!(
             v2["deprecated"].is_boolean(),
@@ -36360,7 +36415,7 @@ YW\tJ
         // T-1960: every match row carries the routing signal so search
         // results are immediately rankable without a follow-up tool_detail.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("inbox"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("inbox"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["matches"]
             .as_array()
@@ -36507,6 +36562,13 @@ YW\tJ
             // category names.
             ("categories_applied", "T-1999"),
             ("categories_unknown", "T-1999"),
+            // T-2000: negative multi-namespace filter. `exclude_categories`
+            // drops rows whose category is in the array. Exclusion wins on
+            // overlap with `categories`/`category`. Envelope emits
+            // exclude_categories_applied (recognized) and
+            // exclude_categories_unknown (dropped) for input validation.
+            ("exclude_categories_applied", "T-2000"),
+            ("exclude_categories_unknown", "T-2000"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -36527,7 +36589,7 @@ YW\tJ
         // the deprecated flag, matching the T-1960 contract for tool_detail
         // and name_filter. Sweep the real registry; one missing row fails.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let obj = v.as_object().expect("default mode returns an object");
         let mut missing: Vec<String> = Vec::new();
@@ -36557,7 +36619,7 @@ YW\tJ
         // must surface deprecated=true. Locks the consistency between
         // default-mode rows and the T-1960 derivation rules.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let diagnostics = v["diagnostics"]
             .as_array()
@@ -36683,7 +36745,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["deprecated"].as_bool(), Some(true));
         assert_eq!(
@@ -36692,7 +36754,7 @@ YW\tJ
             "tool_detail on termlink_inbox_status must carry replacement_hint"
         );
 
-        let out2 = build_help_json(&cats, None, None, false, Some("termlink_ping"), false, false, None, None, false, false, None, None, None, None, None);
+        let out2 = build_help_json(&cats, None, None, false, Some("termlink_ping"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v2: serde_json::Value = serde_json::from_str(&out2).unwrap();
         assert_eq!(v2["deprecated"].as_bool(), Some(false));
         assert!(
@@ -36709,7 +36771,7 @@ YW\tJ
         // for "inbox" which finds both legacy primitives AND live tools
         // (depending on the registry); each row checked individually.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("inbox"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("inbox"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("name_filter returns matches array");
         let mut errors: Vec<String> = Vec::new();
@@ -36736,7 +36798,7 @@ YW\tJ
         // shape — deprecated rows carry `replacement_hint`, live ones
         // omit it. Walks every category × every row.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let obj = v.as_object().expect("default mode returns an object");
         let mut errors: Vec<String> = Vec::new();
@@ -36770,14 +36832,14 @@ YW\tJ
         // cross-mode parity contract for parameter_count across all four
         // bulk-listing modes (tool_detail, name_filter, default, essentials).
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["essentials"].as_array().expect("essentials array");
         let mut errors: Vec<String> = Vec::new();
         for row in arr {
             let name = row["name"].as_str().unwrap();
             let ess_pc = row["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
-            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
             let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
             let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
             if ess_pc != td_pc {
@@ -36802,7 +36864,7 @@ YW\tJ
         // here before LLMs see a broken cold-start view.
         let cats = help_categories();
         let descs = category_descriptions();
-        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["essentials"].as_array().unwrap();
         let mut errors: Vec<String> = Vec::new();
@@ -36834,7 +36896,7 @@ YW\tJ
         // the auto-derived starter set cannot accidentally surface
         // retirement-WIP tools or repeat-name across categories.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["essentials"]
             .as_array()
@@ -36878,7 +36940,7 @@ YW\tJ
         // contract: if a future change moves a non-deprecated tool to be
         // first when one earlier was already non-deprecated, the test fires.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["essentials"].as_array().unwrap();
         for entry in arr {
@@ -36912,7 +36974,7 @@ YW\tJ
                 ("tool_d", "Legacy tool D (deprecated)"),
             ]),
         ];
-        let out = build_help_json(&fixture, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&fixture, None, None, false, None, false, true, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["essentials"].as_array().unwrap();
         let cats: Vec<&str> = arr.iter().filter_map(|e| e["category"].as_str()).collect();
@@ -36940,7 +37002,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(
             v["essentials"].is_array(),
@@ -36971,7 +37033,7 @@ YW\tJ
         // a future regression where the filter predicate diverges from the
         // shared `is_deprecated()` source-of-truth.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let arr = v["categories"]
             .as_array()
@@ -37014,7 +37076,7 @@ YW\tJ
         // same registry + same `is_deprecated()` predicate; divergence
         // means one mode iterated wrong (e.g. skipped an empty category).
         let cats = help_categories();
-        let lc_out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None);
+        let lc_out = build_help_json(&cats, None, None, true, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let lc: serde_json::Value = serde_json::from_str(&lc_out).unwrap();
         let lc_sum: u64 = lc["categories"]
             .as_array()
@@ -37022,7 +37084,7 @@ YW\tJ
             .iter()
             .map(|e| e["deprecated_count"].as_u64().unwrap_or(0))
             .sum();
-        let sum_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let sum_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let sm: serde_json::Value = serde_json::from_str(&sum_out).unwrap();
         let sm_total = sm["total_deprecated"].as_u64().unwrap();
         assert_eq!(
@@ -37048,7 +37110,7 @@ YW\tJ
             };
             let expected_size = tools.len();
             // Search by the tool's full name — guaranteed to match itself.
-            let out = build_help_json(&cats, None, Some(sample_name), false, None, false, false, None, None, false, false, None, None, None, None, None);
+            let out = build_help_json(&cats, None, Some(sample_name), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
             let v: serde_json::Value = serde_json::from_str(&out).unwrap();
             let arr = v["matches"]
                 .as_array()
@@ -37091,7 +37153,7 @@ YW\tJ
         for (cat_name, tools) in &cats {
             let expected_size = tools.len();
             for (tool_name, _) in tools {
-                let out = build_help_json(&cats, None, None, false, Some(tool_name), false, false, None, None, false, false, None, None, None, None, None);
+                let out = build_help_json(&cats, None, None, false, Some(tool_name), false, false, None, None, false, false, None, None, None, None, None, None);
                 let v: serde_json::Value = serde_json::from_str(&out).unwrap();
                 let cat_desc = v["category_description"].as_str().unwrap_or("");
                 if cat_desc.is_empty() {
@@ -37133,14 +37195,14 @@ YW\tJ
         // same tool_params() source — a divergence here means one path is
         // synthesizing arity instead of reading the registry.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("termlink_"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("termlink_"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         let mut errors: Vec<String> = Vec::new();
         for row in matches {
             let name = row["name"].as_str().unwrap();
             let nf_pc = row["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
-            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
             let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
             let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
             if nf_pc != td_pc {
@@ -37164,7 +37226,7 @@ YW\tJ
         // `parameter_count` equals what tool_detail reports for the
         // same tool. Mirror-image of name_filter test above.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let obj = v.as_object().expect("default mode returns object");
         let mut errors: Vec<String> = Vec::new();
@@ -37176,7 +37238,7 @@ YW\tJ
             for row in arr {
                 let name = row["name"].as_str().unwrap();
                 let dm_pc = row["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
-                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
                 let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
                 let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
                 if dm_pc != td_pc {
@@ -37205,7 +37267,7 @@ YW\tJ
         let mut errors: Vec<String> = Vec::new();
         for (cat_name, tools) in &cats {
             for (tool_name, _) in tools {
-                let out = build_help_json(&cats, None, None, false, Some(tool_name), false, false, None, None, false, false, None, None, None, None, None);
+                let out = build_help_json(&cats, None, None, false, Some(tool_name), false, false, None, None, false, false, None, None, None, None, None, None);
                 let v: serde_json::Value = serde_json::from_str(&out).unwrap();
                 let pc = match v["parameter_count"].as_u64() {
                     Some(n) => n as usize,
@@ -37244,7 +37306,7 @@ YW\tJ
         // the iteration. Locks the contract that summary numbers can't drift
         // from the registry.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let expected_total: usize = cats.iter().map(|(_, t)| t.len()).sum();
         assert_eq!(
@@ -37268,7 +37330,7 @@ YW\tJ
         // `deprecated_by_category` is a real category, preventing typos in
         // the BTreeMap construction.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let total_dep = v["total_deprecated"].as_u64().unwrap();
         let dep_obj = v["deprecated_by_category"]
@@ -37304,7 +37366,7 @@ YW\tJ
         // is alphabetic by name on tool_count equality. Caps at 5 entries
         // each — locks the bound.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let known: std::collections::HashSet<&str> = cats.iter().map(|(n, _)| *n).collect();
         for field in &["largest_categories", "smallest_categories"] {
@@ -37352,7 +37414,7 @@ YW\tJ
         // entire registry and returns every zero-arg tool. Each row must
         // have parameter_count == 0.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, Some(0), None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, Some(0), None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(!matches.is_empty(), "zero-arity set should be non-empty");
@@ -37385,7 +37447,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(!matches.is_empty(), "threshold=1 set should be non-empty");
@@ -37406,13 +37468,13 @@ YW\tJ
         // summary.zero_arity_tools (T-1973). Cross-mode arithmetic
         // identity locking the two derivation paths to the same source.
         let cats = help_categories();
-        let standalone = build_help_json(&cats, None, None, false, None, false, false, Some(0), None, false, false, None, None, None, None, None);
+        let standalone = build_help_json(&cats, None, None, false, None, false, false, Some(0), None, false, false, None, None, None, None, None, None);
         let s_v: serde_json::Value = serde_json::from_str(&standalone).unwrap();
         let standalone_count = s_v["matches"]
             .as_array()
             .map(|a| a.len())
             .unwrap_or(usize::MAX);
-        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let sum_v: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
         let summary_zero = sum_v["zero_arity_tools"].as_u64().unwrap_or(u64::MAX) as usize;
         assert_eq!(
@@ -37427,7 +37489,7 @@ YW\tJ
         // every tool with parameter_count>=5. Lower-bound symmetric mirror
         // of T-1975's max_parameters=0 test.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, None, false, false, None, Some(5), false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, None, false, false, None, Some(5), false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         // Every returned row must satisfy parameter_count >= 5.
@@ -37460,7 +37522,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         // Range filter is strict; the channel family is large enough that
@@ -37492,7 +37554,7 @@ YW\tJ
         // that tool_detail uses for parameter_count.
         const K: usize = 3;
         let cats = help_categories();
-        let standalone = build_help_json(&cats, None, None, false, None, false, false, None, Some(K), false, false, None, None, None, None, None);
+        let standalone = build_help_json(&cats, None, None, false, None, false, false, None, Some(K), false, false, None, None, None, None, None, None);
         let s_v: serde_json::Value = serde_json::from_str(&standalone).unwrap();
         let standalone_count = s_v["matches"]
             .as_array()
@@ -37534,7 +37596,7 @@ YW\tJ
             true, // exclude_deprecated
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         for row in matches {
@@ -37567,7 +37629,7 @@ YW\tJ
             false, // exclude_deprecated OFF
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         let any_deprecated = matches
@@ -37598,7 +37660,7 @@ YW\tJ
             true,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         for row in matches {
@@ -37625,7 +37687,7 @@ YW\tJ
             &cats, None, None, false, None, true, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let total = v["total_tools"].as_u64().unwrap_or(u64::MAX);
         let dep = v["total_deprecated"].as_u64().unwrap_or(u64::MAX);
@@ -37649,7 +37711,7 @@ YW\tJ
             &cats, None, None, false, None, true, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let rows = v["largest_live_categories"].as_array().expect("array");
         assert!(!rows.is_empty(), "largest_live_categories must be non-empty");
@@ -37675,7 +37737,7 @@ YW\tJ
             &cats, None, None, false, None, true, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let reported = v["total_live_categories"].as_u64().unwrap_or(u64::MAX) as usize;
         let walked = cats
@@ -37697,7 +37759,7 @@ YW\tJ
             &cats, None, None, true, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let rows = v["categories"].as_array().expect("categories array");
         for row in rows {
@@ -37723,7 +37785,7 @@ YW\tJ
             &cats, None, None, true, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let rows = v["categories"].as_array().expect("categories array");
         for row in rows {
@@ -37751,7 +37813,7 @@ YW\tJ
             &cats, None, None, true, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let lc_v: serde_json::Value = serde_json::from_str(&lc_out).unwrap();
         let rows = lc_v["categories"].as_array().expect("categories array");
         let lc_sum: u64 = rows
@@ -37762,7 +37824,7 @@ YW\tJ
             &cats, None, None, false, None, true, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let sm_v: serde_json::Value = serde_json::from_str(&sm_out).unwrap();
         let sm_total = sm_v["total_live_tools"].as_u64().unwrap_or(u64::MAX);
         assert_eq!(
@@ -37792,7 +37854,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let back = v["is_replacement_for"].as_array().expect("array");
         assert!(
@@ -37829,7 +37891,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let back = v["is_replacement_for"].as_array().expect("array");
         assert!(
@@ -37874,7 +37936,7 @@ YW\tJ
                 false,
                 false,
                 None,
-                None, None, None, None);
+                None, None, None, None, None);
             let v: serde_json::Value = serde_json::from_str(&out).unwrap();
             let back: Vec<&str> = v["is_replacement_for"]
                 .as_array()
@@ -37900,7 +37962,7 @@ YW\tJ
             &cats, Some("channel"), None, false, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let meta = v["category_meta"].as_object().expect("category_meta object");
         assert_eq!(meta["name"].as_str(), Some("channel"));
@@ -37930,7 +37992,7 @@ YW\tJ
             &cats, None, None, true, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let lc_v: serde_json::Value = serde_json::from_str(&lc_out).unwrap();
         let lc_rows = lc_v["categories"].as_array().expect("array");
         // Pick any category that has both live AND deprecated entries to
@@ -37944,7 +38006,7 @@ YW\tJ
             &cats, Some(target), None, false, None, false, false, None, None, false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let cat_v: serde_json::Value = serde_json::from_str(&cat_out).unwrap();
         let meta = cat_v["category_meta"].as_object().expect("category_meta");
         for field in &["tool_count", "deprecated_count", "live_tool_count"] {
@@ -37967,7 +38029,7 @@ YW\tJ
                 &cats, Some(cat_name), None, false, None, false, false, None, None, false,
                 false,
                 None,
-                None, None, None, None);
+                None, None, None, None, None);
             let v: serde_json::Value = serde_json::from_str(&out).unwrap();
             let meta = v["category_meta"]
                 .as_object()
@@ -37999,7 +38061,7 @@ YW\tJ
             false,
             true, // deprecated_only
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(
@@ -38035,7 +38097,7 @@ YW\tJ
             true,  // exclude_deprecated
             true,  // deprecated_only
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(
@@ -38068,7 +38130,7 @@ YW\tJ
             false,
             true,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         for row in matches {
@@ -38093,7 +38155,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             None, None, false, false, Some(5),
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert_eq!(
@@ -38113,7 +38175,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             None, None, false, false, Some(5),
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let total_matched = v["total_matched"]
             .as_u64()
@@ -38139,7 +38201,7 @@ YW\tJ
         let over = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             None, None, false, false, Some(2),
-            None, None, None, None);
+            None, None, None, None, None);
         let over_v: serde_json::Value = serde_json::from_str(&over).unwrap();
         assert_eq!(over_v["matches"].as_array().unwrap().len(), 2);
         assert_eq!(over_v["limit_applied"].as_bool(), Some(true));
@@ -38148,7 +38210,7 @@ YW\tJ
         let under = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             None, None, false, false, Some(10_000),
-            None, None, None, None);
+            None, None, None, None, None);
         let under_v: serde_json::Value = serde_json::from_str(&under).unwrap();
         let under_total = under_v["total_matched"].as_u64().unwrap();
         let under_matches = under_v["matches"].as_array().unwrap().len() as u64;
@@ -38169,7 +38231,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             Some(4), Some(2), false, false, Some(3),
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(
@@ -38194,7 +38256,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("inbox"), false, None, false, false,
             None, None, true, false, Some(2),
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(matches.len() <= 2, "limit=2 must cap matches");
@@ -38219,7 +38281,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
             None, None, false, false, Some(0),
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(matches.is_empty(), "limit=0 must yield empty matches[]");
@@ -38252,7 +38314,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("redact"), false, None, false, false,
             None, None, false, false, None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(
             v.get("total_matched").is_none(),
@@ -38273,7 +38335,7 @@ YW\tJ
     ) -> serde_json::Value {
         let out = build_help_json(
             cats, None, Some(needle), false, None, false, false,
-            None, None, false, false, limit, offset, None, None, None);
+            None, None, false, false, limit, offset, None, None, None, None);
         serde_json::from_str(&out).expect("valid JSON")
     }
 
@@ -38395,7 +38457,7 @@ YW\tJ
         let _ = v; // shape sanity above; now do a stricter compose test.
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
-            Some(4), Some(2), true, false, Some(5), Some(3), None, None, None);
+            Some(4), Some(2), true, false, Some(5), Some(3), None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         for row in matches {
@@ -38448,7 +38510,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, Some("agent"), false, None, false, false,
-            None, None, false, false, Some(10), None, None, None, None);
+            None, None, false, false, Some(10), None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches array");
         assert!(!matches.is_empty(), "expected hits for needle 'agent'");
@@ -38471,7 +38533,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, None, false, None, false, false,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         // Walk every per-category array, every row.
         let mut row_count = 0usize;
@@ -38501,7 +38563,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, None, false, Some("termlink_help"), false, false,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let prc = v["parameter_required_count"].as_u64();
         assert!(
@@ -38518,7 +38580,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, None, false, None, false, true,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let essentials = v["essentials"].as_array().expect("essentials array");
         assert!(!essentials.is_empty(), "essentials must be populated");
@@ -38540,7 +38602,7 @@ YW\tJ
         // Find any zero-arity tool by walking default mode.
         let out = build_help_json(
             &cats, None, None, false, None, false, false,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let mut zero_arity_seen = 0usize;
         for (_, val) in v.as_object().unwrap() {
@@ -38577,7 +38639,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, None, false, Some("termlink_help"), false, false,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let pc = v["parameter_count"].as_u64().expect("parameter_count");
         let prc = v["parameter_required_count"]
@@ -38601,7 +38663,7 @@ YW\tJ
         let cats = help_categories();
         let out = build_help_json(
             &cats, None, None, false, None, false, false,
-            None, None, false, false, None, None, None, None, None);
+            None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let mut checked = 0usize;
         for (_, val) in v.as_object().unwrap() {
@@ -38634,7 +38696,7 @@ YW\tJ
     ) -> serde_json::Value {
         let out = build_help_json(
             cats, None, Some(needle), false, None, false, false,
-            None, None, false, false, limit, offset, sort_by, None, None);
+            None, None, false, false, limit, offset, sort_by, None, None, None);
         serde_json::from_str(&out).expect("valid JSON")
     }
 
@@ -38797,7 +38859,7 @@ YW\tJ
         let out = build_help_json(
             &cats, None, Some("inbox"), false, None, false, false,
             None, None, /*exclude_deprecated=*/true, false,
-            None, None, Some("name"), None, None);
+            None, None, Some("name"), None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["sort_by_applied"], "name");
         let matches = v["matches"].as_array().expect("matches");
@@ -38884,7 +38946,7 @@ YW\tJ
     ) -> serde_json::Value {
         let out = build_help_json(
             cats, category, None, false, None, false, false,
-            None, None, exclude_deprecated, false, limit, offset, sort_by, None, None);
+            None, None, exclude_deprecated, false, limit, offset, sort_by, None, None, None);
         serde_json::from_str(&out).expect("valid JSON")
     }
 
@@ -39048,7 +39110,7 @@ YW\tJ
     ) -> serde_json::Value {
         let out = build_help_json(
             cats, None, needle, false, None, false, false,
-            None, None, false, false, limit, None, sort_by, fields, None);
+            None, None, false, false, limit, None, sort_by, fields, None, None);
         serde_json::from_str(&out).expect("valid JSON")
     }
 
@@ -39222,7 +39284,7 @@ YW\tJ
         // Re-do with fields for the same query
         let out = build_help_json(
             &cats, None, None, false, None, false, false,
-            None, None, false, false, Some(5), None, None, Some(&f), None);
+            None, None, false, false, Some(5), None, None, Some(&f), None, None);
         let v_proj: serde_json::Value = serde_json::from_str(&out).unwrap();
         // Sanity: same paginated set, projected
         assert_eq!(
@@ -39276,7 +39338,7 @@ YW\tJ
     ) -> serde_json::Value {
         let out = build_help_json(
             cats, single_category, needle, false, None, false, false,
-            None, None, false, false, limit, None, sort_by, None, categories_filter);
+            None, None, false, false, limit, None, sort_by, None, categories_filter, None);
         serde_json::from_str(&out).expect("valid JSON")
     }
 
@@ -39443,7 +39505,7 @@ YW\tJ
         let arr = vec!["channel".to_string(), "agent_chat".to_string()];
         let out = build_help_json(
             &cats, None, None, false, None, false, false,
-            None, None, false, false, Some(10), None, None, None, Some(&arr));
+            None, None, false, false, Some(10), None, None, None, Some(&arr), None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().unwrap();
         assert_eq!(matches.len(), 10);
@@ -39452,6 +39514,141 @@ YW\tJ
             assert!(row_cat == "channel" || row_cat == "agent_chat");
         }
         assert_eq!(v["categories_applied"], serde_json::json!(["channel", "agent_chat"]));
+    }
+
+    // Helper: build_help_json with `exclude_categories` filter, for T-2000 tests.
+    fn help_with_exclude(
+        cats: &[(&str, Vec<(&str, &str)>)],
+        needle: Option<&str>,
+        single_category: Option<&str>,
+        categories_filter: Option<&[String]>,
+        exclude_categories_filter: Option<&[String]>,
+        limit: Option<usize>,
+    ) -> serde_json::Value {
+        let out = build_help_json(
+            cats, single_category, needle, false, None, false, false,
+            None, None, false, false, limit, None, None, None,
+            categories_filter, exclude_categories_filter);
+        serde_json::from_str(&out).expect("valid JSON")
+    }
+
+    #[test]
+    fn exclude_single_drops_that_category() {
+        // T-2000: exclude_categories=['X'] drops all rows in category X.
+        let cats = help_categories();
+        let exc = vec!["channel".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), None, None, Some(&exc), None);
+        let matches = v["matches"].as_array().unwrap();
+        for row in matches {
+            assert_ne!(row["category"], "channel", "exclusion failed for channel rows");
+        }
+        assert_eq!(v["exclude_categories_applied"], serde_json::json!(["channel"]));
+    }
+
+    #[test]
+    fn exclude_multi_drops_union_of_categories() {
+        // T-2000: exclude_categories=['X','Y'] drops rows from BOTH X and Y.
+        let cats = help_categories();
+        let exc = vec!["channel".to_string(), "agent_chat".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), None, None, Some(&exc), None);
+        let matches = v["matches"].as_array().unwrap();
+        for row in matches {
+            let cat = row["category"].as_str().unwrap();
+            assert!(
+                cat != "channel" && cat != "agent_chat",
+                "multi-exclude failed: row in '{cat}' should have been dropped"
+            );
+        }
+    }
+
+    #[test]
+    fn exclude_wins_over_categories_on_overlap() {
+        // T-2000: when categories=['A','B'] AND exclude_categories=['A'],
+        // exclusion wins — only B remains.
+        let cats = help_categories();
+        let pos = vec!["channel".to_string(), "agent_chat".to_string()];
+        let exc = vec!["channel".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), None, Some(&pos), Some(&exc), None);
+        let matches = v["matches"].as_array().unwrap();
+        for row in matches {
+            assert_eq!(row["category"], "agent_chat", "exclusion must win over inclusion");
+        }
+    }
+
+    #[test]
+    fn exclude_composes_with_single_category() {
+        // T-2000: when single category='X' AND exclude_categories=['X'],
+        // result is empty (positive scope nullified by negative).
+        let cats = help_categories();
+        let exc = vec!["channel".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), Some("channel"), None, Some(&exc), None);
+        let matches = v["matches"].as_array().unwrap();
+        assert!(matches.is_empty(), "single-category + matching exclude must produce empty result");
+    }
+
+    #[test]
+    fn exclude_unknown_name_surfaces_in_envelope() {
+        // T-2000: unknown exclude names dropped + surfaced in
+        // exclude_categories_unknown; rest of query proceeds normally.
+        let cats = help_categories();
+        let exc = vec!["bogus_category".to_string(), "another_bogus".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), None, None, Some(&exc), Some(5));
+        assert!(v.get("exclude_categories_applied").is_none());
+        let unknown = v["exclude_categories_unknown"].as_array().unwrap();
+        assert_eq!(unknown.len(), 2);
+        // No real exclusion happened — the search ran over the full registry.
+        let matches = v["matches"].as_array().unwrap();
+        assert!(!matches.is_empty());
+    }
+
+    #[test]
+    fn exclude_unset_omits_envelope_fields_backcompat() {
+        // T-2000: omitting exclude_categories MUST NOT add either envelope field.
+        let cats = help_categories();
+        let v = help_with_exclude(&cats, Some("post"), None, None, None, None);
+        assert!(v.get("exclude_categories_applied").is_none());
+        assert!(v.get("exclude_categories_unknown").is_none());
+    }
+
+    #[test]
+    fn exclude_empty_array_omits_both() {
+        // T-2000: empty exclude_categories:[] treated as no exclusion.
+        let cats = help_categories();
+        let exc: Vec<String> = vec![];
+        let v = help_with_exclude(&cats, Some("post"), None, None, Some(&exc), None);
+        assert!(v.get("exclude_categories_applied").is_none());
+        assert!(v.get("exclude_categories_unknown").is_none());
+    }
+
+    #[test]
+    fn exclude_composes_with_limit() {
+        // T-2000: exclusion runs BEFORE pagination — limit truncates the
+        // post-exclusion set.
+        let cats = help_categories();
+        let exc = vec!["channel".to_string()];
+        let v = help_with_exclude(&cats, Some("post"), None, None, Some(&exc), Some(5));
+        let matches = v["matches"].as_array().unwrap();
+        assert!(matches.len() <= 5);
+        for row in matches {
+            assert_ne!(row["category"], "channel");
+        }
+    }
+
+    #[test]
+    fn exclude_composes_with_bulk_flat_listing_no_needle() {
+        // T-2000: exclusion works in the T-1997 bulk-flat-listing path too.
+        let cats = help_categories();
+        let exc = vec!["channel".to_string(), "agent_chat".to_string()];
+        let out = build_help_json(
+            &cats, None, None, false, None, false, false,
+            None, None, false, false, Some(15), None, None, None, None, Some(&exc));
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let matches = v["matches"].as_array().unwrap();
+        for row in matches {
+            let cat = row["category"].as_str().unwrap();
+            assert!(cat != "channel" && cat != "agent_chat");
+        }
+        assert_eq!(v["exclude_categories_applied"], serde_json::json!(["channel", "agent_chat"]));
     }
 
     #[test]
@@ -39465,7 +39662,7 @@ YW\tJ
             &cats, None, None, false, Some("termlink_help"),
             false, false, None, None, false, false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let cat = v["category"].as_str().expect("category");
         let target_tools = &cats.iter().find(|(n, _)| *n == cat).expect("category in cats").1;
@@ -39489,7 +39686,7 @@ YW\tJ
                     &cats, None, None, false, Some(name),
                     false, false, None, None, false, false,
                     None,
-                    None, None, None, None);
+                    None, None, None, None, None);
                 let v: serde_json::Value = serde_json::from_str(&out).unwrap();
                 let total = v["category_tool_count"].as_u64().unwrap_or(u64::MAX);
                 let dep = v["category_deprecated_count"].as_u64().unwrap_or(u64::MAX);
@@ -39512,7 +39709,7 @@ YW\tJ
         let lc_out = build_help_json(
             &cats, None, None, true, None, false, false, None, None, false, false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let lc_v: serde_json::Value = serde_json::from_str(&lc_out).unwrap();
         let lc_rows = lc_v["categories"].as_array().expect("categories array");
         // Walk every tool, compare per tool_detail call.
@@ -39530,7 +39727,7 @@ YW\tJ
                     &cats, None, None, false, Some(name),
                     false, false, None, None, false, false,
                     None,
-                    None, None, None, None);
+                    None, None, None, None, None);
                 let td_v: serde_json::Value = serde_json::from_str(&td_out).unwrap();
                 let td_dep = td_v["category_deprecated_count"].as_u64().unwrap_or(u64::MAX);
                 let td_live = td_v["category_live_tool_count"].as_u64().unwrap_or(u64::MAX);
@@ -39553,13 +39750,13 @@ YW\tJ
         // Both paths go through tool_params() — divergence would mean one
         // of them is computing arity from a different source.
         let cats = help_categories();
-        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
         let summary_total = summary["total_parameters"].as_u64().unwrap_or(u64::MAX) as usize;
         let mut walked_total = 0usize;
         for (_, tools) in &cats {
             for (name, _) in tools {
-                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
                 let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
                 walked_total += td["parameter_count"].as_u64().unwrap_or(0) as usize;
             }
@@ -39575,13 +39772,13 @@ YW\tJ
         // T-1973: zero_arity_tools MUST equal the count of tools whose
         // tool_detail.parameter_count == 0. Walks the same registry.
         let cats = help_categories();
-        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
         let summary_zero = summary["zero_arity_tools"].as_u64().unwrap_or(u64::MAX) as usize;
         let mut walked_zero = 0usize;
         for (_, tools) in &cats {
             for (name, _) in tools {
-                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+                let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
                 let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
                 if td["parameter_count"].as_u64().unwrap_or(u64::MAX) == 0 {
                     walked_zero += 1;
@@ -39601,7 +39798,7 @@ YW\tJ
         // must match tool_detail for that name, (d) every row name resolves
         // to a real registry tool. Locks the ranking contract end-to-end.
         let cats = help_categories();
-        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None);
+        let summary_out = build_help_json(&cats, None, None, false, None, true, false, None, None, false, false, None, None, None, None, None, None);
         let summary: serde_json::Value = serde_json::from_str(&summary_out).unwrap();
         let arr = summary["highest_arity_tools"]
             .as_array()
@@ -39634,7 +39831,7 @@ YW\tJ
                 "highest_arity_tools references unknown tool '{name}'"
             );
             let pc = entry["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
-            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None);
+            let td_out = build_help_json(&cats, None, None, false, Some(name), false, false, None, None, false, false, None, None, None, None, None, None);
             let td: serde_json::Value = serde_json::from_str(&td_out).unwrap();
             let td_pc = td["parameter_count"].as_u64().unwrap_or(u64::MAX) as usize;
             assert_eq!(
@@ -39666,7 +39863,7 @@ YW\tJ
             false,
             false,
             None,
-            None, None, None, None);
+            None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         // summary-envelope keys present
         assert!(v["total_tools"].is_u64(), "summary envelope missing total_tools");
@@ -39693,7 +39890,7 @@ YW\tJ
         // matches because the exact phrase "agent post" doesn't appear
         // anywhere literally (the tool name has an underscore separator).
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("agent post"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("agent post"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let matches = v["matches"].as_array().expect("matches must be array");
         let names: Vec<&str> = matches
@@ -39713,7 +39910,7 @@ YW\tJ
         // itself would surface dozens of tools; pairing with "zzz999xyz"
         // (no tool contains that string) reduces it to 0.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("agent zzz999xyz"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("agent zzz999xyz"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(
             v["total_matches"], 0,
@@ -39729,7 +39926,7 @@ YW\tJ
         // description references reactions OR `termlink_agent_react` whose
         // description mentions pinning satisfies this.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, Some("pin react"), false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, Some("pin react"), false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let total = v["total_matches"].as_u64().unwrap_or(0);
         assert!(
@@ -39745,7 +39942,7 @@ YW\tJ
         // closest real candidates by Levenshtein distance. Eliminates the
         // round-trip where an LLM has to fall back to name_filter='post'.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_post"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_post"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(v["error"].is_string(), "error must populate");
         let suggestions = v["did_you_mean"]
@@ -39768,7 +39965,7 @@ YW\tJ
         // at the top of did_you_mean. `termlink_agent_recents` → expected
         // `termlink_agent_recent` at distance 1.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_recents"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("termlink_agent_recents"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let suggestions = v["did_you_mean"]
             .as_array()
@@ -39787,7 +39984,7 @@ YW\tJ
         // unrelated did_you_mean tool-name suggestions by Levenshtein. The
         // `category_hint` field carries copy-pasteable corrective syntax.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("channel"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("channel"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
 
         let err = v["error"].as_str().expect("error must populate");
@@ -39824,7 +40021,7 @@ YW\tJ
         // error path must keep the did_you_mean behavior and NOT emit a
         // category_hint — otherwise we'd shadow the typo-correction path.
         let cats = help_categories();
-        let out = build_help_json(&cats, None, None, false, Some("bogus_xyz_unknown"), false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, None, None, false, Some("bogus_xyz_unknown"), false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
 
         assert!(v["error"].is_string(), "error must populate");
@@ -39843,7 +40040,7 @@ YW\tJ
         // T-1954: typo'd category (`chanel` → `channel*`) must surface a
         // channel-family category in did_you_mean.
         let cats = help_categories();
-        let out = build_help_json(&cats, Some("chanel"), None, false, None, false, false, None, None, false, false, None, None, None, None, None);
+        let out = build_help_json(&cats, Some("chanel"), None, false, None, false, false, None, None, false, false, None, None, None, None, None, None);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(v["error"].is_string(), "error must populate");
         let suggestions = v["did_you_mean"]
