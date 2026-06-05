@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T20:39:19Z
-last_update: 2026-06-05T20:52:38Z
+last_update: 2026-06-05T20:53:39Z
 date_finished: null
 ---
 
@@ -80,19 +80,47 @@ python3 -c "import subprocess,json; r=subprocess.run(['target/release/termlink',
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink help --tool-detail foo --json bogus` (and the two
+analogous `--name-filter` / `--category` conflict cases) produced empty
+stdout + plain-text stderr + exit 2 — even with `--json` in effect. Scripts
+wrapping `termlink help --json ...` to parse the envelope got nothing
+parseable and had to fall back to stderr text-scraping.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `crates/termlink-cli/src/commands/help.rs::run`'s positional
+routing arm (`Err(msg) => { eprintln!(...); std::process::exit(2); }`)
+predates the `--json` branch that lives further down at line 137. The
+exit happens BEFORE the JSON-mode check is reached, so the `inv.json` flag
+is functionally invisible to the conflict path. It's a code-flow ordering
+bug, not a logic bug — both branches individually work, they just don't
+meet.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** The T-1914 → T-1915 → T-1917 `--json` error-path
+audit explicitly scoped to *hub-contacting* commands ("cmd_channel_*, cmd_event_*,
+cmd_kv_*"). `cmd_help` was correctly excluded — it never contacts a hub, and
+its error mode is *usage* (exit 2), not *operational* (exit 1). The audit's
+implicit "hub-down" framing didn't carry over to "usage-error envelope
+parity" as a separate class. No grep pattern, no automated check, would
+have surfaced this gap from the T-1915 spec — it required the same lens
+applied to a different exit-code family.
+
+**Prevention:**
+- **Test:** 3 new tests (`positional_conflict_json_envelope_{tool_detail,
+  name_filter,category}`) in `commands/help.rs` exercise the routing-error →
+  envelope path independently of the exit() call. They catch a regression
+  where the envelope helper is removed or its shape drifts.
+- **Convention codified:** `## Recommendation` block records the established
+  CLI error-envelope shape (`{ok:false, error:<msg>}`) and points at the
+  three sibling files (execution.rs, identity.rs, channel.rs) as the
+  canonical examples. Any future CLI command with a usage-error path
+  should follow the same form. (Open follow-up: extract a `usage_error_exit`
+  helper analogous to `json_error_exit` so the shape can't drift — filed as
+  a captured follow-up if a third site emerges.)
+- **Reverse-coverage learning:** the T-1915 audit's "hub-down" scoping
+  missed a sibling class. A follow-up extension would re-audit ALL CLI
+  commands whose usage-error path predates --json wiring (currently
+  unknown if T-2008 is the last one or just the most-visible). Not filing
+  proactively — the search is bounded (clap subcommand graph) but the
+  payoff is unclear until a second instance surfaces.
 
 ## Evolution
 
