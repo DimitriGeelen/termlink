@@ -14179,10 +14179,12 @@ impl TermLinkTools {
 
             // 3. Inbox.
             //
-            // T-1400: prefer channel.list(prefix="inbox:") over legacy
-            // inbox.status; fall back to inbox.status on any error so the
-            // probe stays useful across version skew. Same migration as
-            // commands/infrastructure.rs::doctor step 7.
+            // T-1400/T-1415: Probes inbox state via channel.list(prefix="inbox:").
+            // The legacy `inbox.status` RPC was retired in T-1166 / T-1415 — its
+            // hub-side handler no longer exists, so the prior dual-probe fallback
+            // would always fail on the inbox.status leg. channel.list is the only
+            // load-bearing path now. Parallel to commands/infrastructure.rs::doctor
+            // step 7.
             let inbox_outcome: Result<(u64, usize), String> = match rpc_client
                 .call(
                     "channel.list",
@@ -14200,26 +14202,10 @@ impl TermLinkTools {
                         .sum();
                     Ok((total, target_count))
                 }
-                _ => {
-                    // Fallback to legacy inbox.status
-                    match rpc_client
-                        .call(
-                            "inbox.status",
-                            serde_json::json!("mcp-doc-is"),
-                            serde_json::json!({}),
-                        )
-                        .await
-                    {
-                        Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Ok((
-                            r.result["total_transfers"].as_u64().unwrap_or(0),
-                            r.result["targets"].as_array().map(|t| t.len()).unwrap_or(0),
-                        )),
-                        Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-                            Err(format!("inbox.status error: {}", e.error.message))
-                        }
-                        Err(e) => Err(format!("RPC failed: {}", e)),
-                    }
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                    Err(format!("channel.list error: {}", e.error.message))
                 }
+                Err(e) => Err(format!("RPC failed: {}", e)),
             };
 
             match inbox_outcome {
@@ -14232,10 +14218,9 @@ impl TermLinkTools {
                     checks.push(serde_json::json!({"check": "inbox", "status": "warn", "message": format!("{} pending transfer(s) for {} target(s)", total, targets)}));
                 }
                 Err(msg) => {
-                    // T-1620: both modern (channel.list) AND legacy (inbox.status)
-                    // probes failed — the doctor cannot probe the inbox at all.
-                    // That is a structural fail, not a warn. Reclassifying so the
-                    // summary `fail` field actually reflects probe outcomes.
+                    // T-1620 / T-1415: channel.list is the sole inbox probe
+                    // post-cut; failure is a structural fail (not warn) per
+                    // PL-152.
                     fail_count += 1;
                     checks.push(serde_json::json!({"check": "inbox", "status": "fail", "message": msg}));
                 }

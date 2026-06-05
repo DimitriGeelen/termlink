@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-05-31T20:45:24Z
+last_update: 2026-06-05T21:39:54Z
 date_finished: null
 ---
 
@@ -260,3 +260,40 @@ load-bearing for the cut itself.
   - `crates/termlink-protocol/src/control.rs` `EVENT_BROADCAST`/`INBOX_LIST` consts (still referenced by retained fallback code)
   - CLI `commands/file.rs` (operator check needed)
   - Workspace-wide clippy pass
+
+### 2026-06-05T21:50Z — MCP + local doctor dead inbox.status fallback removed [agent autonomous, focus=T-1415]
+
+**Scope.** Removed dead `inbox.status` JSON-RPC fallback in the two `doctor`
+inbox probes — the only remaining call sites in non-test code that still
+spoke a retired primitive directly (not via session-shim's channel-only
+wrappers). Parallel to T-1415 AC3's session-shim cleanup of 2026-05-31.
+
+**Files touched:**
+- `crates/termlink-cli/src/commands/infrastructure.rs` lines 432–486 —
+  `fw doctor` step 7 (local-hub inbox probe). Collapsed `probe_channel_list`
+  + `probe_inbox_status` dual probe into channel-list only. Comment header
+  updated to reference T-1415 closure.
+- `crates/termlink-mcp/src/tools.rs` lines 14180–14242 —
+  `termlink_remote_doctor` MCP tool (remote-hub inbox probe). Same collapse;
+  `Err(channel.list)` paths now classify as structural `fail` per PL-152
+  (was: only after both modern + legacy failed).
+
+**Why dead.** Post-T-1166-cut hubs return `-32601 method not found` for
+`inbox.status`. The fallback would only fire if `channel.list` had ALREADY
+failed; on a post-cut hub, the fallback then errors with `inbox.status
+error: method not found` — useless to the operator and misleading (the
+operator never invoked inbox.status; the doctor did). Removing the
+fallback simplifies the error message to the actual root cause
+(`channel.list error: <reason>`).
+
+**Verification:**
+- `cargo check -p termlink -p termlink-mcp` — clean, no warnings introduced
+- `cargo test -p termlink-mcp --lib` — **837/0 PASS**
+- `cargo test -p termlink --bins` — **816 pass, 1 pre-existing flake**
+  (`isolate_rejects_non_git_dir`, order-dependent, passes solo; unrelated
+  to this edit which is in `infrastructure.rs` not `dispatch.rs`)
+
+**Not closed by this slice.** The two AC-misspec items (AC7: `termlink-cli`
+package name doesn't exist + AC10: clippy scope pulls transitive crate
+warnings) are documentation defects, not work. T-1415 closure still
+gates on operator action — owner remains `human`.

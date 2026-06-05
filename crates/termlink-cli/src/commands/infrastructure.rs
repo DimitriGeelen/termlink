@@ -429,16 +429,15 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
         }
     }
 
-    // 7. Inbox status (T-1001).
+    // 7. Inbox status (T-1001 / T-1400 / T-1415).
     //
-    // T-1400: prefer `channel.list(prefix="inbox:")` over the legacy
-    // `inbox.status` RPC. The channel-aware path uses the same data the
-    // hub-side migration shim already mirrors transfers into, and avoids
-    // contributing to the T-1166 retirement-gate legacy traffic. On any
-    // failure (including MethodNotFound on older hubs), fall back to the
-    // legacy probe so the doctor remains useful across version skew.
+    // Probes inbox state via `channel.list(prefix="inbox:")`. The legacy
+    // `inbox.status` RPC was retired in T-1166 / T-1415 — its hub-side
+    // handler no longer exists, so the prior dual-probe fallback would
+    // always fail on the inbox.status leg. channel.list is the only
+    // load-bearing path now.
     if hub_socket.exists() {
-        let probe_channel_list = async {
+        let outcome: Result<(u64, usize), String> = async {
             let resp = termlink_session::client::rpc_call(
                 &hub_socket,
                 "channel.list",
@@ -454,27 +453,8 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
                 .filter_map(|t| t["count"].as_u64())
                 .sum();
             Ok::<(u64, usize), String>((total, target_count))
-        };
-
-        let probe_inbox_status = async {
-            let resp = termlink_session::client::rpc_call(
-                &hub_socket,
-                "inbox.status",
-                json!({}),
-            )
-            .await
-            .map_err(|e| format!("inbox.status transport: {e}"))?;
-            let result = termlink_session::client::unwrap_result(resp)?;
-            Ok::<(u64, usize), String>((
-                result["total_transfers"].as_u64().unwrap_or(0),
-                result["targets"].as_array().map(|t| t.len()).unwrap_or(0),
-            ))
-        };
-
-        let outcome: Result<(u64, usize), String> = match probe_channel_list.await {
-            Ok(v) => Ok(v),
-            Err(_) => probe_inbox_status.await,
-        };
+        }
+        .await;
 
         match outcome {
             Ok((0, _)) => check!("inbox", pass, "no pending transfers"),
