@@ -1499,6 +1499,45 @@ async fn main() -> Result<()> {
             );
             Ok(())
         }
+        Command::Help {
+            json,
+            category,
+            name_filter,
+            list_categories,
+            tool_detail,
+            summary,
+            essentials,
+            max_parameters,
+            min_parameters,
+            exclude_deprecated,
+            deprecated_only,
+            limit,
+            offset,
+            sort_by,
+            fields,
+            categories,
+            exclude_categories,
+        } => {
+            commands::help::run(commands::help::HelpInvocation {
+                json,
+                category,
+                name_filter,
+                list_categories,
+                tool_detail,
+                summary,
+                essentials,
+                max_parameters,
+                min_parameters,
+                exclude_deprecated,
+                deprecated_only,
+                limit,
+                offset,
+                sort_by,
+                fields,
+                categories,
+                exclude_categories,
+            })
+        }
         Command::Version { json, short } => {
             let version = env!("CARGO_PKG_VERSION");
             let commit = option_env!("GIT_COMMIT").unwrap_or("unknown");

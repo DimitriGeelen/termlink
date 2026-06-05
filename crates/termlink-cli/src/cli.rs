@@ -4,7 +4,8 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "termlink",
     about = "Cross-terminal session communication",
-    version
+    version,
+    disable_help_subcommand = true,
 )]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -1067,6 +1068,85 @@ pub(crate) enum Command {
         /// Output only the version number (for scripting)
         #[arg(long)]
         short: bool,
+    },
+
+    /// Browse the MCP tool registry from the shell — parity with termlink_help (T-2002, cycle 13 #1)
+    ///
+    /// Same axis surface as the MCP `termlink_help` tool. Default render is a
+    /// human-readable categorized listing; `--json` emits the raw envelope for
+    /// piping to `jq`. Cold-start canonical call:
+    ///
+    ///   termlink help --json --sort-by required_arity --limit 20 \
+    ///     --exclude-deprecated --categories channel,agent_chat \
+    ///     --fields name,parameter_required_count
+    Help {
+        /// Output as JSON (raw envelope; matches MCP termlink_help shape)
+        #[arg(long)]
+        json: bool,
+
+        /// Scope to one category (e.g. `channel`, `agent_chat`)
+        #[arg(long)]
+        category: Option<String>,
+
+        /// Substring search across tool names and descriptions (case-insensitive, multi-token AND)
+        #[arg(long)]
+        name_filter: Option<String>,
+
+        /// Return category names + tool counts only (cold-start discovery)
+        #[arg(long)]
+        list_categories: bool,
+
+        /// Drill in on one tool — returns full description + parameters + related tools
+        #[arg(long)]
+        tool_detail: Option<String>,
+
+        /// Aggregate registry stats (total tools, deprecated counts, top/bottom categories)
+        #[arg(long)]
+        summary: bool,
+
+        /// Canonical entry-point tool per category (~27-tool starter set)
+        #[arg(long)]
+        essentials: bool,
+
+        /// Filter to tools with parameter_count <= N
+        #[arg(long)]
+        max_parameters: Option<usize>,
+
+        /// Filter to tools with parameter_count >= N
+        #[arg(long)]
+        min_parameters: Option<usize>,
+
+        /// Hide retirement-WIP tools (deprecated=true) from results
+        #[arg(long)]
+        exclude_deprecated: bool,
+
+        /// Show ONLY retirement-WIP tools (deprecated=true)
+        #[arg(long)]
+        deprecated_only: bool,
+
+        /// Cap matches[] at the first N rows (post-sort if --sort-by set)
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Skip the first N rows (pagination cursor; envelope gains next_offset when more remain)
+        #[arg(long)]
+        offset: Option<usize>,
+
+        /// Sort axis: `name` | `arity` | `required_arity` | `category`
+        #[arg(long)]
+        sort_by: Option<String>,
+
+        /// Comma-separated row projection (e.g. `name,parameter_required_count`)
+        #[arg(long, value_delimiter = ',')]
+        fields: Vec<String>,
+
+        /// Comma-separated multi-namespace positive scope (e.g. `channel,agent_chat`)
+        #[arg(long, value_delimiter = ',')]
+        categories: Vec<String>,
+
+        /// Comma-separated multi-namespace negative scope (exclusion wins on overlap)
+        #[arg(long, value_delimiter = ',')]
+        exclude_categories: Vec<String>,
     },
 }
 

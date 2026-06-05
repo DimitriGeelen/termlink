@@ -1921,6 +1921,56 @@ fn build_help_json(
     serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
 }
 
+/// T-2002 (cycle 13 #1): CLI-callable wrapper around `build_help_json` so the
+/// `termlink help` shell subcommand can emit the same JSON envelope as the
+/// MCP `termlink_help` tool. Shape-parity invariant: for matching axis values
+/// the output is byte-identical (asserted by `build_cli_help_json_matches_mcp_shape`).
+///
+/// Takes owned `Option<String>` / `Option<Vec<String>>` so the CLI doesn't
+/// have to manage lifetimes; internally borrows + calls `build_help_json`
+/// against the canonical `help_categories()` registry. Axis surface mirrors
+/// `HelpParams` exactly — adding an axis to `HelpParams` requires growing
+/// this wrapper too (the parity test catches drift at compile/test time).
+pub fn build_cli_help_json(
+    category: Option<String>,
+    name_filter: Option<String>,
+    list_categories: bool,
+    tool_detail: Option<String>,
+    summary: bool,
+    essentials: bool,
+    max_parameters: Option<usize>,
+    min_parameters: Option<usize>,
+    exclude_deprecated: bool,
+    deprecated_only: bool,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    sort_by: Option<String>,
+    fields: Option<Vec<String>>,
+    categories: Option<Vec<String>>,
+    exclude_categories: Option<Vec<String>>,
+) -> String {
+    let registry = help_categories();
+    build_help_json(
+        &registry,
+        category.as_deref(),
+        name_filter.as_deref(),
+        list_categories,
+        tool_detail.as_deref(),
+        summary,
+        essentials,
+        max_parameters,
+        min_parameters,
+        exclude_deprecated,
+        deprecated_only,
+        limit,
+        offset,
+        sort_by.as_deref(),
+        fields.as_deref(),
+        categories.as_deref(),
+        exclude_categories.as_deref(),
+    )
+}
+
 /// T-1715: parse a `termlink_agent_contact` `target` argument into
 /// `(name, optional_project)`. Mirrors `commands::agent::parse_contact_target`
 /// (CLI, T-1448 (b)). Accepts:
@@ -42224,5 +42274,135 @@ not-json
         assert_eq!(parsed["total_listeners"], serde_json::json!(1));
         assert_eq!(parsed["listeners"][0]["agent_id"], serde_json::json!("claude-X"));
         assert_eq!(parsed["listeners"][0]["status"], serde_json::json!("LIVE"));
+    }
+
+    /// T-2002 (cycle 13 #1): shape-parity invariant — `build_cli_help_json`
+    /// (the CLI-facing wrapper exposed in lib.rs for `termlink help`) MUST
+    /// produce the byte-identical envelope as the internal `build_help_json`
+    /// when given the same axis values against the same registry. Locks the
+    /// MCP↔CLI surface: adding an axis on one side requires adding it on
+    /// the other or this test will catch the drift at compile/test time.
+    ///
+    /// Six axis combinations cover the main shape families so a regression
+    /// in any path surfaces here.
+    #[test]
+    fn build_cli_help_json_matches_mcp_shape() {
+        let categories = help_categories();
+
+        struct Case {
+            name: &'static str,
+            category: Option<String>,
+            name_filter: Option<String>,
+            list_categories: bool,
+            tool_detail: Option<String>,
+            summary: bool,
+            essentials: bool,
+            max_parameters: Option<usize>,
+            min_parameters: Option<usize>,
+            exclude_deprecated: bool,
+            deprecated_only: bool,
+            limit: Option<usize>,
+            offset: Option<usize>,
+            sort_by: Option<String>,
+            fields: Option<Vec<String>>,
+            categories_filter: Option<Vec<String>>,
+            exclude_categories: Option<Vec<String>>,
+        }
+
+        fn case(name: &'static str) -> Case {
+            Case {
+                name,
+                category: None,
+                name_filter: None,
+                list_categories: false,
+                tool_detail: None,
+                summary: false,
+                essentials: false,
+                max_parameters: None,
+                min_parameters: None,
+                exclude_deprecated: false,
+                deprecated_only: false,
+                limit: None,
+                offset: None,
+                sort_by: None,
+                fields: None,
+                categories_filter: None,
+                exclude_categories: None,
+            }
+        }
+
+        let cases = vec![
+            // 1. Default mode (no axes) — per-category dump.
+            case("default"),
+            // 2. name_filter + limit + sort_by + fields — the PL-202 canonical call.
+            Case {
+                name_filter: Some("channel".to_string()),
+                limit: Some(10),
+                sort_by: Some("required_arity".to_string()),
+                fields: Some(vec!["name".to_string(), "parameter_required_count".to_string()]),
+                exclude_deprecated: true,
+                ..case("canonical-pl202")
+            },
+            // 3. list_categories — category index.
+            Case { list_categories: true, ..case("list_categories") },
+            // 4. tool_detail — drill-in.
+            Case { tool_detail: Some("termlink_help".to_string()), ..case("tool_detail") },
+            // 5. summary — aggregate stats.
+            Case { summary: true, ..case("summary") },
+            // 6. essentials — starter set.
+            Case { essentials: true, ..case("essentials") },
+            // 7. categories + exclude_categories — namespace scoping.
+            Case {
+                categories_filter: Some(vec!["channel".to_string(), "agent_chat".to_string()]),
+                exclude_categories: Some(vec!["agent_inbox".to_string()]),
+                limit: Some(20),
+                ..case("scope+exclude")
+            },
+        ];
+
+        for c in cases {
+            let mcp_out = build_help_json(
+                &categories,
+                c.category.as_deref(),
+                c.name_filter.as_deref(),
+                c.list_categories,
+                c.tool_detail.as_deref(),
+                c.summary,
+                c.essentials,
+                c.max_parameters,
+                c.min_parameters,
+                c.exclude_deprecated,
+                c.deprecated_only,
+                c.limit,
+                c.offset,
+                c.sort_by.as_deref(),
+                c.fields.as_deref(),
+                c.categories_filter.as_deref(),
+                c.exclude_categories.as_deref(),
+            );
+            let cli_out = crate::build_cli_help_json(
+                c.category.clone(),
+                c.name_filter.clone(),
+                c.list_categories,
+                c.tool_detail.clone(),
+                c.summary,
+                c.essentials,
+                c.max_parameters,
+                c.min_parameters,
+                c.exclude_deprecated,
+                c.deprecated_only,
+                c.limit,
+                c.offset,
+                c.sort_by.clone(),
+                c.fields.clone(),
+                c.categories_filter.clone(),
+                c.exclude_categories.clone(),
+            );
+            assert_eq!(
+                mcp_out, cli_out,
+                "shape parity broke for case '{}' — MCP and CLI wrappers disagree",
+                c.name,
+            );
+        }
     }
 }
