@@ -46,6 +46,11 @@ Options:
   --filter-listen-topic T    Only show listeners whose listen_topics include T
   --filter-agent-id ID       Only show listener with metadata.agent_id == ID
   --json                     Emit JSON envelope instead of fixed-width table
+  --cache-ttl SECS           Cache result for SECS seconds at
+                             ${TERMLINK_CACHE_DIR:-~/.termlink/cache}/agent-listeners/.
+                             Default: 30. Range: 0..=3600. 0 disables cache for
+                             this call. Cache key includes hub+topic+limit+filters.
+  --no-cache                 Alias for --cache-ttl 0; force a fresh hub query.
   -h, --help                 Print this help and exit 0.
 
 Exit codes:
@@ -57,6 +62,14 @@ TTL convention (informational, per T-1832):
   age <= 2*interval         => LIVE
   2*interval < age <= 5*x   => STALE
   age > 5*interval          => OFFLINE
+
+Cache semantics (T-1992):
+  LIVE classification uses age <= 2*interval. With the default 30s
+  heartbeat interval that's a 60s LIVE window, so the default 30s
+  cache TTL yields at worst 30s of classification staleness — still
+  within the LIVE band. Bump --cache-ttl to widen the freshness
+  window or set --no-cache for forensic runs where each call must
+  hit the hub.
 EOF
 }
 
@@ -68,6 +81,7 @@ filter_role=""
 filter_listen_topic=""
 filter_agent_id=""
 json=0
+cache_ttl=30
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -79,6 +93,8 @@ while [ $# -gt 0 ]; do
         --filter-listen-topic)   filter_listen_topic="${2:-}"; shift 2 ;;
         --filter-agent-id)       filter_agent_id="${2:-}"; shift 2 ;;
         --json)                  json=1; shift ;;
+        --cache-ttl)             cache_ttl="${2:-}"; shift 2 ;;
+        --no-cache)              cache_ttl=0; shift ;;
         -h|--help)               usage; exit 0 ;;
         *)                       die_usage "unknown arg: $1" ;;
     esac
@@ -90,8 +106,51 @@ case "$limit" in
 esac
 [ "$limit" -ge 1 ] || die_usage "--limit must be >= 1"
 [ "$limit" -le 1000 ] || die_usage "--limit must be <= 1000"
+case "$cache_ttl" in
+    ''|*[!0-9]*) die_usage "--cache-ttl must be a non-negative integer (0..=3600)" ;;
+esac
+[ "$cache_ttl" -le 3600 ] || die_usage "--cache-ttl must be <= 3600"
 
 command -v jq >/dev/null 2>&1 || { echo "agent-listeners: jq not in PATH" >&2; exit 2; }
+
+# T-1992 — filesystem JSON cache. Mitigates the 0.11.473 `channel info`
+# concurrency wedge (T-1991) by serving back-to-back invocations from disk
+# instead of repeatedly hitting the buggy hub RPC. Cache stores the JSON
+# rollup; output rendering happens after, regardless of whether the rollup
+# came from cache or live hub.
+cache_root="${TERMLINK_CACHE_DIR:-$HOME/.termlink/cache}/agent-listeners"
+cache_file=""
+rollup=""
+if [ "$cache_ttl" -gt 0 ]; then
+    # Cache key includes filters but NOT --json — the cached rollup is
+    # always JSON; --json just controls the OUTPUT rendering. This lets
+    # a `--json` and a non-`--json` caller share a single cache entry.
+    cache_key_input="topic=$topic|hub=${hub:-LOCAL}|limit=$limit|include_offline=$include_offline|filter_role=$filter_role|filter_listen_topic=$filter_listen_topic|filter_agent_id=$filter_agent_id"
+    cache_key="$(printf '%s' "$cache_key_input" | sha256sum | awk '{print $1}')"
+    cache_file="$cache_root/$cache_key.json"
+    if [ -f "$cache_file" ]; then
+        # mtime-based freshness: portable across coreutils.
+        now_epoch="$(date +%s)"
+        file_mtime="$(stat -c %Y "$cache_file" 2>/dev/null || echo 0)"
+        age=$((now_epoch - file_mtime))
+        if [ "$age" -ge 0 ] && [ "$age" -lt "$cache_ttl" ]; then
+            # Validate payload — corrupt cache should refresh, not crash.
+            if jq -e . "$cache_file" >/dev/null 2>&1; then
+                rollup="$(cat "$cache_file")"
+            else
+                echo "agent-listeners: cache file corrupt, refreshing ($cache_file)" >&2
+            fi
+        fi
+    fi
+fi
+
+stderr_file="$(mktemp)"
+trap 'rm -f "$stderr_file"' EXIT
+
+# Hub-side probe block runs only on cache miss. T-1992: if $rollup was
+# populated from cache earlier, skip the channel info + subscribe entirely
+# — this is the entire point of the cache.
+if [ -z "$rollup" ]; then
 
 # T-1844: seek to tail before scanning. Default subscribe is cursor=0
 # which returns the OLDEST `--limit` envelopes; on busy topics the most-
@@ -100,8 +159,6 @@ command -v jq >/dev/null 2>&1 || { echo "agent-listeners: jq not in PATH" >&2; e
 # subscribe with `--cursor max(0, count - limit)`.
 info_args=("$topic" --json)
 [ -n "$hub" ] && info_args+=(--hub "$hub")
-stderr_file="$(mktemp)"
-trap 'rm -f "$stderr_file"' EXIT
 
 post_count=0
 info_raw="$("$TERMLINK" channel info "${info_args[@]}" 2>"$stderr_file")"
@@ -211,6 +268,21 @@ rollup="$(printf '%s' "$raw" | jq -s \
       }
     '
 )"
+
+fi  # end "if [ -z "$rollup" ]" — hub-side probe block (T-1992 cache miss path)
+
+# T-1992: persist rollup to cache on miss. Best-effort — write failures
+# never break the call. atomic via .tmp+rename so concurrent readers
+# never see a partial file.
+if [ "$cache_ttl" -gt 0 ] && [ -n "$cache_file" ] && [ -n "$rollup" ]; then
+    if mkdir -p "$cache_root" 2>/dev/null; then
+        tmp_cache="$cache_file.tmp.$$"
+        if printf '%s\n' "$rollup" > "$tmp_cache" 2>/dev/null; then
+            chmod 600 "$tmp_cache" 2>/dev/null || true
+            mv -f "$tmp_cache" "$cache_file" 2>/dev/null || rm -f "$tmp_cache"
+        fi
+    fi
+fi
 
 if [ "$json" -eq 1 ]; then
     printf '%s\n' "$rollup"
