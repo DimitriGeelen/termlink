@@ -110,7 +110,17 @@ pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
         Ok(PositionalRoute::Filtered(needle)) => (inv.category, inv.tool_detail, Some(needle)),
         Ok(PositionalRoute::Inactive) => (inv.category, inv.tool_detail, inv.name_filter),
         Err(msg) => {
-            eprintln!("error: {msg}");
+            // T-2008 (cycle 13 #5): honor --json on positional/flag conflict so
+            // scripts wrapping `termlink help --json ...` always parse a stable
+            // envelope on stdout. Plain-text path stays for non-JSON callers.
+            // Same shape as T-1914 / execution.rs / identity.rs: {ok:false,
+            // error:<msg>}. Exit 2 (usage error, distinct from json_error_exit's
+            // operational exit 1) preserves the pre-T-2008 contract.
+            if inv.json {
+                println!("{}", positional_conflict_json_envelope(&msg));
+            } else {
+                eprintln!("error: {msg}");
+            }
             std::process::exit(2);
         }
     };
@@ -156,6 +166,15 @@ pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
 
 fn empty_to_none(v: Vec<String>) -> Option<Vec<String>> {
     if v.is_empty() { None } else { Some(v) }
+}
+
+/// T-2008 (cycle 13 #5): JSON-mode envelope for positional/flag conflict.
+/// Shape: `{"ok": false, "error": "<msg>"}` — matches T-1914 and the broader
+/// CLI --json error-path convention (execution.rs, identity.rs). Returned as
+/// a `String` so callers can `println!` it directly and tests can parse it
+/// without going through the exit() path.
+fn positional_conflict_json_envelope(msg: &str) -> String {
+    serde_json::json!({"ok": false, "error": msg}).to_string()
 }
 
 fn render_human(value: &Value) {
@@ -718,5 +737,49 @@ mod tests {
             "expected 'channel' in did_you_mean suggestions, got {:?}",
             suggestions,
         );
+    }
+
+    /// T-2008: positional `<target>` conflicting with explicit `--tool-detail`
+    /// produces a JSON envelope on stdout (when `--json` is in effect) instead
+    /// of a stderr-only plain line. Envelope shape matches T-1914 convention:
+    /// `{ok: false, error: <msg>}`. The error string MUST name the conflicting
+    /// flag so scripts can route the failure mode programmatically.
+    #[test]
+    fn positional_conflict_json_envelope_tool_detail() {
+        let msg = resolve_positional(Some("bogus".into()), true, false, false)
+            .expect_err("tool_detail conflict must Err");
+        let env_str = positional_conflict_json_envelope(&msg);
+        let v: serde_json::Value =
+            serde_json::from_str(&env_str).expect("envelope is valid JSON");
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        let err = v["error"].as_str().expect("error is a string");
+        assert!(err.contains("--tool-detail"), "envelope cites the conflicting flag");
+        assert!(err.contains("bogus"), "envelope echoes the offending positional");
+    }
+
+    /// T-2008: same as above for `--name-filter`.
+    #[test]
+    fn positional_conflict_json_envelope_name_filter() {
+        let msg = resolve_positional(Some("bogus".into()), false, true, false)
+            .expect_err("name_filter conflict must Err");
+        let env_str = positional_conflict_json_envelope(&msg);
+        let v: serde_json::Value =
+            serde_json::from_str(&env_str).expect("envelope is valid JSON");
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        let err = v["error"].as_str().expect("error is a string");
+        assert!(err.contains("--name-filter"), "envelope cites the conflicting flag");
+    }
+
+    /// T-2008: same as above for `--category`.
+    #[test]
+    fn positional_conflict_json_envelope_category() {
+        let msg = resolve_positional(Some("bogus".into()), false, false, true)
+            .expect_err("category conflict must Err");
+        let env_str = positional_conflict_json_envelope(&msg);
+        let v: serde_json::Value =
+            serde_json::from_str(&env_str).expect("envelope is valid JSON");
+        assert_eq!(v["ok"], serde_json::Value::Bool(false));
+        let err = v["error"].as_str().expect("error is a string");
+        assert!(err.contains("--category"), "envelope cites the conflicting flag");
     }
 }
