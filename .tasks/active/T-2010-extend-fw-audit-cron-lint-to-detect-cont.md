@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1722, T-1887]
 created: 2026-06-05T22:39:21Z
-last_update: 2026-06-05T22:46:59Z
+last_update: 2026-06-05T22:47:28Z
 date_finished: null
 ---
 
@@ -57,18 +57,41 @@ grep -q 'content drifted from source' .agentic-framework/agents/audit/audit.sh
 
 ## RCA
 
-<!-- Not a bug — feature work derived from T-1887 RCA Prevention §1.
-     Skipping RCA fill is allowed for non-bug-class tasks.
+(This task is structurally bug-adjacent — it ships the **prevention**
+named in T-1887's RCA Prevention §1. The RCA below describes the
+incident that motivated the prevention, not a defect in this work
+itself.)
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Symptom:** `/etc/cron.d/termlink-release-mirror-canary` was 7 lines
+short of the canonical git source for 9 days (2026-05-27 source-side
+addition of the T-1723 meta-canary block → 2026-06-05 T-1884 S2 dry-run
+detection). During those 9 days, three downstream RUBBER-STAMP tasks
+(T-1696, T-1722, T-1723) all carried "ALREADY DONE byte-identical"
+claims that no longer held. T-1722's cron-misload lint reported PASS
+on every audit run because it only checked install-by-name.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Root cause:** T-1722's lint scope was "USER-field syntax + install
+exists by canonical name", NOT "install is byte-identical to source".
+A drifted install passes T-1722's check trivially because the file
+exists with the right name and parses as cron syntax — but its
+*contents* are no longer what the git source declares.
+
+**Why structurally allowed:** When T-1722 was filed, the failure mode
+in scope was PL-173 "USER-field crontab written to wrong path so it's
+dormant". That's the install-misload class. The install-drift class
+(install correctly placed but contents diverge) was assumed to be
+caught by operator discipline ("re-cp after every source change"),
+which depends on no-one ever forgetting. T-1887 showed the discipline
+fails silently in practice — there's no signal when the operator
+forgets.
+
+**Prevention (this task):** Extend T-1722's lint with an explicit
+`diff -q "$_cf" "$_cf_install"` check after the PASS-by-name branch.
+On mismatch, FAIL-loud with copy-pasteable `sudo cp ... && sudo
+systemctl reload cron`. Fail-class now: install-drift surfaces
+within 30min of the next audit run (cron cadence) instead of waiting
+for the next ad-hoc human dry-run. T-2011 captures the upstream
+propagation so the prevention survives `fw upgrade`.
 
 ## Evolution
 
