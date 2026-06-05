@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T17:20:29Z
-last_update: 2026-06-05T17:36:23Z
+last_update: 2026-06-05T17:36:56Z
 date_finished: null
 ---
 
@@ -77,7 +77,7 @@ prevention recipe — surface the new axis on both sides at the same time).
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-cargo build -p termlink-cli --release 2>&1 | tail -5
+cargo build -p termlink --release 2>&1 | tail -5
 cargo test -p termlink-mcp --lib 2>&1 | tail -5
 target/release/termlink help --json --limit 5 --sort-by required_arity 2>&1 | python3 -c "import sys, json; d=json.load(sys.stdin); assert 'matches' in d or 'categories' in d, 'envelope missing'; print('shape: ok')"
 
