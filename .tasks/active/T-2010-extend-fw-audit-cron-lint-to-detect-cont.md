@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1722, T-1887]
 created: 2026-06-05T22:39:21Z
-last_update: 2026-06-05T22:42:11Z
+last_update: 2026-06-05T22:46:33Z
 date_finished: null
 ---
 
@@ -51,7 +51,8 @@ must mirror to `/opt/999-AEF` so it survives the next `fw upgrade`.
 ## Verification
 
 grep -q 'diff -q "\$_cf" "\$_cf_install"' .agentic-framework/agents/audit/audit.sh
-bash .agentic-framework/agents/audit/audit.sh --section structure --quiet >/dev/null
+test -f .context/framework-patches/T-2010-cron-lint-byte-identical.patch
+.agentic-framework/bin/fw audit --section structure 2>&1 | grep -q 'byte-identical install at /etc/cron.d/termlink-release-mirror-canary'
 
 ## RCA
 
