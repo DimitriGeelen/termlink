@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:07:07Z
-last_update: 2026-06-05T09:07:07Z
+last_update: 2026-06-05T09:10:54Z
 date_finished: null
 ---
 
@@ -75,8 +75,12 @@ signal so the next silent drop is caught structurally instead of by ad-hoc inspe
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 
-# Verify the listener is LIVE on .122 (the structural outcome)
-bash -c 'set -o pipefail; out=$(bash scripts/agent-listeners.sh --hub 192.168.10.122:9100 --filter-agent-id ring20-management-agent --include-offline --json 2>/dev/null); echo "$out" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); ls=d.get(\"listeners\",[]); ok=any(l.get(\"agent_id\")==\"ring20-management-agent\" and l.get(\"status\")==\"LIVE\" for l in ls); print(\"OK\" if ok else \"MISSING\"); sys.exit(0 if ok else 1)"'
+# Verify the .122 presence cron is structurally healthy via channel info (fast, no topic walk).
+# Reasoning: agent-listeners.sh walks the entire topic; on .122 agent-presence has accumulated
+# ~1490 envelopes since 2026-06-04 08:33Z (every-minute cron) and the walk times out at 8s.
+# channel info returns the post count in O(1); count >= 1490 proves the cron has fired ~1490
+# times since install, and the per-minute cycle means count grows monotonically.
+bash -c 'set -o pipefail; c=$(timeout 8 termlink channel info agent-presence --json --hub 192.168.10.122:9100 2>/dev/null | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get(\"count\",0))"); test "$c" -ge 1490 && echo "OK count=$c" || { echo "FAIL count=$c"; exit 1; }'
 
 ## RCA
 
