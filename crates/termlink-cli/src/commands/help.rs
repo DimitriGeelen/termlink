@@ -33,23 +33,28 @@ pub(crate) struct HelpInvocation {
     pub exclude_categories: Vec<String>,
 }
 
-/// Outcome of routing the positional `<target>` arg (T-2004).
-/// `Drilled` → exact tool-name match → tool_detail. `Filtered` → substring →
-/// name_filter. `Inactive` → no positional supplied; pass-through.
+/// Outcome of routing the positional `<target>` arg (T-2004 + T-2005).
+/// Priority order (top to bottom — first match wins):
+/// - `Drilled` → exact tool-name match → tool_detail (T-2004)
+/// - `Scoped` → exact category-name match → category filter (T-2005)
+/// - `Filtered` → anything else → name_filter substring search (T-2004 fallback)
+/// - `Inactive` → no positional supplied; explicit flags pass through unchanged
 #[derive(Debug, PartialEq, Eq)]
 enum PositionalRoute {
     Drilled(String),
+    Scoped(String),
     Filtered(String),
     Inactive,
 }
 
 /// Decide what to do with the optional positional `<target>` arg.
 /// Returns `Err` with a user-facing message if the positional conflicts
-/// with explicit `--tool-detail` or `--name-filter` flags.
+/// with explicit `--tool-detail`, `--name-filter`, or `--category` flags.
 fn resolve_positional(
     target: Option<String>,
     explicit_tool_detail: bool,
     explicit_name_filter: bool,
+    explicit_category: bool,
 ) -> Result<PositionalRoute, String> {
     let Some(t) = target else {
         return Ok(PositionalRoute::Inactive);
@@ -64,11 +69,21 @@ fn resolve_positional(
             "positional <target>='{t}' conflicts with --name-filter. Pick one — drop the positional or drop the flag.",
         ));
     }
-    if termlink_mcp::registry_tool_names().contains(t.as_str()) {
-        Ok(PositionalRoute::Drilled(t))
-    } else {
-        Ok(PositionalRoute::Filtered(t))
+    if explicit_category {
+        return Err(format!(
+            "positional <target>='{t}' conflicts with --category. Pick one — drop the positional or drop the flag.",
+        ));
     }
+    // Priority 1: exact tool name → drill in.
+    if termlink_mcp::registry_tool_names().contains(t.as_str()) {
+        return Ok(PositionalRoute::Drilled(t));
+    }
+    // Priority 2: exact category name → scope to that category.
+    if termlink_mcp::registry_category_names().contains(t.as_str()) {
+        return Ok(PositionalRoute::Scoped(t));
+    }
+    // Priority 3: substring search fallback.
+    Ok(PositionalRoute::Filtered(t))
 }
 
 pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
@@ -80,17 +95,20 @@ pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
     let categories = empty_to_none(inv.categories);
     let exclude_categories = empty_to_none(inv.exclude_categories);
 
-    // T-2004: positional <target> routing — exact tool match → tool_detail,
-    // substring → name_filter. Conflicts with explicit --tool-detail or
-    // --name-filter bail with a usage hint.
-    let (tool_detail, name_filter) = match resolve_positional(
+    // T-2004 + T-2005: 3-tier positional <target> routing — exact tool →
+    // tool_detail (drill-in), exact category → category (namespace scope),
+    // else → name_filter (substring search). Conflicts with explicit
+    // --tool-detail / --name-filter / --category bail with a usage hint.
+    let (category, tool_detail, name_filter) = match resolve_positional(
         inv.target,
         inv.tool_detail.is_some(),
         inv.name_filter.is_some(),
+        inv.category.is_some(),
     ) {
-        Ok(PositionalRoute::Drilled(name)) => (Some(name), inv.name_filter),
-        Ok(PositionalRoute::Filtered(needle)) => (inv.tool_detail, Some(needle)),
-        Ok(PositionalRoute::Inactive) => (inv.tool_detail, inv.name_filter),
+        Ok(PositionalRoute::Drilled(name)) => (inv.category, Some(name), inv.name_filter),
+        Ok(PositionalRoute::Scoped(cat)) => (Some(cat), inv.tool_detail, inv.name_filter),
+        Ok(PositionalRoute::Filtered(needle)) => (inv.category, inv.tool_detail, Some(needle)),
+        Ok(PositionalRoute::Inactive) => (inv.category, inv.tool_detail, inv.name_filter),
         Err(msg) => {
             eprintln!("error: {msg}");
             std::process::exit(2);
@@ -98,7 +116,7 @@ pub(crate) fn run(inv: HelpInvocation) -> Result<()> {
     };
 
     let json_str = termlink_mcp::build_cli_help_json(
-        inv.category,
+        category,
         name_filter,
         inv.list_categories,
         tool_detail,
@@ -494,34 +512,48 @@ mod tests {
 
     /// T-2004: positional `<target>` that exactly matches a registered tool
     /// name routes to `tool_detail` (drill-in) — same behavior as the explicit
-    /// `--tool-detail <name>` flag.
+    /// `--tool-detail <name>` flag. Priority 1: tool match wins.
     #[test]
     fn positional_exact_tool_routes_to_tool_detail() {
         let route = resolve_positional(
             Some("termlink_channel_post".to_string()),
-            false,
-            false,
+            false, false, false,
         );
         assert_eq!(route, Ok(PositionalRoute::Drilled("termlink_channel_post".to_string())));
     }
 
-    /// T-2004: positional `<target>` that doesn't match any known tool name
-    /// routes to `name_filter` (substring search).
+    /// T-2005: positional `<target>` that exactly matches a registered category
+    /// name routes to `category` (namespace scope). Priority 2 — wins over
+    /// substring fallback but loses to exact tool match.
     #[test]
-    fn positional_non_tool_routes_to_name_filter() {
-        let route = resolve_positional(Some("channel".to_string()), false, false);
-        assert_eq!(route, Ok(PositionalRoute::Filtered("channel".to_string())));
-        // Garbage strings still route to name_filter — the registry returns
-        // zero matches with a "did you mean" hint.
-        let route = resolve_positional(Some("zzzzz".to_string()), false, false);
+    fn positional_exact_category_routes_to_scoped() {
+        for cat in &["channel", "agent_chat", "fleet", "session"] {
+            let route = resolve_positional(Some(cat.to_string()), false, false, false);
+            assert_eq!(
+                route,
+                Ok(PositionalRoute::Scoped(cat.to_string())),
+                "category '{cat}' should route to Scoped",
+            );
+        }
+    }
+
+    /// T-2004 + T-2005: positional that's neither a tool nor a category name
+    /// falls through to name_filter substring search (priority 3).
+    #[test]
+    fn positional_unknown_routes_to_name_filter() {
+        // Strings that resemble tool names but aren't registered.
+        let route = resolve_positional(Some("zzzzz".to_string()), false, false, false);
         assert_eq!(route, Ok(PositionalRoute::Filtered("zzzzz".to_string())));
+        // Multi-word substring queries (would never be tool or category names).
+        let route = resolve_positional(Some("channel post".to_string()), false, false, false);
+        assert_eq!(route, Ok(PositionalRoute::Filtered("channel post".to_string())));
     }
 
     /// T-2004: explicit `--tool-detail` AND a positional `<target>` conflict —
     /// caller intent is ambiguous, refuse with a hint.
     #[test]
     fn positional_with_explicit_tool_detail_errors() {
-        let err = resolve_positional(Some("channel".to_string()), true, false)
+        let err = resolve_positional(Some("channel".to_string()), true, false, false)
             .unwrap_err();
         assert!(err.contains("--tool-detail"), "err mentions conflicting flag");
         assert!(err.contains("'channel'"), "err echoes the positional");
@@ -531,18 +563,28 @@ mod tests {
     /// same as the tool_detail case.
     #[test]
     fn positional_with_explicit_name_filter_errors() {
-        let err = resolve_positional(Some("channel".to_string()), false, true)
+        let err = resolve_positional(Some("channel".to_string()), false, true, false)
             .unwrap_err();
         assert!(err.contains("--name-filter"), "err mentions conflicting flag");
+    }
+
+    /// T-2005: explicit `--category` AND a positional `<target>` conflict —
+    /// since the positional may itself be a category, ambiguity is total.
+    #[test]
+    fn positional_with_explicit_category_errors() {
+        let err = resolve_positional(Some("channel".to_string()), false, false, true)
+            .unwrap_err();
+        assert!(err.contains("--category"), "err mentions conflicting flag");
+        assert!(err.contains("'channel'"), "err echoes the positional");
     }
 
     /// T-2004: no positional → inactive route → all upstream flags pass through.
     #[test]
     fn no_positional_is_inactive() {
-        let route = resolve_positional(None, false, false);
+        let route = resolve_positional(None, false, false, false);
         assert_eq!(route, Ok(PositionalRoute::Inactive));
         // Explicit flags without positional are NOT a conflict.
-        let route = resolve_positional(None, true, true);
+        let route = resolve_positional(None, true, true, true);
         assert_eq!(route, Ok(PositionalRoute::Inactive));
     }
 

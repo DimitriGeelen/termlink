@@ -1938,6 +1938,25 @@ pub fn registry_tool_names() -> &'static std::collections::HashSet<&'static str>
     })
 }
 
+/// T-2005 (cycle 13 #3): set of every category name registered in the help registry.
+/// Sibling to `registry_tool_names()` — both cached, both consumed by the CLI's
+/// 3-tier positional router.
+///
+/// Use case: `termlink help <target>` checks tool match (priority 1), then
+/// category match here (priority 2), else falls through to substring search.
+/// Eliminates the noise of `termlink help channel` returning 60 substring
+/// matches when the operator intended the channel category specifically.
+pub fn registry_category_names() -> &'static std::collections::HashSet<&'static str> {
+    static SET: std::sync::OnceLock<std::collections::HashSet<&'static str>> =
+        std::sync::OnceLock::new();
+    SET.get_or_init(|| {
+        help_categories()
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect()
+    })
+}
+
 /// T-2002 (cycle 13 #1): CLI-callable wrapper around `build_help_json` so the
 /// `termlink help` shell subcommand can emit the same JSON envelope as the
 /// MCP `termlink_help` tool. Shape-parity invariant: for matching axis values
