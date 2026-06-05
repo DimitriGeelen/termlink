@@ -314,6 +314,20 @@ fn render_matches(rows: &[Value], envelope: &Value) {
     if let Some(hint) = envelope.get("hint").and_then(|v| v.as_str()) {
         println!("hint: {hint}");
     }
+    // T-2006: name_filter 0-match did-you-mean. Surface tool/category
+    // suggestions inline so a typo'd `termlink help chanel` recovers in one
+    // round-trip. Comma-joined single line matches the MCP envelope's
+    // `did_you_mean` array semantics; mirrors T-1954's tool_detail path
+    // but uses inline format (one line) per name_filter's flatter shape.
+    if let Some(suggestions) = envelope.get("did_you_mean").and_then(|v| v.as_array()) {
+        let names: Vec<&str> = suggestions
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        if !names.is_empty() {
+            println!("Did you mean: {}", names.join(", "));
+        }
+    }
     surface_validation_echoes(envelope);
 }
 
@@ -665,6 +679,44 @@ mod tests {
         assert_eq!(
             v.get("sort_by_applied").and_then(|x| x.as_str()),
             Some("required_arity"),
+        );
+    }
+
+    /// T-2006: CLI wrapper carries `did_you_mean` on a name_filter 0-match
+    /// real-needle envelope. `render_matches` reads exactly this field and
+    /// surfaces the "Did you mean: ..." inline line; testing the envelope
+    /// here is the load-bearing contract — proves the CLI surface inherits
+    /// the MCP block via the shape-parity wrapper. Mirrors the MCP-side
+    /// `name_filter_zero_match_emits_did_you_mean_for_typo` test.
+    #[test]
+    fn name_filter_zero_match_envelope_carries_did_you_mean() {
+        let mut inv = invocation_default();
+        inv.name_filter = Some("chanel".to_string());
+        let fields = empty_to_none(inv.fields);
+        let categories = empty_to_none(inv.categories);
+        let exclude_categories = empty_to_none(inv.exclude_categories);
+        let out = termlink_mcp::build_cli_help_json(
+            inv.category, inv.name_filter, inv.list_categories, inv.tool_detail,
+            inv.summary, inv.essentials, inv.max_parameters, inv.min_parameters,
+            inv.exclude_deprecated, inv.deprecated_only, inv.limit, inv.offset,
+            inv.sort_by, fields, categories, exclude_categories,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(
+            v.get("total_matches").and_then(|x| x.as_u64()),
+            Some(0),
+            "expected 0 matches for typo 'chanel'",
+        );
+        let suggestions = v
+            .get("did_you_mean")
+            .and_then(|x| x.as_array())
+            .expect("did_you_mean must be present on real-needle 0-match");
+        assert!(!suggestions.is_empty(), "did_you_mean must be non-empty");
+        let has_channel = suggestions.iter().any(|s| s.as_str() == Some("channel"));
+        assert!(
+            has_channel,
+            "expected 'channel' in did_you_mean suggestions, got {:?}",
+            suggestions,
         );
     }
 }

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T18:34:07Z
-last_update: 2026-06-05T18:34:07Z
+last_update: 2026-06-05T19:57:58Z
 date_finished: null
 ---
 
@@ -44,18 +44,18 @@ distance. Surface on both MCP (envelope field) and CLI (human render line).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `build_help_json` `name_filter` 0-match block emits `did_you_mean` array when needle is set AND results > 0
-- [ ] Suggestions combine `nearest_tools(needle_ref, ..., 3)` + `nearest_categories(needle_ref, ..., 3)`, deduped, capped at 6
-- [ ] No `did_you_mean` for the standalone-arity-filter / bulk-paging-no-needle paths (no needle to compare against)
-- [ ] No `did_you_mean` when matches.len() > 0 (it would be confusing alongside matches)
-- [ ] CLI `render_matches` surfaces did_you_mean as `Did you mean: a, b, c` line when non-empty
-- [ ] Shape-parity invariant test continues to pass (`build_cli_help_json_matches_mcp_shape`)
-- [ ] New MCP test covers typo → suggestions
-- [ ] `cargo build -p termlink --release` clean
-- [ ] `cargo test -p termlink-mcp --lib` 836+ pass
-- [ ] `cargo test -p termlink --bins` 814+ pass
-- [ ] Live smoke: `termlink help chanel --json` envelope carries `did_you_mean: ["channel", ...]`
-- [ ] Live smoke: `termlink help chanel` human render shows `Did you mean: channel, ...`
+- [x] `build_help_json` `name_filter` 0-match block emits `did_you_mean` array when needle is set AND results > 0
+- [x] Suggestions combine `nearest_tools(needle_ref, ..., 3)` + `nearest_categories(needle_ref, ..., 3)`, deduped, capped at 6
+- [x] No `did_you_mean` for the standalone-arity-filter / bulk-paging-no-needle paths (no needle to compare against)
+- [x] No `did_you_mean` when matches.len() > 0 (it would be confusing alongside matches)
+- [x] CLI `render_matches` surfaces did_you_mean as `Did you mean: a, b, c` line when non-empty
+- [x] Shape-parity invariant test continues to pass (`build_cli_help_json_matches_mcp_shape`)
+- [x] New MCP test covers typo → suggestions
+- [x] `cargo build -p termlink --release` clean
+- [x] `cargo test -p termlink-mcp --lib` 836+ pass
+- [x] `cargo test -p termlink --bins` 814+ pass
+- [x] Live smoke: `termlink help chanel --json` envelope carries `did_you_mean: ["channel", ...]`
+- [x] Live smoke: `termlink help chanel` human render shows `Did you mean: channel, ...`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

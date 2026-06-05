@@ -1830,6 +1830,29 @@ fn build_help_json(
                 )
             };
             out["hint"] = serde_json::json!(hint);
+            // T-2006: name_filter 0-match did-you-mean. When a real needle was
+            // supplied and we still returned nothing, surface the closest
+            // tool+category names so typos like 'chanel' -> 'channel' resolve
+            // in one round-trip. Skip the empty-needle paths (standalone arity
+            // filter, bulk paging) and the conflicting-deprecated-filter path
+            // — none of those have a needle to compare against.
+            let has_real_needle = needle.is_some()
+                && !needle_ref.is_empty()
+                && !standalone_arity_filter
+                && !bulk_paging_no_needle
+                && !(exclude_deprecated && deprecated_only);
+            if has_real_needle {
+                let mut suggestions = nearest_tools(needle_ref, categories, 3);
+                for c in nearest_categories(needle_ref, categories, 3) {
+                    if !suggestions.contains(&c) {
+                        suggestions.push(c);
+                    }
+                }
+                suggestions.truncate(6);
+                if !suggestions.is_empty() {
+                    out["did_you_mean"] = serde_json::json!(suggestions);
+                }
+            }
         }
         return serde_json::to_string_pretty(&out).unwrap_or_else(json_err);
     }
@@ -42440,5 +42463,91 @@ not-json
                 c.name,
             );
         }
+    }
+
+    /// T-2006: name_filter 0-match emits did_you_mean for a typo'd needle.
+    /// Verifies the envelope carries a non-empty `did_you_mean` array when a
+    /// real (non-empty) needle returns zero matches. Mirrors T-1954's
+    /// tool_detail/category did_you_mean coverage on the name_filter path.
+    #[test]
+    fn name_filter_zero_match_emits_did_you_mean_for_typo() {
+        let categories = help_categories();
+        // 'chanel' is a typo for 'channel'. The registry has no tool whose
+        // name OR description contains 'chanel', so this is a 0-match
+        // real-needle case.
+        let out = build_help_json(
+            &categories,
+            None,
+            Some("chanel"),
+            false,
+            None,
+            false,
+            false,
+            None,
+            None,
+            false,
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out)
+            .expect("name_filter 0-match envelope must be valid JSON");
+        assert_eq!(
+            v.get("total_matches").and_then(|x| x.as_u64()),
+            Some(0),
+            "expected 0 matches for typo 'chanel'",
+        );
+        let suggestions = v
+            .get("did_you_mean")
+            .and_then(|x| x.as_array())
+            .expect("did_you_mean must be present on real-needle 0-match");
+        assert!(!suggestions.is_empty(), "did_you_mean must be non-empty");
+        let has_channel = suggestions.iter().any(|s| s.as_str() == Some("channel"));
+        assert!(
+            has_channel,
+            "expected 'channel' in did_you_mean suggestions, got {:?}",
+            suggestions,
+        );
+    }
+
+    /// T-2006: standalone arity filter must NOT carry did_you_mean. There is
+    /// no needle to compare against, so a suggestion would be meaningless
+    /// noise. Gate the empty-needle paths off the did_you_mean assembly.
+    #[test]
+    fn name_filter_zero_match_no_did_you_mean_when_no_needle() {
+        let categories = help_categories();
+        // max_parameters=0 with no needle is the standalone-arity-filter
+        // path. Whether 0 tools have parameter_count<=0 or not, we assert
+        // the absence of did_you_mean: empty-needle paths never carry it.
+        let out = build_help_json(
+            &categories,
+            None,
+            None,
+            false,
+            None,
+            false,
+            false,
+            Some(0),
+            None,
+            false,
+            false,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out)
+            .expect("standalone-arity envelope must be valid JSON");
+        assert!(
+            v.get("did_you_mean").is_none(),
+            "did_you_mean must be absent for empty-needle path, got {:?}",
+            v.get("did_you_mean"),
+        );
     }
 }
