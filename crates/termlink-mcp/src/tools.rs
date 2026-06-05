@@ -6603,7 +6603,7 @@ pub struct RemoteCallParams {
     /// Remote hub address in "host:port" format (e.g., "192.168.10.107:9100")
     pub hub: String,
     /// JSON-RPC method to invoke on the remote hub (e.g., "session.discover",
-    /// "command.inject", "termlink.ping", "event.broadcast")
+    /// "command.inject", "termlink.ping", "channel.post")
     pub method: String,
     /// JSON params for the RPC call (tool-specific structure)
     pub params: Option<serde_json::Value>,
@@ -10697,7 +10697,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_broadcast",
-        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all (via channel.post broadcast:global per T-1401/T-1403). With explicit targets, fans out via parallel event.emit_to per T-1417 (replacement for retiring legacy event.broadcast)."
+        description = "Broadcast an event to multiple TermLink sessions via the hub. If no targets specified, broadcasts to all (via channel.post broadcast:global per T-1401/T-1403). With explicit targets, fans out via parallel event.emit_to per T-1417 (replacement for the retired legacy event.broadcast, T-1166 cut landed 2026-05-31)."
     )]
     async fn termlink_broadcast(&self, Parameters(p): Parameters<BroadcastParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
@@ -10723,14 +10723,15 @@ impl TermLinkTools {
                 }))
                 .unwrap_or_else(json_err),
                 Err(e) => json_err(format!(
-                    "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166): {e}"
+                    "channel.post(broadcast:global) failed (event.broadcast no longer served post-T-1166 cut, no fallback): {e}"
                 )),
             };
         }
 
         // T-1417: per-target fan-out via parallel event.emit_to. Replaces the
-        // legacy event.broadcast --targets dispatch (retiring under T-1166).
-        // Same response shape so downstream consumers don't need to change.
+        // legacy event.broadcast --targets dispatch (retired under T-1166;
+        // cut landed 2026-05-31, no fallback). Same response shape so
+        // downstream consumers don't need to change.
         let targets = p.targets.clone().unwrap_or_default();
         let (targeted, succeeded, failed, errors) =
             Self::broadcast_via_emit_to_fanout(&hub_socket, &p.topic, &payload, &targets).await;
@@ -10813,7 +10814,8 @@ impl TermLinkTools {
 
     /// T-1403: Sign and dispatch a `channel.post(broadcast:global)` envelope
     /// matching the hub-side T-1162 mirror shape exactly. Returns offset on
-    /// success, or any error (caller falls back to legacy event.broadcast).
+    /// success, or any error. Post-T-1166-cut there is no fallback — the
+    /// caller surfaces the error directly to the user.
     async fn try_broadcast_via_channel_post(
         hub_socket: &std::path::Path,
         topic: &str,
@@ -13661,7 +13663,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_remote_call",
-        description = "Generic JSON-RPC call to a remote termlink hub over TCP+TOFU TLS. This is the universal cross-host escape hatch — any hub RPC method (session.discover, termlink.ping, command.inject, event.broadcast, agent.request, etc.) can be invoked remotely through this one tool. The remote hub must be started with termlink_hub_start(tcp_addr=\"...\") or CLI `termlink hub start --tcp`. Auth uses a 32-byte HMAC secret shared out-of-band (secret_file or secret). Returns the full JSON-RPC response as a JSON value."
+        description = "Generic JSON-RPC call to a remote termlink hub over TCP+TOFU TLS. This is the universal cross-host escape hatch — any hub RPC method (session.discover, termlink.ping, command.inject, channel.post, event.emit_to, agent.request, etc.) can be invoked remotely through this one tool. The remote hub must be started with termlink_hub_start(tcp_addr=\"...\") or CLI `termlink hub start --tcp`. Auth uses a 32-byte HMAC secret shared out-of-band (secret_file or secret). Returns the full JSON-RPC response as a JSON value."
     )]
     async fn termlink_remote_call(&self, Parameters(p): Parameters<RemoteCallParams>) -> String {
         let scope = p.scope.as_deref().unwrap_or("control");

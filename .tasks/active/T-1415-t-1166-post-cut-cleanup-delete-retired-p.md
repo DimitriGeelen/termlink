@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-06-05T21:49:10Z
+last_update: 2026-06-05T21:51:50Z
 date_finished: null
 ---
 
@@ -374,3 +374,41 @@ the returned `methods` array. This is the intended cleanup — consumers
 that probe capability before calling will now correctly skip these
 methods. The pre-existing T-1620 path that reclassifies "method not
 in capabilities" as cause for fallback or error remains correct.
+
+### 2026-06-05T22:50Z — MCP tool documentation doc-rot cleanup [agent autonomous, focus=T-1415]
+
+**Scope.** Five operator-visible references in `crates/termlink-mcp/src/tools.rs`
+described `event.broadcast` in present tense ("is retiring", "fallback to
+legacy event.broadcast") or listed it in tool-description method examples
+as if still served. Post-cut, these mislead MCP tool callers about the
+current state of the protocol surface.
+
+**File touched:** `crates/termlink-mcp/src/tools.rs`
+- L6606: `RemoteCallParams.method` docstring example list — replaced
+  `"event.broadcast"` with `"channel.post"`.
+- L10700: `termlink_broadcast` tool description — `"retiring legacy"` →
+  `"retired legacy ... T-1166 cut landed 2026-05-31, no fallback"`.
+- L10726: error message wording — `"event.broadcast is retiring"` →
+  `"event.broadcast no longer served post-T-1166 cut, no fallback"`.
+- L10732: inline comment — same `retiring` → `retired` tense fix +
+  "cut landed 2026-05-31, no fallback" addendum.
+- L10816: `try_broadcast_via_channel_post` docstring — falsely claimed
+  "caller falls back to legacy event.broadcast" (the caller actually
+  errors out, no fallback exists). Rewrote to "no fallback — the caller
+  surfaces the error directly to the user."
+- L13664: `termlink_remote_call` tool description — replaced
+  `event.broadcast` with `channel.post, event.emit_to` in the method
+  examples list.
+
+**Why operator-visible.** Tool descriptions ship to MCP clients verbatim
+(in the JSON-Schema tool registry); operators see them when listing
+available tools or invoking `termlink_help`. Error messages reach the
+operator on any broadcast failure. Misleading text leads operators to
+chase a "retiring" method that's actually long-gone.
+
+**Verification:**
+- `cargo build -p termlink-mcp` — clean, no warnings.
+- `cargo test -p termlink-mcp --lib` — **837/0 PASS**.
+- `grep -n 'event\.broadcast' crates/termlink-mcp/src/tools.rs` — 3
+  remaining references, all now correctly framed as past-tense
+  ("retired", "no longer served", "replacement for").
