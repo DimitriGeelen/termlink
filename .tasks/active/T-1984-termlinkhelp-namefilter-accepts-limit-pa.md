@@ -12,7 +12,7 @@ tags: [mcp, help-registry, client-arc]
 components: []
 related_tasks: []
 created: 2026-06-04T08:14:50Z
-last_update: 2026-06-04T08:14:50Z
+last_update: 2026-06-05T11:57:30Z
 date_finished: null
 ---
 
@@ -25,16 +25,16 @@ Cycle 12 slice 1 (predecessor: T-1976..T-1983 cycle-11 filter axis). Pagination 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `limit: Option<usize>` field added to `HelpParams` with rmcp schemars doc comment
-- [ ] `build_help_json` signature accepts `limit: Option<usize>` (signature grows 11 → 12 args)
-- [ ] `limit` is applied ONLY in the `name_filter` branch (other modes — tool_detail, list_categories, summary, essentials, default — ignore it)
-- [ ] When `name_filter` matches are collected, `total_matched` is captured BEFORE truncation; matches are then truncated to first N
-- [ ] When `limit` is set: result carries `total_matched` (pre-cap count, integer) AND `limit_applied` (bool, true iff truncation actually happened)
-- [ ] When `limit` is unset: result does NOT carry `total_matched` or `limit_applied` fields (backward compatibility)
-- [ ] `limit = 0` returns empty matches[] but still surfaces `total_matched` and `limit_applied=true` when pre-cap count > 0
-- [ ] Invariant tests added: caps-at-N, total_matched-preserved, limit_applied-transitions, composes-with-max_min_parameters, composes-with-exclude_deprecated
-- [ ] Drift test `required_fields` table updated for new envelope keys
-- [ ] `cargo test -p termlink-mcp --lib` passes (764 baseline → 767+, 0 failed)
+- [x] `limit: Option<usize>` field added to `HelpParams` with rmcp schemars doc comment
+- [x] `build_help_json` signature accepts `limit: Option<usize>` (signature grows 11 → 12 args)
+- [x] `limit` is applied ONLY in the `name_filter` branch (other modes — tool_detail, list_categories, summary, essentials, default — ignore it)
+- [x] When `name_filter` matches are collected, `total_matched` is captured BEFORE truncation; matches are then truncated to first N
+- [x] When `limit` is set: result carries `total_matched` (pre-cap count, integer) AND `limit_applied` (bool, true iff truncation actually happened)
+- [x] When `limit` is unset: result does NOT carry `total_matched` or `limit_applied` fields (backward compatibility)
+- [x] `limit = 0` returns empty matches[] but still surfaces `total_matched` and `limit_applied=true` when pre-cap count > 0
+- [x] Invariant tests added: caps-at-N, total_matched-preserved, limit_applied-transitions, composes-with-max_min_parameters, composes-with-exclude_deprecated (7 tests total: also limit_zero edge case + limit_unset backcompat)
+- [x] Drift test `required_fields` table updated for new envelope keys
+- [x] `cargo test -p termlink-mcp --lib` passes (764 baseline → 771, 0 failed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
