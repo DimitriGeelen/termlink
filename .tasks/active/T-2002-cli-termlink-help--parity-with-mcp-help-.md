@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T17:20:29Z
-last_update: 2026-06-05T17:20:29Z
+last_update: 2026-06-05T17:36:23Z
 date_finished: null
 ---
 
@@ -41,16 +41,16 @@ prevention recipe — surface the new axis on both sides at the same time).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `pub fn build_cli_help_json(...)` exists in `termlink-mcp::tools` (or `termlink-mcp` re-export), takes the same axis surface as MCP `HelpParams` (limit/offset/sort_by/name_filter/category/categories/exclude_categories/fields/min_parameters/max_parameters/exclude_deprecated/deprecated_only/list_categories/tool_detail/summary/essentials), and walks the same internal `tool_categories()` registry
-- [ ] CLI gains a top-level `Help(HelpArgs)` clap subcommand exposing all of the above as flags with kebab-case names
-- [ ] `termlink help --json` returns a JSON envelope structurally identical to MCP `termlink_help(...)` for every axis combination tested
-- [ ] `termlink help` (no args) prints a human-readable categorized listing of every tool name + one-line blurb
-- [ ] `termlink help --limit 10 --sort-by required_arity --json` prints exactly 10 rows sorted by required-arity ASC
-- [ ] `termlink help --name-filter channel --json` returns the same `matches[]` array as the MCP call
-- [ ] `cargo build -p termlink-cli` succeeds with zero new warnings
-- [ ] `cargo test -p termlink-cli --lib` passes (existing CLI test surface stays green)
-- [ ] `cargo test -p termlink-mcp --lib` passes (existing 834 MCP tests stay green; new pub-wrapper test added)
-- [ ] At least one new integration test in `crates/termlink-mcp/src/tools.rs` asserts `build_cli_help_json(...) == build_help_json(...)` for a representative axis combination (shape-parity invariant)
+- [x] `pub fn build_cli_help_json(...)` exists in `termlink-mcp::tools` (or `termlink-mcp` re-export), takes the same axis surface as MCP `HelpParams` (limit/offset/sort_by/name_filter/category/categories/exclude_categories/fields/min_parameters/max_parameters/exclude_deprecated/deprecated_only/list_categories/tool_detail/summary/essentials), and walks the same internal `tool_categories()` registry — re-exported in `termlink-mcp/src/lib.rs`
+- [x] CLI gains a top-level `Help(HelpArgs)` clap subcommand exposing all of the above as flags with kebab-case names — see `crates/termlink-cli/src/cli.rs::Command::Help`
+- [x] `termlink help --json` returns a JSON envelope structurally identical to MCP `termlink_help(...)` for every axis combination tested — locked by `tools::tests::build_cli_help_json_matches_mcp_shape` over 7 axis combos (default/canonical-PL202/list_categories/tool_detail/summary/essentials/scope+exclude)
+- [x] `termlink help` (no args) prints a human-readable categorized listing of every tool name + one-line blurb — verified live: 252 tools, 569 lines, ~21KB
+- [x] `termlink help --limit 10 --sort-by required_arity --json` prints exactly 10 rows sorted by required-arity ASC — verified live with `--limit 3` returning 3 zero-arg primitives in expected order
+- [x] `termlink help --name-filter channel --json` returns the same `matches[]` array as the MCP call — parity test case "canonical-pl202" covers this exact shape
+- [x] `cargo build -p termlink` (the CLI crate name is `termlink`, not `termlink-cli` — original AC corrected) succeeds with zero new warnings — release build clean
+- [x] `cargo test -p termlink --bins` passes (existing CLI test surface stays green) — 806 passed / 0 failed (+3 new help.rs tests)
+- [x] `cargo test -p termlink-mcp --lib` passes (existing 834 MCP tests stay green; new pub-wrapper test added) — 835 passed / 0 failed (+1 parity test)
+- [x] At least one new integration test in `crates/termlink-mcp/src/tools.rs` asserts `build_cli_help_json(...) == build_help_json(...)` for a representative axis combination (shape-parity invariant) — `build_cli_help_json_matches_mcp_shape` covers 7 axis combos
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
