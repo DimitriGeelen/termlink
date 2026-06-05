@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-06-05T21:45:10Z
+last_update: 2026-06-05T21:49:10Z
 date_finished: null
 ---
 
@@ -336,3 +336,41 @@ methods list, but route() no longer serves them — capability consumers
 get told the methods exist, then -32601 on actual call. Same dead-
 advertisement problem applies to `EVENT_BROADCAST` at line 799. That's
 a small bounded slice for next time.
+
+### 2026-06-05T22:30Z — hub.capabilities methods-list dead advertisements removed [agent autonomous, focus=T-1415]
+
+**Scope.** Executed the "next time" follow-up from the previous Updates
+entry. Per the `handle_hub_capabilities` docstring "Only methods recognized
+by `route()`'s explicit match arms are listed — forwarded session methods
+are intentionally excluded", four entries had become stale post-cut:
+`EVENT_BROADCAST` (line 799), `"inbox.list"` / `"inbox.status"` /
+`"inbox.clear"` (lines 809-811). All four handlers were deleted in May's
+f7b8d057 commit; calls now fall through to `forward_to_target` catchall
+(per route() docstring "T-1166 / T-1415: event.broadcast + inbox.* arms
+deleted 2026-05-31"). Capability consumers were being told these methods
+exist, then getting -32601 / forwarding errors on actual call.
+
+**File touched:** `crates/termlink-hub/src/router.rs`
+- `handle_hub_capabilities` methods vec: 4 stale advertisements removed.
+- Docstring above the vec updated with the T-1415 cleanup rationale.
+- Top-of-fn docstring "fall back to event.broadcast" framing dropped
+  (no longer the migration story being told).
+
+**Follow-on edit:** `crates/termlink-hub/tests/no_legacy_callers.rs` —
+post-edit, router.rs has 0 caller-shaped legacy literals outside test
+code; the new `allowlist_is_load_bearing` test would correctly fire and
+flag it. Removed `router.rs` from ALLOWLIST in the same slice; only
+`rpc_audit.rs` (the legacy-method definition list itself) remains.
+
+**Verification:**
+- `cargo test -p termlink-hub --test no_legacy_callers` — **4/0 PASS**
+  (load-bearing guard confirms the 1 remaining entry is genuine).
+- `cargo test -p termlink-hub --lib` — **305/0 PASS**
+- `cargo build -p termlink-hub` — clean, no warnings.
+
+**Downstream behaviour change.** Federating clients calling
+`hub.capabilities` will no longer see `event.broadcast` / `inbox.*` in
+the returned `methods` array. This is the intended cleanup — consumers
+that probe capability before calling will now correctly skip these
+methods. The pre-existing T-1620 path that reclassifies "method not
+in capabilities" as cause for fallback or error remains correct.

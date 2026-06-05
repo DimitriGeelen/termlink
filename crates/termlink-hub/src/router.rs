@@ -780,8 +780,7 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 
 /// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub
 /// serves directly (T-1215 / T-1214 GO Option B). Enables federating clients
-/// to detect stranger-lineage peers that lack `channel.*` and fall back to
-/// `event.broadcast` without probing each method individually.
+/// to detect stranger-lineage peers and avoid probing each method individually.
 ///
 /// Response shape:
 /// ```json
@@ -793,10 +792,14 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
     // Kept in sync with the match arms in `route()`. Excludes the `_ =>
     // forward_to_target` catchall and hub.auth (which is handled at the TLS
     // frame layer, not by this router).
+    //
+    // T-1166 / T-1415: `event.broadcast`, `inbox.list`, `inbox.status`,
+    // `inbox.clear` were retired (cut landed 2026-05-31). Their advertisement
+    // here was removed 2026-06-05 — capability consumers no longer get told a
+    // method exists that the hub returns -32601 for.
     let mut methods: Vec<&'static str> = vec![
         control::method::SESSION_DISCOVER,
         control::method::SESSION_WHOAMI,
-        control::method::EVENT_BROADCAST,
         control::method::EVENT_COLLECT,
         control::method::EVENT_SUBSCRIBE,
         control::method::EVENT_EMIT_TO,
@@ -806,9 +809,6 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         "session.register_remote",
         "session.heartbeat",
         "session.deregister_remote",
-        "inbox.list",
-        "inbox.status",
-        "inbox.clear",
         control::method::CHANNEL_CREATE,
         control::method::CHANNEL_POST,
         control::method::CHANNEL_SUBSCRIBE,

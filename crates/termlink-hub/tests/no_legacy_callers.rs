@@ -12,8 +12,6 @@
 //! as a quoted literal at a caller-shaped use-site.
 //!
 //! Allowlisted files (the only intentional remaining references):
-//! - `crates/termlink-hub/src/router.rs` — `hub.capabilities` method-name list
-//!   advertised by the hub (separate cleanup needed; tracked in T-1415 inventory)
 //! - `crates/termlink-hub/src/rpc_audit.rs` — the legacy-method definition list
 //!   itself (this is what enumerates the retired set; deleting it removes the
 //!   detection vocabulary)
@@ -23,6 +21,9 @@
 //!   their legacy-fallback paths were deleted in May/June 2026; the entries
 //!   were stale (no caller-shaped legacy literals remained). `allowlist_is_load_bearing`
 //!   below now catches future drift of this kind.
+//! - `router.rs` — its `hub.capabilities` method-name list was advertising
+//!   retired methods to consumers (2026-06-05 cleanup); after the
+//!   advertisement was dropped, no caller-shaped literals remained.
 //!
 //! Skipped use-sites (definitionally not callers):
 //! - Comment lines (`//`, `///`, `//!`, leading `*` inside block comments)
@@ -48,7 +49,6 @@ const LEGACY_METHODS: &[&str] = &[
 ];
 
 const ALLOWLIST: &[&str] = &[
-    "crates/termlink-hub/src/router.rs",
     "crates/termlink-hub/src/rpc_audit.rs",
 ];
 
