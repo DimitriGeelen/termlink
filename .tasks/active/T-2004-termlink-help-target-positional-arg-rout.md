@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T17:48:32Z
-last_update: 2026-06-05T18:00:48Z
+last_update: 2026-06-05T18:01:08Z
 date_finished: null
 ---
 
@@ -72,8 +72,8 @@ This slice (cycle 13 #2) adds a positional `<target>` arg that routes:
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 cargo build -p termlink --release 2>&1 | tail -3
 cargo test -p termlink-mcp --lib 2>&1 | tail -3
-target/release/termlink help channel 2>&1 | head -3
-target/release/termlink help termlink_channel_post 2>&1 | head -3
+target/release/termlink help channel >/dev/null 2>&1
+target/release/termlink help termlink_channel_post >/dev/null 2>&1
 
 ## RCA
 
