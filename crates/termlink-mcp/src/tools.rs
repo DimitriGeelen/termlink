@@ -856,6 +856,18 @@ fn tool_params() -> &'static std::collections::HashMap<String, Vec<ParamInfo>> {
     })
 }
 
+/// T-1995: required-param count for cost-aware LLM ranking. Returns the
+/// number of params on `tool` where `optional==false`. Always <= the total
+/// arity from `tool_params()`. Used by `termlink_help` to populate the
+/// `parameter_required_count` field on every row shape (default-mode,
+/// name_filter matches, tool_detail envelope, essentials).
+fn tool_params_required_count(tool: &str) -> usize {
+    tool_params()
+        .get(tool)
+        .map(|v| v.iter().filter(|p| !p.optional).count())
+        .unwrap_or(0)
+}
+
 /// T-1953: render a `ParamInfo` as a JSON object for the `tool_detail` response.
 fn param_to_json(p: &ParamInfo) -> serde_json::Value {
     let mut v = serde_json::json!({
@@ -1118,6 +1130,11 @@ fn build_help_json(
             // no-arg tools); shape consistency wins over absence-as-signal
             // here because every tool has a known arity at parse time.
             let parameter_count = params.len();
+            // T-1995: parameter_required_count — number of params where
+            // `optional==false`. Pairs with `parameter_count` for the
+            // cheapest-to-call ranking: a tool with (12 total, 2 required)
+            // is materially cheaper than one with (4 total, 4 required).
+            let parameter_required_count = tool_params_required_count(target);
             // T-1980: reverse-direction replacement_hint. Look up the target
             // in the precomputed back-refs map; emit an empty array when no
             // deprecated tool points at this name (vs omitting the field) so
@@ -1140,6 +1157,7 @@ fn build_help_json(
                 "full_description": full_desc,
                 "parameters": params,
                 "parameter_count": parameter_count,
+                "parameter_required_count": parameter_required_count,
                 "related_tools": related,
                 "deprecated": deprecated,
                 "is_replacement_for": back_refs,
@@ -1214,12 +1232,14 @@ fn build_help_json(
             if let Some((name, desc)) = tools.iter().find(|(_, d)| !is_deprecated(d)) {
                 let cat_desc = cat_descs.get(cat_name).copied().unwrap_or("");
                 let pc = tool_params().get(*name).map(|v| v.len()).unwrap_or(0);
+                let prc = tool_params_required_count(name);
                 rows.push(serde_json::json!({
                     "name": name,
                     "category": cat_name,
                     "category_description": cat_desc,
                     "description": desc,
                     "parameter_count": pc,
+                    "parameter_required_count": prc,
                 }));
             }
         }
@@ -1463,6 +1483,12 @@ fn build_help_json(
                     // drill-in. Source is the same tool_params() map; O(1)
                     // lookup. `pc` was already computed above for the arity gate.
                     let dep = dep_flag;
+                    // T-1995: parameter_required_count — number of required
+                    // (non-optional) params on this tool. Pairs with
+                    // parameter_count for cost-aware ranking of paginated
+                    // results: LLMs prefer (12 total, 2 required) over
+                    // (4 total, 4 required) when call-cost matters.
+                    let prc = tool_params_required_count(name);
                     let mut row = serde_json::json!({
                         "category": cat_name,
                         "category_tool_count": cat_size,
@@ -1470,6 +1496,7 @@ fn build_help_json(
                         "description": desc,
                         "deprecated": dep,
                         "parameter_count": pc,
+                        "parameter_required_count": prc,
                     });
                     if dep {
                         if let Some(hint) = extract_replacement_hint(desc) {
@@ -1594,11 +1621,13 @@ fn build_help_json(
             .map(|(name, desc)| {
                 let dep = is_deprecated(desc);
                 let pc = tool_params().get(*name).map(|v| v.len()).unwrap_or(0);
+                let prc = tool_params_required_count(name);
                 let mut row = serde_json::json!({
                     "name": name,
                     "description": desc,
                     "deprecated": dep,
                     "parameter_count": pc,
+                    "parameter_required_count": prc,
                 });
                 if dep {
                     if let Some(hint) = extract_replacement_hint(desc) {
@@ -12551,7 +12580,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. When called with a `category` filter, the envelope additionally embeds a top-level `category_meta` block (T-1981) `{name, description, tool_count, deprecated_count, live_tool_count}` — closes the round-trip on the list_categories → category drill so LLMs see the namespace metadata at the same response as the row enumeration. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `limit` (T-1984) is a deterministic pagination cap for `name_filter` (and standalone-arity-filter) mode — when set, `matches[]` is truncated to the first N (category × registry order is stable across calls), and the envelope gains `total_matched` (pre-cap count) and `limit_applied` (bool, true iff truncation actually happened) so LLM clients can detect overflow and decide whether to widen filters or paginate. `limit=0` returns an empty `matches[]` but still surfaces `total_matched` and `limit_applied=true` when matches existed pre-cap, so a calling agent can size the result before pulling it. Without `limit`, the envelope shape is unchanged for backward compat. `offset` (T-1994) is the pagination cursor that pairs with `limit` to complete the paging API — `offset=10, limit=10` returns rows 10..20 of the deterministic-order filtered set; filters (arity, deprecated, category) run BEFORE offset so the window slices the filtered universe. The envelope echoes `offset` and emits `next_offset` (== offset + matches.len()) when more results lie beyond the current page; `next_offset` is absent when exhausted (the LLM-client stop condition). `offset` past the end returns an empty `matches[]` with `total_matched` still set so the caller sees the overshoot. Without `offset` the envelope shape is unchanged for backward compat. `deprecated_only` (T-1982) is the symmetric inverse: when true, suppresses LIVE rows, surfacing only the retirement-WIP set — composes with `name_filter` + arity + `category` for migration-planning queries (e.g. `name_filter='inbox', deprecated_only=true` lists every retirement-WIP inbox tool). If both `exclude_deprecated` and `deprecated_only` are true the intersection is empty and the response carries a hint explaining the conflict. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count,live_tool_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip; `live_tool_count` (T-1979) carries the effective post-retirement namespace size (== tool_count - deprecated_count) so LLMs see the live surface at the same round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `category_deprecated_count` + `category_live_tool_count` (T-1983) complete the namespace-metadata picture (post-retirement effective size of the tool's category), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `is_replacement_for` (T-1980) is the reverse — the alphabetically-sorted list of deprecated tools whose descriptions point at this name (empty array when none); together with `replacement_hint` it forms a bidirectional retirement-graph navigator. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `parameter_required_count` (T-1995) carries the count of `optional==false` params alongside — pairs with `parameter_count` for the true cost signal: a tool with `(parameter_count=12, parameter_required_count=2)` is cheap to call (only 2 args mandatory) where one with `(parameter_count=4, parameter_required_count=4)` is not. LLM clients ranking matches should prefer LOW `parameter_required_count` for first-call ergonomics. When called with a `category` filter, the envelope additionally embeds a top-level `category_meta` block (T-1981) `{name, description, tool_count, deprecated_count, live_tool_count}` — closes the round-trip on the list_categories → category drill so LLMs see the namespace metadata at the same response as the row enumeration. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `limit` (T-1984) is a deterministic pagination cap for `name_filter` (and standalone-arity-filter) mode — when set, `matches[]` is truncated to the first N (category × registry order is stable across calls), and the envelope gains `total_matched` (pre-cap count) and `limit_applied` (bool, true iff truncation actually happened) so LLM clients can detect overflow and decide whether to widen filters or paginate. `limit=0` returns an empty `matches[]` but still surfaces `total_matched` and `limit_applied=true` when matches existed pre-cap, so a calling agent can size the result before pulling it. Without `limit`, the envelope shape is unchanged for backward compat. `offset` (T-1994) is the pagination cursor that pairs with `limit` to complete the paging API — `offset=10, limit=10` returns rows 10..20 of the deterministic-order filtered set; filters (arity, deprecated, category) run BEFORE offset so the window slices the filtered universe. The envelope echoes `offset` and emits `next_offset` (== offset + matches.len()) when more results lie beyond the current page; `next_offset` is absent when exhausted (the LLM-client stop condition). `offset` past the end returns an empty `matches[]` with `total_matched` still set so the caller sees the overshoot. Without `offset` the envelope shape is unchanged for backward compat. `deprecated_only` (T-1982) is the symmetric inverse: when true, suppresses LIVE rows, surfacing only the retirement-WIP set — composes with `name_filter` + arity + `category` for migration-planning queries (e.g. `name_filter='inbox', deprecated_only=true` lists every retirement-WIP inbox tool). If both `exclude_deprecated` and `deprecated_only` are true the intersection is empty and the response carries a hint explaining the conflict. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count,live_tool_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip; `live_tool_count` (T-1979) carries the effective post-retirement namespace size (== tool_count - deprecated_count) so LLMs see the live surface at the same round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `category_deprecated_count` + `category_live_tool_count` (T-1983) complete the namespace-metadata picture (post-retirement effective size of the tool's category), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `is_replacement_for` (T-1980) is the reverse — the alphabetically-sorted list of deprecated tools whose descriptions point at this name (empty array when none); together with `replacement_hint` it forms a bidirectional retirement-graph navigator. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -36205,6 +36234,11 @@ YW\tJ
             // when more matches lie beyond the current window.
             ("offset", "T-1994"),
             ("next_offset", "T-1994"),
+            // T-1995: parameter_required_count — required-arity signal on
+            // every row shape (default, name_filter, tool_detail, essentials).
+            // Pairs with T-1971/T-1972's parameter_count for cost-aware
+            // LLM tool ranking.
+            ("parameter_required_count", "T-1995"),
         ];
         let mut missing: Vec<&str> = Vec::new();
         for (field, _ticket) in required_fields {
@@ -38170,6 +38204,197 @@ YW\tJ
             v_limit_only.get("next_offset").is_none(),
             "next_offset must be absent without offset param even with limit"
         );
+    }
+
+    #[test]
+    fn parameter_required_count_present_on_name_filter_rows() {
+        // T-1995: every name_filter row carries parameter_required_count.
+        // Mirror of T-1972's parameter_count invariant — same shape, new
+        // signal. Pick `agent` for a broad hit set.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, Some("agent"), false, None, false, false,
+            None, None, false, false, Some(10), None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let matches = v["matches"].as_array().expect("matches array");
+        assert!(!matches.is_empty(), "expected hits for needle 'agent'");
+        for row in matches {
+            let name = row["name"].as_str().unwrap_or("?");
+            let prc = row["parameter_required_count"].as_u64();
+            assert!(
+                prc.is_some(),
+                "{name}: parameter_required_count missing on name_filter row"
+            );
+        }
+    }
+
+    #[test]
+    fn parameter_required_count_present_on_default_mode_rows() {
+        // T-1995: default-mode rows carry parameter_required_count too.
+        // Keeps the three bulk-listing shapes (default, name_filter,
+        // tool_detail) symmetric on this field — same invariant T-1972
+        // documented for parameter_count.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, false, false,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        // Walk every per-category array, every row.
+        let mut row_count = 0usize;
+        for (cat_name, _) in v.as_object().unwrap() {
+            if let Some(arr) = v[cat_name].as_array() {
+                for row in arr {
+                    if row.is_object() && row.get("name").is_some() {
+                        let name = row["name"].as_str().unwrap_or("?");
+                        assert!(
+                            row["parameter_required_count"].as_u64().is_some(),
+                            "{name}: parameter_required_count missing on default row"
+                        );
+                        row_count += 1;
+                    }
+                }
+            }
+        }
+        assert!(row_count > 50, "expected substantial default-mode coverage");
+    }
+
+    #[test]
+    fn parameter_required_count_present_on_tool_detail() {
+        // T-1995: tool_detail surfaces parameter_required_count alongside
+        // parameter_count. Pick a known multi-param tool — termlink_help
+        // itself has both required and optional params after the cycle-12
+        // additions, so the value is non-trivial.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, Some("termlink_help"), false, false,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let prc = v["parameter_required_count"].as_u64();
+        assert!(
+            prc.is_some(),
+            "tool_detail must surface parameter_required_count: {out}"
+        );
+    }
+
+    #[test]
+    fn parameter_required_count_present_on_essentials_rows() {
+        // T-1995: every essentials row carries parameter_required_count —
+        // critical signal in the canonical starter set: an LLM cold-starting
+        // sees both arity (T-1974) AND required-arity at the first round-trip.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, false, true,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let essentials = v["essentials"].as_array().expect("essentials array");
+        assert!(!essentials.is_empty(), "essentials must be populated");
+        for row in essentials {
+            let name = row["name"].as_str().unwrap_or("?");
+            assert!(
+                row["parameter_required_count"].as_u64().is_some(),
+                "{name}: parameter_required_count missing on essentials row"
+            );
+        }
+    }
+
+    #[test]
+    fn parameter_required_count_zero_for_zero_arity_tool() {
+        // T-1995: a tool with parameter_count==0 MUST emit
+        // parameter_required_count==0. Pick `termlink_overview` if present,
+        // else any tool we can prove has zero arity via tool_params.
+        let cats = help_categories();
+        // Find any zero-arity tool by walking default mode.
+        let out = build_help_json(
+            &cats, None, None, false, None, false, false,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let mut zero_arity_seen = 0usize;
+        for (_, val) in v.as_object().unwrap() {
+            if let Some(arr) = val.as_array() {
+                for row in arr {
+                    if let (Some(pc), Some(prc)) = (
+                        row["parameter_count"].as_u64(),
+                        row["parameter_required_count"].as_u64(),
+                    ) {
+                        if pc == 0 {
+                            let name = row["name"].as_str().unwrap_or("?");
+                            assert_eq!(
+                                prc, 0,
+                                "{name}: zero-arity must have parameter_required_count=0"
+                            );
+                            zero_arity_seen += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            zero_arity_seen > 0,
+            "expected at least one zero-arity tool in registry"
+        );
+    }
+
+    #[test]
+    fn parameter_required_count_zero_when_all_params_optional() {
+        // T-1995: a tool whose every param is `Option<T>` MUST emit
+        // parameter_required_count=0 even though parameter_count > 0.
+        // termlink_help itself qualifies — every HelpParams field is
+        // Option<T> (no required params), so this is a stable fixture.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, Some("termlink_help"), false, false,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let pc = v["parameter_count"].as_u64().expect("parameter_count");
+        let prc = v["parameter_required_count"]
+            .as_u64()
+            .expect("parameter_required_count");
+        assert!(
+            pc > 0,
+            "termlink_help has multiple params; expected pc>0, got {pc}"
+        );
+        assert_eq!(
+            prc, 0,
+            "termlink_help params are all Option<T>; expected prc=0, got {prc}"
+        );
+    }
+
+    #[test]
+    fn parameter_required_count_never_exceeds_parameter_count() {
+        // T-1995: derived invariant — parameter_required_count is a SUBSET
+        // count of parameter_count, so prc <= pc must hold for EVERY tool
+        // in the registry. Walk default mode for full coverage.
+        let cats = help_categories();
+        let out = build_help_json(
+            &cats, None, None, false, None, false, false,
+            None, None, false, false, None, None,
+        );
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let mut checked = 0usize;
+        for (_, val) in v.as_object().unwrap() {
+            if let Some(arr) = val.as_array() {
+                for row in arr {
+                    if let (Some(pc), Some(prc)) = (
+                        row["parameter_count"].as_u64(),
+                        row["parameter_required_count"].as_u64(),
+                    ) {
+                        let name = row["name"].as_str().unwrap_or("?");
+                        assert!(
+                            prc <= pc,
+                            "{name}: required {prc} exceeds total {pc} (invariant violated)"
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert!(checked > 100, "expected wide registry coverage, got {checked}");
     }
 
     #[test]
