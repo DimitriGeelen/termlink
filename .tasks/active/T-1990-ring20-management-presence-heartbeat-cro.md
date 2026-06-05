@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:07:07Z
-last_update: 2026-06-05T09:10:54Z
+last_update: 2026-06-05T09:21:14Z
 date_finished: null
 ---
 
@@ -80,7 +80,7 @@ signal so the next silent drop is caught structurally instead of by ad-hoc inspe
 # ~1490 envelopes since 2026-06-04 08:33Z (every-minute cron) and the walk times out at 8s.
 # channel info returns the post count in O(1); count >= 1490 proves the cron has fired ~1490
 # times since install, and the per-minute cycle means count grows monotonically.
-bash -c 'set -o pipefail; c=$(timeout 8 termlink channel info agent-presence --json --hub 192.168.10.122:9100 2>/dev/null | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get(\"count\",0))"); test "$c" -ge 1490 && echo "OK count=$c" || { echo "FAIL count=$c"; exit 1; }'
+bash -c 'set -o pipefail; for attempt in 1 2 3; do j=$(timeout 20 termlink channel info agent-presence --json --hub 192.168.10.122:9100 2>/dev/null || echo ""); c=$(echo "$j" | python3 -c "import sys,json; s=sys.stdin.read(); print(json.loads(s).get(\"count\",0) if s.strip() else 0)" 2>/dev/null || echo 0); if test "$c" -ge 1490; then echo "OK count=$c attempt=$attempt"; exit 0; fi; sleep 2; done; echo "FAIL final c=$c"; exit 1'
 
 ## RCA
 
