@@ -137,6 +137,22 @@ test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
 ## Updates
 
+### 2026-06-06T15:30Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~37 days old; re-ran the AC verbatim:
+
+```
+$ fw metrics api-usage --cut-ready --json
+  → total legacy_callers_by_ip: 0   (zero "this host's own sessions" callers)
+
+$ fw metrics api-usage --last-Nd 7 --json
+  → only entry: method=event.broadcast peer_ip=192.168.10.122 count=6 last_seen_iso=2026-06-06T12:49:46Z
+```
+
+**AC scope-match:** the AC specifies "Zero event.broadcast lines from THIS host's own sessions" — the 6 event.broadcast hits originate from `peer_ip=192.168.10.122` (ring20-management's framework-pickup-bridge, NOT this host's sessions). Per AC's own carve-out ("other-host sessions like ring20-dashboard handled separately by their own upgrade") this satisfies the gate for THIS host. Cross-host residual is tracked under T-1415 (.122 framework-pickup-bridge redeploy pending T-1814 framework fix landing).
+
+**Box ready to tick** for the THIS-host scope. T-1415 will close the cross-host scope independently.
+
 ### 2026-04-30T07:16:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1417-migrate-eventbroadcast---targets-fanout-.md

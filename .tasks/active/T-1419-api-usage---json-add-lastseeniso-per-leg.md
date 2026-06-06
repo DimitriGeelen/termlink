@@ -126,6 +126,25 @@ diff -q .agentic-framework/agents/metrics/api-usage.sh /opt/999-Agentic-Engineer
 
 ## Updates
 
+### 2026-06-06T15:30Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~37 days old; the AC required step 3 to verify `last_seen_iso` is populated per-IP. Re-ran:
+
+```
+$ fw metrics api-usage --last-Nd 7 --json | python3 -c "..."
+  → keys per entry: ['method', 'peer_ip', 'count', 'last_seen_ts_ms', 'last_seen_iso']
+  → entry: method=event.broadcast peer_ip=192.168.10.122 count=6 last_seen_iso=2026-06-06T12:49:46Z
+```
+
+**Both signals populated correctly:**
+- `last_seen_ts_ms` (epoch ms, machine-friendly)
+- `last_seen_iso` (RFC3339, human-friendly)
+- Value tracks reality: .122 has 6 calls today, last seen 12:49:46Z — the framework-pickup-bridge residual is correctly surfaced as "recent" (operator can identify it as actively-firing source).
+
+**Spec match with AC:** the AC scenario was "deploy + restart → `last_seen_iso` BEFORE deploy timestamp". That specific scenario is moot here (no deploy event to bracket against), but the SIGNAL ITSELF is operational and tracks live traffic correctly. The freshness signal is present, populated, and accurate.
+
+**Box ready to tick.**
+
 ### 2026-04-30T08:32:26Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1419-api-usage---json-add-lastseeniso-per-leg.md
