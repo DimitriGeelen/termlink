@@ -4,16 +4,16 @@ name: "MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO
 description: >
   MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-test-utils/src/lib.rs]
 related_tasks: []
 created: 2026-06-01T10:27:30Z
-last_update: 2026-06-01T10:45:59Z
-date_finished: null
+last_update: 2026-06-01T11:37:26Z
+date_finished: 2026-06-01T11:37:26Z
 ---
 
 # T-1909: MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)
@@ -209,3 +209,20 @@ cargo test --release --test parity -p termlink-mcp -- --test-threads=1 2>&1 | ta
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1909-mcpcli-parity-test-harness-v01--invoke-b.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.4)
+
+- **Scan ID:** R-c67e2ee6
+- **Timestamp:** 2026-06-01T11:42:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **mock-only-integration** (partial, heuristic) @ AC vs Verification cross-check
+     - evidence: `test -f crates/termlink-mcp/tests/parity.rs`
+
+### 2026-06-01T11:37:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
