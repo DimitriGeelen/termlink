@@ -148,6 +148,25 @@ grep -q 'check-mirror-freshness.sh' .context/cron/release-mirror-canary.crontab
 
 ## Updates
 
+### 2026-06-06T13:00Z — Human AC fresh re-smoke for rubber-stamp click [agent autonomous, focus=T-1696]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: smoke evidence in this task is from 2026-05-20 (16 days old). Re-ran both verification steps in the Human AC verbatim:
+
+```
+$ diff /etc/cron.d/termlink-release-mirror-canary .context/cron/release-mirror-canary.crontab && echo IDENTICAL
+IDENTICAL
+
+$ tail -3 .context/working/.release-mirror-canary.log
+  origin (OneDev): 757df8e0d2141513fff6f968d0bdb9e27336c9a8
+  GitHub:          4c89ca1aa0480f30ac3a615cad7ec00552e389fc
+  GitHub is 126 commit(s) behind origin
+```
+
+**Step 1 PASS:** installed cron file is byte-identical to git source. **Step 2 PASS:** canary is firing (detecting the live G-058 mirror lag — that's the canary working, exactly as designed). Box is ready to tick.
+
+The 126-commit drift is the underlying G-058 / T-1695 mirror failure (separate task, operator action). This task's job is detecting it — that's working.
+
+
 ### 2026-05-18T10:44:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md
