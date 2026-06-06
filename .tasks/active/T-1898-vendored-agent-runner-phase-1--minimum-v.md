@@ -171,11 +171,11 @@ grep -q "## Go/No-Go Criteria" .tasks/active/T-1898-*.md
 
 ## Decision
 
-**Decision**: GO
+**Decision**: DEFER
 
 **Rationale**: No spike has been run. The recommendation cannot honestly be GO or NO-GO because the Go/No-Go Criteria require empirical evidence for A1, A2, A4, A7 — and that evidence comes from S1-S8, none of which has executed. The dialogue log records the operator paused before spike-go because S1 alone needs a 24h observation window plus ~5h agent-side investigation, and the operator wants explicit budget authorization before that spend lands. Until either (a) operator authorizes the spike budget or (b) a triggering event (e.g. ring20-management goes silent >24h for a second time within 7d) makes the cost of NOT having a runner immediately quantifiable, DEFER is the truthful state.
 
-**Date**: 2026-06-06T19:57:49Z
+**Date**: 2026-06-06T19:57:49Z (originally recorded GO via Watchtower form; AC gate blocked file-move-to-completed; operator requested flip back to DEFER — matches the rationale text + revisit_at frontmatter already in place from Recommendation draft)
 
 ## Updates
 
