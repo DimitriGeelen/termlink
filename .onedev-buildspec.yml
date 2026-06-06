@@ -1,6 +1,7 @@
 version: 37
 jobs:
   - name: Push to GitHub Mirror
+    jobExecutor: server-docker
     steps:
       - !PushRepository
         name: Push to GitHub
