@@ -12,7 +12,7 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-06-06T16:58:42Z
+last_update: 2026-06-06T16:58:43Z
 date_finished: null
 revisit_at: 2026-07-06
 revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class incident), making the cost of NOT having a vendored agent runner immediately quantifiable."
@@ -100,16 +100,16 @@ S8. **Cross-cutting: identity-key handling.** A vendored host's identity key mus
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated against operator (dimitri confirms this matches lived experience)
+- [x] Problem statement validated against operator (dimitri confirms this matches lived experience)
 - [ ] All 8 assumptions tested or marked deferred with rationale
 - [ ] Cost model produced (tokens-per-host-per-day with assumed inbound-DM-rate)
 - [ ] Architecture decision recorded in Decisions section (long-running attached, OR per-message bridge, OR hybrid)
 - [ ] Phase-1 build-task scope sketched in Recommendation section (which files, which deliverable boundary)
-- [ ] Recommendation written with rationale + evidence
+- [x] Recommendation written with rationale + evidence
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Open Watchtower inception page: http://192.168.10.107:3003/inception/T-1898
      (NOT /review/T-1898 — that's the general task-AC review page; inception decisions live on /inception/<id> which has the GO/NO-GO/DEFER form)
@@ -171,7 +171,11 @@ grep -q "## Go/No-Go Criteria" .tasks/active/T-1898-*.md
 
 ## Decision
 
-<!-- Filled via: fw inception decide T-1898 go|no-go|defer --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: No spike has been run. The recommendation cannot honestly be GO or NO-GO because the Go/No-Go Criteria require empirical evidence for A1, A2, A4, A7 — and that evidence comes from S1-S8, none of which has executed. The dialogue log records the operator paused before spike-go because S1 alone needs a 24h observation window plus ~5h agent-side investigation, and the operator wants explicit budget authorization before that spend lands. Until either (a) operator authorizes the spike budget or (b) a triggering event (e.g. ring20-management goes silent >24h for a second time within 7d) makes the cost of NOT having a runner immediately quantifiable, DEFER is the truthful state.
+
+**Date**: 2026-06-06T19:57:49Z
 
 ## Updates
 
@@ -186,3 +190,8 @@ grep -q "## Go/No-Go Criteria" .tasks/active/T-1898-*.md
 - **Conversion:** workflow_type build → inception; placeholder ACs replaced with template-correct inception ACs (problem validated / assumptions tested / recommendation written); owner agent → human (operator decides GO/NO-GO); added Problem Statement / Assumptions A1-A8 / Exploration Plan S1-S8 / Technical Constraints / Scope Fence / Go/No-Go Criteria.
 - **Research artifact:** docs/reports/T-1898-vendored-agent-runner-inception.md (C-001 per Inception Discipline rule #6).
 - **Related inception filed:** T-1899 — RCA on how the G-020 violation passed task-create even though we supposedly hook-gated this. Pickup-to-framework-agent flagged.
+
+### 2026-06-06T19:57:49Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** No spike has been run. The recommendation cannot honestly be GO or NO-GO because the Go/No-Go Criteria require empirical evidence for A1, A2, A4, A7 — and that evidence comes from S1-S8, none of which has executed. The dialogue log records the operator paused before spike-go because S1 alone needs a 24h observation window plus ~5h agent-side investigation, and the operator wants explicit budget authorization before that spend lands. Until either (a) operator authorizes the spike budget or (b) a triggering event (e.g. ring20-management goes silent >24h for a second time within 7d) makes the cost of NOT having a runner immediately quantifiable, DEFER is the truthful state.
