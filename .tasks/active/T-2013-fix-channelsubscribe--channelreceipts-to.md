@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T23:28:06Z
-last_update: 2026-06-06T06:39:54Z
+last_update: 2026-06-06T06:48:01Z
 date_finished: null
 ---
 
@@ -62,14 +62,15 @@ affected tests must be re-annotated to `flavor = "multi_thread"`.
 - [x] New regression test added that exercises the wedge scenario: 1100 envelopes seeded, 5 sequential `handle_channel_subscribe_with` calls with interleaved writes between each. Each call asserted to complete <2s. Test name: `channel_subscribe_no_worker_starvation_under_concurrent_writes`
 
 ### Human
-- [ ] [RUBBER-STAMP] Operator deploys fixed binary to .122 via `fleet-deploy-binary.sh --probe` then re-runs `for i in 1..5; do time termlink channel info agent-presence --hub 192.168.10.122:9100; done` — all 5 invocations complete under 5s
+- [ ] [RUBBER-STAMP] Operator deploys fixed binary to ring20 hubs (.122 first, then .121 and .141) and confirms 5/5 sequential `channel info` complete under 5s
   **Steps:**
-  1. After agent reports cargo test green and pushes commit
-  2. `bash scripts/fleet-deploy-binary.sh --probe --target 192.168.10.122` (validates pre-swap)
-  3. `bash scripts/fleet-deploy-binary.sh --target 192.168.10.122` (actual swap)
-  4. `for i in 1 2 3 4 5; do time termlink channel info agent-presence --hub 192.168.10.122:9100 >/dev/null; done`
-  **Expected:** 5 successful runs, each under 5s; current behavior is 16s timeout per run
-  **If not:** Capture `/proc/$(pgrep -f 'termlink hub')/wchan` snapshots during the wedge — if still all futex, the fix didn't deploy correctly; if mixed do_epoll_wait, there's a different latent issue
+  1. Agent has staged the artifact at `target/x86_64-unknown-linux-musl/release/termlink` (musl-static, fleet-safe; mtime should be 2026-06-06)
+  2. Probe + stage on .122: `bash scripts/fleet-deploy-binary.sh ring20-management --probe` — validates the binary can `--version` on the remote before swap (exit 5 = abort, glibc/lib mismatch)
+  3. Stage + swap on .122: `bash scripts/fleet-deploy-binary.sh ring20-management --swap-restart` — pushes binary, performs atomic swap, restarts hub via the watchdog
+  4. Verify on .107: `for i in 1 2 3 4 5; do time termlink channel info agent-presence --hub 192.168.10.122:9100 >/dev/null 2>&1; done`
+  5. Repeat steps 2-3 for `ring20-dashboard` (.121) and `laptop-141` (.141)
+  **Expected:** Each `channel info` completes in under 5s (typical: 100-500ms). Pre-fix behaviour is 16s timeout. After deployment to all three hubs, `/peers`, `/pulse`, `/check-arc`, `/check-outbox`, `fw fleet doctor` stop wedging.
+  **If not:** Capture `/proc/$(pgrep -f 'termlink hub')/wchan` per-thread snapshot during the wedge — if still all `futex_do_wait`, the fix didn't deploy (binary swap may have hit "Text file busy" — see fleet-deploy-binary.sh `--swap-restart` docs); if mixed `do_epoll_wait`, there's a different latent issue (file a new task referencing this RCA)
 
 ## Verification
 
