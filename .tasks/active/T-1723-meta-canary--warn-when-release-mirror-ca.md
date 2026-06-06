@@ -140,6 +140,20 @@ open (canary catches mirror drift; meta-canary catches canary failure).
 
 ## Updates
 
+### 2026-06-06T13:05Z — Human AC fresh re-smoke for rubber-stamp click [agent autonomous]
+
+Re-ran the Human AC verification steps verbatim on .107:
+
+```
+$ grep aliveness /etc/cron.d/termlink-release-mirror-canary
+33 8 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
+
+$ ls -la .context/working/.release-mirror-canary.heartbeat
+-rw-rw-r--+ 1 root root 0 Jun  6 11:19 .context/working/.release-mirror-canary.heartbeat
+```
+
+**PASS:** meta-canary cron line installed; heartbeat file is being touched fresh (mtime today 11:19Z = within 2h of this check). Box is ready to tick.
+
 ### 2026-05-20T07:07:06Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1723-meta-canary--warn-when-release-mirror-ca.md
