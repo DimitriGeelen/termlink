@@ -4,16 +4,16 @@ name: "agent-presence topic-bloat — discovery slowdown on .122/.107 from monot
 description: >
   Inception: agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic growth
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:23:56Z
-last_update: 2026-06-05T09:35:08Z
-date_finished: null
+last_update: 2026-06-06T20:25:31Z
+date_finished: 2026-06-06T20:25:31Z
 ---
 
 # T-1991: agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic growth
@@ -28,12 +28,6 @@ sequential use. This regression silently impairs every diagnostic that
 hits `channel info` on a non-trivial topic on a 0.11.473 hub — `/peers`,
 `/pulse`, `agent-listeners.sh --include-offline`, the work-completed
 verification gate. Affects everyone using ring20 infrastructure.
-
-## Recommendation
-
-**GO** — close T-1991 with two follow-up tasks; see
-`docs/reports/T-1991-channel-info-hub-concurrency-regression.md` for the
-full spike data.
 
 ## Assumptions
 
@@ -82,15 +76,15 @@ follow-up tasks created at decide-time.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -135,9 +129,12 @@ will be filed at decide-time: (1) operator-side client cache for
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- Spike data: `docs/reports/T-1991-channel-info-hub-concurrency-regression.md`
+- A1 disproven: subscribe latency O(1) on cursor depth (.122 1493 envelopes vs .107 13441 envelopes — both <100ms on `channel subscribe`)
+- A2 disproven: `agent-listeners.sh` 280ms end-to-end against a healthy hub; one-shot `channel info` 50-100ms
+- A3 disproven: 0.11.472 (.107) 0/20 sequential timeouts; 0.11.473 (.122, .121, .141) all flake at 15s with ~45% probability
+- Regression axis isolated: per-hub-binary-version (0.11.472 clean, 0.11.473 flaky), NOT topic size NOT host class
+- Follow-up tasks to file at decide-time: (1) operator-side client cache for `scripts/agent-listeners.sh` (small build), (2) hub-side bisect+fix of 0.11.473 regression (inception → build)
 
 ## Decisions
 
@@ -152,7 +149,16 @@ will be filed at decide-time: (1) operator-side client cache for
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Filing-time recommendation was DEFER pending spike data. Spike complete; data clean.
+The regression is real, reproducible at 45% sequential timeout rate on .122
+`channel info agent-presence`, fleet-wide on every 0.11.473 hub. Two follow-up tasks
+will be filed at decide-time: (1) operator-side client cache for
+`scripts/agent-listeners.sh` (small build), (2) hub-side bisect+fix of the
+0.11.473 regression (inception → build). Updated recommendation: GO on both.
+
+**Date**: 2026-06-06T20:25:31Z
 
 ## Updates
 
@@ -161,3 +167,22 @@ will be filed at decide-time: (1) operator-side client cache for
 
 ### 2026-06-05T09:24:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-06T20:20:32Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Approved via Watchtower (no rationale captured)
+
+### 2026-06-06T20:25:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Filing-time recommendation was DEFER pending spike data. Spike complete; data clean.
+The regression is real, reproducible at 45% sequential timeout rate on .122
+`channel info agent-presence`, fleet-wide on every 0.11.473 hub. Two follow-up tasks
+will be filed at decide-time: (1) operator-side client cache for
+`scripts/agent-listeners.sh` (small build), (2) hub-side bisect+fix of the
+0.11.473 regression (inception → build). Updated recommendation: GO on both.
+
+### 2026-06-06T20:25:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
