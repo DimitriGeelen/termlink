@@ -12,7 +12,7 @@ tags: [framework, upgrade, bug, infinite-loop]
 components: []
 related_tasks: []
 created: 2026-06-06T06:30:34Z
-last_update: 2026-06-06T09:11:36Z
+last_update: 2026-06-06T09:14:33Z
 date_finished: null
 ---
 
@@ -162,6 +162,22 @@ with a downstream `do_upgrade` exec).
 - **What changed:** Reading `framework.upgrade.fix.shipped` topic surfaced framework-agent's response: T-2099 (commit `be72baa5` upstream) shipped the fix on 2026-05-29 — 8 days before today's incident. The "Origin: /opt/termlink ran fw upgrade twice in one hour, fork-bombed both times" comment at `lib/upgrade.sh:317` cites the May incident that drove the fix. Today's bomb was the third occurrence; my vendored 1.6.160 snapshot pre-dates the fix because the chicken-and-egg failure mode meant `fw upgrade` couldn't pull the fix that would have saved it.
 - **Plan impact:** My T-2014 RCA was an independent re-derivation, not a new design ask. Architecturally my Option #2 (env-scoped FRAMEWORK_ROOT/PROJECT_ROOT handoff) matches the shipped fix verbatim. The companion follow-up T-2100 (panic-stop + dry-run + recursion sentinel + upstream-check + playwright disambig + fork-bomb fields) is prompt-level, not code-level — so the in-code `FW_AUTO_CLONE_DEPTH` backstop I proposed remains unshipped (low priority since the primary fix has live regression coverage).
 - **Triggered:** Bootstrap-replace of `.agentic-framework/` from upstream-fresh clone — manual rm + `fw vendor` because the in-place `fw upgrade` path was the broken one. T-1699 (framework upgrade dispatch) and the broader 1.6.160→latest line now unblocked, modulo the consumer-ahead-of-framework split-brain guard which is a separate concern.
+
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** The bug is fixed in upstream (T-2099, commit `be72baa5`) and now active in this consumer's `.agentic-framework/` after a bootstrap-replace. The Agent ACs are satisfied with live smoke evidence (one banner, one clone, exit 0, zero residual processes, zero leaked tempdirs). The framework-agent prompt artifact at `docs/reports/T-2014-fw-upgrade-infinite-loop-framework-prompt.md` is the only deliverable still awaiting a human REVIEW — and even there, the prompt's primary purpose (drive a fix dispatch) is now moot since the fix had already shipped 8 days before this task was filed. The artifact stays as a forensic reference + a template for future SEV-1 framework-bug dispatches.
+
+**Evidence:**
+- Upstream fix: `lib/upgrade.sh:312` + `bin/fw:498` in vendored copy cite T-2099
+- Smoke result (this commit): `fw upgrade` exits 0, single Bare-from-consumer banner, `pgrep -af 'fw upgrade'` empty afterwards, no `/tmp/fw-upstream-*` survivors
+- Vendored VERSION: 1.6.7 (upstream HEAD), replacing the pre-fix 1.6.160
+- Backup paths: `/tmp/aef-pre-bootstrap-backup.tgz` (17 MB) + git HEAD tree `c9d15abf` both available for rollback
+- Architecture match: framework-agent picked my Option #2 verbatim (env-scoped FRAMEWORK_ROOT + PROJECT_ROOT handoff, caller-supplied-FRAMEWORK_ROOT short-circuit)
+- Regression test: `tests/unit/upgrade_auto_clone.bats` test #7 exercises the reproducer; 7/7 pass upstream
+
+The split-brain "consumer ahead of framework" refusal at the end of `fw upgrade` is the T-1828/T-1912 guard firing correctly — orthogonal to this task. Resolving the split-brain (consumer pinned 1.6.160 vs vendored 1.6.7) is a separate concern for T-1699.
 
 ## Decisions
 
