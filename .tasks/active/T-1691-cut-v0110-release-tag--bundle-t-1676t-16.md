@@ -150,6 +150,25 @@ agent action remaining.
 
 ## Updates
 
+### 2026-06-06T15:25Z — Human AC fresh re-smoke for [RUBBER-STAMP] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is 19 days old; re-ran the deterministic part of the Human AC verbatim:
+
+```
+curl -sL "https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.11.0"
+  → name: v0.11.0
+    published: 2026-05-18T20:32:46Z
+    assets: 6
+      - checksums.txt              (451 bytes)
+      - termlink-darwin-aarch64    (20381744 bytes)
+      - termlink-darwin-x86_64     (24697224 bytes)
+      - termlink-linux-aarch64     (20541456 bytes)
+      - termlink-linux-x86_64      (25342776 bytes)
+      - termlink-linux-x86_64-static (25521728 bytes)
+```
+
+**PASS:** GitHub Release v0.11.0 published with macOS + Linux + static binaries + checksums (all 6 expected assets, all non-zero sizes). Box ready to tick.
+
 ### 2026-05-18T08:15:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md

@@ -140,6 +140,36 @@ dormant ones.
 
 ## Updates
 
+### 2026-06-06T15:27Z — Human AC fresh re-smoke for [RUBBER-STAMP] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is 17 days old. The AC compares OneDev master SHA against the Channel-1 commit `a3566cb3`. Master has naturally moved on since (HEAD = `cb266216`), but the right semantic check is "is `a3566cb3` in master's history?" — which I ran:
+
+```
+$ git clone https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework /tmp/aef-vt
+$ cd /tmp/aef-vt && git log --oneline a3566cb3 -1
+  a3566cb37 T-1722: cron-misload lint — detect dormant USER-field crontab files
+
+$ git branch --contains a3566cb3
+  * master
+```
+
+**a3566cb3 IS on master** ✓. The Channel-1 push landed and has been retained across 13+ subsequent commits.
+
+**Live local-side verification (Verification block reproduced):**
+```
+$ .agentic-framework/bin/fw audit --section structure | grep -cE 'cron\(|Cron registry'
+5      ← passes "≥ 3" gate
+
+$ .agentic-framework/bin/fw audit --section structure | grep -E 'cron'
+[PASS] Cron registry in sync with /etc/cron.d/agentic-audit-termlink
+[PASS] cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot
+[PASS] cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary
+[PASS] cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat
+[PASS] cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary
+```
+
+**Suggestion to operator:** the AC's literal SHA-match check is fragile (assumes no upstream activity since push). Click anyway — the structural intent ("did the patch land?") is satisfied. Or amend the AC steps to use `git log --oneline a3566cb3 -1` against master before final closure.
+
 ### 2026-05-20T07:06:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1722-doctoraudit-lint--cron-misload-detection.md

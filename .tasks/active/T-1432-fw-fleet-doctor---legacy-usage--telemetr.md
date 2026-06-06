@@ -70,6 +70,22 @@ target/release/termlink fleet doctor --legacy-usage --json 2>&1 | head -1 | grep
 
 ## Updates
 
+### 2026-06-06T15:25Z — fresh re-smoke (5 days post-deploy bake) [agent autonomous]
+
+`termlink fleet doctor --legacy-usage --json` snapshot (T-2013 deployed 2026-06-06 to 3 hubs):
+
+```
+fleet_versions: {0.11.472: 2, 0.11.806: 3}      ← post-T-2013-deploy state
+hubs_clean:       [laptop-141, ring20-dashboard, ring20-management]   ← 3 hubs CUT-READY
+hubs_with_traffic: [
+  {hub: local-test,              count: 6, last_ts: today},
+  {hub: workstation-107-public,  count: 6, last_ts: today}
+]                                              ← 2 hub-aliases on .107 (framework-pickup-bridge residual, T-1415 documents)
+action_items: []
+```
+
+**Signal is correct + actionable:** 3 of 5 hubs are clean; the 2 with traffic are both `.107`-aliased and trace to the same known residual (framework-pickup-bridge) tracked under T-1415. The doctor correctly identifies which hubs are cut-ready and which need source remediation. T-1166 cut on .122 + .121 happened based on this same signal — confirmed actionability. Box ready to tick.
+
 ### 2026-06-01T — Human REVIEW: cut-readiness signal is provably actionable [agent autonomous]
 
 Live evidence of the signal driving real decisions. The T-1166 cut already happened on .122 and .121 based on this signal — that's the canonical actionability proof. Re-captured this session:

@@ -144,6 +144,25 @@ bash -c "git ls-remote --tags origin v0.10.0 | grep -q 'refs/tags/v0.10.0$'"
 
 ## Updates
 
+### 2026-06-06T15:25Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is 19 days old; re-ran the deterministic part of the Human AC verbatim via GitHub Releases API:
+
+```
+curl -sL "https://api.github.com/repos/DimitriGeelen/termlink/releases/tags/v0.10.0"
+  → name: v0.10.0
+    published: 2026-05-18T20:36:57Z
+    assets: 6
+      - checksums.txt
+      - termlink-darwin-aarch64
+      - termlink-darwin-x86_64
+      - termlink-linux-aarch64
+      - termlink-linux-x86_64
+      - termlink-linux-x86_64-static
+```
+
+**PASS:** v0.10.0 release published with macOS + Linux binaries + static + checksums (all 6 expected assets). Operator's Step 3 (`brew upgrade termlink && termlink --version` showing 0.10.0) is the only step requiring local action. Steps 1-2 are PASS based on this evidence.
+
 ### 2026-05-17T20:40:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1673-tag-v0100-release--land-rotation-protoco.md
