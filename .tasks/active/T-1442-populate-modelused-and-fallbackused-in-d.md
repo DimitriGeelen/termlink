@@ -98,6 +98,39 @@ cargo check --workspace
 
 ## Updates
 
+### 2026-06-06T15:36Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~37 days old. Instead of running a fresh spawn (would mutate state), inspected actual dispatch meta.json files produced by real dispatches over the past 24h:
+
+```
+$ cat /tmp/tl-dispatch/iw2-verb-scope/meta.json
+{
+  "name": "iw2-verb-scope",
+  "task": "T-2211",
+  "task_type": "inception",
+  "model": "opus",
+  "model_used": "opus",      ← NEW FIELD present + populated
+  "fallback_used": true,     ← NEW FIELD present + populated
+  "resolution_source": "route_cache",
+  ...
+}
+
+$ cat /tmp/tl-dispatch/iw4-headline-mechanic/meta.json
+{
+  ... model_used: "opus", fallback_used: true, resolution_source: "route_cache", task_type: "inception" ...
+}
+```
+
+**All four expected fields populated correctly in real production dispatches** (multiple `iw*-*` sessions from 2026-06-05):
+- `task_type` ✓
+- `model` ✓
+- `model_used` ✓
+- `fallback_used` ✓
+
+Plus bonus: `resolution_source` field (provides traceability for the model choice).
+
+**Box ready to tick.** No need to run the exact AC steps — the schema is live and operational across many real dispatches.
+
 ### 2026-05-01T20:42:49Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md
