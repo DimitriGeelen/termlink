@@ -202,6 +202,23 @@ The split-brain "consumer ahead of framework" refusal at the end of `fw upgrade`
 
 ## Updates
 
+### 2026-06-06T15:09Z — independent re-confirmation during operator-triggered `fw upgrade` [agent autonomous]
+
+Operator typed `fw upgrade` on `/opt/termlink`. Pre-upgrade state: vendored 1.6.7, pinned 1.6.7. The auto-clone path printed exactly ONE banner:
+
+```
+Bare-from-consumer detected — auto-cloning upstream
+  Upstream URL:  https://github.com/DimitriGeelen/agentic-engineering-framework.git
+  Target:        /opt/termlink
+  Cloning... ok
+  Handing off to upstream's bin/fw: upgrade /opt/termlink
+  Self-vendor: synced 12 file(s) to .agentic-framework/lib/
+```
+
+Then proceeded through steps 1-4 in-process — no nested `fw upgrade` spawn, no fork bomb, exit clean. **T-2099 upstream fix CONFIRMED LANDED on second independent invocation.** Agent ACs already ticked; today's run is post-hoc confirmation of the fix's stability across re-runs.
+
+The only remaining gate is the Human REVIEW AC (framework-agent prompt operator-readiness). The prompt at `docs/reports/T-2014-fw-upgrade-infinite-loop-framework-prompt.md` is moot if T-2099 was the upstream landing — the fix is already in. Recommend operator confirm + close, OR if T-2099 was the FIX-for-this-bug, then the prompt is a historical artifact (no paste needed).
+
 ### 2026-06-06T06:30:34Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2014-fw-upgrade-auto-clone-path-is-infinite-r.md
