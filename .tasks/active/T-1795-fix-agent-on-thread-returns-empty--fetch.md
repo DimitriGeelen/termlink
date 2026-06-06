@@ -149,6 +149,29 @@ added and passing.
 
 ## Updates
 
+### 2026-06-06T15:39Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~15 days old. Ran the AC verbatim against T-1438 (vendored-arc heartbeat thread with many posts):
+
+```
+$ termlink agent on-thread T-1438 --window-secs 604800
+# agent on-thread T-1438 | window=604800s | n=50
+[2d ago] @2628 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+    T-1438 vendored-arc heartbeat from dimitrimintdev ...
+[2d ago] @2631 peer=d1993c2c3ec4 ...
+[1d ago] @2634 peer=d1993c2c3ec4 ...
+...
+
+$ termlink agent timeline --thread T-1438 --window-secs 604800
+# agent timeline | window=604800s | n=50 thread=T-1438
+[2d ago] [d1993c2c] @2628 msg_type=chat thread=T-1438 ...
+[2d ago] [d1993c2c] @2631 ...
+[1d ago] [d1993c2c] @2634 ...
+...
+```
+
+**Both surfaces return the same envelopes** (@2628, @2631, @2634 ... matched across both views). on-thread no longer prints "(no posts found)" — the fetch_topic_msgs bug is verifiably fixed. Box ready to tick.
+
 ### 2026-05-22T06:52:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1795-fix-agent-on-thread-returns-empty--fetch.md
