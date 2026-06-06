@@ -4,16 +4,16 @@ name: "env-spike on .122 hub: identify environmental cause of channel.subscribe 
 description: >
   Hub at .122 (ring20-management LXC) wedges 5/5 on sequential channel.subscribe walks of agent-presence (1503 envs); .107 hub processes 13441 envs in <1s, same CLI binary. T-1993 disproved version-axis. This spike isolates the environmental factor: PRAGMAs (busy_timeout, journal_mode), strace during wedge (read/futex/epoll), read-only repro (cron-paused), resource snapshot (memory.current, ulimit, iostat, vmstat). All observational; no hub restart. Exit criteria: identify the specific environmental factor + propose fix scope.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-2013]
 created: 2026-06-05T23:13:14Z
-last_update: 2026-06-05T23:19:34Z
-date_finished: null
+last_update: 2026-06-06T12:25:00Z
+date_finished: 2026-06-06
 ---
 
 # T-2012: env-spike on .122 hub: identify environmental cause of channel.subscribe wedge (T-1993 follow-up)

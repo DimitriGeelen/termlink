@@ -4,16 +4,16 @@ name: "Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991
 description: >
   Hub-side proper fix per T-1991 GO. Bisect commits in the 0.11.472..0.11.473 range to find the regression that makes channel info wedge under sequential load. Likely candidate: crates/termlink-hub/ topic-state lock or rpc dispatcher. Symptom: 9/20 sequential channel info on agent-presence (1503 envelopes) time out at exactly 15s, fleet-wide on every 0.11.473 hub. .107 (0.11.472, 13441 envelopes, LAN) is 0/20 clean. Pure hub-binary regression, not topic-size driven. See docs/reports/T-1991-channel-info-hub-concurrency-regression.md for full data.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
 horizon: now
 tags: []
 components: []
-related_tasks: []
+related_tasks: [T-2013]
 created: 2026-06-05T09:35:50Z
-last_update: 2026-06-05T23:10:40Z
-date_finished: null
+last_update: 2026-06-06T12:25:00Z
+date_finished: 2026-06-06
 ---
 
 # T-1993: Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991 follow-up)
