@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T11:14:02Z
-last_update: 2026-06-06T13:07:35Z
+last_update: 2026-06-06T13:09:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -174,6 +174,22 @@ Refer to T-1447 (PL-124 origin) and T-1069 (PL-022) for prior diagnoses. T-2014 
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-06-06T15:12Z — pickup envelope delivered to framework:pickup [agent autonomous, focus=T-2015]
+
+Operator nudge: "why not send a pickup note?" — taken. Posted structured `pickup-bug-report` envelope to `framework:pickup` topic on local hub.
+
+**Delivery:**
+- Topic: `framework:pickup`
+- msg_type: `pickup-bug-report`
+- pickup_id: `termlink-G-055-T-2015-2026-06-06`
+- Offset: **34**
+- ts: `1780752479898` (2026-06-06T15:12Z)
+- Payload: full RCA + 4 prevention options + ref to `docs/reports/T-2015-fw-upgrade-claudemd-clobber-framework-prompt.md`
+
+**Queue health flag (G-019 escalation candidate):** `channel.info framework:pickup` returns `count: 36, receipts: []` — 36 envelopes accumulated since topic creation, ZERO receipts. The most recent prior pickup (G-082) sat ~31 days unread. Pickups are reaching the durable channel correctly, but no active consumer is acking. The "framework-agent reads framework:pickup" assumption embedded in T-1899 Q2/A7 may need re-confirmation. **NOT my job to fix on this turn** — but flag for operator decision: either spin up a pickup-observer at /opt/999-AEF, or the receipts:[] gap becomes a separate concern (sibling to G-061 framework-blindness-to-bus-bridges).
+
+Sibling T-2016 pickup posted at offset 35 in the same dispatch window.
 
 ### 2026-06-06T15:08Z — fresh occurrence #4 during operator-triggered `fw upgrade` [agent autonomous, focus=T-2015]
 

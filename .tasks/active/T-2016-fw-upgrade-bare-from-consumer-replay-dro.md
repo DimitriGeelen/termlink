@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T11:17:04Z
-last_update: 2026-06-06T11:17:04Z
+last_update: 2026-06-06T11:19:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -214,6 +214,21 @@ This whitelists exactly two flags. Anything else the operator passed is silently
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-06-06T15:12Z — pickup envelope delivered to framework:pickup [agent autonomous]
+
+Operator nudge: "why not send a pickup note?" — taken. Posted structured `pickup-bug-report` envelope to `framework:pickup` topic.
+
+**Delivery:**
+- Topic: `framework:pickup`
+- msg_type: `pickup-bug-report`
+- pickup_id: `termlink-T-2016-2026-06-06`
+- Offset: **35**
+- ts: `1780752504015` (2026-06-06T15:12Z)
+- Payload: RCA + proposed pass-through fix + ref to `docs/reports/T-2016-fw-upgrade-replay-arg-drop-framework-prompt.md`
+- Sibling pickup T-2015 at offset 34 in same dispatch.
+
+**Queue health flag:** see T-2015 update — `framework:pickup` has 36 envelopes and 0 receipts; reader-side has not been acking. Pickup landed correctly on the durable channel; consumption is the open question.
 
 ### 2026-06-06T11:17:04Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
