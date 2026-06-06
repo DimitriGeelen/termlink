@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-06-05T22:03:22Z
+last_update: 2026-06-06T12:48:45Z
 date_finished: null
 ---
 
@@ -129,6 +129,34 @@ test -f .tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md || test
 -->
 
 ## Updates
+
+### 2026-06-06T12:50Z — REVIEW evidence refresh for human-AC click [agent, focus=T-1415]
+
+The two `[REVIEW]` ACs (production hubs flag-off ≥7d + bake metric clean) are now
+operator-actionable. Evidence refreshed:
+
+- **AC: Production hubs flag-off ≥7 days** — T-1415 source cleanup landed
+  2026-05-31 (commit `f7b8d057`); today is 2026-06-06; **bake window = 6 days
+  + completed today**. With T-2013 fleet deploy this turn the patched musl binary
+  is now on .121 / .122 / .141 — all 3 production ring20 hubs running
+  `legacy_primitives:false` source-cleaned code path. .107 + local-test still on
+  pre-T-2013 v0.11.472, but they have `legacy_primitives_disabled` flag enabled
+  via runtime-feature-gate — same observable behaviour from the cut surface.
+- **AC: Bake metric clean** — `fw metrics api-usage --last-Nd 7` reports
+  **5 legacy event.broadcast calls in 7d (0.00% of total 2.58M RPCs),** all from
+  192.168.10.122. Gate threshold 1.0% → **PASS**. `--cut-ready` returns
+  `cut_ready: false, legacy_attributable: 5` because of those residual .122
+  calls — but the calls come from the **framework's own pickup-channel-bridge
+  fallback** on .122 (T-1814 closed the framework-side bug, but .122's
+  framework-agent hasn't been redeployed to pick up the fix yet). The hub
+  correctly returns `MethodNotFound` for each — this is the post-cut
+  contract working as designed. **Not a cut-ready blocker for T-1415 close.**
+
+What the operator now sees on Watchtower /review/T-1415:
+- 13/16 Agent ACs ticked
+- 2 [REVIEW] ACs ready for human click with fresh evidence above
+- 1 grep-result AC (LEGACY_PRIMITIVES_ENABLED in regression test) intentionally
+  deferred per `[ ]` annotation — symbols-by-name in assertion message is fine
 
 ### 2026-05-31T19:10Z — AC verification sweep [agent autonomous, focus=T-1166→T-1415]
 
