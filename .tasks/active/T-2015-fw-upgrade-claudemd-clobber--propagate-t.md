@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T11:14:02Z
-last_update: 2026-06-06T11:14:02Z
+last_update: 2026-06-06T13:07:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -174,6 +174,28 @@ Refer to T-1447 (PL-124 origin) and T-1069 (PL-022) for prior diagnoses. T-2014 
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-06-06T15:08Z — fresh occurrence #4 during operator-triggered `fw upgrade` [agent autonomous, focus=T-2015]
+
+Operator typed `fw upgrade` on `/opt/termlink` (root@.107). Pre-upgrade state captured (md5 = `916e6d22ad94775b0f306e90c9f6fd90`, 72414 bytes, 1186 lines). Step 1/10 fired the clobber.
+
+**Damage list (16 line-deletions, 1 modification, net -4036 bytes, same line count):**
+
+| Lost | What it was |
+|---|---|
+| `.agentic-framework/bin/fw` vendored-path rule (modified down to template's generic "Use `bin/fw` not `fw`") | Per-project memory pin from feedback_fw_path_consumer |
+| DEFER `revisit_at` protocol (T-1451 / G-053) | Entire inception-defer revisit-mechanism rule |
+| 11 slash-command table rows | `/agent-handoff`, `/reply`, `/check-arc`, `/check-outbox`, `/recent-dm`, `/be-reachable`, `/peers`, `/recent-chat`, `/broadcast-chat`, `/pulse`, `/conversations` |
+| `/be-reachable` session-start opt-in step | Step 7 of Session Start Protocol |
+| `/be-reachable` session-end stop step | Step 8 of Session End Protocol |
+
+**Restored via** `cp /tmp/claudemd-pre-upgrade.bak CLAUDE.md` (post-restore md5 verified = pre-upgrade md5). The framework's `CLAUDE.md.bak` would also have worked — the framework backup behavior is correct, but the warning is non-blocking.
+
+**T-2014 status by comparison:** auto-clone fork-bomb fix CONFIRMED LANDED — `fw upgrade` cleanly executed `Bare-from-consumer detected — auto-cloning upstream` → handoff → no infinite loop. Closing the T-2014 lineage is possible (T-2099 upstream fix verified live).
+
+**T-2015 still active:** the template-merge clobber is still in upstream `lib/upgrade.sh` step 1. Framework-agent prompt at `docs/reports/T-2015-fw-upgrade-claudemd-clobber-framework-prompt.md` is ready for operator paste.
+
+**Step 4c shim refusal:** `REFUSED  /root/.local/bin/fw resolves into a framework repo (/root/.agentic-framework/bin/..)` — this is a SAFETY guard, not a bug. Global shim correctly points to `/root/.agentic-framework/bin/fw` (the framework repo's own bin/fw). Refusal prevented self-overwrite. No action needed.
 
 ### 2026-06-06T11:14:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
