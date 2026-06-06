@@ -72,3 +72,6 @@ agents/healing
 agents/session-capture
 agents/resume
 agents/fabric
+
+# Session-local working state (large vector index, etc.) — never commit
+.context/working/
