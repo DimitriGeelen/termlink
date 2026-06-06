@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-063
+  type: gap
+  title: "framework:pickup topic accumulates pickups with zero receipts — write-only sink masks consumer-side absence"
+  description: "The hub-side `framework:pickup` topic is described as a 'mirror' of the AEF-side pickup queue (T-1165 federate-don't-converge). Today's inspection (`channel.info framework:pickup --json`) returned `count: 36, receipts: []`. Zero receipts across 36 envelopes — i.e., NO subscriber has formally acked any pickup on this channel. The most recent envelope before today (G-082, 2026-05-05) sat unacked for 31 days. This session's two new pickups (T-2015 offset 34, T-2016 offset 35) join the same write-only sink. Net result: from a publisher's perspective, posting to `framework:pickup` succeeds; from a consumer-coordination perspective, there is no observable signal that anyone is reading. If pickups are also failing to land in the authoritative `/opt/999-AEF/pickup/` directory (separate channel), the publisher cannot tell — the mirror-topic ack is the only feedback mechanism here, and it's missing. T-1899 Q2/A7 flagged this as a candidate concern (framework-agent may have the same vendored-host-without-attached-claude gap). This concern formalizes it."
+  spec_reference: "T-1165 (federate-don't-converge pattern); T-2015 + T-2016 (today's pickups); T-1899 Q2/A7 (prior concern flag); CLAUDE.md §Post-Fix Root Cause Escalation (G-019 — receipt-state itself is the gap signal)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-06-06 T-2015 + T-2016 framework-pickup envelopes posted (offsets 34, 35); channel.info confirmed receipts:[] across all 36 envelopes; prior G-082 pickup unacked 31 days"
+  detection_lag_days: 31
+  what_works_now: "Publish-side works: `termlink channel post framework:pickup ...` succeeds, envelopes are durably stored, retention=forever ensures replay tolerance per the topic's design. The mirror channel exists and is reachable from any peer project."
+  what_remains: "(1) Determine whether the AEF-side `pickup/` directory has corresponding entries for the 36 envelopes (would confirm whether mirror lag is just an ack-omission vs full coordination failure). (2) If the mirror is healthy but receipts are simply not being posted, fix consumer-side to ack on receive (one-line change at the pickup-processor: emit `termlink channel ack framework:pickup --up-to <offset>` after each processed envelope). (3) If the mirror is unhealthy (envelopes posted here don't reach AEF's pickup/), the bridge direction is wrong and a separate task fixes it. Investigation needed. (4) Add `channel.info framework:pickup` to fleet doctor's health surfaces — receipts:[] should be a visible signal, not buried in JSON. (5) Operator-spawned framework-agent sessions could run `/check-arc` on framework:pickup as a session-start step."
+  mitigation_candidate: "Defer to investigation outcome. If consumer-ack omission: simple Tier-A fix at consumer side. If bridge direction-wrong: Tier-B framework-side fix, file as separate task."
+  status: watching
+  created: 2026-06-06
+  related_tasks: [T-2015, T-2016, T-1899, T-1165]
+
 - id: G-062
   type: gap
   title: "Watchtower inception-decide path leaves staged work-tree evidence stranded — agent must invent wrap-up task to land it"
