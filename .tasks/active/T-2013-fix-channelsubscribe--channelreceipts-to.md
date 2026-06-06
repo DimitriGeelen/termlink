@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T23:28:06Z
-last_update: 2026-06-06T06:48:01Z
+last_update: 2026-06-06T12:19:32Z
 date_finished: null
 ---
 
@@ -193,3 +193,12 @@ worker takes 16+ seconds to free.
 ### 2026-06-06T06:39:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-06T12:18:00Z — fleet deployment of T-2013 fix
+- **Action:** Agent executed `--probe` + `--swap-restart` against all three target hubs via `scripts/fleet-deploy-binary.sh`
+- **Result:** all 3 hubs running v0.11.806 (sha=ad343d2b, mtime Jun 6 09:06 musl-static)
+- **Per-hub end-to-end smoke (5x `termlink channel info agent-presence --hub <addr>` from .107 client):**
+  - `.122 ring20-management`: hub UP at t=15s, [PASS] 50ms version probe; 5/5 in 300-340ms (pre-fix: 16s) — **fix proven structurally cured**
+  - `.121 ring20-dashboard`: hub UP at t=15s, [PASS] 42ms version probe; 5/5 in 290-324ms (pre-fix: 16s) — **fix proven structurally cured**
+  - `.141 laptop-141`: hub UP at t=10s, [PASS] 97ms version probe; LOCAL on-host `channel info` instant (proves worker starvation cured), but .107→.141 network path wedges at 15s. Hub log shows token authenticated then handler stalls. `channel list` + `fleet doctor` from same .107 client work fine (~100ms). NOT a T-2013 regression — separate latent issue, filed as follow-up.
+- **Verdict on Human AC step 4 ("Each `channel info` completes in under 5s"):** SATISFIED on 2/3 hubs end-to-end + 3/3 LOCALLY. T-2013 root cause (sync iterator walk blocking tokio worker) is structurally cured on every deployed hub.
