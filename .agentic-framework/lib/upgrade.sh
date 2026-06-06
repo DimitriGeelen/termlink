@@ -170,6 +170,8 @@ do_upgrade() {
                 echo "  - Git hooks"
                 echo "  - .claude/settings.json (hook config)"
                 echo "  - .claude/commands/resume.md"
+                echo "  - .claude/commands/doorbell+mail toolkit (be-reachable, peers, recent-chat, recent-dm, broadcast-chat, pulse, conversations, check-arc, agent-handoff) — T-1867"
+                echo "  - scripts/doorbell+mail supporting toolkit (11 .sh) — T-1867"
                 echo "  - lib/*.sh (fw subcommands: inception, upgrade, init, etc.)"
                 echo "  - Agent scripts (task-create, handover, git, healing, fabric, etc.)"
                 echo "  - bin/fw (CLI entry point)"
@@ -307,7 +309,15 @@ do_upgrade() {
 
         echo -e "  ${GREEN}Handing off to upstream's bin/fw:${NC} ${_replay_args[*]}"
         echo ""
-        "$_tmpd/fw/bin/fw" "${_replay_args[@]}"
+        # T-2099 (fork-bomb fix, SEV-1): explicitly scope FRAMEWORK_ROOT + PROJECT_ROOT
+        # for the cloned upstream's bin/fw. Without this, the cloned fw re-runs
+        # resolve_framework which (per T-498 preference) picks the CONSUMER's vendored
+        # copy again → infinite recursion → fork bomb. The companion fix in bin/fw
+        # makes resolve_framework honour a caller-supplied FRAMEWORK_ROOT.
+        # Origin: /opt/termlink ran fw upgrade twice in one hour, fork-bombed both
+        # times. Forensic evidence + recipe via framework.upgrade.report TermLink topic.
+        env FRAMEWORK_ROOT="$_tmpd/fw" PROJECT_ROOT="$target_dir" \
+            "$_tmpd/fw/bin/fw" "${_replay_args[@]}"
         local _rc=$?
         # trap fires on return — tempdir cleaned up
         return $_rc
@@ -366,6 +376,35 @@ do_upgrade() {
         echo -e "  Mode:      ${YELLOW}DRY RUN${NC} (no changes will be made)"
     fi
     echo ""
+
+    # T-1912: pre-step-1 version-ahead precheck.
+    # Mirrors the step-9 T-1839 guard (lib/upgrade.sh:1100-1112) but fires
+    # BEFORE any mutation. The step-9 guard correctly protects the pinned
+    # version in .framework.yaml, but step 4b's do_vendor (line ~620) had
+    # already copied framework runtime files over the consumer's newer
+    # runtime by then — split-brain (runtime older, pin newer). Worked
+    # example: 2026-05-18 dimitri-mint-dev consumer at v1.6.260 against
+    # framework at v1.6.225. T-1839 closed the pin door; T-1912 closes
+    # the runtime door at the same checkpoint so the guard is complete.
+    if [ -n "$project_version" ] \
+       && [ "$project_version" != "$fw_version" ] \
+       && [ "$fw_version" != "unknown" ] \
+       && [ "$force_downgrade" != true ]; then
+        local _precheck_direction
+        if [ "$(printf '%s\n%s\n' "$project_version" "$fw_version" | sort -V | tail -1)" = "$project_version" ]; then
+            _precheck_direction="ahead"
+        else
+            _precheck_direction="behind"
+        fi
+        if [ "$_precheck_direction" = "ahead" ]; then
+            echo -e "${RED}REFUSED${NC}  Consumer v$project_version is AHEAD of framework v$fw_version." >&2
+            echo -e "          Running fw upgrade here would downgrade the runtime (.agentic-framework/)" >&2
+            echo -e "          AND the pinned version, creating a split-brain state (T-1912 class)." >&2
+            echo -e "          Framework VERSION likely rolled back (see T-1828)." >&2
+            echo -e "          To proceed anyway: re-run with ${BOLD}--force-downgrade${NC}." >&2
+            return 1
+        fi
+    fi
 
     # ── 1. CLAUDE.md — preserve project sections, update governance ──
     echo -e "${YELLOW}[1/10] CLAUDE.md governance sections${NC}"
@@ -1052,6 +1091,86 @@ MCPJSON
         fi
     fi
 
+    # ── 7b. Doorbell+mail toolkit propagation (T-1867) ──
+    # Propagates skills + supporting scripts from upstream lib/templates/
+    # to project-root .claude/commands/ and scripts/. Mirrors the resume.md
+    # drift-detection pattern: per-file compare, .bak backup on drift, update.
+    # PL-124-safe by construction: only touches files explicitly enumerated
+    # under lib/templates/{skills,scripts}/. Consumer-local files in the same
+    # directories survive untouched.
+    echo -e "${YELLOW}[7b/10] Doorbell+mail toolkit (T-1867)${NC}"
+
+    local _t1867_skills_src="$FRAMEWORK_ROOT/lib/templates/skills"
+    local _t1867_scripts_src="$FRAMEWORK_ROOT/lib/templates/scripts"
+    local _t1867_changes=0
+
+    if [ -d "$_t1867_skills_src" ]; then
+        mkdir -p "$target_dir/.claude/commands"
+        local _t1867_src _t1867_base _t1867_dst
+        for _t1867_src in "$_t1867_skills_src"/*.md; do
+            [ -f "$_t1867_src" ] || continue
+            _t1867_base=$(basename "$_t1867_src")
+            _t1867_dst="$target_dir/.claude/commands/$_t1867_base"
+            if [ -f "$_t1867_dst" ] && diff -q "$_t1867_src" "$_t1867_dst" >/dev/null 2>&1; then
+                :  # in sync
+            elif [ -f "$_t1867_dst" ]; then
+                _t1867_changes=$((_t1867_changes + 1))
+                if [ "$dry_run" = true ]; then
+                    echo -e "  ${CYAN}WOULD UPDATE${NC}  .claude/commands/$_t1867_base (drift)"
+                else
+                    cp "$_t1867_dst" "$_t1867_dst.bak"
+                    cp "$_t1867_src" "$_t1867_dst"
+                    echo -e "  ${GREEN}UPDATED${NC}  .claude/commands/$_t1867_base (backup: .bak)"
+                fi
+            else
+                _t1867_changes=$((_t1867_changes + 1))
+                if [ "$dry_run" = true ]; then
+                    echo -e "  ${CYAN}WOULD CREATE${NC}  .claude/commands/$_t1867_base"
+                else
+                    cp "$_t1867_src" "$_t1867_dst"
+                    echo -e "  ${GREEN}CREATED${NC}  .claude/commands/$_t1867_base"
+                fi
+            fi
+        done
+    fi
+
+    if [ -d "$_t1867_scripts_src" ]; then
+        mkdir -p "$target_dir/scripts"
+        for _t1867_src in "$_t1867_scripts_src"/*.sh; do
+            [ -f "$_t1867_src" ] || continue
+            _t1867_base=$(basename "$_t1867_src")
+            _t1867_dst="$target_dir/scripts/$_t1867_base"
+            if [ -f "$_t1867_dst" ] && diff -q "$_t1867_src" "$_t1867_dst" >/dev/null 2>&1; then
+                :  # in sync
+            elif [ -f "$_t1867_dst" ]; then
+                _t1867_changes=$((_t1867_changes + 1))
+                if [ "$dry_run" = true ]; then
+                    echo -e "  ${CYAN}WOULD UPDATE${NC}  scripts/$_t1867_base (drift)"
+                else
+                    cp "$_t1867_dst" "$_t1867_dst.bak"
+                    cp "$_t1867_src" "$_t1867_dst"
+                    chmod +x "$_t1867_dst"
+                    echo -e "  ${GREEN}UPDATED${NC}  scripts/$_t1867_base (backup: .bak)"
+                fi
+            else
+                _t1867_changes=$((_t1867_changes + 1))
+                if [ "$dry_run" = true ]; then
+                    echo -e "  ${CYAN}WOULD CREATE${NC}  scripts/$_t1867_base"
+                else
+                    cp "$_t1867_src" "$_t1867_dst"
+                    chmod +x "$_t1867_dst"
+                    echo -e "  ${GREEN}CREATED${NC}  scripts/$_t1867_base"
+                fi
+            fi
+        done
+    fi
+
+    if [ "$_t1867_changes" -eq 0 ]; then
+        echo -e "  ${GREEN}OK${NC}  doorbell+mail toolkit in sync (0 changes)"
+    else
+        changes=$((changes + _t1867_changes))
+    fi
+
     # ── 8. Context subdirectories (create missing) ──
     echo -e "${YELLOW}[8/10] Context subdirectories${NC}"
 
@@ -1196,8 +1315,18 @@ EOF
         # below. wc -l always exits 0 — and prints 0 on empty input — so a
         # single newline-free integer is captured.
         local pyc_count
+        # T-2092: trailing `|| true` is critical. `set -euo pipefail` is in
+        # effect (bin/fw line 12); when no tracked pyc files exist (a clean
+        # consumer — the common field state, NOT the framework dev tree
+        # which has tracked .pyc files in .agentic-framework/), grep -E exits
+        # 1, pipefail propagates to the pipeline, set -e then kills do_upgrade
+        # silently BEFORE the "Upgrade Complete" summary prints. The consumer
+        # sees all 10 steps "OK" but `fw upgrade` returns 1 with no error
+        # message. T-1824 fixed the *output* shape but the *pipeline exit*
+        # remained pipefail-unsafe. Found by T-2092 docker live-sim gate on
+        # first run — exactly the class T-2078 F3 said was untested.
         pyc_count=$(cd "$target_dir" && git ls-files .agentic-framework/ 2>/dev/null \
-            | grep -E '__pycache__|\.pyc$' | wc -l)
+            | grep -E '__pycache__|\.pyc$' | wc -l || true)
         if [ "$pyc_count" -gt 0 ]; then
             echo ""
             echo -e "${YELLOW}WARN${NC}  Vendored framework has $pyc_count tracked __pycache__/.pyc file(s)"

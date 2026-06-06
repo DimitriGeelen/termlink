@@ -139,6 +139,10 @@ def create_app() -> Flask:
     from markupsafe import Markup
     app.jinja_env.filters["linkify_tasks"] = lambda text: Markup(linkify_tasks(text))
 
+    # Jinja2 global: arc dual-form display "arc-NNN · slug" (T-1969)
+    from web.blueprints.arcs import arc_display
+    app.jinja_env.globals["arc_display"] = arc_display
+
     # -------------------------------------------------------------------
     # Register blueprints (centralized in __init__.py — T-431/A2)
     # -------------------------------------------------------------------
@@ -354,20 +358,14 @@ def create_app() -> Flask:
 
     @app.errorhandler(403)
     def forbidden(e):
-        # T-1900: CSRF-class 403 (description starts with "CSRF token") renders
-        # an actionable recovery panel — plain-English explanation, refresh
-        # keystroke, cookie-clear hint, CLI fallback. Non-CSRF 403s keep the
-        # existing terse path so security messaging isn't diluted.
-        description = str(e.description) if hasattr(e, "description") else str(e)
-        csrf_error = description.startswith("CSRF token")
         return render_template(
             "_wrapper.html",
             _content_template="_error.html",
             page_title="Forbidden",
             error_title="403 Forbidden",
-            error_message=description,
-            csrf_error=csrf_error,
-            back_url=request.referrer,
+            error_message=(
+                str(e.description) if hasattr(e, "description") else str(e)
+            ),
             **_error_context(),
         ), 403
 

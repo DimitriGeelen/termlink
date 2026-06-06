@@ -6,9 +6,9 @@
 
 ## What It Does
 
-Approvals older than this are considered expired (seconds)
+T-1808: paused-dispatch surface — needs lib/ on the path so the helper imports cleanly.
 
-## Dependencies (7)
+## Dependencies (9)
 
 | Target | Relationship |
 |--------|-------------|
@@ -19,6 +19,8 @@ Approvals older than this are considered expired (seconds)
 | `web/blueprints/inception.py` | registers |
 | `web/blueprints/tasks.py` | registers |
 | `bin/fw` | calls |
+| `web/blueprints/arcs.py` | calls |
+| `web/blueprints/arcs.py` | registers |
 
 ## Used By (8)
 

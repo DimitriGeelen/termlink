@@ -117,6 +117,33 @@ if [ -f "$FRAMEWORK_ROOT/lib/paths.sh" ]; then
 fi
 INCEPTION_COMMIT_LIMIT=$(fw_config "INCEPTION_COMMIT_LIMIT" 2 2>/dev/null || echo 2)
 
+# --- Inception commit classifier (T-2195) ---
+# An inception commit is "exploration" (counts toward budget) if its diff touches
+# anything OUTSIDE the inception's own task file in .tasks/{active,completed}/.
+# A "storage" commit (filing-only, status flip, demote, frontmatter edit) is
+# exempt — these are bookkeeping, not exploration. Origin: T-2186 hit the
+# budget at its 3rd commit (Step 0 findings) because filing + demote consumed
+# 2/2 with zero exploration. Same scoring-shaped rigidity the inception was
+# trying to recalibrate.
+#
+# Returns the count on stdout. Assumes TASK_REF is set.
+_count_inception_exploration_commits() {
+    local task_ref="$1"
+    local total=0
+    local sha files
+    # Subject-anchored match (T-1328) avoids counting body-mentions.
+    while IFS= read -r sha; do
+        [ -z "$sha" ] && continue
+        files=$(git show --name-only --format= "$sha" 2>/dev/null || echo "")
+        # If ANY file is outside .tasks/{active,completed}/T-XXX-*, this is exploration.
+        # grep -v matches storage-pattern lines; if anything remains, we count.
+        if echo "$files" | grep -vE "^\.tasks/(active|completed)/${task_ref}-" | grep -q '[^[:space:]]'; then
+            total=$((total + 1))
+        fi
+    done < <(git log --oneline 2>/dev/null | grep -E "^[0-9a-f]+ ${task_ref}:" | awk '{print $1}')
+    echo "$total"
+}
+
 # --- Inception Gate (T-126, T-1176) ---
 # Block commits on inception tasks after exploration threshold unless decision recorded
 # Threshold configurable via FW_INCEPTION_COMMIT_LIMIT (default: 2)
@@ -130,12 +157,14 @@ if [ -n "$TASK_REF" ]; then
         fi
 
         if [ "$HAS_DECISION" = false ]; then
-            # Count existing commits for this inception task.
-            # Match only commits whose SUBJECT starts with "T-XXX:" (T-1328) —
-            # using --grep against the full message would match body mentions of
-            # the same ID in unrelated commits. --oneline gives "<sha> <subject>"
-            # so anchor on the subject after the sha.
-            INCEPTION_COMMITS=$(git log --oneline 2>/dev/null | grep -cE "^[0-9a-f]+ ${TASK_REF}:" || true)
+            # Count existing exploration commits for this inception task (T-2195).
+            # Storage commits (task-file-only edits: filing, demote, status flips,
+            # frontmatter changes) are exempt. The classifier looks at each commit's
+            # diff and counts only those touching files outside the task's own .md.
+            # Origin: T-2186 hit the limit at commit 3 (Step 0 findings) because
+            # filing + demote consumed 2/2 with zero exploration — a scoring-shaped
+            # rigidity in the very system the inception was recalibrating.
+            INCEPTION_COMMITS=$(_count_inception_exploration_commits "$TASK_REF")
 
             if [ "$INCEPTION_COMMITS" -ge "$INCEPTION_COMMIT_LIMIT" ]; then
                 echo ""
@@ -170,8 +199,8 @@ fi
 # First commit is allowed (task creation). Subsequent commits must have the artifact
 # either on disk already or in the staged changes.
 if [ -n "$TASK_REF" ] && [ -n "$TASK_FILE" ] && grep -q "^workflow_type: inception" "$TASK_FILE" 2>/dev/null; then
-    # T-1328: anchor on subject prefix so body-mentions don't inflate the count
-    INCEPTION_COMMITS=$(git log --oneline 2>/dev/null | grep -cE "^[0-9a-f]+ ${TASK_REF}:" || true)
+    # T-2195: exploration-only counter; storage commits exempt.
+    INCEPTION_COMMITS=$(_count_inception_exploration_commits "$TASK_REF")
     if [ "$INCEPTION_COMMITS" -gt 0 ]; then
         # Check if docs/reports/ changes are in this commit
         HAS_STAGED_RESEARCH=$(git diff --cached --name-only | grep -c "^docs/reports/" || true)
@@ -281,6 +310,56 @@ if [ "$_rc" -ne 0 ]; then
     echo "" >&2
     echo "Origin: T-1844 — root-cause prevention for the T-1828/T-1834 leak class." >&2
     exit 1
+fi
+
+# T-1863: Duplicate-task-ID gate — G-052 prevention at the commit boundary.
+# Catches active/T-NNNN + completed/T-NNNN orphans before they land in git
+# (was previously only caught at audit time, often days after the leak).
+DUP_TASK_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/dup-task-scan.sh"
+if [ -x "$DUP_TASK_SCANNER" ]; then
+    _dt_hits=$(PROJECT_ROOT="$PROJECT_ROOT" "$DUP_TASK_SCANNER" scan-staged 2>&1)
+    _dt_rc=$?
+    if [ "$_dt_rc" -ne 0 ]; then
+        echo "" >&2
+        echo "ERROR: Commit blocked — duplicate task IDs in staged tree:" >&2
+        echo "" >&2
+        echo "$_dt_hits" >&2
+        echo "" >&2
+        echo "Resolve: keep the canonical version (usually .tasks/completed/),"  >&2
+        echo "         git rm the orphan, and re-commit. Cross-check status:"   >&2
+        echo "           grep '^status:' .tasks/{active,completed}/T-NNNN-*.md" >&2
+        echo "" >&2
+        echo "Bypass: git commit --no-verify   (Tier 0, logged)"                >&2
+        echo "" >&2
+        echo "Origin: T-1863 — T-1859 active+completed orphan caught 3 days late." >&2
+        exit 1
+    fi
+fi
+
+# T-1845: Large-file gate — sibling prevention to secret-scan. Blocks staged
+# files >10MiB by default; allowlist exempts deliberate vendored cases.
+LARGE_FILE_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/large-file-scan.sh"
+if [ -x "$LARGE_FILE_SCANNER" ]; then
+    _lf_hits=$(PROJECT_ROOT="$PROJECT_ROOT" "$LARGE_FILE_SCANNER" scan-staged 2>&1)
+    _lf_rc=$?
+    if [ "$_lf_rc" -ne 0 ]; then
+        echo ""
+        echo "ERROR: Commit blocked — large-file gate flagged staged content:" >&2
+        echo "" >&2
+        echo "$_lf_hits" >&2
+        echo "" >&2
+        echo "If this file should not be in git: unstage it (git restore --staged <path>)" >&2
+        echo "                                   and add it to .gitignore." >&2
+        echo "If it's a deliberate vendored artefact: add the path-prefix regex to" >&2
+        echo "                                       .large-file-allowlist." >&2
+        echo "If you need a one-off larger threshold:" >&2
+        echo "  FW_LARGE_FILE_BLOCK_BYTES=104857600 git commit ..." >&2
+        echo "" >&2
+        echo "Bypass: git commit --no-verify   (Tier 0, logged)" >&2
+        echo "" >&2
+        echo "Origin: T-1845 — sibling prevention to T-1844 (T-1834 force-push surfaced 36MB+78MB tracked binaries)." >&2
+        exit 1
+    fi
 fi
 
 exit 0

@@ -12,7 +12,7 @@ tags: [framework, upgrade, bug, infinite-loop]
 components: []
 related_tasks: []
 created: 2026-06-06T06:30:34Z
-last_update: 2026-06-06T06:35:12Z
+last_update: 2026-06-06T09:11:36Z
 date_finished: null
 ---
 
@@ -41,8 +41,8 @@ this consumer's vendored copy.
 ### Agent
 - [x] RCA captured in `## RCA` block below with symptom + root cause + structural-allow + prevention
 - [x] Framework-agent prompt artifact written to `docs/reports/T-2014-fw-upgrade-infinite-loop-framework-prompt.md` for operator copy-paste
-- [ ] After upstream fix lands in `.agentic-framework/lib/upgrade.sh` or `.agentic-framework/bin/fw`, re-run `fw upgrade` and confirm `ps -ef | grep -c 'fw upgrade'` stays ≤ 2 throughout (no nested spawns)
-- [ ] No `/tmp/claude-0/fw-upstream-*` directories survive after the fixed `fw upgrade` completes (clean tempdir trap)
+- [x] After upstream fix lands in `.agentic-framework/lib/upgrade.sh` or `.agentic-framework/bin/fw`, re-run `fw upgrade` and confirm `ps -ef | grep -c 'fw upgrade'` stays ≤ 2 throughout (no nested spawns) — 2026-06-06 smoke: bootstrap-replaced vendored 1.6.160 with upstream 1.6.7 (T-2099 fix); `fw upgrade` ran with ONE "Bare-from-consumer" banner, ONE clone, exit 0, `pgrep -af 'fw upgrade'` returned empty immediately after. The terminal refusal ("consumer ahead of framework") is the T-1828/T-1912 split-brain guard firing correctly — orthogonal to the fork-bomb fix.
+- [x] No `/tmp/claude-0/fw-upstream-*` directories survive after the fixed `fw upgrade` completes (clean tempdir trap) — 2026-06-06: `find /tmp -name 'fw-upstream-*' -type d` returned empty after the smoke; trap-based cleanup at `upgrade.sh:282` works because the process now actually returns.
 
 ### Human
 - [ ] [REVIEW] Framework-agent prompt is operator-ready: complete enough that pasting it into the framework agent's session in `/opt/999-AEF` is the only step needed
@@ -157,6 +157,11 @@ with a downstream `do_upgrade` exec).
 - **What changed:** First trigger of the loop on the .107 root operator session. Bug pre-existed but had never been exercised (no prior `fw upgrade` from a consumer with `upstream_repo:` set in this lineage).
 - **Plan impact:** Original plan was "land framework upgrade 1.6.160 dispatch (T-1699)" — that plan is now blocked on T-2014. T-1699 cannot proceed via `fw upgrade` until the loop is fixed.
 - **Triggered:** T-2014 (this tracker), framework-agent prompt artifact, manual cleanup of 16 GB tempdir debris.
+
+### 2026-06-06 — discovered T-2099 had already shipped the fix
+- **What changed:** Reading `framework.upgrade.fix.shipped` topic surfaced framework-agent's response: T-2099 (commit `be72baa5` upstream) shipped the fix on 2026-05-29 — 8 days before today's incident. The "Origin: /opt/termlink ran fw upgrade twice in one hour, fork-bombed both times" comment at `lib/upgrade.sh:317` cites the May incident that drove the fix. Today's bomb was the third occurrence; my vendored 1.6.160 snapshot pre-dates the fix because the chicken-and-egg failure mode meant `fw upgrade` couldn't pull the fix that would have saved it.
+- **Plan impact:** My T-2014 RCA was an independent re-derivation, not a new design ask. Architecturally my Option #2 (env-scoped FRAMEWORK_ROOT/PROJECT_ROOT handoff) matches the shipped fix verbatim. The companion follow-up T-2100 (panic-stop + dry-run + recursion sentinel + upstream-check + playwright disambig + fork-bomb fields) is prompt-level, not code-level — so the in-code `FW_AUTO_CLONE_DEPTH` backstop I proposed remains unshipped (low priority since the primary fix has live regression coverage).
+- **Triggered:** Bootstrap-replace of `.agentic-framework/` from upstream-fresh clone — manual rm + `fw vendor` because the in-place `fw upgrade` path was the broken one. T-1699 (framework upgrade dispatch) and the broader 1.6.160→latest line now unblocked, modulo the consumer-ahead-of-framework split-brain guard which is a separate concern.
 
 ## Decisions
 

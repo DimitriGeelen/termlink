@@ -3,47 +3,6 @@
 </div>
 <article>
     <p>{{ error_message | default("An unexpected error occurred.") }}</p>
-
-    {% if csrf_error %}
-    <hr>
-    <h3>Your form submission session expired</h3>
-    <p>
-        This happens when your browser holds an old session cookie — usually after
-        the Watchtower server restarted, the browser was offline for a long stretch,
-        or strict cookie policy is in effect for this origin. <strong>Nothing was
-        recorded</strong>; you can safely retry.
-    </p>
-    <h4>Recover in 10 seconds</h4>
-    <ol>
-        <li>
-            {% if back_url %}
-            <a href="{{ back_url }}">Go back to the form</a>
-            {% else %}
-            Navigate back to the form you were submitting
-            {% endif %}
-            and press <kbd>Cmd-R</kbd> (macOS) or <kbd>F5</kbd> (Linux/Windows) to
-            refresh — the form re-renders with a fresh CSRF token.
-        </li>
-        <li>Re-submit your action. It should land this time.</li>
-    </ol>
-    <h4>If refresh doesn't fix it</h4>
-    <p>
-        Clear cookies for <code>{{ request.host }}</code> in your browser's site
-        settings, then revisit the form. The fresh session will issue a new cookie.
-    </p>
-    <h4>CLI fallback (always works)</h4>
-    <p>
-        Every Watchtower action has a <code>fw</code> command equivalent. For
-        inception decisions:
-    </p>
-    <pre><code>cd /opt/termlink &amp;&amp; .agentic-framework/bin/fw inception decide T-XXX go|no-go|defer --rationale "..."</code></pre>
-    <p>
-        For task AC ticks, use <code>fw task verify</code> + edit the task file
-        directly. See <code>CLAUDE.md</code> Quick Reference table for the full
-        verb list.
-    </p>
-    {% endif %}
-
     <footer>
         <a href="{{ url_for('core.index') }}">Return to Dashboard</a>
     </footer>
