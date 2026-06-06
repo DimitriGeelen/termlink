@@ -12,8 +12,10 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-05-31T17:56:25Z
+last_update: 2026-06-06T16:58:42Z
 date_finished: null
+revisit_at: 2026-07-06
+revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class incident), making the cost of NOT having a vendored agent runner immediately quantifiable."
 ---
 
 # T-1898: Vendored Agent Runner — inception
@@ -142,17 +144,21 @@ grep -q "## Go/No-Go Criteria" .tasks/active/T-1898-*.md
 
 ## Recommendation
 
-<!-- TO BE FILLED after spikes S1-S8 complete and findings are recorded
-     in docs/reports/T-1898-vendored-agent-runner-inception.md.
-     Format per template:
-       **Recommendation:** GO / NO-GO / DEFER
-       **Rationale:** [why, citing spike evidence]
-       **Evidence:**
-       - [Finding 1 from S1]
-       - [Finding 2 from S2]
-       ...
-       **Proposed Phase-1 build task:** [one-line scope]
--->
+**Recommendation:** DEFER
+
+**Rationale:** No spike has been run. The recommendation cannot honestly be GO or NO-GO because the Go/No-Go Criteria require empirical evidence for A1, A2, A4, A7 — and that evidence comes from S1-S8, none of which has executed. The dialogue log records the operator paused before spike-go because S1 alone needs a 24h observation window plus ~5h agent-side investigation, and the operator wants explicit budget authorization before that spend lands. Until either (a) operator authorizes the spike budget or (b) a triggering event (e.g. ring20-management goes silent >24h for a second time within 7d) makes the cost of NOT having a runner immediately quantifiable, DEFER is the truthful state.
+
+**Evidence:**
+- `docs/reports/T-1898-vendored-agent-runner-inception.md` exists (121 lines, 7 sections) but every `### S1..S8` heading is followed by "(to be filled as spikes run)" — zero spikes executed
+- Dialogue Log entry confirms: "Awaiting operator review before any spike"
+- Go/No-Go Criteria GO bar requires A1 + A2 + A4 + A7 validated empirically — all four require the spikes
+- Cost model not produced (S6 not run)
+- Architecture decision not recorded in `## Decisions` (S3+S4+S7 outputs feed this)
+- All 6 Agent ACs are unchecked
+
+**Revisit trigger:** `revisit_at: 2026-07-06` (one month). `revisit_evidence_needed` records the two routes back to actionable: explicit spike-budget authorization, OR a recurring ring20-management silence incident that makes the cost concrete.
+
+**Operator override path:** the form will now accept any of GO / NO-GO / DEFER. If the operator wants to GO without the spikes (architectural design alone, validate during Phase-1), click GO with a rationale that names that scope cut. If the operator wants the spikes to run before deciding, the agent-side spec is ready (S1-S8 in `## Exploration Plan`); just say "run S1-S8" and S1 will fire (24h window starts).
 
 ## Decisions
 
