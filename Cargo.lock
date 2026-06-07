@@ -1665,6 +1665,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "termlink-hub",
  "termlink-protocol",
  "termlink-session",

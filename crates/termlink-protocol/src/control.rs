@@ -126,6 +126,23 @@ pub mod method {
     /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
     pub const CHANNEL_TRIM: &str = "channel.trim";
 
+    /// T-2029 — exclusive-delivery claim over a topic offset (arc-parallel-substrate Slice 1).
+    /// Hub leases `(topic, offset)` to `claimer` for `ttl_ms` (default 30s).
+    /// Params: `{ topic, offset, claimer, ttl_ms? }` →
+    /// `{ ok, claim_id, claimed_at, claimed_until }`.
+    /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013), `CLAIM_CONFLICT` (-32015) when
+    /// another worker holds an unexpired claim on the same offset. Old hubs
+    /// return `MethodNotFound` (-32601).
+    pub const CHANNEL_CLAIM: &str = "channel.claim";
+
+    /// T-2029 — release a previously-issued claim (arc-parallel-substrate Slice 1).
+    /// `ack=true` advances the claimer's cursor past the claimed offset (work
+    /// completed); `ack=false` leaves the cursor unchanged and frees the slot
+    /// for another worker (work returned).
+    /// Params: `{ claim_id, claimer, ack }` → `{ ok, topic, offset, ack }`.
+    /// Errors: `CLAIM_NOT_FOUND` (-32016), `CLAIM_NOT_OWNED` (-32017).
+    pub const CHANNEL_RELEASE: &str = "channel.release";
+
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
     /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.
@@ -232,6 +249,15 @@ pub mod error_code {
     /// (CLI defaults `sender_id = identity.fingerprint()`); this code
     /// fires only on impostor-style forgery.
     pub const CHANNEL_IDENTITY_MISMATCH: i64 = -32014;
+    /// T-2029 `channel.claim` — another worker holds an unexpired claim on the
+    /// same `(topic, offset)`. Data field: `{topic, offset}`.
+    pub const CLAIM_CONFLICT: i64 = -32015;
+    /// T-2029 `channel.release` — claim_id unknown, already released, or
+    /// lazily evicted because the TTL lapsed. Data field: `{claim_id}`.
+    pub const CLAIM_NOT_FOUND: i64 = -32016;
+    /// T-2029 `channel.release` — the caller is not the original claimer.
+    /// Data field: `{claim_id, claimed_by, attempted_by}`.
+    pub const CLAIM_NOT_OWNED: i64 = -32017;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -513,6 +539,9 @@ mod tests {
         assert_eq!(method::CHANNEL_LIST, "channel.list");
         assert_eq!(method::CHANNEL_TRIM, "channel.trim");
         assert_eq!(method::CHANNEL_RECEIPTS, "channel.receipts");
+        // T-2029 (arc-parallel-substrate Slice 1).
+        assert_eq!(method::CHANNEL_CLAIM, "channel.claim");
+        assert_eq!(method::CHANNEL_RELEASE, "channel.release");
     }
 
     #[test]

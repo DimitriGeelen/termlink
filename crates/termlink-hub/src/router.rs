@@ -99,6 +99,12 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::CHANNEL_RECEIPTS => {
             crate::channel::handle_channel_receipts(id, &req.params).await
         }
+        control::method::CHANNEL_CLAIM => {
+            crate::channel::handle_channel_claim(id, &req.params).await
+        }
+        control::method::CHANNEL_RELEASE => {
+            crate::channel::handle_channel_release(id, &req.params).await
+        }
         control::method::DIALOG_PRESENCE => {
             crate::channel::handle_dialog_presence(id, &req.params).await
         }
@@ -815,6 +821,8 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::CHANNEL_LIST,
         control::method::CHANNEL_TRIM,
         control::method::CHANNEL_RECEIPTS,
+        control::method::CHANNEL_CLAIM,
+        control::method::CHANNEL_RELEASE,
         control::method::DIALOG_PRESENCE,
         control::method::ARTIFACT_PUT,
         control::method::ARTIFACT_GET,

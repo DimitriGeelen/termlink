@@ -2,6 +2,7 @@ use std::path::Path;
 
 use rusqlite::{Connection, params};
 
+use crate::claim::{ClaimInfo, ReleaseInfo};
 use crate::{BusError, Result, Retention};
 
 /// SQLite sidecar tracking topics, cursors, and per-topic offset counters.
@@ -265,6 +266,139 @@ impl Meta {
         tx.commit()?;
         Ok(deleted)
     }
+
+    /// T-2029: attempt to claim `(topic, offset)` for `claimer` until
+    /// `now_ms + ttl_ms`. Lazily evicts any prior claim past its
+    /// `claimed_until` before inserting. Returns `ClaimConflict` when an
+    /// unexpired claim still holds the slot.
+    pub(crate) fn claim_offset(
+        &self,
+        topic: &str,
+        offset: u64,
+        claimer: &str,
+        ttl_ms: u32,
+        now_ms: i64,
+    ) -> Result<ClaimInfo> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        // Lazy expiry: drop any expired claim on this (topic, offset).
+        tx.execute(
+            "DELETE FROM claims \
+             WHERE topic = ?1 AND offset = ?2 AND claimed_until <= ?3",
+            params![topic, offset as i64, now_ms],
+        )?;
+        let claimed_until = now_ms.saturating_add(i64::from(ttl_ms));
+        let claim_id = generate_claim_id(topic, offset, now_ms);
+        let attempt = tx.execute(
+            "INSERT INTO claims \
+             (claim_id, topic, offset, claimed_by, claimed_at, claimed_until) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                claim_id,
+                topic,
+                offset as i64,
+                claimer,
+                now_ms,
+                claimed_until
+            ],
+        );
+        match attempt {
+            Ok(_) => {
+                tx.commit()?;
+                Ok(ClaimInfo {
+                    claim_id,
+                    topic: topic.to_string(),
+                    offset,
+                    claimer: claimer.to_string(),
+                    claimed_at: now_ms,
+                    claimed_until,
+                })
+            }
+            Err(rusqlite::Error::SqliteFailure(err, _))
+                if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                // UNIQUE(topic, offset) — another worker holds an active claim.
+                drop(tx);
+                Err(BusError::ClaimConflict {
+                    topic: topic.to_string(),
+                    offset,
+                })
+            }
+            Err(e) => Err(BusError::Sqlite(e)),
+        }
+    }
+
+    /// T-2029: release a claim. When `ack=true` the claimer's cursor for
+    /// `topic` is advanced past `offset` (so a re-subscribe skips it); when
+    /// `ack=false` the cursor is left intact and the slot becomes claimable
+    /// again. Both paths delete the claim row.
+    pub(crate) fn release_claim(
+        &self,
+        claim_id: &str,
+        claimer: &str,
+        ack: bool,
+    ) -> Result<ReleaseInfo> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
+            "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        );
+        let (topic, offset_i, claimed_by) = match row {
+            Ok(t) => t,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(BusError::ClaimNotFound(claim_id.to_string()));
+            }
+            Err(e) => return Err(BusError::Sqlite(e)),
+        };
+        if claimed_by != claimer {
+            return Err(BusError::ClaimNotOwned {
+                claim_id: claim_id.to_string(),
+                claimed_by,
+                attempted_by: claimer.to_string(),
+            });
+        }
+        let offset_u = offset_i as u64;
+        if ack {
+            // Advance the claimer's cursor monotonically past this offset.
+            tx.execute(
+                "INSERT INTO cursors (subscriber_id, topic, last_offset) \
+                 VALUES (?1, ?2, ?3) \
+                 ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
+                 last_offset = MAX(last_offset, excluded.last_offset)",
+                params![claimer, topic, (offset_u + 1) as i64],
+            )?;
+        }
+        tx.execute(
+            "DELETE FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+        )?;
+        tx.commit()?;
+        Ok(ReleaseInfo {
+            claim_id: claim_id.to_string(),
+            topic,
+            offset: offset_u,
+            ack,
+        })
+    }
+}
+
+fn generate_claim_id(topic: &str, offset: u64, now_ms: i64) -> String {
+    // claim_id must be PRIMARY-KEY-unique across the bus lifetime. Compose
+    // nanos + sanitized topic prefix + offset — collision needs two claims
+    // at the same nanosecond on the same (topic-prefix, offset), which the
+    // UNIQUE(topic, offset) index already blocks anyway.
+    let now_ns = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or((now_ms as u128).saturating_mul(1_000_000));
+    let topic_tag: String = topic
+        .chars()
+        .take(16)
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    format!("clm-{now_ns}-{topic_tag}-{offset}")
 }
 
 fn init_schema(conn: &Connection) -> Result<()> {
@@ -298,6 +432,21 @@ fn init_schema(conn: &Connection) -> Result<()> {
          );
          CREATE INDEX IF NOT EXISTS idx_records_topic_ts
             ON records (topic, ts_unix_ms);
+         -- T-2029: exclusive-delivery claims (arc-parallel-substrate Slice 1).
+         -- One row per active claim; DELETEd on release or lazily on next
+         -- claim attempt past claimed_until.
+         CREATE TABLE IF NOT EXISTS claims (
+            claim_id      TEXT PRIMARY KEY,
+            topic         TEXT NOT NULL,
+            offset        INTEGER NOT NULL,
+            claimed_by    TEXT NOT NULL,
+            claimed_at    INTEGER NOT NULL,
+            claimed_until INTEGER NOT NULL
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_topic_offset_active
+            ON claims (topic, offset);
+         CREATE INDEX IF NOT EXISTS idx_claims_topic_until
+            ON claims (topic, claimed_until);
          INSERT OR IGNORE INTO schema_version (version) VALUES (1);",
     )?;
     Ok(())

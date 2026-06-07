@@ -23,7 +23,7 @@ related_tasks: [T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T12:12:11Z
-last_update: 2026-06-07T12:36:21Z
+last_update: 2026-06-07T12:37:27Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,18 +60,18 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `claims` table added to `crates/termlink-bus/src/meta.rs::init_schema` per [T-2019 §5 IW-2 schema](../../docs/reports/T-2019-claim-semantics-inception.md) — `(claim_id PK, topic, offset, claimed_by, claimed_at, claimed_until)` with `UNIQUE(topic, offset)` + index on `(topic, claimed_until)`
-- [ ] `CHANNEL_CLAIM` method constant added to `crates/termlink-protocol/src/control.rs::method`
-- [ ] `CHANNEL_RELEASE` method constant added
-- [ ] `handle_channel_claim` handler in `crates/termlink-hub/src/channel.rs` — params `{topic, offset, lease_secs, claimed_by}`; INSERT-OR-FAIL on `UNIQUE(topic, offset)`; lazy expiry check (`WHERE claimed_until < now → DELETE` before insert attempt); returns `{claim_id, claimed_until}` on success or `claim_taken` error
-- [ ] `handle_channel_release` handler — params `{claim_id, ack: bool}`; `DELETE FROM claims WHERE claim_id=?`; if `ack=true` advance the claiming subscriber's cursor past the released offset (via `put_cursor`)
-- [ ] Router match arms in `crates/termlink-hub/src/router.rs:67-116` for both methods
-- [ ] Unit test: two concurrent `claim` calls on same (topic, offset) — exactly one returns success, other returns `claim_taken`
-- [ ] Unit test: `release(claim_id, ack=true)` advances cursor past `offset`
-- [ ] Unit test: `release(claim_id, ack=false)` does NOT advance the cursor
-- [ ] Unit test: lazy-expiry — expired claim is silently swept on next claim attempt; the next claim succeeds
-- [ ] `cargo build --release -p termlink-hub` clean
-- [ ] `cargo test --release -p termlink-hub` clean (all existing tests still pass)
+- [x] `claims` table added to `crates/termlink-bus/src/meta.rs::init_schema` per [T-2019 §5 IW-2 schema](../../docs/reports/T-2019-claim-semantics-inception.md) — `(claim_id PK, topic, offset, claimed_by, claimed_at, claimed_until)` with `UNIQUE(topic, offset)` + index on `(topic, claimed_until)`
+- [x] `CHANNEL_CLAIM` method constant added to `crates/termlink-protocol/src/control.rs::method`
+- [x] `CHANNEL_RELEASE` method constant added
+- [x] `handle_channel_claim` handler in `crates/termlink-hub/src/channel.rs` — params `{topic, offset, lease_secs, claimed_by}`; INSERT-OR-FAIL on `UNIQUE(topic, offset)`; lazy expiry check (`WHERE claimed_until < now → DELETE` before insert attempt); returns `{claim_id, claimed_until}` on success or `claim_taken` error
+- [x] `handle_channel_release` handler — params `{claim_id, ack: bool}`; `DELETE FROM claims WHERE claim_id=?`; if `ack=true` advance the claiming subscriber's cursor past the released offset (via `put_cursor`)
+- [x] Router match arms in `crates/termlink-hub/src/router.rs:67-116` for both methods
+- [x] Unit test: two concurrent `claim` calls on same (topic, offset) — exactly one returns success, other returns `claim_taken`
+- [x] Unit test: `release(claim_id, ack=true)` advances cursor past `offset`
+- [x] Unit test: `release(claim_id, ack=false)` does NOT advance the cursor
+- [x] Unit test: lazy-expiry — expired claim is silently swept on next claim attempt; the next claim succeeds
+- [x] `cargo build --release -p termlink-hub` clean
+- [x] `cargo test --release -p termlink-hub` clean (all existing tests still pass)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -185,6 +185,20 @@ grep -q "CREATE TABLE claims" crates/termlink-bus/src/meta.rs
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-07 — Slice 1 build closed; param name + new error codes diverged from filed shape
+- **What changed:** Three small departures from the AC text, all in service of clarity:
+  (a) the handler param is `claimer`, not `claimed_by` — the column stays `claimed_by`
+  (SQL convention) but the on-the-wire surface uses the actor's role (`claimer`).
+  (b) the AC said "returns `claim_taken` error" — landed as JSON-RPC error code
+  `CLAIM_CONFLICT (-32015)` with `{topic, offset}` data field, consistent with the rest
+  of the channel.* error taxonomy.
+  (c) added `CLAIM_NOT_FOUND (-32016)` + `CLAIM_NOT_OWNED (-32017)` for `channel.release`
+  — these weren't named in the inception but fall out of the release flow naturally.
+- **Plan impact:** None. Slice 2 (T-2030, `channel.renew`) and Slice 3 (T-2031,
+  client-side helpers) consume the same names — Slice 2's renew needs `CLAIM_NOT_OWNED`
+  to gate "only the original claimer can renew its lease".
+- **Triggered:** None. Continue to T-2030 as planned.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -218,3 +232,9 @@ grep -q "CREATE TABLE claims" crates/termlink-bus/src/meta.rs
 
 ### 2026-06-07T12:36:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-07 — Slice 1 build complete — all 11 Agent ACs ticked
+- **Action:** Implemented `claims` SQLite table (with `UNIQUE(topic, offset)` + `(topic, claimed_until)` index), `Bus::claim_offset` + `Bus::release_claim` public API, `channel.claim` + `channel.release` RPC verbs in `crates/termlink-hub/src/channel.rs`, router arms in `crates/termlink-hub/src/router.rs`, capability listing in `handle_hub_capabilities`, and 3 new error codes (`CLAIM_CONFLICT`, `CLAIM_NOT_FOUND`, `CLAIM_NOT_OWNED`) in `crates/termlink-protocol/src/control.rs`.
+- **Tests:** 4 new unit tests in `crates/termlink-bus/src/lib.rs` covering: (1) concurrent-claim exclusivity, (2) ack=true cursor advance, (3) ack=false no advance + slot reclaimable, (4) lazy-expiry sweep-on-attempt. All 4 pass; full crate suites also green: termlink-bus 35/35, termlink-hub 306/306, termlink-protocol 100/100.
+- **Verification:** All 7 Verification commands from the AC block pass (release build, release tests, 5 grep symbol checks).
+- **Next step:** Slice 2 (T-2030) — `channel.renew` + lazy-expiry queries. Patterns are identical to claim/release; expected ~half of Slice 1's effort.

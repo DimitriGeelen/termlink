@@ -9,6 +9,7 @@
 //! Log-append + subscribe + retention sweep land in follow-up wedges.
 
 mod artifact_store;
+mod claim;
 mod envelope;
 mod error;
 mod log;
@@ -16,6 +17,7 @@ mod meta;
 mod retention;
 
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
+pub use claim::{ClaimInfo, ReleaseInfo};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use log::Offset;
@@ -251,6 +253,42 @@ impl Bus {
         self.meta.get_cursor(subscriber_id, topic)
     }
 
+    /// T-2029 (arc-parallel-substrate Slice 1): claim `(topic, offset)` for
+    /// exclusive processing by `claimer` for the next `ttl_ms` milliseconds.
+    /// Returns `BusError::ClaimConflict` when another worker holds an
+    /// unexpired claim on the same offset; returns `BusError::UnknownTopic`
+    /// when the topic was never registered. Lazy expiry runs inline — no
+    /// background reaper (T-1155 invariant).
+    pub fn claim_offset(
+        &self,
+        topic: &str,
+        offset: Offset,
+        claimer: &str,
+        ttl_ms: u32,
+    ) -> Result<ClaimInfo> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let now_ms = now_unix_ms();
+        self.meta.claim_offset(topic, offset, claimer, ttl_ms, now_ms)
+    }
+
+    /// T-2029: release a claim. When `ack=true` the claimer's cursor for
+    /// the topic advances past the claimed offset (a subsequent
+    /// `get_cursor(claimer, topic)` returns `Some(offset+1)`); when
+    /// `ack=false` the cursor is left untouched and another worker can
+    /// reclaim the same offset. Returns `BusError::ClaimNotFound` for an
+    /// unknown / already-released claim and `BusError::ClaimNotOwned` when
+    /// the caller is not the original claimer.
+    pub fn release_claim(
+        &self,
+        claim_id: &str,
+        claimer: &str,
+        ack: bool,
+    ) -> Result<ReleaseInfo> {
+        self.meta.release_claim(claim_id, claimer, ack)
+    }
+
     /// Apply the retention policy for `topic`, deleting record index rows
     /// that fall outside the policy. Returns the number of records pruned.
     /// Explicit — the library runs no background thread (per T-1155).
@@ -280,6 +318,13 @@ impl Bus {
         guard.insert(topic.to_string(), appender.clone());
         Ok(appender)
     }
+}
+
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -636,6 +681,100 @@ mod tests {
         let (_dir, bus) = tmp_bus();
         let err = bus.oldest_offset("nope").unwrap_err();
         assert!(matches!(err, BusError::UnknownTopic(_)));
+    }
+
+    // ── T-2029 (arc-parallel-substrate Slice 1): claim semantics ──
+
+    #[tokio::test]
+    async fn claim_offset_is_exclusive_per_topic_offset() {
+        // Two workers race for the same (topic, offset). Exactly one wins;
+        // the other sees ClaimConflict. Disjoint offsets remain claimable
+        // independently — claims are per-(topic, offset), not per-topic.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        for i in 0..3u32 {
+            bus.post("work", &env("work", &i.to_le_bytes())).await.unwrap();
+        }
+        let c1 = bus.claim_offset("work", 1, "worker-A", 30_000).unwrap();
+        assert_eq!(c1.offset, 1);
+        assert_eq!(c1.claimer, "worker-A");
+        let err = bus
+            .claim_offset("work", 1, "worker-B", 30_000)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimConflict { ref topic, offset: 1 } if topic == "work"),
+            "expected ClaimConflict, got {err:?}"
+        );
+        // worker-B can still grab a different offset.
+        let c2 = bus.claim_offset("work", 2, "worker-B", 30_000).unwrap();
+        assert_eq!(c2.offset, 2);
+        assert_eq!(c2.claimer, "worker-B");
+    }
+
+    #[tokio::test]
+    async fn release_with_ack_true_advances_claimers_cursor() {
+        // Ack-on-release is the worker's "I processed this — don't ever
+        // hand it back to me" signal. The cursor for THIS claimer (and
+        // only this claimer) advances past the claimed offset.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        for i in 0..3u32 {
+            bus.post("work", &env("work", &i.to_le_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
+        let c = bus.claim_offset("work", 1, "worker-A", 30_000).unwrap();
+        let r = bus.release_claim(&c.claim_id, "worker-A", true).unwrap();
+        assert_eq!(r.offset, 1);
+        assert!(r.ack);
+        // Cursor advanced past offset 1 → next subscribe with cursor=2 skips it.
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), Some(2));
+        // Other workers' cursors untouched.
+        assert_eq!(bus.get_cursor("worker-B", "work").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn release_with_ack_false_does_not_advance_and_frees_slot() {
+        // No-ack release is the "work was returned, not done" signal:
+        // cursor stays where it was, and the slot becomes claimable again
+        // (e.g. by a peer worker, or by the same worker on retry).
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        for i in 0..3u32 {
+            bus.post("work", &env("work", &i.to_le_bytes())).await.unwrap();
+        }
+        let c = bus.claim_offset("work", 1, "worker-A", 30_000).unwrap();
+        let r = bus
+            .release_claim(&c.claim_id, "worker-A", false)
+            .unwrap();
+        assert_eq!(r.offset, 1);
+        assert!(!r.ack);
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
+        // Slot is free — worker-B can now claim it.
+        let c2 = bus.claim_offset("work", 1, "worker-B", 30_000).unwrap();
+        assert_eq!(c2.claimer, "worker-B");
+    }
+
+    #[tokio::test]
+    async fn lazy_expiry_allows_reclaim_after_ttl_lapses() {
+        // No background reaper (T-1155 no-background-threads invariant) —
+        // expired claims are evicted on the next claim attempt that hits
+        // the same (topic, offset). A 1ms TTL plus a 20ms sleep guarantees
+        // we cross the boundary regardless of system clock resolution.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let first = bus.claim_offset("work", 0, "worker-A", 1).unwrap();
+        assert_eq!(first.claimer, "worker-A");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        // Worker-B's claim sweeps worker-A's expired row and inserts its own.
+        let second = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
+        assert_eq!(second.claimer, "worker-B");
+        assert_ne!(second.claim_id, first.claim_id);
+        // worker-A trying to release its (now-evicted) claim sees NotFound.
+        let err = bus
+            .release_claim(&first.claim_id, "worker-A", true)
+            .unwrap_err();
+        assert!(matches!(err, BusError::ClaimNotFound(_)), "got {err:?}");
     }
 
     #[tokio::test]

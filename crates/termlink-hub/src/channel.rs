@@ -853,6 +853,144 @@ pub(crate) async fn handle_channel_list_with(
     Response::success(id, json!({"topics": filtered})).into()
 }
 
+/// T-2029 (arc-parallel-substrate Slice 1) — `channel.claim(topic, offset, claimer, ttl_ms?)`.
+/// Issues an exclusive lease over `(topic, offset)` for `claimer`. Default TTL is 30s; the
+/// client must call `channel.release` (or the future `channel.renew`, Slice 2) before
+/// `claimed_until` to retain the claim.
+pub async fn handle_channel_claim(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_claim_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_claim_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let offset = match params.get("offset").and_then(|v| v.as_u64()) {
+        Some(o) => o,
+        None => return ErrorResponse::new(id, -32602, "Missing or invalid 'offset' in params").into(),
+    };
+    let claimer = match param_str(params, "claimer") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claimer' in params").into(),
+    };
+    // Default TTL: 30s. Clamp upper bound to 1 hour to avoid forever-stuck claims
+    // from a bug or hostile client.
+    let ttl_ms = params
+        .get("ttl_ms")
+        .and_then(|v| v.as_u64())
+        .map(|t| t.min(60 * 60 * 1000) as u32)
+        .unwrap_or(30_000);
+    match bus.claim_offset(topic, offset, claimer, ttl_ms) {
+        Ok(info) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "claim_id": info.claim_id,
+                "topic": info.topic,
+                "offset": info.offset,
+                "claimer": info.claimer,
+                "claimed_at": info.claimed_at,
+                "claimed_until": info.claimed_until,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
+            id,
+            error_code::CHANNEL_TOPIC_UNKNOWN,
+            &format!("channel.claim: topic {topic:?} not found"),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimConflict {
+            topic: t,
+            offset: o,
+        }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_CONFLICT,
+            &format!("channel.claim: offset {o} of topic {t:?} is already claimed"),
+            json!({"topic": t, "offset": o}),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.claim: {e}")).into(),
+    }
+}
+
+/// T-2029 — `channel.release(claim_id, claimer, ack)`. Releases a previously-issued
+/// claim. `ack=true` advances the claimer's cursor past the offset (work completed);
+/// `ack=false` frees the slot for another worker (work returned).
+pub async fn handle_channel_release(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_release_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_release_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let claim_id = match param_str(params, "claim_id") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claim_id' in params").into(),
+    };
+    let claimer = match param_str(params, "claimer") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claimer' in params").into(),
+    };
+    let ack = params
+        .get("ack")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    match bus.release_claim(claim_id, claimer, ack) {
+        Ok(info) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "claim_id": info.claim_id,
+                "topic": info.topic,
+                "offset": info.offset,
+                "ack": info.ack,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotFound(cid)) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_FOUND,
+            &format!("channel.release: claim {cid:?} not found"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotOwned {
+            claim_id: cid,
+            claimed_by,
+            attempted_by,
+        }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_OWNED,
+            &format!(
+                "channel.release: claim {cid:?} held by {claimed_by:?}, not {attempted_by:?}"
+            ),
+            json!({
+                "claim_id": cid,
+                "claimed_by": claimed_by,
+                "attempted_by": attempted_by,
+            }),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.release: {e}")).into(),
+    }
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({

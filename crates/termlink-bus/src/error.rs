@@ -28,4 +28,18 @@ pub enum BusError {
 
     #[error("artifact hash mismatch: declared {expected}, computed {got}")]
     ArtifactHashMismatch { expected: String, got: String },
+
+    // T-2029 (arc-parallel-substrate Slice 1): claim semantics errors.
+    #[error("offset {offset} of topic {topic:?} is already claimed by another worker")]
+    ClaimConflict { topic: String, offset: u64 },
+
+    #[error("claim {0:?} not found (expired, never created, or already released)")]
+    ClaimNotFound(String),
+
+    #[error("claim {claim_id:?} is held by {claimed_by:?}, not {attempted_by:?}")]
+    ClaimNotOwned {
+        claim_id: String,
+        claimed_by: String,
+        attempted_by: String,
+    },
 }
