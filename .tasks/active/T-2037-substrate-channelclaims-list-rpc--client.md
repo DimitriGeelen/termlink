@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T20:04:58Z
-last_update: 2026-06-07T20:12:39Z
+last_update: 2026-06-07T20:15:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -124,7 +124,7 @@ supports it (`claims` table from T-2029 meta.rs:503). No new state.
 grep -q 'CHANNEL_CLAIMS' crates/termlink-protocol/src/control.rs
 grep -q 'channel_claims' crates/termlink-session/src/claim_client.rs
 grep -q 'handle_channel_claims' crates/termlink-hub/src/channel.rs
-cargo test --test claim_client_integration -p termlink-session --release 2>&1 | tail -20 > /tmp/.t2037.test.out && grep -q "test result: ok" /tmp/.t2037.test.out
+cargo test --test claim_client_integration -p termlink-session 2>&1 > /tmp/.t2037.test.out && grep -q "test result: ok" /tmp/.t2037.test.out
 
 ## RCA
 
