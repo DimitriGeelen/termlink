@@ -11,10 +11,10 @@ description: >
   router match arms in termlink-hub/src/router.rs:67-116; handlers in termlink-hub/src/channel.rs.
   Unit tests for claim exclusivity, release path, ack-cursor-advance. ~1-2d.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate, slice-1]
 components: []
 related_tasks: [T-2019, T-2018]
@@ -23,7 +23,7 @@ related_tasks: [T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T12:12:11Z
-last_update: '2026-06-07T12:12:34Z'
+last_update: 2026-06-07T12:36:21Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,9 +60,18 @@ bvp_scores_proposed:
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `claims` table added to `crates/termlink-bus/src/meta.rs::init_schema` per [T-2019 §5 IW-2 schema](../../docs/reports/T-2019-claim-semantics-inception.md) — `(claim_id PK, topic, offset, claimed_by, claimed_at, claimed_until)` with `UNIQUE(topic, offset)` + index on `(topic, claimed_until)`
+- [ ] `CHANNEL_CLAIM` method constant added to `crates/termlink-protocol/src/control.rs::method`
+- [ ] `CHANNEL_RELEASE` method constant added
+- [ ] `handle_channel_claim` handler in `crates/termlink-hub/src/channel.rs` — params `{topic, offset, lease_secs, claimed_by}`; INSERT-OR-FAIL on `UNIQUE(topic, offset)`; lazy expiry check (`WHERE claimed_until < now → DELETE` before insert attempt); returns `{claim_id, claimed_until}` on success or `claim_taken` error
+- [ ] `handle_channel_release` handler — params `{claim_id, ack: bool}`; `DELETE FROM claims WHERE claim_id=?`; if `ack=true` advance the claiming subscriber's cursor past the released offset (via `put_cursor`)
+- [ ] Router match arms in `crates/termlink-hub/src/router.rs:67-116` for both methods
+- [ ] Unit test: two concurrent `claim` calls on same (topic, offset) — exactly one returns success, other returns `claim_taken`
+- [ ] Unit test: `release(claim_id, ack=true)` advances cursor past `offset`
+- [ ] Unit test: `release(claim_id, ack=false)` does NOT advance the cursor
+- [ ] Unit test: lazy-expiry — expired claim is silently swept on next claim attempt; the next claim succeeds
+- [ ] `cargo build --release -p termlink-hub` clean
+- [ ] `cargo test --release -p termlink-hub` clean (all existing tests still pass)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -96,6 +105,14 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo build --release -p termlink-hub 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
+cargo test --release -p termlink-hub 2>&1 | tail -3 | grep -qE "test result: ok"
+grep -q "CHANNEL_CLAIM" crates/termlink-protocol/src/control.rs
+grep -q "CHANNEL_RELEASE" crates/termlink-protocol/src/control.rs
+grep -q "handle_channel_claim" crates/termlink-hub/src/channel.rs
+grep -q "handle_channel_release" crates/termlink-hub/src/channel.rs
+grep -q "CREATE TABLE claims" crates/termlink-bus/src/meta.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -195,3 +212,9 @@ bvp_scores_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2029-substrate-t-2019-slice-1-claims-sqlite-t.md
 - **Context:** Initial task creation
+
+### 2026-06-07T12:36:21Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-06-07T12:36:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
