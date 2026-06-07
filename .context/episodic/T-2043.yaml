@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2043: Substrate Slice 10: termlink_channel_claims_summary_all MCP tool for fleet-wide stuck-worker sweep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T23:26:32Z
+# ============================================================================
+
+task_id: T-2043
+task_name: "Substrate Slice 10: termlink_channel_claims_summary_all MCP tool for fleet-wide stuck-worker sweep"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T23:09:03Z
+completed: 2026-06-07T23:24:57Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T01:24:52+02:00
+last_commit: 2026-06-08T01:24:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 10 — termlink_channel_claims_summary_all MCP tool for fleet-wide stuck-worker sweep
+
+# Key outcomes
+outcomes:
+  - '`ChannelClaimsSummaryAllParams` empty params struct added to `crates/termlink-mcp/src/tools.rs`'
+  - '`termlink_channel_claims_summary_all` tool method on the existing impl block, doc-comment naming T-2043 + arc-parallel-substrate Slice 10'
+  - 'Tool body: hub-socket existence check (same as `termlink_channel_claims_summary`); `rpc_call` to `channel.list` to enumerate topic names; loop calling `rpc_call` to `channel.claims_summary` per topic; per-topic errors captured as `{ok: false, topic, error}` entries (non-fatal — sweep continues); successful entries get `potentially_stuck: bool` annotation matching Slice 9''s heuristic (`expired_count > 0` OR `oldest_active_age_ms > 60_000`)'
+  - 'Aggregate response envelope: `{ok, topic_count, stuck_count, topics: [...]}` — identical shape to Slice 9''s CLI `--json` output, so agents can pivot from MCP to CLI without re-learning the schema'
+  - 'Tool description (in `#[tool(...)]` attribute) references T-2043, arc-parallel-substrate Slice 10, the Slice 9 CLI companion, and explicitly names the stuck heuristic'
+  - 'Help-registry entry added in the `channel_admin` group naming the new tool with a one-sentence purpose'
+  - '`cargo build --release -p termlink-mcp` clean'
+  - '`cargo test --release -p termlink-mcp` clean (6 pre-existing failures in `test_discover_by_role_and_name`, `test_list_sessions_empty`, `test_list_sessions_filtered_by_role`, `test_list_sessions_with_session`, `test_topics_specific_session`, `test_topics_with_events` confirmed unrelated — same set on stashed HEAD; 93 tests pass)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2043-substrate-slice-10-termlinkchannelclaims.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T01:24:52"
+    action: "T-2043: substrate Slice 10 — termlink_channel_claims_summary_all MCP tool for fleet-wide stuck-worker sweep"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-10]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 2
+  lines_added: 328
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2043-substrate-slice-10-termlinkchannelclaims.md
+generated_by: context-agent-hybrid

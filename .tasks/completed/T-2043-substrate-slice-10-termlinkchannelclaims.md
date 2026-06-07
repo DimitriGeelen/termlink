@@ -4,20 +4,20 @@ name: "Substrate Slice 10: termlink_channel_claims_summary_all MCP tool for flee
 description: >
   Substrate Slice 10: termlink_channel_claims_summary_all MCP tool for fleet-wide stuck-worker sweep
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, slice-10]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-2019, T-2018, T-2040, T-2042]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T23:09:03Z
-last_update: 2026-06-07T23:09:03Z
-date_finished: null
+last_update: 2026-06-07T23:24:57Z
+date_finished: 2026-06-07T23:24:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -220,3 +220,6 @@ out=$(cargo build --release -p termlink-mcp 2>&1); echo "$out" | grep -qE "Compi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2043-substrate-slice-10-termlinkchannelclaims.md
 - **Context:** Initial task creation
+
+### 2026-06-07T23:24:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
