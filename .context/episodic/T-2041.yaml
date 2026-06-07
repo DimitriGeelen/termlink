@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2041: Substrate Slice 8: channel claims-summary --watch mode for continuous stuck-worker detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T22:40:08Z
+# ============================================================================
+
+task_id: T-2041
+task_name: "Substrate Slice 8: channel claims-summary --watch mode for continuous stuck-worker detection"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T22:06:34Z
+completed: 2026-06-07T22:33:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T00:33:49+02:00
+last_commit: 2026-06-08T00:33:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 8 — channel claims-summary --watch mode for continuous stuck-worker detection
+
+# Key outcomes
+outcomes:
+  - '`ClaimsSummary` enum variant in `crates/termlink-cli/src/cli.rs` adds `watch: Option<u64>` field with doc-comment naming T-2041 and the 5..=3600 clamp range'
+  - '`cmd_channel_claims_summary` in `crates/termlink-cli/src/commands/channel.rs` accepts `watch: Option<u64>` parameter'
+  - 'When `watch` is Some, the function enters a loop: clear screen (`\x1b[2J\x1b[H`), print header row with verb + interval + timestamp, fetch + render the summary, sleep clamped interval; loop until SIGINT'
+  - 'When `watch` is Some AND `json_output` is true, the verb errors before entering the loop with a clear "--watch and --json are incompatible" message (same convention as `agent presence --watch`)'
+  - 'When `watch` is None, behaviour is unchanged from Slice 6 (one-shot text or JSON)'
+  - 'Watch-mode interval is clamped to 5..=3600 (silently — no error on out-of-range, follows fleet-doctor convention)'
+  - 'Watch-mode tolerates per-tick fetch errors: prints `# fetch error (will retry on next tick): <e>` and continues the loop (same pattern as `agent presence --watch`)'
+  - '`main.rs` dispatch arm passes the new `watch` parameter through'
+  - 'Operator runbook (`docs/operations/substrate-claim-primitive.md`) "Stuck-worker pattern" section gains a `--watch` recipe alongside the existing cron pattern; References section gains a Slice 8 entry'
+  - '`cargo build --release -p termlink` clean (CLI crate is `termlink`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2041-substrate-slice-8-channel-claims-summary.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T00:33:49"
+    action: "T-2041: substrate Slice 8 — channel claims-summary --watch mode for continuous stuck-worker detection"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-8]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 27
+  commits: 1
+  files_changed: 5
+  lines_added: 308
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2041-substrate-slice-8-channel-claims-summary.md
+generated_by: context-agent-hybrid
