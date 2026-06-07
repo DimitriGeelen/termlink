@@ -12,7 +12,7 @@ tags: []
 components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/server.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1166, T-1401, T-1403]
 created: 2026-04-30T07:16:42Z
-last_update: 2026-04-30T07:44:37Z
+last_update: 2026-06-06T16:32:08Z
 date_finished: 2026-04-30T07:44:37Z
 ---
 

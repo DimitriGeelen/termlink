@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1876: agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T08:26:45Z
+# ============================================================================
+
+task_id: T-1876
+task_name: "agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-30T08:24:15Z
+completed: 2026-05-30T08:26:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-30T10:26:36+02:00
+last_commit: 2026-05-30T10:26:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-send.sh` line ~146 reads `self_fp` from `termlink channel info agent-presence --json | jq -r '.senders[0].sender_id // empty'` (with `agent-chat-arc` fallback)"
+  - "`scripts/agent-respond.sh` line ~67 reads `self_fp` from the same path"
+  - "Both scripts' die message points at `/be-reachable` (or \"post once to agent-chat-arc\") as the remediation"
+  - "Both scripts pass `bash -n` (syntax check)"
+  - "Smoke test: manually exec the resolution snippet in isolation, returns 16-hex fp matching what T-1874/T-1875 resolve to"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-respond.sh"
+  - "scripts/agent-send.sh"
+  - ".tasks/active/T-1876-agent-sendsh--agent-respondsh--replace-w.md"
+  - ".tasks/completed/T-1875-agent-handoff-skill--replace-whoami-self.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T10:26:36"
+    action: "T-1876: agent-send.sh + agent-respond.sh — replace whoami self_fp routing with channel info read (PL-195 hot-path fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 145
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1876-agent-sendsh--agent-respondsh--replace-w.md
+generated_by: context-agent-hybrid

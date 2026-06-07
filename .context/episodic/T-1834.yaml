@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1834: agent-send.sh --to <agent-id> auto-discover (T-1830 sub-build c) + heartbeat pty_session
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T13:07:31Z
+# ============================================================================
+
+task_id: T-1834
+task_name: "agent-send.sh --to <agent-id> auto-discover (T-1830 sub-build c) + heartbeat pty_session"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T13:01:01Z
+completed: 2026-05-28T13:06:46Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T15:06:40+02:00
+last_commit: 2026-05-28T15:06:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-send --to <agent-id> auto-discover (T-1830 sub-build c)
+
+# Key outcomes
+outcomes:
+  - "`scripts/listener-heartbeat.sh` extended: new optional `--pty-session NAME` flag. When provided, posts `metadata.pty_session=NAME`. When omitted, the field is absent from the envelope (not empty string)"
+  - "`scripts/test-listener-heartbeat.sh` extended: new test verifying `--pty-session foo --once` produces `metadata.pty_session==\"foo\"` in the posted envelope; existing test confirms omitting the flag means the field is absent"
+  - "`scripts/agent-listeners.sh` extended: `pty_session` field surfaces in the JSON listener entry (omitted if absent in source envelope); not surfaced in text mode (table width is tight)"
+  - "`scripts/test-agent-listeners.sh` extended: new test verifying pty_session round-trips through discovery"
+  - "`scripts/agent-send.sh` extended: new `--to AGENT_ID` flag (mutually exclusive with `--to-session`+`--topic`/`--peer-fp`). When `--to` is given, the script invokes `agent-listeners.sh --filter-agent-id AGENT_ID --json` to resolve:"
+  - "`scripts/agent-send.sh` adds `--dry-run` flag: when set with `--to`, resolves and prints `RESOLVED: to_session=... topic=... agent_id=... status=...` to stdout and exits 0 WITHOUT posting or injecting (test seam)"
+  - "Auto-discover error paths exit 2 with specific messages: (a) agent-id not found in listeners → \"no listener with agent_id=X\", (b) listener present but status OFFLINE → \"agent X is OFFLINE\", (c) listener present but pty_session missing → \"agent X heartbeat does not declare pty_session\", (d) listener present but no dm:* listen_topic → \"agent X has no dm:* listen_topic\""
+  - "`scripts/test-agent-send-auto-discover.sh` exists: T1 --to + --to-session both given → exit 2 (mutex); T2 --to <unknown> → exit 2 with not-found message; T3 --to <agent> with pty_session and dm:* listen_topic + --dry-run → exit 0 with RESOLVED line; T4 --to <agent> with no pty_session → exit 2; T5 --to <agent> with no dm:* listen_topic → exit 2"
+  - "All test suites pass: listener-heartbeat (7), agent-listeners (8), agent-send-auto-discover (5)"
+  - "Live verification: spawn heartbeat with `--pty-session ANY --listen-topic dm:foo:bar --agent-id T-1834-soak`; run `bash scripts/agent-send.sh --to T-1834-soak --message hi --dry-run` and confirm RESOLVED line shows the expected to_session + topic"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-listeners.sh"
+  - "scripts/agent-send.sh"
+  - "scripts/listener-heartbeat.sh"
+  - "scripts/test-agent-listeners.sh"
+  - "scripts/test-agent-send-auto-discover.sh"
+  - "scripts/test-listener-heartbeat.sh"
+  - ".tasks/active/T-1834-agent-sendsh---to-agent-id-auto-discover.md"
+  - ".tasks/completed/T-1833-agent-listenerssh--agent-presence-discov.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T15:06:40"
+    action: "T-1834: agent-send --to <agent-id> auto-discover (T-1830 sub-build c)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 8
+  lines_added: 360
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1834-agent-sendsh---to-agent-id-auto-discover.md
+generated_by: context-agent-hybrid

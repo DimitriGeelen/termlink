@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1910: Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T12:55:24Z
+# ============================================================================
+
+task_id: T-1910
+task_name: "Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T11:34:45Z
+completed: 2026-06-01T12:44:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-01T14:43:36+02:00
+last_commit: 2026-06-01T14:44:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  converge termlink_topics MCP shape to CLI's array-of-records. tick ACs — topics shape converged
+
+# Key outcomes
+outcomes:
+  - "`termlink_topics` in `crates/termlink-mcp/src/tools.rs` returns"
+  - "`termlink_topics` adds `total_sessions: N` field to the JSON"
+  - "`parity_topics` test in `crates/termlink-mcp/tests/parity.rs` is"
+  - "`cargo test --release --test parity -p termlink-mcp --"
+  - "No regression of any other parity test (hub_status, version,"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1910-converge-termlinktopics-mcpcli-json-shap.md"
+  - ".tasks/completed/T-1912-converge-termlinkversion-mcpcli-data-sou.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T14:43:36"
+    action: "T-1910: converge termlink_topics MCP shape to CLI's array-of-records"
+  - time: "2026-06-01T14:44:47"
+    action: "T-1910: tick ACs — topics shape converged"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 70 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 70
+  commits: 2
+  files_changed: 4
+  lines_added: 76
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1910-converge-termlinktopics-mcpcli-json-shap.md
+generated_by: context-agent-hybrid

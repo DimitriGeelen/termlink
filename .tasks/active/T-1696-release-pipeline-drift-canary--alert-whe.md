@@ -12,7 +12,7 @@ tags: [release, observability, canary, G-058]
 components: [scripts/check-mirror-freshness.sh]
 related_tasks: [T-1695, T-1691]
 created: 2026-05-18T10:44:52Z
-last_update: 2026-05-18T10:50:15Z
+last_update: 2026-06-06T12:51:56Z
 date_finished: 2026-05-18T10:50:15Z
 ---
 

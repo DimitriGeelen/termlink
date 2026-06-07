@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2009: termlink fleet secrets-audit: honor --json on --target-cache-without-check-drift usage error
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T21:26:21Z
+# ============================================================================
+
+task_id: T-2009
+task_name: "termlink fleet secrets-audit: honor --json on --target-cache-without-check-drift usage error"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T21:07:28Z
+completed: 2026-06-05T21:20:34Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T23:20:30+02:00
+last_commit: 2026-06-05T23:20:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink fleet secrets-audit honors --json on usage error (cycle 13 #6)
+
+# Key outcomes
+outcomes:
+  - "**Bug reproduced at HEAD before fix:** `termlink fleet secrets-audit --json --target-cache /tmp/x.hex` (without `--check-drift`) emits plain stderr text and exits 2 with EMPTY stdout."
+  - "**Fix:** `crates/termlink-cli/src/commands/remote.rs::cmd_fleet_secrets_audit`'s early bail emits a JSON envelope on stdout when `json` is true. Shape matches T-2008 / execution.rs / identity.rs convention: `{\"ok\": false, \"error\": \"<msg>\"}`. Exit code stays 2."
+  - "**Plain path unchanged:** non-JSON call still prints to stderr (byte-for-byte identical message) and exits 2."
+  - "**Live smoke (release build):** all three forms pass:"
+  - "**Full CLI test suite** (`cargo test -p termlink --bins --quiet`) green at 814+ in suite; pre-existing `isolate_rejects_non_git_dir` flake acceptable if passes solo."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "termlink fleet secrets-audit honors --json on usage error (cycle 13 #6)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - ".tasks/active/T-2009-termlink-fleet-secrets-audit-honor---jso.md"
+  - ".tasks/completed/T-2008-termlink-help-honor---json-on-positional.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T23:20:30"
+    action: "T-2009: termlink fleet secrets-audit honors --json on usage error (cycle 13 #6)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 3
+  lines_added: 202
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2009-termlink-fleet-secrets-audit-honor---jso.md
+generated_by: context-agent-hybrid

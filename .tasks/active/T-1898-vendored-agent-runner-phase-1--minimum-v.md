@@ -12,7 +12,7 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-06-06T16:58:43Z
+last_update: 2026-06-06T20:00:11Z
 date_finished: null
 revisit_at: 2026-07-06
 revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class incident), making the cost of NOT having a vendored agent runner immediately quantifiable."

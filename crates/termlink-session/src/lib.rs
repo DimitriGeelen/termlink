@@ -35,9 +35,10 @@ pub use manager::{Session, SessionError};
 
 // T-2031: arc-parallel-substrate Slice 3 — claim client surface.
 // T-2037: Slice 4 adds `channel_claims` (read-only listing).
+// T-2039: Slice 6 adds `channel_claims_summary` (aggregate observability).
 pub use claim_client::{
-    channel_claim, channel_claims, channel_release, channel_renew, ClaimError, ClaimSummary,
-    LeasedClaim, ReleaseSummary,
+    channel_claim, channel_claims, channel_claims_summary, channel_release, channel_renew,
+    ClaimError, ClaimSummary, ClaimsAggregate, LeasedClaim, ReleaseSummary,
 };
 
 /// Shared test utilities (crate-internal).

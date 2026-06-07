@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1975: termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T06:11:09Z
+# ============================================================================
+
+task_id: T-1975
+task_name: "termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T06:03:29Z
+completed: 2026-06-04T06:10:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T08:04:20+02:00
+last_commit: 2026-06-04T08:10:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (max_parameters filter on name_filter, cycle 10 slice 6). max_parameters filter on name_filter — cost-aware search in one round-trip (740 tests). tick agent ACs (cost-aware search live, 740 tests, 3 invariants + cross-mode arithmetic with T-1973)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams` gains `max_parameters: Option<usize>` field with doc comment (tools.rs:8079-8087)"
+  - "`termlink_help` method threads the field through to `build_help_json` (tools.rs:12289-12290)"
+  - "`build_help_json` signature gains `max_parameters: Option<usize>` argument (tools.rs:1001-1010); all 64 callers migrated"
+  - "When `max_parameters` is set, `name_filter` mode suppresses match rows whose `parameter_count` > threshold (tools.rs:1340-1347 arity_predicate gate)"
+  - "When `max_parameters` is set WITHOUT `name_filter`, walks the registry and returns matches in the same envelope shape (tools.rs:1290-1297, `standalone_arity_filter` opens the search branch with empty-needle = match-all)"
+  - "Macro doc-string updated: mentions `max_parameters`, describes combined-with-name_filter and standalone use (tools.rs:12310, T-1975 block appended to name_filter shape line)"
+  - "Drift test required_fields includes `max_parameters` (tools.rs:35840-35842)"
+  - "Invariant test: with `max_parameters=0`, every returned row has `parameter_count == 0` (tools.rs:36694-36713 max_parameters_zero_returns_only_zero_arity_tools)"
+  - "Invariant test: with `max_parameters=N`, every returned row has `parameter_count <= N` (tools.rs:36715-36744 max_parameters_n_caps_arity_in_matches)"
+  - "Invariant test: standalone `max_parameters=0` total_matches equals summary.zero_arity_tools (tools.rs:36746-36768 max_parameters_standalone_count_matches_summary_zero_arity_tools)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1975-termlinkhelp-namefilter-adds-maxparamete.md"
+  - ".tasks/completed/T-1974-termlinkhelp-essentials-rows-carry-param.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T08:04:20"
+    action: "T-1975: scope ACs (max_parameters filter on name_filter, cycle 10 slice 6)"
+  - time: "2026-06-04T08:10:28"
+    action: "T-1975: max_parameters filter on name_filter — cost-aware search in one round-trip (740 tests)"
+  - time: "2026-06-04T08:10:54"
+    action: "T-1975: tick agent ACs (cost-aware search live, 740 tests, 3 invariants + cross-mode arithmetic with T-1973)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 3
+  files_changed: 3
+  lines_added: 339
+  lines_removed: 83
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1975-termlinkhelp-namefilter-adds-maxparamete.md
+generated_by: context-agent-hybrid

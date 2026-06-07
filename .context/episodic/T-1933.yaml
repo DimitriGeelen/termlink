@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1933: Add termlink_whoami MCP tool — identity discovery for LLM consumers (MCP-arc parity gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T20:36:04Z
+# ============================================================================
+
+task_id: T-1933
+task_name: "Add termlink_whoami MCP tool — identity discovery for LLM consumers (MCP-arc parity gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-02T19:26:27Z
+completed: 2026-06-02T20:22:15Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-02T21:28:15+02:00
+last_commit: 2026-06-02T22:22:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs + context (unblock G-020 gate). add termlink_whoami MCP tool — identity discovery for LLM consumers
+
+# Key outcomes
+outcomes:
+  - "`termlink_whoami` MCP tool registered with `WhoamiParams { session_hint, name_hint }` — tools.rs:4571-4577 (params) + tools.rs:7920+ (tool impl)"
+  - "Resolution chain matches CLI: session_hint → name_hint → TERMLINK_SESSION_ID env → PID-walk → candidate list → empty — tools.rs:7925-7990 (mirrors metadata.rs:529-627)"
+  - "JSON envelope structurally identical to CLI `whoami --json` — `whoami_card_json` in tools.rs (post-helpers module) mirrors metadata.rs:655; parity test diff_json passes with empty ignore set"
+  - "Help registry updated — tools.rs:10870 lists `termlink_whoami` under \"session\" category"
+  - "Parity test added — tests/parity.rs `parity_whoami_no_sessions` (PAIR 20)"
+  - "`cargo build --release -p termlink-mcp` remains warning-free — verified clean build, zero warnings"
+  - "Full parity suite passes (grows from 20 to 21) — `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 489.29s`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1933-add-termlinkwhoami-mcp-tool--identity-di.md"
+  - ".tasks/completed/T-1932-fix-unusedassignments-warning-at-toolsrs.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-02T21:28:15"
+    action: "T-1933: scope ACs + context (unblock G-020 gate)"
+  - time: "2026-06-02T22:22:10"
+    action: "T-1933: add termlink_whoami MCP tool — identity discovery for LLM consumers"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 55 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 55
+  commits: 2
+  files_changed: 4
+  lines_added: 395
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1933-add-termlinkwhoami-mcp-tool--identity-di.md
+generated_by: context-agent-hybrid

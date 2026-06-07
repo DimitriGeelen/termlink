@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1973: termlink_help: summary mode adds parameter-count aggregates (cycle 10 slice 4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T05:59:23Z
+# ============================================================================
+
+task_id: T-1973
+task_name: "termlink_help: summary mode adds parameter-count aggregates (cycle 10 slice 4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T05:56:06Z
+completed: 2026-06-04T05:59:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T07:56:47+02:00
+last_commit: 2026-06-04T07:59:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (summary mode adds parameter-count aggregates, cycle 10 slice 4). summary mode adds parameter-count aggregates (total/zero-arity/top-5, 736 tests). tick agent ACs (summary arity aggregates live, 736 tests, 3 cross-mode arithmetic invariants)
+
+# Key outcomes
+outcomes:
+  - "`summary` envelope adds `total_parameters` field — integer, sum of `tool_params()[name].len()` over every tool (tools.rs:1212-1227, accumulated during the registry walk)"
+  - "`summary` envelope adds `zero_arity_tools` field — integer, count of tools whose `tool_params()` entry is None or empty (tools.rs:1219-1222, counted alongside total)"
+  - "`summary` envelope adds `highest_arity_tools` field — array of `{name, parameter_count}` rows, top 5 by parameter_count, ties broken by name asc for determinism (tools.rs:1228-1232)"
+  - "Macro doc-string shape for summary mode updated to include the three new fields (tools.rs:12215, T-1973 block appended to summary line)"
+  - "Drift test extended: `total_parameters`, `zero_arity_tools`, `highest_arity_tools` added to required_fields (tools.rs:35831-35836)"
+  - "Invariant test: `total_parameters` equals the sum of per-tool `tool_detail.parameter_count` over the full registry (tools.rs:36694-36715 help_summary_total_parameters_matches_sum_over_tool_detail)"
+  - "Invariant test: `zero_arity_tools` equals the count of tools whose `tool_detail.parameter_count == 0` (tools.rs:36717-36738 help_summary_zero_arity_tools_matches_walk_count)"
+  - "Invariant test: `highest_arity_tools` rows are sorted descending by parameter_count, capped at 5, and each row's count matches the registry (tools.rs:36740-36789 help_summary_highest_arity_tools_ranked_and_real)"
+  - "`cargo test --lib --package termlink-mcp` passes (736 tests, 0 failed; +3 from T-1972 baseline of 733)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1973-termlinkhelp-summary-mode-adds-parameter.md"
+  - ".tasks/completed/T-1972-termlinkhelp-parametercount-on-namefilte.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T07:56:47"
+    action: "T-1973: scope ACs (summary mode adds parameter-count aggregates, cycle 10 slice 4)"
+  - time: "2026-06-04T07:58:42"
+    action: "T-1973: summary mode adds parameter-count aggregates (total/zero-arity/top-5, 736 tests)"
+  - time: "2026-06-04T07:59:08"
+    action: "T-1973: tick agent ACs (summary arity aggregates live, 736 tests, 3 cross-mode arithmetic invariants)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 3
+  lines_added: 274
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1973-termlinkhelp-summary-mode-adds-parameter.md
+generated_by: context-agent-hybrid

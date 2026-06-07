@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1880: /reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE symmetry)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T15:25:49Z
+# ============================================================================
+
+task_id: T-1880
+task_name: "/reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE symmetry)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-30T15:21:10Z
+completed: 2026-05-30T15:25:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-30T17:25:41+02:00
+last_commit: 2026-05-30T17:25:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /reply skill — one-keystroke ad-hoc reply (SEND/RECEIVE symmetry)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-reply.sh` exists with: required positional `<peer-substring>` + `<text>`, optional flags `--self`, `--hub`, `--ensure-cid` (allow new cid when none on topic), `--dry-run`, `--json`"
+  - "Self-fp resolution uses the PL-195 canonical chain (`channel info agent-presence`, chat-arc fallback) — same as agent-send.sh/agent-respond.sh"
+  - "Topic resolution: substring-match peer against `dm:*` topics where self-fp appears in either slot. Zero matches → exit 2 with \"use /agent-handoff to start a thread\" hint. Multiple matches → exit 2, list candidates, refuse"
+  - "cid extraction: read latest envelope on the resolved topic, pull `metadata.conversation_id`. Missing cid + no `--ensure-cid` → exit 2 with hint to use /agent-handoff (structured threads). With `--ensure-cid` → mint a new cid (`reply-<utc-iso>` form) and proceed"
+  - "Delegates to `scripts/agent-respond.sh --topic <T> --conversation-id <cid> --reply <text>` for the actual ack+reply (no protocol duplication)"
+  - "`.claude/commands/reply.md` slash skill exists, wraps the script with one-keystroke invocation: `/reply <peer-short> \"<text>\"`"
+  - "CLAUDE.md Quick Reference gains exactly ONE line for `/reply`"
+  - "Smoke test executed live: live invocation `bash scripts/agent-reply.sh \"d1993c2c3ec44c94:d1993c2c3ec44c94\" \"[T-1880 smoke - please ignore]\" --ensure-cid --json` posted receipt (offset 9) + reply turn (offset 10) on `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` with minted cid `reply-20260530T152332Z`. Topic envelope count 9→11."
+  - "`--help` is operator-readable and documents the multi-match refusal behavior"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/reply.md"
+  - "CLAUDE.md"
+  - "scripts/agent-reply.sh"
+  - ".tasks/active/T-1880-reply-peer-text--one-keystroke-ad-hoc-re.md"
+  - ".tasks/completed/T-1879-check-arc-step-45-peek-hints--point-at-r.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T17:25:41"
+    action: "T-1880: /reply skill — one-keystroke ad-hoc reply (SEND/RECEIVE symmetry)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 490
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1880-reply-peer-text--one-keystroke-ad-hoc-re.md
+generated_by: context-agent-hybrid

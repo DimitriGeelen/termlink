@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1934: tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host envelope (message field)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T21:42:38Z
+# ============================================================================
+
+task_id: T-1934
+task_name: "tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host envelope (message field)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-02T20:39:37Z
+completed: 2026-06-02T21:20:31Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-02T22:40:47+02:00
+last_commit: 2026-06-02T23:20:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs + verification (unblock G-020 gate). tofu_clear MCP/CLI convergence — add --all to MCP, message field to CLI
+
+# Key outcomes
+outcomes:
+  - "`TofuClearParams` extended with `all: Option<bool>` (default false); MCP branches: `all=true` → `store.clear_all()` returns `{ok: true, cleared: N}`; `all=false` requires `host` — tools.rs:7641-7647 (params) + tools.rs:12415-12440 (tool)"
+  - "CLI `cmd_tofu_clear` single-host JSON includes `message` field — infrastructure.rs:1204-1220 mirror of MCP string"
+  - "Two new parity tests: `parity_tofu_clear_all_empty` (PAIR 21) + `parity_tofu_clear_single_miss` (PAIR 22) — tests/parity.rs end"
+  - "Full parity suite passes — `test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 445.91s`"
+  - "`cargo build --release -p termlink-mcp` + `-p termlink` remain warning-free — `Finished release profile [optimized] target(s) in 20m 05s` (combined build, no warnings emitted)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1934-tofuclear-mcpcli-convergence--add---all-.md"
+  - ".tasks/completed/T-1933-add-termlinkwhoami-mcp-tool--identity-di.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-02T22:40:47"
+    action: "T-1934: scope ACs + verification (unblock G-020 gate)"
+  - time: "2026-06-02T23:20:23"
+    action: "T-1934: tofu_clear MCP/CLI convergence — add --all to MCP, message field to CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 40 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 40
+  commits: 2
+  files_changed: 5
+  lines_added: 285
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1934-tofuclear-mcpcli-convergence--add---all-.md
+generated_by: context-agent-hybrid

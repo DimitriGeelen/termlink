@@ -4,10 +4,10 @@ name: "runnable worker example for claim primitive — examples/parallel_worker.
 description: >
   runnable worker example for claim primitive — examples/parallel_worker.rs (substrate T-2018)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2031, T-2032, T-2033]
@@ -16,8 +16,8 @@ related_tasks: [T-2031, T-2032, T-2033]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T19:29:09Z
-last_update: 2026-06-07T19:29:09Z
-date_finished: null
+last_update: 2026-06-07T19:32:54Z
+date_finished: 2026-06-07T19:32:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -200,3 +200,6 @@ cargo check -p termlink-session --example parallel_worker
 - **Action:** Wrote `crates/termlink-session/examples/parallel_worker.rs` (~185 lines, single file). N workers race on a shared `AtomicU64` offset cursor; `LeasedClaim::acquire` per offset; CLAIM_CONFLICT → conflicts++, success → sleep(100ms) + ack → wins++; per-worker tally + grand total + sanity check at end.
 - **Verification:** `cargo check -p termlink-session --example parallel_worker` succeeds.
 - **User value:** copy-pasteable starter for any consumer building parallel workers on TermLink topics. Pairs with `docs/operations/substrate-claim-primitive.md` (runbook) — runbook explains "why," example proves "how."
+
+### 2026-06-07T19:32:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1842: agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not subscribe failure (G-060 graceful degradation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T15:07:39Z
+# ============================================================================
+
+task_id: T-1842
+task_name: "agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not subscribe failure (G-060 graceful degradation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T15:03:27Z
+completed: 2026-05-28T15:06:48Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - "`agent-listeners.sh` detects `-32013` / `unknown topic` in subscribe stderr and exits 0 with empty listener rollup"
+  - "Other subscribe failures (auth, network) still exit 3 with the error surfaced (T10 verifies via unreachable-hub)"
+  - "`agent-listeners.sh --json` on a topic-less hub returns valid envelope: `total_listeners=0, live=0, stale=0, offline=0, listeners=[]` (T9)"
+  - "`agent-listeners-fleet.sh` counts topic-less hubs as scanned-ok (NOT as `hubs_failed`) — verified live below"
+  - "Unit tests in `test-agent-listeners.sh` cover the -32013 path (T9 + T10 added)"
+  - "Live verification: `agent-listeners-fleet.sh --json` BEFORE: `hubs_scanned=2, hubs_failed=3`. AFTER: `hubs_scanned=5, hubs_failed=0`. fleet snapshot now: `total_listeners=1, live=1` (just me — accurate fleet adoption count, no false-failure noise)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1842-agent-listenerssh--fleet-variant-treat--.md
+generated_by: context-agent-hybrid

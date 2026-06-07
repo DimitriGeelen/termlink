@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1957: termlink_help list_categories surfaces per-category description
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T21:49:27Z
+# ============================================================================
+
+task_id: T-1957
+task_name: "termlink_help list_categories surfaces per-category description"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T21:44:57Z
+completed: 2026-06-03T21:49:11Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T23:45:58+02:00
+last_commit: 2026-06-03T23:49:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (list_categories surfaces per-category descriptions). list_categories surfaces per-category description (698 tests). tick agent ACs (per-category descriptions live, 698 tests, drift-detection invariant verified)
+
+# Key outcomes
+outcomes:
+  - "`tools.rs::category_descriptions()` (or equivalent) returns a `&'static HashMap<&'static str, &'static str>` populated with one-line purpose strings for every category present in `help_categories()`. — `crates/termlink-mcp/src/tools.rs:570-610` (OnceLock-cached, 27 entries, one per category)."
+  - "`build_help_json` in `list_categories` mode includes `\"description\"` per row alongside `name` and `tool_count`. Existing `total_categories` and `total_tools` fields preserved. — `crates/termlink-mcp/src/tools.rs:976-996` (looks up `category_descriptions().get(cat_name)`, inserts as third field)."
+  - "`HelpParams.list_categories` doc-comment and the `#[tool(description=...)]` macro for `termlink_help` mention the new `description` field in the return-shape documentation so LLMs see it via `tool_detail`. — `tools.rs:7700-7707` (HelpParams doc) and `tools.rs:11904` (macro: `{categories:[{name,tool_count,description}], ...}`)."
+  - "New test `help_list_categories_includes_descriptions` asserts every row in the JSON output has a non-empty `description` field. — `tools.rs:34987-35008`, passes (1/1)."
+  - "New test `category_descriptions_covers_all_categories` (structural invariant) asserts the descriptions map's key set equals the set of names from `help_categories()` — drift-detection so adding a category without a description fails CI. — `tools.rs:35010-35040` (checks both directions: missing-desc + orphan-desc), passes (1/1)."
+  - "Existing tests `help_list_categories_returns_just_counts` and `help_list_categories_overrides_filters` still pass (with the description field added but other shape preserved). — 4 list_categories tests run together: all 4 pass."
+  - "Full lib test suite (`cargo test --lib --package termlink-mcp`) reports the prior pass count + the new tests, 0 failures. — `test result: ok. 698 passed; 0 failed` (+2 from 696, matches the 2 new tests)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1957-termlinkhelp-listcategories-surfaces-per.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T23:45:58"
+    action: "T-1957: scope ACs (list_categories surfaces per-category descriptions)"
+  - time: "2026-06-03T23:48:34"
+    action: "T-1957: list_categories surfaces per-category description (698 tests)"
+  - time: "2026-06-03T23:49:04"
+    action: "T-1957: tick agent ACs (per-category descriptions live, 698 tests, drift-detection invariant verified)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 3
+  files_changed: 2
+  lines_added: 255
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1957-termlinkhelp-listcategories-surfaces-per.md
+generated_by: context-agent-hybrid

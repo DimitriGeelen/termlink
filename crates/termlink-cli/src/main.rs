@@ -1538,6 +1538,14 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ClaimsSummary { topic, hub, json } => {
+                commands::channel::cmd_channel_claims_summary(
+                    &topic,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
         },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {

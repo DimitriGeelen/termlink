@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1996: termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T15:02:32Z
+# ============================================================================
+
+task_id: T-1996
+task_name: "termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T14:52:50Z
+completed: 2026-06-05T15:02:14Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T17:02:11+02:00
+last_commit: 2026-06-05T17:02:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)
+
+# Key outcomes
+outcomes:
+  - "HelpParams gains `sort_by: Option<String>` field with doc comment referencing T-1996"
+  - "`build_help_json` signature grows 13 → 14 args (new `sort_by: Option<String>` last)"
+  - "All ~95 existing call sites patched to pass `None` for the new arg (test fixtures + production)"
+  - "Production caller (`call_termlink_help`) wires `let sort_by = p.sort_by.clone();`"
+  - "Sort applies in name_filter branch AFTER filter loop, BEFORE offset/limit slicing"
+  - "Four valid axes: `name`, `arity`, `required_arity`, `category` (stable sort, registry-order tiebreak)"
+  - "Envelope emits `sort_by_applied: <value>` when sort_by provided AND valid"
+  - "Envelope emits `sort_by_unknown: <value>` when sort_by provided but unrecognized (matches stay in registry order)"
+  - "Drift table gains `(\"sort_by_applied\", \"T-1996\")` and `(\"sort_by_unknown\", \"T-1996\")`"
+  - "11 invariant tests added: by_name_alphabetical, by_arity_ascending_stable, by_required_arity_ascending_stable, by_category_alphabetical, unknown_value_emits_sort_by_unknown_and_preserves_registry_order, composes_with_limit_applied_after_sort, composes_with_offset_applied_after_sort, composes_with_limit_and_offset_yields_window_over_sorted, composes_with_exclude_deprecated, unset_omits_sort_by_applied_backcompat, stable_sort_preserves_registry_order_on_ties"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1996-termlinkhelp-namefilter-accepts-sortby-p.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T17:02:11"
+    action: "T-1996: termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 581
+  lines_removed: 160
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1996-termlinkhelp-namefilter-accepts-sortby-p.md
+generated_by: context-agent-hybrid

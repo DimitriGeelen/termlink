@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1920: parity_info — lock shared MCP/CLI info shape, document MCP-only fields
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T22:33:17Z
+# ============================================================================
+
+task_id: T-1920
+task_name: "parity_info — lock shared MCP/CLI info shape, document MCP-only fields"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T22:23:35Z
+completed: 2026-06-01T22:33:15Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-02T00:33:11+02:00
+last_commit: 2026-06-02T00:33:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  parity_info — lock shared shape, document MCP-only fields
+
+# Key outcomes
+outcomes:
+  - "Parity test `parity_info` added to `crates/termlink-mcp/tests/parity.rs`"
+  - "Test ignores MCP-only fields (`mcp_tools`, `registered_endpoints`) with code comment explaining why"
+  - "Test asserts shared shape equality (version, commit, target, runtime_dir, sessions_dir, hub_socket, hub_running, sessions{live,stale,total})"
+  - "`cargo test -p termlink-mcp --test parity` passes (10 passed, 1 ignored = T-1911)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1920-parityinfo--lock-shared-mcpcli-info-shap.md"
+  - ".tasks/completed/T-1919-termlinkdiscover-mcp-envelope--align-to-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-02T00:33:11"
+    action: "T-1920: parity_info — lock shared shape, document MCP-only fields"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 3
+  lines_added: 181
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1920-parityinfo--lock-shared-mcpcli-info-shap.md
+generated_by: context-agent-hybrid

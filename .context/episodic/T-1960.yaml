@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1960: termlink_help surfaces deprecated flag on legacy tools
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:04:21Z
+# ============================================================================
+
+task_id: T-1960
+task_name: "termlink_help surfaces deprecated flag on legacy tools"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:00:42Z
+completed: 2026-06-03T22:04:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-04T00:01:28+02:00
+last_commit: 2026-06-04T00:04:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (deprecated flag derived from description markers, surfaced in tool_detail + name_filter). surface deprecated flag in tool_detail + name_filter (707 tests, derived from description markers). tick agent ACs (deprecated flag live, 707 tests, derivation drift-proof)
+
+# Key outcomes
+outcomes:
+  - "New `is_deprecated(description: &str) -> bool` pure function: case-insensitive contains of \"legacy\", \"retirement\", \"deprecated\", \"t-1166\". — `crates/termlink-mcp/src/tools.rs:564-571`."
+  - "`tool_detail` adds `deprecated: bool` to response. — `tools.rs:1001-1017`."
+  - "`name_filter` adds `deprecated: bool` to each match row. — `tools.rs:982-991`."
+  - "Test `is_deprecated_flags_known_legacy_tools` — `tools.rs:35402-35434`, passes."
+  - "Test `is_deprecated_excludes_live_tools` — `tools.rs:35436-35464`, passes."
+  - "Test `tool_detail_response_includes_deprecated_field` — `tools.rs:35466-35498`, passes (asserts both true and false paths)."
+  - "Test `name_filter_matches_carry_deprecated_field` — `tools.rs:35500-35525`, passes."
+  - "Full lib suite: `test result: ok. 707 passed; 0 failed`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1960-termlinkhelp-surfaces-deprecated-flag-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:01:28"
+    action: "T-1960: scope ACs (deprecated flag derived from description markers, surfaced in tool_detail + name_filter)"
+  - time: "2026-06-04T00:03:19"
+    action: "T-1960: surface deprecated flag in tool_detail + name_filter (707 tests, derived from description markers)"
+  - time: "2026-06-04T00:04:03"
+    action: "T-1960: tick agent ACs (deprecated flag live, 707 tests, derivation drift-proof)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 2
+  lines_added: 294
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1960-termlinkhelp-surfaces-deprecated-flag-on.md
+generated_by: context-agent-hybrid

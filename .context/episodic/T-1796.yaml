@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1796: Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-27T20:49:35Z
+# ============================================================================
+
+task_id: T-1796
+task_name: "Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-22T06:59:41Z
+completed: 2026-05-27T20:49:14Z
+duration_days: 5
+updates_count: 2
+first_commit: 2026-05-27T22:49:09+02:00
+last_commit: 2026-05-27T22:49:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  paginate fetch_topic_msgs for deeper-than-1000 fleet history
+
+# Key outcomes
+outcomes:
+  - "New pure helper `paginated_tail_start(count, slice_size) -> u64` returns the tail-anchored start cursor (`count.saturating_sub(slice_size)`). Lives alongside `tail_slice_cursor` (line 701). Documented with `T-1796` reference."
+  - "New async function `fetch_topic_msgs_paginated(topic, hub, slice_size)` makes a `channel.list` round-trip for the count, then walks the hub from `paginated_tail_start(count, slice_size)` forward in pages of `HUB_SUBSCRIBE_PAGE_CAP` (1000), collecting up to `slice_size` envelopes in offset-ascending order. Returns `Result<Vec<Value>>`."
+  - "Equivalence: when `slice_size <= HUB_SUBSCRIBE_PAGE_CAP`, `fetch_topic_msgs_paginated` returns the same envelope set as `fetch_topic_msgs` (a single round-trip suffices); when `count <= slice_size`, returns ALL envelopes (equivalent to `walk_topic_full`)."
+  - "Unit tests for `paginated_tail_start`: slice < count (anchors at tail), slice = count (cursor 0), slice > count (cursor 0, saturating), slice = 0 (cursor = count)."
+  - "`cargo check -p termlink` passes from the workspace root (`/opt/termlink`)."
+  - "`cargo test -p termlink paginated_tail_start` runs the new unit tests and they PASS."
+  - "Existing T-1795 tests (`fetch_topic_tail_cursor_*`) still PASS — proves we didn't regress the single-page path."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - ".tasks/active/T-1796-fix-broken-bin-test-compilation--cmdflee.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-27T22:49:09"
+    action: "T-1796: paginate fetch_topic_msgs for deeper-than-1000 fleet history"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8029 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [chat-arc, fetch, T-1795]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8029
+  commits: 1
+  files_changed: 2
+  lines_added: 201
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1796-fix-broken-bin-test-compilation--cmdflee.md
+generated_by: context-agent-hybrid

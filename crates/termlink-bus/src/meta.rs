@@ -2,7 +2,7 @@ use std::path::Path;
 
 use rusqlite::{Connection, params};
 
-use crate::claim::{ClaimInfo, ReleaseInfo};
+use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo};
 use crate::{BusError, Result, Retention};
 
 /// SQLite sidecar tracking topics, cursors, and per-topic offset counters.
@@ -490,6 +490,46 @@ impl Meta {
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
         Ok(rows)
+    }
+
+    /// T-2039: aggregate claim state for `topic`. Single SQL over the
+    /// `claims` table using `idx_claims_topic_until` — returns counts plus
+    /// the oldest-active and next-expiry markers needed for operator
+    /// observability ("is this topic busy?", "is anything stuck?").
+    ///
+    /// Returns zero counts and `None` markers when the topic has no claim
+    /// rows at all. Caller is responsible for the topic-exists pre-check
+    /// (mirrors `list_claims`).
+    pub(crate) fn claims_summary(
+        &self,
+        topic: &str,
+        now_ms: i64,
+    ) -> Result<ClaimsSummary> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT \
+               COALESCE(SUM(CASE WHEN claimed_until >  ?2 THEN 1 ELSE 0 END), 0) AS active, \
+               COALESCE(SUM(CASE WHEN claimed_until <= ?2 THEN 1 ELSE 0 END), 0) AS expired, \
+               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_at    ELSE NULL END) AS oldest_active_at, \
+               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_until ELSE NULL END) AS next_active_expiry \
+             FROM claims WHERE topic = ?1",
+        )?;
+        let summary = stmt.query_row(params![topic, now_ms], |r| {
+            let active_i: i64 = r.get(0)?;
+            let expired_i: i64 = r.get(1)?;
+            let oldest_active_at_ms: Option<i64> = r.get(2)?;
+            let next_active_expiry_ms: Option<i64> = r.get(3)?;
+            let oldest_active_age_ms = oldest_active_at_ms
+                .map(|t| (now_ms - t).max(0));
+            Ok(ClaimsSummary {
+                active_count: active_i.max(0) as u64,
+                expired_count: expired_i.max(0) as u64,
+                oldest_active_at_ms,
+                oldest_active_age_ms,
+                next_active_expiry_ms,
+            })
+        })?;
+        Ok(summary)
     }
 }
 

@@ -4,15 +4,15 @@ name: "G-020 task-create-time gate failed — RCA + pickup to framework-agent"
 description: >
   Inception: the G-020 / T-469 Pickup Message Handling rule (Build Readiness Gate) is supposed to prevent unscoped build tasks from being created with placeholder ACs. Empirically: on 2026-05-31T17:45Z I created T-1898 via `fw work-on "<name>" --type build`, the task file landed with `[First criterion]` / `[Second criterion]` placeholder ACs from the default template, status was set to `started-work`, and no hook blocked the creation. The G-020 gate DID fire on the next Bash tool call (preventing read of inception.md template), proving the gate exists and runs — but only at use-time, not at create-time. This inception scopes the RCA: was the gate designed to be use-time-only by intent (spec gap → needs feature), or was it designed for create-time AND we have a regression (bug → needs fix)? Deliverable post-GO: pickup envelope to framework-agent describing the structural gap with proposed prevention path.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [governance, hook-gates, framework-agent, pickup, G-020]
 components: []
 related_tasks: [T-1898, T-469]
 created: 2026-05-31T17:52:28Z
-last_update: 2026-05-31T17:56:14Z
+last_update: 2026-06-06T12:32:57Z
 date_finished: null
 ---
 
@@ -115,16 +115,16 @@ S8. **Update memory.** Add a `feedback_*.md` entry capturing: "If you create a b
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated by inspecting actual create-task script output (S4)
+- [x] Problem statement validated by inspecting actual create-task script output (S4)
 - [ ] All 7 assumptions tested or marked deferred with rationale
 - [ ] Root-cause-or-spec-gap determined (A5 resolved)
-- [ ] Recommendation written with rationale + evidence + concrete proposed fix
+- [x] Recommendation written with rationale + evidence + concrete proposed fix
 - [ ] Framework-agent pickup envelope drafted (the deliverable, even pre-GO)
 - [ ] Local memory entry drafted (the agent-side protection)
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go on the framework-agent pickup
+- [x] [REVIEW] Review exploration findings and approve go/no-go on the framework-agent pickup
   **Steps:**
   1. Open Watchtower inception page: http://192.168.10.107:3003/inception/T-1899
      (NOT /review/T-1899 — that's general task-AC review; inception decisions live on /inception/<id> with its own GO/NO-GO/DEFER form posting to /inception/<id>/decide)
@@ -183,7 +183,11 @@ Need empirical evidence before recommending GO/NO-GO. Observable fact: I created
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-1899 go|no-go|defer --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Need empirical evidence before recommending GO/NO-GO. Observable fact: I created T-1898 as workflow_type=build with placeholder ACs via `fw work-on --type build` and it succeeded; the G-020 gate only fired on the NEXT Bash tool call. The inception's job is to determine whether the gate's design intent included task-create-time enforcement (and we have a bug) OR whether task-create was deliberately outside the gate's surface (and we have a spec gap). Spike S1-S4 will read the hook config, task-create script, and run a clean replication. Until then DEFER is honest.
+
+**Date**: 2026-06-06T12:32:57Z
 
 ## Updates
 
@@ -201,3 +205,13 @@ Need empirical evidence before recommending GO/NO-GO. Observable fact: I created
 
 ### 2026-05-31T17:55:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-06T12:32:57Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Need empirical evidence before recommending GO/NO-GO. Observable fact: I created T-1898 as workflow_type=build with placeholder ACs via `fw work-on --type build` and it succeeded; the G-020 gate only fired on the NEXT Bash tool call. The inception's job is to determine whether the gate's design intent included task-create-time enforcement (and we have a bug) OR whether task-create was deliberately outside the gate's surface (and we have a spec gap). Spike S1-S4 will read the hook config, task-create script, and run a clean replication. Until then DEFER is honest.
+
+### 2026-06-06T12:32:57Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task

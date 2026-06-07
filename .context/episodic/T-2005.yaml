@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2005: termlink help <category>: 3-tier positional routing (exact tool > exact category > substring) — cycle 13 slice 3
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T18:33:31Z
+# ============================================================================
+
+task_id: T-2005
+task_name: "termlink help <category>: 3-tier positional routing (exact tool > exact category > substring) — cycle 13 slice 3"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T18:17:56Z
+completed: 2026-06-05T18:27:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T20:26:56+02:00
+last_commit: 2026-06-05T20:27:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink help <category> — 3-tier positional routing (exact tool > exact category > substring) (cycle 13 slice 3). tick ACs — all 12 verified
+
+# Key outcomes
+outcomes:
+  - "`pub fn registry_category_names() -> &'static HashSet<&'static str>` in `termlink-mcp::tools` — OnceLock-cached, walks `help_categories()` once"
+  - "`commands/help.rs::PositionalRoute` gains `Scoped(String)` variant"
+  - "`resolve_positional` checks priority: exact tool → `Drilled`, exact category → `Scoped`, else → `Filtered`"
+  - "`Scoped(name)` routes to `category` field of `build_cli_help_json` — see dispatch arm at help.rs:108-112"
+  - "Conflict policy extended: positional + explicit `--category` → error with hint via process::exit(2)"
+  - "Unit tests added: `positional_exact_category_routes_to_scoped` (covers channel/agent_chat/fleet/session), `positional_with_explicit_category_errors`, `positional_unknown_routes_to_name_filter` (replaces & widens the T-2004 single-case test); all 11 help::tests pass"
+  - "Re-export `registry_category_names` from `termlink-mcp/src/lib.rs`"
+  - "`cargo build -p termlink --release` clean — `Finished release profile [optimized] target(s) in 5m 51s`"
+  - "`cargo test -p termlink-mcp --lib` 835 pass / 0 failed (registry_category_names exercised transitively)"
+  - "Live smoke: `termlink help channel` renders 17 channel-category tools (header: \"TermLink MCP tool registry — 17 tools across 1 categories\") — confirmed scope-based render, no substring noise"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/help.rs"
+  - "crates/termlink-mcp/src/lib.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-2005-termlink-help-category-3-tier-positional.md"
+  - ".tasks/completed/T-2004-termlink-help-target-positional-arg-rout.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T20:26:56"
+    action: "T-2005: termlink help <category> — 3-tier positional routing (exact tool > exact category > substring) (cycle 13 slice 3)"
+  - time: "2026-06-05T20:27:19"
+    action: "T-2005: tick ACs — all 12 verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 5
+  lines_added: 246
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2005-termlink-help-category-3-tier-positional.md
+generated_by: context-agent-hybrid

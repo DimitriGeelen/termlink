@@ -34,3 +34,34 @@ pub struct ReleaseInfo {
     pub offset: u64,
     pub ack: bool,
 }
+
+/// Aggregate view of claim state on a topic — T-2039 (arc-parallel-substrate
+/// Slice 6). Computed via a single SQL aggregate over the `claims` table
+/// using `idx_claims_topic_until`. Pairs with [`ClaimInfo`] (per-row detail
+/// from `Bus::list_claims`) as the observability companion: `claims` answers
+/// "what's claimed right now?", `claims_summary` answers "how busy is this
+/// topic, and is anything stuck?".
+///
+/// `active_count` + `expired_count` may sum to less than the total rows ever
+/// claimed on the topic — rows are lazily reaped on the next claim attempt
+/// for the same `(topic, offset)`, so an expired claim only persists in
+/// `claims` until someone tries that offset again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimsSummary {
+    /// Number of rows where `claimed_until > now_ms`.
+    pub active_count: u64,
+    /// Number of rows where `claimed_until <= now_ms` (lazy-reaped).
+    pub expired_count: u64,
+    /// Wall-clock unix-ms of the oldest still-active claim's `claimed_at`.
+    /// `None` when `active_count == 0`.
+    pub oldest_active_at_ms: Option<i64>,
+    /// `now_ms - oldest_active_at_ms` — how long the oldest live claim has
+    /// been held. `None` when `active_count == 0`. Operator signal: if this
+    /// approaches the TTL, the worker is either stuck or about to need to
+    /// `channel.renew`.
+    pub oldest_active_age_ms: Option<i64>,
+    /// Wall-clock unix-ms of the next-soonest `claimed_until` among active
+    /// claims — i.e. when the next slot will free up without `release`.
+    /// `None` when `active_count == 0`.
+    pub next_active_expiry_ms: Option<i64>,
+}

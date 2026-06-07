@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1976: termlink_help: min_parameters filter — composes with max_parameters for arity-range search
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T07:09:20Z
+# ============================================================================
+
+task_id: T-1976
+task_name: "termlink_help: min_parameters filter — composes with max_parameters for arity-range search"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T07:01:32Z
+completed: 2026-06-04T07:09:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T09:02:31+02:00
+last_commit: 2026-06-04T09:09:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (min_parameters filter, cycle 11 slice 1). min_parameters filter — arity-range search composing with max_parameters (743 tests). tick agent ACs (arity-range search live, 743 tests, 3 invariants + cross-mode with T-1975). tick remaining ACs (all 9 complete)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams` gains `min_parameters: Option<usize>` field, symmetric with existing `max_parameters` (T-1975)"
+  - "`build_help_json` signature accepts `min_parameters: Option<usize>` argument; all callers (incl. tests) migrated"
+  - "`name_filter` branch applies BOTH bounds — `pc >= min && pc <= max` when either is `Some`"
+  - "Standalone-arity-filter branch (no `needle`) now triggers when EITHER bound is `Some` (was only `max`)"
+  - "Test: `min_parameters_n_filters_lower_bound` — `min_parameters=5` on standalone returns only tools with arity >= 5"
+  - "Test: `min_max_parameters_compose_for_range` — `min=2, max=4, name_filter=\"channel\"` returns only tools with arity in [2,4] AND name/desc match"
+  - "Test: `min_parameters_standalone_matches_arity_walk` — standalone count with `min=K` equals manual walk of `tool_params()` filtering arity >= K"
+  - "Drift test gains required field `(\"min_parameters\", \"T-1976\")`"
+  - "`cargo test --lib --package termlink-mcp` passes; new test count == 740 + 3 = 743"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1976-termlinkhelp-minparameters-filter--compo.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T09:02:31"
+    action: "T-1976: scope ACs (min_parameters filter, cycle 11 slice 1)"
+  - time: "2026-06-04T09:08:21"
+    action: "T-1976: min_parameters filter — arity-range search composing with max_parameters (743 tests)"
+  - time: "2026-06-04T09:08:46"
+    action: "T-1976: tick agent ACs (arity-range search live, 743 tests, 3 invariants + cross-mode with T-1975)"
+  - time: "2026-06-04T09:09:04"
+    action: "T-1976: tick remaining ACs (all 9 complete)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 4
+  files_changed: 2
+  lines_added: 352
+  lines_removed: 96
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1976-termlinkhelp-minparameters-filter--compo.md
+generated_by: context-agent-hybrid

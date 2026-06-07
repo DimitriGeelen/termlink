@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2031: Substrate (T-2019 Slice 3): client-side helpers + integration tests
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T17:13:33Z
+# ============================================================================
+
+task_id: T-2031
+task_name: "Substrate (T-2019 Slice 3): client-side helpers + integration tests"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T12:12:19Z
+completed: 2026-06-07T17:13:29Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-06-07T18:40:19+02:00
+last_commit: 2026-06-07T18:40:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Substrate Slice 3 — claim_client.rs + LeasedClaim RAII helper
+
+# Key outcomes
+outcomes:
+  - 'New module `crates/termlink-session/src/claim_client.rs` exists with three'
+  - 'All three wrappers do a single direct RPC via `rpc_call_addr` — NO offline'
+  - 'A typed `ClaimError` enum maps hub error codes to variants:'
+  - '`LeasedClaim` struct holds claim_id + auto-renew JoinHandle + last-known'
+  - '`LeasedClaim::acquire` spawns a background tokio task that calls'
+  - '`LeasedClaim::ack(self)` consumes the claim and calls `channel.release`'
+  - '`LeasedClaim::Drop` (when ack/nack not called) aborts the renew task and'
+  - 'Unit tests in `claim_client.rs` cover: hub-returned -32015 → `Conflict`;'
+  - 'Integration test `crates/termlink-session/tests/claim_client_integration.rs`'
+  - '`lib.rs` re-exports `claim_client::{channel_claim, channel_release,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/claim_client.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/tests/claim_client_integration.rs'
+  - '.tasks/active/T-2031-substrate-t-2019-slice-3-client-side-hel.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T18:40:19"
+    action: "T-2031: Substrate Slice 3 — claim_client.rs + LeasedClaim RAII helper"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 301 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-3]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 301
+  commits: 3
+  files_changed: 14
+  lines_added: 1911
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2031-substrate-t-2019-slice-3-client-side-hel.md
+generated_by: context-agent-hybrid

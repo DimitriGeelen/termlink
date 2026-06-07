@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2000: termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T15:40:34Z
+# ============================================================================
+
+task_id: T-2000
+task_name: "termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T15:36:03Z
+completed: 2026-06-05T15:40:17Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T17:40:17+02:00
+last_commit: 2026-06-05T17:40:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)
+
+# Key outcomes
+outcomes:
+  - "HelpParams gains `exclude_categories: Option<Vec<String>>` field with doc comment referencing T-2000"
+  - "`build_help_json` signature grows 16 → 17 args (new `exclude_categories: Option<&[String]>` last)"
+  - "All callers patched to pass `None` for the new arg"
+  - "Production caller (`call_termlink_help`) wires `let exclude_categories_filter = p.exclude_categories.as_deref();`"
+  - "Recognized exclusion categories computed upfront against the registry; unknown ones captured separately"
+  - "Per-category loop drops rows whose category is in the recognized exclusion set"
+  - "When `categories` AND `exclude_categories` both set, exclusion wins on overlap (intersection-minus-exclusion semantic)"
+  - "Envelope emits `exclude_categories_applied: [...]` when array is non-empty AND at least one recognized"
+  - "Envelope emits `exclude_categories_unknown: [...]` when array has any unknown name"
+  - "Empty `exclude_categories:[]` treated as no exclusion (omits both envelope flags)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-2000-termlinkhelp--excludecategories-array-fo.md"
+  - ".tasks/completed/T-1999-termlinkhelp--category-accepts-array-for.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T17:40:17"
+    action: "T-2000: termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 457
+  lines_removed: 120
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2000-termlinkhelp--excludecategories-array-fo.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1900: Watchtower 403 CSRF error UX — actionable recovery steps on stale-session POST
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T19:04:10Z
+# ============================================================================
+
+task_id: T-1900
+task_name: "Watchtower 403 CSRF error UX — actionable recovery steps on stale-session POST"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T18:58:11Z
+completed: 2026-05-31T19:04:08Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-31T21:04:01+02:00
+last_commit: 2026-05-31T21:04:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Watchtower 403 CSRF error UX — actionable recovery panel on stale-session POST
+
+# Key outcomes
+outcomes:
+  - "CSRF-class 403 (description starts with \"CSRF token\") renders a distinct error template path with: (a) plain-language explanation that the form session expired, (b) \"Refresh and retry\" instruction with browser keystrokes (Cmd-R / F5), (c) \"Clear cookies for this site if refresh doesn't fix it\" instruction with browser-menu hint, (d) CLI fallback path (link to docs OR generic `fw` hint)."
+  - "Non-CSRF 403 (e.g. fabric.py:406 \"Forbidden\") still renders the existing plain error page — recovery hints do NOT show for non-CSRF 403s. Verified: CSRF body=34448 bytes (with panel), non-CSRF body=32986 bytes (terse), `session expired` only in CSRF body."
+  - "`csrf_protect()` logic in `app.py:92-111` is UNCHANGED — POST without valid token still 403s (no security regression). Verified: pytest `TestCSRF` 4 tests pass + curl POST returns `403`."
+  - "CSRF 403 page returns HTTP 403 (status code unchanged — only body changes)."
+  - "No untested template variables — rendering CSRF 403 page does not raise Jinja `UndefinedError`. Verified by grep for `{{` in rendered body (none)."
+  - "Existing 404/500 errorhandlers untouched — only `forbidden()` block edited; verified by reading the diff."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "Watchtower 403 CSRF error UX — actionable recovery panel on stale-session POST"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".agentic-framework/web/app.py"
+  - ".agentic-framework/web/templates/_error.html"
+  - ".tasks/active/T-1900-watchtower-403-csrf-error-ux--actionable.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T21:04:01"
+    action: "T-1900: Watchtower 403 CSRF error UX — actionable recovery panel on stale-session POST"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [watchtower, bug, ux]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 176
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1900-watchtower-403-csrf-error-ux--actionable.md
+generated_by: context-agent-hybrid

@@ -17,7 +17,7 @@ mod meta;
 mod retention;
 
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
-pub use claim::{ClaimInfo, ReleaseInfo};
+pub use claim::{ClaimInfo, ClaimsSummary, ReleaseInfo};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use log::Offset;
@@ -327,6 +327,24 @@ impl Bus {
         }
         let now_ms = now_unix_ms();
         self.meta.list_claims(topic, include_expired, now_ms)
+    }
+
+    /// T-2039 (arc-parallel-substrate Slice 6): aggregate claim state for
+    /// `topic`. Returns counts (active/expired) plus the oldest-active and
+    /// next-expiry markers — operator observability companion to
+    /// `list_claims` for "is this topic busy?" and "is anything stuck?"
+    /// queries without paying full-list transfer cost.
+    ///
+    /// Returns `BusError::UnknownTopic` when the topic was never registered
+    /// (mirrors `list_claims`); returns a `ClaimsSummary` with zero counts
+    /// and `None` markers when the topic exists but has no claim rows.
+    /// Pure read — no SQL writes, no cursor mutation, no lazy eviction.
+    pub fn claims_summary(&self, topic: &str) -> Result<ClaimsSummary> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let now_ms = now_unix_ms();
+        self.meta.claims_summary(topic, now_ms)
     }
 
     /// Apply the retention policy for `topic`, deleting record index rows

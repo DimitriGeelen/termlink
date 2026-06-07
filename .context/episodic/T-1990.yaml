@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1990: ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T09:22:45Z
+# ============================================================================
+
+task_id: T-1990
+task_name: "ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T09:07:07Z
+completed: 2026-06-05T09:22:43Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T11:10:54+02:00
+last_commit: 2026-06-05T11:22:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  false-alarm RCA on .122 presence-heartbeat — register PL-201 (don't trust log mtime as liveness signal). replace verification with O(1) channel info path (agent-listeners.sh wedges on bloated topic). verification retry loop (channel info on .122 is flaky under load — 3 attempts × 20s)
+
+# Key outcomes
+outcomes:
+  - "Root cause identified — FALSE ALARM. Cron is firing every minute (syslog confirms"
+  - "presence-heartbeat cron firing on .122 — confirmed via journalctl: 10 consecutive"
+  - "`ring20-management-agent` LIVE on .122 hub — verified 2026-06-05T09:08Z via"
+  - "Regression signal added — registered as PL-201 in `.context/project/learnings.yaml`:"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1990-ring20-management-presence-heartbeat-cro.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T11:10:54"
+    action: "T-1990: false-alarm RCA on .122 presence-heartbeat — register PL-201 (don't trust log mtime as liveness signal)"
+  - time: "2026-06-05T11:21:14"
+    action: "T-1990: replace verification with O(1) channel info path (agent-listeners.sh wedges on bloated topic)"
+  - time: "2026-06-05T11:22:38"
+    action: "T-1990: verification retry loop (channel info on .122 is flaky under load — 3 attempts × 20s)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 3
+  files_changed: 2
+  lines_added: 189
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1990-ring20-management-presence-heartbeat-cro.md
+generated_by: context-agent-hybrid

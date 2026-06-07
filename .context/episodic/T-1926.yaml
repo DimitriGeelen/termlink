@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1926: parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T13:21:26Z
+# ============================================================================
+
+task_id: T-1926
+task_name: "parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-02T12:59:02Z
+completed: 2026-06-02T13:17:27Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-02T15:17:21+02:00
+last_commit: 2026-06-02T15:17:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes
+
+# Key outcomes
+outcomes:
+  - "`parity_kv_full_cycle` test added to `crates/termlink-mcp/tests/parity.rs` exercising the full kv RPC cycle (set → get → list → del). All four phases compared MCP-side vs CLI-side via the existing `diff_json` helper."
+  - "Test uses `#[tokio::test(flavor = \"multi_thread\", worker_threads = 2)]` per PL-199 (socket roundtrip needed)."
+  - "All assertions: each MCP call returns `{ok:true, ...}`; each CLI call returns `{ok:true, ...}`; the field sets match modulo any documented divergence captured in an ignore list (`ts_ms`, `timestamp`)."
+  - "Full parity suite: 15 passed; 0 failed; 0 ignored (was 14 passed)."
+  - "No regression of any other parity test."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-06-02 — test ordering: MCP-cycle-then-CLI-cycle vs interleaved"
+    chose: "Run the FULL MCP cycle (set→get→list→del) first, then the"
+    rationale: "Interleaved (MCP-set then CLI-set against the same key)"
+    alternatives_rejected: ["Strip `replaced` / `deleted` from the diff ignore list —"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1926-paritykvfullcycle--lock-kvsetgetlistdel-.md"
+  - ".tasks/completed/T-1911-converge-termlinkping-mcpcli-transport-p.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-02T15:17:21"
+    action: "T-1926: parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 3
+  lines_added: 238
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1926-paritykvfullcycle--lock-kvsetgetlistdel-.md
+generated_by: context-agent-hybrid

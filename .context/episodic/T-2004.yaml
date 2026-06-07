@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2004: termlink help target: positional arg routes to tool_detail (exact) or name_filter (substring) — cycle 13 slice 2 ergonomics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T18:17:14Z
+# ============================================================================
+
+task_id: T-2004
+task_name: "termlink help target: positional arg routes to tool_detail (exact) or name_filter (substring) — cycle 13 slice 2 ergonomics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T17:48:32Z
+completed: 2026-06-05T18:15:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T20:00:47+02:00
+last_commit: 2026-06-05T20:10:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink help <target> positional — exact-match → tool_detail, substring → name_filter (cycle 13 slice 2). tick ACs — all 11 verified. fix verification — head -3 SIGPIPEs Rust producer (exit 101)
+
+# Key outcomes
+outcomes:
+  - "`Command::Help` clap variant gains an optional positional `target: Option<String>` — `cli.rs::Command::Help.target`"
+  - "When `target` is exactly one of the registry's tool names → CLI passes `Some(target)` to `tool_detail` — `commands/help.rs::resolve_positional` returns `Drilled`"
+  - "When `target` is set but NOT a known tool name → CLI passes `Some(target)` to `name_filter` — returns `Filtered`"
+  - "If `target` AND explicit `--tool-detail` or `--name-filter` both set → exit with stderr error + usage hint — `process::exit(2)` with PL-151-style message"
+  - "Unit tests cover all paths: `positional_exact_tool_routes_to_tool_detail`, `positional_non_tool_routes_to_name_filter`, `positional_with_explicit_tool_detail_errors`, `positional_with_explicit_name_filter_errors`, `no_positional_is_inactive` (5 tests)"
+  - "New `pub fn registry_tool_names() -> &'static HashSet<&'static str>` in `termlink-mcp` — `OnceLock`-cached, re-exported via `lib.rs`"
+  - "`cargo build -p termlink --release` clean — finished `release` profile"
+  - "`cargo test -p termlink --bins` 810 pass (805 baseline + 5 new); 1 pre-existing `isolate_rejects_non_git_dir` flake unrelated (passes in isolation, also flaked during T-2002 close)"
+  - "`cargo test -p termlink-mcp --lib` 835 pass / 0 failed"
+  - "Live smoke: `termlink help channel` → 60 substring matches with categorized + arity tags rendered"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fix verification — head -3 SIGPIPEs Rust producer (exit 101)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/help.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-mcp/src/lib.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-2004-termlink-help-target-positional-arg-rout.md"
+  - ".tasks/completed/T-2003-docs-extend-mcp-help-registrymd-with-cli.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T20:00:47"
+    action: "T-2004: termlink help <target> positional — exact-match → tool_detail, substring → name_filter (cycle 13 slice 2)"
+  - time: "2026-06-05T20:01:08"
+    action: "T-2004: tick ACs — all 11 verified"
+  - time: "2026-06-05T20:10:01"
+    action: "T-2004: fix verification — head -3 SIGPIPEs Rust producer (exit 101)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 27
+  commits: 3
+  files_changed: 7
+  lines_added: 290
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2004-termlink-help-target-positional-arg-rout.md
+generated_by: context-agent-hybrid

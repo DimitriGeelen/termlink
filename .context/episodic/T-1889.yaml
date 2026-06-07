@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1889: broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple profiles for same address
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T15:25:02Z
+# ============================================================================
+
+task_id: T-1889
+task_name: "broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple profiles for same address"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T07:15:18Z
+completed: 2026-05-31T15:25:00Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-31T09:18:02+02:00
+last_commit: 2026-05-31T17:24:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dedup broadcast targets by hub TLS fingerprint. tick RUBBER-STAMP Human AC (Tier-2 logged) + refresh stale verify gate to follow T-1892 helper extraction
+
+# Key outcomes
+outcomes:
+  - "`scripts/chat-arc-broadcast.sh` dedups hub addresses by TLS-fingerprint identity before posting (probes each address via `termlink hub probe --json`, groups by `fingerprint`, posts once per group)"
+  - "Dedup is silent when no collision (only fires stderr message when a skip happens; the per-hub `addr offset=N` lines unchanged)"
+  - "When collision detected: stderr emits `chat-arc-broadcast: skipping duplicate <addr> (same hub as <canonical>, fingerprint=<8-hex>)` — confirmed live in smoke"
+  - "Probe failures fall through (address is preserved for the post loop; better to over-post than silently drop a host whose probe failed)"
+  - "Live smoke 2026-05-31: delta=1 (was 2 pre-fix). Counts: before=2261 → after=2262. Stderr emitted: `skipping duplicate 192.168.10.107:9100 (same hub as 127.0.0.1:9100, fingerprint=d1bd50f5)`. Four hubs delivered (was 5 attempted before dedup)."
+  - "[RUBBER-STAMP] Run `/broadcast-chat \"T-1889 smoke\"` once and verify only ONE new post in `/recent-chat` (not two with ~100ms gap)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/working/.gate-bypass-log.yaml"
+  - "scripts/chat-arc-broadcast.sh"
+  - ".tasks/active/T-1889-broadcast-chat-hubs-dedup-bug--local-hub.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T09:18:02"
+    action: "T-1889: dedup broadcast targets by hub TLS fingerprint"
+  - time: "2026-05-31T17:24:56"
+    action: "T-1889: tick RUBBER-STAMP Human AC (Tier-2 logged) + refresh stale verify gate to follow T-1892 helper extraction"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 489 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 489
+  commits: 2
+  files_changed: 3
+  lines_added: 214
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1889-broadcast-chat-hubs-dedup-bug--local-hub.md
+generated_by: context-agent-hybrid

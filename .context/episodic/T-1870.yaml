@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1870: agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T23:22:10Z
+# ============================================================================
+
+task_id: T-1870
+task_name: "agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T23:15:58Z
+completed: 2026-05-29T23:21:33Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-30T01:21:28+02:00
+last_commit: 2026-05-30T01:21:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface which hubs failed in agent-chat-arc-recent — array + human line (PL-189 visibility follow-on)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-chat-arc-recent.sh` tracks failures as `{name, reason}` pairs, not just a counter"
+  - "`--json` envelope grows a `summary.failed_hubs: [{hub: \"<name>\", reason: \"<short>\"}]` array (parallel to existing `hubs_failed` count, NOT a rename — preserve backward-compat for `/pulse` JSON consumers)"
+  - "Human format prints an extra line `  failed: <name> (<reason>), <name2> (<reason2>)` when failures occurred (omit line when zero failures, do not print \"failed: \" stub)"
+  - "Reason captures the structural cause: `timeout` (rc=124 from `timeout` wrapper), `network` (non-124 non-zero rc), `unknown-topic` (current -32013/not-found path — still counts as `hubs_scanned`, not failed; this path is already correct)"
+  - "`bash scripts/agent-chat-arc-recent.sh --json --limit 1 --since 24 | jq '.summary.failed_hubs'` returns a JSON array (possibly empty)"
+  - "When all hubs succeed, `failed_hubs` is `[]` in JSON and no line is printed in human format"
+  - "Existing `summary.hubs_failed` integer field preserved as length of `failed_hubs` array"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-chat-arc-recent.sh"
+  - ".tasks/active/T-1870-agent-chat-arc-recent-surface-failed-hub.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T01:21:28"
+    action: "T-1870: surface which hubs failed in agent-chat-arc-recent — array + human line (PL-189 visibility follow-on)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 186
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1870-agent-chat-arc-recent-surface-failed-hub.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1859: /peers slash skill — fleet listener discovery (T-1837/1839 skill-layer wrap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T22:46:29Z
+# ============================================================================
+
+task_id: T-1859
+task_name: "/peers slash skill — fleet listener discovery (T-1837/1839 skill-layer wrap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T22:43:57Z
+completed: 2026-05-28T22:46:27Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-29T00:46:23+02:00
+last_commit: 2026-05-29T00:46:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /peers slash skill — fleet listener discovery (T-1837 skill-layer wrap)
+
+# Key outcomes
+outcomes:
+  - "`.claude/commands/peers.md` exists with $ARGUMENTS pass-through, default-LIVE filter, and per-peer handoff-hint format"
+  - "Skill calls `bash scripts/agent-listeners-fleet.sh --json` and surfaces output via Bash (no new helper script needed)"
+  - "Empty-LIVE-fleet path prints a clear hint pointing to `/be-reachable` (advertise self) or `/broadcast-chat` (fan to whenever a peer arrives) — never silent"
+  - "`--all` flag passes through to include OFFLINE entries"
+  - "CLAUDE.md Quick Reference table has a `Peers (LIST)` row pointing at the skill"
+  - "Live invocation in this session demonstrates the skill works against the real fleet (5 hubs)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/peers.md"
+  - "CLAUDE.md"
+  - ".tasks/active/T-1859-peers-slash-skill--fleet-listener-discov.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-29T00:46:23"
+    action: "T-1859: /peers slash skill — fleet listener discovery (T-1837 skill-layer wrap)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 327
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1859-peers-slash-skill--fleet-listener-discov.md
+generated_by: context-agent-hybrid

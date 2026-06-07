@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1993: Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T23:18:16Z
+# ============================================================================
+
+task_id: T-1993
+task_name: "Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991 follow-up)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T09:35:50Z
+completed: 2026-06-05T23:18:13Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-06T01:10:40+02:00
+last_commit: 2026-06-06T01:12:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  re-frame inception — bisect target disproven (zero bus commits since v0.11.1), wedge is host/env not code (5/5 live repro on .122). Spike 1 result — .107 5/5 SUCCESS in <1s vs .122 5/5 timeout, confirms host-axis (same CLI binary, .107's larger topic still fine) + research artifact
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1993-channel-subscribe-host-axis-disproved-version.md"
+  - ".tasks/active/T-1993-hub-side-bisectfix-011473-channel-info-c.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-06T01:10:40"
+    action: "T-1993: re-frame inception — bisect target disproven (zero bus commits since v0.11.1), wedge is host/env not code (5/5 live repro on .122)"
+  - time: "2026-06-06T01:12:45"
+    action: "T-1993: Spike 1 result — .107 5/5 SUCCESS in <1s vs .122 5/5 timeout, confirms host-axis (same CLI binary, .107's larger topic still fine) + research artifact"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 822 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 822
+  commits: 2
+  files_changed: 2
+  lines_added: 331
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1993-hub-side-bisectfix-011473-channel-info-c.md
+generated_by: context-agent-hybrid

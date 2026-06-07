@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1867: Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up #2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T22:24:50Z
+# ============================================================================
+
+task_id: T-1867
+task_name: "Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up #2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T12:04:41Z
+completed: 2026-05-29T22:24:48Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-05-29T23:37:53+02:00
+last_commit: 2026-05-30T00:24:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  real ACs filled with PL-124 / spikes-exclusion hazard scoping. original premise invalidated — corrected to lib/templates loop. implementation landed upstream (commit 98bc7dae local) — push pending. AC 8 ticked — upstream push landed (origin/master @ c5b6a3f8 includes 98bc7dae)
+
+# Key outcomes
+outcomes:
+  - "Upstream `lib/templates/skills/` directory created and populated with the 9 doorbell+mail skill `.md` files (be-reachable, peers, recent-chat, recent-dm, broadcast-chat, pulse, conversations, check-arc, agent-handoff)"
+  - "Upstream `lib/templates/scripts/` directory created and populated with the 11 supporting script `.sh` files (agent-chat-arc-recent, recent-dm, agent-listeners, agent-listeners-fleet, chat-arc-broadcast, agent-conversation-list, agent-conversation-status, agent-send, agent-respond, listener-heartbeat, be-reachable) — chmod 755 in source"
+  - "`lib/upgrade.sh` extended with a loop (placed next to the existing resume.md block at ~1060-1090) that iterates `lib/templates/skills/*.md` and `lib/templates/scripts/*.sh`, applies compare-and-update-with-backup to project-root `.claude/commands/` and `scripts/`, and preserves script execute bit"
+  - "Drift-and-backup semantics confirmed: a consumer-edited skill triggers `.bak` then update (same as resume.md flow)"
+  - "dry-run output lists each propagated file under `WOULD UPDATE` / `WOULD CREATE`"
+  - "/opt/termlink round-trip test: run upstream's `lib/upgrade.sh` flow against /opt/termlink, confirm: (a) the 11 scripts arrive at `/opt/termlink/scripts/` executable, (b) consumer-local script (e.g. /opt/termlink/scripts/chat-arc-multicast.sh) NOT in the propagated set survives untouched, (c) the 9 skills arrive at `/opt/termlink/.claude/commands/`, (d) consumer-local skill (e.g. /opt/termlink/.claude/commands/heartbeat.md) survives"
+  - "Upstream commit message references T-1867 + names the corrected pattern"
+  - "`fw upgrade --help` text updated to mention \"doorbell+mail toolkit propagation\" alongside resume.md"
+  - "Upstream push lands on `origin/master` (verified 2026-05-30: `git fetch origin master` → origin at `c5b6a3f8`, my `98bc7dae` in history; peer commits `c5b6a3f8`/`8d5b52c3` (T-2102/T-2103 /approvals perf work) layered on top — push completed server-side as predicted)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-05-29 — corrected approach: lib/templates loop, not do_vendor includes"
+    chose: "Stage the 9 doorbell+mail skills + 11 scripts under"
+    rationale: "This is the only pattern that puts files where claude-code"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1866.yaml"
+  - ".context/working/.last-episodic-gen.log"
+  - ".tasks/active/T-1867-extend-fw-dovendor-includes-to-add-claud.md"
+  - ".tasks/completed/T-1866-vendor-doorbellmail-skill--script-bundle.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-29T23:37:53"
+    action: "T-1867: real ACs filled with PL-124 / spikes-exclusion hazard scoping"
+  - time: "2026-05-29T23:45:57"
+    action: "T-1867: original premise invalidated — corrected to lib/templates loop"
+  - time: "2026-05-29T23:55:22"
+    action: "T-1867: implementation landed upstream (commit 98bc7dae local) — push pending"
+  - time: "2026-05-30T00:24:43"
+    action: "T-1867: AC 8 ticked — upstream push landed (origin/master @ c5b6a3f8 includes 98bc7dae)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 620 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 620
+  commits: 4
+  files_changed: 4
+  lines_added: 311
+  lines_removed: 63
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1867-extend-fw-dovendor-includes-to-add-claud.md
+generated_by: context-agent-hybrid

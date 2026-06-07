@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1854: Discovery-triangle operator playbook section (T-1853 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T21:32:25Z
+# ============================================================================
+
+task_id: T-1854
+task_name: "Discovery-triangle operator playbook section (T-1853 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T21:30:45Z
+completed: 2026-05-28T21:32:24Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T23:32:20+02:00
+last_commit: 2026-05-28T23:32:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  discovery toolkit section in agent-conversations.md (T-1853 follow-on)
+
+# Key outcomes
+outcomes:
+  - "New section inserted in `docs/operations/agent-conversations.md` between the existing \"Quick start\" and \"Threading\" sections"
+  - "Section catalogs all four triangle corners with one row each, naming the script verb, the slash-command skill (where present), and the MCP wrapper tool name"
+  - "Section references PL-188 (seek-to-tail), PL-189 (timeout wrap), PL-190 (actor-diversity), PL-191 (multi-source identity) as the invariants the verbs implement"
+  - "Verb names referenced in the doc actually exist in the repo (grep gate in Verification)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/agent-conversations.md"
+  - ".tasks/active/T-1854-discovery-triangle-operator-playbook-sec.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T23:32:20"
+    action: "T-1854: discovery toolkit section in agent-conversations.md (T-1853 follow-on)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 211
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1854-discovery-triangle-operator-playbook-sec.md
+generated_by: context-agent-hybrid

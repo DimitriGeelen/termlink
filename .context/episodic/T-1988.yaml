@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1988: PL-200 fleet coverage validation + .141 closure (T-1987 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T20:14:50Z
+# ============================================================================
+
+task_id: T-1988
+task_name: "PL-200 fleet coverage validation + .141 closure (T-1987 sibling)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T19:57:51Z
+completed: 2026-06-04T20:14:47Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-06-04T21:58:34+02:00
+last_commit: 2026-06-04T22:14:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (PL-200 fleet coverage — .122 end-to-end + .141 install). PL-200 fleet coverage closed for .141 + .122 end-to-end proven (PL-146 gotcha documented)
+
+# Key outcomes
+outcomes:
+  - "Test DM posted from this .107 session to ring20-management-agent's DM topic via `--hub 192.168.10.122:9100` (offset=30, ts=1780603129417, nonce=T1988-end2end-20260604-195849Z)"
+  - "Within 4 minutes (2 dm-poller cycles), the test DM payload appears in /var/log/dm-inbox.log on .122 (poller fired at 20:00:01Z, new_envelopes=1, payload + nonce surfaced with sender attribution `d1993c2c3ec44c94 (010-termlink)`)"
+  - ".141 laptop-141 has presence-heartbeat.sh installed (at `/mnt/c/ntb-acd-plugin/termlink/scripts/presence-heartbeat.sh` — script path differs from .122 due to .141's WSL2 layout, but agent_id=laptop-141-agent, listen_topics=dm:6604a2af482f0cf7:*,agent-chat-arc both correct)"
+  - ".141 has `* * * * * PATH=... /mnt/c/ntb-acd-plugin/termlink/scripts/presence-heartbeat.sh ...` in dimitri's crontab (idempotent: `grep -qF \"presence-heartbeat.sh\"` guard before append)"
+  - "laptop-141-agent appears LIVE in `bash scripts/agent-listeners-fleet.sh` output (90s after PL-146 fix landed; first attempt with .122-template-clone failed silently due to PL-146)"
+  - "PL-200 learning got a status-update entry confirming `.122 + .141` fleet coverage + PL-146 cron-env gotcha + .121 flagged for follow-up"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - ".tasks/active/T-1988-pl-200-fleet-coverage-validation--141-cl.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T21:58:34"
+    action: "T-1988: scope ACs (PL-200 fleet coverage — .122 end-to-end + .141 install)"
+  - time: "2026-06-04T22:14:26"
+    action: "T-1988: PL-200 fleet coverage closed for .141 + .122 end-to-end proven (PL-146 gotcha documented)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pl-200, doorbell-mail, ring20, fleet]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 2
+  files_changed: 2
+  lines_added: 155
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1988-pl-200-fleet-coverage-validation--141-cl.md
+generated_by: context-agent-hybrid

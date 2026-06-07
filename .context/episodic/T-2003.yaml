@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2003: docs: extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T17:47:23Z
+# ============================================================================
+
+task_id: T-2003
+task_name: "docs: extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T17:45:44Z
+completed: 2026-06-05T17:47:21Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T19:47:17+02:00
+last_commit: 2026-06-05T19:47:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)
+
+# Key outcomes
+outcomes:
+  - "Doc title updated to cover both `termlink_help` (MCP) and `termlink help` (CLI)"
+  - "TL;DR shows side-by-side MCP and CLI canonical cold-start calls"
+  - "Adds shell-only quick recipes section (--list-categories, --summary, --essentials, --tool-detail, --name-filter)"
+  - "Mentions T-2002 + the shape-parity invariant test as the drift-prevention mechanism"
+  - "doc parses as Markdown (12 code fences matched, 16 headings)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/mcp-help-registry.md"
+  - ".tasks/active/T-2003-docs-extend-mcp-help-registrymd-with-cli.md"
+  - ".tasks/completed/T-2002-cli-termlink-help--parity-with-mcp-help-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T19:47:17"
+    action: "T-2003: extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 185
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2003-docs-extend-mcp-help-registrymd-with-cli.md
+generated_by: context-agent-hybrid

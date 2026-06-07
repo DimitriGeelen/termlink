@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1891: /check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read my posts (OUTBOUND complement of /check-arc)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T15:26:38Z
+# ============================================================================
+
+task_id: T-1891
+task_name: "/check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read my posts (OUTBOUND complement of /check-arc)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T07:55:15Z
+completed: 2026-05-31T15:26:35Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-31T10:01:28+02:00
+last_commit: 2026-05-31T17:26:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /check-outbox slash skill — OUTBOUND complement of /check-arc. register /check-outbox in CLAUDE.md skill family table. tick RUBBER-STAMP Human AC (Tier-2 logged, all 4 steps live re-smoke PASS — laptop-141 backpressure surfaced)
+
+# Key outcomes
+outcomes:
+  - "`scripts/check-outbox.sh` exists, executable, with `--help`. Resolves self-fp via canonical chain (channel info agent-presence → channel info agent-chat-arc, PL-195). Resolution happens ONCE from local hub (shared-host case) then reused per-hub — avoids 16s+ per-hub fallback timeout cascade."
+  - "Walks `dm:*` topics; filters to topics whose name contains self-fp in either slot (`dm:<a>:<b>`)"
+  - "Computes `outbound_unread = count - 1 - peer_acked` where `peer_acked = max(r.up_to where r.sender_id == peer-fp) // -1`. Skips topics where self didn't post (must have a non-zero senders entry for self)."
+  - "Surfaces only topics with `outbound_unread > 0`; renders sorted by unread-count desc"
+  - "`--json` mode emits `{ok, self_fp, topics:[...], summary:{hubs_scanned, hubs_failed, topics_with_unread}}`. Confirmed via `--json` smoke: `topics_with_unread=27 hubs_scanned=1` on local."
+  - "`--fleet` flag walks `~/.termlink/hubs.toml` with T-1889-sibling TLS-fp dedup. Live smoke 2026-05-31: surfaces `laptop-141 dm:6604a2af482f0cf7:d1993c2c3ec44c94 peer=6604a2af… unread=5` — exactly the T-1457 backpressure case, now visible from .107 with one command."
+  - "`.claude/commands/check-outbox.md` skill doc exists; registered in skill surface as `check-outbox: /check-outbox — OUTBOUND complement of /check-arc (T-1891)`"
+  - "[RUBBER-STAMP] Run `/check-outbox` and verify it surfaces the known `dm:6604a2af482f0cf7:d1993c2c3ec44c94` topic on .141 (5 unread, no receipts) via `--fleet` mode"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/check-outbox.md"
+  - "CLAUDE.md"
+  - ".context/working/.gate-bypass-log.yaml"
+  - "scripts/check-outbox.sh"
+  - ".tasks/active/T-1891-check-outbox-slash-skill--surface-dmself.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T10:01:28"
+    action: "T-1891: /check-outbox slash skill — OUTBOUND complement of /check-arc"
+  - time: "2026-05-31T10:02:27"
+    action: "T-1891: register /check-outbox in CLAUDE.md skill family table"
+  - time: "2026-05-31T17:26:31"
+    action: "T-1891: tick RUBBER-STAMP Human AC (Tier-2 logged, all 4 steps live re-smoke PASS — laptop-141 backpressure surfaced)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 451 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 451
+  commits: 3
+  files_changed: 5
+  lines_added: 582
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1891-check-outbox-slash-skill--surface-dmself.md
+generated_by: context-agent-hybrid

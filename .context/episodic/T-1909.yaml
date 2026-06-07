@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1909: MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T11:42:07Z
+# ============================================================================
+
+task_id: T-1909
+task_name: "MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T10:27:30Z
+completed: 2026-06-01T11:37:26Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-01T12:45:58+02:00
+last_commit: 2026-06-01T13:37:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP/CLI parity test harness v0.1 — first catch (topics divergence). v0.1 closure — three Layer-2/3 catches + follow-ups filed
+
+# Key outcomes
+outcomes:
+  - "New test-harness module exists at"
+  - "Harness wires in-process session fixture via"
+  - "Harness invokes MCP tools via rmcp's client transport"
+  - "Harness invokes the matching CLI verb via `Command::new(binary)`"
+  - "Harness uses a function-per-pair pattern with shared ignore-list"
+  - "**v0.1 catalogues 4 verb pairs (1 parity-confirmed, 3 catches):**"
+  - "**Value-delivery headline: harness's first execution caught THREE"
+  - "`cargo test --release --test parity -p termlink-mcp -- --test-threads=1`"
+  - "Harness emits one summary line per case (verified):"
+  - "Negative test (`parity_negative_self_test`) constructs a"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-06-01 — harness location"
+    chose: "integration test inside `crates/termlink-mcp/tests/parity.rs`."
+    rationale: "rmcp client/server in-process fixture (`tokio::io::duplex`)"
+    alternatives_rejected: ["standalone `crates/termlink-parity-tests/` crate — would"]
+  - decision: "2026-06-01 — case representation (per-pair fn vs struct)"
+    chose: "one `#[tokio::test]` async fn per pair, with shared"
+    rationale: "v0.1's 4 pairs are easier to read and individually"
+  - decision: "2026-06-01 — divergence-handling protocol"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/tests/parity.rs"
+  - "crates/termlink-test-utils/src/lib.rs"
+  - ".tasks/active/T-1909-mcpcli-parity-test-harness-v01--invoke-b.md"
+  - ".tasks/active/T-1910-converge-termlinktopics-mcpcli-json-shap.md"
+  - ".tasks/active/T-1911-converge-termlinkping-mcpcli-transport-p.md"
+  - ".tasks/active/T-1912-converge-termlinkversion-mcpcli-data-sou.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T12:45:58"
+    action: "T-1909: MCP/CLI parity test harness v0.1 — first catch (topics divergence)"
+  - time: "2026-06-01T13:37:15"
+    action: "T-1909: v0.1 closure — three Layer-2/3 catches + follow-ups filed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 69 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 69
+  commits: 2
+  files_changed: 6
+  lines_added: 968
+  lines_removed: 52
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1909-mcpcli-parity-test-harness-v01--invoke-b.md
+generated_by: context-agent-hybrid

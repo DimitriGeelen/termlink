@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1954: termlink_help: did-you-mean suggestions on unknown tool / unknown category
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T21:22:02Z
+# ============================================================================
+
+task_id: T-1954
+task_name: "termlink_help: did-you-mean suggestions on unknown tool / unknown category"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T21:15:54Z
+completed: 2026-06-03T21:21:26Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T23:17:30+02:00
+last_commit: 2026-06-03T23:21:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (did-you-mean suggestions for tool_detail + category errors). did-you-mean suggestions for unknown tool/category errors (Levenshtein + semantic-name boost). tick agent ACs (did_you_mean live, 691 tests pass, semantic-name boost validated)
+
+# Key outcomes
+outcomes:
+  - "New helpers added to tools.rs: `levenshtein()`, `tool_distance_score()` (with semantic-name substring boost — strips `termlink_` prefix before containment check), `nearest_tools()`, `nearest_categories()`. Implementation: tools.rs:749-820."
+  - "`tool_detail` unknown-tool error path returns JSON `{error, did_you_mean: [...]}` (up to 5 entries). Implementation: tools.rs:842-852."
+  - "`category=<unknown>` error path returns JSON `{error, did_you_mean: [...]}`. Implementation: tools.rs:899-913."
+  - "Unit test `tool_detail_unknown_includes_suggestions` — `termlink_post` yields both `termlink_agent_post` and `termlink_channel_post` in did_you_mean (pure Levenshtein would have favored `termlink_ping` instead — substring boost validated). tools.rs:35028-35051."
+  - "Unit test `tool_detail_typo_includes_suggestions` — `termlink_agent_recents` yields `termlink_agent_recent` (single-char typo, edit distance 1). tools.rs:35053-35069."
+  - "Unit test `category_unknown_includes_suggestions` — `chanel` yields at least one `channel*` category. tools.rs:35071-35087."
+  - "`cargo test -p termlink-mcp --lib` passes — 691 total, 0 failed (688 prior + 3 new = exact +3 delta)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "did-you-mean suggestions for unknown tool/category errors (Levenshtein + semantic-name boost)"
+    source: git-mined
+  - description: "scope ACs (did-you-mean suggestions for tool_detail + category errors)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1954-termlinkhelp-did-you-mean-suggestions-on.md"
+  - ".tasks/completed/T-1953-termlinkhelp-tooldetail-surfaces-paramet.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T23:17:30"
+    action: "T-1954: scope ACs (did-you-mean suggestions for tool_detail + category errors)"
+  - time: "2026-06-03T23:20:55"
+    action: "T-1954: did-you-mean suggestions for unknown tool/category errors (Levenshtein + semantic-name boost)"
+  - time: "2026-06-03T23:21:26"
+    action: "T-1954: tick agent ACs (did_you_mean live, 691 tests pass, semantic-name boost validated)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 3
+  lines_added: 304
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1954-termlinkhelp-did-you-mean-suggestions-on.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1966: termlink_help name_filter matches carry category_tool_count
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:48:51Z
+# ============================================================================
+
+task_id: T-1966
+task_name: "termlink_help name_filter matches carry category_tool_count"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:45:23Z
+completed: 2026-06-03T22:48:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T00:46:24+02:00
+last_commit: 2026-06-04T00:48:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (name_filter matches carry category_tool_count). name_filter matches carry category_tool_count (716 tests). tick agent ACs (name_filter rows carry category_tool_count, 716 tests)
+
+# Key outcomes
+outcomes:
+  - "Every name_filter match row includes `category_tool_count: number` — `crates/termlink-mcp/src/tools.rs:1118-1144` (search loop) + `1127` capture"
+  - "Value equals the live `tools.len()` of the match's category — `cat_size = tools.len()` captured per-category at `tools.rs:1124`, attached to every match row"
+  - "Macro description updated for `name_filter` envelope — `tools.rs:12018` `{matches:[{category,category_tool_count,name,description,deprecated}], total_matches}`"
+  - "Drift test (T-1964) already covers `category_tool_count` per T-1965 addition — `tools.rs:35664` confirmed"
+  - "Invariant test: `name_filter_match_rows_carry_category_tool_count` walks every category, searches by first tool, verifies match's `category_tool_count` matches `tools.len()` — `tools.rs:35715-35759`"
+  - "Full suite passes — 716 tests (+1 from 715), 0 failed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1966-termlinkhelp-namefilter-matches-carry-ca.md"
+  - ".tasks/completed/T-1965-termlinkhelp-tooldetail-enriches-with-ca.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:46:24"
+    action: "T-1966: scope ACs (name_filter matches carry category_tool_count)"
+  - time: "2026-06-04T00:48:06"
+    action: "T-1966: name_filter matches carry category_tool_count (716 tests)"
+  - time: "2026-06-04T00:48:32"
+    action: "T-1966: tick agent ACs (name_filter rows carry category_tool_count, 716 tests)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, help-registry]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 3
+  lines_added: 198
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1966-termlinkhelp-namefilter-matches-carry-ca.md
+generated_by: context-agent-hybrid

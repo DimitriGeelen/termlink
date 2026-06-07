@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1963: termlink_help summary mode — aggregate registry stats
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:37:47Z
+# ============================================================================
+
+task_id: T-1963
+task_name: "termlink_help summary mode — aggregate registry stats"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:30:37Z
+completed: 2026-06-03T22:37:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T00:31:31+02:00
+last_commit: 2026-06-04T00:37:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (termlink_help summary=true mode — aggregate registry stats). termlink_help summary=true mode — aggregate registry stats (714 tests). tick agent ACs (summary mode live, 714 tests, drift-proof aggregate snapshot)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams.summary: Option<bool>` field added, documented in struct doc — `crates/termlink-mcp/src/tools.rs:7825-7836`"
+  - "`build_help_json` recognizes `summary=true` and returns `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` — `tools.rs:1070-1118`"
+  - "`deprecated_by_category` emits only non-zero entries (BTreeMap keyed by category name → alpha-sorted output) — `tools.rs:1083-1086`"
+  - "`largest_categories` and `smallest_categories` are arrays of `{name, tool_count}` sorted descending and ascending respectively, capped at 5 — `tools.rs:1093-1108`"
+  - "`summary` takes precedence over `list_categories` / `name_filter` / `category` (branch placed before `list_categories` and `name_filter`) — `tools.rs:1070`"
+  - "Invariant test: `help_summary_totals_match_registry` — `tools.rs:35714-35734`"
+  - "Invariant test: `help_summary_deprecated_arithmetic_consistent` — `tools.rs:35736-35774`"
+  - "Invariant test: `help_summary_largest_smallest_are_real_categories` — `tools.rs:35776-35821`"
+  - "`cargo test --lib --package termlink-mcp` passes — 714 tests (+4 from 710 baseline)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1963-termlinkhelp-summary-mode--aggregate-reg.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:31:31"
+    action: "T-1963: scope ACs (termlink_help summary=true mode — aggregate registry stats)"
+  - time: "2026-06-04T00:36:54"
+    action: "T-1963: termlink_help summary=true mode — aggregate registry stats (714 tests)"
+  - time: "2026-06-04T00:37:28"
+    action: "T-1963: tick agent ACs (summary mode live, 714 tests, drift-proof aggregate snapshot)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, help-registry]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 3
+  files_changed: 2
+  lines_added: 400
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1963-termlinkhelp-summary-mode--aggregate-reg.md
+generated_by: context-agent-hybrid

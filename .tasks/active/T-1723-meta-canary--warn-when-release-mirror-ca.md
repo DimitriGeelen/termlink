@@ -12,7 +12,7 @@ tags: [canary, meta, release, G-058, prevention, observability]
 components: [scripts/check-canary-aliveness.sh, scripts/check-mirror-freshness.sh]
 related_tasks: [T-1721, T-1696, T-1695]
 created: 2026-05-20T07:07:06Z
-last_update: 2026-05-26T22:34:36Z
+last_update: 2026-06-06T12:54:51Z
 date_finished: 2026-05-26T22:34:36Z
 ---
 

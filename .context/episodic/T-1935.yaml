@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1935: termlink_whoami populated-path parity test — registered-session happy path (T-1933 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T22:44:45Z
+# ============================================================================
+
+task_id: T-1935
+task_name: "termlink_whoami populated-path parity test — registered-session happy path (T-1933 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-02T22:00:31Z
+completed: 2026-06-02T22:30:11Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T00:01:32+02:00
+last_commit: 2026-06-03T00:29:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (unblock G-020 gate). termlink_whoami populated-path parity test (registered session, name_hint)
+
+# Key outcomes
+outcomes:
+  - "New test `parity_whoami_session_match` in tests/parity.rs registers one session, calls both sides with name_hint — tests/parity.rs PAIR 23"
+  - "Both responses asserted `ok=true` + matching `session.display_name` — explicit assertions in test"
+  - "`diff_json` passes after stripping per-process / wall-clock / per-host fields — `test parity_whoami_session_match ... ok`"
+  - "`posts_as` divergence detected and stripped via ignore-set; decision recorded in ## Decisions"
+  - "Full parity suite passes — `test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 429.01s`"
+  - "`cargo build --release -p termlink-mcp` remains warning-free — clean build, no warnings"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-06-02 — posts_as.from_project: strip in parity diff (don't extract resolver yet)"
+    chose: "add `posts_as` to the parity test's ignore-set; do not extract `resolve_project_name_from` into a shared module"
+    rationale: "the field is an optional CLI-side enrichment (driven by cwd→project lookup); LLM agents calling MCP get a complete identity card without it, and an MCP consumer that needs it can derive from the session's `cwd` field. Extracting the resolver costs ~80 LOC of refactor + a new shared crate dep direction for one optional field — value/cost ratio is unfavorable until a real MCP consumer needs it"
+    alternatives_rejected: ["(a) extract resolver to shared crate — defer until a consumer asks; (b) duplicate the resolver into MCP — duplication risk drifts, currently nobody is asking. A T-1935 follow-up task can land the extraction if/when warranted"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1935-termlinkwhoami-populated-path-parity-tes.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T00:01:32"
+    action: "T-1935: scope ACs (unblock G-020 gate)"
+  - time: "2026-06-03T00:29:02"
+    action: "T-1935: termlink_whoami populated-path parity test (registered session, name_hint)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 29 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 29
+  commits: 2
+  files_changed: 2
+  lines_added: 228
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1935-termlinkwhoami-populated-path-parity-tes.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1981: termlink_help: category=X mode embeds category_meta envelope block (description+counts at first round-trip)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T07:31:27Z
+# ============================================================================
+
+task_id: T-1981
+task_name: "termlink_help: category=X mode embeds category_meta envelope block (description+counts at first round-trip)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T07:28:27Z
+completed: 2026-06-04T07:31:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T09:29:12+02:00
+last_commit: 2026-06-04T09:31:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (category_meta envelope, cycle 11 slice 6). category_meta envelope on category=X mode — closes list_categories → category drill (758 tests). tick agent ACs (category_meta live, 758 tests, 3 invariants + list_categories cross-mode)
+
+# Key outcomes
+outcomes:
+  - "`category=X` envelope gains top-level `category_meta` object: `{name, description, tool_count, deprecated_count, live_tool_count}`"
+  - "`category=X` with no category description (unlikely; guarded by existing invariant) emits `description: \"\"` not absent — stable shape"
+  - "Test: `category_mode_envelope_carries_category_meta` — `category=channel` returns `category_meta` block with correct counts"
+  - "Test: `category_meta_counts_match_list_categories` — same category's counts equal what `list_categories` reports for that name"
+  - "Test: `category_meta_present_for_every_category` — walks every category, asserts `category_meta` block is present and counts match arithmetic"
+  - "Drift test gains required field `(\"category_meta\", \"T-1981\")`"
+  - "`cargo test --lib --package termlink-mcp` passes; new test count == 755 + 3 = 758"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1981-termlinkhelp-categoryx-mode-embeds-categ.md"
+  - ".tasks/completed/T-1980-termlinkhelp-tooldetail-surfaces-isrepla.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T09:29:12"
+    action: "T-1981: scope ACs (category_meta envelope, cycle 11 slice 6)"
+  - time: "2026-06-04T09:31:11"
+    action: "T-1981: category_meta envelope on category=X mode — closes list_categories → category drill (758 tests)"
+  - time: "2026-06-04T09:31:12"
+    action: "T-1981: tick agent ACs (category_meta live, 758 tests, 3 invariants + list_categories cross-mode)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 3
+  lines_added: 250
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1981-termlinkhelp-categoryx-mode-embeds-categ.md
+generated_by: context-agent-hybrid

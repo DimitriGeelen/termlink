@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2018: Persist parallel-execution substrate ADR + link T-2007 + scaffold build manifest
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T19:38:41Z
+# ============================================================================
+
+task_id: T-2018
+task_name: "Persist parallel-execution substrate ADR + link T-2007 + scaffold build manifest"
+workflow_type: design
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T11:11:59Z
+completed: 2026-06-07T19:38:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-07T13:14:53+02:00
+last_commit: 2026-06-07T21:36:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  persist parallel-execution substrate ADR + link from T-2007 — operator-authored design output of T-2007 research; build manifest §6 awaits operator decomposition signal. file arc-parallel-substrate + 10 §6 primitive inception tasks (T-2019..T-2028). file 3 build slices from T-2019 GO under arc-parallel-substrate. tick remaining ACs (push verified, §6 manifest surfaced + first primitive shipped)
+
+# Key outcomes
+outcomes:
+  - '`docs/architecture/parallel-execution-substrate.md` exists at the canonical path'
+  - 'File content matches the operator-provided artifact byte-for-byte (no paraphrase)'
+  - 'T-2007 task file references this ADR as its design output'
+  - 'T-2018 committed with task-traceability message under framework governance'
+  - 'Commit pushed to OneDev (origin/main caught up) — verified: `git rev-list --count origin/main..HEAD = 0`'
+  - '§6 build manifest surfaced to operator as next-decision-point (handover or check-in) — 10 §6 primitive inception tasks filed (T-2019..T-2028), T-2019 already decided GO + first primitive shipped end-to-end (T-2029..T-2034)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-parallel-substrate.yaml'
+  - '.context/project/learnings.yaml'
+  - 'docs/architecture/parallel-execution-substrate.md'
+  - '.tasks/active/T-2007-termlink-as-coordination-substrate--what.md'
+  - '.tasks/active/T-2018-persist-parallel-execution-substrate-adr.md'
+  - '.tasks/active/T-2019-substrate-exclusive-delivery--claim-sema.md'
+  - '.tasks/active/T-2020-substrate-hub-owned-idlebusy-agent-regis.md'
+  - '.tasks/active/T-2021-substrate-pullassign-rpc-verb-orchestrat.md'
+  - '.tasks/active/T-2022-substrate-filesystem-write-observation-c.md'
+  - '.tasks/active/T-2023-substrate-client-side-reconnect--outboun.md'
+  - '.tasks/active/T-2024-substrate-symmetric-authentication-acros.md'
+  - '.tasks/active/T-2025-substrate-hub-persistent-presence--circu.md'
+  - '.tasks/active/T-2026-substrate-typed-agent-launch-surface-che.md'
+  - '.tasks/active/T-2027-substrate-broadcast-with-replay-current-.md'
+  - '.tasks/active/T-2028-substrate-throughputconnection-budget--r.md'
+  - '.tasks/active/T-2029-substrate-t-2019-slice-1-claims-sqlite-t.md'
+  - '.tasks/active/T-2030-substrate-t-2019-slice-2-channelrenew-rp.md'
+  - '.tasks/active/T-2031-substrate-t-2019-slice-3-client-side-hel.md'
+  - '.tasks/completed/T-2034-runnable-worker-example-for-claim-primit.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T13:14:53"
+    action: "T-2018: persist parallel-execution substrate ADR + link from T-2007 — operator-authored design output of T-2007 research; build manifest §6 awaits operator decomposition signal"
+  - time: "2026-06-07T13:42:19"
+    action: "T-2018: file arc-parallel-substrate + 10 §6 primitive inception tasks (T-2019..T-2028)"
+  - time: "2026-06-07T14:12:57"
+    action: "T-2018: file 3 build slices from T-2019 GO under arc-parallel-substrate"
+  - time: "2026-06-07T21:36:46"
+    action: "T-2018: tick remaining ACs (push verified, §6 manifest surfaced + first primitive shipped)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 506 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 506
+  commits: 4
+  files_changed: 19
+  lines_added: 2844
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2018-persist-parallel-execution-substrate-adr.md
+generated_by: context-agent-hybrid

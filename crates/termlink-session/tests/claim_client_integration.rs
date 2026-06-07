@@ -20,7 +20,7 @@ use tokio::sync::Mutex;
 use termlink_protocol::control::error_code;
 use termlink_protocol::transport::TransportAddr;
 use termlink_session::claim_client::{
-    channel_claim, channel_claims, channel_release, ClaimError, LeasedClaim,
+    channel_claim, channel_claims, channel_claims_summary, channel_release, ClaimError, LeasedClaim,
 };
 
 #[derive(Default)]
@@ -33,6 +33,7 @@ struct HubState {
     renew_calls: u64,
     release_calls: u64,
     claims_calls: u64,
+    claims_summary_calls: u64,
 }
 
 struct FakeHub {
@@ -258,6 +259,51 @@ async fn handle_call(method: &str, id: Value, params: Value, state: Arc<Mutex<Hu
                     "ok": true,
                     "topic": topic,
                     "claims": claims,
+                }),
+            )
+        }
+        "channel.claims_summary" => {
+            s.claims_summary_calls += 1;
+            let topic = params.get("topic").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let now = s.now_ms;
+            let mut active = 0u64;
+            let mut expired = 0u64;
+            let mut oldest_active_at: Option<i64> = None;
+            let mut next_active_expiry: Option<i64> = None;
+            for ((t, _off), (_cid, _owner, until)) in s.slots.iter() {
+                if t != &topic {
+                    continue;
+                }
+                if *until > now {
+                    active += 1;
+                    // FakeHub records claimed_at = now at insert time, but we
+                    // don't track it per-slot; approximate by re-deriving
+                    // claimed_at = claimed_until - ttl. The tests only assert
+                    // the count + Some/None shape, not the exact age value.
+                    let claimed_at = until - 30_000;
+                    oldest_active_at = Some(match oldest_active_at {
+                        None => claimed_at,
+                        Some(prev) => prev.min(claimed_at),
+                    });
+                    next_active_expiry = Some(match next_active_expiry {
+                        None => *until,
+                        Some(prev) => prev.min(*until),
+                    });
+                } else {
+                    expired += 1;
+                }
+            }
+            let oldest_active_age_ms = oldest_active_at.map(|t| (now - t).max(0));
+            success_response(
+                id,
+                json!({
+                    "ok": true,
+                    "topic": topic,
+                    "active_count": active,
+                    "expired_count": expired,
+                    "oldest_active_at_ms": oldest_active_at,
+                    "oldest_active_age_ms": oldest_active_age_ms,
+                    "next_active_expiry_ms": next_active_expiry,
                 }),
             )
         }
@@ -631,6 +677,97 @@ async fn list_claims_include_expired_surfaces_rows_default_omits() {
     assert_eq!(all.len(), 2, "expected both expired rows for forensics");
     let offsets: Vec<u64> = all.iter().map(|c| c.offset).collect();
     assert_eq!(offsets, vec![10, 11]);
+
+    hub.stop().await;
+}
+
+// ───────────────────── T-2039: channel.claims_summary aggregate ──────────
+
+#[tokio::test]
+async fn claims_summary_empty_topic_returns_zero_counts() {
+    let socket = test_socket("summary_empty");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let summary = channel_claims_summary(&addr, "T").await.expect("summary ok");
+    assert_eq!(summary.topic, "T");
+    assert_eq!(summary.active_count, 0);
+    assert_eq!(summary.expired_count, 0);
+    assert!(summary.oldest_active_at_ms.is_none());
+    assert!(summary.oldest_active_age_ms.is_none());
+    assert!(summary.next_active_expiry_ms.is_none());
+
+    let s = hub.state.lock().await;
+    assert_eq!(s.claims_summary_calls, 1);
+    drop(s);
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn claims_summary_single_active_claim_populates_markers() {
+    let socket = test_socket("summary_single");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let _ = channel_claim(&addr, "T", 7, "worker-A", 30_000).await.unwrap();
+
+    let summary = channel_claims_summary(&addr, "T").await.expect("summary ok");
+    assert_eq!(summary.active_count, 1);
+    assert_eq!(summary.expired_count, 0);
+    assert!(summary.oldest_active_at_ms.is_some(), "should have an oldest active marker");
+    assert!(summary.oldest_active_age_ms.is_some(), "should have an oldest age");
+    assert!(
+        summary.next_active_expiry_ms.is_some(),
+        "should have a next-expiry marker"
+    );
+    assert!(
+        summary.oldest_active_age_ms.unwrap() >= 0,
+        "age must be non-negative"
+    );
+
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn claims_summary_released_claim_drops_to_zero() {
+    let socket = test_socket("summary_released");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let c = channel_claim(&addr, "T", 3, "worker-A", 30_000).await.unwrap();
+    channel_release(&addr, &c.claim_id, "worker-A", true).await.unwrap();
+
+    let summary = channel_claims_summary(&addr, "T").await.expect("summary ok");
+    assert_eq!(summary.active_count, 0);
+    assert_eq!(summary.expired_count, 0);
+    assert!(summary.oldest_active_at_ms.is_none());
+
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn claims_summary_expired_claim_counted_as_expired_not_active() {
+    let socket = test_socket("summary_expired");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let _ = channel_claim(&addr, "T", 9, "worker-A", 1_000).await.unwrap();
+    {
+        let mut s = hub.state.lock().await;
+        s.now_ms += 5_000;
+    }
+
+    let summary = channel_claims_summary(&addr, "T").await.expect("summary ok");
+    assert_eq!(summary.active_count, 0, "should be no active claims after TTL elapses");
+    assert_eq!(
+        summary.expired_count, 1,
+        "the lapsed row should be visible to forensics"
+    );
+    assert!(
+        summary.oldest_active_at_ms.is_none(),
+        "no active claim → markers should be None"
+    );
+    assert!(summary.next_active_expiry_ms.is_none());
 
     hub.stop().await;
 }

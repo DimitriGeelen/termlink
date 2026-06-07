@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1791: G-060 agent-chat-arc federation gap — RCA + decision on fix/accept/retire
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T12:25:57Z
+# ============================================================================
+
+task_id: T-1791
+task_name: "G-060 agent-chat-arc federation gap — RCA + decision on fix/accept/retire"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-21T18:55:32Z
+completed: 2026-05-30T12:25:55Z
+duration_days: 9
+updates_count: 3
+first_commit: 2026-05-21T20:58:40+02:00
+last_commit: 2026-05-21T22:14:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file G-060 chat-arc federation inception — DEFER at filing pending diagnostic spikes. G-060 spikes complete — DEFER with reframe (no federation primitive exists). record DEFER decision — close G-060 inception
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/assumptions.yaml"
+  - ".context/project/decisions.yaml"
+  - "docs/reports/T-1791-g060-chat-arc-federation-inception.md"
+  - ".tasks/active/T-1791-g-060-agent-chat-arc-federation-gap--rca.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-21T20:58:40"
+    action: "T-1791: file G-060 chat-arc federation inception — DEFER at filing pending diagnostic spikes"
+  - time: "2026-05-21T21:05:07"
+    action: "T-1791: G-060 spikes complete — DEFER with reframe (no federation primitive exists)"
+  - time: "2026-05-21T22:14:35"
+    action: "T-1791: record DEFER decision — close G-060 inception"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 12570 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [federation, chat-arc, G-060, inception]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12570
+  commits: 3
+  files_changed: 4
+  lines_added: 457
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1791-g-060-agent-chat-arc-federation-gap--rca.md
+generated_by: context-agent-hybrid

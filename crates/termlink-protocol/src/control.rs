@@ -166,6 +166,21 @@ pub mod method {
     /// `channel.claim`. Old hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_CLAIMS: &str = "channel.claims";
 
+    /// T-2039 — aggregate claim state for `topic` (arc-parallel-substrate
+    /// Slice 6). Read-only observability companion to `channel.claims`:
+    /// answers "how busy is this topic?" and "is anything stuck?" with a
+    /// single O(1) SQL aggregate instead of every-row transfer. The
+    /// `oldest_active_age_ms` value is the operator signal — when it
+    /// approaches the configured TTL, a worker is either stuck or about
+    /// to need `channel.renew`. `next_active_expiry_ms` tells the operator
+    /// when the next slot frees up without intervention.
+    /// Params: `{ topic }` → `{ ok, topic, active_count, expired_count,
+    /// oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms? }`.
+    /// All three `*_ms?` fields are `null` when `active_count == 0`.
+    /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013) — same shape as
+    /// `channel.claims`. Old hubs return `MethodNotFound` (-32601).
+    pub const CHANNEL_CLAIMS_SUMMARY: &str = "channel.claims_summary";
+
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
     /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.
@@ -574,6 +589,8 @@ mod tests {
         assert_eq!(method::CHANNEL_RENEW, "channel.renew");
         // T-2037 (arc-parallel-substrate Slice 4).
         assert_eq!(method::CHANNEL_CLAIMS, "channel.claims");
+        // T-2039 (arc-parallel-substrate Slice 6).
+        assert_eq!(method::CHANNEL_CLAIMS_SUMMARY, "channel.claims_summary");
     }
 
     #[test]

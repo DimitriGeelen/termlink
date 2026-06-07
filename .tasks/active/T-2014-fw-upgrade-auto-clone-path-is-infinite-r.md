@@ -12,7 +12,7 @@ tags: [framework, upgrade, bug, infinite-loop]
 components: []
 related_tasks: []
 created: 2026-06-06T06:30:34Z
-last_update: 2026-06-06T09:14:33Z
+last_update: 2026-06-06T13:09:11Z
 date_finished: null
 ---
 

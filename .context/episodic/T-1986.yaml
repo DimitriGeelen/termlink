@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1986: Federation gap .107↔.122 — dm topic posts don't relay since T-1166 cut
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T08:37:31Z
+# ============================================================================
+
+task_id: T-1986
+task_name: "Federation gap .107↔.122 — dm topic posts don't relay since T-1166 cut"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T08:33:05Z
+completed: 2026-06-04T08:37:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T10:37:29+02:00
+last_commit: 2026-06-04T10:37:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  premise disproven — PL-176 documents per-hub topic design, no federation regression to fix
+
+# Key outcomes
+outcomes:
+  - "Verify PL-176 + channel-topic-semantics.md document the per-hub design (confirmed in T-1985 close investigation)"
+  - "Note T-1986 was filed before re-checking the related-knowledge surface (PL-176 was already listed in `fw work-on T-1986` related-knowledge output)"
+  - "No code change required; the perceived gap is operator-visibility, addressed by existing tooling (`--hub`, `chat-arc-broadcast.sh`, `/agent-handoff`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "premise disproven — PL-176 documents per-hub topic design, no federation regression to fix"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1986-federation-gap-107122--dm-topic-posts-do.md"
+  - ".tasks/completed/T-1985-investigate-ring20-management-122-dm-inb.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T10:37:29"
+    action: "T-1986: premise disproven — PL-176 documents per-hub topic design, no federation regression to fix"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [fleet, federation, hub-relay, t-1166-followup]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 12
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1986-federation-gap-107122--dm-topic-posts-do.md
+generated_by: context-agent-hybrid

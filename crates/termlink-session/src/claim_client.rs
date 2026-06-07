@@ -55,6 +55,26 @@ pub struct ReleaseSummary {
     pub ack: bool,
 }
 
+/// T-2039 (arc-parallel-substrate Slice 6) — aggregate claim state for a
+/// topic from `channel.claims_summary`. Distinct from the per-claim
+/// [`ClaimSummary`] (which mirrors `ClaimInfo`); this is the "how busy /
+/// is anything stuck?" view.
+///
+/// `active_count + expired_count` is the total rows currently in the
+/// `claims` table for this topic (which may be less than the total claims
+/// ever — expired rows are lazy-reaped on next claim attempt for the same
+/// `(topic, offset)`). All three `*_ms` fields are `None` iff
+/// `active_count == 0`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimsAggregate {
+    pub topic: String,
+    pub active_count: u64,
+    pub expired_count: u64,
+    pub oldest_active_at_ms: Option<i64>,
+    pub oldest_active_age_ms: Option<i64>,
+    pub next_active_expiry_ms: Option<i64>,
+}
+
 /// Typed view of the four claim-specific JSON-RPC error codes plus the two
 /// catch-all classes (transport/protocol). The variants mirror the codes
 /// defined in `termlink_protocol::control::error_code`:
@@ -164,6 +184,25 @@ pub async fn channel_claims(
     parse_claims_response(resp, topic)
 }
 
+/// T-2039 (arc-parallel-substrate Slice 6): aggregate claim state for
+/// `topic` via `channel.claims_summary`. Read-only observability companion
+/// to [`channel_claims`]: answers "how many claims are active vs lapsed,
+/// what's the longest-held one, when's the next free slot?" with one
+/// round-trip and no per-row transfer cost.
+///
+/// Returns `ClaimError::Hub { code: -32013, .. }` when the topic was never
+/// registered (matches `channel.claims`'s discoverability contract);
+/// returns a [`ClaimsAggregate`] with zero counts and `None` markers when
+/// the topic exists but has no claim rows.
+pub async fn channel_claims_summary(
+    addr: &TransportAddr,
+    topic: &str,
+) -> Result<ClaimsAggregate, ClaimError> {
+    let params = json!({ "topic": topic });
+    let resp = rpc_call_addr(addr, method::CHANNEL_CLAIMS_SUMMARY, params).await?;
+    parse_claims_summary_response(resp, topic)
+}
+
 fn parse_claim_response(resp: RpcResponse) -> Result<ClaimSummary, ClaimError> {
     match resp {
         RpcResponse::Success(ok) => {
@@ -240,6 +279,41 @@ fn parse_claims_response(
         }
         RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
     }
+}
+
+fn parse_claims_summary_response(
+    resp: RpcResponse,
+    topic_hint: &str,
+) -> Result<ClaimsAggregate, ClaimError> {
+    match resp {
+        RpcResponse::Success(ok) => {
+            let r = &ok.result;
+            let active_count = field_u64(r, "active_count")?;
+            let expired_count = field_u64(r, "expired_count")?;
+            let oldest_active_at_ms = opt_i64(r, "oldest_active_at_ms");
+            let oldest_active_age_ms = opt_i64(r, "oldest_active_age_ms");
+            let next_active_expiry_ms = opt_i64(r, "next_active_expiry_ms");
+            Ok(ClaimsAggregate {
+                topic: topic_hint.to_string(),
+                active_count,
+                expired_count,
+                oldest_active_at_ms,
+                oldest_active_age_ms,
+                next_active_expiry_ms,
+            })
+        }
+        RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
+    }
+}
+
+fn opt_i64(v: &Value, k: &str) -> Option<i64> {
+    v.get(k).and_then(|x| {
+        if x.is_null() {
+            None
+        } else {
+            x.as_i64()
+        }
+    })
 }
 
 fn map_hub_error(code: i64, message: String, data: Option<Value>) -> ClaimError {

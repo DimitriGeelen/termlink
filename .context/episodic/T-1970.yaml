@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1970: termlink_help: extract replacement_hint from deprecated tool descriptions (cycle 10)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T05:48:12Z
+# ============================================================================
+
+task_id: T-1970
+task_name: "termlink_help: extract replacement_hint from deprecated tool descriptions (cycle 10)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T05:42:54Z
+completed: 2026-06-04T05:47:57Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T07:43:58+02:00
+last_commit: 2026-06-04T07:47:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (replacement_hint extraction for deprecated tools, cycle 10 slice 1). extract_replacement_hint parser + surface in 3 modes (730 tests). tick agent ACs (replacement_hint live, 730 tests, deprecated tools route LLMs to channel_subscribe)
+
+# Key outcomes
+outcomes:
+  - "`extract_replacement_hint(description: &str) -> Option<&str>` parser added to tools.rs, matches the literal pattern `(use <name> instead)` and returns `<name>`; returns None when no marker present (tools.rs:589-605)"
+  - "All 6 deprecated tool descriptions updated to end with `(use termlink_channel_subscribe instead)` — the canonical replacement per CLAUDE.md T-1166 retirement plan (tools.rs:322-324 for remote_inbox_*, tools.rs:557-559 for inbox_*)"
+  - "`tool_detail` envelope adds `replacement_hint` field — populated for deprecated tools, omitted for live tools (tools.rs:1078-1086)"
+  - "`name_filter` matches rows add `replacement_hint` field when the matched tool is deprecated (tools.rs:1265-1280)"
+  - "Default mode tool entries add `replacement_hint` field when deprecated (tools.rs:1311-1330)"
+  - "Drift test extended to assert the new fields appear in the rmcp `#[tool(description=...)]` macro doc string (tools.rs:35817-35821 adds `replacement_hint` to required_fields; macro updated tools.rs:12215 with `replacement_hint?` shape + T-1970 description block)"
+  - "Invariant test: every deprecated tool has a non-empty `replacement_hint` (tools.rs:35923-35946 every_deprecated_tool_has_replacement_hint)"
+  - "Invariant test: `extract_replacement_hint` returns None on every non-deprecated tool's description (tools.rs:35948-35968 extract_replacement_hint_returns_none_on_live_tools)"
+  - "`cargo test --lib --package termlink-mcp` passes (730 tests passed, 0 failed; +7 from cycle-9 baseline of 723)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1970-termlinkhelp-extract-replacementhint-fro.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T07:43:58"
+    action: "T-1970: scope ACs (replacement_hint extraction for deprecated tools, cycle 10 slice 1)"
+  - time: "2026-06-04T07:47:30"
+    action: "T-1970: extract_replacement_hint parser + surface in 3 modes (730 tests)"
+  - time: "2026-06-04T07:47:57"
+    action: "T-1970: tick agent ACs (replacement_hint live, 730 tests, deprecated tools route LLMs to channel_subscribe)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 2
+  lines_added: 406
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1970-termlinkhelp-extract-replacementhint-fro.md
+generated_by: context-agent-hybrid

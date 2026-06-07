@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1892: shared TLS-fp hub-dedup helper + apply to fleet-doorbell-mail-health canary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T09:59:10Z
+# ============================================================================
+
+task_id: T-1892
+task_name: "shared TLS-fp hub-dedup helper + apply to fleet-doorbell-mail-health canary"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T09:12:29Z
+completed: 2026-05-31T09:59:08Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-31T11:16:58+02:00
+last_commit: 2026-05-31T11:16:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  shared TLS-fp hub-dedup lib + apply to fleet-doorbell-mail canary + broadcast refactor
+
+# Key outcomes
+outcomes:
+  - "`scripts/lib/hubs-toml-walk.sh` exists, sources cleanly (`bash -n` passes), exposes `dedup_addrs_by_fp` that takes a newline-separated address list (or TSV with addr in first field) on stdin and prints the deduped list/TSV on stdout, with skipped-duplicate stderr lines containing `same hub as` + canonical + 8-char fp short."
+  - "Function uses caller's `TIMEOUT_CMD` + `TERMLINK` env, runs `termlink hub probe <addr> --json | jq -r .fingerprint`; un-probeable addresses (no fingerprint) pass through unchanged (fail-open — better to count a wedged hub once than drop it silently)."
+  - "`scripts/check-fleet-doorbell-mail-health.sh` sources `lib/hubs-toml-walk.sh` and applies the dedup pass right after `profile_addrs` is populated, BEFORE the per-profile sweep loop. Source/load via absolute path resolved from `${BASH_SOURCE[0]}` so the script still works from any CWD. TSV form preserves profile-name pairing."
+  - "Smoke with a synthetic hubs.toml containing two profiles for the same hub (`192.168.10.107:9100` + `127.0.0.1:9100`): canary reports `total=1` (not 2), and stderr emits `skipping duplicate 127.0.0.1:9100 (same hub as 192.168.10.107:9100, fingerprint=d1bd50f5)`."
+  - "Real-config regression smoke (`~/.termlink/hubs.toml`, 5 raw profiles): canary reports `{total:4, pass:4, fail:0, unreachable:0}` — one duplicate suppressed with stderr naming it. Pre-fix would have double-counted the local hub."
+  - "`scripts/chat-arc-broadcast.sh` refactored to source the lib (replace its T-1889 inline dedup with a `dedup_addrs_by_fp` call). Smoke against synthetic two-profile hubs.toml: `{hubs_attempted:1, hubs_delivered:1, hubs_failed:0}` + stderr names the suppressed duplicate. Behavior preserved."
+  - "[RUBBER-STAMP] Run the canary against your live `~/.termlink/hubs.toml` and confirm the result matches the pre-T-1892 baseline (modulo dedup if your config has overlapping profiles). [validated by agent 2026-05-31T10:00Z — see Updates]"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/chat-arc-broadcast.sh"
+  - "scripts/check-fleet-doorbell-mail-health.sh"
+  - "scripts/lib/hubs-toml-walk.sh"
+  - ".tasks/active/T-1892-shared-tls-fp-hub-dedup-helper--apply-to.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T11:16:58"
+    action: "T-1892: shared TLS-fp hub-dedup lib + apply to fleet-doorbell-mail canary + broadcast refactor"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 46
+  commits: 1
+  files_changed: 4
+  lines_added: 264
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1892-shared-tls-fp-hub-dedup-helper--apply-to.md
+generated_by: context-agent-hybrid

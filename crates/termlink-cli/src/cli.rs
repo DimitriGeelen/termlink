@@ -3193,6 +3193,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+
+    /// T-2039 (arc-parallel-substrate Slice 6) — show aggregate claim state
+    /// for a topic. Observability companion to `channel claims`: answers
+    /// "how busy is this topic, and is anything stuck?" in a single line
+    /// (active vs expired count, oldest-active age, next free slot).
+    ///
+    /// Wraps the `channel.claims_summary` JSON-RPC verb. One round-trip,
+    /// O(1) at the hub (single SQL aggregate over `idx_claims_topic_until`)
+    /// — safe to call on hot paths or from cron.
+    ClaimsSummary {
+        /// Topic name to summarize claims for. The topic must exist
+        /// (`channel create` first if not — same contract as `channel claim`).
+        topic: String,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Poll sub-actions (T-1355).

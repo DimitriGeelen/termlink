@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2001: Capture cycle-12 as reusable pattern — learning + doc for paged-ranked-filtered-projected tool registry API
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T17:06:27Z
+# ============================================================================
+
+task_id: T-2001
+task_name: "Capture cycle-12 as reusable pattern — learning + doc for paged-ranked-filtered-projected tool registry API"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T17:03:51Z
+completed: 2026-06-05T17:06:25Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T19:06:25+02:00
+last_commit: 2026-06-05T19:06:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture cycle-12 as reusable pattern — PL-202 learning + operator-facing doc
+
+# Key outcomes
+outcomes:
+  - "New learning PL-202 appended to `.context/project/learnings.yaml` capturing the cycle-12 slice pattern: opt-in `Option<T>` param → HelpParams field → signature grow → bulk caller patch (deterministic Python depth-tracking script) → applied in name_filter + bulk-flat branches → emit envelope `*_applied` / `*_unknown` for input validation → drift-table token + macro-doc reference → 7-11 invariant tests per slice"
+  - "Learning explicitly names the seven shape-extension axes shipped (limit, offset, sort_by, fields, categories, exclude_categories, parameter_required_count) AND the route-extension axis (bulk-flat-listing routing for no-needle paging)"
+  - "Learning includes the canonical cold-start LLM call composing all axes"
+  - "Learning notes the backcompat invariant: every new axis MUST keep envelope shape unchanged when the param is unset (verified by existing tests staying green at each slice)"
+  - "New doc `docs/operations/mcp-help-registry.md` written for operators + LLM-client authors covering: the seven axes, the canonical cold-start call, the bulk-flat-listing trigger, the envelope validation fields (`*_applied` / `*_unknown` pattern), and the backcompat invariant"
+  - "Doc cross-references the eight T-IDs (T-1984/1994/1995/1996/1997/1998/1999/2000) so future readers can find the slice commits"
+  - "No source code changes — this is pure capture"
+  - "`python3 -c \"import yaml; yaml.safe_load(open('.context/project/learnings.yaml'))\"` passes (catches escape errors that broke PL-200 update in T-1989)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "docs/operations/mcp-help-registry.md"
+  - ".tasks/active/T-2001-capture-cycle-12-as-reusable-pattern--le.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T19:06:25"
+    action: "T-2001: capture cycle-12 as reusable pattern — PL-202 learning + operator-facing doc"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 322
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2001-capture-cycle-12-as-reusable-pattern--le.md
+generated_by: context-agent-hybrid

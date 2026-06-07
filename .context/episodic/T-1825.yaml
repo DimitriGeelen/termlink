@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1825: termlink_fleet_secrets_audit MCP — add target_cache param (T-1824 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T08:29:50Z
+# ============================================================================
+
+task_id: T-1825
+task_name: "termlink_fleet_secrets_audit MCP — add target_cache param (T-1824 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T08:26:40Z
+completed: 2026-05-28T08:29:30Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T10:29:25+02:00
+last_commit: 2026-05-28T10:29:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_secrets_audit target_cache MCP param — T-1820..T-1825 arc complete
+
+# Key outcomes
+outcomes:
+  - "`FleetSecretsAuditParams` gains `target_cache: Option<String>` field"
+  - "Subprocess args append `--target-cache <PATH>` when set"
+  - "Tool description mentions narrowing capability + new envelope field"
+  - "1 new unit test verifies target_cache deserialization; existing all-fields test extended to assert the new field too"
+  - "`cargo check -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp fleet_secrets_audit` passes (6 existing + 1 new = 7/7)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1825-termlinkfleetsecretsaudit-mcp--add-targe.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T10:29:25"
+    action: "T-1825: termlink_fleet_secrets_audit target_cache MCP param — T-1820..T-1825 arc complete"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 182
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1825-termlinkfleetsecretsaudit-mcp--add-targe.md
+generated_by: context-agent-hybrid

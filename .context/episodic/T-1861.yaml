@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1861: agent-chat-arc-recent.sh --exclude-heartbeats + /pulse heartbeat-aware render (T-1860 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T09:50:43Z
+# ============================================================================
+
+task_id: T-1861
+task_name: "agent-chat-arc-recent.sh --exclude-heartbeats + /pulse heartbeat-aware render (T-1860 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T09:46:43Z
+completed: 2026-05-29T09:50:24Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-29T11:50:17+02:00
+last_commit: 2026-05-29T11:50:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  --exclude-heartbeats — distinguish real conversation from systemd bookkeeping
+
+# Key outcomes
+outcomes:
+  - "`agent-chat-arc-recent.sh` accepts `--exclude-heartbeats`; jq filter excludes posts where `metadata.agent_id // metadata._from // sender_id` ends with `-vendored`"
+  - "JSON envelope's `.summary` gains a `heartbeat_posts` and `heartbeat_speakers` count when the flag is on (so callers can render both numbers)"
+  - "Text mode header reflects the flag: `(window: ..., unique_speakers: K, heartbeats excluded: N)`"
+  - "`/pulse` skill spec updated to call with `--exclude-heartbeats` by default + render BOTH counts"
+  - "`/recent-chat` skill doc gets `--exclude-heartbeats` in its flag table"
+  - "Live test: with the flag, a populated fleet shows zero posts when only vendored-arc heartbeats are present; without the flag, count is unchanged"
+  - "Help text updated with the new flag and its heuristic"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/pulse.md"
+  - ".claude/commands/recent-chat.md"
+  - "scripts/agent-chat-arc-recent.sh"
+  - ".tasks/active/T-1861-agent-chat-arc-recentsh---exclude-heartb.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-29T11:50:17"
+    action: "T-1861: --exclude-heartbeats — distinguish real conversation from systemd bookkeeping"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 249
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1861-agent-chat-arc-recentsh---exclude-heartb.md
+generated_by: context-agent-hybrid

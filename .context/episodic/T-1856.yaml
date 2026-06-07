@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1856: chat-arc-broadcast.sh — one-liner cross-post helper (G-060 mitigation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T21:54:53Z
+# ============================================================================
+
+task_id: T-1856
+task_name: "chat-arc-broadcast.sh — one-liner cross-post helper (G-060 mitigation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T21:52:20Z
+completed: 2026-05-28T21:54:50Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T23:54:45+02:00
+last_commit: 2026-05-28T23:54:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  chat-arc-broadcast.sh — one-line cross-post helper (G-060 mitigation)
+
+# Key outcomes
+outcomes:
+  - "`scripts/chat-arc-broadcast.sh` created, chmod +x, with `--payload`, `--from`, `--hubs-file`, `--timeout-secs`, `--json` flags"
+  - "Walks every profile in `~/.termlink/hubs.toml` (default), posts to each unique address with `--msg-type chat --metadata agent_id=<from> --metadata _from=<from>` and `--ensure-topic`"
+  - "Per-hub call wrapped with `timeout 8` (PL-189 invariant — same as other discovery-triangle verbs)"
+  - "Sender resolution priority: `--from` flag → `$TERMLINK_AGENT_ID` env → `jq -r .agent_id ~/.termlink/be-reachable.state` → exit 2 with hint"
+  - "`--help` prints usage; `--json` emits one envelope `{ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}`"
+  - "`scripts/test-chat-arc-broadcast.sh` smoke tests: help, missing-payload, sender-resolution chain, local-only delivery — exits 0"
+  - "`docs/operations/channel-topic-semantics.md` references the new helper as the canonical operator path"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/channel-topic-semantics.md"
+  - "scripts/chat-arc-broadcast.sh"
+  - "scripts/test-chat-arc-broadcast.sh"
+  - ".tasks/active/T-1856-chat-arc-broadcastsh--one-liner-cross-po.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T23:54:45"
+    action: "T-1856: chat-arc-broadcast.sh — one-line cross-post helper (G-060 mitigation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 401
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1856-chat-arc-broadcastsh--one-liner-cross-po.md
+generated_by: context-agent-hybrid

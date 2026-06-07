@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1914: CLI: honor --json on hub-down error path (T-1913 fourth-catch)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T14:30:51Z
+# ============================================================================
+
+task_id: T-1914
+task_name: "CLI: honor --json on hub-down error path (T-1913 fourth-catch)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T13:12:25Z
+completed: 2026-06-01T14:20:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-01T16:06:27+02:00
+last_commit: 2026-06-01T16:30:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI channel list honors --json on hub-down error path. tick ACs + file T-1915 broader audit follow-up. RCA block. RCA block (strip stray template comment close)
+
+# Key outcomes
+outcomes:
+  - "`cmd_channel_list` in `crates/termlink-cli/src/commands/channel.rs`"
+  - "`parity_channel_list_no_hub` test in `crates/termlink-mcp/tests/"
+  - "`cargo test --release --test parity -p termlink-mcp --"
+  - "Manual smoke: `target/release/termlink channel list --json` with"
+  - "Filed T-1915 follow-up for the broader audit (\"identify all CLI"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "CLI channel list honors --json on hub-down error path"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1914-cli-honor---json-on-hub-down-error-path-.md"
+  - ".tasks/active/T-1915-cli---json-error-path-audit--find-all-co.md"
+  - ".tasks/completed/T-1913-mcpcli-parity-harness-v02--expand-to-cha.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T16:06:27"
+    action: "T-1914: CLI channel list honors --json on hub-down error path"
+  - time: "2026-06-01T16:07:26"
+    action: "T-1914: tick ACs + file T-1915 broader audit follow-up"
+  - time: "2026-06-01T16:20:03"
+    action: "T-1914: RCA block"
+  - time: "2026-06-01T16:30:37"
+    action: "T-1914: RCA block (strip stray template comment close)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 67 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 67
+  commits: 4
+  files_changed: 5
+  lines_added: 247
+  lines_removed: 58
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1914-cli-honor---json-on-hub-down-error-path-.md
+generated_by: context-agent-hybrid

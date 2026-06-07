@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1821: termlink_fleet_secrets_audit MCP parity — agent-callable security hygiene scan (T-1820 follow-up #2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T07:49:05Z
+# ============================================================================
+
+task_id: T-1821
+task_name: "termlink_fleet_secrets_audit MCP parity — agent-callable security hygiene scan (T-1820 follow-up #2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T07:45:28Z
+completed: 2026-05-28T07:48:52Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T09:48:47+02:00
+last_commit: 2026-05-28T09:48:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_fleet_secrets_audit MCP — agent-callable T-1820 parity (G-011 item 4 surveillance)
+
+# Key outcomes
+outcomes:
+  - "`FleetSecretsAuditParams` struct added with `dir: Option<String>` and `timeout_secs: Option<u64>` (default 10, clamped 1..=120)"
+  - "`termlink_fleet_secrets_audit` MCP tool added — subprocesses `termlink fleet secrets-audit --json [--dir <dir>]` under tokio timeout, kill_on_drop, null stdin"
+  - "Returns the CLI JSON envelope decorated with `exit_code: i32` — the CLI's own `ok` field (true when zero warn-perms AND zero warn-format) is preserved verbatim from stdout; only parse/subprocess/timeout failures return `ok: false`"
+  - "Timeout returns `{ok: false, verdict: \"timeout\", error: \"...\"}` shape (matches T-1689 pattern)"
+  - "Tool registered in service trait (`#[tool(name = \"termlink_fleet_secrets_audit\", ...)]`)"
+  - "4 unit tests: defaults, dir override, timeout clamp, subprocess always returns parseable JSON"
+  - "`cargo check -p termlink-mcp` passes"
+  - "`cargo test -p termlink-mcp fleet_secrets_audit` passes (4/4)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1821-termlinkfleetsecretsaudit-mcp-parity--ag.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T09:48:47"
+    action: "T-1821: termlink_fleet_secrets_audit MCP — agent-callable T-1820 parity (G-011 item 4 surveillance)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 281
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1821-termlinkfleetsecretsaudit-mcp-parity--ag.md
+generated_by: context-agent-hybrid

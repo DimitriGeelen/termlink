@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2032: CLI verbs: termlink channel claim/release/renew (substrate user-facing surface, T-2031 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T17:20:26Z
+# ============================================================================
+
+task_id: T-2032
+task_name: "CLI verbs: termlink channel claim/release/renew (substrate user-facing surface, T-2031 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T16:43:49Z
+completed: 2026-06-07T17:14:09Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-06-07T19:05:56+02:00
+last_commit: 2026-06-07T19:14:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI verbs — termlink channel claim/release/renew. worker recipe doc for the substrate claim primitive. fix verification package name (termlink-cli → termlink)
+
+# Key outcomes
+outcomes:
+  - 'Three new variants on `ChannelAction` in `crates/termlink-cli/src/cli.rs`:'
+  - 'Three new `cmd_channel_*` async functions in'
+  - 'Dispatch arms in `crates/termlink-cli/src/main.rs` route each'
+  - 'Hub-target resolution mirrors existing verbs (use the'
+  - 'Typed `ClaimError` variants map to actionable CLI exit messages'
+  - 'Integration smoke test against a FakeHub (matching pattern used in'
+  - '`cargo build --release -p termlink-cli` succeeds.'
+  - '`cargo test --release -p termlink-cli` succeeds.'
+  - '`target/release/termlink channel claim --help` exits 0 with the new'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification package name (termlink-cli → termlink)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-cli/tests/channel_claim_cli_integration.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2032-cli-verbs-termlink-channel-claimreleaser.md'
+  - '.tasks/completed/T-2031-substrate-t-2019-slice-3-client-side-hel.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T19:05:56"
+    action: "T-2032: CLI verbs — termlink channel claim/release/renew"
+  - time: "2026-06-07T19:11:30"
+    action: "T-2032: worker recipe doc for the substrate claim primitive"
+  - time: "2026-06-07T19:14:03"
+    action: "T-2032: fix verification package name (termlink-cli → termlink)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 30 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 30
+  commits: 3
+  files_changed: 7
+  lines_added: 1144
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2032-cli-verbs-termlink-channel-claimreleaser.md
+generated_by: context-agent-hybrid

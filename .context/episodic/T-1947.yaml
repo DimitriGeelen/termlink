@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1947: termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_* parallel families)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T20:25:03Z
+# ============================================================================
+
+task_id: T-1947
+task_name: "termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_* parallel families)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T20:19:00Z
+completed: 2026-06-03T20:24:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T22:20:02+02:00
+last_commit: 2026-06-03T22:24:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (disambiguate 15 agent_*/channel_* duplicate description pairs). disambiguate 15 agent_*/channel_* duplicate help descriptions. tick agent ACs (15 pairs disambiguated, 0 duplicates remain, 679 tests pass)
+
+# Key outcomes
+outcomes:
+  - "All 15 `agent_*` entries in the duplicate set get `\" (chat-arc)\"` suffix in `help_categories()`"
+  - "All 15 `channel_*` entries in the duplicate set get `\" (any topic)\"` suffix in `help_categories()`"
+  - "No two entries in `help_categories()` share an identical description after the fix (verified by `awk` dedup count = 0)"
+  - "`cargo test -p termlink-mcp --lib` still passes 679 (no regression in phantom/coverage guards)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1947-termlinkhelp--disambiguate-15-duplicate-.md"
+  - ".tasks/completed/T-1946-termlinkhelp-reverse-coverage-invariant-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T22:20:02"
+    action: "T-1947: scope ACs (disambiguate 15 agent_*/channel_* duplicate description pairs)"
+  - time: "2026-06-03T22:24:03"
+    action: "T-1947: disambiguate 15 agent_*/channel_* duplicate help descriptions"
+  - time: "2026-06-03T22:24:47"
+    action: "T-1947: tick agent ACs (15 pairs disambiguated, 0 duplicates remain, 679 tests pass)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 3
+  lines_added: 185
+  lines_removed: 35
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1947-termlinkhelp--disambiguate-15-duplicate-.md
+generated_by: context-agent-hybrid

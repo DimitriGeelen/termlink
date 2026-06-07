@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1950: Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor (LLM-mispick bug)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T20:38:18Z
+# ============================================================================
+
+task_id: T-1950
+task_name: "Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor (LLM-mispick bug)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T20:35:19Z
+completed: 2026-06-03T20:37:58Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T22:36:21+02:00
+last_commit: 2026-06-03T22:37:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs + RCA (3 misleading help descriptions surfaced by cross-check). fix 3 misleading help descriptions (agent_digest/peers, remote_doctor). tick agent ACs (3 mispick bugs fixed, 682 tests, cross-check clean)
+
+# Key outcomes
+outcomes:
+  - "`termlink_agent_digest` help description rewritten to describe period-summary semantics (not \"fleet digest\")"
+  - "`termlink_agent_peers` help description rewritten to describe chat-arc participant directory (not \"fleet\")"
+  - "`termlink_remote_doctor` help description rewritten to drop the misleading \"fleet doctor\" phrasing"
+  - "`cargo test -p termlink-mcp --lib` still passes 682 (no regression)"
+  - "All help/full cross-check mismatches found by the audit query are resolved (re-run the awk pipeline → 0 matches except the acceptable `termlink_fleet_status` case)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "tick agent ACs (3 mispick bugs fixed, 682 tests, cross-check clean)"
+    source: git-mined
+  - description: "fix 3 misleading help descriptions (agent_digest/peers, remote_doctor)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1950-fix-3-misleading-help-descriptions--agen.md"
+  - ".tasks/completed/T-1949-fix-termlinkhelp-unknown-category-hint--.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T22:36:21"
+    action: "T-1950: scope ACs + RCA (3 misleading help descriptions surfaced by cross-check)"
+  - time: "2026-06-03T22:37:21"
+    action: "T-1950: fix 3 misleading help descriptions (agent_digest/peers, remote_doctor)"
+  - time: "2026-06-03T22:37:58"
+    action: "T-1950: tick agent ACs (3 mispick bugs fixed, 682 tests, cross-check clean)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 3
+  lines_added: 179
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1950-fix-3-misleading-help-descriptions--agen.md
+generated_by: context-agent-hybrid

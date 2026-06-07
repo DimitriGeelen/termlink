@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1878: recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope sender_id (PL-195 propagation)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T14:24:55Z
+# ============================================================================
+
+task_id: T-1878
+task_name: "recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope sender_id (PL-195 propagation)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-30T14:22:21Z
+completed: 2026-05-30T14:24:54Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-30T16:24:47+02:00
+last_commit: 2026-05-30T16:24:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  recent-dm.sh — default --self to envelope sender_id (PL-195 propagation)
+
+# Key outcomes
+outcomes:
+  - "`scripts/recent-dm.sh` self-resolution replaces the be-reachable.state-first lookup with the PL-195 canonical chain: (1) `channel info agent-presence`, (2) `channel info agent-chat-arc` fallback, (3) be-reachable.state as last-resort (kept for forward-compat with T-1693 per-agent keys)"
+  - "Inline comment block explains WHY (T-1878/PL-195 propagation, parity with check-arc/agent-handoff/agent-send/agent-respond)"
+  - "`--help` text reflects the new default (no longer claims be-reachable.state is primary)"
+  - "Live verification: `bash scripts/recent-dm.sh 9219671e --since 720` (no `--self` override) now returns the 2 matched topics that previously required explicit override"
+  - "No new external dependencies (jq already required; `channel info` already used elsewhere)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/recent-dm.sh"
+  - ".tasks/active/T-1878-recent-dmsh-self-filter-default--switch-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T16:24:47"
+    action: "T-1878: recent-dm.sh — default --self to envelope sender_id (PL-195 propagation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 149
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1878-recent-dmsh-self-filter-default--switch-.md
+generated_by: context-agent-hybrid

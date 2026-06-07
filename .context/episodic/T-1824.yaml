@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1824: fleet secrets-audit --target-cache <PATH> — narrow drift check to one named cache file (T-1822 follow-up #1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T08:25:50Z
+# ============================================================================
+
+task_id: T-1824
+task_name: "fleet secrets-audit --target-cache <PATH> — narrow drift check to one named cache file (T-1822 follow-up #1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T08:13:50Z
+completed: 2026-05-28T08:25:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T10:25:17+02:00
+last_commit: 2026-05-28T10:25:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet secrets-audit --target-cache — narrow drift check (eliminates T-1822 broad-mode false positives)
+
+# Key outcomes
+outcomes:
+  - "CLI flag `--target-cache <PATH>` added; valid only paired with `--check-drift`; standalone use prints a clear error and exits 2"
+  - "When `--target-cache` is set, drift comparison applies only to the named cache row (other rows get no drift verdict; their classifier call receives `None` for authoritative_hex)"
+  - "When `--target-cache` is set but the named cache doesn't exist in the scan dir, audit prints a warning and exits 1 (operator typo'd a path) — `target_cache_missing` populated; JSON gains `target_cache_error` field"
+  - "Existing `--check-drift` behavior unchanged when `--target-cache` is omitted (backward-compat: broad-mode still works) — covered by `secrets_audit_target_cache_broad_mode_unchanged_when_target_none` test"
+  - "JSON envelope gains `target_cache` field (null when omitted, path string when set)"
+  - "3 new scanner-level tests: narrowing-applies-only-to-target, drift-on-target-when-differs, broad-mode-unchanged-when-none"
+  - "`cargo check -p termlink` passes"
+  - "`cargo test -p termlink secrets_audit` passes (11 existing + 3 new = 14/14)"
+  - "Live-run on .107: `--check-drift /var/lib/termlink/hub.secret --target-cache /root/.termlink/secrets/laptop-141.hex` produces drift verdict ONLY on laptop-141.hex; ring20-management.hex/ring20-dashboard.hex now show plain `ok` (false-positive elimination confirmed)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1824-fleet-secrets-audit---target-cache-path-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T10:25:17"
+    action: "T-1824: fleet secrets-audit --target-cache — narrow drift check (eliminates T-1822 broad-mode false positives)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 4
+  lines_added: 380
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1824-fleet-secrets-audit---target-cache-path-.md
+generated_by: context-agent-hybrid

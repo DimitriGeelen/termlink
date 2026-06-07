@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1959: termlink_help tool_detail surfaces verb_cognates across categories
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T21:58:30Z
+# ============================================================================
+
+task_id: T-1959
+task_name: "termlink_help tool_detail surfaces verb_cognates across categories"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T21:54:35Z
+completed: 2026-06-03T21:58:14Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T23:55:22+02:00
+last_commit: 2026-06-03T23:58:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (verb_cognates cross-category siblings with count-bound noise gate). verb_cognates cross-category siblings with count-bound noise gate (703 tests). tick agent ACs (verb_cognates live, 703 tests, noise gate gates _status family)
+
+# Key outcomes
+outcomes:
+  - "New `verb_cognates(target, categories, max_count)` function returns cross-category verb mates and respects the noise gate. — `crates/termlink-mcp/src/tools.rs:909-948` (compares `segs[1]` since `segs[0]` is always \"termlink\"; noise gate at `cognates.len() > max_count`)."
+  - "`build_help_json` tool_detail mode emits `verb_cognates: [...]` when non-empty; field omitted entirely when count exceeds 5. — `tools.rs:1015-1018` (mutable JSON, conditional insert); max_count=5 passed at the call site."
+  - "`related_tools` (intra-domain) preserved unchanged. Both fields coexist. — `tools.rs:1014` (related_tools field still unconditional); regression-verified by `verb_cognates_omits_common_verb` test which asserts related_tools array still present even when cognates omitted."
+  - "New test `verb_cognates_finds_cross_category_post` — `tools.rs:35329-35353`, passes — `termlink_channel_post` surfaced, no `termlink_agent_*` intra-domain dupes leak."
+  - "New test `verb_cognates_omits_common_verb` — `tools.rs:35355-35375`, passes — `_status` family exceeds noise gate; field absent."
+  - "New test `verb_cognates_never_includes_self` — `tools.rs:35377-35399`, passes — sweeps EVERY tool and asserts self-exclusion."
+  - "Full lib test suite: `test result: ok. 703 passed; 0 failed`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1959-termlinkhelp-tooldetail-surfaces-verbcog.md"
+  - ".tasks/completed/T-1958-termlinkhelp-tooldetail-hint-when-target.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T23:55:22"
+    action: "T-1959: scope ACs (verb_cognates cross-category siblings with count-bound noise gate)"
+  - time: "2026-06-03T23:57:27"
+    action: "T-1959: verb_cognates cross-category siblings with count-bound noise gate (703 tests)"
+  - time: "2026-06-03T23:58:14"
+    action: "T-1959: tick agent ACs (verb_cognates live, 703 tests, noise gate gates _status family)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 3
+  lines_added: 272
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1959-termlinkhelp-tooldetail-surfaces-verbcog.md
+generated_by: context-agent-hybrid

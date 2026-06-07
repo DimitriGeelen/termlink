@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1697: Audit Human ACs for mechanical-criteria misclassification (G-059 punch list)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-27T20:42:06Z
+# ============================================================================
+
+task_id: T-1697
+task_name: "Audit Human ACs for mechanical-criteria misclassification (G-059 punch list)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-18T17:41:52Z
+completed: 2026-05-27T20:42:04Z
+duration_days: 9
+updates_count: 2
+first_commit: 2026-05-27T22:41:57+02:00
+last_commit: 2026-05-27T22:41:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Human AC mechanical-misclassification audit — punch list
+
+# Key outcomes
+outcomes:
+  - "Scan all `.tasks/active/*.md` + `.tasks/completed/*.md` files; extract every unticked checkbox under `### Human` along with its Steps + Expected text"
+  - "Classify each AC into one of: `mechanical` (success criterion is string-match / exit-code / fields-present / structural-check), `human-only` (UI rendering needed / requires GitHub.com or similar authenticated session / subjective tone-aesthetic-architecture call), `ambiguous` (success criterion is operationalizable but author may have intended judgment)"
+  - "Produce a punch-list output at `docs/reports/T-1697-human-ac-audit.md` with three sections (mechanical / human-only / ambiguous), each row = task-id + AC-text + classification rationale (one line)"
+  - "Counts by classification reported in the punch-list header (e.g. \"12 mechanical, 47 human-only, 5 ambiguous\")"
+  - "For at least the first 5 `mechanical` rows: include a one-line proposed migration text the operator can paste into the task file"
+  - "Scan is idempotent: re-running produces stable classification (deterministic ordering, no datetime in output content)"
+  - "Spot-check: T-1480 + T-1481 (now in completed/, ACs already moved) should NOT appear in the mechanical list — proves the audit excludes already-migrated cases"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1697-human-ac-audit.md"
+  - ".fabric/components/scripts-t1697-human-ac-audit.yaml"
+  - "scripts/t1697-human-ac-audit.py"
+  - ".tasks/active/T-1697-audit-human-acs-for-mechanical-criteria-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-27T22:41:57"
+    action: "T-1697: Human AC mechanical-misclassification audit — punch list"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13140 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [audit, framework-discipline, G-059, PL-169]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13140
+  commits: 1
+  files_changed: 4
+  lines_added: 691
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1697-audit-human-acs-for-mechanical-criteria-.md
+generated_by: context-agent-hybrid

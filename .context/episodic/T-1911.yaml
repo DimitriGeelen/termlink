@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1911: Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T11:30:39Z
+# ============================================================================
+
+task_id: T-1911
+task_name: "Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T11:34:57Z
+completed: 2026-06-02T11:21:04Z
+duration_days: 1
+updates_count: 4
+first_commit: 2026-06-01T14:57:56+02:00
+last_commit: 2026-06-02T13:20:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope task — document false hypothesis + new working theories. parity_ping + parity_status — un-ignored via multi_thread runtime + envelope wrap. relax verification regex — accept any test count, 0 failed/ignored gate is the real check
+
+# Key outcomes
+outcomes:
+  - "Root cause identified and recorded in `## Decisions`. The original"
+  - "`parity_ping` un-ignored. In-source comment block (parity.rs:141-156)"
+  - "`parity_status` un-ignored. Same multi_thread fix applied. Source-side"
+  - "`termlink_ping` MCP envelope converged with CLI: `{ok:true, target,"
+  - "`cargo test --release --test parity -p termlink-mcp --"
+  - "No regression of any other parity test."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-06-02 — runtime flavor vs. spawn_blocking vs. tokio::process"
+    chose: "`#[tokio::test(flavor = \"multi_thread\", worker_threads = 2)]`"
+    rationale: "Smallest blast radius. The fix sits at the test boundary"
+    alternatives_rejected: [""]
+  - decision: "2026-06-02 — termlink_ping envelope: spread-merge wrap"
+    chose: "Wrap the hub's `result` into `{ok:true, target,"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/project/learnings.yaml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1911-converge-termlinkping-mcpcli-transport-p.md"
+  - ".tasks/completed/T-1910-converge-termlinktopics-mcpcli-json-shap.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T14:57:56"
+    action: "T-1911: scope task — document false hypothesis + new working theories"
+  - time: "2026-06-02T12:54:25"
+    action: "T-1911: parity_ping + parity_status — un-ignored via multi_thread runtime + envelope wrap"
+  - time: "2026-06-02T13:20:59"
+    action: "T-1911: relax verification regex — accept any test count, 0 failed/ignored gate is the real check"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1426 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1426
+  commits: 3
+  files_changed: 5
+  lines_added: 218
+  lines_removed: 61
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1911-converge-termlinkping-mcpcli-transport-p.md
+generated_by: context-agent-hybrid

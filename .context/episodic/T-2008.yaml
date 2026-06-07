@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2008: termlink help: honor --json on positional-conflict error (cycle 13 slice 5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T20:54:57Z
+# ============================================================================
+
+task_id: T-2008
+task_name: "termlink help: honor --json on positional-conflict error (cycle 13 slice 5)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T20:39:19Z
+completed: 2026-06-05T20:54:35Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T22:52:19+02:00
+last_commit: 2026-06-05T22:54:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink help honors --json on positional-conflict (cycle 13 #5). fix Verification block — correct crate name + drop stale verdict assertions. refactor Verification to subprocess form (pipefail-safe; also asserts exit=2 + stderr empty). add RCA — bug-class gate G-019
+
+# Key outcomes
+outcomes:
+  - "**Bug reproduced at HEAD before fix:** `termlink help --tool-detail foo --json bogus` emits plain stderr text and exits 2, with EMPTY stdout (the regression)."
+  - "**Fix:** `crates/termlink-cli/src/commands/help.rs::run` emits a JSON error envelope on stdout when `inv.json` is true AND `resolve_positional` returned `Err`. Envelope shape matches established T-1914 / execution.rs / identity.rs pattern: `{\"ok\": false, \"error\": \"<msg>\"}`. Exit code stays 2 (usage error, not operational error — distinct from `json_error_exit`'s exit 1)."
+  - "**Plain path unchanged:** when `--json` is NOT set, behavior is byte-identical to before (stderr line + exit 2) — verified by existing tests `positional_with_explicit_tool_detail_errors`, `positional_with_explicit_name_filter_errors`, `positional_with_explicit_category_errors` still pass."
+  - "**New tests, 3 cases (one per conflict flag), each:** stdout contains valid JSON with `ok=false`, `error` field references the conflicting flag name; exit code 2; stderr is silent in JSON mode (no double-emit). Tests live under existing `mod tests` in `commands/help.rs` and exercise the routing function plus envelope serialization (no subprocess)."
+  - "**Full CLI test suite passes** at >=817 (current 814 + 3 new). Single-test isolation run for any pre-existing flake (`isolate_rejects_non_git_dir` per session memory) acceptable as long as the JSON-error tests pass in the suite."
+  - "**Live smoke after release build:** `target/release/termlink help --tool-detail foo --json bogus 2>/dev/null | jq -e '.ok == false and .verdict == \"error\"'` exits 0, AND `2>&1 1>/dev/null` is empty (no stderr in JSON mode)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "add RCA — bug-class gate G-019"
+    source: git-mined
+  - description: "fix Verification block — correct crate name + drop stale verdict assertions"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/help.rs"
+  - ".tasks/active/T-2008-termlink-help-honor---json-on-positional.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T22:52:19"
+    action: "T-2008: termlink help honors --json on positional-conflict (cycle 13 #5)"
+  - time: "2026-06-05T22:52:38"
+    action: "T-2008: fix Verification block — correct crate name + drop stale verdict assertions"
+  - time: "2026-06-05T22:53:39"
+    action: "T-2008: refactor Verification to subprocess form (pipefail-safe; also asserts exit=2 + stderr empty)"
+  - time: "2026-06-05T22:54:35"
+    action: "T-2008: add RCA — bug-class gate G-019"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 4
+  files_changed: 2
+  lines_added: 282
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2008-termlink-help-honor---json-on-positional.md
+generated_by: context-agent-hybrid

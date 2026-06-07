@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1833: agent-listeners.sh — agent-presence discovery reader (T-1830 sub-build b)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T13:00:15Z
+# ============================================================================
+
+task_id: T-1833
+task_name: "agent-listeners.sh — agent-presence discovery reader (T-1830 sub-build b)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T12:56:10Z
+completed: 2026-05-28T12:59:35Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T14:59:28+02:00
+last_commit: 2026-05-28T14:59:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-listeners.sh — discovery reader (T-1830 sub-build b)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-listeners.sh` exists, executable, with flags: `--topic agent-presence` (default), `--hub addr`, `--limit N` (default 200, max 1000), `--include-offline` (default off — show LIVE+STALE), `--filter-role R`, `--filter-listen-topic T`, `--filter-agent-id ID`, `--json`, `--help`"
+  - "Reads up to `--limit` most-recent envelopes from `--topic`; groups by `metadata.agent_id`; keeps newest per id by `ts`"
+  - "Applies TTL convention using each envelope's own `metadata.interval_secs` — status is LIVE / STALE / OFFLINE per the 2x/5x rule"
+  - "Text mode prints fixed-width table: `agent_id | role | status | age | listen_topics | host`"
+  - "JSON envelope: `{ok, topic, hub, total_listeners, live, stale, offline, listeners: [{agent_id, role, status, age_secs, last_seen_ts, listen_topics, host, interval_secs}]}`"
+  - "Empty topic / no matching listeners → exit 0 with `total_listeners=0` (NOT an error)"
+  - "Unknown topic at hub → exit 3 (mirrors T-1826/T-1827 convention)"
+  - "`scripts/test-agent-listeners.sh` covers: T1 --help exit=0 + usage; T2 unknown arg exit=2; T3 empty topic → ok=true total=0; T4 populated topic with one LIVE listener → live=1 status=LIVE; T5 stale (interval=5, last post >10s ago) → status=STALE; T6 --filter-agent-id narrows correctly; T7 --include-offline includes OFFLINE entries (interval=5, last post >25s ago)"
+  - "All tests pass"
+  - "Live verification: with the heartbeat from T-1832 running (`bash scripts/listener-heartbeat.sh --agent-id live-T-1833 --interval 5 --listen-topic agent-chat-arc &`), `bash scripts/agent-listeners.sh --json` shows the live agent with status=LIVE"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-listeners.sh"
+  - "scripts/test-agent-listeners.sh"
+  - ".tasks/active/T-1833-agent-listenerssh--agent-presence-discov.md"
+  - ".tasks/completed/T-1832-listener-heartbeatsh--agent-presence-hea.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T14:59:28"
+    action: "T-1833: agent-listeners.sh — discovery reader (T-1830 sub-build b)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 487
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1833-agent-listenerssh--agent-presence-discov.md
+generated_by: context-agent-hybrid

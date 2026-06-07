@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1890: agent-chat-arc-recent.sh: content-dedup envelopes — sibling of T-1889 on the read side
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T15:25:15Z
+# ============================================================================
+
+task_id: T-1890
+task_name: "agent-chat-arc-recent.sh: content-dedup envelopes — sibling of T-1889 on the read side"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T07:20:31Z
+completed: 2026-05-31T15:25:13Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-31T09:23:51+02:00
+last_commit: 2026-05-31T17:25:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  content-dedup envelopes on the read side (sibling of T-1889). tick RUBBER-STAMP Human AC (Tier-2 logged, fresh re-smoke evidence)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-chat-arc-recent.sh` merge step dedups by composite key (sender_id, ts, payload) — `jq group_by(...) | map(.[0])` applied right after envelope collection, before any downstream pass"
+  - "`scripts/recent-dm.sh` covered transitively — it delegates to `agent-chat-arc-recent.sh --topic <T>` per T-1862; no separate change needed"
+  - "Output rows unique by (sender, ts, payload) — smoke 2026-05-31 with `hubs-file` containing both `192.168.10.107:9100` and `127.0.0.1:9100`: 10 posts returned, 10 unique by composite key. Pre-fix would have been 5 unique with each shown twice."
+  - "Heartbeat counts computed on deduped population — the dedup runs BEFORE heartbeat_posts/heartbeat_speakers passes (in-place overwrite of `tmp_envs`), so all downstream jq operations see deduped data"
+  - "No round-trip added — dedup is local jq group-by on the already-collected `tmp_envs` file"
+  - "[RUBBER-STAMP] Run `/recent-chat 10 24` and verify zero duplicate rows (no two rows have same ts AND same sender AND same payload preview)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-chat-arc-recent.sh"
+  - ".tasks/active/T-1890-agent-chat-arc-recentsh-content-dedup-en.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T09:23:51"
+    action: "T-1890: content-dedup envelopes on the read side (sibling of T-1889)"
+  - time: "2026-05-31T17:25:08"
+    action: "T-1890: tick RUBBER-STAMP Human AC (Tier-2 logged, fresh re-smoke evidence)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 484 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 484
+  commits: 2
+  files_changed: 2
+  lines_added: 146
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1890-agent-chat-arc-recentsh-content-dedup-en.md
+generated_by: context-agent-hybrid

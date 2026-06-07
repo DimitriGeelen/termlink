@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1902: Enforce local termlink upgrade on workshop-designer (.107)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T19:53:09Z
+# ============================================================================
+
+task_id: T-1902
+task_name: "Enforce local termlink upgrade on workshop-designer (.107)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T19:43:34Z
+completed: 2026-05-31T19:53:07Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-31T21:53:03+02:00
+last_commit: 2026-05-31T21:53:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  enforce local termlink upgrade on workshop-designer (.107) — CLI 0.11.1→0.11.472, hub 0.9.2110→0.11.472
+
+# Key outcomes
+outcomes:
+  - "`cargo build --release --bin termlink` completes successfully (in `/opt/termlink`) — finished in 7m12s, only pre-existing termlink-mcp unused-assignment warning"
+  - "Fresh `target/release/termlink --version` reports `0.11.472` or newer — confirmed `termlink 0.11.472`"
+  - "`/root/.cargo/bin/termlink` replaced with the new build; `termlink --version` from clean shell reports `0.11.472` or newer — installed via `install -m 755` (29 register PTYs held old inode; install's unlink+create avoids ETXTBSY); fresh shell reports 0.11.472"
+  - "Local hub restarted (`termlink hub restart`); `termlink hub status` reports running with the new PID — `systemctl restart termlink-hub.service` (the supervisor); new PID 1875371, Active 21:52:36"
+  - "`termlink fleet doctor` reports the local hub (`workstation-107-public` and/or `local-test`) on the new 0.11.x version — both endpoints now report `version: 0.11.472`"
+  - "CLI-vs-hub stale-build WARN cleared for local hub — only laptop-141 (0.9.0) and ring20-{management,dashboard} (0.9.2127) remain in the skew list; local hub no longer flagged"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".tasks/active/T-1902-enforce-local-termlink-upgrade-on-worksh.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T21:53:03"
+    action: "T-1902: enforce local termlink upgrade on workshop-designer (.107) — CLI 0.11.1→0.11.472, hub 0.9.2110→0.11.472"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 1
+  lines_added: 127
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1902-enforce-local-termlink-upgrade-on-worksh.md
+generated_by: context-agent-hybrid

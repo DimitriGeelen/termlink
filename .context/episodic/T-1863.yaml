@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1863: termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T10:27:07Z
+# ============================================================================
+
+task_id: T-1863
+task_name: "termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T10:24:08Z
+completed: 2026-05-29T10:27:01Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-29T12:26:56+02:00
+last_commit: 2026-05-29T12:26:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862)
+
+# Key outcomes
+outcomes:
+  - "`RecentDmParams` struct exists in `crates/termlink-mcp/src/tools.rs` with: peer, topic, self_id, limit, since_hours, hub, hubs_file, filter_msg_type, all_msg_types, timeout_secs — added in the params block adjacent to AgentChatArcRecentParams"
+  - "`termlink_recent_dm` tool method exists in same file, following T-1836 subprocess pattern — added between `termlink_agent_chat_arc_recent` and `termlink_check_fleet_doorbell_mail_health`; mutex-validates peer XOR topic; delegates to `recent-dm.sh` via `run_t1836_subprocess`"
+  - "Tool description names the script (`scripts/recent-dm.sh`), parent skill (`/recent-dm`), parent task IDs (T-1862, T-1863), and the read-side discovery toolkit position — verified: description references \"T-1862 wrapper from T-1863\", \"read-side asymmetric to termlink_agent_chat_arc_recent\", and the full `scripts/recent-dm.sh` shell-out"
+  - "`cargo check -p termlink-mcp` builds clean — completed in 12.75s with only one pre-existing unused-assignment warning (line 23128, unrelated)"
+  - "Tool registered in MCP server — `grep -c '#[tool('` shows 251 total tools; `grep 'name = \"termlink_recent_dm\"'` finds the new registration; `#[tool(...)]` macro auto-registers at compile-time so successful cargo check IS the registration check"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/episodic/T-1862.yaml"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1863-termlinkrecentdm-mcp-wrapper--agent-call.md"
+  - ".tasks/completed/T-1862-recent-dm-slash-skill--per-peer-dm-conve.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-29T12:26:56"
+    action: "T-1863: termlink_recent_dm MCP wrapper — agent-callable parity for /recent-dm (T-1862)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 334
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1863-termlinkrecentdm-mcp-wrapper--agent-call.md
+generated_by: context-agent-hybrid

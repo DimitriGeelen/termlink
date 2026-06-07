@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1952: termlink_help — add tool_detail mode for one-tool drill-in (closes 3-step discovery loop)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T20:52:37Z
+# ============================================================================
+
+task_id: T-1952
+task_name: "termlink_help — add tool_detail mode for one-tool drill-in (closes 3-step discovery loop)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T20:46:58Z
+completed: 2026-06-03T20:52:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T22:47:47+02:00
+last_commit: 2026-06-03T22:52:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (tool_detail mode — drill into one tool's full macro description). add tool_detail mode to termlink_help — drill-in via cached source regex (3-step discovery). tick agent ACs (tool_detail shipped, 3 tests, 3-step discovery loop closed)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams` struct gets `tool_detail: Option<String>` field with rustdoc"
+  - "New free fn `tool_descriptions() -> &'static HashMap<&'static str, &'static str>` extracts (name, full_desc) pairs from `tools.rs` via include_str! + regex, cached via `OnceLock`"
+  - "`build_help_json` branches to detail mode when set, returning `{tool, name, category, short_description, full_description}`"
+  - "Detail mode returns error with available-modes hint when tool name not found (not just empty result)"
+  - "`termlink_help` wrapper passes the new param through"
+  - "Top-level `termlink_help` tool description mentions tool_detail mode"
+  - "Unit test: `help_tool_detail_returns_full_description` — verifies a known tool returns both short (registry) and full (macro) descriptions with category"
+  - "Unit test: `help_tool_detail_unknown_returns_error` — verifies error path with actionable hint"
+  - "Unit test: `tool_descriptions_extracts_all_real_tools` — sanity check the regex catches every `#[tool(name=…)]` entry (parallels phantom-guard pattern)"
+  - "`cargo test -p termlink-mcp --lib` passes 685 (682 + 3 new)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1952-termlinkhelp--add-tooldetail-mode-for-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T22:47:47"
+    action: "T-1952: scope ACs (tool_detail mode — drill into one tool's full macro description)"
+  - time: "2026-06-03T22:51:52"
+    action: "T-1952: add tool_detail mode to termlink_help — drill-in via cached source regex (3-step discovery)"
+  - time: "2026-06-03T22:52:23"
+    action: "T-1952: tick agent ACs (tool_detail shipped, 3 tests, 3-step discovery loop closed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 3
+  files_changed: 2
+  lines_added: 319
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1952-termlinkhelp--add-tooldetail-mode-for-on.md
+generated_by: context-agent-hybrid

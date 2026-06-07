@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1915: CLI --json error-path audit — find all commands like cmd_channel_list (T-1914 broader)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T17:22:03Z
+# ============================================================================
+
+task_id: T-1915
+task_name: "CLI --json error-path audit — find all commands like cmd_channel_list (T-1914 broader)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T14:06:37Z
+completed: 2026-06-01T17:11:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-01T19:00:49+02:00
+last_commit: 2026-06-01T19:11:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub_socket_or_json_exit helper — --json honored on hub-down across all cmd_channel_*. RCA block — G-019 gate required (title matched 'error' keyword)
+
+# Key outcomes
+outcomes:
+  - "Helper `hub_socket_or_json_exit(hub: Option<&str>, json_output: bool) -> Result<TransportAddr>` added next to `hub_socket` in `crates/termlink-cli/src/commands/channel.rs`. On `Err`, if `json_output` is true, emit `{\"ok\":false,\"error\":\"...\"}` via `super::json_error_exit` (which exits 1); otherwise return the `Err` unchanged."
+  - "All 45 `let sock = hub_socket(hub)?;` call sites in functions accepting `json_output: bool` converted to `let sock = hub_socket_or_json_exit(hub, json_output)?;`. The 3 internal-helper sites (fetch_topic_msgs, fetch_topic_msgs_paginated, fetch_chat_arc_full) remain `hub_socket(hub)?`. Final count: 46 helper sites (cmd_channel_list's T-1914 inline fix also collapsed to helper), 3 direct sites."
+  - "`cargo build -p termlink --release` succeeds (7m 08s)."
+  - "Existing parity test `parity_channel_list_no_hub` still passes (regression check on T-1914's fix mechanism)."
+  - "New parity test `parity_channel_create_no_hub` added — exercises a separate converted site and proves `termlink channel create <name> --json` produces parseable `{ok:false,error:...}` JSON when hub absent."
+  - "`cargo test --release --test parity -p termlink-mcp -- --test-threads=1` exits 0: `test result: ok. 7 passed; 0 failed; 1 ignored` (was 6 + 1 ignored — channel_create_no_hub is the new green test)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "RCA block — G-019 gate required (title matched 'error' keyword)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/channel.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1915-cli---json-error-path-audit--find-all-co.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T19:00:49"
+    action: "T-1915: hub_socket_or_json_exit helper — --json honored on hub-down across all cmd_channel_*"
+  - time: "2026-06-01T19:11:43"
+    action: "T-1915: RCA block — G-019 gate required (title matched 'error' keyword)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 185 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 185
+  commits: 2
+  files_changed: 3
+  lines_added: 129
+  lines_removed: 80
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1915-cli---json-error-path-audit--find-all-co.md
+generated_by: context-agent-hybrid

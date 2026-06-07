@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1831: Cron-based fleet doorbell+mail health gate — daily selftest per hub in hubs.toml
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T12:52:10Z
+# ============================================================================
+
+task_id: T-1831
+task_name: "Cron-based fleet doorbell+mail health gate — daily selftest per hub in hubs.toml"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T12:43:50Z
+completed: 2026-05-28T12:52:08Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T14:51:32+02:00
+last_commit: 2026-05-28T14:51:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doorbell+mail health canary — daily selftest per hub
+
+# Key outcomes
+outcomes:
+  - "`scripts/check-fleet-doorbell-mail-health.sh` exists, executable, with `--quiet` / `--json` / `--no-heartbeat` flags mirroring `check-mirror-freshness.sh`"
+  - "Script reads `~/.termlink/hubs.toml` (or `--hubs-file <path>`) and iterates profiles; for each `[hubs.NAME]` runs `scripts/agent-conversation-selftest.sh --hub <address> --json` and parses `.verdict`"
+  - "Exit 0 only when every reachable profile reports `verdict=pass`; exit 1 on any non-pass (drift) or unreachable; exit 2 on tooling error (missing hubs.toml, jq missing, etc.)"
+  - "`--quiet` suppresses output on full-pass (cron-friendly — log only grows on drift, same as release-mirror-canary)"
+  - "`--json` emits a single envelope: `{ok, profiles:[{name,address,verdict,elapsed_ms,error?}], summary:{total,pass,fail,unreachable}}`"
+  - "Heartbeat file `.context/working/.fleet-doorbell-mail-canary.heartbeat` is touched before the network sweep (same convention as release-mirror-canary, suppressible via `--no-heartbeat`)"
+  - "`.context/cron/fleet-doorbell-mail-canary.crontab` exists with USER-field syntax, runs daily at a non-colliding minute, append-only to `.context/working/.fleet-doorbell-mail-canary.log`"
+  - "`scripts/test-check-fleet-doorbell-mail-health.sh` exists with at least: T1 `--help` exits 0 with usage, T2 unknown arg exits 2, T3 `--json` against `--hubs-file` with one local-only profile returns ok=true verdict=pass, T4 `--json` against `--hubs-file` with one unreachable profile returns ok=false summary.unreachable>=1"
+  - "All tests pass"
+  - "`fw audit` PASS — including cron-sync check picking up the new crontab"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".context/cron/fleet-doorbell-mail-canary.crontab"
+  - "scripts/check-fleet-doorbell-mail-health.sh"
+  - "scripts/test-check-fleet-doorbell-mail-health.sh"
+  - ".tasks/active/T-1831-cron-based-fleet-doorbellmail-health-gat.md"
+  - ".tasks/completed/T-1830-doorbellmail-adoption-gap--drive-zero-ac.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T14:51:32"
+    action: "T-1831: fleet doorbell+mail health canary — daily selftest per hub"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 5
+  lines_added: 422
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1831-cron-based-fleet-doorbellmail-health-gat.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1871: /pulse: surface failed hubs from both halves in the rendered digest (T-1870 follow-on)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-29T23:24:31Z
+# ============================================================================
+
+task_id: T-1871
+task_name: "/pulse: surface failed hubs from both halves in the rendered digest (T-1870 follow-on)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-29T23:22:34Z
+completed: 2026-05-29T23:24:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-30T01:24:25+02:00
+last_commit: 2026-05-30T01:24:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /pulse skill — surface failed hubs from both halves inline (T-1870 follow-on, page-respond opacity fix)
+
+# Key outcomes
+outcomes:
+  - "`.claude/commands/pulse.md` Step 4 (default human-format render) instructs Claude to print a one-line \"failed: <name1> (<reason1>), <name2> (<reason2>)\" footer under each section when the respective failure array is non-empty"
+  - "Render instruction reads from `.peers.hubs_failed[].name` + `.address` (listener-fleet shape) for PEERS and `.recent.summary.failed_hubs[].hub` + `.reason` (chat-arc shape) for RECENT — both shapes documented inline so Claude doesn't conflate them"
+  - "When both failure arrays are empty, no extra lines are rendered (silent on the good path; consistent with current behavior)"
+  - "`--json` mode is unchanged (passthrough as today; the skill's Step 4 `--json` branch carries no rendering)"
+  - "At least one example block in the skill shows the failed-hubs render so Claude has a concrete template to follow"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "/pulse skill — surface failed hubs from both halves inline (T-1870 follow-on, page-respond opacity fix)"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - ".claude/commands/pulse.md"
+  - ".tasks/active/T-1871-agent-listeners-fleet-enrich-hubsfailed-.md"
+  - ".tasks/completed/T-1870-agent-chat-arc-recent-surface-failed-hub.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T01:24:25"
+    action: "T-1871: /pulse skill — surface failed hubs from both halves inline (T-1870 follow-on, page-respond opacity fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 187
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1871-agent-listeners-fleet-enrich-hubsfailed-.md
+generated_by: context-agent-hybrid

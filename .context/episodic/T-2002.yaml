@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2002: CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-05T17:45:13Z
+# ============================================================================
+
+task_id: T-2002
+task_name: "CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-05T17:20:29Z
+completed: 2026-06-05T17:37:25Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-05T19:36:23+02:00
+last_commit: 2026-06-05T19:37:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink help CLI — parity with MCP help registry (cycle 13 slice 1). tick ACs — all 10 verified, ready to close. fix verification command — crate name is 'termlink' not 'termlink-cli'
+
+# Key outcomes
+outcomes:
+  - "`pub fn build_cli_help_json(...)` exists in `termlink-mcp::tools` (or `termlink-mcp` re-export), takes the same axis surface as MCP `HelpParams` (limit/offset/sort_by/name_filter/category/categories/exclude_categories/fields/min_parameters/max_parameters/exclude_deprecated/deprecated_only/list_categories/tool_detail/summary/essentials), and walks the same internal `tool_categories()` registry — re-exported in `termlink-mcp/src/lib.rs`"
+  - "CLI gains a top-level `Help(HelpArgs)` clap subcommand exposing all of the above as flags with kebab-case names — see `crates/termlink-cli/src/cli.rs::Command::Help`"
+  - "`termlink help --json` returns a JSON envelope structurally identical to MCP `termlink_help(...)` for every axis combination tested — locked by `tools::tests::build_cli_help_json_matches_mcp_shape` over 7 axis combos (default/canonical-PL202/list_categories/tool_detail/summary/essentials/scope+exclude)"
+  - "`termlink help` (no args) prints a human-readable categorized listing of every tool name + one-line blurb — verified live: 252 tools, 569 lines, ~21KB"
+  - "`termlink help --limit 10 --sort-by required_arity --json` prints exactly 10 rows sorted by required-arity ASC — verified live with `--limit 3` returning 3 zero-arg primitives in expected order"
+  - "`termlink help --name-filter channel --json` returns the same `matches[]` array as the MCP call — parity test case \"canonical-pl202\" covers this exact shape"
+  - "`cargo build -p termlink` (the CLI crate name is `termlink`, not `termlink-cli` — original AC corrected) succeeds with zero new warnings — release build clean"
+  - "`cargo test -p termlink --bins` passes (existing CLI test surface stays green) — 806 passed / 0 failed (+3 new help.rs tests)"
+  - "`cargo test -p termlink-mcp --lib` passes (existing 834 MCP tests stay green; new pub-wrapper test added) — 835 passed / 0 failed (+1 parity test)"
+  - "At least one new integration test in `crates/termlink-mcp/src/tools.rs` asserts `build_cli_help_json(...) == build_help_json(...)` for a representative axis combination (shape-parity invariant) — `build_cli_help_json_matches_mcp_shape` covers 7 axis combos"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "fix verification command — crate name is 'termlink' not 'termlink-cli'"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/help.rs"
+  - "crates/termlink-cli/src/commands/mod.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - "crates/termlink-mcp/src/lib.rs"
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".fabric/components/crates-termlink-cli-src-commands-help.yaml"
+  - ".tasks/active/T-2002-cli-termlink-help--parity-with-mcp-help-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-05T19:36:23"
+    action: "T-2002: termlink help CLI — parity with MCP help registry (cycle 13 slice 1)"
+  - time: "2026-06-05T19:36:55"
+    action: "T-2002: tick ACs — all 10 verified, ready to close"
+  - time: "2026-06-05T19:37:25"
+    action: "T-2002: fix verification command — crate name is 'termlink' not 'termlink-cli'"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 3
+  files_changed: 8
+  lines_added: 1005
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2002-cli-termlink-help--parity-with-mcp-help-.md
+generated_by: context-agent-hybrid

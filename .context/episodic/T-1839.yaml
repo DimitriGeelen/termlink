@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1839: termlink_agent_listeners_fleet MCP wrapper (T-1837 + T-1836 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T13:52:50Z
+# ============================================================================
+
+task_id: T-1839
+task_name: "termlink_agent_listeners_fleet MCP wrapper (T-1837 + T-1836 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T13:49:51Z
+completed: 2026-05-28T13:52:34Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T15:52:30+02:00
+last_commit: 2026-05-28T15:52:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_listeners_fleet MCP wrapper (closes T-1837 MCP gap)
+
+# Key outcomes
+outcomes:
+  - "New MCP tool `termlink_agent_listeners_fleet` registered"
+  - "Subprocesses `${TERMLINK_SCRIPTS_DIR:-/opt/termlink/scripts}/agent-listeners-fleet.sh` via the T-1836 shared `run_t1836_subprocess` helper"
+  - "Params: `topic`, `limit`, `include_offline`, `filter_role`, `filter_listen_topic`, `filter_agent_id`, `hubs_file`, `timeout_secs` (default 30, clamped 1..=120 — higher than single-hub because of parallel fan-out)"
+  - "Tool description references T-1837 and explains the LIVE > STALE > OFFLINE preference rule"
+  - "At least 2 unit tests under #[cfg(test)] covering: parameter forwarding and parsed JSON pass-through"
+  - "`cargo build -p termlink-mcp` clean"
+  - "`cargo test -p termlink-mcp t1839` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1839-termlinkagentlistenersfleet-mcp-wrapper-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T15:52:30"
+    action: "T-1839: termlink_agent_listeners_fleet MCP wrapper (closes T-1837 MCP gap)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 274
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1839-termlinkagentlistenersfleet-mcp-wrapper-.md
+generated_by: context-agent-hybrid

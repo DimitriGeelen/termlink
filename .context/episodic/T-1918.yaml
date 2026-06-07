@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1918: termlink_list_sessions MCP shape — align to CLI envelope {ok,sessions} (parity v0.3 catch)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T20:23:29Z
+# ============================================================================
+
+task_id: T-1918
+task_name: "termlink_list_sessions MCP shape — align to CLI envelope {ok,sessions} (parity v0.3 catch)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T19:51:26Z
+completed: 2026-06-01T20:11:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-01T22:10:57+02:00
+last_commit: 2026-06-01T22:10:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_list_sessions MCP envelope — {ok,sessions} matches CLI
+
+# Key outcomes
+outcomes:
+  - "MCP `termlink_list_sessions` (tools.rs ~line 7858) wraps its return in `{\"ok\": true, \"sessions\": [...]}` instead of returning the bare array."
+  - "Error path (line 7896 `json_err(e)`) unchanged — already returns `{ok: false, error: ...}` envelope."
+  - "New parity test `parity_list_sessions` added to `crates/termlink-mcp/tests/parity.rs`. Includes explicit `ok==true` + `sessions.is_array()` asserts plus structural diff."
+  - "`cargo build -p termlink --release` succeeds (6m 49s)."
+  - "`cargo test --release --test parity -p termlink-mcp -- --test-threads=1`: `test result: ok. 8 passed; 0 failed; 1 ignored` (was 7 + 1 ignored; parity_list_sessions is the new green)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1918-termlinklistsessions-mcp-shape--align-to.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T22:10:57"
+    action: "T-1918: termlink_list_sessions MCP envelope — {ok,sessions} matches CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 1
+  files_changed: 3
+  lines_added: 190
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1918-termlinklistsessions-mcp-shape--align-to.md
+generated_by: context-agent-hybrid

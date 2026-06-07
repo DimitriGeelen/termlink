@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1961: termlink_help default mode includes deprecated flag (T-1960 consistency)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:08:29Z
+# ============================================================================
+
+task_id: T-1961
+task_name: "termlink_help default mode includes deprecated flag (T-1960 consistency)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:05:04Z
+completed: 2026-06-03T22:08:11Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-04T00:05:57+02:00
+last_commit: 2026-06-04T00:08:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (default mode includes deprecated flag, T-1960 consistency). default mode includes deprecated flag (709 tests, T-1960 consistency complete). tick agent ACs (default mode deprecated flag live, 709 tests)
+
+# Key outcomes
+outcomes:
+  - "`build_help_json` default mode emits `deprecated: bool` per row. — `crates/termlink-mcp/src/tools.rs:1162-1170` (same `is_deprecated()` from T-1960)."
+  - "Test `help_default_mode_rows_carry_deprecated_field` — `tools.rs:35557-35585`, passes — sweeps every row in every default-mode category."
+  - "Test `help_default_mode_flags_known_legacy_tools` — `tools.rs:35587-35608`, passes — verifies `termlink_inbox_status` row flagged true."
+  - "Existing default-mode tests still pass — additive field only, no shape change."
+  - "Full lib suite: `test result: ok. 709 passed; 0 failed`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1961-termlinkhelp-default-mode-includes-depre.md"
+  - ".tasks/completed/T-1960-termlinkhelp-surfaces-deprecated-flag-on.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:05:57"
+    action: "T-1961: scope ACs (default mode includes deprecated flag, T-1960 consistency)"
+  - time: "2026-06-04T00:07:35"
+    action: "T-1961: default mode includes deprecated flag (709 tests, T-1960 consistency complete)"
+  - time: "2026-06-04T00:08:11"
+    action: "T-1961: tick agent ACs (default mode deprecated flag live, 709 tests)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 3
+  lines_added: 195
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1961-termlinkhelp-default-mode-includes-depre.md
+generated_by: context-agent-hybrid

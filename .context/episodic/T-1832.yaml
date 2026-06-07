@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1832: listener-heartbeat.sh — agent-presence heartbeat emitter (T-1830 sub-build a)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T12:55:57Z
+# ============================================================================
+
+task_id: T-1832
+task_name: "listener-heartbeat.sh — agent-presence heartbeat emitter (T-1830 sub-build a)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T12:53:04Z
+completed: 2026-05-28T12:55:56Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T14:55:51+02:00
+last_commit: 2026-05-28T14:55:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  listener-heartbeat.sh — agent-presence convention (T-1830 sub-build a)
+
+# Key outcomes
+outcomes:
+  - "`scripts/listener-heartbeat.sh` exists, executable, with flags: `--agent-id NAME` (required), `--role R` (default \"listener\"), `--listen-topic T` (repeatable), `--topic agent-presence` (default), `--interval 30` (default seconds), `--hub addr`, `--once` (single post then exit), `--json` (emit posted envelope), `--help`"
+  - "Default mode loops, posting one heartbeat per `--interval` seconds, exiting cleanly on SIGINT/SIGTERM"
+  - "`--once` posts exactly one heartbeat and exits 0"
+  - "Posted envelope shape: `msg_type=heartbeat`, payload=role string, metadata = `{agent_id, role, listen_topics: comma-joined, started_at: RFC3339, interval_secs, host}`"
+  - "On first run, auto-creates the `agent-presence` topic (best-effort; ignored if already exists) with retention `messages:200`"
+  - "Exit codes: 0 normal exit/once-success, 2 usage (missing required flag, unknown arg), 3 hub-side error (post failure)"
+  - "`scripts/test-listener-heartbeat.sh` exists: T1 --help exit=0 + usage, T2 unknown arg exit=2, T3 missing --agent-id exit=2, T4 --once --json against local hub → posts one envelope, JSON parseable, msg_type=heartbeat, metadata.agent_id matches, T5 --once with --listen-topic foo --listen-topic bar → metadata.listen_topics contains both"
+  - "All tests pass"
+  - "Live verification: `bash scripts/listener-heartbeat.sh --agent-id selftest-T-1832 --once --json` against local hub returns a parseable envelope with the expected metadata; envelope visible via `termlink channel subscribe agent-presence --limit 1 --json`"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/listener-heartbeat.sh"
+  - "scripts/test-listener-heartbeat.sh"
+  - ".tasks/active/T-1832-listener-heartbeatsh--agent-presence-hea.md"
+  - ".tasks/completed/T-1831-cron-based-fleet-doorbellmail-health-gat.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T14:55:51"
+    action: "T-1832: listener-heartbeat.sh — agent-presence convention (T-1830 sub-build a)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 426
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1832-listener-heartbeatsh--agent-presence-hea.md
+generated_by: context-agent-hybrid

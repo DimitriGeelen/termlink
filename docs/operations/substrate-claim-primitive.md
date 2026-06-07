@@ -17,6 +17,7 @@ exclusive-delivery semantics:
 | `channel.renew(claim_id, claimer, additional_ttl_ms)` | Extend the lease while still working | CLI `termlink channel renew`, Rust `LeasedClaim` auto-renew |
 | `channel.release(claim_id, claimer, ack)` | Consume the claim — ack=true advances cursor, ack=false reopens slot | CLI `termlink channel release`, Rust `LeasedClaim::{ack,nack}`, `Drop` |
 | `channel.claims(topic, include_expired?)` | Read-only listing — answers "what is currently claimed?" without forcing a claim attempt | CLI `termlink channel claims`, Rust `channel_claims`, returns `Vec<ClaimSummary>` |
+| `channel.claims_summary(topic)` | Read-only aggregate — answers "how busy is this topic, is anything stuck?" in one O(1) call (active vs expired counts, oldest-active age, next free slot) | CLI `termlink channel claims-summary`, Rust `channel_claims_summary`, returns `ClaimsAggregate` |
 
 The exclusive-delivery guarantee comes from a `UNIQUE(topic, offset)` SQL
 constraint on the hub-side claims table. Two workers claiming the same
@@ -195,6 +196,39 @@ rows whose `claimed_until` has lapsed (operator forensics —
 "who held the offset before it expired?"). Pass `--json` for the
 structured envelope.
 
+### Aggregate claim state on a topic (Slice 6)
+
+```
+$ termlink channel claims-summary my-work-queue
+topic "my-work-queue": active=12 expired=3 oldest_active_age=18402 next_expiry_ms=1730481923000
+```
+
+Same read-only contract as `channel claims` but **O(1)** at the hub
+(single SQL aggregate over `idx_claims_topic_until`) — safe to call on
+hot paths or from monitoring cron.
+
+Three operator signals in one line:
+
+- **`active` / `expired` counts** — load shape. A topic with `active=N`
+  workers running near steady-state should show low `expired` (lazy-evicted
+  on next claim attempt). A growing `expired` count with low `active`
+  means workers have been dying without releasing — investigate.
+- **`oldest_active_age`** — how long the longest-held lease has been
+  outstanding. Compare to the worker's configured `ttl_ms`: if it's
+  approaching TTL, the worker is either stuck or about to renew.
+- **`next_expiry_ms`** — wall-clock when the next slot frees up without
+  operator intervention. Useful for "when can I retry this offset?"
+
+When `active_count == 0`, all three `*_ms` fields are `null`. Pass
+`--json` for the structured envelope.
+
+**Stuck-worker pattern.** Run `claims-summary` from cron every minute on
+hot topics. A topic whose `oldest_active_age` keeps growing past TTL
+while `active_count` stays pinned is a leaked lease — usually a worker
+that panicked outside Drop's reach (e.g. an OS-level kill). Use
+`channel claims` to identify the specific stuck claim, then
+`channel release --ack=false` to reopen the slot.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
@@ -336,3 +370,5 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **MCP parity (T-2033):** `termlink_channel_{claim,release,renew}` tools for AI agents.
 - **Runnable example (T-2034):** `crates/termlink-session/examples/parallel_worker.rs` — copy-pasteable starter for parallel workers.
 - **Slice 4 (T-2037):** `channel.claims` read-only listing RPC + CLI verb — answers "what's currently claimed?" without consuming an error.
+- **Slice 5 (T-2038):** `termlink_channel_claims` MCP tool — read-only listing surface for AI agents.
+- **Slice 6 (T-2039):** `channel.claims_summary` aggregate RPC + Rust client + CLI verb — answers "how busy / is anything stuck?" in one O(1) call. Operator signal for stuck-worker / load-pattern detection.

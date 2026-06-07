@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1953: termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcode)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T21:14:59Z
+# ============================================================================
+
+task_id: T-1953
+task_name: "termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcode)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T21:05:10Z
+completed: 2026-06-03T21:14:27Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T23:05:55+02:00
+last_commit: 2026-06-03T23:14:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (tool_detail parameters mode — derive param shapes from source regex). tool_detail mode surfaces parameter schemas (derive-from-source regex). tick agent ACs (parameter schemas now surface in tool_detail, 688 pass)
+
+# Key outcomes
+outcomes:
+  - "New `tool_params()` extractor function added to tools.rs — cached `OnceLock<HashMap<String, Vec<ParamInfo>>>`, regex-derived from `include_str!(\"./tools.rs\")` (parallels `tool_descriptions()` at tools.rs:570). Implementation: `ParamInfo` struct + `parse_struct_fields()` helper + `tool_params()` at tools.rs:592-700 (commit `778625a4`)."
+  - "`build_help_json` `tool_detail` branch includes `parameters: [{name, type, optional, doc?}]` in JSON response when the tool's param struct can be resolved. Tools with empty param structs return `parameters: []` (key present, array empty — distinguishes \"no params\" from \"extraction failed\"). Implementation: tools.rs:729-738."
+  - "New unit test: `tool_params_extracts_known_tool` — asserts that for `termlink_help`, the extractor returns the 4 expected fields (category/name_filter/list_categories/tool_detail), all marked optional. Implementation: tools.rs:34939-34970."
+  - "New unit test: `tool_detail_response_includes_parameters` — calls `build_help_json` with `tool_detail=Some(\"termlink_help\")`, asserts response JSON contains a `parameters` array with ≥4 entries, each having name/type/optional. Implementation: tools.rs:34972-35010."
+  - "Bonus unit test: `tool_params_covers_majority_of_real_tools` — guards against Phase-1 regex regressions by asserting >50% tool coverage (caught the `[^{]` vs `[^)]` bug during dev — `Parameters(p)` has inner parens that the original `[^)]*` regex stopped at). Implementation: tools.rs:35012-35033."
+  - "`cargo check -p termlink-mcp --tests` passes (clean build, 20s)."
+  - "`cargo test -p termlink-mcp --lib` passes — 688 total, 0 failed (685 prior + 3 new = exact +3 delta, no regressions)."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1953-termlinkhelp-tooldetail-surfaces-paramet.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T23:05:55"
+    action: "T-1953: scope ACs (tool_detail parameters mode — derive param shapes from source regex)"
+  - time: "2026-06-03T23:13:36"
+    action: "T-1953: tool_detail mode surfaces parameter schemas (derive-from-source regex)"
+  - time: "2026-06-03T23:14:22"
+    action: "T-1953: tick agent ACs (parameter schemas now surface in tool_detail, 688 pass)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 3
+  files_changed: 2
+  lines_added: 382
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1953-termlinkhelp-tooldetail-surfaces-paramet.md
+generated_by: context-agent-hybrid

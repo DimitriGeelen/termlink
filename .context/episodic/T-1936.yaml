@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1936: MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_*)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T23:02:20Z
+# ============================================================================
+
+task_id: T-1936
+task_name: "MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_*)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-02T22:55:51Z
+completed: 2026-06-02T23:00:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T00:57:07+02:00
+last_commit: 2026-06-03T01:00:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (unblock G-020 gate). surface rotation-protocol family in termlink_help (tofu/fleet categories + hub_probe/fingerprint/export_secret/restart). tick agent ACs (file:line evidence)
+
+# Key outcomes
+outcomes:
+  - "`tofu` category exists in `termlink_help` registry with entries for `termlink_tofu_list`, `termlink_tofu_verify`, `termlink_tofu_clear` — crates/termlink-mcp/src/tools.rs:11094-11098"
+  - "`fleet` category exists with entries for `termlink_fleet_verify`, `termlink_fleet_doctor`, `termlink_fleet_history`, `termlink_fleet_status`, `termlink_fleet_bootstrap_check`, `termlink_fleet_reauth`, `termlink_fleet_secrets_audit`, `termlink_fleet_adoption_snapshot` — crates/termlink-mcp/src/tools.rs:11099-11108"
+  - "`hub` category extended with `termlink_hub_probe`, `termlink_hub_fingerprint`, `termlink_hub_export_secret`, `termlink_hub_restart` — crates/termlink-mcp/src/tools.rs:11088-11093"
+  - "Unknown-category error message lists `tofu` and `fleet` in its enumeration — crates/termlink-mcp/src/tools.rs:11151"
+  - "`cargo build --release -p termlink-mcp` is warning-free — verified 2026-06-02 (cargo build released in 1m51s, zero warnings; grep \"warning:\" returns no match)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1936-mcp-help-registry--add-rotation-protocol.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T00:57:07"
+    action: "T-1936: scope ACs (unblock G-020 gate)"
+  - time: "2026-06-03T01:00:04"
+    action: "T-1936: surface rotation-protocol family in termlink_help (tofu/fleet categories + hub_probe/fingerprint/export_secret/restart)"
+  - time: "2026-06-03T01:00:34"
+    action: "T-1936: tick agent ACs (file:line evidence)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 3
+  files_changed: 2
+  lines_added: 160
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1936-mcp-help-registry--add-rotation-protocol.md
+generated_by: context-agent-hybrid

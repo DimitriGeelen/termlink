@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1965: termlink_help tool_detail enriches with category_description + category_tool_count
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:44:57Z
+# ============================================================================
+
+task_id: T-1965
+task_name: "termlink_help tool_detail enriches with category_description + category_tool_count"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:41:18Z
+completed: 2026-06-03T22:44:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T00:42:15+02:00
+last_commit: 2026-06-04T00:44:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (tool_detail enriches with category_description + category_tool_count). tool_detail surfaces category_description + category_tool_count (715 tests). tick agent ACs (category_description + category_tool_count live, 715 tests)
+
+# Key outcomes
+outcomes:
+  - "`tool_detail` return envelope includes `category_description: string` — `crates/termlink-mcp/src/tools.rs:1028-1042`"
+  - "`tool_detail` return envelope includes `category_tool_count: number` — same site, sourced from `found_cat_size` captured during the registry walk at `tools.rs:990-1000`"
+  - "Both fields are present on EVERY tool_detail success response — locked by `tool_detail_carries_category_context_for_every_tool` (walks every tool in `help_categories()`)"
+  - "Macro description updated with both new fields — `tools.rs:12018` `tool_detail returns {...category_description, category_tool_count...}`"
+  - "Drift test (T-1964) extended with `category_description` and `category_tool_count` — `tools.rs:35658-35664`"
+  - "Invariant test: `category_tool_count` matches category size for every tool — `tool_detail_carries_category_context_for_every_tool` at `tools.rs:35715-35761`"
+  - "Invariant test: `category_description` non-empty for every tool's category — same test, fails on any empty string"
+  - "Full suite passes — 715 tests (+1 from 714), 0 failed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1965-termlinkhelp-tooldetail-enriches-with-ca.md"
+  - ".tasks/completed/T-1964-termlinkhelp-macro-drift-test-covers-t-1.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:42:15"
+    action: "T-1965: scope ACs (tool_detail enriches with category_description + category_tool_count)"
+  - time: "2026-06-04T00:44:08"
+    action: "T-1965: tool_detail surfaces category_description + category_tool_count (715 tests)"
+  - time: "2026-06-04T00:44:37"
+    action: "T-1965: tick agent ACs (category_description + category_tool_count live, 715 tests)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, help-registry]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 3
+  files_changed: 3
+  lines_added: 220
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1965-termlinkhelp-tooldetail-enriches-with-ca.md
+generated_by: context-agent-hybrid

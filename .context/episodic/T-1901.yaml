@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1901: Test reliability — connect_addr_with_timeout_errors_on_unreachable assertion too narrow (rejects 'No route to host' fast-fail)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T19:19:28Z
+# ============================================================================
+
+task_id: T-1901
+task_name: "Test reliability — connect_addr_with_timeout_errors_on_unreachable assertion too narrow (rejects 'No route to host' fast-fail)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T19:16:33Z
+completed: 2026-05-31T19:19:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-31T21:19:19+02:00
+last_commit: 2026-05-31T21:19:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  broaden connect_addr_with_timeout test assertion to accept any fast-fail error kind
+
+# Key outcomes
+outcomes:
+  - "`cargo test -p termlink-session --lib client::tests::connect_addr_with_timeout_errors_on_unreachable` passes on this host (from `/opt/termlink` repo). Verified 2026-05-31T19:18Z: `test result: ok. 1 passed; 0 failed`."
+  - "Full `cargo test -p termlink-session --lib` passes (326/326 green). Verified 2026-05-31T19:18Z: `test result: ok. 326 passed; 0 failed; 0 ignored; 0 measured`."
+  - "The test's `elapsed < 3s` fast-error invariant is preserved (not weakened) — the assertion still confirms the connect path doesn't hang for OS TCP retry. Confirmed by reading the diff; lines 420-423 unchanged."
+  - "Assertion accepts at minimum these error categories as valid fast-fail outcomes: `timeout` substring match (preserved), `ErrorKind::TimedOut` (preserved), `ErrorKind::NetworkUnreachable`, `ErrorKind::HostUnreachable`, `ErrorKind::ConnectionRefused`. Verified by reading the patched assertion at `crates/termlink-session/src/client.rs:435-442`."
+  - "No other tests touched; only `crates/termlink-session/src/client.rs` lines 424-446 edited. Verified by `git diff --stat`."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: "broaden connect_addr_with_timeout test assertion to accept any fast-fail error kind"
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-session/src/client.rs"
+  - ".tasks/active/T-1901-test-reliability--connectaddrwithtimeout.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T21:19:19"
+    action: "T-1901: broaden connect_addr_with_timeout test assertion to accept any fast-fail error kind"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 130
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1901-test-reliability--connectaddrwithtimeout.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1940: termlink_help — add name_filter for substring search across categories
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T05:49:37Z
+# ============================================================================
+
+task_id: T-1940
+task_name: "termlink_help — add name_filter for substring search across categories"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T05:32:22Z
+completed: 2026-06-03T05:43:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-03T07:33:21+02:00
+last_commit: 2026-06-03T07:43:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (unblock G-020 gate). termlink_help name_filter — substring search across categories with 5 unit tests. tick agent ACs (file:line evidence)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams` struct gains `name_filter: Option<String>` field with JsonSchema doc — tools.rs:6858"
+  - "When `name_filter` is set, `termlink_help` returns a flat `matches` array of `{category, name, description}` for tools whose name OR description contains the filter (case-insensitive) — tools.rs build_help_json() lines 252-308"
+  - "`name_filter` works alone OR combined with `category` (intersection — filter applies within the selected category) — tested by `help_name_filter_with_category`"
+  - "Empty filter result returns `{matches: [], total_matches: 0}` with informative `hint` field — tested by `help_name_filter_zero_matches_gives_hint`"
+  - "Tool description in `#[tool(...)]` attribute mentions the new param — tools.rs:11041"
+  - "Unit test: `help_name_filter_finds_redact` confirms searching \"redact\" surfaces channel_redact + agent_redact + redactions verbs — tools.rs:34283"
+  - "Unit test: `help_name_filter_case_insensitive` confirms \"REDACT\" matches the same set — tools.rs:34298"
+  - "Unit test: `help_name_filter_with_category` confirms combined filter respects both constraints — tools.rs:34310"
+  - "`cargo build --release -p termlink-mcp` warning-free — verified 2026-06-03 (1m46s)"
+  - "`cargo test --release -p termlink-mcp` passes (no regression) — 677 passed, 0 failed (5 new + 672 pre-existing)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1940-termlinkhelp--add-namefilter-for-substri.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-03T07:33:21"
+    action: "T-1940: scope ACs (unblock G-020 gate)"
+  - time: "2026-06-03T07:42:48"
+    action: "T-1940: termlink_help name_filter — substring search across categories with 5 unit tests"
+  - time: "2026-06-03T07:43:31"
+    action: "T-1940: tick agent ACs (file:line evidence)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 3
+  files_changed: 2
+  lines_added: 313
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1940-termlinkhelp--add-namefilter-for-substri.md
+generated_by: context-agent-hybrid

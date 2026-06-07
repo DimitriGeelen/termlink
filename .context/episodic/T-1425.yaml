@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1425: agent-to-agent contact pattern (post-T-1166 canon)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T12:35:27Z
+# ============================================================================
+
+task_id: T-1425
+task_name: "agent-to-agent contact pattern (post-T-1166 canon)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-30T21:09:32Z
+completed: 2026-05-30T12:35:25Z
+duration_days: 30
+updates_count: 6
+first_commit: 2026-04-30T23:14:04+02:00
+last_commit: 2026-05-30T14:27:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception RFC — agent-to-agent contact pattern (post-T-1166 canon). fast-forward solo synthesis — DEFER + scoped build tasks. 48h soak audit — DEFER (formal) + empirical-validation overlay (4/4 picks shipped under solo design). retrofit Recommendation section to T-1716 gate format (DEFER line + 2026-05-30 evidence overlay)
+
+# Key outcomes
+outcomes:
+  - "Problem statement validated"
+  - "Assumptions tested"
+  - "Recommendation written with rationale"
+  - "[REVIEW] Review exploration findings and approve go/no-go decision"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "2026-04-30 — Fast-forward solo synthesis (operator-requested)"
+  - decision: "2026-04-30 — Q1: DM topic provisioning"
+    chose: "A — auto-create `dm:<sorted-sender_id_a>:<sorted-sender_id_b>` on first contact, retention=forever"
+    rationale: "receiver friction is the binding constraint. T-1319 already establishes the canonical naming pattern in the codebase; reusing it costs nothing. Override path exists if a receiver objects: `channel describe` can disable or downgrade."
+    alternatives_rejected: ["B (explicit pre-subscribe) — front-loads coordination and turns first-contact into a two-phase setup. Defeats the point of a high-level verb."]
+  - decision: "2026-04-30 — Q2: Ack semantics"
+    chose: "C — none by default, opt-in via `--ack-required` on the verb"
+    rationale: "most contacts are fire-and-forget status; per-message ack doubles topic volume and dilutes signal. Per-thread ack already exists as `channel ack --up-to` (T-1315) for resume-cursor semantics — different concern, kept separate."
+    alternatives_rejected: ["A (per-message default) — too noisy; B (per-thread default) — conflates ack-of-receipt with ack-of-thread-progress."]
+  - decision: "2026-04-30 — Q3: Receiver offline behavior"
+    chose: "C — caller chooses, default = queue. Flag `--require-online` for fail-fast."
+    rationale: "chat arc is offset-durable with retention=forever — queueing IS the natural behavior. Default-queue lets the verb work without presence info. `--require-online` covers synchronous-handoff cases."
+    alternatives_rejected: ["A (always fail-fast) — surfaces problems but defeats the reason we have durable topics; B (always queue) — obscures delivery state when caller cares."]
+  - decision: "2026-04-30 — Q4: Identity binding strictness"
+    chose: "A — strict reject when `metadata.from` doesn't resolve through whoami"
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/reports/T-1425-agent-contact-pattern-rfc.md"
+  - ".tasks/active/T-1425-agent-to-agent-contact-pattern-post-t-11.md"
+  - ".tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md"
+  - ".tasks/completed/T-1791-g-060-agent-chat-arc-federation-gap--rca.md"
+  - ".tasks/completed/T-1877-doc-canonical-self-fp-resolution-recipe-.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-04-30T23:14:04"
+    action: "T-1425: inception RFC — agent-to-agent contact pattern (post-T-1166 canon)"
+  - time: "2026-04-30T23:23:49"
+    action: "T-1425: fast-forward solo synthesis — DEFER + scoped build tasks"
+  - time: "2026-05-02T23:20:46"
+    action: "T-1425: 48h soak audit — DEFER (formal) + empirical-validation overlay (4/4 picks shipped under solo design)"
+  - time: "2026-05-30T14:27:34"
+    action: "T-1425: retrofit Recommendation section to T-1716 gate format (DEFER line + 2026-05-30 evidence overlay)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 42685 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 42685
+  commits: 4
+  files_changed: 4
+  lines_added: 532
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1425-agent-to-agent-contact-pattern-post-t-11.md
+generated_by: context-agent-hybrid

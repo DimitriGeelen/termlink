@@ -1131,6 +1131,56 @@ pub(crate) async fn handle_channel_claims_with(
     }
 }
 
+/// T-2039 — `channel.claims_summary`: aggregate claim state for a topic.
+/// Read-only observability companion to `channel.claims`. Returns counts
+/// (active/expired) plus oldest-active and next-expiry markers so an
+/// operator can answer "is this topic busy / is anything stuck?" with one
+/// O(1) call instead of paying full-list transfer cost.
+pub async fn handle_channel_claims_summary(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_claims_summary_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_claims_summary_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    match bus.claims_summary(topic) {
+        Ok(s) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "topic": topic,
+                "active_count": s.active_count,
+                "expired_count": s.expired_count,
+                "oldest_active_at_ms": s.oldest_active_at_ms,
+                "oldest_active_age_ms": s.oldest_active_age_ms,
+                "next_active_expiry_ms": s.next_active_expiry_ms,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
+            id,
+            error_code::CHANNEL_TOPIC_UNKNOWN,
+            &format!("channel.claims_summary: topic {topic:?} not found"),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(
+            id,
+            &format!("channel.claims_summary: {e}"),
+        )
+        .into(),
+    }
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({

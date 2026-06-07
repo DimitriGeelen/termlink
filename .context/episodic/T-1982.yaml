@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1982: termlink_help: deprecated_only filter — symmetric inverse of exclude_deprecated
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-04T07:39:28Z
+# ============================================================================
+
+task_id: T-1982
+task_name: "termlink_help: deprecated_only filter — symmetric inverse of exclude_deprecated"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-04T07:32:24Z
+completed: 2026-06-04T07:39:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T09:33:11+02:00
+last_commit: 2026-06-04T09:39:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (deprecated_only filter, cycle 11 slice 7). deprecated_only filter — symmetric inverse of exclude_deprecated, retirement axis bracketed (761 tests). tick agent ACs (deprecated_only live, 761 tests, 3 invariants + mutex-conflict hint)
+
+# Key outcomes
+outcomes:
+  - "`HelpParams` gains `deprecated_only: Option<bool>` field"
+  - "`build_help_json` signature accepts `deprecated_only: bool` argument; all callers migrated"
+  - "`name_filter` / standalone-arity-filter branch drops rows where `!is_deprecated(desc)` AND `deprecated_only==true`"
+  - "When both `exclude_deprecated` AND `deprecated_only` are true, result is empty + hint mentions the conflict"
+  - "Test: `deprecated_only_keeps_only_deprecated_rows` — `name_filter=\"inbox\", deprecated_only=true` returns rows ALL marked `deprecated: true`"
+  - "Test: `deprecated_only_with_exclude_deprecated_is_empty_with_hint` — both flags true yields empty matches array and a hint mentioning the conflict"
+  - "Test: `deprecated_only_composes_with_min_parameters` — `min=1, deprecated_only=true, name_filter=\"inbox\"` returns deprecated AND arity>=1 rows"
+  - "Drift test gains required field `(\"deprecated_only\", \"T-1982\")`"
+  - "`cargo test --lib --package termlink-mcp` passes; new test count == 758 + 3 = 761"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1982-termlinkhelp-deprecatedonly-filter--symm.md"
+  - ".tasks/completed/T-1981-termlinkhelp-categoryx-mode-embeds-categ.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T09:33:11"
+    action: "T-1982: scope ACs (deprecated_only filter, cycle 11 slice 7)"
+  - time: "2026-06-04T09:39:12"
+    action: "T-1982: deprecated_only filter — symmetric inverse of exclude_deprecated, retirement axis bracketed (761 tests)"
+  - time: "2026-06-04T09:39:12"
+    action: "T-1982: tick agent ACs (deprecated_only live, 761 tests, 3 invariants + mutex-conflict hint)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 3
+  files_changed: 3
+  lines_added: 362
+  lines_removed: 83
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1982-termlinkhelp-deprecatedonly-filter--symm.md
+generated_by: context-agent-hybrid

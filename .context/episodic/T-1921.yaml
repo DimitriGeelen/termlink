@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1921: termlink_status MCP envelope — align to {ok,...result} matching CLI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-02T05:42:30Z
+# ============================================================================
+
+task_id: T-1921
+task_name: "termlink_status MCP envelope — align to {ok,...result} matching CLI"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T22:33:57Z
+completed: 2026-06-02T05:42:28Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-06-02T07:42:23+02:00
+last_commit: 2026-06-02T07:42:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_status MCP envelope — {ok,...result} matches CLI
+
+# Key outcomes
+outcomes:
+  - "MCP `termlink_status` returns `{ok: true, ...result}` envelope (spread-merge)"
+  - "Parity test `parity_status` added to `crates/termlink-mcp/tests/parity.rs`"
+  - "`cargo test -p termlink-mcp --test parity` passes"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - "crates/termlink-mcp/tests/parity.rs"
+  - ".tasks/active/T-1921-termlinkstatus-mcp-envelope--align-to-ok.md"
+  - ".tasks/completed/T-1920-parityinfo--lock-shared-mcpcli-info-shap.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-02T07:42:23"
+    action: "T-1921: termlink_status MCP envelope — {ok,...result} matches CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 428 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 428
+  commits: 1
+  files_changed: 4
+  lines_added: 183
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1921-termlinkstatus-mcp-envelope--align-to-ok.md
+generated_by: context-agent-hybrid

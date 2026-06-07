@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1877: Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-30T12:20:14Z
+# ============================================================================
+
+task_id: T-1877
+task_name: "Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-30T12:18:23Z
+completed: 2026-05-30T12:20:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-05-30T14:20:12+02:00
+last_commit: 2026-05-30T14:20:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  doc — canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)
+
+# Key outcomes
+outcomes:
+  - "`docs/operations/doorbell-mail-operator-runbook.md` Failure modes section gains an entry titled something like \"Self-fp resolution fails\" or \"'could not resolve own identity_fingerprint' error\" with: symptom string the operator sees, root cause one-liner (whoami doesn't expose envelope sender_id, PL-195), and the working incantation"
+  - "An author-facing recipe is added to either `agent-conversation-arc-e2e.md` or `agent-conversations.md` — a short titled subsection labeled \"Resolving self-fp in new arc tooling\" or similar, showing the channel info path with fallback, and pointing at T-1874/T-1875/T-1876 as the four call-sites that use the pattern"
+  - "Both additions reference PL-195 and T-1693 (structural fix that will eventually remove the shared-host caveat)"
+  - "No regression: existing sender_id/whoami references in these docs are NOT contradicted by the new content"
+  - "Smoke test: grep both docs for the new sections and confirm the channel-info command appears verbatim (so a future agent searching by command string can find it)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "docs/operations/agent-conversation-arc-e2e.md"
+  - "docs/operations/doorbell-mail-operator-runbook.md"
+  - ".tasks/active/T-1877-doc-canonical-self-fp-resolution-recipe-.md"
+  - ".tasks/completed/T-1876-agent-sendsh--agent-respondsh--replace-w.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-30T14:20:12"
+    action: "T-1877: doc — canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 203
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1877-doc-canonical-self-fp-resolution-recipe-.md
+generated_by: context-agent-hybrid

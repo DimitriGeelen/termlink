@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1964: termlink_help macro drift test covers T-1963 summary fields
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-03T22:41:01Z
+# ============================================================================
+
+task_id: T-1964
+task_name: "termlink_help macro drift test covers T-1963 summary fields"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-03T22:38:36Z
+completed: 2026-06-03T22:40:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-04T00:39:21+02:00
+last_commit: 2026-06-04T00:40:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ACs (extend T-1962 drift test for T-1963 summary fields). extend T-1962 drift test for T-1963 summary fields (714 tests). tick agent ACs (drift test extended, 5 T-1963 fields locked, 714 tests)
+
+# Key outcomes
+outcomes:
+  - "`help_macro_description_documents_post_t1953_fields` test extended — `tools.rs:35648-35657`"
+  - "Each new entry tagged with `T-1963` ticket reference — `(\"summary\", \"T-1963 (mode name)\")`, `(\"total_deprecated\", \"T-1963\")`, `(\"largest_categories\", \"T-1963\")`, `(\"smallest_categories\", \"T-1963\")`, `(\"deprecated_by_category\", \"T-1963\")`"
+  - "Test passes against current macro text — `running 1 test ... test result: ok. 1 passed`"
+  - "`cargo test --lib --package termlink-mcp -- help_macro_description` reports `1 passed`"
+  - "Full suite passes — 714 tests, 0 failed"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-mcp/src/tools.rs"
+  - ".tasks/active/T-1964-termlinkhelp-macro-drift-test-covers-t-1.md"
+  - ".tasks/completed/T-1963-termlinkhelp-summary-mode--aggregate-reg.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-04T00:39:21"
+    action: "T-1964: scope ACs (extend T-1962 drift test for T-1963 summary fields)"
+  - time: "2026-06-04T00:40:13"
+    action: "T-1964: extend T-1962 drift test for T-1963 summary fields (714 tests)"
+  - time: "2026-06-04T00:40:44"
+    action: "T-1964: tick agent ACs (drift test extended, 5 T-1963 fields locked, 714 tests)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, help-registry]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 3
+  files_changed: 3
+  lines_added: 152
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1964-termlinkhelp-macro-drift-test-covers-t-1.md
+generated_by: context-agent-hybrid

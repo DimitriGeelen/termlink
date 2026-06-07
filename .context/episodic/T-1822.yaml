@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1822: fleet secrets-audit --check-drift <hub.secret-path> — compare IP-keyed cache vs authoritative hub.secret (G-011 item 1, T-1820 follow-up #3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-28T08:06:37Z
+# ============================================================================
+
+task_id: T-1822
+task_name: "fleet secrets-audit --check-drift <hub.secret-path> — compare IP-keyed cache vs authoritative hub.secret (G-011 item 1, T-1820 follow-up #3)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-28T07:52:04Z
+completed: 2026-05-28T08:05:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-05-28T10:05:10+02:00
+last_commit: 2026-05-28T10:05:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet secrets-audit --check-drift — G-011 item 1 closure (cache vs hub.secret drift)
+
+# Key outcomes
+outcomes:
+  - "CLI flag `--check-drift <PATH>` added to `FleetAction::SecretsAudit` in cli.rs"
+  - "`classify_secret_file` extended with optional `authoritative_hex: Option<&str>` parameter"
+  - "New status `warn-drift` added — fires when content differs AND both files are valid 64-char hex; otherwise no drift verdict (perms/format issues take priority)"
+  - "`scan_secrets_dir` reads authoritative file once (if --check-drift set), passes hex to classifier"
+  - "Authoritative file itself validated (format + perms warning if mode > 0o600); on read failure, the audit reports the error and skips drift-check (perms/format/orphan still run)"
+  - "JSON output includes new top-level field `authoritative` when --check-drift set: `{path, mode, size, status, reasons}`"
+  - "Severity priority documented and tested: warn-perms > warn-format > warn-drift > info-orphan > ok-mirror > ok"
+  - "Exit 1 when any warn-drift present (mirror semantics: warn-perms || warn-format || warn-drift)"
+  - "5 new classifier unit tests: ok-mirror match, warn-drift differs, drift skipped on format-bad, perms outranks drift, case-insensitive comparison"
+  - "`cargo check -p termlink` passes (package name is `termlink`, not `termlink-cli`)"
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/cli.rs"
+  - "crates/termlink-cli/src/commands/remote.rs"
+  - "crates/termlink-cli/src/main.rs"
+  - ".tasks/active/T-1822-fleet-secrets-audit---check-drift-hubsec.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-28T10:05:10"
+    action: "T-1822: fleet secrets-audit --check-drift — G-011 item 1 closure (cache vs hub.secret drift)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 4
+  lines_added: 453
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1822-fleet-secrets-audit---check-drift-hubsec.md
+generated_by: context-agent-hybrid

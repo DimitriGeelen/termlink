@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1893: apply hubs-toml-walk lib to agent-listeners-fleet (powers /peers + /pulse)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-05-31T09:59:46Z
+# ============================================================================
+
+task_id: T-1893
+task_name: "apply hubs-toml-walk lib to agent-listeners-fleet (powers /peers + /pulse)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-31T09:17:26Z
+completed: 2026-05-31T09:59:44Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-05-31T11:20:19+02:00
+last_commit: 2026-05-31T11:20:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  apply hubs-toml-walk lib to agent-listeners-fleet (/peers + /pulse)
+
+# Key outcomes
+outcomes:
+  - "`scripts/agent-listeners-fleet.sh` sources `lib/hubs-toml-walk.sh` and applies `dedup_addrs_by_fp` to profile_names + profile_addrs (TSV form, name-pairing preserved) right after parse, before the parallel fan-out."
+  - "`TIMEOUT_CMD=\"timeout 8\"` set locally for the dedup probe (PL-189 invariant). The fan-out's existing internal timeouts unchanged."
+  - "Synthetic smoke (two-profile hubs.toml, `192.168.10.107:9100` + `127.0.0.1:9100`): `hubs_scanned=1`, `total_listeners=1`, `live=1`. Stderr: `agent-listeners-fleet: skipping duplicate 127.0.0.1:9100 (same hub as 192.168.10.107:9100, fingerprint=d1bd50f5)`."
+  - "Real-config regression smoke: `hubs_scanned=4` (was 5 raw — one duplicate suppressed), `total_listeners=1, live=1`. LIVE peer count preserved."
+  - "`/peers --all` (via this wrapper, the underlying implementation) returns same LIVE set as pre-fix."
+  - "[RUBBER-STAMP] Run `/peers --all` after the fix and confirm the LIVE peer set is unchanged from your last invocation."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "scripts/agent-listeners-fleet.sh"
+  - ".tasks/active/T-1893-apply-hubs-toml-walk-lib-to-agent-listen.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-05-31T11:20:19"
+    action: "T-1893: apply hubs-toml-walk lib to agent-listeners-fleet (/peers + /pulse)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 42 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 42
+  commits: 1
+  files_changed: 2
+  lines_added: 157
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1893-apply-hubs-toml-walk-lib-to-agent-listen.md
+generated_by: context-agent-hybrid

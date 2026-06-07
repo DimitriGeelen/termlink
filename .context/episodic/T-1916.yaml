@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1916: inbox commands --json error-path — cmd_inbox_status/clear/list bail without honoring json_output (T-1915 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-01T17:38:05Z
+# ============================================================================
+
+task_id: T-1916
+task_name: "inbox commands --json error-path — cmd_inbox_status/clear/list bail without honoring json_output (T-1915 sibling)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-01T17:22:36Z
+completed: 2026-06-01T17:31:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-06-01T19:31:35+02:00
+last_commit: 2026-06-01T19:31:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cmd_inbox_status/clear/list — honor --json on hub-down
+
+# Key outcomes
+outcomes:
+  - "`cmd_inbox_status` (infrastructure.rs:1018): hub-down branch checks `json_output` and calls `super::json_error_exit({\"ok\":false,\"error\":...})` before bail."
+  - "`cmd_inbox_clear` (infrastructure.rs:1046): same fix; also added json_error_exit on the missing-target/--all branch (same shape)."
+  - "`cmd_inbox_list` (infrastructure.rs:1080): same fix."
+  - "`cargo build -p termlink --release` succeeds (6m 21s)."
+  - "Live smoke: all 3 commands now emit `{\"error\":\"Hub is not running...\",\"ok\":false}` to stdout with exit 1 — pipes into `jq`. Tested against fresh tempdir runtime_dir with no hub."
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: "[date] — [topic]"
+    chose: "[what was decided]"
+    rationale: "[rationale]"
+    alternatives_rejected: ["[alternatives and why not]"]
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - "crates/termlink-cli/src/commands/infrastructure.rs"
+  - ".tasks/active/T-1916-eventsrs---json-error-path-audit--events.md"
+  - ".tasks/completed/T-1915-cli---json-error-path-audit--find-all-co.md"
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-01T19:31:35"
+    action: "T-1916: cmd_inbox_status/clear/list — honor --json on hub-down"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 3
+  lines_added: 154
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1916-eventsrs---json-error-path-audit--events.md
+generated_by: context-agent-hybrid

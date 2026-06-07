@@ -8998,6 +8998,51 @@ pub(crate) async fn cmd_channel_claims(
     Ok(())
 }
 
+/// T-2039 (arc-parallel-substrate Slice 6) — `channel claims-summary <topic>`.
+/// Aggregate observability for stuck-worker / load-pattern detection.
+pub(crate) async fn cmd_channel_claims_summary(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let summary = termlink_session::claim_client::channel_claims_summary(&addr, topic)
+        .await
+        .map_err(|e| anyhow!("channel.claims_summary failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "topic": summary.topic,
+                "active_count": summary.active_count,
+                "expired_count": summary.expired_count,
+                "oldest_active_at_ms": summary.oldest_active_at_ms,
+                "oldest_active_age_ms": summary.oldest_active_age_ms,
+                "next_active_expiry_ms": summary.next_active_expiry_ms,
+            })
+        );
+        return Ok(());
+    }
+    if summary.active_count == 0 && summary.expired_count == 0 {
+        println!("topic {:?}: no claims (clean)", summary.topic);
+        return Ok(());
+    }
+    let age_str = summary
+        .oldest_active_age_ms
+        .map(|a| format!("{a}ms"))
+        .unwrap_or_else(|| "-".to_string());
+    let next_ms = summary
+        .next_active_expiry_ms
+        .map(|t| format!("{t}"))
+        .unwrap_or_else(|| "-".to_string());
+    println!(
+        "topic {:?}: active={} expired={} oldest_active_age={} next_expiry_ms={}",
+        summary.topic, summary.active_count, summary.expired_count, age_str, next_ms
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
