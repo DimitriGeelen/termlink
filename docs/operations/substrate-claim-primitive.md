@@ -372,3 +372,4 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 4 (T-2037):** `channel.claims` read-only listing RPC + CLI verb — answers "what's currently claimed?" without consuming an error.
 - **Slice 5 (T-2038):** `termlink_channel_claims` MCP tool — read-only listing surface for AI agents.
 - **Slice 6 (T-2039):** `channel.claims_summary` aggregate RPC + Rust client + CLI verb — answers "how busy / is anything stuck?" in one O(1) call. Operator signal for stuck-worker / load-pattern detection.
+- **Slice 7 (T-2040):** `termlink_channel_claims_summary` MCP tool — agent-callable companion for AI investigators to query topic load + stuck-worker state without shelling out.

@@ -399,6 +399,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
+            ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
         ]),
         ("channel_poll", vec![
             ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
@@ -8064,6 +8065,14 @@ pub struct ChannelClaimsParams {
     /// (false / unset) surfaces only live leases. Use `true` for
     /// forensics — e.g. "who held this stuck offset before it expired?".
     pub include_expired: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimsSummaryParams {
+    /// Topic name to summarize claim state for. The topic must already
+    /// exist (same contract as `termlink_channel_claim`); unknown topics
+    /// surface `CHANNEL_TOPIC_UNKNOWN` (-32013).
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -19888,6 +19897,34 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.claims error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_claims_summary",
+        description = "Aggregate claim state for a topic — MCP parity for `termlink channel claims-summary <topic>` CLI verb (T-2039, arc-parallel-substrate Slice 6). Read-only observability companion to `termlink_channel_claims`: answers \"how busy is this topic, is anything stuck?\" in one O(1) call (single SQL aggregate over `idx_claims_topic_until`) instead of paying full-list transfer cost. Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Three operator signals: (a) `active` vs `expired` counts surface load shape and worker-death — a growing expired count with low active means workers are dying without releasing; (b) `oldest_active_age_ms` is the leaked-lease detector — compare to the worker's `ttl_ms`, and if approaching it, the worker is either stuck or about to renew; (c) `next_active_expiry_ms` is when the next slot frees up without operator intervention. All three `*_ms` fields are null when `active_count == 0`. Hub error: CHANNEL_TOPIC_UNKNOWN (-32013) when the topic was never registered. No state mutation, no ownership check, no lazy eviction — pure read; safe for hot paths and monitoring cron."
+    )]
+    async fn termlink_channel_claims_summary(
+        &self,
+        Parameters(p): Parameters<ChannelClaimsSummaryParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let params = serde_json::json!({ "topic": p.topic });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CLAIMS_SUMMARY,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.claims_summary error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
