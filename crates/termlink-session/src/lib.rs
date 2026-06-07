@@ -11,6 +11,7 @@ pub mod liveness;
 pub mod registration;
 pub mod manager;
 pub mod bus_client;
+pub mod claim_client;
 pub mod client;
 pub mod codec;
 pub mod offline_queue;
@@ -31,6 +32,12 @@ pub use identity::SessionId;
 pub use lifecycle::SessionState;
 pub use registration::Registration;
 pub use manager::{Session, SessionError};
+
+// T-2031: arc-parallel-substrate Slice 3 — claim client surface.
+pub use claim_client::{
+    channel_claim, channel_release, channel_renew, ClaimError, ClaimSummary, LeasedClaim,
+    ReleaseSummary,
+};
 
 /// Shared test utilities (crate-internal).
 #[cfg(test)]

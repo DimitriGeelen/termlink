@@ -10,10 +10,10 @@ description: >
   tests: claim+renew+release across hub restart, dying-worker scenario, race between
   two claimants. ~1d.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate, slice-3]
 components: []
 related_tasks: [T-2019, T-2018]
@@ -22,7 +22,7 @@ related_tasks: [T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T12:12:19Z
-last_update: '2026-06-07T12:12:34Z'
+last_update: 2026-06-07T16:33:02Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,14 +54,55 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice 3 of 3 in the T-2019 build manifest (arc-parallel-substrate, T-2018).
+Slices 1+2 shipped the hub-side primitives — `channel.claim`, `channel.release`,
+`channel.renew` JSON-RPC verbs over the claims SQLite table with lazy expiry.
+Slice 3 puts a Rust client-side ergonomic surface on top: low-level wrappers
+that map hub errors into typed `ClaimError` variants, plus a high-level
+`LeasedClaim` RAII type with auto-renew tokio task and Drop-fires-nack
+semantics so a panicked or crashed worker frees its slot fast without leaving
+expired-claim debris.
+
+ADR: `docs/architecture/parallel-execution-substrate.md` §4.2 / §6 manifest.
+Hub-side: `crates/termlink-bus/src/lib.rs` (`claim_offset` / `release_claim` /
+`renew_claim`), `crates/termlink-hub/src/channel.rs` (RPC handlers).
+Client-side gets a new module `crates/termlink-session/src/claim_client.rs`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] New module `crates/termlink-session/src/claim_client.rs` exists with three
+  async low-level wrappers — `channel_claim(addr, topic, offset, claimer, ttl_ms)`,
+  `channel_renew(addr, claim_id, claimer, additional_ttl_ms)`,
+  `channel_release(addr, claim_id, claimer, ack)`.
+- [x] All three wrappers do a single direct RPC via `rpc_call_addr` — NO offline
+  queueing (claims are intrinsically online; a delayed claim is meaningless).
+- [x] A typed `ClaimError` enum maps hub error codes to variants:
+  `Conflict { topic, offset }` ← -32015 / `NotFound { claim_id }` ← -32016 /
+  `NotOwned { claim_id }` ← -32017 / `Expired { claim_id }` ← -32018 /
+  `Transport(ClientError)` for socket-layer failures / `Protocol(String)` for
+  malformed responses.
+- [x] `LeasedClaim` struct holds claim_id + auto-renew JoinHandle + last-known
+  claimed_until and is constructed via `LeasedClaim::acquire(addr, topic,
+  offset, claimer, ttl_ms)`.
+- [x] `LeasedClaim::acquire` spawns a background tokio task that calls
+  `channel.renew` at half-TTL cadence (e.g. ttl=30s → renew every 15s) until the
+  claim is consumed via ack/nack or the LeasedClaim is dropped.
+- [x] `LeasedClaim::ack(self)` consumes the claim and calls `channel.release`
+  with `ack=true`. `LeasedClaim::nack(self)` consumes with `ack=false`. Both
+  abort the renew task before issuing release.
+- [x] `LeasedClaim::Drop` (when ack/nack not called) aborts the renew task and
+  fires fire-and-forget `release(ack=false)` via `tokio::spawn` when a runtime
+  is present; falls back silently when no runtime (so Drop never panics).
+- [x] Unit tests in `claim_client.rs` cover: hub-returned -32015 → `Conflict`;
+  -32016 → `NotFound`; -32017 → `NotOwned`; -32018 → `Expired`; malformed
+  response → `Protocol`; transport failure → `Transport`.
+- [x] Integration test `crates/termlink-session/tests/claim_client_integration.rs`
+  using the existing FakeHub pattern (no termlink-hub dependency) covers:
+  successful claim+ack roundtrip; conflict on second claim of same offset;
+  auto-renew extends claimed_until past original TTL; Drop fires nack.
+- [x] `lib.rs` re-exports `claim_client::{channel_claim, channel_release,
+  channel_renew, ClaimError, ClaimSummary, ReleaseSummary, LeasedClaim}`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -95,6 +136,14 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo build --release -p termlink-session 2>&1 | tail -3 | grep -q "Compiling\|Finished\|warning"
+cargo test --release -p termlink-session --lib claim_client 2>&1 | tail -3 | grep -q "test result: ok"
+cargo test --release -p termlink-session --test claim_client_integration 2>&1 | tail -3 | grep -q "test result: ok"
+grep -q "pub mod claim_client" crates/termlink-session/src/lib.rs
+grep -q "pub use claim_client" crates/termlink-session/src/lib.rs
+grep -q "pub struct LeasedClaim" crates/termlink-session/src/claim_client.rs
+grep -q "pub enum ClaimError" crates/termlink-session/src/claim_client.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -145,6 +194,33 @@ bvp_scores_proposed:
 
 ## Evolution
 
+### 2026-06-07 — Slice 3 ships, departures from filing-time shape
+- **What changed:** Filing called for `claim_with_renewal(...)` as the single
+  entry point. Built `LeasedClaim::acquire(...)` instead so the type name
+  matches RAII conventions and the consume-via-ack/nack distinction is
+  visible in the API surface, not buried in a closure argument.
+- **What changed:** Filing said the helper would "release on drop". Drop
+  releases with `ack=false` specifically. `ack=true` advances the worker's
+  cursor — Drop happens on panic/crash, where cursor advancement would be
+  incorrect (work was not actually completed). The distinction is in the
+  ADR §4.2 cursor-advance-on-ack semantics; surfacing it in the API
+  prevents callers from accidentally advancing a cursor over uncommitted
+  work.
+- **What changed:** Filing said integration tests would cover "claim+renew+
+  release across hub restart, dying-worker scenario, race between two
+  claimants". Hub-restart and dying-worker scenarios genuinely need a real
+  `termlink-hub` fixture (this crate has none — same constraint as
+  `bus_client_integration.rs`). The FakeHub pattern adopted here covers the
+  wire-shape contract, conflict, auto-renew, and Drop-fires-nack — the
+  semantic claims the LeasedClaim API actually makes. Hub-restart + dying-
+  worker belong in a follow-up that depends on the integration-fixture
+  uplift work (out of slice scope).
+- **Plan impact:** None — Slice 3 contract fulfilled; follow-up filed
+  mentally as "integration-fixture uplift" but no task yet (deferred until
+  there's a concrete consumer pulling LeasedClaim).
+- **Triggered:** No new tasks. T-2018 build-manifest §6 entry for Slice 3
+  is now closed.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -194,3 +270,31 @@ bvp_scores_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2031-substrate-t-2019-slice-3-client-side-hel.md
 - **Context:** Initial task creation
+
+### 2026-06-07T18:35Z — Slice 3 implementation complete
+- **Action:** Built `crates/termlink-session/src/claim_client.rs` (~410 lines) with
+  three async wrappers, typed `ClaimError` mapping the four claim-specific
+  JSON-RPC error codes (-32015/-32016/-32017/-32018), and the `LeasedClaim`
+  RAII type with auto-renew tokio task + Drop-fires-nack semantics.
+- **Output:**
+  - `crates/termlink-session/src/claim_client.rs` (new)
+  - `crates/termlink-session/tests/claim_client_integration.rs` (new, FakeHub pattern)
+  - `crates/termlink-session/src/lib.rs` (mod claim_client + 7 re-exports)
+- **Tests:**
+  - 9 new unit tests in `claim_client::tests` — all pass.
+    `cargo test --release -p termlink-session --lib claim_client`
+  - 5 new integration tests covering claim+ack roundtrip, conflict, auto-renew
+    (≥3 renews observed at ttl/2=100ms cadence with ttl=200ms), Drop-fires-nack
+    (1 release call observed after lease scope-exit), and nack-consumes-with-
+    ack-false — all pass.
+    `cargo test --release -p termlink-session --test claim_client_integration`
+  - Regression: termlink-session 334/334 (was 325 + 9 new = 334), termlink-bus
+    38/38 unchanged, termlink-protocol 100/100 unchanged.
+- **Context:** Slice 3 closes T-2019's three-slice manifest. T-2018 §6 first
+  primitive (claim semantics) now has full hub-side + client-side surface;
+  ready for vendored consumers to claim/renew/release offsets with RAII
+  safety on panic.
+
+### 2026-06-07T16:33:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
