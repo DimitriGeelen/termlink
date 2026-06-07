@@ -398,6 +398,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
+            ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
         ]),
         ("channel_poll", vec![
             ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
@@ -8051,6 +8052,18 @@ pub struct ChannelRenewParams {
     /// `claimed_until = now + additional_ttl_ms` (not "+="). Default: 30000.
     /// Refused with CLAIM_EXPIRED (-32018) if the lease has already lapsed.
     pub additional_ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimsParams {
+    /// Topic name to enumerate claim rows for. The topic must already
+    /// exist (same contract as `termlink_channel_claim`); unknown topics
+    /// surface `CHANNEL_TOPIC_UNKNOWN` (-32013).
+    pub topic: String,
+    /// Include rows whose `claimed_until` is in the past. Default
+    /// (false / unset) surfaces only live leases. Use `true` for
+    /// forensics — e.g. "who held this stuck offset before it expired?".
+    pub include_expired: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -19843,6 +19856,38 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.renew error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_claims",
+        description = "List current claim rows for a topic — MCP parity for `termlink channel claims <topic> [--include-expired]` CLI verb (T-2037, arc-parallel-substrate Slice 4). Read-only introspection: answers \"what is currently claimed on this topic?\" without forcing a `termlink_channel_claim` attempt that would consume a CLAIM_CONFLICT error. Default surfaces only live leases (rows where `claimed_until > now`). Set `include_expired=true` for operator forensics — e.g. \"which worker held this stuck offset before its lease lapsed?\". Returns `{ok, topic, claims: [{claim_id, offset, claimer, claimed_at, claimed_until}, ...]}` sorted by offset ASC. Hub error: CHANNEL_TOPIC_UNKNOWN (-32013) when the topic was never registered (same contract as `termlink_channel_claim`). No state mutation, no ownership check, no lazy eviction — pure read."
+    )]
+    async fn termlink_channel_claims(
+        &self,
+        Parameters(p): Parameters<ChannelClaimsParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::Map::new();
+        params.insert("topic".to_string(), serde_json::Value::String(p.topic));
+        if let Some(ie) = p.include_expired {
+            params.insert("include_expired".to_string(), serde_json::Value::Bool(ie));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CLAIMS,
+            serde_json::Value::Object(params),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.claims error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
