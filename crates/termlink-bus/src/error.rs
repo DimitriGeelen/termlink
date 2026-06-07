@@ -42,4 +42,8 @@ pub enum BusError {
         claimed_by: String,
         attempted_by: String,
     },
+
+    // T-2030 (arc-parallel-substrate Slice 2): renew-after-expiry.
+    #[error("claim {claim_id:?} has expired (claimed_until <= now); cannot renew")]
+    ClaimExpired { claim_id: String },
 }

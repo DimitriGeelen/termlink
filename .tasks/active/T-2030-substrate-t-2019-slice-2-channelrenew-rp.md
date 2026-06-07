@@ -9,10 +9,10 @@ description: >
   — no reaper task. Unit tests for renewal flow, expiry-on-stale-attempt, renew-after-expiry-fails.
   ~1d.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate, slice-2]
 components: []
 related_tasks: [T-2019, T-2018]
@@ -21,7 +21,7 @@ related_tasks: [T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T12:12:15Z
-last_update: '2026-06-07T12:12:34Z'
+last_update: 2026-06-07T13:01:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,14 +53,32 @@ bvp_scores_proposed:
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice 2 of 3 from [T-2019 GO](../../docs/reports/T-2019-claim-semantics-inception.md). Builds on
+Slice 1 ([T-2029](T-2029-substrate-t-2019-slice-1-claims-sqlite-t.md)) which delivered the
+`claims` SQLite table and `channel.claim`/`channel.release` RPCs. Slice 2 adds the renewal
+verb so a worker whose work outlives the default TTL can extend its lease before expiry —
+and adds an explicit gate: an expired claim cannot be renewed silently (sweep-on-attempt).
+
+The "lazy-expiry queries" part of the description is satisfied: T-2029 already implemented
+sweep-on-claim. Slice 2 extends the same pattern to renew (sweep-then-check) so we don't
+ship a path where renew can succeed against a row that's already past `claimed_until`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `CHANNEL_RENEW` method constant added to `crates/termlink-protocol/src/control.rs::method` with doc comment naming `T-2030` and pointing at error codes
+- [x] `CLAIM_EXPIRED` error code (`-32018`) added to `crates/termlink-protocol/src/control.rs::error_code` for "renew on expired claim"
+- [x] `Bus::renew_claim(claim_id, claimer, additional_ttl_ms) -> Result<ClaimInfo>` public method on `crates/termlink-bus/src/lib.rs::Bus`
+- [x] `Meta::renew_claim` implementation: gates on `claimed_until > now_ms` (sweeps + returns `ClaimExpired` otherwise), gates on `claimed_by == claimer` (else `ClaimNotOwned`), updates `claimed_until = now_ms + additional_ttl_ms`, returns the refreshed `ClaimInfo`
+- [x] `BusError::ClaimExpired { claim_id }` variant in `crates/termlink-bus/src/error.rs`
+- [x] `handle_channel_renew` handler in `crates/termlink-hub/src/channel.rs` — params `{claim_id, claimer, additional_ttl_ms?}`; clamps `additional_ttl_ms` to 1h max, default 30s; returns full refreshed `ClaimInfo` shape
+- [x] Router match arm in `crates/termlink-hub/src/router.rs` for `CHANNEL_RENEW`
+- [x] `CHANNEL_RENEW` added to the `methods` list in `handle_hub_capabilities`
+- [x] Unit test: `renew_claim` extends `claimed_until` past original deadline (claim with short TTL, renew with longer additional_ttl_ms, observe new `claimed_until > old claimed_until + 100ms`)
+- [x] Unit test: `renew_claim` on an already-expired claim returns `ClaimExpired` (1ms TTL, sleep 20ms, renew → error)
+- [x] Unit test: `renew_claim` by a non-owner returns `ClaimNotOwned`
+- [x] `cargo build --release -p termlink-hub` clean
+- [x] `cargo test --release -p termlink-bus -p termlink-hub -p termlink-protocol` clean (all existing tests still pass + 3 new tests)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -94,6 +112,14 @@ bvp_scores_proposed:
 -->
 
 ## Verification
+
+cargo build --release -p termlink-hub 2>&1 | tail -5 | grep -qE "Compiling|Finished"
+out=$(cargo test --release -p termlink-bus -p termlink-hub -p termlink-protocol 2>&1); echo "$out" | grep -qE "test result: ok"
+grep -q "CHANNEL_RENEW" crates/termlink-protocol/src/control.rs
+grep -q "CLAIM_EXPIRED" crates/termlink-protocol/src/control.rs
+grep -q "fn renew_claim\|renew_claim(" crates/termlink-bus/src/lib.rs
+grep -q "handle_channel_renew" crates/termlink-hub/src/channel.rs
+grep -q "ClaimExpired" crates/termlink-bus/src/error.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -166,6 +192,20 @@ bvp_scores_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-07 — Slice 2 closed in the same session as Slice 1
+- **What changed:** Slice 2 lands directly behind Slice 1 with no structural surprises:
+  the renew path is a textbook UPDATE-WHERE on the same row claim/release operate on,
+  guarded by the same `claimed_by==claimer` rule. The one design point that emerged
+  during build was naming the post-lapse condition: I chose a separate error code
+  `CLAIM_EXPIRED (-32018)` distinct from `CLAIM_NOT_FOUND (-32016)` so the client
+  can tell "your lease lapsed, fetch a fresh claim" from "wrong id". Lazy eviction
+  of the stale row inside `renew_claim` itself (not a separate query) means the slot
+  is reclaimable immediately after the failing renew — no second round-trip required.
+- **Plan impact:** None. Slice 3 (T-2031) will surface this distinction in client-side
+  helper return types (the `claim_with_renewal` task can branch on ClaimExpired to
+  re-claim from the cursor automatically).
+- **Triggered:** None.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -193,3 +233,13 @@ bvp_scores_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2030-substrate-t-2019-slice-2-channelrenew-rp.md
 - **Context:** Initial task creation
+
+### 2026-06-07T13:01:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-07 — Slice 2 build complete — all 13 Agent ACs ticked
+- **Action:** Implemented `Bus::renew_claim` + `Meta::renew_claim` in `crates/termlink-bus/{lib,meta}.rs`, `channel.renew` RPC verb + `handle_channel_renew` in `crates/termlink-hub/src/channel.rs`, router arm + capabilities listing in `crates/termlink-hub/src/router.rs`, `CHANNEL_RENEW` method constant + `CLAIM_EXPIRED (-32018)` error code in `crates/termlink-protocol/src/control.rs`, `BusError::ClaimExpired` variant in `crates/termlink-bus/src/error.rs`.
+- **Tests:** 3 new unit tests in `crates/termlink-bus/src/lib.rs` — (1) renew extends `claimed_until` past original deadline by >100ms, (2) renew on expired claim returns `ClaimExpired` AND evicts stale row so reclaim succeeds, (3) renew by non-owner returns `ClaimNotOwned` while original claim remains intact. All 3 pass; full crate suites green: termlink-bus 38/38, termlink-hub 306/306, termlink-protocol 100/100.
+- **Verification:** All 7 Verification commands pass (release build, release tests across 3 crates, 5 grep symbol checks).
+- **Next step:** Slice 3 (T-2031) — client-side helpers (`claim_with_renewal` async helper with auto-renew background task) + integration tests across the full RPC surface. Slice 3 touches the client crate which I haven't read yet — out of scope for the current chained-slice burst.

@@ -289,6 +289,29 @@ impl Bus {
         self.meta.release_claim(claim_id, claimer, ack)
     }
 
+    /// T-2030 (arc-parallel-substrate Slice 2): extend the lease on a held
+    /// claim by `additional_ttl_ms` past *now*. Used by long-running
+    /// workers to retain ownership before `claimed_until` lapses.
+    ///
+    /// Returns the refreshed `ClaimInfo` (same `claim_id`, same `topic`,
+    /// same `offset`, same `claimed_at`, new `claimed_until`).
+    ///
+    /// Errors:
+    /// - `BusError::ClaimNotFound` — unknown / already-released `claim_id`.
+    /// - `BusError::ClaimExpired` — row exists but `claimed_until <= now`
+    ///   (lazily evicted in the same call so the slot becomes claimable).
+    /// - `BusError::ClaimNotOwned` — caller is not the original claimer.
+    pub fn renew_claim(
+        &self,
+        claim_id: &str,
+        claimer: &str,
+        additional_ttl_ms: u32,
+    ) -> Result<ClaimInfo> {
+        let now_ms = now_unix_ms();
+        self.meta
+            .renew_claim(claim_id, claimer, additional_ttl_ms, now_ms)
+    }
+
     /// Apply the retention policy for `topic`, deleting record index rows
     /// that fall outside the policy. Returns the number of records pruned.
     /// Explicit — the library runs no background thread (per T-1155).
@@ -775,6 +798,83 @@ mod tests {
             .release_claim(&first.claim_id, "worker-A", true)
             .unwrap_err();
         assert!(matches!(err, BusError::ClaimNotFound(_)), "got {err:?}");
+    }
+
+    // ── T-2030 (arc-parallel-substrate Slice 2): renew semantics ──
+
+    #[tokio::test]
+    async fn renew_claim_extends_claimed_until_past_original_deadline() {
+        // Worker grabs a slot with a short initial TTL; before it lapses
+        // they renew with a longer additional_ttl_ms. The refreshed
+        // claimed_until must reflect now + additional_ttl_ms — strictly
+        // beyond the original deadline.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let initial = bus.claim_offset("work", 0, "worker-A", 200).unwrap();
+        // Renew with a 60s extension. The new claimed_until must be at
+        // least old_until + 100ms (i.e. the renewal genuinely pushed it
+        // forward, not just re-confirmed the same deadline).
+        let renewed = bus.renew_claim(&initial.claim_id, "worker-A", 60_000).unwrap();
+        assert_eq!(renewed.claim_id, initial.claim_id);
+        assert_eq!(renewed.offset, 0);
+        assert_eq!(renewed.claimer, "worker-A");
+        assert!(
+            renewed.claimed_until > initial.claimed_until + 100,
+            "expected new claimed_until > old + 100ms, \
+             old={}, new={}",
+            initial.claimed_until,
+            renewed.claimed_until,
+        );
+    }
+
+    #[tokio::test]
+    async fn renew_on_expired_claim_returns_claim_expired() {
+        // 1ms TTL + 20ms sleep guarantees we cross the deadline. Renew
+        // must refuse with ClaimExpired (NOT ClaimNotFound — the client
+        // needs to distinguish "your lease lapsed, fetch a fresh claim"
+        // from "wrong id"). The stale row is lazily evicted so a
+        // subsequent claim_offset for the same (topic, offset) succeeds.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 1).unwrap();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let err = bus
+            .renew_claim(&c.claim_id, "worker-A", 60_000)
+            .unwrap_err();
+        assert!(matches!(err, BusError::ClaimExpired { .. }), "got {err:?}");
+        // Slot is free again — eviction was part of the renew path.
+        let recl = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
+        assert_eq!(recl.claimer, "worker-B");
+    }
+
+    #[tokio::test]
+    async fn renew_by_non_owner_returns_claim_not_owned() {
+        // worker-A claims; worker-B tries to renew with worker-A's
+        // claim_id. Must fail with ClaimNotOwned — a worker cannot
+        // hijack another worker's lease just by knowing its id.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 30_000).unwrap();
+        let err = bus
+            .renew_claim(&c.claim_id, "worker-B", 60_000)
+            .unwrap_err();
+        match err {
+            BusError::ClaimNotOwned {
+                ref claimed_by,
+                ref attempted_by,
+                ..
+            } => {
+                assert_eq!(claimed_by, "worker-A");
+                assert_eq!(attempted_by, "worker-B");
+            }
+            other => panic!("expected ClaimNotOwned, got {other:?}"),
+        }
+        // Original claim is untouched — worker-A can still renew or release.
+        let renewed = bus.renew_claim(&c.claim_id, "worker-A", 30_000).unwrap();
+        assert_eq!(renewed.claim_id, c.claim_id);
     }
 
     #[tokio::test]

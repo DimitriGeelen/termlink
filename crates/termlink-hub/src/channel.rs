@@ -991,6 +991,85 @@ pub(crate) async fn handle_channel_release_with(
     }
 }
 
+/// T-2030 (arc-parallel-substrate Slice 2) — `channel.renew(claim_id, claimer, additional_ttl_ms?)`.
+/// Extends a worker's lease before `claimed_until`. Gates on caller-is-original-claimer
+/// AND not-yet-expired; returns the refreshed `ClaimInfo` shape on success.
+pub async fn handle_channel_renew(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_renew_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_renew_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let claim_id = match param_str(params, "claim_id") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claim_id' in params").into(),
+    };
+    let claimer = match param_str(params, "claimer") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claimer' in params").into(),
+    };
+    // Default extension: 30s. Same clamp as channel.claim (1h max).
+    let additional_ttl_ms = params
+        .get("additional_ttl_ms")
+        .and_then(|v| v.as_u64())
+        .map(|t| t.min(60 * 60 * 1000) as u32)
+        .unwrap_or(30_000);
+    match bus.renew_claim(claim_id, claimer, additional_ttl_ms) {
+        Ok(info) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "claim_id": info.claim_id,
+                "topic": info.topic,
+                "offset": info.offset,
+                "claimer": info.claimer,
+                "claimed_at": info.claimed_at,
+                "claimed_until": info.claimed_until,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotFound(cid)) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_FOUND,
+            &format!("channel.renew: claim {cid:?} not found"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimExpired { claim_id: cid }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_EXPIRED,
+            &format!("channel.renew: claim {cid:?} lease has lapsed"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotOwned {
+            claim_id: cid,
+            claimed_by,
+            attempted_by,
+        }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_OWNED,
+            &format!(
+                "channel.renew: claim {cid:?} held by {claimed_by:?}, not {attempted_by:?}"
+            ),
+            json!({
+                "claim_id": cid,
+                "claimed_by": claimed_by,
+                "attempted_by": attempted_by,
+            }),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.renew: {e}")).into(),
+    }
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({

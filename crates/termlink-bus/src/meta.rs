@@ -382,6 +382,71 @@ impl Meta {
             ack,
         })
     }
+
+    /// T-2030: extend the lease on `claim_id` by `additional_ttl_ms`. Gates:
+    /// (1) row must exist, (2) row must NOT be past `claimed_until` (else
+    /// `ClaimExpired` — and the stale row is lazily evicted so a follow-up
+    /// `claim_offset` can succeed), (3) `claimed_by == claimer`. On success
+    /// sets `claimed_until = now_ms + additional_ttl_ms` and returns the
+    /// refreshed `ClaimInfo`.
+    pub(crate) fn renew_claim(
+        &self,
+        claim_id: &str,
+        claimer: &str,
+        additional_ttl_ms: u32,
+        now_ms: i64,
+    ) -> Result<ClaimInfo> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
+            "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
+             FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        );
+        let (topic, offset_i, claimed_by, claimed_at, old_until) = match row {
+            Ok(t) => t,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(BusError::ClaimNotFound(claim_id.to_string()));
+            }
+            Err(e) => return Err(BusError::Sqlite(e)),
+        };
+        if old_until <= now_ms {
+            // Lazy evict: drop the stale row so a follow-up `claim_offset` can
+            // succeed against this (topic, offset). Caller sees ClaimExpired
+            // — a different code than ClaimNotFound so the client can tell
+            // "your lease lapsed" from "wrong id".
+            tx.execute(
+                "DELETE FROM claims WHERE claim_id = ?1",
+                params![claim_id],
+            )?;
+            tx.commit()?;
+            return Err(BusError::ClaimExpired {
+                claim_id: claim_id.to_string(),
+            });
+        }
+        if claimed_by != claimer {
+            return Err(BusError::ClaimNotOwned {
+                claim_id: claim_id.to_string(),
+                claimed_by,
+                attempted_by: claimer.to_string(),
+            });
+        }
+        let new_until = now_ms.saturating_add(i64::from(additional_ttl_ms));
+        tx.execute(
+            "UPDATE claims SET claimed_until = ?1 WHERE claim_id = ?2",
+            params![new_until, claim_id],
+        )?;
+        tx.commit()?;
+        Ok(ClaimInfo {
+            claim_id: claim_id.to_string(),
+            topic,
+            offset: offset_i as u64,
+            claimer: claimed_by,
+            claimed_at,
+            claimed_until: new_until,
+        })
+    }
 }
 
 fn generate_claim_id(topic: &str, offset: u64, now_ms: i64) -> String {

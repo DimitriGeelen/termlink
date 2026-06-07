@@ -135,6 +135,17 @@ pub mod method {
     /// return `MethodNotFound` (-32601).
     pub const CHANNEL_CLAIM: &str = "channel.claim";
 
+    /// T-2030 — extend the lease on a held claim (arc-parallel-substrate Slice 2).
+    /// Long-running workers call this before `claimed_until` to retain ownership;
+    /// the hub gates on caller-is-claimer AND `claimed_until > now` so an expired
+    /// lease cannot be silently renewed (see `CLAIM_EXPIRED`).
+    /// Params: `{ claim_id, claimer, additional_ttl_ms? }` →
+    /// `{ ok, claim_id, topic, offset, claimer, claimed_at, claimed_until }`.
+    /// Errors: `CLAIM_NOT_FOUND` (-32016), `CLAIM_EXPIRED` (-32018) — stale row
+    /// is lazily evicted so a follow-up `channel.claim` for the same offset
+    /// succeeds — and `CLAIM_NOT_OWNED` (-32017).
+    pub const CHANNEL_RENEW: &str = "channel.renew";
+
     /// T-2029 — release a previously-issued claim (arc-parallel-substrate Slice 1).
     /// `ack=true` advances the claimer's cursor past the claimed offset (work
     /// completed); `ack=false` leaves the cursor unchanged and frees the slot
@@ -258,6 +269,11 @@ pub mod error_code {
     /// T-2029 `channel.release` — the caller is not the original claimer.
     /// Data field: `{claim_id, claimed_by, attempted_by}`.
     pub const CLAIM_NOT_OWNED: i64 = -32017;
+    /// T-2030 `channel.renew` — lease has already lapsed (`claimed_until <= now`).
+    /// The stale row is lazily evicted in the same call so a follow-up
+    /// `channel.claim` for the same `(topic, offset)` can succeed.
+    /// Data field: `{claim_id}`.
+    pub const CLAIM_EXPIRED: i64 = -32018;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -542,6 +558,8 @@ mod tests {
         // T-2029 (arc-parallel-substrate Slice 1).
         assert_eq!(method::CHANNEL_CLAIM, "channel.claim");
         assert_eq!(method::CHANNEL_RELEASE, "channel.release");
+        // T-2030 (arc-parallel-substrate Slice 2).
+        assert_eq!(method::CHANNEL_RENEW, "channel.renew");
     }
 
     #[test]
