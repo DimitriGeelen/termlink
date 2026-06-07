@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2040: substrate Slice 7: MCP parity for channel.claims_summary (termlink_channel_claims_summary tool)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T21:22:27Z
+# ============================================================================
+
+task_id: T-2040
+task_name: "substrate Slice 7: MCP parity for channel.claims_summary (termlink_channel_claims_summary tool)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T21:12:15Z
+completed: 2026-06-07T21:22:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-07T23:22:00+02:00
+last_commit: 2026-06-07T23:22:00+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 7 — MCP parity (termlink_channel_claims_summary tool)
+
+# Key outcomes
+outcomes:
+  - '`ChannelClaimsSummaryParams { topic: String }` struct added to `crates/termlink-mcp/src/tools.rs` with `#[derive(Deserialize, JsonSchema)]`'
+  - '`#[tool(name = "termlink_channel_claims_summary", ...)]` async method added; description explains the active-vs-expired aggregate framing and stuck-worker use case'
+  - 'Tool delegates to `termlink_session::client::rpc_call` with `method::CHANNEL_CLAIMS_SUMMARY` and unwraps via `unwrap_result` — same shape as `termlink_channel_claims` (Slice 5)'
+  - 'Help-registry entry added to the channel_admin group: `("termlink_channel_claims_summary", "Aggregate claim state ...")` — searchable via `termlink_help`'
+  - 'Release binary builds cleanly: `cargo build -p termlink --release` succeeds (Finished release profile in 6m 46s)'
+  - 'Tool name visible in release binary strings: `strings target/release/termlink | grep termlink_channel_claims_summary` returns the tool name + description text (3 matches: registry entry, tool macro, async fn)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2040-substrate-slice-7-mcp-parity-for-channel.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T23:22:00"
+    action: "T-2040: substrate Slice 7 — MCP parity (termlink_channel_claims_summary tool)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 12
+  lines_added: 267
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2040-substrate-slice-7-mcp-parity-for-channel.md
+generated_by: context-agent-hybrid
