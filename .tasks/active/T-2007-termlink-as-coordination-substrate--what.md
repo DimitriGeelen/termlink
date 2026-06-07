@@ -4,15 +4,15 @@ name: "TermLink-as-coordination-substrate — what exists today (research, not d
 description: >
   Inception: TermLink-as-coordination-substrate — what exists today (research, not design)
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T19:16:55Z
-last_update: 2026-06-05T19:19:07Z
+last_update: 2026-06-06T12:32:28Z
 date_finished: null
 ---
 
@@ -79,15 +79,15 @@ into the report at `docs/reports/T-2007-termlink-as-coordination-substrate-findi
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -168,7 +168,15 @@ gaps) is the human's call.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: The task scope was explicit: "REPORT WHAT IS, not design or recommend an
+architecture — the design decisions belong to the human." The findings report
+delivers the evidence the human needs to make that decision. DEFER is therefore
+not a holding pattern but the **terminal stance** for this inception — the
+agent's job ended at producing the briefing.
+
+**Date**: 2026-06-06T12:32:28Z
 
 ## Updates
 
@@ -177,3 +185,32 @@ gaps) is the human's call.
 
 ### 2026-06-05T19:19:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-06T12:32:28Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** The task scope was explicit: "REPORT WHAT IS, not design or recommend an
+architecture — the design decisions belong to the human." The findings report
+delivers the evidence the human needs to make that decision. DEFER is therefore
+not a holding pattern but the **terminal stance** for this inception — the
+agent's job ended at producing the briefing.
+
+### 2026-06-06T12:32:28Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task
+
+### 2026-06-07T11:15Z — design-output-linked [agent autonomous, T-2018]
+
+The DEFER on this task was "terminal stance" because the agent's job ended at producing
+the briefing — design ownership belongs to the human. The human has now produced that
+design as a separate authored artifact, persisted at:
+
+> `docs/architecture/parallel-execution-substrate.md` — *Architecture — Parallel
+> Execution: TermLink Substrate Layer*
+
+That ADR cites T-2007's findings as its substrate-reality grounding (§2) and the gap
+list as the source of its §6 build manifest. So T-2007 is closed-as-research with this
+artifact as the downstream design output. The build-track lineage (one task per §6
+primitive, when operator decides to spend on it) will reference the ADR, not T-2007
+directly. Persistence + linkage owned by T-2018.
