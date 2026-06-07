@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2042: Substrate Slice 9: channel claims-summary --all for fleet-wide stuck-worker sweep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T23:06:35Z
+# ============================================================================
+
+task_id: T-2042
+task_name: "Substrate Slice 9: channel claims-summary --all for fleet-wide stuck-worker sweep"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T22:45:18Z
+completed: 2026-06-07T23:00:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T01:00:20+02:00
+last_commit: 2026-06-08T01:00:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 9 — channel claims-summary --all for fleet-wide stuck-worker sweep
+
+# Key outcomes
+outcomes:
+  - '`ClaimsSummary` enum variant in `crates/termlink-cli/src/cli.rs`: `topic` field becomes `Option<String>` (was required `String`); new `all: bool` flag added with doc-comment naming T-2042'
+  - 'cli.rs / `cmd_channel_claims_summary` validates: exactly one of `topic` or `--all` is provided. Both / neither produces a clear error before any RPC.'
+  - 'When `--all` is set in text mode, the verb queries `channel.list`, iterates topics in returned order, calls `channel.claims_summary` per topic, prints one line per topic in the existing single-topic format, annotates `[POTENTIALLY STUCK]` when `expired_count > 0` OR `oldest_active_age_ms > 60_000`'
+  - 'When `--all` is set in JSON mode, the verb emits an envelope `{ok, topic_count, stuck_count, topics: [...]}` where each topic entry has the existing per-topic shape PLUS a `potentially_stuck: bool` field'
+  - '`--all` composes with `--watch <secs>` — watch loop re-renders the fleet sweep every clamped interval (same loop/error-tolerance shape as Slice 8)'
+  - 'Per-topic fetch errors during the sweep are non-fatal: emit `topic "<name>": fetch error: <e>` on stderr (text mode) or `{ok: false, error: ...}` in the JSON array entry, and continue iterating'
+  - 'Text-mode footer: `(N topic(s), M with potentially stuck claims)` after the per-topic rows'
+  - '`main.rs` dispatch arm passes new parameters through'
+  - 'Operator runbook (`docs/operations/substrate-claim-primitive.md`) "Stuck-worker pattern" section gains an `--all` recipe; References section gains a Slice 9 entry'
+  - '`cargo build --release -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2042-substrate-slice-9-channel-claims-summary.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T01:00:20"
+    action: "T-2042: substrate Slice 9 — channel claims-summary --all for fleet-wide stuck-worker sweep"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-9]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 5
+  lines_added: 458
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2042-substrate-slice-9-channel-claims-summary.md
+generated_by: context-agent-hybrid
