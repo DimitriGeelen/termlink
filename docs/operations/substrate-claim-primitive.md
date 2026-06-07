@@ -91,6 +91,36 @@ Hub-side hard cap: **1 hour** (`60 * 60 * 1000` ms). Larger values clamp
 silently — this is a safety against bugs (a worker that never renews and
 never releases shouldn't be able to park a slot for a day).
 
+## See it work in 60 seconds
+
+Before reading anything else, run the demo. It spins up N tokio worker
+tasks racing to claim sequential offsets on a topic — successful claims
+"process" (sleep 100ms) then ack; conflicting claims (CLAIM_CONFLICT)
+count and skip. The end-of-run summary proves exclusive-delivery.
+
+```
+# 1. start a local hub (if not already)
+termlink hub start &
+
+# 2. create a topic and add 20 posts so workers have offsets to claim
+termlink channel create demo-work
+for i in $(seq 1 20); do termlink channel post demo-work "item-$i"; done
+
+# 3. fire 4 workers competing for 20 offsets
+cargo run --release --example parallel_worker -- \
+    /tmp/termlink-0/hub.sock demo-work 4 20
+```
+
+You'll see lines like `[worker-1] won claim on offset=3` interleaved
+with `[worker-2] conflict on offset=3 (already claimed) — skipping`,
+then a final summary showing `total_wins=20  total_conflicts=N`. Every
+offset is processed exactly once.
+
+The example source — under 200 lines — is at
+`crates/termlink-session/examples/parallel_worker.rs`. Copy it as the
+starting point for your own worker; everything in this runbook below
+is the "why" for what the example does.
+
 ## Quick CLI tour
 
 The three verbs are operator-callable end-to-end. Useful for diagnostics
@@ -285,4 +315,5 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 2 (T-2030):** `channel.renew` + `CLAIM_EXPIRED` lazy-evict path.
 - **Slice 3 (T-2031):** Rust `claim_client.rs` + `LeasedClaim` RAII helper.
 - **CLI (T-2032):** `termlink channel claim/release/renew` verbs.
-- **MCP parity (T-2033):** TBD — `termlink_channel_{claim,release,renew}` tools for AI agents.
+- **MCP parity (T-2033):** `termlink_channel_{claim,release,renew}` tools for AI agents.
+- **Runnable example (T-2034):** `crates/termlink-session/examples/parallel_worker.rs` — copy-pasteable starter for parallel workers.
