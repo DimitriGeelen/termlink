@@ -7,16 +7,16 @@ description: >
   the same unit. No lock/lease/CAS/claim verb anywhere. Foundation for any safe handoff
   to exactly one consumer; also why the orchestrator cannot be a passive pull-queue.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:35:37Z
-last_update: 2026-06-07T11:54:45Z
-date_finished:
+last_update: 2026-06-07T12:10:52Z
+date_finished: 2026-06-07T12:10:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -98,15 +98,15 @@ At promotion time: (1) prototype each semantic option as a 1-day spike; (2) meas
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -178,7 +178,11 @@ At promotion time: (1) prototype each semantic option as a 1-day spike; (2) meas
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: §6.1 problem statement holds against the substrate map. The path to a safe claim primitive is **forced by structural constraints** (no background threads per T-1155 + per-subscriber-independent cursors + non-idempotent AEF agent work) into exactly one shape — **lease-with-renewal, lazy expiry, persisted SQLite claims table, three new RPC verbs**. No design freedom remains on the load-bearing decisions; all four IW questions dispose with confidence ≥2 against evidence in the substrate map.
+
+**Date**: 2026-06-07T12:10:51Z
 
 ## Updates
 
@@ -202,3 +206,12 @@ Per [[workflow_inception_artifact_first]] (C-001): research artifact at `docs/re
 - No load-bearing design freedom remains.
 
 **Recommendation:** GO. Next step: operator review at Watchtower (`fw task review T-2019`) and `fw inception decide T-2019 go` if recommendation accepted. On GO, file 3 build-slice tasks under arc-parallel-substrate.
+
+### 2026-06-07T12:10:51Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** §6.1 problem statement holds against the substrate map. The path to a safe claim primitive is **forced by structural constraints** (no background threads per T-1155 + per-subscriber-independent cursors + non-idempotent AEF agent work) into exactly one shape — **lease-with-renewal, lazy expiry, persisted SQLite claims table, three new RPC verbs**. No design freedom remains on the load-bearing decisions; all four IW questions dispose with confidence ≥2 against evidence in the substrate map.
+
+### 2026-06-07T12:10:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
