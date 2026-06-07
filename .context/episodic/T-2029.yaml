@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2029: Substrate (T-2019 Slice 1): claims SQLite table + channel.claim + channel.release
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T22:04:08Z
+# ============================================================================
+
+task_id: T-2029
+task_name: "Substrate (T-2019 Slice 1): claims SQLite table + channel.claim + channel.release"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T12:12:11Z
+completed: 2026-06-07T22:03:51Z
+duration_days: 0
+updates_count: 5
+first_commit: 2026-06-07T14:37:27+02:00
+last_commit: 2026-06-07T15:00:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fill Agent ACs + Verification — promote Slice 1 from captured to started-work (horizon=now). Substrate Slice 1 — claims SQLite table + channel.claim/release RPCs
+
+# Key outcomes
+outcomes:
+  - '`claims` table added to `crates/termlink-bus/src/meta.rs::init_schema` per [T-2019 §5 IW-2 schema](../../docs/reports/T-2019-claim-semantics-inception.md) — `(claim_id PK, topic, offset, claimed_by, claimed_at, claimed_until)` with `UNIQUE(topic, offset)` + index on `(topic, claimed_until)`'
+  - '`CHANNEL_CLAIM` method constant added to `crates/termlink-protocol/src/control.rs::method`'
+  - '`CHANNEL_RELEASE` method constant added'
+  - '`handle_channel_claim` handler in `crates/termlink-hub/src/channel.rs` — params `{topic, offset, lease_secs, claimed_by}`; INSERT-OR-FAIL on `UNIQUE(topic, offset)`; lazy expiry check (`WHERE claimed_until < now → DELETE` before insert attempt); returns `{claim_id, claimed_until}` on success or `claim_taken` error'
+  - '`handle_channel_release` handler — params `{claim_id, ack: bool}`; `DELETE FROM claims WHERE claim_id=?`; if `ack=true` advance the claiming subscriber''s cursor past the released offset (via `put_cursor`)'
+  - 'Router match arms in `crates/termlink-hub/src/router.rs:67-116` for both methods'
+  - 'Unit test: two concurrent `claim` calls on same (topic, offset) — exactly one returns success, other returns `claim_taken`'
+  - 'Unit test: `release(claim_id, ack=true)` advances cursor past `offset`'
+  - 'Unit test: `release(claim_id, ack=false)` does NOT advance the cursor'
+  - 'Unit test: lazy-expiry — expired claim is silently swept on next claim attempt; the next claim succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'crates/termlink-bus/src/claim.rs'
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2029-substrate-t-2019-slice-1-claims-sqlite-t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T14:37:27"
+    action: "T-2029: fill Agent ACs + Verification — promote Slice 1 from captured to started-work (horizon=now)"
+  - time: "2026-06-07T15:00:20"
+    action: "T-2029: Substrate Slice 1 — claims SQLite table + channel.claim/release RPCs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 591 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-1]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 591
+  commits: 2
+  files_changed: 9
+  lines_added: 576
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2029-substrate-t-2019-slice-1-claims-sqlite-t.md
+generated_by: context-agent-hybrid

@@ -1,11 +1,11 @@
-timestamp: 2026-06-07T20:00:01Z
+timestamp: 2026-06-07T22:00:01Z
 findings:
   - id: D1
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (8/1698)"
+    check: "D1: Episodic quality — 0% [TODO] (8/1702)"
   - id: D2
     level: FAIL
-    check: "D2: Human review queue — 38 task(s) waiting >30d: T-1417(38d) T-1419(38d) T-1435(37d) T-1442(36d) T-1482(34d) T-1483(34d) T-1484(34d) T-1485(34d) T-1486(34d) T-1487(34d) T-1488(34d) T-1489(34d) T-1490(34d) T-1491(34d) T-1492(34d) T-1493(34d) T-1494(34d) T-1495(34d) T-1496(34d) T-1498(33d) T-1499(33d) T-1500(33d) T-1501(33d) T-1502(33d) T-1506(33d) T-1529(33d) T-1530(33d) T-1531(33d) T-1532(33d) T-1533(33d) T-1534(33d) T-1535(33d) T-1536(33d) T-1537(33d) T-1557(33d) T-1558(33d) T-1559(33d) T-1570(33d) T-1635(23d) T-1673(20d) T-1691(20d) T-1696(20d) T-1795(16d)"
+    check: "D2: Human review queue — 38 task(s) waiting >30d: T-1417(38d) T-1419(38d) T-1435(37d) T-1442(37d) T-1482(34d) T-1483(34d) T-1484(34d) T-1485(34d) T-1486(34d) T-1487(34d) T-1488(34d) T-1489(34d) T-1490(34d) T-1491(34d) T-1492(34d) T-1493(34d) T-1494(34d) T-1495(34d) T-1496(34d) T-1498(34d) T-1499(34d) T-1500(34d) T-1501(33d) T-1502(33d) T-1506(33d) T-1529(33d) T-1530(33d) T-1531(33d) T-1532(33d) T-1533(33d) T-1534(33d) T-1535(33d) T-1536(33d) T-1537(33d) T-1557(33d) T-1558(33d) T-1559(33d) T-1570(33d) T-1635(23d) T-1673(21d) T-1691(20d) T-1696(20d) T-1795(16d)"
     mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
   - id: D8
     level: PASS

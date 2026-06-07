@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2030: Substrate (T-2019 Slice 2): channel.renew RPC + lazy-expiry queries
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T22:04:45Z
+# ============================================================================
+
+task_id: T-2030
+task_name: "Substrate (T-2019 Slice 2): channel.renew RPC + lazy-expiry queries"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T12:12:15Z
+completed: 2026-06-07T22:04:14Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-06-07T15:07:32+02:00
+last_commit: 2026-06-07T15:07:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Substrate Slice 2 — channel.renew RPC + ClaimExpired error path
+
+# Key outcomes
+outcomes:
+  - '`CHANNEL_RENEW` method constant added to `crates/termlink-protocol/src/control.rs::method` with doc comment naming `T-2030` and pointing at error codes'
+  - '`CLAIM_EXPIRED` error code (`-32018`) added to `crates/termlink-protocol/src/control.rs::error_code` for "renew on expired claim"'
+  - '`Bus::renew_claim(claim_id, claimer, additional_ttl_ms) -> Result<ClaimInfo>` public method on `crates/termlink-bus/src/lib.rs::Bus`'
+  - '`Meta::renew_claim` implementation: gates on `claimed_until > now_ms` (sweeps + returns `ClaimExpired` otherwise), gates on `claimed_by == claimer` (else `ClaimNotOwned`), updates `claimed_until = now_ms + additional_ttl_ms`, returns the refreshed `ClaimInfo`'
+  - '`BusError::ClaimExpired { claim_id }` variant in `crates/termlink-bus/src/error.rs`'
+  - '`handle_channel_renew` handler in `crates/termlink-hub/src/channel.rs` — params `{claim_id, claimer, additional_ttl_ms?}`; clamps `additional_ttl_ms` to 1h max, default 30s; returns full refreshed `ClaimInfo` shape'
+  - 'Router match arm in `crates/termlink-hub/src/router.rs` for `CHANNEL_RENEW`'
+  - '`CHANNEL_RENEW` added to the `methods` list in `handle_hub_capabilities`'
+  - 'Unit test: `renew_claim` extends `claimed_until` past original deadline (claim with short TTL, renew with longer additional_ttl_ms, observe new `claimed_until > old claimed_until + 100ms`)'
+  - 'Unit test: `renew_claim` on an already-expired claim returns `ClaimExpired` (1ms TTL, sleep 20ms, renew → error)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'Substrate Slice 2 — channel.renew RPC + ClaimExpired error path'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2030-substrate-t-2019-slice-2-channelrenew-rp.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T15:07:32"
+    action: "T-2030: Substrate Slice 2 — channel.renew RPC + ClaimExpired error path"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 591 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, slice-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 591
+  commits: 2
+  files_changed: 10
+  lines_added: 874
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2030-substrate-t-2019-slice-2-channelrenew-rp.md
+generated_by: context-agent-hybrid
