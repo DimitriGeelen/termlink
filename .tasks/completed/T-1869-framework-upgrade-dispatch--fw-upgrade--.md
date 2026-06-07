@@ -4,16 +4,16 @@ name: "Framework upgrade dispatch — fw upgrade + full test suite + classify fi
 description: >
   Framework upgrade dispatch — fw upgrade + full test suite + classify findings
 
-status: issues
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-29T12:28:12Z
-last_update: 2026-05-29T21:09:09Z
-date_finished: null
+last_update: 2026-06-07T10:53:51Z
+date_finished: 2026-06-07T10:53:51Z
 ---
 
 # T-1869: Framework upgrade dispatch — fw upgrade + full test suite + classify findings
@@ -231,3 +231,9 @@ fresh data emerges.
 **T-1869 disposition.** Stays in `issues` until STEP 3 verifies. Adding
 this update so the next-session pickup sees the upstream landing
 without re-investigating.
+
+### 2026-06-07T10:53:48Z — status-update [task-update-agent]
+- **Change:** status: issues → started-work
+
+### 2026-06-07T10:53:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
