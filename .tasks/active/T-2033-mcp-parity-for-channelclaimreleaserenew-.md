@@ -16,7 +16,7 @@ related_tasks: [T-2031, T-2032, T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T17:09:24Z
-last_update: 2026-06-07T18:56:05Z
+last_update: 2026-06-07T19:05:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -91,9 +91,9 @@ the existing hub RPCs close the gap with no new behavior.
 cargo build --release -p termlink-mcp
 cargo build --release -p termlink
 out=$(cargo clippy --no-deps -p termlink-mcp 2>&1); echo "$out" | grep -vE "claim|release|renew|Claim|Release|Renew" > /dev/null  # no NEW lints attributable to added code
-out_str=$(strings target/release/termlink); echo "$out_str" | grep -q "termlink_channel_claim"
-out_str=$(strings target/release/termlink); echo "$out_str" | grep -q "termlink_channel_release"
-out_str=$(strings target/release/termlink); echo "$out_str" | grep -q "termlink_channel_renew"
+strings target/release/termlink > /tmp/.t2033.strings && grep -q "termlink_channel_claim" /tmp/.t2033.strings
+grep -q "termlink_channel_release" /tmp/.t2033.strings
+grep -q "termlink_channel_renew" /tmp/.t2033.strings
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
