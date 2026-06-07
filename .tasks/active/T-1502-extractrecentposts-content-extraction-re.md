@@ -95,6 +95,28 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T
 - Lesson logged: when reducer signatures are tested with synthetic shapes only, require at least one live-wire smoke per render path.
 
 
+## Updates
+
+### 2026-06-07T07:30Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~34 days old. Re-ran all 3 AC steps against the live arc (T-1500 reference in the original AC is now stale beyond the 7d window — substituted current T-1438 thread; bug-fix mechanism identical).
+
+```
+$ termlink agent timeline --window-secs 86400 --n 5 --json | jq '.posts | length, (map(select(.content != "")) | length)'
+5, 5                                          ← content decoded for all 5 posts
+
+$ termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --n 5 --json
+total=5, with_content=5                       ← target-fp filter + content decode both work
+
+$ termlink agent timeline --window-secs 86400 --n 50 --grep heartbeat --json | jq '.posts | length'
+15                                            ← --grep matches against decoded payload_b64 content
+
+$ termlink agent on-thread T-1438 --window-secs 86400 --json | jq '.posts | length'
+15                                            ← metadata.thread (no underscore) recognized
+```
+
+**All 4 smokes PASS.** payload_b64 → UTF-8 decode chain holds; metadata.thread key recognized. Bug-fix verifiably correct 34d after ship. Box ready to tick.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
