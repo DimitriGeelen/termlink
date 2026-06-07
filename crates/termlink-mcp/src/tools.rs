@@ -400,6 +400,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
+            ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (expired>0 OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
         ]),
         ("channel_poll", vec![
             ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
@@ -8074,6 +8075,13 @@ pub struct ChannelClaimsSummaryParams {
     /// surface `CHANNEL_TOPIC_UNKNOWN` (-32013).
     pub topic: String,
 }
+
+/// T-2043 (arc-parallel-substrate Slice 10) — empty params struct for
+/// `termlink_channel_claims_summary_all`. Fleet-wide sweep takes no
+/// topic argument: the tool queries `channel.list` and walks every
+/// topic the hub knows about.
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimsSummaryAllParams {}
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ChannelReactParams {
@@ -19928,6 +19936,104 @@ impl TermLinkTools {
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
+    }
+
+    #[tool(
+        name = "termlink_channel_claims_summary_all",
+        description = "Fleet-wide claim-state sweep — MCP parity for `termlink channel claims-summary --all` CLI verb (T-2042, arc-parallel-substrate Slice 9; T-2043 is the MCP wrapping = Slice 10). The cold-start investigator verb: when you don't yet know which topic has the stuck worker, this returns one row per topic on the hub with the same Slice 6 aggregate shape PLUS a `potentially_stuck: bool` annotation. Heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000` (60s, conservative — picked above the runbook's 30s default TTL so a healthy near-TTL worker doesn't trip the flag). Returns `{ok, topic_count, stuck_count, topics: [{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}, ...]}`. Per-topic fetch errors during the sweep are non-fatal — captured as `{ok: false, topic, error}` entries, sweep continues. Use this first to identify which topic is misbehaving, then drill in with `termlink_channel_claims` for the per-claim breakdown. No state mutation; safe for cron + investigator agents."
+    )]
+    async fn termlink_channel_claims_summary_all(
+        &self,
+        Parameters(_p): Parameters<ChannelClaimsSummaryAllParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+
+        // Step 1: enumerate every topic via channel.list.
+        let list_resp = match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_LIST,
+            serde_json::json!({}),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list RPC failed: {e}")),
+        };
+        let list_result = match termlink_session::client::unwrap_result(list_resp) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("channel.list error: {e}")),
+        };
+        let topic_names: Vec<String> = list_result["topics"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|t| t["name"].as_str().map(|s| s.to_string()))
+            .collect();
+
+        // Step 2: per-topic claims_summary. Per-topic errors do NOT
+        // abort the sweep — they become {ok: false, topic, error}
+        // entries in the array, matching the Slice 9 CLI --json shape.
+        let mut entries: Vec<serde_json::Value> = Vec::with_capacity(topic_names.len());
+        let mut stuck_count: u64 = 0;
+        for t in &topic_names {
+            let params = serde_json::json!({ "topic": t });
+            let summary_resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_CLAIMS_SUMMARY,
+                params,
+            )
+            .await;
+            match summary_resp {
+                Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                    Ok(result) => {
+                        // T-2043: apply Slice 9's stuck heuristic to keep
+                        // CLI/MCP semantics aligned for agents pivoting
+                        // between the two surfaces.
+                        let expired = result["expired_count"].as_u64().unwrap_or(0);
+                        let age = result["oldest_active_age_ms"].as_i64();
+                        let stuck = expired > 0 || age.map(|a| a > 60_000).unwrap_or(false);
+                        if stuck {
+                            stuck_count += 1;
+                        }
+                        let mut entry = result.clone();
+                        if let Some(obj) = entry.as_object_mut() {
+                            obj.insert("ok".to_string(), serde_json::json!(true));
+                            obj.insert(
+                                "potentially_stuck".to_string(),
+                                serde_json::json!(stuck),
+                            );
+                        }
+                        entries.push(entry);
+                    }
+                    Err(e) => {
+                        entries.push(serde_json::json!({
+                            "ok": false,
+                            "topic": t,
+                            "error": format!("channel.claims_summary error: {e}"),
+                        }));
+                    }
+                },
+                Err(e) => {
+                    entries.push(serde_json::json!({
+                        "ok": false,
+                        "topic": t,
+                        "error": format!("RPC call failed: {e}"),
+                    }));
+                }
+            }
+        }
+
+        let envelope = serde_json::json!({
+            "ok": true,
+            "topic_count": topic_names.len(),
+            "stuck_count": stuck_count,
+            "topics": entries,
+        });
+        serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
     }
 
     #[tool(
