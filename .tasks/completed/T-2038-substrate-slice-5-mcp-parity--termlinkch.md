@@ -4,20 +4,20 @@ name: "Substrate Slice 5: MCP parity — termlink_channel_claims tool (T-2037 fo
 description: >
   Add MCP tool wrapping channel.claims so AI agents using TermLink-as-MCP can answer 'what is currently claimed on this topic?' alongside their existing termlink_channel_claim/release/renew tools (T-2033). Same single-surface slicing as the prior MCP slice.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc-parallel-substrate, T-2018]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T20:18:45Z
-last_update: 2026-06-07T20:21:25Z
-date_finished: null
+last_update: 2026-06-07T20:39:31Z
+date_finished: 2026-06-07T20:39:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -197,3 +197,6 @@ strings target/release/termlink > /tmp/.t2038.strings && grep -q 'termlink_chann
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2038-substrate-slice-5-mcp-parity--termlinkch.md
 - **Context:** Initial task creation
+
+### 2026-06-07T20:39:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
