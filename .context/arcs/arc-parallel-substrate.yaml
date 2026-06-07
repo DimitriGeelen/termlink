@@ -5,7 +5,7 @@ description: "Substrate-half of Parallel Execution architecture. Authoritative r
   \ Companion: AEF Orchestration Layer arc (separate repo). \xA79 collaboration seam\
   \ authoritative here. 10 \xA76 primitives filed as constituent inception tasks,\
   \ captured/horizon:later, BVP estimator-proposed, promoted one at a time per PL-203."
-status: draft
+status: in-progress
 anchor_task: T-2018
 headline_mechanic: "Multiple agents on ring20 execute disjoint AEF tasks concurrently and merge cleanly\
   \ without machine-state conflicts in .tasks/ or .context/"

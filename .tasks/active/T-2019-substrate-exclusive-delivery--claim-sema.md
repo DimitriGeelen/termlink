@@ -7,15 +7,15 @@ description: >
   the same unit. No lock/lease/CAS/claim verb anywhere. Foundation for any safe handoff
   to exactly one consumer; also why the orchestrator cannot be a passive pull-queue.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:35:37Z
-last_update: '2026-06-07T11:41:29Z'
+last_update: 2026-06-07T11:54:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -161,3 +161,9 @@ At promotion time: (1) prototype each semantic option as a 1-day spike; (2) meas
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-07T11:54:04Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-06-07T11:54:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
