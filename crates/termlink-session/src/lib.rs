@@ -34,9 +34,10 @@ pub use registration::Registration;
 pub use manager::{Session, SessionError};
 
 // T-2031: arc-parallel-substrate Slice 3 — claim client surface.
+// T-2037: Slice 4 adds `channel_claims` (read-only listing).
 pub use claim_client::{
-    channel_claim, channel_release, channel_renew, ClaimError, ClaimSummary, LeasedClaim,
-    ReleaseSummary,
+    channel_claim, channel_claims, channel_release, channel_renew, ClaimError, ClaimSummary,
+    LeasedClaim, ReleaseSummary,
 };
 
 /// Shared test utilities (crate-internal).

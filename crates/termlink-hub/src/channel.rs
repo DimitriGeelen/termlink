@@ -1070,6 +1070,67 @@ pub(crate) async fn handle_channel_renew_with(
     }
 }
 
+/// T-2037 (arc-parallel-substrate Slice 4) — `channel.claims(topic, include_expired?)`.
+/// Read-only listing of claim rows for `topic`. Default surfaces only live
+/// leases (rows where `claimed_until > now`); `include_expired=true` returns
+/// all rows for operator forensics. No state mutation — no lazy eviction
+/// here either; the next `channel.claim` for the same `(topic, offset)`
+/// handles that.
+pub async fn handle_channel_claims(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_claims_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_claims_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let include_expired = params
+        .get("include_expired")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    match bus.list_claims(topic, include_expired) {
+        Ok(rows) => {
+            let claims: Vec<Value> = rows
+                .iter()
+                .map(|c| {
+                    json!({
+                        "claim_id": c.claim_id,
+                        "offset": c.offset,
+                        "claimer": c.claimer,
+                        "claimed_at": c.claimed_at,
+                        "claimed_until": c.claimed_until,
+                    })
+                })
+                .collect();
+            Response::success(
+                id,
+                json!({
+                    "ok": true,
+                    "topic": topic,
+                    "claims": claims,
+                }),
+            )
+            .into()
+        }
+        Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
+            id,
+            error_code::CHANNEL_TOPIC_UNKNOWN,
+            &format!("channel.claims: topic {topic:?} not found"),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.claims: {e}")).into(),
+    }
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({

@@ -8916,6 +8916,88 @@ pub(crate) async fn cmd_channel_release(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// T-2037 — arc-parallel-substrate Slice 4: channel.claims listing verb.
+// Read-only introspection. Answers "what's currently claimed on this
+// topic?" without forcing the operator to attempt a claim.
+// ---------------------------------------------------------------------------
+
+pub(crate) async fn cmd_channel_claims(
+    topic: &str,
+    include_expired: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let claims = termlink_session::claim_client::channel_claims(&addr, topic, include_expired)
+        .await
+        .map_err(|e| anyhow!("channel.claims failed: {e}"))?;
+    if json_output {
+        let rows: Vec<serde_json::Value> = claims
+            .iter()
+            .map(|c| {
+                json!({
+                    "claim_id": c.claim_id,
+                    "topic": c.topic,
+                    "offset": c.offset,
+                    "claimer": c.claimer,
+                    "claimed_at": c.claimed_at,
+                    "claimed_until": c.claimed_until,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "topic": topic,
+                "include_expired": include_expired,
+                "count": rows.len(),
+                "claims": rows,
+            })
+        );
+        return Ok(());
+    }
+    if claims.is_empty() {
+        let suffix = if include_expired { "" } else { " (active)" };
+        println!("no claims on topic {topic:?}{suffix}");
+        return Ok(());
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    println!(
+        "{:>8}  {:<20}  {:<24}  {:>10}  {}",
+        "offset", "claimer", "claim_id", "remain_ms", "state"
+    );
+    for c in &claims {
+        let remain = c.claimed_until - now_ms;
+        let (remain_str, state) = if remain <= 0 {
+            ("expired".to_string(), "EXPIRED")
+        } else {
+            (format!("{remain}"), "active")
+        };
+        // Shorten claim_id for table view; full id is in --json.
+        let cid_short = if c.claim_id.len() > 22 {
+            format!("{}…", &c.claim_id[..21])
+        } else {
+            c.claim_id.clone()
+        };
+        let claimer_short = if c.claimer.len() > 18 {
+            format!("{}…", &c.claimer[..17])
+        } else {
+            c.claimer.clone()
+        };
+        println!(
+            "{:>8}  {:<20}  {:<24}  {:>10}  {}",
+            c.offset, claimer_short, cid_short, remain_str, state
+        );
+    }
+    println!("({} row(s))", claims.len());
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

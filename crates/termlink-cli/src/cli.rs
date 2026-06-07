@@ -3172,6 +3172,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// T-2037 (arc-parallel-substrate Slice 4) — list current claim rows for
+    /// a topic. Read-only introspection — answers "what is currently
+    /// claimed?" without forcing the operator to attempt a `channel claim`.
+    /// Wraps the `channel.claims` JSON-RPC verb. Default surfaces only live
+    /// leases; `--include-expired` adds rows past their `claimed_until` for
+    /// forensics (e.g. "who held this stuck offset before it expired?").
+    Claims {
+        /// Topic name to list claims for. The topic must exist
+        /// (`channel create` first if not — same contract as `channel claim`).
+        topic: String,
+        /// Include rows whose `claimed_until` is in the past. Default
+        /// (false) surfaces only live leases.
+        #[arg(long)]
+        include_expired: bool,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Poll sub-actions (T-1355).

@@ -447,6 +447,50 @@ impl Meta {
             claimed_until: new_until,
         })
     }
+
+    /// T-2037: list current claim rows for `topic`. When
+    /// `include_expired=false` (default), rows where `claimed_until <= now_ms`
+    /// are filtered out. Ordering: by `offset ASC, claimed_at ASC` for stable
+    /// operator-readable output.
+    pub(crate) fn list_claims(
+        &self,
+        topic: &str,
+        include_expired: bool,
+        now_ms: i64,
+    ) -> Result<Vec<ClaimInfo>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = if include_expired {
+            conn.prepare(
+                "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
+                 FROM claims WHERE topic = ?1 ORDER BY offset ASC, claimed_at ASC",
+            )?
+        } else {
+            conn.prepare(
+                "SELECT claim_id, topic, offset, claimed_by, claimed_at, claimed_until \
+                 FROM claims WHERE topic = ?1 AND claimed_until > ?2 \
+                 ORDER BY offset ASC, claimed_at ASC",
+            )?
+        };
+        let mapper = |r: &rusqlite::Row| -> rusqlite::Result<ClaimInfo> {
+            let offset_i: i64 = r.get(2)?;
+            Ok(ClaimInfo {
+                claim_id: r.get(0)?,
+                topic: r.get(1)?,
+                offset: offset_i as u64,
+                claimer: r.get(3)?,
+                claimed_at: r.get(4)?,
+                claimed_until: r.get(5)?,
+            })
+        };
+        let rows = if include_expired {
+            stmt.query_map(params![topic], mapper)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        } else {
+            stmt.query_map(params![topic, now_ms], mapper)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        Ok(rows)
+    }
 }
 
 fn generate_claim_id(topic: &str, offset: u64, now_ms: i64) -> String {

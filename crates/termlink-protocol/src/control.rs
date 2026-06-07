@@ -154,6 +154,18 @@ pub mod method {
     /// Errors: `CLAIM_NOT_FOUND` (-32016), `CLAIM_NOT_OWNED` (-32017).
     pub const CHANNEL_RELEASE: &str = "channel.release";
 
+    /// T-2037 — list current claim rows for `topic` (arc-parallel-substrate
+    /// Slice 4). Read-only introspection — answers "what is currently
+    /// claimed?" without forcing the caller to attempt a `channel.claim`.
+    /// When `include_expired=false` (default), rows whose `claimed_until`
+    /// is in the past are filtered out so the response reflects only
+    /// live leases. `include_expired=true` is for operator forensics.
+    /// Params: `{ topic, include_expired? }` →
+    /// `{ ok, topic, claims: [{ claim_id, offset, claimer, claimed_at, claimed_until }, ...] }`.
+    /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013) — same shape as
+    /// `channel.claim`. Old hubs return `MethodNotFound` (-32601).
+    pub const CHANNEL_CLAIMS: &str = "channel.claims";
+
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
     /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.
@@ -560,6 +572,8 @@ mod tests {
         assert_eq!(method::CHANNEL_RELEASE, "channel.release");
         // T-2030 (arc-parallel-substrate Slice 2).
         assert_eq!(method::CHANNEL_RENEW, "channel.renew");
+        // T-2037 (arc-parallel-substrate Slice 4).
+        assert_eq!(method::CHANNEL_CLAIMS, "channel.claims");
     }
 
     #[test]

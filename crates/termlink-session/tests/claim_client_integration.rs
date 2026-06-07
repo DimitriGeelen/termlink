@@ -20,7 +20,7 @@ use tokio::sync::Mutex;
 use termlink_protocol::control::error_code;
 use termlink_protocol::transport::TransportAddr;
 use termlink_session::claim_client::{
-    channel_claim, channel_release, ClaimError, LeasedClaim,
+    channel_claim, channel_claims, channel_release, ClaimError, LeasedClaim,
 };
 
 #[derive(Default)]
@@ -32,6 +32,7 @@ struct HubState {
     claim_calls: u64,
     renew_calls: u64,
     release_calls: u64,
+    claims_calls: u64,
 }
 
 struct FakeHub {
@@ -222,6 +223,43 @@ async fn handle_call(method: &str, id: Value, params: Value, state: Arc<Mutex<Hu
                 "offset": key.1,
                 "ack": ack,
             }))
+        }
+        "channel.claims" => {
+            s.claims_calls += 1;
+            let topic = params.get("topic").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let include_expired = params
+                .get("include_expired")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let now = s.now_ms;
+            let mut rows: Vec<((String, u64), (String, String, i64))> = s
+                .slots
+                .iter()
+                .filter(|((t, _), _)| t == &topic)
+                .filter(|(_, (_, _, until))| include_expired || *until > now)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            rows.sort_by_key(|((_, off), _)| *off);
+            let claims: Vec<Value> = rows
+                .into_iter()
+                .map(|((_, off), (cid, owner, until))| {
+                    json!({
+                        "claim_id": cid,
+                        "offset": off,
+                        "claimer": owner,
+                        "claimed_at": now,
+                        "claimed_until": until,
+                    })
+                })
+                .collect();
+            success_response(
+                id,
+                json!({
+                    "ok": true,
+                    "topic": topic,
+                    "claims": claims,
+                }),
+            )
         }
         _ => error_response(id, -32601, "unknown method", None),
     }
@@ -493,5 +531,106 @@ async fn renew_with_wrong_claimer_returns_not_owned() {
     channel_release(&addr, &summary.claim_id, "worker-A", true)
         .await
         .expect("rightful release ok");
+    hub.stop().await;
+}
+
+// ───────────────────── T-2037: channel.claims listing ─────────────────────
+
+#[tokio::test]
+async fn list_claims_returns_empty_for_topic_with_no_claims() {
+    let socket = test_socket("list_empty");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let claims = channel_claims(&addr, "T", false).await.expect("list ok");
+    assert!(claims.is_empty(), "expected empty list, got {claims:?}");
+
+    let s = hub.state.lock().await;
+    assert_eq!(s.claims_calls, 1);
+    drop(s);
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn list_claims_surfaces_active_claims_in_offset_order() {
+    let socket = test_socket("list_active");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    // Acquire three claims on the same topic at different offsets.
+    let c1 = channel_claim(&addr, "T", 5, "worker-A", 30_000).await.unwrap();
+    let c2 = channel_claim(&addr, "T", 2, "worker-B", 30_000).await.unwrap();
+    let _c3 = channel_claim(&addr, "T", 9, "worker-C", 30_000).await.unwrap();
+
+    let listed = channel_claims(&addr, "T", false).await.expect("list ok");
+    assert_eq!(listed.len(), 3, "expected three rows, got {listed:?}");
+
+    // Sorted by offset ASC.
+    let offsets: Vec<u64> = listed.iter().map(|c| c.offset).collect();
+    assert_eq!(offsets, vec![2, 5, 9]);
+
+    // Claimer + claim_id round-trip end-to-end.
+    let c1_row = listed.iter().find(|c| c.offset == 5).unwrap();
+    assert_eq!(c1_row.claim_id, c1.claim_id);
+    assert_eq!(c1_row.claimer, "worker-A");
+    let c2_row = listed.iter().find(|c| c.offset == 2).unwrap();
+    assert_eq!(c2_row.claim_id, c2.claim_id);
+    assert_eq!(c2_row.claimer, "worker-B");
+
+    // Topic field hydrated from the request topic (not from per-row payload).
+    assert!(listed.iter().all(|c| c.topic == "T"));
+
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn list_claims_excludes_released_claims() {
+    let socket = test_socket("list_after_release");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let c1 = channel_claim(&addr, "T", 1, "worker-A", 30_000).await.unwrap();
+    let _c2 = channel_claim(&addr, "T", 2, "worker-B", 30_000).await.unwrap();
+    let before = channel_claims(&addr, "T", false).await.unwrap();
+    assert_eq!(before.len(), 2);
+
+    channel_release(&addr, &c1.claim_id, "worker-A", true).await.unwrap();
+    let after = channel_claims(&addr, "T", false).await.unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].offset, 2);
+
+    hub.stop().await;
+}
+
+#[tokio::test]
+async fn list_claims_include_expired_surfaces_rows_default_omits() {
+    let socket = test_socket("list_include_expired");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    // Two claims with short TTL.
+    let _c1 = channel_claim(&addr, "T", 10, "worker-A", 1_000).await.unwrap();
+    let _c2 = channel_claim(&addr, "T", 11, "worker-B", 1_000).await.unwrap();
+
+    // Manually advance virtual time past the TTL — same shortcut the renew
+    // test uses, so we don't need a real sleep.
+    {
+        let mut s = hub.state.lock().await;
+        s.now_ms += 5_000;
+    }
+
+    // Default (include_expired=false) hides them.
+    let active = channel_claims(&addr, "T", false).await.unwrap();
+    assert!(
+        active.is_empty(),
+        "expected expired claims to be hidden, got {active:?}"
+    );
+
+    // include_expired=true surfaces both for forensics.
+    let all = channel_claims(&addr, "T", true).await.unwrap();
+    assert_eq!(all.len(), 2, "expected both expired rows for forensics");
+    let offsets: Vec<u64> = all.iter().map(|c| c.offset).collect();
+    assert_eq!(offsets, vec![10, 11]);
+
     hub.stop().await;
 }

@@ -139,6 +139,31 @@ pub async fn channel_release(
     parse_release_response(resp)
 }
 
+/// T-2037 (arc-parallel-substrate Slice 4): list current claim rows for
+/// `topic`. Read-only introspection — answers "what is currently
+/// claimed?" without forcing the caller to attempt a `channel.claim`.
+///
+/// When `include_expired=false` (the typical operator path), rows whose
+/// `claimed_until` is in the past are filtered out so the response
+/// reflects only live leases. `include_expired=true` is for forensics —
+/// e.g. understanding "who held this stuck offset before it expired?".
+///
+/// Returns an empty vec when the topic exists but has no claims; returns
+/// `ClaimError::Hub { code: -32013, .. }` when the topic was never
+/// registered (matches `channel.claim`'s discoverability contract).
+pub async fn channel_claims(
+    addr: &TransportAddr,
+    topic: &str,
+    include_expired: bool,
+) -> Result<Vec<ClaimSummary>, ClaimError> {
+    let params = json!({
+        "topic": topic,
+        "include_expired": include_expired,
+    });
+    let resp = rpc_call_addr(addr, method::CHANNEL_CLAIMS, params).await?;
+    parse_claims_response(resp, topic)
+}
+
 fn parse_claim_response(resp: RpcResponse) -> Result<ClaimSummary, ClaimError> {
     match resp {
         RpcResponse::Success(ok) => {
@@ -179,6 +204,39 @@ fn parse_release_response(resp: RpcResponse) -> Result<ReleaseSummary, ClaimErro
                 offset,
                 ack,
             })
+        }
+        RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
+    }
+}
+
+fn parse_claims_response(
+    resp: RpcResponse,
+    topic_hint: &str,
+) -> Result<Vec<ClaimSummary>, ClaimError> {
+    match resp {
+        RpcResponse::Success(ok) => {
+            let r = &ok.result;
+            let arr = r
+                .get("claims")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| ClaimError::Protocol("missing 'claims' array field".into()))?;
+            let mut out = Vec::with_capacity(arr.len());
+            for c in arr {
+                let claim_id = field_str(c, "claim_id")?;
+                let offset = field_u64(c, "offset")?;
+                let claimer = field_str(c, "claimer")?;
+                let claimed_at = field_i64(c, "claimed_at")?;
+                let claimed_until = field_i64(c, "claimed_until")?;
+                out.push(ClaimSummary {
+                    claim_id,
+                    topic: topic_hint.to_string(),
+                    offset,
+                    claimer,
+                    claimed_at,
+                    claimed_until,
+                });
+            }
+            Ok(out)
         }
         RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
     }

@@ -312,6 +312,23 @@ impl Bus {
             .renew_claim(claim_id, claimer, additional_ttl_ms, now_ms)
     }
 
+    /// T-2037 (arc-parallel-substrate Slice 4): list current claim rows for
+    /// `topic`. When `include_expired=false` (default at the protocol layer),
+    /// rows whose `claimed_until` is in the past are filtered out. Returns
+    /// `BusError::UnknownTopic` when the topic was never registered (mirrors
+    /// `claim_offset`'s discoverability contract); returns an empty vec when
+    /// the topic exists but has no live claims.
+    ///
+    /// Pure read — no SQL writes, no cursor mutation, no lazy eviction. The
+    /// caller chooses whether to surface expired rows for operator forensics.
+    pub fn list_claims(&self, topic: &str, include_expired: bool) -> Result<Vec<ClaimInfo>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let now_ms = now_unix_ms();
+        self.meta.list_claims(topic, include_expired, now_ms)
+    }
+
     /// Apply the retention policy for `topic`, deleting record index rows
     /// that fall outside the policy. Returns the number of records pruned.
     /// Explicit — the library runs no background thread (per T-1155).

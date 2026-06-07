@@ -1524,6 +1524,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::Claims {
+                topic,
+                include_expired,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_claims(
+                    &topic,
+                    include_expired,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
         },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {
