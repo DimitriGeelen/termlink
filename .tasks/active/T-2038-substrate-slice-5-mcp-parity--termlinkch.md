@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T20:18:45Z
-last_update: 2026-06-07T20:18:45Z
+last_update: 2026-06-07T20:20:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -42,10 +42,10 @@ introspection their operators have.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `ChannelClaimsParams` struct in `crates/termlink-mcp/src/tools.rs` (sibling to `ChannelClaimParams`) with `topic: String` + `include_expired: Option<bool>` fields
-- [ ] `#[tool]` async method `termlink_channel_claims` wraps `rpc_call` to `method::CHANNEL_CLAIMS`; pretty-JSON on success, `json_err` on RPC error
-- [ ] Help-registry entry registered alongside the existing `termlink_channel_claim/release/renew` tools (channel_admin group)
-- [ ] `cargo build --release -p termlink` succeeds; binary contains the new tool name as a substring (`strings target/release/termlink | grep -q termlink_channel_claims`)
+- [x] `ChannelClaimsParams` struct in `crates/termlink-mcp/src/tools.rs` (sibling to `ChannelClaimParams`) with `topic: String` + `include_expired: Option<bool>` fields
+- [x] `#[tool]` async method `termlink_channel_claims` wraps `rpc_call` to `method::CHANNEL_CLAIMS`; pretty-JSON on success, `json_err` on RPC error
+- [x] Help-registry entry registered alongside the existing `termlink_channel_claim/release/renew` tools (channel_admin group)
+- [x] `cargo build --release -p termlink` succeeds; binary contains the new tool name as a substring (`strings target/release/termlink | grep -q termlink_channel_claims`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -133,6 +133,20 @@ strings target/release/termlink > /tmp/.t2038.strings && grep -q 'termlink_chann
 -->
 
 ## Evolution
+
+### 2026-06-07 — Slice-5 mirror of Slice-4: control-plane RPC, no signed envelope
+
+- **What changed:** Slice 4 (T-2037) shipped `channel.claims` as a
+  control-plane RPC (no envelope signing — matches `channel.claim/
+  release/renew` from Slices 1-2 and the existing `channel.receipts`
+  read RPC). Slice 5 mirrors that: the MCP tool uses the
+  `rpc_call + unwrap_result` shape (sibling of `termlink_channel_info`,
+  NOT `termlink_channel_pin` which signs an envelope).
+- **Plan impact:** None — the slicing template held cleanly. One
+  `#[tool]` method + one params struct + one help-registry entry.
+- **Triggered:** Substrate first-primitive arc is now feature-complete
+  across hub RPC, Rust client, CLI, MCP, runnable example, runbook,
+  integration tests, AND introspection at every layer.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
