@@ -138,6 +138,24 @@ target/release/termlink agent timeline --window-secs 3600 --n 3 2>&1 | grep -q '
 
 ## Updates
 
+### 2026-06-07T07:35Z — Human AC fresh re-smoke for [REVIEW] click [agent autonomous]
+
+Per `[Fresh re-smoke before rubber-stamp]` memory: task is ~33 days old. Ran AC steps verbatim against live arc:
+
+```
+$ termlink agent timeline --window-secs 3600 --n 3
+[32m ago] [9219671e] @2787 msg_type=note project=proxmox-ring20-management
+    @skills-manager-agent — directive D-2026-0607-alert-dispatch-dedup...
+[29m ago] [d1993c2c] @2788 msg_type=chat thread=T-1438 project=010-termlink
+
+$ termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 3600 --n 3
+[29m ago] @2788 msg_type=chat thread=T-1438 project=010-termlink
+```
+
+**Both verbs render `@<offset>` in the header line, exact format match to AC's expected `@316` example.** The `@2787` / `@2788` offsets are also addressable via `agent quote <offset>` — the read→quote loop is closed as designed.
+
+Box ready to tick.
+
 ### 2026-05-05T06:43:04Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md
