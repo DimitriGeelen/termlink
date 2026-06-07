@@ -922,4 +922,123 @@ mod tests {
         assert_eq!(bus.sweep("t", 0).unwrap(), 0);
         assert_eq!(bus.subscribe("t", 0).unwrap().count(), 3);
     }
+
+    // ── T-2039 (arc-parallel-substrate Slice 6): claims_summary aggregate ──
+    //
+    // These exercise the real SQLite aggregate (COALESCE(SUM(CASE ...)) +
+    // MIN(CASE ...)) directly — the integration tests at
+    // `crates/termlink-session/tests/claim_client_integration.rs` use a
+    // FakeHub that re-derives the markers approximately, so the real SQL
+    // logic only gets exercised here.
+
+    #[tokio::test]
+    async fn claims_summary_unknown_topic_returns_error() {
+        let (_dir, bus) = tmp_bus();
+        let err = bus.claims_summary("ghost").unwrap_err();
+        assert!(matches!(err, BusError::UnknownTopic(_)), "got {err:?}");
+    }
+
+    #[tokio::test]
+    async fn claims_summary_topic_with_no_claims_returns_zero_counts() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 0);
+        assert_eq!(s.expired_count, 0);
+        assert!(s.oldest_active_at_ms.is_none());
+        assert!(s.oldest_active_age_ms.is_none());
+        assert!(s.next_active_expiry_ms.is_none());
+    }
+
+    #[tokio::test]
+    async fn claims_summary_single_active_claim_populates_all_markers() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+        let c = bus.claim_offset("t", 0, "worker-A", 30_000).unwrap();
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 1);
+        assert_eq!(s.expired_count, 0);
+        assert_eq!(s.oldest_active_at_ms, Some(c.claimed_at));
+        assert!(s.oldest_active_age_ms.is_some());
+        assert!(s.oldest_active_age_ms.unwrap() >= 0);
+        assert_eq!(s.next_active_expiry_ms, Some(c.claimed_until));
+    }
+
+    #[tokio::test]
+    async fn claims_summary_mixed_active_and_expired_partitions_correctly() {
+        // Three offsets: two get short-TTL claims that lapse, one gets a
+        // long-TTL claim that stays live. After the sleep, claims_summary
+        // must report exactly active=1, expired=2. Tests the real SQL
+        // CASE-partitioning that the integration tests can't fake.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0..3 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        let _short_a = bus.claim_offset("t", 0, "worker-A", 1).unwrap();
+        let _short_b = bus.claim_offset("t", 1, "worker-B", 1).unwrap();
+        let long = bus.claim_offset("t", 2, "worker-C", 60_000).unwrap();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 1, "only worker-C should be active");
+        assert_eq!(s.expired_count, 2, "worker-A + worker-B should be expired");
+        assert_eq!(
+            s.oldest_active_at_ms,
+            Some(long.claimed_at),
+            "oldest_active_at must point at the only live claim, not the expired ones"
+        );
+        assert_eq!(s.next_active_expiry_ms, Some(long.claimed_until));
+    }
+
+    #[tokio::test]
+    async fn claims_summary_only_expired_claims_returns_none_markers() {
+        // Edge case the integration tests can't construct cleanly: every
+        // row on the topic is past its deadline. Markers must be None
+        // (MIN(CASE WHEN active THEN ... ELSE NULL END) returns NULL) and
+        // expired_count must show the lapsed row.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+        let _c = bus.claim_offset("t", 0, "worker-A", 1).unwrap();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 0);
+        assert_eq!(s.expired_count, 1);
+        assert!(s.oldest_active_at_ms.is_none());
+        assert!(s.oldest_active_age_ms.is_none());
+        assert!(s.next_active_expiry_ms.is_none());
+    }
+
+    #[tokio::test]
+    async fn claims_summary_oldest_active_marker_picks_the_earliest_claimed_at() {
+        // Two live claims with different claimed_at timestamps. The
+        // oldest_active_at_ms must equal the EARLIEST one (MIN
+        // semantics), and next_active_expiry_ms must equal the EARLIEST
+        // claimed_until (the next slot to free up). With identical TTLs,
+        // claimed-at ordering and claimed-until ordering coincide, so we
+        // check both pointers track the FIRST claim.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0..2 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        let first = bus.claim_offset("t", 0, "worker-A", 60_000).unwrap();
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        let second = bus.claim_offset("t", 1, "worker-B", 60_000).unwrap();
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 2);
+        assert_eq!(s.expired_count, 0);
+        assert_eq!(
+            s.oldest_active_at_ms,
+            Some(first.claimed_at.min(second.claimed_at)),
+            "must point at the earliest-claimed-at row"
+        );
+        assert_eq!(
+            s.next_active_expiry_ms,
+            Some(first.claimed_until.min(second.claimed_until)),
+            "must point at the earliest-claimed-until row (next slot to free up)"
+        );
+    }
 }

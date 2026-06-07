@@ -1261,3 +1261,12 @@ git status --shor'
   caller: 'check-active-task focus-drift'
   target: 'T-2038'
   command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2038: complete — move to completed/" 2>&1 | tail -6'
+- timestamp: '2026-06-07T21:31:30Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2039'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF
+T-2039: extend test coverage — direct bus-level unit tests for claims_summary SQL aggregate
+
+The integration te'

@@ -1,9 +1,9 @@
-# Audit Results - 2026-06-07-2259
-timestamp: 2026-06-07T20:59:02Z
+# Audit Results - 2026-06-07-2322
+timestamp: 2026-06-07T21:22:38Z
 sections: "structure"
 summary:
-  pass: 18
-  warn: 2
+  pass: 17
+  warn: 3
   fail: 0
 findings:
   - level: PASS
@@ -46,5 +46,6 @@ findings:
     check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
   - level: PASS
     check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
-  - level: PASS
-    check: "Hook threshold: no hooks failing over threshold"
+  - level: WARN
+    check: "Hook threshold: 1 hook(s) failing over threshold (T-1626)"
+    mitigation: "Run: python3 /opt/termlink/.agentic-framework/lib/hook-threshold.py --register (or fw upgrade if witness pattern)"
