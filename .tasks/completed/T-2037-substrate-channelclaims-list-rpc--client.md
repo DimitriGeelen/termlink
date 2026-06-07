@@ -4,20 +4,20 @@ name: "Substrate: channel.claims list RPC + client + CLI + tests (T-2018 introsp
 description: >
   Add a listing/introspection verb to the claim primitive — operators and agents can answer 'what is currently claimed on this topic?' without having to attempt a claim. Closes the visibility gap left by Slices 1-3 (claim/release/renew). Slicing template: hub RPC -> Rust client -> CLI -> integration tests. MCP + runnable example can extend in follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc-parallel-substrate, T-2018]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T20:04:58Z
-last_update: 2026-06-07T20:15:57Z
-date_finished: null
+last_update: 2026-06-07T20:16:20Z
+date_finished: 2026-06-07T20:16:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,3 +208,6 @@ cargo test --test claim_client_integration -p termlink-session 2>&1 > /tmp/.t203
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2037-substrate-channelclaims-list-rpc--client.md
 - **Context:** Initial task creation
+
+### 2026-06-07T20:16:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
