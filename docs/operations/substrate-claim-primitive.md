@@ -245,6 +245,34 @@ fresh aggregate. Per-tick fetch errors don't kill the loop — they print
 retries. `--watch` is incompatible with `--json` (streaming text vs
 one-shot envelope) — pick one. SIGINT exits cleanly.
 
+**Fleet-wide sweep (Slice 9).** When the operator does not know which
+topic to check — typical incident triage cold-start — `--all` sweeps
+every topic on the hub in one shot. Topics with `expired_count > 0` OR
+`oldest_active_age > 60s` get a `[POTENTIALLY STUCK]` annotation so the
+list is visually scannable:
+
+```
+$ termlink channel claims-summary --all
+topic "broadcast:global": no claims (clean)
+topic "work-q1": active=1 expired=0 oldest_active_age=15707ms next_expiry_ms=1780873154463
+topic "work-q2": active=0 expired=1 oldest_active_age=- next_expiry_ms=-  [POTENTIALLY STUCK]
+topic "work-q3": no claims (clean)
+(4 topic(s), 1 with potentially stuck claims)
+```
+
+Composes with `--watch` for a continuous fleet-wide stuck-worker
+dashboard (`claims-summary --all --watch 30`) and with `--json` for a
+machine-readable envelope `{ok, topic_count, stuck_count, topics: [...]}`
+where each entry carries a `potentially_stuck: bool` flag. Per-topic
+fetch errors during the sweep are non-fatal — printed inline (text
+mode) or surfaced as `{ok: false, error: ...}` array entries (JSON
+mode), and the iteration continues.
+
+The `topic` positional and `--all` flag are mutually exclusive —
+exactly one is required. Run `claims-summary --all` cold; once a
+suspicious topic is identified, drill in with
+`channel claims <topic>` for the per-claim breakdown.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
@@ -390,3 +418,4 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 6 (T-2039):** `channel.claims_summary` aggregate RPC + Rust client + CLI verb — answers "how busy / is anything stuck?" in one O(1) call. Operator signal for stuck-worker / load-pattern detection.
 - **Slice 7 (T-2040):** `termlink_channel_claims_summary` MCP tool — agent-callable companion for AI investigators to query topic load + stuck-worker state without shelling out.
 - **Slice 8 (T-2041):** `channel claims-summary --watch <secs>` continuous-monitor CLI mode — re-runs the aggregate every N seconds (clamped 5..=3600), clears the screen between frames, tolerates per-tick fetch errors. Hands-off form of the cron stuck-worker recipe; ideal for incident triage side terminals.
+- **Slice 9 (T-2042):** `channel claims-summary --all` fleet-wide sweep — queries `channel.list` and per-topic calls `channel.claims_summary`, annotates `[POTENTIALLY STUCK]` on topics with `expired_count > 0` OR `oldest_active_age_ms > 60_000`, footer reports total + stuck counts. Composes with `--watch` (live fleet dashboard) and `--json` (`{ok, topic_count, stuck_count, topics: [...]}` envelope). Per-topic fetch errors during the sweep are non-fatal.

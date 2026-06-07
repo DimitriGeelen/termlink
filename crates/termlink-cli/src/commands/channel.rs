@@ -9006,13 +9006,36 @@ pub(crate) async fn cmd_channel_claims(
 /// between frames, prints a header row). Per-tick fetch errors are
 /// non-fatal — printed inline, loop continues. `--watch` is incompatible
 /// with `--json` (streaming text vs one-shot envelope) — rejected up front.
+///
+/// T-2042 (Slice 9): when `all` is true, queries `channel.list` and
+/// per-topic calls `channel.claims_summary`, annotating any topic with
+/// `expired_count > 0` OR `oldest_active_age_ms > 60_000` as
+/// `[POTENTIALLY STUCK]`. Mutually exclusive with the `topic` positional.
+/// Composes with `--watch` (live fleet-wide stuck-worker dashboard) and
+/// `--json` (array envelope).
 pub(crate) async fn cmd_channel_claims_summary(
-    topic: &str,
+    topic: Option<&str>,
     hub: Option<&str>,
     json_output: bool,
     watch: Option<u64>,
+    all: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
+
+    // T-2042: exactly-one of `topic` or `--all` must be set. Validate up
+    // front so callers get a clear error before any RPC fires.
+    match (topic, all) {
+        (None, false) => anyhow::bail!(
+            "channel claims-summary: must specify either <TOPIC> or --all. \
+             For a single topic: `channel claims-summary my-topic`. \
+             For a fleet sweep: `channel claims-summary --all`."
+        ),
+        (Some(_), true) => anyhow::bail!(
+            "channel claims-summary: <TOPIC> and --all are mutually exclusive. \
+             Pick one."
+        ),
+        _ => {}
+    }
 
     // T-2041: --watch and --json are incompatible (mirror agent presence --watch
     // T-1486 convention). Reject up front so callers get a clear error instead
@@ -9037,22 +9060,44 @@ pub(crate) async fn cmd_channel_claims_summary(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let now_str = crate::manifest::secs_to_rfc3339(now_secs);
-            println!(
-                "# channel claims-summary --watch | topic={:?} | interval={}s | {}",
-                topic, interval, now_str
-            );
-            match termlink_session::claim_client::channel_claims_summary(&addr, topic).await {
-                Ok(summary) => render_claims_summary_text(&summary),
-                Err(e) => {
-                    // Non-fatal: a transient hub blip shouldn't kill the dashboard.
-                    println!("# fetch error (will retry on next tick): {e}");
+            if all {
+                // T-2042: fleet-wide watch dashboard.
+                println!(
+                    "# channel claims-summary --all --watch | interval={}s | {}",
+                    interval, now_str
+                );
+                if let Err(e) = render_claims_summary_fleet_text(&addr).await {
+                    println!("# fleet fetch error (will retry on next tick): {e}");
+                }
+            } else {
+                let t = topic.expect("topic guaranteed Some by validation above");
+                println!(
+                    "# channel claims-summary --watch | topic={:?} | interval={}s | {}",
+                    t, interval, now_str
+                );
+                match termlink_session::claim_client::channel_claims_summary(&addr, t).await {
+                    Ok(summary) => render_claims_summary_text(&summary),
+                    Err(e) => {
+                        // Non-fatal: a transient hub blip shouldn't kill the dashboard.
+                        println!("# fetch error (will retry on next tick): {e}");
+                    }
                 }
             }
             tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
         }
     }
 
-    let summary = termlink_session::claim_client::channel_claims_summary(&addr, topic)
+    if all {
+        // T-2042: one-shot fleet sweep.
+        if json_output {
+            return render_claims_summary_fleet_json(&addr).await;
+        }
+        return render_claims_summary_fleet_text(&addr).await;
+    }
+
+    // Single-topic one-shot path (T-2039 original Slice 6 shape).
+    let t = topic.expect("topic guaranteed Some by validation above");
+    let summary = termlink_session::claim_client::channel_claims_summary(&addr, t)
         .await
         .map_err(|e| anyhow!("channel.claims_summary failed: {e}"))?;
     if json_output {
@@ -9074,12 +9119,133 @@ pub(crate) async fn cmd_channel_claims_summary(
     Ok(())
 }
 
+/// T-2042: heuristic for "this topic is worth investigating". Any of:
+///   - `expired_count > 0` — workers died without releasing claims
+///   - `oldest_active_age_ms > 60_000` — longest-held claim is over 1 minute
+///     old (longer than typical worker TTLs in the runbook)
+///
+/// 60_000ms is conservative — picked above the 30s default TTL from the
+/// runbook so a healthy near-TTL worker doesn't trip the flag.
+fn is_potentially_stuck(summary: &termlink_session::claim_client::ClaimsAggregate) -> bool {
+    summary.expired_count > 0
+        || summary.oldest_active_age_ms.map(|a| a > 60_000).unwrap_or(false)
+}
+
+/// T-2042: fleet-wide claims-summary text renderer. Queries channel.list,
+/// per-topic calls channel.claims_summary, prints one line per topic with
+/// stuck annotation and a footer count. Per-topic errors are non-fatal —
+/// printed inline so the sweep keeps going.
+async fn render_claims_summary_fleet_text(addr: &TransportAddr) -> Result<()> {
+    let topics = fetch_topic_names(addr).await?;
+    if topics.is_empty() {
+        println!("(no topics on hub)");
+        return Ok(());
+    }
+    let mut stuck_count: u64 = 0;
+    for t in &topics {
+        match termlink_session::claim_client::channel_claims_summary(addr, t).await {
+            Ok(summary) => {
+                let stuck = is_potentially_stuck(&summary);
+                if stuck {
+                    stuck_count += 1;
+                }
+                render_claims_summary_text_with_annotation(&summary, stuck);
+            }
+            Err(e) => {
+                println!("topic {:?}: fetch error: {e}", t);
+            }
+        }
+    }
+    println!(
+        "({} topic(s), {} with potentially stuck claims)",
+        topics.len(),
+        stuck_count
+    );
+    Ok(())
+}
+
+/// T-2042: fleet-wide claims-summary JSON renderer. Same shape as the
+/// single-topic JSON envelope but wrapped in
+/// `{ok, topic_count, stuck_count, topics: [...]}`. Per-topic fetch errors
+/// appear in the array as `{topic, ok: false, error: "..."}` entries.
+async fn render_claims_summary_fleet_json(addr: &TransportAddr) -> Result<()> {
+    let topics = fetch_topic_names(addr).await?;
+    let mut entries: Vec<serde_json::Value> = Vec::with_capacity(topics.len());
+    let mut stuck_count: u64 = 0;
+    for t in &topics {
+        match termlink_session::claim_client::channel_claims_summary(addr, t).await {
+            Ok(summary) => {
+                let stuck = is_potentially_stuck(&summary);
+                if stuck {
+                    stuck_count += 1;
+                }
+                entries.push(json!({
+                    "ok": true,
+                    "topic": summary.topic,
+                    "active_count": summary.active_count,
+                    "expired_count": summary.expired_count,
+                    "oldest_active_at_ms": summary.oldest_active_at_ms,
+                    "oldest_active_age_ms": summary.oldest_active_age_ms,
+                    "next_active_expiry_ms": summary.next_active_expiry_ms,
+                    "potentially_stuck": stuck,
+                }));
+            }
+            Err(e) => {
+                entries.push(json!({
+                    "ok": false,
+                    "topic": t,
+                    "error": format!("{e}"),
+                }));
+            }
+        }
+    }
+    println!(
+        "{}",
+        json!({
+            "ok": true,
+            "topic_count": topics.len(),
+            "stuck_count": stuck_count,
+            "topics": entries,
+        })
+    );
+    Ok(())
+}
+
+/// T-2042: list every topic name on the hub via `channel.list`. Returns
+/// the names in the order the hub returned them (which is insertion order
+/// for the topics table — stable for stuck-worker diagnostic display).
+async fn fetch_topic_names(addr: &TransportAddr) -> Result<Vec<String>> {
+    let resp = client::rpc_call_addr(addr, method::CHANNEL_LIST, json!({}))
+        .await
+        .context("Hub rpc_call failed for channel.list")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+    let topics_raw = result["topics"].as_array().cloned().unwrap_or_default();
+    let names: Vec<String> = topics_raw
+        .iter()
+        .filter_map(|t| t["name"].as_str().map(|s| s.to_string()))
+        .collect();
+    Ok(names)
+}
+
 /// T-2041: extracted human-format renderer so the one-shot and `--watch`
 /// paths render identically — the only difference between modes is the
 /// pre-frame header and the loop wrapper.
 fn render_claims_summary_text(summary: &termlink_session::claim_client::ClaimsAggregate) {
+    render_claims_summary_text_with_annotation(summary, false);
+}
+
+/// T-2042: text renderer that optionally appends `  [POTENTIALLY STUCK]`
+/// when called from the fleet-sweep path. Single-topic mode passes
+/// `stuck=false` for backwards compatibility — Slice 6's output is
+/// unchanged.
+fn render_claims_summary_text_with_annotation(
+    summary: &termlink_session::claim_client::ClaimsAggregate,
+    stuck: bool,
+) {
+    let suffix = if stuck { "  [POTENTIALLY STUCK]" } else { "" };
     if summary.active_count == 0 && summary.expired_count == 0 {
-        println!("topic {:?}: no claims (clean)", summary.topic);
+        println!("topic {:?}: no claims (clean){}", summary.topic, suffix);
         return;
     }
     let age_str = summary
@@ -9091,8 +9257,8 @@ fn render_claims_summary_text(summary: &termlink_session::claim_client::ClaimsAg
         .map(|t| format!("{t}"))
         .unwrap_or_else(|| "-".to_string());
     println!(
-        "topic {:?}: active={} expired={} oldest_active_age={} next_expiry_ms={}",
-        summary.topic, summary.active_count, summary.expired_count, age_str, next_ms
+        "topic {:?}: active={} expired={} oldest_active_age={} next_expiry_ms={}{}",
+        summary.topic, summary.active_count, summary.expired_count, age_str, next_ms, suffix
     );
 }
 

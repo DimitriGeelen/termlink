@@ -1538,12 +1538,13 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::ClaimsSummary { topic, hub, json, watch } => {
+            ChannelAction::ClaimsSummary { topic, hub, json, watch, all } => {
                 commands::channel::cmd_channel_claims_summary(
-                    &topic,
+                    topic.as_deref(),
                     hub.as_deref(),
                     json,
                     watch,
+                    all,
                 )
                 .await
             }

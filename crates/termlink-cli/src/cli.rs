@@ -3205,7 +3205,8 @@ pub(crate) enum ChannelAction {
     ClaimsSummary {
         /// Topic name to summarize claims for. The topic must exist
         /// (`channel create` first if not — same contract as `channel claim`).
-        topic: String,
+        /// Mutually exclusive with `--all` (exactly one is required).
+        topic: Option<String>,
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
@@ -3219,8 +3220,21 @@ pub(crate) enum ChannelAction {
         /// hands-off form of the cron stuck-worker recipe — leave it
         /// running on a side terminal during incident triage. Per-tick
         /// fetch errors are non-fatal (printed, loop continues).
+        ///
+        /// Composes with `--all`: `--all --watch 30` gives a live
+        /// fleet-wide stuck-worker dashboard.
         #[arg(long)]
         watch: Option<u64>,
+        /// T-2042 (arc-parallel-substrate Slice 9): fleet-wide sweep mode.
+        /// Instead of summarizing one topic, query `channel.list` and
+        /// per-topic call `channel.claims_summary`. Renders one line per
+        /// topic and annotates `[POTENTIALLY STUCK]` when
+        /// `expired_count > 0` OR `oldest_active_age_ms > 60_000`. Footer
+        /// shows total topics + stuck count. Per-topic fetch errors are
+        /// non-fatal (printed inline). Mutually exclusive with the `topic`
+        /// positional (exactly one is required).
+        #[arg(long)]
+        all: bool,
     },
 }
 
