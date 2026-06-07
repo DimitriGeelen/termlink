@@ -17,7 +17,7 @@ exclusive-delivery semantics:
 | `channel.renew(claim_id, claimer, additional_ttl_ms)` | Extend the lease while still working | CLI `termlink channel renew`, Rust `LeasedClaim` auto-renew |
 | `channel.release(claim_id, claimer, ack)` | Consume the claim — ack=true advances cursor, ack=false reopens slot | CLI `termlink channel release`, Rust `LeasedClaim::{ack,nack}`, `Drop` |
 | `channel.claims(topic, include_expired?)` | Read-only listing — answers "what is currently claimed?" without forcing a claim attempt | CLI `termlink channel claims`, Rust `channel_claims`, returns `Vec<ClaimSummary>` |
-| `channel.claims_summary(topic)` | Read-only aggregate — answers "how busy is this topic, is anything stuck?" in one O(1) call (active vs expired counts, oldest-active age, next free slot) | CLI `termlink channel claims-summary`, Rust `channel_claims_summary`, returns `ClaimsAggregate` |
+| `channel.claims_summary(topic)` | Read-only aggregate — answers "how busy is this topic, is anything stuck?" in one O(1) call (active vs expired counts, oldest-active age, next free slot) | CLI `termlink channel claims-summary` (+ `--watch <secs>` for continuous monitor mode, Slice 8), Rust `channel_claims_summary`, returns `ClaimsAggregate` |
 
 The exclusive-delivery guarantee comes from a `UNIQUE(topic, offset)` SQL
 constraint on the hub-side claims table. Two workers claiming the same
@@ -229,6 +229,22 @@ that panicked outside Drop's reach (e.g. an OS-level kill). Use
 `channel claims` to identify the specific stuck claim, then
 `channel release --ack=false` to reopen the slot.
 
+**Live watch mode (Slice 8).** During incident triage, leaving a watch
+loop running on a side terminal beats waiting for the next cron tick:
+
+```
+$ termlink channel claims-summary my-work-queue --watch 10
+# channel claims-summary --watch | topic="my-work-queue" | interval=10s | 2026-06-08T00:30:14Z
+topic "my-work-queue": active=12 expired=0 oldest_active_age=4203ms next_expiry_ms=1730482218000
+```
+
+The frame re-renders every N seconds (clamped to 5..=3600 — sub-5s
+hammering the hub for stuck-worker detection is pointless) with a
+fresh aggregate. Per-tick fetch errors don't kill the loop — they print
+`# fetch error (will retry on next tick): <e>` and the next tick
+retries. `--watch` is incompatible with `--json` (streaming text vs
+one-shot envelope) — pick one. SIGINT exits cleanly.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
@@ -373,3 +389,4 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 5 (T-2038):** `termlink_channel_claims` MCP tool — read-only listing surface for AI agents.
 - **Slice 6 (T-2039):** `channel.claims_summary` aggregate RPC + Rust client + CLI verb — answers "how busy / is anything stuck?" in one O(1) call. Operator signal for stuck-worker / load-pattern detection.
 - **Slice 7 (T-2040):** `termlink_channel_claims_summary` MCP tool — agent-callable companion for AI investigators to query topic load + stuck-worker state without shelling out.
+- **Slice 8 (T-2041):** `channel claims-summary --watch <secs>` continuous-monitor CLI mode — re-runs the aggregate every N seconds (clamped 5..=3600), clears the screen between frames, tolerates per-tick fetch errors. Hands-off form of the cron stuck-worker recipe; ideal for incident triage side terminals.

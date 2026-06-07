@@ -9000,12 +9000,58 @@ pub(crate) async fn cmd_channel_claims(
 
 /// T-2039 (arc-parallel-substrate Slice 6) — `channel claims-summary <topic>`.
 /// Aggregate observability for stuck-worker / load-pattern detection.
+///
+/// T-2041 (Slice 8): when `watch` is Some, enters a continuous-monitor loop
+/// (re-runs the summary every clamped 5..=3600 seconds, clears the screen
+/// between frames, prints a header row). Per-tick fetch errors are
+/// non-fatal — printed inline, loop continues. `--watch` is incompatible
+/// with `--json` (streaming text vs one-shot envelope) — rejected up front.
 pub(crate) async fn cmd_channel_claims_summary(
     topic: &str,
     hub: Option<&str>,
     json_output: bool,
+    watch: Option<u64>,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
+
+    // T-2041: --watch and --json are incompatible (mirror agent presence --watch
+    // T-1486 convention). Reject up front so callers get a clear error instead
+    // of an unparseable NDJSON-on-cleared-screen mess.
+    if watch.is_some() && json_output {
+        anyhow::bail!(
+            "--watch and --json are incompatible: --watch streams re-rendered text \
+             frames; --json is one-shot. Pick one."
+        );
+    }
+
+    if let Some(interval_raw) = watch {
+        // T-2041: 5..=3600 clamp range mirrors fleet doctor --watch (T-1667)
+        // — sub-5s polling is overkill for stuck-worker detection (lease TTLs
+        // are typically 5..=300s) and pointlessly hammers the hub.
+        let interval = interval_raw.clamp(5, 3600);
+        loop {
+            // ANSI: clear screen + cursor home (same as agent presence --watch).
+            print!("\x1b[2J\x1b[H");
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            println!(
+                "# channel claims-summary --watch | topic={:?} | interval={}s | {}",
+                topic, interval, now_str
+            );
+            match termlink_session::claim_client::channel_claims_summary(&addr, topic).await {
+                Ok(summary) => render_claims_summary_text(&summary),
+                Err(e) => {
+                    // Non-fatal: a transient hub blip shouldn't kill the dashboard.
+                    println!("# fetch error (will retry on next tick): {e}");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+        }
+    }
+
     let summary = termlink_session::claim_client::channel_claims_summary(&addr, topic)
         .await
         .map_err(|e| anyhow!("channel.claims_summary failed: {e}"))?;
@@ -9024,9 +9070,17 @@ pub(crate) async fn cmd_channel_claims_summary(
         );
         return Ok(());
     }
+    render_claims_summary_text(&summary);
+    Ok(())
+}
+
+/// T-2041: extracted human-format renderer so the one-shot and `--watch`
+/// paths render identically — the only difference between modes is the
+/// pre-frame header and the loop wrapper.
+fn render_claims_summary_text(summary: &termlink_session::claim_client::ClaimsAggregate) {
     if summary.active_count == 0 && summary.expired_count == 0 {
         println!("topic {:?}: no claims (clean)", summary.topic);
-        return Ok(());
+        return;
     }
     let age_str = summary
         .oldest_active_age_ms
@@ -9040,7 +9094,6 @@ pub(crate) async fn cmd_channel_claims_summary(
         "topic {:?}: active={} expired={} oldest_active_age={} next_expiry_ms={}",
         summary.topic, summary.active_count, summary.expired_count, age_str, next_ms
     );
-    Ok(())
 }
 
 #[cfg(test)]

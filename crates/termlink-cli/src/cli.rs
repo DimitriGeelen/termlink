@@ -3209,9 +3209,18 @@ pub(crate) enum ChannelAction {
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
-        /// Output as JSON
+        /// Output as JSON. Incompatible with `--watch` (streaming text vs
+        /// one-shot envelope — pick one).
         #[arg(long)]
         json: bool,
+        /// T-2041 (arc-parallel-substrate Slice 8): continuous-monitor mode.
+        /// Re-runs the summary every N seconds (clamped to 5..=3600) until
+        /// SIGINT, clearing the screen between frames. Designed as the
+        /// hands-off form of the cron stuck-worker recipe — leave it
+        /// running on a side terminal during incident triage. Per-tick
+        /// fetch errors are non-fatal (printed, loop continues).
+        #[arg(long)]
+        watch: Option<u64>,
     },
 }
 
