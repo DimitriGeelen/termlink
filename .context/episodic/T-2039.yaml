@@ -1,0 +1,334 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2039: substrate Slice 6: channel.claims_summary aggregate RPC + Rust client + CLI
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-07T21:11:59Z
+# ============================================================================
+
+task_id: T-2039
+task_name: "substrate Slice 6: channel.claims_summary aggregate RPC + Rust client + CLI"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T21:00:58Z
+completed: 2026-06-07T21:11:51Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-07T23:11:36+02:00
+last_commit: 2026-06-07T23:11:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 6 — channel.claims_summary aggregate RPC + Rust client + CLI
+
+# Key outcomes
+outcomes:
+  - '`CHANNEL_CLAIMS_SUMMARY` constant added to `crates/termlink-protocol/src/control.rs` as `"channel.claims_summary"` with doc-block matching CHANNEL_CLAIMS shape; covered by `channel_method_constants_are_stable` test'
+  - '`Bus::claims_summary(topic) -> Result<ClaimsSummary>` added to `crates/termlink-bus/src/lib.rs`; `Meta::claims_summary(topic, now_ms)` private helper added to `crates/termlink-bus/src/meta.rs`'
+  - '`ClaimsSummary { active_count, expired_count, oldest_active_age_ms?, oldest_active_at_ms?, next_active_expiry_ms? }` struct added to `crates/termlink-bus/src/claim.rs`'
+  - '`handle_channel_claims_summary` added to `crates/termlink-hub/src/channel.rs`; router + allowed-methods updated in `crates/termlink-hub/src/router.rs`'
+  - '`channel_claims_summary(addr, topic) -> Result<ClaimsAggregate, ClaimError>` added to `crates/termlink-session/src/claim_client.rs` and re-exported via `crates/termlink-session/src/lib.rs` (renamed `ClaimsSummary` → `ClaimsAggregate` on client to avoid collision with existing `ClaimSummary` per-claim type — see Evolution)'
+  - '`termlink channel claims-summary <topic> [--hub <addr>] [--json]` CLI verb added; help-text reads naturally; default human format is single-line digest'
+  - 'Integration test added to `crates/termlink-session/tests/claim_client_integration.rs` covering: empty topic (zeroes), single claim (active=1), released claim (active=0,expired=0), expired claim (active=0,expired=1)'
+  - 'Runbook `docs/operations/substrate-claim-primitive.md` references `channel.claims_summary` alongside `channel.claims` with "active vs expired aggregate" framing'
+  - 'All workspace tests pass: `cargo test -p termlink-bus -p termlink-session` shows no regressions (16 integration tests + 100 bus tests + 20 session tests pass)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/docgen/generate_article.py'
+  - '.agentic-framework/agents/docgen/generate_component.py'
+  - '.agentic-framework/lib/evolution_log.sh'
+  - '.agentic-framework/web/shared.py'
+  - '.agentic-framework/web/test_app.py'
+  - 'CLAUDE.md.bak'
+  - '.claude/scheduled_tasks.lock'
+  - '.context/audits/2026-05-27.yaml'
+  - '.context/audits/2026-05-28.yaml'
+  - '.context/audits/2026-05-29.yaml'
+  - '.context/audits/2026-05-30.yaml'
+  - '.context/audits/2026-05-31.yaml'
+  - '.context/audits/2026-06-01.yaml'
+  - '.context/audits/2026-06-02.yaml'
+  - '.context/audits/2026-06-03.yaml'
+  - '.context/audits/2026-06-04.yaml'
+  - '.context/audits/2026-06-05.yaml'
+  - '.context/audits/2026-06-06.yaml'
+  - '.context/audits/2026-06-07.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-1425.yaml'
+  - '.context/episodic/T-1697.yaml'
+  - '.context/episodic/T-1791.yaml'
+  - '.context/episodic/T-1796.yaml'
+  - '.context/episodic/T-1821.yaml'
+  - '.context/episodic/T-1822.yaml'
+  - '.context/episodic/T-1823.yaml'
+  - '.context/episodic/T-1824.yaml'
+  - '.context/episodic/T-1825.yaml'
+  - '.context/episodic/T-1830.yaml'
+  - '.context/episodic/T-1831.yaml'
+  - '.context/episodic/T-1832.yaml'
+  - '.context/episodic/T-1833.yaml'
+  - '.context/episodic/T-1834.yaml'
+  - '.context/episodic/T-1835.yaml'
+  - '.context/episodic/T-1837.yaml'
+  - '.context/episodic/T-1838.yaml'
+  - '.context/episodic/T-1839.yaml'
+  - '.context/episodic/T-1840.yaml'
+  - '.context/episodic/T-1842.yaml'
+  - '.context/episodic/T-1844.yaml'
+  - '.context/episodic/T-1853.yaml'
+  - '.context/episodic/T-1854.yaml'
+  - '.context/episodic/T-1855.yaml'
+  - '.context/episodic/T-1856.yaml'
+  - '.context/episodic/T-1857.yaml'
+  - '.context/episodic/T-1858.yaml'
+  - '.context/episodic/T-1859.yaml'
+  - '.context/episodic/T-1860.yaml'
+  - '.context/episodic/T-1861.yaml'
+  - '.context/episodic/T-1863.yaml'
+  - '.context/episodic/T-1864.yaml'
+  - '.context/episodic/T-1865.yaml'
+  - '.context/episodic/T-1867.yaml'
+  - '.context/episodic/T-1868.yaml'
+  - '.context/episodic/T-1870.yaml'
+  - '.context/episodic/T-1871.yaml'
+  - '.context/episodic/T-1872.yaml'
+  - '.context/episodic/T-1873.yaml'
+  - '.context/episodic/T-1874.yaml'
+  - '.context/episodic/T-1875.yaml'
+  - '.context/episodic/T-1876.yaml'
+  - '.context/episodic/T-1877.yaml'
+  - '.context/episodic/T-1878.yaml'
+  - '.context/episodic/T-1879.yaml'
+  - '.context/episodic/T-1880.yaml'
+  - '.context/episodic/T-1884.yaml'
+  - '.context/episodic/T-1887.yaml'
+  - '.context/episodic/T-1888.yaml'
+  - '.context/episodic/T-1889.yaml'
+  - '.context/episodic/T-1890.yaml'
+  - '.context/episodic/T-1891.yaml'
+  - '.context/episodic/T-1892.yaml'
+  - '.context/episodic/T-1893.yaml'
+  - '.context/episodic/T-1894.yaml'
+  - '.context/episodic/T-1895.yaml'
+  - '.context/episodic/T-1900.yaml'
+  - '.context/episodic/T-1901.yaml'
+  - '.context/episodic/T-1902.yaml'
+  - '.context/episodic/T-1903.yaml'
+  - '.context/episodic/T-1909.yaml'
+  - '.context/episodic/T-1910.yaml'
+  - '.context/episodic/T-1911.yaml'
+  - '.context/episodic/T-1912.yaml'
+  - '.context/episodic/T-1913.yaml'
+  - '.context/episodic/T-1914.yaml'
+  - '.context/episodic/T-1915.yaml'
+  - '.context/episodic/T-1916.yaml'
+  - '.context/episodic/T-1917.yaml'
+  - '.context/episodic/T-1918.yaml'
+  - '.context/episodic/T-1919.yaml'
+  - '.context/episodic/T-1920.yaml'
+  - '.context/episodic/T-1921.yaml'
+  - '.context/episodic/T-1922.yaml'
+  - '.context/episodic/T-1923.yaml'
+  - '.context/episodic/T-1924.yaml'
+  - '.context/episodic/T-1925.yaml'
+  - '.context/episodic/T-1926.yaml'
+  - '.context/episodic/T-1927.yaml'
+  - '.context/episodic/T-1928.yaml'
+  - '.context/episodic/T-1929.yaml'
+  - '.context/episodic/T-1930.yaml'
+  - '.context/episodic/T-1931.yaml'
+  - '.context/episodic/T-1932.yaml'
+  - '.context/episodic/T-1933.yaml'
+  - '.context/episodic/T-1934.yaml'
+  - '.context/episodic/T-1935.yaml'
+  - '.context/episodic/T-1936.yaml'
+  - '.context/episodic/T-1937.yaml'
+  - '.context/episodic/T-1938.yaml'
+  - '.context/episodic/T-1939.yaml'
+  - '.context/episodic/T-1940.yaml'
+  - '.context/episodic/T-1941.yaml'
+  - '.context/episodic/T-1942.yaml'
+  - '.context/episodic/T-1943.yaml'
+  - '.context/episodic/T-1944.yaml'
+  - '.context/episodic/T-1945.yaml'
+  - '.context/episodic/T-1946.yaml'
+  - '.context/episodic/T-1947.yaml'
+  - '.context/episodic/T-1948.yaml'
+  - '.context/episodic/T-1949.yaml'
+  - '.context/episodic/T-1950.yaml'
+  - '.context/episodic/T-1951.yaml'
+  - '.context/episodic/T-1952.yaml'
+  - '.context/episodic/T-1953.yaml'
+  - '.context/episodic/T-1954.yaml'
+  - '.context/episodic/T-1955.yaml'
+  - '.context/episodic/T-1956.yaml'
+  - '.context/episodic/T-1957.yaml'
+  - '.context/episodic/T-1958.yaml'
+  - '.context/episodic/T-1959.yaml'
+  - '.context/episodic/T-1960.yaml'
+  - '.context/episodic/T-1961.yaml'
+  - '.context/episodic/T-1962.yaml'
+  - '.context/episodic/T-1963.yaml'
+  - '.context/episodic/T-1964.yaml'
+  - '.context/episodic/T-1965.yaml'
+  - '.context/episodic/T-1966.yaml'
+  - '.context/episodic/T-1967.yaml'
+  - '.context/episodic/T-1968.yaml'
+  - '.context/episodic/T-1969.yaml'
+  - '.context/episodic/T-1970.yaml'
+  - '.context/episodic/T-1971.yaml'
+  - '.context/episodic/T-1972.yaml'
+  - '.context/episodic/T-1973.yaml'
+  - '.context/episodic/T-1974.yaml'
+  - '.context/episodic/T-1975.yaml'
+  - '.context/episodic/T-1976.yaml'
+  - '.context/episodic/T-1977.yaml'
+  - '.context/episodic/T-1978.yaml'
+  - '.context/episodic/T-1979.yaml'
+  - '.context/episodic/T-1980.yaml'
+  - '.context/episodic/T-1981.yaml'
+  - '.context/episodic/T-1982.yaml'
+  - '.context/episodic/T-1983.yaml'
+  - '.context/episodic/T-1984.yaml'
+  - '.context/episodic/T-1985.yaml'
+  - '.context/episodic/T-1986.yaml'
+  - '.context/episodic/T-1987.yaml'
+  - '.context/episodic/T-1988.yaml'
+  - '.context/episodic/T-1989.yaml'
+  - '.context/episodic/T-1990.yaml'
+  - '.context/episodic/T-1992.yaml'
+  - '.context/episodic/T-1993.yaml'
+  - '.context/episodic/T-1994.yaml'
+  - '.context/episodic/T-1995.yaml'
+  - '.context/episodic/T-1996.yaml'
+  - '.context/episodic/T-1997.yaml'
+  - '.context/episodic/T-1998.yaml'
+  - '.context/episodic/T-1999.yaml'
+  - '.context/episodic/T-2000.yaml'
+  - '.context/episodic/T-2001.yaml'
+  - '.context/episodic/T-2002.yaml'
+  - '.context/episodic/T-2003.yaml'
+  - '.context/episodic/T-2004.yaml'
+  - '.context/episodic/T-2005.yaml'
+  - '.context/episodic/T-2006.yaml'
+  - '.context/episodic/T-2008.yaml'
+  - '.context/episodic/T-2009.yaml'
+  - '.context/episodic/T-2010.yaml'
+  - '.context/episodic/T-2012.yaml'
+  - '.context/episodic/T-2018.yaml'
+  - '.context/episodic/T-2031.yaml'
+  - '.context/episodic/T-2032.yaml'
+  - '.context/episodic/T-2033.yaml'
+  - '.context/episodic/T-2034.yaml'
+  - '.context/episodic/T-2035.yaml'
+  - '.context/episodic/T-2036.yaml'
+  - '.context/episodic/T-2037.yaml'
+  - '.context/episodic/T-2038.yaml'
+  - '.context/handovers/S-2026-0531-0022.md'
+  - '.context/handovers/S-2026-0531-2124.md'
+  - '.context/handovers/S-2026-0601-2226.md'
+  - '.context/handovers/S-2026-0603-2152.md'
+  - '.context/handovers/S-2026-0603-2255.md'
+  - '.context/handovers/S-2026-0603-2334.md'
+  - '.context/handovers/S-2026-0604-0945.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-bus/src/claim.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/claim_client.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/tests/claim_client_integration.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.fabric/components/scripts-lib-hubs-toml-walk.yaml'
+  - 'scripts/lib/__pycache__/__init__.cpython-312.pyc'
+  - 'scripts/lib/__pycache__/review_classifier.cpython-312.pyc'
+  - 'scripts/lib/__pycache__/review_validators.cpython-312.pyc'
+  - '.tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md'
+  - '.tasks/active/T-1417-migrate-eventbroadcast---targets-fanout-.md'
+  - '.tasks/active/T-1432-fw-fleet-doctor---legacy-usage--telemetr.md'
+  - '.tasks/active/T-1442-populate-modelused-and-fallbackused-in-d.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-1502-extractrecentposts-content-extraction-re.md'
+  - '.tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md'
+  - '.tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md'
+  - '.tasks/active/T-1699-framework-upgrade-16160--test-suite-disp.md'
+  - '.tasks/active/T-1723-meta-canary--warn-when-release-mirror-ca.md'
+  - '.tasks/active/T-1795-fix-agent-on-thread-returns-empty--fetch.md'
+  - '.tasks/active/T-1898-vendored-agent-runner-phase-1--minimum-v.md'
+  - '.tasks/active/T-1899-g-020-task-create-time-gate-failed--rca-.md'
+  - '.tasks/active/T-2013-fix-channelsubscribe--channelreceipts-to.md'
+  - '.tasks/active/T-2014-fw-upgrade-auto-clone-path-is-infinite-r.md'
+  - '.tasks/active/T-2015-fw-upgrade-claudemd-clobber--propagate-t.md'
+  - '.tasks/active/T-2017-t-2013-follow-up-141-channelinfo-wedges-.md'
+  - '.tasks/active/T-2039-substrate-slice-6-channelclaimssummary-a.md'
+  - '.tasks/completed/T-2031-substrate-t-2019-slice-3-client-side-hel.md'
+  - '.tasks/completed/T-2032-cli-verbs-termlink-channel-claimreleaser.md'
+  - '.tasks/completed/T-2033-mcp-parity-for-channelclaimreleaserenew-.md'
+  - '.tasks/completed/T-2034-runnable-worker-example-for-claim-primit.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-07T23:11:36"
+    action: "T-2039: substrate Slice 6 — channel.claims_summary aggregate RPC + Rust client + CLI"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 254
+  lines_added: 21132
+  lines_removed: 7461
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2039-substrate-slice-6-channelclaimssummary-a.md
+generated_by: context-agent-hybrid
