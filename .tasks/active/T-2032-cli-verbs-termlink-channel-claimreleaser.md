@@ -16,7 +16,7 @@ related_tasks: [T-2031, T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T16:43:49Z
-last_update: 2026-06-07T16:43:49Z
+last_update: 2026-06-07T17:05:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -242,6 +242,21 @@ grep -q "fn cmd_channel_claim\|fn cmd_channel_release\|fn cmd_channel_renew" cra
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2032-cli-verbs-termlink-channel-claimreleaser.md
 - **Context:** Initial task creation
+
+### 2026-06-07T19:30Z — operator/developer recipe doc
+- **Action:** Added `docs/operations/substrate-claim-primitive.md` — the
+  worker recipe + diagnostic runbook for the primitive shipped across
+  T-2029/T-2030/T-2031/T-2032. Covers the four lifecycle paths, TTL
+  selection guidance, Rust worker pattern (LeasedClaim usage + worker
+  loop), CLI quick-tour, diagnostic recipes ("is this stuck on a dead
+  worker?"), full error-code reference, and the intentional scope cuts
+  (no work-distribution, no worker discovery — those are §6 manifest
+  primitives still in inception).
+- **Output:** `docs/operations/substrate-claim-primitive.md`
+- **Context:** Closes the loop on the "is it operator-callable AND
+  documented?" gate. Operators have CLI verbs; developers have a worker
+  pattern they can compile from. Substrate primitive #1 is genuinely
+  ready for first consumer adoption.
 
 ### 2026-06-07T19:00Z — CLI verbs shipped
 - **Action:** Added three new `ChannelAction` variants (Claim/Renew/Release)
