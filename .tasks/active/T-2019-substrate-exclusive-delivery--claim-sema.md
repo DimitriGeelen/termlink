@@ -15,7 +15,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:35:37Z
-last_update: 2026-06-07T11:54:04Z
+last_update: 2026-06-07T11:54:45Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,24 +57,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Semantics — hold-claim-until-ack, lease-with-renewal, or CAS-on-offset?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Each has different failure modes; ack-based is simplest but blocks if worker dies
+  confidence: 3
+  disposition: answered
+  rationale: see docs/reports/T-2019-claim-semantics-inception.md §5 — original hint: Each has different failure modes; ack-based is simplest but blocks if worker dies
 
 - **IW-2: Storage — in-memory (lost on hub restart) or persisted to SQLite (durable)?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Resilience layer (T-2025) covers persistence broadly; may share infra
+  confidence: 3
+  disposition: answered
+  rationale: see docs/reports/T-2019-claim-semantics-inception.md §5 — original hint: Resilience layer (T-2025) covers persistence broadly; may share infra
 
 - **IW-3: Interaction with persistent cursors — does claim advance the cursor, or is it orthogonal?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Existing cursor semantics are subscriber-scoped; claim is sender-scoped
+  confidence: 3
+  disposition: answered
+  rationale: see docs/reports/T-2019-claim-semantics-inception.md §5 — original hint: Existing cursor semantics are subscriber-scoped; claim is sender-scoped
 
 - **IW-4: Is `claim` a new RPC verb or a flag on `subscribe`?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Affects backward compat and how AEF orchestrator builds against it
+  confidence: 3
+  disposition: answered
+  rationale: see docs/reports/T-2019-claim-semantics-inception.md §5 — original hint: Affects backward compat and how AEF orchestrator builds against it
 
 ## Exploration Plan
 
@@ -138,9 +138,32 @@ At promotion time: (1) prototype each semantic option as a 1-day spike; (2) meas
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO
 
-**Rationale:** Captured-while-fresh per PL-203 + arc-parallel-substrate. Per-primitive design/build deferred until operator promotes via fw bvp confirm + horizon=now. No commitment to RPC shape made at filing.
+**Rationale:** §6.1 problem statement holds against the substrate map. The path to a safe claim primitive is **forced by structural constraints** (no background threads per T-1155 + per-subscriber-independent cursors + non-idempotent AEF agent work) into exactly one shape — **lease-with-renewal, lazy expiry, persisted SQLite claims table, three new RPC verbs**. No design freedom remains on the load-bearing decisions; all four IW questions dispose with confidence ≥2 against evidence in the substrate map.
+
+**Evidence:**
+- Full inception research artifact: [`docs/reports/T-2019-claim-semantics-inception.md`](../../docs/reports/T-2019-claim-semantics-inception.md) — substrate map + sketch evaluation + IW disposition + recommendation.
+- §3.4 confirmed zero existing claim/lease/lock patterns (validates T-2007).
+- §3.5 surfaced two forcing constraints (T-1155 no-background-threads + cursors per-subscriber) that eliminate hold-claim-until-ack (§4.1) and CAS-on-offset (§4.3).
+- §3.3 confirmed new verb addition is bounded to 3 files: protocol method constant + hub handler + router match arm.
+- §3.5 confirmed schema migration is low-risk (single init_schema function).
+
+**Build shape (sub-5-day primitive):**
+- Slice 1 (~1-2d): `claims` SQLite table + `channel.claim` / `channel.release` verbs + tests
+- Slice 2 (~1d): `channel.renew` + lazy-expiry queries
+- Slice 3 (~1d): client-side helpers + integration tests
+
+**Carve-outs (NOT in T-2019 scope, filed elsewhere or deferred):**
+- Per-verb auth scopes (T-1159 on-hold)
+- Consumer-group / fan-out (T-2021 builds on this)
+- Eager worker-death notification (lazy expiry is sufficient for correctness; eager is optimization)
+- Cross-hub federation (single-hub semantics first per ADR §8)
+
+**Open refinements (allowed at build):**
+- Whether `ack` is a flag on `release` or a separate verb (IW-3 left soft)
+- Default lease TTL — measure under real worker load
+- Whether `claim` supports a wait-mode (probably NOWAIT for simplicity; long-poll is composable)
 
 ## Decisions
 
@@ -167,3 +190,15 @@ At promotion time: (1) prototype each semantic option as a 1-day spike; (2) meas
 
 ### 2026-06-07T11:54:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-07T~12:30Z — inception research complete [agent autonomous]
+
+Per [[workflow_inception_artifact_first]] (C-001): research artifact at `docs/reports/T-2019-claim-semantics-inception.md` updated incrementally during the inception. Substrate map produced via Explore agent; sketches evaluated against constraints; IW-1..IW-4 disposed with confidence 2-3.
+
+**Findings:**
+- §6.1 problem statement holds (zero existing claim/lease/lock patterns — T-2007 validated).
+- Two forcing constraints (T-1155 no-background-threads + per-subscriber cursors) reduced semantic choice from three to one: **lease-with-renewal + lazy expiry**.
+- Build surface bounded: 1 SQLite table + 3 new RPC verbs + 3 files per verb.
+- No load-bearing design freedom remains.
+
+**Recommendation:** GO. Next step: operator review at Watchtower (`fw task review T-2019`) and `fw inception decide T-2019 go` if recommendation accepted. On GO, file 3 build-slice tasks under arc-parallel-substrate.
