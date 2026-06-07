@@ -16,6 +16,7 @@ exclusive-delivery semantics:
 | `channel.claim(topic, offset, claimer, ttl_ms)` | Reserve an offset for exclusive processing | CLI `termlink channel claim`, Rust `LeasedClaim::acquire`, JSON-RPC -32015 on conflict |
 | `channel.renew(claim_id, claimer, additional_ttl_ms)` | Extend the lease while still working | CLI `termlink channel renew`, Rust `LeasedClaim` auto-renew |
 | `channel.release(claim_id, claimer, ack)` | Consume the claim — ack=true advances cursor, ack=false reopens slot | CLI `termlink channel release`, Rust `LeasedClaim::{ack,nack}`, `Drop` |
+| `channel.claims(topic, include_expired?)` | Read-only listing — answers "what is currently claimed?" without forcing a claim attempt | CLI `termlink channel claims`, Rust `channel_claims`, returns `Vec<ClaimSummary>` |
 
 The exclusive-delivery guarantee comes from a `UNIQUE(topic, offset)` SQL
 constraint on the hub-side claims table. Two workers claiming the same
@@ -177,6 +178,23 @@ $ termlink channel release --claim-id clm-... --claimer operator-shell-1
 Slot reopens immediately; cursor unchanged. The next worker calling
 `channel.claim my-work-queue 42` succeeds.
 
+### List live claims on a topic
+
+```
+$ termlink channel claims my-work-queue
+  offset  claimer               claim_id                  remain_ms  state
+       3  worker-A              clm-1717-my-work-queue-3      24317  active
+      42  operator-shell-1      clm-1718-my-work-queue-…      54017  active
+(2 row(s))
+```
+
+Read-only — does not attempt a claim, does not mutate any state.
+Useful for answering "what is this topic doing right now?" mid-incident
+without consuming an error. Pass `--include-expired` to also surface
+rows whose `claimed_until` has lapsed (operator forensics —
+"who held the offset before it expired?"). Pass `--json` for the
+structured envelope.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
@@ -317,3 +335,4 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **CLI (T-2032):** `termlink channel claim/release/renew` verbs.
 - **MCP parity (T-2033):** `termlink_channel_{claim,release,renew}` tools for AI agents.
 - **Runnable example (T-2034):** `crates/termlink-session/examples/parallel_worker.rs` — copy-pasteable starter for parallel workers.
+- **Slice 4 (T-2037):** `channel.claims` read-only listing RPC + CLI verb — answers "what's currently claimed?" without consuming an error.

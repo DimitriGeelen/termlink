@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T20:04:58Z
-last_update: 2026-06-07T20:04:58Z
+last_update: 2026-06-07T20:12:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,14 +48,14 @@ supports it (`claims` table from T-2029 meta.rs:503). No new state.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `method::CHANNEL_CLAIMS = "channel.claims"` constant added in `crates/termlink-protocol/src/control.rs` + assertion in the existing method-string test
-- [ ] `handle_channel_claims_with` in `crates/termlink-hub/src/channel.rs` reads the `claims` table for the requested topic; default filters out rows where `claimed_until <= now`; `include_expired=true` returns all rows
-- [ ] Hub router wires `CHANNEL_CLAIMS` to the handler AND adds it to the allowed-methods list
-- [ ] `channel_claims(addr, topic, include_expired)` async fn in `crates/termlink-session/src/claim_client.rs` returns `Vec<ClaimInfo>` with strongly-typed fields `(claim_id, topic, offset, claimer, claimed_at_ms, claimed_until_ms)`
-- [ ] CLI verb `termlink channel claims <topic> [--include-expired] [--json]` renders a table (claim_id short, offset, claimer, ttl-remaining) or pretty JSON
-- [ ] Integration test in `crates/termlink-session/tests/claim_client_integration.rs`: empty topic returns []; one claim returns 1 row; release removes it; include_expired surfaces expired rows that default omits
-- [ ] `cargo test --test claim_client_integration -p termlink-session` passes (existing tests + new ones)
-- [ ] No new clippy warnings attributable to added code on `cargo clippy -p termlink-hub -p termlink-session --no-deps -- -W clippy::all`
+- [x] `method::CHANNEL_CLAIMS = "channel.claims"` constant added in `crates/termlink-protocol/src/control.rs` + assertion in the existing method-string test
+- [x] `handle_channel_claims_with` in `crates/termlink-hub/src/channel.rs` reads the `claims` table for the requested topic; default filters out rows where `claimed_until <= now`; `include_expired=true` returns all rows
+- [x] Hub router wires `CHANNEL_CLAIMS` to the handler AND adds it to the allowed-methods list
+- [x] `channel_claims(addr, topic, include_expired)` async fn in `crates/termlink-session/src/claim_client.rs` returns `Vec<ClaimInfo>` with strongly-typed fields `(claim_id, topic, offset, claimer, claimed_at_ms, claimed_until_ms)`
+- [x] CLI verb `termlink channel claims <topic> [--include-expired] [--json]` renders a table (claim_id short, offset, claimer, ttl-remaining) or pretty JSON
+- [x] Integration test in `crates/termlink-session/tests/claim_client_integration.rs`: empty topic returns []; one claim returns 1 row; release removes it; include_expired surfaces expired rows that default omits
+- [x] `cargo test --test claim_client_integration -p termlink-session` passes (existing tests + new ones)
+- [x] No new clippy warnings attributable to added code on `cargo clippy -p termlink-hub -p termlink-session --no-deps -- -W clippy::all`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,6 +143,21 @@ cargo test --test claim_client_integration -p termlink-session --release 2>&1 | 
 -->
 
 ## Evolution
+
+### 2026-06-07 — Slice-4 introspection naming chosen as `channel.claims`
+
+- **What changed:** Initial plan considered `hub.list_claims` as the
+  verb name (sibling to `hub.bus_state` / `hub.capabilities`). Shifted
+  to `channel.claims` mid-build because the schema is per-topic, the
+  authorization domain is per-topic (same `CHANNEL_TOPIC_UNKNOWN`
+  error code as `channel.claim`), and the existing Slice-1/2 verbs
+  (`channel.claim/release/renew`) all use the `channel.*` namespace.
+  Sibling consistency wins.
+- **Plan impact:** None — the rename is mechanical (one constant,
+  one router match arm, one client method, one CLI subcommand name).
+- **Triggered:** None — the original arc fit unchanged. Slice 5 (MCP
+  parity for `channel_claims`) becomes the natural follow-up; can be
+  filed once the operator confirms the wire contract feels right.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
