@@ -1,0 +1,20 @@
+id: arc-001
+slug: arc-parallel-substrate
+name: "Parallel Execution: TermLink Substrate Layer"
+description: "Substrate-half of Parallel Execution architecture. Authoritative reference: docs/architecture/parallel-execution-substrate.md.\
+  \ Companion: AEF Orchestration Layer arc (separate repo). \xA79 collaboration seam\
+  \ authoritative here. 10 \xA76 primitives filed as constituent inception tasks,\
+  \ captured/horizon:later, BVP estimator-proposed, promoted one at a time per PL-203."
+status: draft
+anchor_task: T-2018
+headline_mechanic: "Multiple agents on ring20 execute disjoint AEF tasks concurrently and merge cleanly\
+  \ without machine-state conflicts in .tasks/ or .context/"
+demo_evidence: null
+created: 2026-06-07T11:34:52Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.

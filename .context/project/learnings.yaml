@@ -2175,3 +2175,10 @@ learnings:
   date: 2026-06-05
   context: Captured at the end of an 8-slice cycle (T-1984..T-2000) shipped in one session under standing 'proceed as seen fit up till 300k, deliver MCP-client features' directive. Pattern emerges from repetition — see docs/operations/mcp-help-registry.md for the operator-facing reference of the resulting API.
   application: Any future tool-registry shape-extension OR another MCP server's discovery API. Each slice is a one-session unit; ship 1-2 then check in.
+- id: PL-203
+  learning: "When filing a multi-primitive arc, capture all primitives now as tasks (status=captured, horizon=later) with full context from the design doc + estimator-proposed BVP scores (not confirmed). The framework's proposed-vs-confirmed BVP split and revisit_at field exist precisely to allow capture-while-thinking-is-fresh without committing-while-uncertain. Sequential filing risks invisible work and context decay; batch filing with deferred confirmation honors both. Confirm BVP + promote to horizon=now one at a time as each predecessor lands and informs the next."
+  source: unknown
+  task: T-2018
+  date: 2026-06-07
+  context: Added via context agent
+  application: TBD
