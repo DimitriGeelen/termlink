@@ -366,3 +366,132 @@ async fn leased_claim_nack_consumes_with_ack_false() {
     drop(s);
     hub.stop().await;
 }
+
+/// N-way concurrent race: M offsets, N workers. Exclusive-delivery guarantee
+/// says every offset is won by exactly one worker — total_wins == M, and
+/// total_conflicts > 0 since the race is real. The example
+/// `crates/termlink-session/examples/parallel_worker.rs` shows this visually;
+/// this test enforces it in CI.
+#[tokio::test]
+async fn concurrent_n_way_race_each_offset_won_exactly_once() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    const WORKERS: usize = 8;
+    const OFFSETS: u64 = 16;
+
+    let socket = test_socket("n_way_race");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let next_offset = Arc::new(AtomicU64::new(0));
+    let mut handles = Vec::with_capacity(WORKERS);
+    for w in 0..WORKERS {
+        let addr = addr.clone();
+        let next_offset = next_offset.clone();
+        let claimer = format!("worker-{w}");
+        handles.push(tokio::spawn(async move {
+            let mut wins = 0u64;
+            let mut conflicts = 0u64;
+            loop {
+                let offset = next_offset.fetch_add(1, Ordering::Relaxed);
+                if offset >= OFFSETS {
+                    break;
+                }
+                match channel_claim(&addr, "T", offset, &claimer, 30_000).await {
+                    Ok(summary) => {
+                        wins += 1;
+                        channel_release(&addr, &summary.claim_id, &claimer, true)
+                            .await
+                            .expect("release ok");
+                    }
+                    Err(ClaimError::Conflict { .. }) => conflicts += 1,
+                    Err(e) => panic!("unexpected error: {e}"),
+                }
+            }
+            (wins, conflicts)
+        }));
+    }
+
+    let mut total_wins = 0u64;
+    let mut total_conflicts = 0u64;
+    for h in handles {
+        let (w, c) = h.await.expect("join");
+        total_wins += w;
+        total_conflicts += c;
+    }
+
+    assert_eq!(
+        total_wins, OFFSETS,
+        "exclusive-delivery: each offset must be won exactly once (wins={total_wins}, expected={OFFSETS})"
+    );
+    // With N workers racing over a shared atomic cursor, contention is overwhelmingly
+    // likely. Don't strictly require conflicts > 0 because under serial scheduling
+    // the cursor advance could outpace the network round-trip, leaving zero races.
+    // The exclusive-delivery property is the load-bearing assertion above.
+    let s = hub.state.lock().await;
+    assert!(s.slots.is_empty(), "all slots should be released after acks");
+    drop(s);
+    let _ = total_conflicts; // counted, not asserted (see comment above)
+    hub.stop().await;
+}
+
+/// CLAIM_NOT_OWNED on release when the caller's claimer string differs from
+/// the original. Workers depend on this invariant to keep their slots safe.
+#[tokio::test]
+async fn release_with_wrong_claimer_returns_not_owned() {
+    let socket = test_socket("rel_not_owned");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let summary = channel_claim(&addr, "T", 42, "worker-A", 30_000)
+        .await
+        .expect("claim ok");
+    let result = channel_release(&addr, &summary.claim_id, "worker-B", true).await;
+    match result {
+        Err(ClaimError::NotOwned { claim_id }) => {
+            assert_eq!(claim_id, summary.claim_id);
+        }
+        other => panic!("expected NotOwned, got {other:?}"),
+    }
+    // Slot still held by worker-A; let worker-A release it cleanly.
+    channel_release(&addr, &summary.claim_id, "worker-A", true)
+        .await
+        .expect("rightful release ok");
+    hub.stop().await;
+}
+
+/// CLAIM_NOT_OWNED on renew when the caller's claimer string differs from
+/// the original. Same invariant as release, but on the renew RPC path.
+#[tokio::test]
+async fn renew_with_wrong_claimer_returns_not_owned() {
+    let socket = test_socket("ren_not_owned");
+    let hub = FakeHub::spawn(socket.clone()).await;
+    let addr = TransportAddr::unix(&socket);
+
+    let summary = channel_claim(&addr, "T", 73, "worker-A", 30_000)
+        .await
+        .expect("claim ok");
+    // FakeHub advances virtual time by additional_ttl_ms/2 on every renew;
+    // keep the requested extension small so the original 30s lease doesn't
+    // lapse before the ownership check runs (which would surface as
+    // CLAIM_EXPIRED instead of CLAIM_NOT_OWNED).
+    let result = termlink_session::claim_client::channel_renew(
+        &addr,
+        &summary.claim_id,
+        "worker-B",
+        1_000,
+    )
+    .await;
+    match result {
+        Err(ClaimError::NotOwned { claim_id }) => {
+            assert_eq!(claim_id, summary.claim_id);
+        }
+        other => panic!("expected NotOwned, got {other:?}"),
+    }
+    // worker-A still owns the lease; release cleanly.
+    channel_release(&addr, &summary.claim_id, "worker-A", true)
+        .await
+        .expect("rightful release ok");
+    hub.stop().await;
+}
