@@ -8799,6 +8799,123 @@ pub(crate) async fn cmd_channel_search(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// T-2032 — arc-parallel-substrate claim/release/renew CLI verbs.
+// Thin wrappers over termlink_session::claim_client::{channel_claim,
+// channel_release, channel_renew}. ClaimError variants surface as
+// human-readable anyhow! errors so the CLI exits non-zero with an
+// actionable message; --json emits structured envelopes.
+// ---------------------------------------------------------------------------
+
+pub(crate) async fn cmd_channel_claim(
+    topic: &str,
+    offset: u64,
+    claimer: &str,
+    ttl_ms: u32,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let s = termlink_session::claim_client::channel_claim(&addr, topic, offset, claimer, ttl_ms)
+        .await
+        .map_err(|e| anyhow!("channel.claim failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "claim_id": s.claim_id,
+                "topic": s.topic,
+                "offset": s.offset,
+                "claimer": s.claimer,
+                "claimed_at": s.claimed_at,
+                "claimed_until": s.claimed_until,
+            })
+        );
+    } else {
+        println!("claim_id:      {}", s.claim_id);
+        println!("topic:         {}", s.topic);
+        println!("offset:        {}", s.offset);
+        println!("claimer:       {}", s.claimer);
+        println!("claimed_at:    {}", s.claimed_at);
+        println!("claimed_until: {}", s.claimed_until);
+        println!("lease_ms:      {}", s.claimed_until - s.claimed_at);
+    }
+    Ok(())
+}
+
+pub(crate) async fn cmd_channel_renew(
+    claim_id: &str,
+    claimer: &str,
+    additional_ttl_ms: u32,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let s = termlink_session::claim_client::channel_renew(
+        &addr,
+        claim_id,
+        claimer,
+        additional_ttl_ms,
+    )
+    .await
+    .map_err(|e| anyhow!("channel.renew failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "claim_id": s.claim_id,
+                "topic": s.topic,
+                "offset": s.offset,
+                "claimer": s.claimer,
+                "claimed_at": s.claimed_at,
+                "claimed_until": s.claimed_until,
+            })
+        );
+    } else {
+        println!("claim_id:      {}", s.claim_id);
+        println!("topic:         {}", s.topic);
+        println!("offset:        {}", s.offset);
+        println!("claimer:       {}", s.claimer);
+        println!("claimed_at:    {}", s.claimed_at);
+        println!("claimed_until: {}", s.claimed_until);
+        println!("lease_ms:      {}", s.claimed_until - s.claimed_at);
+    }
+    Ok(())
+}
+
+pub(crate) async fn cmd_channel_release(
+    claim_id: &str,
+    claimer: &str,
+    ack: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let r = termlink_session::claim_client::channel_release(&addr, claim_id, claimer, ack)
+        .await
+        .map_err(|e| anyhow!("channel.release failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "claim_id": r.claim_id,
+                "topic": r.topic,
+                "offset": r.offset,
+                "ack": r.ack,
+            })
+        );
+    } else {
+        println!("claim_id: {}", r.claim_id);
+        println!("topic:    {}", r.topic);
+        println!("offset:   {}", r.offset);
+        println!("ack:      {}", r.ack);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

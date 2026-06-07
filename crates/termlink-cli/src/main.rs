@@ -1474,6 +1474,56 @@ async fn main() -> Result<()> {
             ChannelAction::QueueStatus { queue_path, json } => {
                 commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
             }
+            ChannelAction::Claim {
+                topic,
+                offset,
+                claimer,
+                ttl_ms,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_claim(
+                    &topic,
+                    offset,
+                    &claimer,
+                    ttl_ms,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Renew {
+                claim_id,
+                claimer,
+                additional_ttl_ms,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_renew(
+                    &claim_id,
+                    &claimer,
+                    additional_ttl_ms,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
+            ChannelAction::Release {
+                claim_id,
+                claimer,
+                ack,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_release(
+                    &claim_id,
+                    &claimer,
+                    ack,
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
         },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {

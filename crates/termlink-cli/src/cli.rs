@@ -3098,6 +3098,80 @@ pub(crate) enum ChannelAction {
         #[command(subcommand)]
         action: PollAction,
     },
+    /// T-2032 (arc-parallel-substrate) — exclusively claim an offset on a
+    /// topic so only this worker processes it. Wraps the `channel.claim`
+    /// JSON-RPC verb shipped in T-2029. The claim is held for `ttl_ms`
+    /// (default 30s, hub-clamped to 1h max) and must be either renewed
+    /// (`channel renew`), released (`channel release`), or it lapses for the
+    /// next claimant's lazy-evict pass. Returns `claim_id` — keep it; you
+    /// need it for renew/release.
+    Claim {
+        /// Topic name (must already exist — `channel create` first if not).
+        topic: String,
+        /// Offset within the topic to exclusively claim.
+        offset: u64,
+        /// Worker identifier — your stable identity so the hub can gate
+        /// renew/release on ownership. Free-form string; typically your
+        /// fingerprint or an agent_id.
+        #[arg(long)]
+        claimer: String,
+        /// Lease TTL in milliseconds (default 30_000 = 30s; hub clamps to
+        /// 1h max). Pick this for "how long can this worker plausibly take
+        /// to either ack the work, nack it, or renew the lease?".
+        #[arg(long, default_value_t = 30_000)]
+        ttl_ms: u32,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// T-2032 (arc-parallel-substrate) — extend a held claim's lease. Wraps
+    /// the `channel.renew` JSON-RPC verb shipped in T-2030. Refuses if the
+    /// caller is not the original claimer or if the lease has already
+    /// lapsed (lazy-evicted by the hub on next access).
+    Renew {
+        /// Opaque claim_id returned by `channel claim`.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Same `claimer` value you used in `channel claim` — gates ownership.
+        #[arg(long)]
+        claimer: String,
+        /// Additional lease milliseconds (default 30_000 = 30s; hub clamps
+        /// to 1h max). The new `claimed_until` is `now + additional_ttl_ms`.
+        #[arg(long, default_value_t = 30_000)]
+        additional_ttl_ms: u32,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// T-2032 (arc-parallel-substrate) — consume a held claim. Wraps the
+    /// `channel.release` JSON-RPC verb shipped in T-2029. With `--ack`,
+    /// advances the claimer's persisted cursor past the offset (work
+    /// completed). Without, the slot reopens for the next worker without
+    /// cursor advance (work returned for retry).
+    Release {
+        /// Opaque claim_id returned by `channel claim`.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Same `claimer` value you used in `channel claim` — gates ownership.
+        #[arg(long)]
+        claimer: String,
+        /// Acknowledge the work as completed — advances cursor past the
+        /// offset. Without this flag, slot reopens without cursor advance.
+        #[arg(long)]
+        ack: bool,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Poll sub-actions (T-1355).
