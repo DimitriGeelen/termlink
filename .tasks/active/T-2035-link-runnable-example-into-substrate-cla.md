@@ -16,7 +16,7 @@ related_tasks: [T-2034]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T19:42:37Z
-last_update: 2026-06-07T19:42:37Z
+last_update: 2026-06-07T19:44:10Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -135,6 +135,12 @@ grep -q "Runnable example (T-2034)" docs/operations/substrate-claim-primitive.md
 -->
 
 ## Evolution
+
+### 2026-06-07 — runbook polish closes the slice
+- **What changed:** With the runbook → example link wired, the substrate-claim-primitive arc has a single cohesive reader path: open the runbook → see "60-second demo" → run it → read the explanation if you want depth. Before T-2035 the example existed but a runbook reader had no signal it existed.
+- **Plan impact:** No follow-up polish needed for this primitive — every surface (hub, Rust client, CLI, MCP, runbook, example) cross-references the others.
+- **Triggered:** No new tasks; this entry closes the first §6 primitive arc at the doc layer.
+
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
