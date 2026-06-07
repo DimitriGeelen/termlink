@@ -395,6 +395,9 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_queue_status", "Inspect topic queue state (post count, lag, last-offset)"),
             ("termlink_channel_typing_emit", "Emit a typing indicator to a topic (UX signal)"),
             ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)"),
+            ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
+            ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
+            ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
         ]),
         ("channel_poll", vec![
             ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
@@ -8009,6 +8012,45 @@ pub struct ChannelPinParams {
     pub unpin: Option<bool>,
     /// Override sender_id (default: identity fingerprint).
     pub sender_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimParams {
+    /// Topic on which to reserve an offset for exclusive processing.
+    pub topic: String,
+    /// Offset within the topic to claim. Claims are per-exact-offset.
+    pub offset: u64,
+    /// Caller-supplied worker identity string. Used for ownership
+    /// checks on subsequent `renew`/`release` calls — the same value
+    /// must be passed back to extend or release the lease.
+    pub claimer: String,
+    /// Lease duration in milliseconds. Default: 30000 (30s).
+    /// Hub-side hard cap: 3_600_000 (1 hour).
+    pub ttl_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelReleaseParams {
+    /// Claim handle returned by an earlier `channel.claim` call.
+    pub claim_id: String,
+    /// Original claimer string (must match the one used at claim time).
+    pub claimer: String,
+    /// If true, advance the claimer's persisted cursor past this offset
+    /// (work done correctly — won't be redelivered). If false (default),
+    /// leave the cursor unchanged and reopen the slot for another worker.
+    pub ack: Option<bool>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelRenewParams {
+    /// Claim handle returned by an earlier `channel.claim` call.
+    pub claim_id: String,
+    /// Original claimer string (must match the one used at claim time).
+    pub claimer: String,
+    /// Additional lease time in milliseconds. The hub overwrites
+    /// `claimed_until = now + additional_ttl_ms` (not "+="). Default: 30000.
+    /// Refused with CLAIM_EXPIRED (-32018) if the lease has already lapsed.
+    pub additional_ttl_ms: Option<u64>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -19702,6 +19744,105 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.pin error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_claim",
+        description = "Reserve a (topic, offset) for exclusive processing — MCP parity for `termlink channel claim <topic> <offset> --claimer <id> [--ttl-ms <ms>]` CLI verb (T-2032). First primitive of the arc-parallel-substrate (ADR T-2018, GO T-2019); pairs with `termlink_channel_renew` and `termlink_channel_release`. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}` on success. On conflict the hub returns CLAIM_CONFLICT (-32015) with data `{topic, offset}` — surfaced as `json_err`. Use case: build a parallel worker pool where each worker pulls a topic offset, processes it, and acks (release ack=true) or returns it (release ack=false). For long-running work, use `termlink_channel_renew` periodically to extend the lease; the Rust `LeasedClaim` helper (termlink-session) auto-renews at ttl/2 and is the recommended in-process shape. Control-plane RPC — no signed envelope, no identity required."
+    )]
+    async fn termlink_channel_claim(
+        &self,
+        Parameters(p): Parameters<ChannelClaimParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::Map::new();
+        params.insert("topic".to_string(), serde_json::Value::String(p.topic));
+        params.insert("offset".to_string(), serde_json::Value::from(p.offset));
+        params.insert("claimer".to_string(), serde_json::Value::String(p.claimer));
+        if let Some(ttl) = p.ttl_ms {
+            params.insert("ttl_ms".to_string(), serde_json::Value::from(ttl));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CLAIM,
+            serde_json::Value::Object(params),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.claim error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_release",
+        description = "Release a claim acquired via `termlink_channel_claim` — MCP parity for `termlink channel release --claim-id <id> --claimer <id> [--ack]` CLI verb (T-2032). Cursor-advance pivot: `ack=true` advances the claimer's persisted cursor past this offset (work done correctly — won't be redelivered) via a MAX-monotonic UPDATE; `ack=false` (default) leaves the cursor unchanged and reopens the slot immediately for another worker. Returns `{ok, claim_id, topic, offset, ack}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016) for unknown/already-released claim_id; CLAIM_NOT_OWNED (-32017) if `claimer` differs from the original. There is no force-release-by-other-worker verb by design — operator override would break the ownership invariant workers depend on."
+    )]
+    async fn termlink_channel_release(
+        &self,
+        Parameters(p): Parameters<ChannelReleaseParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let params = serde_json::json!({
+            "claim_id": p.claim_id,
+            "claimer": p.claimer,
+            "ack": p.ack.unwrap_or(false),
+        });
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_RELEASE,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.release error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_renew",
+        description = "Extend the lease on a held claim — MCP parity for `termlink channel renew --claim-id <id> --claimer <id> [--additional-ttl-ms <ms>]` CLI verb (T-2032). Overwrites `claimed_until = now + additional_ttl_ms` (NOT a relative add). Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016) if claim_id unknown; CLAIM_NOT_OWNED (-32017) if `claimer` mismatch; CLAIM_EXPIRED (-32018) if lease has already lapsed past `claimed_until` (lazy-evicted by a competing claim attempt) — at that point either the original claim is already returned to the pool or a fresh `channel.claim` is needed. For long-running work, call `renew` at ttl/2 cadence; the Rust `LeasedClaim` helper does this automatically in-process."
+    )]
+    async fn termlink_channel_renew(
+        &self,
+        Parameters(p): Parameters<ChannelRenewParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::Map::new();
+        params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
+        params.insert("claimer".to_string(), serde_json::Value::String(p.claimer));
+        if let Some(ttl) = p.additional_ttl_ms {
+            params.insert("additional_ttl_ms".to_string(), serde_json::Value::from(ttl));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_RENEW,
+            serde_json::Value::Object(params),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.renew error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
