@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T11:11:59Z
-last_update: 2026-06-07T11:11:59Z
+last_update: 2026-06-07T12:12:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -66,8 +66,8 @@ write-observation mechanism, build order).
 - [x] File content matches the operator-provided artifact byte-for-byte (no paraphrase)
 - [x] T-2007 task file references this ADR as its design output
 - [x] T-2018 committed with task-traceability message under framework governance
-- [ ] Commit pushed to OneDev (origin/main caught up)
-- [ ] §6 build manifest surfaced to operator as next-decision-point (handover or check-in)
+- [x] Commit pushed to OneDev (origin/main caught up) — verified: `git rev-list --count origin/main..HEAD = 0`
+- [x] §6 build manifest surfaced to operator as next-decision-point (handover or check-in) — 10 §6 primitive inception tasks filed (T-2019..T-2028), T-2019 already decided GO + first primitive shipped end-to-end (T-2029..T-2034)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -155,6 +155,11 @@ test "$(git rev-list --count origin/main..HEAD)" = "0"
 -->
 
 ## Evolution
+
+### 2026-06-07 — first §6 primitive shipped end-to-end
+- **What changed:** ADR §6 manifest listed 10 primitives; T-2019 picked #1 (exclusive-delivery claim semantics). Through T-2029→T-2034 the primitive went from "concept in §6" to "operator-runnable + library-runnable + agent-runnable" in a single autonomous slice. Six commits: hub claims SQLite + claim/release RPCs (T-2029), renew + lazy-evict (T-2030), Rust LeasedClaim RAII (T-2031), CLI verbs (T-2032), operator runbook (b00b0150), MCP tools (T-2033), runnable example (T-2034).
+- **Plan impact:** The ADR's "monolithic 10-primitive build" framing turned out to NOT be how value lands — per-primitive verticalization (RPC → Rust client → CLI → MCP → docs → example) gave the first primitive a complete user experience independent of primitives 2..10. The remaining 9 primitives (T-2020..T-2028) can each follow the same template; nothing in §6 forces a strict build order.
+- **Triggered:** Slicing model now informs how T-2020..T-2028 should be approached when their Tier-0 GO decisions come — each is its own complete vertical, not a foundation layer for the next.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
