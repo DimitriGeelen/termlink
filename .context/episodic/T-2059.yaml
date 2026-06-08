@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2059: T-2057 follow-up: operator runbook to reset agent-presence retention from Forever to Messages(N) — close T-1991 reproduction surface
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T18:22:33Z
+# ============================================================================
+
+task_id: T-2059
+task_name: "T-2057 follow-up: operator runbook to reset agent-presence retention from Forever to Messages(N) — close T-1991 reproduction surface"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T18:18:43Z
+completed: 2026-06-08T18:22:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T20:22:25+02:00
+last_commit: 2026-06-08T20:22:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  operator runbook — agent-presence retention reset
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/agent-presence-retention-reset.md` exists with sections: §1 when to use, §2 understanding the gap (no set-retention API), §3 Option A trim-only recipe, §4 Option B retention-change+trim recipe, §5 verification, §6 related'
+  - 'Recipe in §3 shows the exact `termlink remote call local channel.trim ...` invocation with `before_offset` computed from the live offset'
+  - 'Recipe in §4 shows the exact `sqlite3` UPDATE to change retention_kind/retention_value, plus the subsequent `channel.trim`'
+  - 'Safety caveats explicit: destructive, affects ALL subscribers'' cursors, no undo, hub-race note for non-agent-presence topics'
+  - 'Verification step uses `termlink channel list --json | jq ''.topics[] | select(.name=="agent-presence")''` to confirm new retention + reduced count'
+  - 'Cross-references T-2057 audit, T-2058 warn-log, T-1991 incident, G-058 gap'
+  - 'No code changes — pure operator runbook'
+  - '`grep -q "agent-presence retention reset" docs/operations/agent-presence-retention-reset.md` succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/agent-presence-retention-reset.md'
+  - '.tasks/active/T-2059-t-2057-follow-up-operator-runbook-to-res.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T20:22:25"
+    action: "T-2059: operator runbook — agent-presence retention reset"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, operations, docs]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 346
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2059-t-2057-follow-up-operator-runbook-to-res.md
+generated_by: context-agent-hybrid
