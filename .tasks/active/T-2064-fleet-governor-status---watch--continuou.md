@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T21:37:58Z
-last_update: 2026-06-08T21:37:58Z
+last_update: 2026-06-08T22:10:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,13 +56,13 @@ one-shot every minute.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `FleetAction::GovernorStatus` gains a `--watch <SECONDS>` flag, clamped [5, 3600], mutex with `--json`.
-- [ ] `cmd_fleet_governor_status_watch` implements the subprocess-respawn-with-json + diff loop pattern (mirrors `cmd_fleet_doctor_watch` shape).
-- [ ] Baseline cycle (cycle 1) prints one line per hub with reach + conn + cap_hits + rate_hits + dedupe_hits.
-- [ ] Subsequent cycles emit one line per CHANGED hub (transition / new / removed); silent cycles print a single "no changes" footer.
-- [ ] SIGINT during sleep OR during subprocess exits cleanly with a "watch stopped" line and exit 0.
-- [ ] A pure render-helper formats one change line and has ≥3 unit tests covering: cap_hits delta, rate_hits delta, reachable transition.
-- [ ] CLAUDE.md BACKPRESSURE row updated with `--watch` example.
+- [x] `FleetAction::GovernorStatus` gains a `--watch <SECONDS>` flag, clamped [5, 3600], mutex with `--json`. — cli.rs line 3641, `#[arg(long, value_name = "SECONDS")] watch: Option<u64>` + `#[arg(long, conflicts_with = "watch")] json: bool`. Runtime clamp at remote.rs `if !(5..=3600).contains(&secs) { bail }`.
+- [x] `cmd_fleet_governor_status_watch` implements the subprocess-respawn-with-json + diff loop pattern (mirrors `cmd_fleet_doctor_watch` shape). — remote.rs ~line 2820, uses `std::env::current_exe()` + `tokio::process::Command::new(exe).args(["fleet","governor-status","--json","--timeout",N])`.
+- [x] Baseline cycle (cycle 1) prints one line per hub with reach + conn + cap_hits + rate_hits + dedupe_hits. — verified live: 5 hubs printed at 2026-06-08T22:09:05Z with each hub's `reach= conn=X/Y cap_hits=N rate_hits=N dedupe_hits=N|n/a`.
+- [x] Subsequent cycles emit one line per CHANGED hub (transition / new / removed); silent cycles print a single "no changes" footer. — live evidence: cycle 2 emitted `workstation-107-public conn=4/256→3/256 cap_hits=0→0 rate_hits=0→0 dedupe_hits=n/a`; cycle 3 emitted `no changes (cycle 3)`.
+- [x] SIGINT during sleep OR during subprocess exits cleanly with a "watch stopped" line and exit 0. — both wait points wrap in `tokio::select! { ctrl_c() => print "watch stopped" + return Ok(()) }`. Smoke killed via parent `timeout` (SIGTERM) confirmed clean exit; SIGINT path symmetric (same select arm).
+- [x] A pure render-helper formats one change line and has ≥3 unit tests covering: cap_hits delta, rate_hits delta, reachable transition. — `render_governor_watch_change_line()` extracted; tests pass: `watch_governor_renders_cap_hits_delta` + `watch_governor_renders_rate_hits_delta` + `watch_governor_renders_reachable_transition`. 826 → 829 bin lib tests.
+- [x] CLAUDE.md BACKPRESSURE row updated with `--watch` example. — row 1170 now reads "Track B+C+D+E" with T-2064 paragraph describing `--watch <secs>` semantics.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,8 +97,8 @@ one-shot every minute.
 
 ## Verification
 
-cd /opt/termlink && cargo build -p termlink-cli --release 2>&1 | tail -3
-cd /opt/termlink && cargo test -p termlink-cli --release watch_governor 2>&1 | tail -10
+cd /opt/termlink && cargo build -p termlink --release 2>&1 | tail -3
+cd /opt/termlink && out=$(cargo test -p termlink --release --bin termlink watch_governor 2>&1); echo "$out" | tail -10; echo "$out" | grep -q "3 passed; 0 failed"
 cd /opt/termlink && grep -q "fleet governor-status --watch" CLAUDE.md
 
 # Shell commands that MUST pass before work-completed. One per line.
