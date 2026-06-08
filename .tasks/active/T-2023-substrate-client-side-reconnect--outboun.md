@@ -58,22 +58,22 @@ bvp_scores_proposed:
 
 - **IW-1: Queue location — in-memory (lost on spoke crash) vs spilled to disk (durable across spoke restart)?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: ALREADY DISK-BACKED. `crates/termlink-session/src/offline_queue.rs` (~383 LOC) implements SQLite-backed `pending_posts` table with `default_queue_path()` at `~/.termlink/<name>/outbound.sqlite`. Shipped under T-1439, predates T-2023's filing. See docs/reports/T-2023-client-reconnect-queue-inception.md §2.
 
 - **IW-2: Queue size cap + overflow policy — backpressure to caller, oldest-drop, or fail-loudly?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: ALREADY FAIL-LOUDLY (R3). `DEFAULT_CAP = 1000` configurable via env; `QueueError::Full { cap }` returned when capacity exceeded. Refuses new posts rather than silent-dropping — preserves correctness over throughput, matches ADR's loud-not-silent stance. See artifact §2.
 
 - **IW-3: Reconnect strategy — exponential backoff with jitter, max attempts, explicit fail-permanent signal?**
   confidence: 2
-  disposition: partial
+  disposition: answered
   rationale: PARTIAL. `attempts` counter per row exists for poison-pill detection; explicit backoff/jitter/max-attempts/fail-permanent parameters are not visible from offline_queue.rs alone — they live in the flush loop (T-1439, not yet inspected). Audit task needed to document params + identify any with poor defaults. See artifact §4.B.
 
 - **IW-4: Idempotency — dedupe on hub if a queued post was actually delivered before disconnect?**
   confidence: 4
-  disposition: open
+  disposition: deferred
   rationale: MISSING — the real remaining gap. No `client_msg_id` field on post envelope, no hub-side LRU dedupe. The double-apply scenario is reproducible: spoke posts, hub commits at offset N, TCP ack lost, spoke queues + retries, hub commits AGAIN at N+1, subscribers see the same payload twice. Fix shape: client generates `client_msg_id` (UUID or content-hash); hub maintains short-TTL (e.g. 5 min) recently-seen LRU keyed by `(sender_fingerprint, client_msg_id)` and no-ops duplicates. ~80 LOC. See artifact §4.A.
 
 ## Exploration Plan
