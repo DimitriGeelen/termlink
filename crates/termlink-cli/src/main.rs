@@ -723,6 +723,7 @@ async fn main() -> Result<()> {
                 ensure_topic,
                 hub,
                 json,
+                client_msg_id,
             } => {
                 let mut metadata = metadata;
                 if !mentions.is_empty() {
@@ -739,6 +740,7 @@ async fn main() -> Result<()> {
                     ensure_topic,
                     hub.as_deref(),
                     json,
+                    client_msg_id.clone(),
                 )
                 .await
             }

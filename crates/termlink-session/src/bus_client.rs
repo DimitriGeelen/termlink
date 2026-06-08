@@ -246,6 +246,13 @@ fn post_to_params(p: &PendingPost) -> Value {
             serde_json::to_value(&p.metadata).unwrap_or(Value::Null),
         );
     }
+    // T-2049 Gap A: forward client_msg_id when present. Omitted otherwise
+    // for wire-shape stability with pre-T-2049 callers.
+    if let Some(ref cid) = p.client_msg_id
+        && let Some(obj) = params.as_object_mut()
+    {
+        obj.insert("client_msg_id".to_string(), Value::String(cid.clone()));
+    }
     params
 }
 
@@ -278,6 +285,7 @@ mod tests {
             sender_pubkey_hex: "00".repeat(32),
             signature_hex: "00".repeat(64),
             metadata: Default::default(),
+            client_msg_id: None,
         }
     }
 

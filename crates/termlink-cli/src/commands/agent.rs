@@ -2159,6 +2159,7 @@ pub(crate) async fn cmd_agent_post(
         false,
         hub,
         json,
+        None, // T-2049 client_msg_id (auto-mint)
     ).await
 }
 
@@ -2271,6 +2272,7 @@ pub(crate) async fn cmd_agent_reply(
         false,
         hub,
         json,
+        None, // T-2049 client_msg_id (auto-mint)
     ).await
 }
 

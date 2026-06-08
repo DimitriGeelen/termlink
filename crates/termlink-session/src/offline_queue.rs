@@ -38,6 +38,31 @@ pub struct PendingPost {
     /// existed deserialize cleanly with an empty map.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub metadata: BTreeMap<String, String>,
+    /// T-2049 Gap A — opaque idempotency token. When present, the hub
+    /// uses `(sender_id, client_msg_id)` as a dedupe key and silently
+    /// no-ops duplicate retries within a short TTL (default 5 min).
+    /// Persisted with the queue row so a flush-replay reuses the SAME
+    /// id and the hub recognises it. `#[serde(default)]` so legacy
+    /// rows (pre-T-2049) deserialize as `None` and bypass dedupe.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_msg_id: Option<String>,
+}
+
+/// Mint a fresh, random 128-bit client_msg_id for T-2049 idempotency.
+/// Encoded as 32-char lowercase hex. Random (not content-hash) so
+/// legitimate intentional re-posts of identical payloads each get a
+/// distinct id and proceed normally; only a queue-replay of the SAME
+/// PendingPost row reuses the same id and triggers hub-side dedupe.
+pub fn mint_client_msg_id() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    let mut s = String::with_capacity(32);
+    for b in &bytes {
+        use std::fmt::Write;
+        let _ = write!(&mut s, "{b:02x}");
+    }
+    s
 }
 
 /// Row id in the outbound table.
@@ -244,6 +269,7 @@ mod tests {
             sender_pubkey_hex: "00".repeat(32),
             signature_hex: "00".repeat(64),
             metadata: Default::default(),
+            client_msg_id: None,
         }
     }
 

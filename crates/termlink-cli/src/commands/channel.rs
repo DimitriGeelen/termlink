@@ -366,6 +366,7 @@ pub(crate) async fn cmd_channel_post(
     ensure_topic_flag: bool,
     hub: Option<&str>,
     json_output: bool,
+    client_msg_id: Option<String>,
 ) -> Result<()> {
     let payload_bytes = match payload {
         Some(p) => p.as_bytes().to_vec(),
@@ -418,6 +419,12 @@ pub(crate) async fn cmd_channel_post(
         }
         FromProjectAction::UserSupplied | FromProjectAction::Skip => {}
     }
+    // T-2049 Gap A — idempotency token. Caller-supplied wins; else mint a
+    // fresh random 128-bit id. The id persists with the queue row so a
+    // flush-replay reuses it and the hub deduplicates.
+    let resolved_client_msg_id = client_msg_id
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(termlink_session::offline_queue::mint_client_msg_id);
     let pending = PendingPost {
         topic: topic.to_string(),
         msg_type: msg_type.to_string(),
@@ -428,6 +435,7 @@ pub(crate) async fn cmd_channel_post(
         sender_pubkey_hex: identity.public_key_hex().to_string(),
         signature_hex: hex_of(&sig.to_bytes()),
         metadata,
+        client_msg_id: Some(resolved_client_msg_id.clone()),
     };
     let sock = hub_socket_soft(hub);
     let queue_path = default_queue_path();
@@ -470,6 +478,12 @@ pub(crate) async fn cmd_channel_post(
                 "metadata".to_string(),
                 serde_json::to_value(&pending.metadata).unwrap_or(Value::Null),
             );
+        }
+        // T-2049 Gap A: forward client_msg_id on the TCP path too.
+        if let Some(ref cid) = pending.client_msg_id
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("client_msg_id".to_string(), Value::String(cid.clone()));
         }
         let resp = rpc_call_authed(&sock, method::CHANNEL_POST, params)
             .await
@@ -1843,6 +1857,7 @@ pub(crate) async fn cmd_channel_dm(
                        // ensure_topic'd above before we got here
                 hub,
                 json_output,
+                None, // T-2049 client_msg_id (auto-mint)
             )
             .await
         }
@@ -2164,6 +2179,7 @@ pub(crate) async fn cmd_channel_ack(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -2312,6 +2328,7 @@ pub(crate) async fn cmd_channel_react(
             false, // T-1443 ensure_topic_flag
             hub,
             json_output,
+            None, // T-2049 client_msg_id (auto-mint)
         )
         .await;
     }
@@ -3215,6 +3232,7 @@ pub(crate) async fn cmd_channel_reply(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3363,6 +3381,7 @@ pub(crate) async fn cmd_channel_describe(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3451,6 +3470,7 @@ pub(crate) async fn cmd_channel_redact(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3477,6 +3497,7 @@ pub(crate) async fn cmd_channel_edit(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3507,6 +3528,7 @@ pub(crate) async fn cmd_channel_typing_emit(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3683,6 +3705,7 @@ pub(crate) async fn cmd_channel_forward(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3714,6 +3737,7 @@ pub(crate) async fn cmd_channel_pin(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -3881,6 +3905,7 @@ pub(crate) async fn cmd_channel_star(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -4069,6 +4094,7 @@ pub(crate) async fn cmd_channel_poll_start(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -4096,6 +4122,7 @@ pub(crate) async fn cmd_channel_poll_vote(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }
@@ -4120,6 +4147,7 @@ pub(crate) async fn cmd_channel_poll_end(
         false, // T-1443 ensure_topic_flag
         hub,
         json_output,
+        None, // T-2049 client_msg_id (auto-mint)
     )
     .await
 }

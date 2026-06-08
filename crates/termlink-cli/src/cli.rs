@@ -1854,6 +1854,15 @@ pub(crate) enum ChannelAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Opaque idempotency token (T-2049 Gap A). When present, the hub
+        /// uses `(sender_id, client_msg_id)` to dedupe retries within a
+        /// short TTL (default 5 min) — a re-post of the same id silently
+        /// returns the original offset without re-appending. When omitted,
+        /// the CLI mints a fresh random 128-bit id. Set explicitly to
+        /// override (e.g. content-hash idempotency for scripts).
+        #[arg(long = "client-msg-id", value_name = "ID")]
+        client_msg_id: Option<String>,
     },
     /// Direct-message a peer agent on the canonical `dm:<a>:<b>` topic (T-1319).
     /// Topic name is auto-resolved from your identity fingerprint plus the
