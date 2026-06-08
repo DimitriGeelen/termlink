@@ -359,6 +359,16 @@ pub mod error_code {
     /// `channel.claim` for the same `(topic, offset)` can succeed.
     /// Data field: `{claim_id}`.
     pub const CLAIM_EXPIRED: i64 = -32018;
+    /// T-2048 / T-2028 Track B — hub is at the per-process connection cap
+    /// (`TERMLINK_MAX_CONNECTIONS`, default 256). The accept loop writes
+    /// one envelope carrying this code and closes the socket — LOUD
+    /// refuse per IW-3, never silent drop. Pair with `RATE_LIMITED`
+    /// (-32008) for per-sender rate-limit refusals on already-accepted
+    /// connections. Data field: `{retry_after_ms: u64}` — best-effort
+    /// (~1000ms) since the accept loop cannot predict when a slot frees.
+    /// Operators see this as `hub at capacity (retry in 1000ms)` in the
+    /// CLI.
+    pub const HUB_AT_CAPACITY: i64 = -32019;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -691,5 +701,12 @@ mod tests {
         assert_eq!(data["declared"], 1);
         assert_eq!(data["required"], 2);
         assert_eq!(data["method"], "command.execute");
+    }
+
+    #[test]
+    fn hub_at_capacity_const_is_stable_wire_value() {
+        // T-2048 — locks the wire value so clients can pin the code in their
+        // error taxonomy. Bumping requires a coordinated client+hub release.
+        assert_eq!(error_code::HUB_AT_CAPACITY, -32019);
     }
 }

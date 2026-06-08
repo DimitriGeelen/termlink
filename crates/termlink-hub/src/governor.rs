@@ -23,7 +23,75 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
+
+/// Default max simultaneous connections when `TERMLINK_MAX_CONNECTIONS` is
+/// unset. Chosen at T-2048 filing: comfortably exceeds the largest known
+/// production fleet (~30 agents × 8 concurrent listeners) by ~10×.
+pub const DEFAULT_MAX_CONNECTIONS: u32 = 256;
+
+/// Default per-sender rate limit when `TERMLINK_RATE_LIMIT_PER_SEC` is
+/// unset. Chosen at T-2048 filing: AEF-style burst patterns
+/// (channel.subscribe + channel.unread + topic_stats in sub-second windows)
+/// fit comfortably under this ceiling while a runaway loop (a stuck
+/// poller hammering 10k/sec) is contained.
+pub const DEFAULT_RATE_LIMIT_PER_SEC: u32 = 1000;
+
+static CONN_GOVERNOR: OnceLock<ConnGovernor> = OnceLock::new();
+static RATE_GOVERNOR: OnceLock<RateGovernor> = OnceLock::new();
+
+/// Read env-var overrides and install the process-global governors.
+///
+/// Idempotent — calling more than once preserves the first install (matches
+/// `OnceLock` semantics). The accept loop calls this at startup; tests that
+/// need different limits can call directly before any acquisition.
+pub fn init() {
+    let max_conn = parse_env_u32("TERMLINK_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS);
+    let rate = parse_env_u32("TERMLINK_RATE_LIMIT_PER_SEC", DEFAULT_RATE_LIMIT_PER_SEC);
+    let _ = CONN_GOVERNOR.set(ConnGovernor::new(max_conn));
+    let _ = RATE_GOVERNOR.set(RateGovernor::new(rate));
+    tracing::info!(
+        max_connections = max_conn,
+        rate_limit_per_sec = rate,
+        "Hub governors active (T-2048 — TERMLINK_MAX_CONNECTIONS / TERMLINK_RATE_LIMIT_PER_SEC to override)"
+    );
+}
+
+/// Access the global `ConnGovernor`. Lazily falls back to defaults if
+/// [`init`] was never called (test paths often skip the explicit init).
+pub fn conn_governor() -> &'static ConnGovernor {
+    CONN_GOVERNOR.get_or_init(|| ConnGovernor::new(DEFAULT_MAX_CONNECTIONS))
+}
+
+/// Access the global `RateGovernor`. Same lazy fallback as [`conn_governor`].
+pub fn rate_governor() -> &'static RateGovernor {
+    RATE_GOVERNOR.get_or_init(|| RateGovernor::new(DEFAULT_RATE_LIMIT_PER_SEC))
+}
+
+fn parse_env_u32(name: &str, default: u32) -> u32 {
+    match std::env::var(name) {
+        Ok(v) => v.parse::<u32>().unwrap_or_else(|_| {
+            tracing::warn!(
+                env = name,
+                value = %v,
+                default = default,
+                "Hub governor: env var unparseable as u32, using default"
+            );
+            default
+        }),
+        Err(_) => default,
+    }
+}
+
+/// Wall-clock `now_ms` source for production callers. Returns ms since
+/// UNIX epoch; on the rare clock skew/error case returns 0 (the governor
+/// treats negative deltas as zero refill).
+pub fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
 
 /// Hint to the LOUD-refuse path: how long the caller should back off
 /// before retrying. The value is best-effort — `ConnGovernor` cannot

@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:10Z
-last_update: 2026-06-08T14:56:22Z
+last_update: 2026-06-08T14:58:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,24 +72,31 @@ with `code = -32019 HUB_AT_CAPACITY` (new) or `-32008 RATE_LIMITED`
       release-frees-slot, release-noop-on-zero] + 7 RateGovernor [burst,
       refill, sender-isolation, zero-disables, hint-matches-refill-period,
       refill-clamps-at-capacity, evict-idle]).
-- [ ] Slice 2 — Protocol constant: `HUB_AT_CAPACITY: i64 = -32019`
+- [x] Slice 2 — Protocol constant: `HUB_AT_CAPACITY: i64 = -32019`
       added to `crates/termlink-protocol/src/control.rs` `error_code`
       module with doc-comment naming `retry_after_ms` data field.
       Existing `RATE_LIMITED: i64 = -32008` reused for rate-limit path.
-- [ ] Slice 2 — Accept-loop wiring: `run_accept_loop` in
+      Wire-value test `hub_at_capacity_const_is_stable_wire_value`
+      pins the value.
+- [x] Slice 2 — Accept-loop wiring: `run_accept_loop` in
       `crates/termlink-hub/src/server.rs` consults `ConnGovernor`
-      before spawning `handle_connection`. On full, writes one
-      JSON-RPC error envelope (HUB_AT_CAPACITY + retry_after_ms) and
-      closes — never silent drop.
-- [ ] Slice 2 — Per-RPC wiring: `handle_connection` consults
-      `RateGovernor` keyed by sender identity (peer_addr for TCP,
-      peer_pid for Unix, sender_id from params.from when set)
-      before `router::route`. On overflow, returns structured
-      RATE_LIMITED error with retry_after_ms.
-- [ ] Slice 2 — Configurable defaults: `TERMLINK_MAX_CONNECTIONS`
-      (default 256) and `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000)
-      env vars read at hub start; emitted as `tracing::info!` at
-      startup so operators see active config.
+      before spawning `handle_connection`. On full Unix accept,
+      writes one JSON-RPC error envelope via `write_capacity_refusal`
+      (HUB_AT_CAPACITY + retry_after_ms) and closes — never silent
+      drop. On full TCP accept, closes the raw socket before TLS
+      handshake (client sees handshake-fail; server-side surfaces via
+      `capacity_hits_total`).
+- [x] Slice 2 — Per-RPC wiring: `handle_connection` consults
+      `RateGovernor` keyed by sender identity (params.from → peer_addr
+      → peer_pid string → "anonymous") before `router::route`. On
+      overflow, returns structured RATE_LIMITED error with
+      `retry_after_ms` + `sender` in data.
+- [x] Slice 2 — Configurable defaults: `TERMLINK_MAX_CONNECTIONS`
+      (default 256, `governor::DEFAULT_MAX_CONNECTIONS`) and
+      `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000,
+      `governor::DEFAULT_RATE_LIMIT_PER_SEC`) env vars read at hub
+      start in `governor::init()`. `tracing::info!` emits active
+      config at startup ("Hub governors active (T-2048 — ...)").
 - [ ] Slice 3 — Observability RPC: `hub.governor_status` returns
       `{connections_active, connections_max, rate_buckets_active,
       rate_hits_total, capacity_hits_total, max_rate_per_sec}` and
@@ -214,6 +221,27 @@ grep -q 'termlink_hub_governor_status' crates/termlink-mcp/src/tools.rs
   hub-side config surface.
 - **Triggered:** Updated task Context section to disambiguate Track B
   scope before slice 2.
+
+### 2026-06-08 — slice 2 wiring + drain-counter dual-tracker
+- **What changed:** Naive substitution of the per-loop
+  `active_connections: Arc<AtomicU32>` with the global `ConnGovernor`
+  broke `graceful_shutdown_stops_accept_loop`. Root cause: under
+  cargo-test parallel harness, multiple `run_accept_loop` instances
+  share the same OnceLock-installed governor; counts pollute across
+  tests and the drain loop blocks waiting for "other tests'" handlers
+  to exit. The global counter is correct for cap-enforcement (any
+  test can refuse beyond max=256) but wrong for per-loop drain
+  termination.
+- **Plan impact:** Slice 2 ships with a **dual-tracker** pattern:
+  `ConnGovernor` (process-wide, enforces cap on accept) +
+  `active_connections` (per-loop, drives drain). Both increment on
+  accept, both decrement after handler exit. Adds ~6 LOC of bookkeeping
+  but keeps the per-loop lifecycle clean. Documented inline in the
+  accept-loop header comment so the dual-tracker shape isn't
+  mistaken for redundancy.
+- **Triggered:** No new sub-task. The pattern is captured in-place
+  for the next governor-like primitive (Track C observability) to
+  follow.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at

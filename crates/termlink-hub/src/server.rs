@@ -241,6 +241,11 @@ pub async fn run_with_tcp(
     // for T-1166 entry-gate measurement.
     crate::rpc_audit::init(&runtime_dir);
 
+    // T-2048: Install connection-cap + per-sender rate-limit governors.
+    // Reads TERMLINK_MAX_CONNECTIONS / TERMLINK_RATE_LIMIT_PER_SEC from env,
+    // falls back to DEFAULT_MAX_CONNECTIONS / DEFAULT_RATE_LIMIT_PER_SEC.
+    crate::governor::init();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
@@ -323,6 +328,10 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
         (None, None)
     };
 
+    // T-2048: Governors (idempotent — no-op if `run_with_tcp` already
+    // installed them, e.g. tests that spin up both shapes).
+    crate::governor::init();
+
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
 
@@ -353,6 +362,29 @@ fn hub_method_scope(method: &str) -> PermissionScope {
 
         // Forwarded methods: use per-method scope from the session auth model
         _ => auth::method_scope(method),
+    }
+}
+
+/// T-2048: Write a single `HUB_AT_CAPACITY` JSON-RPC error envelope to a
+/// just-accepted Unix-socket stream and close. LOUD refuse per IW-3 —
+/// the client gets a structured `{error: {code: -32019, data:
+/// {retry_after_ms}}}` envelope on their first `lines.next_line().await`
+/// instead of a silent EOF. The `id` is `null` because no request has
+/// been parsed yet.
+async fn write_capacity_refusal<S>(stream: &mut S, retry_after_ms: u64)
+where
+    S: AsyncWrite + Unpin,
+{
+    let envelope = ErrorResponse::with_data(
+        serde_json::Value::Null,
+        control::error_code::HUB_AT_CAPACITY,
+        &format!("Hub at capacity (retry in {retry_after_ms}ms)"),
+        serde_json::json!({ "retry_after_ms": retry_after_ms }),
+    );
+    if let Ok(mut line) = serde_json::to_vec(&RpcResponse::Error(envelope)) {
+        line.push(b'\n');
+        let _ = stream.write_all(&line).await;
+        let _ = stream.shutdown().await;
     }
 }
 
@@ -462,6 +494,12 @@ pub async fn run_accept_loop(
     mut shutdown_rx: watch::Receiver<bool>,
 ) {
     let owner_uid = unsafe { libc::getuid() };
+    // T-2048: `ConnGovernor` (process-global, installed by `run_with_tcp`
+    // / `run_blocking` via `crate::governor::init()`) is the source of
+    // truth for cap ENFORCEMENT. The per-loop `active_connections`
+    // remains as the source of truth for DRAIN — it counts handlers
+    // this specific accept loop spawned, immune to cross-test pollution
+    // of the global governor in the same process.
     let active_connections = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
     let token_secret = std::sync::Arc::new(token_secret);
     let tls_acceptor = std::sync::Arc::new(tls_acceptor);
@@ -471,7 +509,7 @@ pub async fn run_accept_loop(
         tokio::select! {
             result = unix_listener.accept() => {
                 match result {
-                    Ok((stream, _addr)) => {
+                    Ok((mut stream, _addr)) => {
                         // Extract peer credentials and check UID
                         // T-1407: capture peer_pid so we can thread it into the
                         // audit log + legacy-method warn for Unix-socket callers.
@@ -497,9 +535,23 @@ pub async fn run_accept_loop(
                             }
                         }
 
+                        // T-2048: connection-cap check BEFORE spawn. LOUD refuse
+                        // per IW-3 — write one envelope, close socket.
+                        if let Err(hint) = crate::governor::conn_governor().try_acquire() {
+                            tracing::warn!(
+                                peer_pid = ?peer_pid,
+                                retry_after_ms = hint.retry_after_ms,
+                                "Hub: rejecting Unix connection — at capacity"
+                            );
+                            tokio::spawn(async move {
+                                write_capacity_refusal(&mut stream, hint.retry_after_ms).await;
+                            });
+                            continue;
+                        }
+
                         // Unix same-UID connections get full access (no auth needed)
-                        let counter = active_connections.clone();
                         let secret = token_secret.clone();
+                        let counter = active_connections.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tokio::spawn(async move {
                             // T-1409: Unix connections have no TCP address; pass None.
@@ -511,6 +563,7 @@ pub async fn run_accept_loop(
                                 None,
                             )
                             .await;
+                            crate::governor::conn_governor().release();
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
@@ -528,16 +581,35 @@ pub async fn run_accept_loop(
                 }
             } => {
                 match result {
-                    Ok((tcp_stream, peer_addr)) => {
+                    Ok((mut tcp_stream, peer_addr)) => {
                         tracing::info!(
                             %peer_addr,
                             "Hub: TCP connection accepted (TLS handshake pending)"
                         );
 
+                        // T-2048: connection-cap check BEFORE spawn. For TCP we
+                        // can't write a clean envelope until TLS completes —
+                        // simplest LOUD refuse: close the socket and skip
+                        // handshake entirely. Operator sees TLS-handshake-fail
+                        // on the client side; capacity_hits_total surfaces
+                        // server-side via `hub.governor_status`.
+                        if let Err(hint) = crate::governor::conn_governor().try_acquire() {
+                            tracing::warn!(
+                                %peer_addr,
+                                retry_after_ms = hint.retry_after_ms,
+                                "Hub: rejecting TCP connection — at capacity"
+                            );
+                            // Close without TLS handshake — fastest path off the wire.
+                            tokio::spawn(async move {
+                                let _ = tcp_stream.shutdown().await;
+                            });
+                            continue;
+                        }
+
                         // TCP connections start with zero scope (unauthenticated)
-                        let counter = active_connections.clone();
                         let secret = token_secret.clone();
                         let acceptor = tls_acceptor.clone();
+                        let counter = active_connections.clone();
                         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         let peer_addr_str = peer_addr.to_string();
                         tokio::spawn(async move {
@@ -572,6 +644,7 @@ pub async fn run_accept_loop(
                                 )
                                 .await;
                             }
+                            crate::governor::conn_governor().release();
                             counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
@@ -591,7 +664,12 @@ pub async fn run_accept_loop(
         }
     }
 
-    // Drain: wait up to 5 seconds for active connections to finish
+    // Drain: wait up to 5 seconds for active connections to finish.
+    // T-2048: drain uses the per-loop `active_connections` (counts only
+    // handlers THIS accept loop spawned). The global `ConnGovernor` is
+    // for ENFORCEMENT (process-wide cap); using its `current()` here
+    // would block on counts polluted by other accept loops in the same
+    // process (notably under cargo-test parallel harness).
     let drain_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
     while active_connections.load(std::sync::atomic::Ordering::Relaxed) > 0 {
         if tokio::time::Instant::now() >= drain_deadline {
@@ -649,6 +727,44 @@ async fn handle_connection<S>(
                 // so legacy-caller breakdown is possible in `fw metrics api-usage`.
                 let from = req.params.get("from").and_then(|v| v.as_str());
                 let peer_addr_ref = peer_addr.as_deref();
+
+                // T-2048: per-sender rate-limit check BEFORE any dispatch.
+                // Sender key priority: explicit `params.from` (operator/agent
+                // identity) → `peer_addr` (network identity) → `peer_pid` as
+                // string (Unix-local identity) → "anonymous". Same precedence
+                // as the rpc_audit subject so the audit log + rate buckets
+                // stay coherent.
+                let sender_key = from
+                    .map(str::to_string)
+                    .or_else(|| peer_addr_ref.map(str::to_string))
+                    .or_else(|| peer_pid.map(|p| p.to_string()))
+                    .unwrap_or_else(|| "anonymous".to_string());
+                if let Err(hint) = crate::governor::rate_governor()
+                    .try_acquire(&sender_key, crate::governor::now_ms())
+                {
+                    let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+                    tracing::warn!(
+                        method = %req.method,
+                        sender = %sender_key,
+                        retry_after_ms = hint.retry_after_ms,
+                        "Hub: rate-limited request"
+                    );
+                    Some(
+                        ErrorResponse::with_data(
+                            id,
+                            control::error_code::RATE_LIMITED,
+                            &format!(
+                                "Rate limit exceeded for sender '{sender_key}' (retry in {}ms)",
+                                hint.retry_after_ms
+                            ),
+                            serde_json::json!({
+                                "retry_after_ms": hint.retry_after_ms,
+                                "sender": sender_key,
+                            }),
+                        )
+                        .into(),
+                    )
+                } else {
                 // T-1622: thread `topic` from params so the legacy event.broadcast
                 // residue can be sliced by destination channel — closes the last
                 // T-1166 visibility gap (operator can ID *which* channels the
@@ -718,6 +834,7 @@ async fn handle_connection<S>(
                         }
                     }
                 }
+                } // close T-2048 else-branch
             }
             Err(e) => {
                 tracing::warn!(error = %e, "Hub: failed to parse JSON-RPC request");
