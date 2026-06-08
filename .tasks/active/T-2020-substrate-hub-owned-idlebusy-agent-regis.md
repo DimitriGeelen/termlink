@@ -57,22 +57,22 @@ bvp_scores_proposed:
 
 - **IW-1: Hub-tracked vs server-side-derived from heartbeat topic?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: DERIVE + future hub-side cache. New table duplicates state in `agent-presence` topic + `claims` table — two sources of truth = drift surface (makes IW-4 intractable). Append-log is the substrate's primary surface per ADR §2; a parallel agent_state table contradicts §5's "one writer, serialized" stance. Derivation `idle_agents = LIVE(presence) \ DISTINCT(claimed_by)` is O(presence) + O(claims) — both tiny at fleet scale (≤30 agents per §1). See docs/reports/T-2020-idle-busy-registry-inception.md §4.IW-1.
 
 - **IW-2: Granularity — by agent_id, by role, by capability tag?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: BOTH role AND capability, with capability as a structured array. Single-string role (today) is insufficient for "give me an idle worker that can build AND publish". Per T-1165 federate-don't-converge, metadata fields scale better than naming conventions. Add `metadata.capabilities: [string]` to heartbeat (backward-compat: missing = empty set). agent_id remains primary key. See artifact §4.IW-2.
 
 - **IW-3: Update rate — pushed by worker on transition vs polled by hub on each assign?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: PULL on each assign. Every `claim`/`release` already mutates the `claims` table — the hub can DERIVE busy/idle from that at read time. Pushing busy/idle transitions adds a write hot-path workers don't need. Pull-on-assign is also more failure-tolerant: registry is always consistent with current truth at query time. Future optimization: cache derived snapshot in hub memory with invalidation on `claim`/`release` — not needed for launch. See artifact §4.IW-3.
 
 - **IW-4: Race resolution — worker says BUSY but hub thinks IDLE: who wins?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: HUB WINS — orchestrator's view is authoritative because it's consistent across orchestrators while the worker's view is only consistent with itself. For the orchestration plane to be sound, the hub MUST be authoritative. Workers that disagree reconcile by releasing local state, not by overriding hub state. Edge case "worker holds claim but orchestrator marked it idle" is impossible because claims table is already in the derivation. See artifact §4.IW-4.
 
 ## Exploration Plan
