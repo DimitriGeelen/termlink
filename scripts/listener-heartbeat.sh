@@ -86,6 +86,11 @@ interval=30
 hub=""
 once=0
 json=0
+# T-2045 (T-2020 GO): comma-separated capability tags advertised in
+# metadata.capabilities so the hub's agent.find_idle RPC can filter.
+# Free-form; convention emerges by use. Reads $TERMLINK_CAPABILITIES env
+# as default so /be-reachable can pass through without arg threading.
+capabilities="${TERMLINK_CAPABILITIES:-}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -96,6 +101,7 @@ while [ $# -gt 0 ]; do
         --topic)         topic="${2:-}"; shift 2 ;;
         --interval)      interval="${2:-}"; shift 2 ;;
         --hub)           hub="${2:-}"; shift 2 ;;
+        --capabilities)  capabilities="${2:-}"; shift 2 ;;
         --once)          once=1; shift ;;
         --json)          json=1; shift ;;
         -h|--help)       usage; exit 0 ;;
@@ -140,6 +146,9 @@ post_one() {
     # T-1834: declare pty_session only when provided. Empty string would
     # confuse auto-discover (it would consider an empty value valid).
     [ -n "$pty_session" ] && post_args+=(--metadata "pty_session=$pty_session")
+    # T-2045: declare capabilities only when provided. Hub's find_idle
+    # treats absent metadata.capabilities as the empty set (backward-compat).
+    [ -n "$capabilities" ] && post_args+=(--metadata "capabilities=$capabilities")
     post_args+=(--json)
     "$TERMLINK" "${post_args[@]}" 2>&1
 }

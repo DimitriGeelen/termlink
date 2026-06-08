@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2020, T-2019, T-2021]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:48:48Z
-last_update: 2026-06-08T12:28:14Z
+last_update: 2026-06-08T12:34:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,17 +48,17 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 - [x] `cargo check -p termlink` and `cargo check -p termlink-hub` pass
 
 **Slice 2 — CLI verb:**
-- [ ] `termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC
-- [ ] Human-format output: one agent per line with id/age/role/capabilities; `--json` returns the raw array
-- [ ] Live smoke against a real hub returns at least the local-session agent_id
+- [x] `termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC — `AgentAction::FindIdle` in `cli.rs`, dispatch in `main.rs`, impl in `commands/agent_find_idle.rs`
+- [x] Human-format output: one agent per line with id/age/role/capabilities; `--json` returns the raw array
+- [ ] Live smoke against a real hub returns at least the local-session agent_id — pending release rebuild
 
 **Slice 3 — MCP tool:**
-- [ ] `termlink_agent_find_idle` MCP tool with params `{role?, capabilities?, limit?}`
+- [x] `termlink_agent_find_idle` MCP tool with params `{role?, capabilities?, limit?}` — `AgentFindIdleParams` + handler in `crates/termlink-mcp/src/tools.rs`, registered in tool index. `cargo check -p termlink-mcp` passes.
 
 **Slice 4 — Heartbeat schema:**
-- [ ] `metadata.capabilities: [string]` added to heartbeat envelope (default empty; old workers omit; server treats missing as empty set)
-- [ ] `listener-heartbeat.sh` reads `TERMLINK_CAPABILITIES` env (comma-separated) and emits in heartbeat metadata
-- [ ] `/be-reachable` wrapper exposes `--capabilities` flag
+- [x] `metadata.capabilities` (comma-separated string) supported on the server side — bus library reads it, treats absent as empty set; covered by `find_idle_capabilities_subset_match` unit test
+- [x] `listener-heartbeat.sh` reads `TERMLINK_CAPABILITIES` env (comma-separated) and emits in heartbeat metadata — `--capabilities` flag + env-default fallback; omits the field when empty for backward-compat
+- [x] `/be-reachable` wrapper exposes `--capabilities` flag — passes through to listener-heartbeat.sh
 
 **Slice 5 — Docs + example:**
 - [ ] `docs/operations/agent-find-idle.md` with runnable orchestrator example: find-idle → claim → release

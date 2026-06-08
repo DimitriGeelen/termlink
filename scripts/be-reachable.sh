@@ -148,6 +148,10 @@ cmd_start() {
     local interval=30
     local hub=""
     local topic="agent-presence"
+    # T-2045 (T-2020 GO): comma-separated capability tags surfaced in
+    # heartbeat metadata.capabilities. Pairs with `termlink agent find-idle
+    # --capability X` for orchestrator dispatch. Free-form by convention.
+    local capabilities="${TERMLINK_CAPABILITIES:-}"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -158,6 +162,7 @@ cmd_start() {
             --interval)      interval="${2:-}"; shift 2 ;;
             --hub)           hub="${2:-}"; shift 2 ;;
             --topic)         topic="${2:-}"; shift 2 ;;
+            --capabilities)  capabilities="${2:-}"; shift 2 ;;
             -h|--help)       usage; exit 0 ;;
             *)               die_usage "unknown start arg: $1" ;;
         esac
@@ -200,6 +205,7 @@ cmd_start() {
     local lh_args=( --agent-id "$agent_id" --role "$role" --topic "$topic" --interval "$interval" )
     [ -n "$pty_session" ] && lh_args+=( --pty-session "$pty_session" )
     [ -n "$hub" ] && lh_args+=( --hub "$hub" )
+    [ -n "$capabilities" ] && lh_args+=( --capabilities "$capabilities" )
     local t
     for t in "${listen_topics[@]}"; do
         [ -n "$t" ] && lh_args+=( --listen-topic "$t" )
