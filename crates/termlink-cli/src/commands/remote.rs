@@ -2808,19 +2808,119 @@ pub(crate) fn render_governor_watch_change_line(
     line
 }
 
+/// T-2065 (Track F): build the env-var dict that `--notify` passes to the
+/// operator's shell hook. Pure helper — no side effects — so unit tests can
+/// pin the counter-delta math and the dedupe Option<i64> serialization without
+/// spawning subprocesses.
+///
+/// Returns a Vec of (key, value) pairs in stable order so callers can either
+/// iterate them onto a `Command` or compare them in tests. `kind` is the
+/// transition kind: "transition" | "new" | "removed". Missing-side fields
+/// (e.g. a "new" hub has no `prev`) come in as empty strings — shell scripts
+/// distinguish those from "0" with `[ -z "$VAR" ]`.
+pub(crate) fn build_governor_notify_env(
+    hub: &str,
+    kind: &str,
+    ts: &str,
+    prev: Option<&WatchGovernorState>,
+    new: Option<&WatchGovernorState>,
+) -> Vec<(String, String)> {
+    let reach_str = |s: Option<&WatchGovernorState>| -> String {
+        match s {
+            Some(st) => if st.0 { "ok".into() } else { "fail".into() },
+            None => String::new(),
+        }
+    };
+    let conn_str = |s: Option<&WatchGovernorState>| -> String {
+        s.map(|st| st.1.to_string()).unwrap_or_default()
+    };
+    let cap_str = |s: Option<&WatchGovernorState>| -> String {
+        s.map(|st| st.3.to_string()).unwrap_or_default()
+    };
+    let rate_str = |s: Option<&WatchGovernorState>| -> String {
+        s.map(|st| st.4.to_string()).unwrap_or_default()
+    };
+    let dedupe_str = |s: Option<&WatchGovernorState>| -> String {
+        match s {
+            Some(st) => st.5.map(|n| n.to_string()).unwrap_or_default(),
+            None => String::new(),
+        }
+    };
+    let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> String {
+        match (old_v, new_v) {
+            (Some(o), Some(n)) => (n - o).max(0).to_string(),
+            _ => String::new(),
+        }
+    };
+    let cap_delta = counter_delta(prev.map(|s| s.3), new.map(|s| s.3));
+    let rate_delta = counter_delta(prev.map(|s| s.4), new.map(|s| s.4));
+    let dedupe_delta = counter_delta(prev.and_then(|s| s.5), new.and_then(|s| s.5));
+
+    vec![
+        ("TERMLINK_GOV_HUB".into(), hub.into()),
+        ("TERMLINK_GOV_CHANGE_KIND".into(), kind.into()),
+        ("TERMLINK_GOV_TS".into(), ts.into()),
+        ("TERMLINK_GOV_OLD_REACH".into(), reach_str(prev)),
+        ("TERMLINK_GOV_NEW_REACH".into(), reach_str(new)),
+        ("TERMLINK_GOV_OLD_CONN_ACTIVE".into(), conn_str(prev)),
+        ("TERMLINK_GOV_NEW_CONN_ACTIVE".into(), conn_str(new)),
+        ("TERMLINK_GOV_OLD_CAP_HITS".into(), cap_str(prev)),
+        ("TERMLINK_GOV_NEW_CAP_HITS".into(), cap_str(new)),
+        ("TERMLINK_GOV_CAP_HITS_DELTA".into(), cap_delta),
+        ("TERMLINK_GOV_OLD_RATE_HITS".into(), rate_str(prev)),
+        ("TERMLINK_GOV_NEW_RATE_HITS".into(), rate_str(new)),
+        ("TERMLINK_GOV_RATE_HITS_DELTA".into(), rate_delta),
+        ("TERMLINK_GOV_OLD_DEDUPE_HITS".into(), dedupe_str(prev)),
+        ("TERMLINK_GOV_NEW_DEDUPE_HITS".into(), dedupe_str(new)),
+        ("TERMLINK_GOV_DEDUPE_HITS_DELTA".into(), dedupe_delta),
+    ]
+}
+
+/// T-2065 (Track F): spawn the operator's `--notify` script with the env dict
+/// from `build_governor_notify_env`. Fire-and-forget — the watch loop never
+/// awaits the child. Spawn failures log to stderr but the watch continues
+/// (matches T-1669's `fire_notify` behavior for fleet doctor's notify hook).
+fn fire_governor_notify(
+    cmd: &str,
+    hub: &str,
+    kind: &str,
+    ts: &str,
+    prev: Option<&WatchGovernorState>,
+    new: Option<&WatchGovernorState>,
+) {
+    let env = build_governor_notify_env(hub, kind, ts, prev, new);
+    let mut child = std::process::Command::new("sh");
+    child.arg("-c").arg(cmd);
+    for (k, v) in &env {
+        child.env(k, v);
+    }
+    match child.spawn() {
+        Ok(_) => {} // fire-and-forget; child reaped by OS when it exits
+        Err(e) => {
+            eprintln!(
+                "{} governor-watch: --notify spawn failed for hub={}: {} (watch continues)",
+                crate::manifest::now_rfc3339(),
+                hub,
+                e
+            );
+        }
+    }
+}
+
 /// T-2064 (T-2028 §6 #10 Track E): continuous-monitor companion to
 /// `cmd_fleet_governor_status`. Re-spawns self with `--json --timeout N` each
 /// cycle, parses the result, tracks per-hub state in a BTreeMap, emits one
 /// baseline cycle then change-only output. SIGINT exits cleanly.
 ///
-/// Pattern parity with `cmd_fleet_doctor_watch` (T-1667). Stays narrower —
-/// no notify/auto-heal, because governor-status is observe-only telemetry
-/// (the response to "hub at capacity" is operator policy: tune env vars,
-/// scale out, throttle client, kill runaway poller — there's no symmetric
-/// auto-heal the way `bootstrap_from` heals rotation).
+/// Pattern parity with `cmd_fleet_doctor_watch` (T-1667). T-2065 added `notify`
+/// for operator-pluggable hooks on per-hub transitions (mirror of T-1669's
+/// `fleet doctor --notify`). No auto-heal counterpart — governor-status is
+/// observe-only telemetry, the response to "hub at capacity" is operator
+/// policy (tune env vars, scale out, throttle client, kill runaway poller).
 pub(crate) async fn cmd_fleet_governor_status_watch(
     secs: u64,
     timeout_secs: u64,
+    notify: Option<String>,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
@@ -2947,6 +3047,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             "{}",
                             render_governor_watch_change_line(&ts, name, o, new_state)
                         );
+                        if let Some(cmd) = notify.as_deref() {
+                            fire_governor_notify(
+                                cmd, name, "transition", &ts,
+                                Some(o), Some(new_state),
+                            );
+                        }
                     } else {
                         let dedupe_str = new_state
                             .5
@@ -2963,6 +3069,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             new_state.4,
                             dedupe_str
                         );
+                        if let Some(cmd) = notify.as_deref() {
+                            fire_governor_notify(
+                                cmd, name, "new", &ts,
+                                None, Some(new_state),
+                            );
+                        }
                     }
                     changes += 1;
                 }
@@ -2977,6 +3089,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                         old_state.1,
                         old_state.2,
                     );
+                    if let Some(cmd) = notify.as_deref() {
+                        fire_governor_notify(
+                            cmd, name, "removed", &ts,
+                            Some(old_state), None,
+                        );
+                    }
                     changes += 1;
                 }
             }
@@ -7679,6 +7797,79 @@ mod tests {
             !line.contains("cap_hits=0→0(+"),
             "expected no spurious +N on unchanged counter, got: {line}"
         );
+    }
+
+    // T-2065 (Track F): build_governor_notify_env — pure helper used by
+    // fire_governor_notify to construct the operator-script env dict. Pins
+    // counter-delta math + Option<i64> dedupe handling.
+
+    #[test]
+    fn build_governor_notify_env_computes_cap_hits_delta() {
+        let prev: WatchGovernorState = (true, 200, 256, 10, 5, Some(0));
+        let new: WatchGovernorState = (true, 256, 256, 17, 5, Some(0));
+        let env = build_governor_notify_env(
+            "hub-a", "transition", "2026-06-08T22:30:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_HUB"), "hub-a");
+        assert_eq!(lookup("TERMLINK_GOV_CHANGE_KIND"), "transition");
+        assert_eq!(lookup("TERMLINK_GOV_TS"), "2026-06-08T22:30:00Z");
+        assert_eq!(lookup("TERMLINK_GOV_OLD_CAP_HITS"), "10");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_CAP_HITS"), "17");
+        assert_eq!(lookup("TERMLINK_GOV_CAP_HITS_DELTA"), "7");
+        // rate_hits unchanged → delta = 0
+        assert_eq!(lookup("TERMLINK_GOV_RATE_HITS_DELTA"), "0");
+        // dedupe Some(0) → Some(0) → delta = "0" (NOT empty)
+        assert_eq!(lookup("TERMLINK_GOV_DEDUPE_HITS_DELTA"), "0");
+        assert_eq!(lookup("TERMLINK_GOV_OLD_REACH"), "ok");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_REACH"), "ok");
+    }
+
+    #[test]
+    fn build_governor_notify_env_handles_dedupe_none_to_some() {
+        // Hub upgraded mid-watch from pre-T-2049 (no dedupe field) to T-2049+.
+        // The transition gives Some/None mix — the env must use "" for the
+        // missing side and "" for the delta (can't compute delta from missing).
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(42));
+        let env = build_governor_notify_env(
+            "hub-upgraded", "transition", "2026-06-08T22:35:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_OLD_DEDUPE_HITS"), "");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_DEDUPE_HITS"), "42");
+        assert_eq!(
+            lookup("TERMLINK_GOV_DEDUPE_HITS_DELTA"),
+            "",
+            "delta must be empty when either side is missing (script: [ -z \"$VAR\" ])"
+        );
+        // "new" kind path: prev=None → all old_* fields are empty.
+        let env2 = build_governor_notify_env(
+            "fresh-hub", "new", "2026-06-08T22:36:00Z",
+            None, Some(&new),
+        );
+        let lookup2 = |k: &str| -> String {
+            env2.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup2("TERMLINK_GOV_OLD_REACH"), "");
+        assert_eq!(lookup2("TERMLINK_GOV_OLD_CONN_ACTIVE"), "");
+        assert_eq!(lookup2("TERMLINK_GOV_NEW_CONN_ACTIVE"), "51");
+        assert_eq!(lookup2("TERMLINK_GOV_CHANGE_KIND"), "new");
     }
 
     #[test]

@@ -3649,6 +3649,38 @@ pub(crate) enum FleetAction {
         /// one-shot every minute.
         #[arg(long, value_name = "SECONDS")]
         watch: Option<u64>,
+
+        /// T-2065 (T-2028 §6 #10 Track F): invoke this shell command whenever
+        /// a hub's governor state changes during `--watch` (skipped on the
+        /// baseline cycle, since there is no prior state to diff). Requires
+        /// `--watch`. The command is fire-and-forget (not awaited) — a hanging
+        /// script will NOT block the watch loop. Spawn failures log to stderr
+        /// but the watch continues.
+        ///
+        /// Per-event environment passed to the command:
+        ///   TERMLINK_GOV_HUB              hub profile name
+        ///   TERMLINK_GOV_CHANGE_KIND      "transition" | "new" | "removed"
+        ///   TERMLINK_GOV_TS               RFC3339 detection time
+        ///   TERMLINK_GOV_OLD_REACH        prior reachability ("ok"|"fail"|"")
+        ///   TERMLINK_GOV_NEW_REACH        current reachability
+        ///   TERMLINK_GOV_OLD_CONN_ACTIVE  prior connections_active
+        ///   TERMLINK_GOV_NEW_CONN_ACTIVE  current connections_active
+        ///   TERMLINK_GOV_OLD_CAP_HITS     prior capacity_hits_total
+        ///   TERMLINK_GOV_NEW_CAP_HITS     current capacity_hits_total
+        ///   TERMLINK_GOV_CAP_HITS_DELTA   max(0, new - old)
+        ///   TERMLINK_GOV_OLD_RATE_HITS    prior rate_hits_total
+        ///   TERMLINK_GOV_NEW_RATE_HITS    current rate_hits_total
+        ///   TERMLINK_GOV_RATE_HITS_DELTA  max(0, new - old)
+        ///   TERMLINK_GOV_OLD_DEDUPE_HITS  prior dedupe_hits_total ("" if n/a)
+        ///   TERMLINK_GOV_NEW_DEDUPE_HITS  current dedupe_hits_total ("" if n/a)
+        ///   TERMLINK_GOV_DEDUPE_HITS_DELTA max(0, new - old) ("" if either n/a)
+        ///
+        /// Operator usage: write a shell script that responds to the event
+        /// (Slack post, PagerDuty incident, scale-out trigger, runaway-poller
+        /// containment). Common gate pattern:
+        ///   [ "$TERMLINK_GOV_CAP_HITS_DELTA" -gt 0 ] || exit 0
+        #[arg(long, value_name = "CMD", requires = "watch")]
+        notify: Option<String>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

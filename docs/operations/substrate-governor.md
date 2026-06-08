@@ -151,11 +151,47 @@ termlink fleet governor-status --timeout 5  # tighter per-hub bound
 termlink_hub_governor_status              # one local hub (T-2048)
 termlink_fleet_governor_status            # walks every profile (T-2063)
 
-# 5. Bare-bones inspection one-liner (Unix socket only, no termlink CLI needed)
+# 5. Continuous-monitor surveillance — leave it running in a terminal (T-2064)
+termlink fleet governor-status --watch 30          # baseline + change-only emission
+termlink fleet governor-status --watch 30 --timeout 5
+# Pair with --notify for operator-pluggable response on change events (T-2065):
+termlink fleet governor-status --watch 30 --notify /usr/local/bin/page-on-cap.sh
+
+# 6. Bare-bones inspection one-liner (Unix socket only, no termlink CLI needed)
 echo '{"jsonrpc":"2.0","id":1,"method":"hub.governor_status","params":{}}' \
   | socat - UNIX-CONNECT:$(termlink hub status --json | jq -r .socket) \
   | jq .result
 ```
+
+### Recipe — `--notify` script template (Track F)
+
+The `--notify <CMD>` flag fires `sh -c <CMD>` fire-and-forget on every per-hub
+change event (skipped on the baseline cycle). The script gates on env vars
+and responds however the operator wants:
+
+```sh
+#!/bin/sh
+# /usr/local/bin/page-on-cap.sh — page on-call when a hub starts refusing connections.
+
+# Gate: only fire when capacity_hits actually moved.
+# (NEW/REMOVED kinds use empty strings — `[ -n "$x" ]` filters them out.)
+[ -n "$TERMLINK_GOV_CAP_HITS_DELTA" ] && [ "$TERMLINK_GOV_CAP_HITS_DELTA" -gt 0 ] || exit 0
+
+# Body: hand off to your paging tool. The substrate-governor doc has the full
+# env-var dict; the common ones are HUB, TS, OLD/NEW_CAP_HITS, CAP_HITS_DELTA.
+pd-send-event --routing-key="$PD_KEY" \
+  --summary="Hub $TERMLINK_GOV_HUB refused +$TERMLINK_GOV_CAP_HITS_DELTA connection(s)" \
+  --severity=warning \
+  --custom-detail "ts=$TERMLINK_GOV_TS" \
+  --custom-detail "cap_hits=$TERMLINK_GOV_OLD_CAP_HITS → $TERMLINK_GOV_NEW_CAP_HITS"
+```
+
+Same pattern works for `RATE_HITS_DELTA` (runaway poller fired the rate-limit)
+or `DEDUPE_HITS_DELTA` (spoke retries are landing more than expected). For
+reach transitions, gate on `$TERMLINK_GOV_NEW_REACH = "fail"` instead.
+
+The script's environment is documented inline in the `--help` text and on the
+CLAUDE.md BACKPRESSURE row.
 
 The fleet view returns `{ok, total, reachable, hubs[], summary}` —
 the `summary` rollup includes `total_*` sums plus `hubs_at_capacity`
