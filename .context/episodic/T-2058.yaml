@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2058: T-2057 follow-up: warn-log on channel.create with Forever retention for high-rate topic-name patterns (agent-*, dm:*) — close T-1991 vector structurally
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T18:16:30Z
+# ============================================================================
+
+task_id: T-2058
+task_name: "T-2057 follow-up: warn-log on channel.create with Forever retention for high-rate topic-name patterns (agent-*, dm:*) — close T-1991 vector structurally"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T18:13:43Z
+completed: 2026-06-08T18:16:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T20:16:15+02:00
+last_commit: 2026-06-08T20:16:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  warn-log on channel.create with Forever for high-rate name patterns. real ACs + Context + Evolution entry — ready for close
+
+# Key outcomes
+outcomes:
+  - '`crates/termlink-hub/src/channel.rs` emits `tracing::warn!` from the channel.create handler when the requested retention is `Retention::Forever` AND the topic name matches one of: `agent-presence`, `agent-chat-arc`, prefix `agent-listeners-`, prefix `agent-conv-`, prefix `dm:`'
+  - 'The warn message names the topic, the retention, and a one-line "consider Messages(N)" hint'
+  - 'A pure helper `is_high_rate_pattern(name: &str) -> bool` is extracted so tests can pin the matcher list directly'
+  - 'Unit tests cover: positive matches (5 patterns: 2 exact + 3 prefix), negative matches (operator-named topics like `learnings`, `policy-decisions`, `framework:pickup`, `broadcast:global`, `agent-my-custom-topic`)'
+  - 'No behavior change — topic is still created with the requested retention; warn is purely informational'
+  - '`cargo test -p termlink-hub --lib channel::tests::high_rate` passes (3/3)'
+  - '`cargo check -p termlink-hub` clean; full lib suite 333/333 passes (was 330 + 3 new)'
+  - 'Diff is ≤60 LOC of non-test code (16 LOC helper + 8 LOC warn block = 24 LOC)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-2058-t-2057-follow-up-warn-log-on-channelcrea.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T20:16:15"
+    action: "T-2058: warn-log on channel.create with Forever for high-rate name patterns"
+  - time: "2026-06-08T20:16:21"
+    action: "T-2058: real ACs + Context + Evolution entry — ready for close"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 2
+  lines_added: 241
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2058-t-2057-follow-up-warn-log-on-channelcrea.md
+generated_by: context-agent-hybrid
