@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2020, T-2019, T-2021]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:48:48Z
-last_update: 2026-06-08T12:34:23Z
+last_update: 2026-06-08T12:37:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,7 +50,7 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 **Slice 2 — CLI verb:**
 - [x] `termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC — `AgentAction::FindIdle` in `cli.rs`, dispatch in `main.rs`, impl in `commands/agent_find_idle.rs`
 - [x] Human-format output: one agent per line with id/age/role/capabilities; `--json` returns the raw array
-- [ ] Live smoke against a real hub returns at least the local-session agent_id — pending release rebuild
+- [x] Live smoke against a real hub returns at least the local-session agent_id — verified 2026-06-08T13:15Z post-hub-restart on the bhg34ttiq build. `/be-reachable start --agent-id smoke-T2045-claude` with `TERMLINK_CAPABILITIES="claude-code,rust,smoke-test"` produced `idle:[{agent_id:smoke-T2045-claude, capabilities:[claude-code,rust,smoke-test], role:claude-code, last_heartbeat_ms:1780924555851}]`. Filters exercised live: `--capability rust` matches; `--capability python` empty; `--role claude-code` matches; human-format renders `smoke-T2045-claude\tage=16s\trole=claude-code\tcapabilities=claude-code,rust,smoke-test`
 
 **Slice 3 — MCP tool:**
 - [x] `termlink_agent_find_idle` MCP tool with params `{role?, capabilities?, limit?}` — `AgentFindIdleParams` + handler in `crates/termlink-mcp/src/tools.rs`, registered in tool index. `cargo check -p termlink-mcp` passes.
@@ -61,8 +61,8 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 - [x] `/be-reachable` wrapper exposes `--capabilities` flag — passes through to listener-heartbeat.sh
 
 **Slice 5 — Docs + example:**
-- [ ] `docs/operations/agent-find-idle.md` with runnable orchestrator example: find-idle → claim → release
-- [ ] CLAUDE.md Quick Reference row added
+- [x] `docs/operations/agent-find-idle.md` with runnable orchestrator example: find-idle → claim → release — written, mirrors substrate-claim-primitive.md style; includes derivation, filter semantics, end-to-end be-reachable→claim→release loop, "what this is NOT" scoping, related-tasks index
+- [x] CLAUDE.md Quick Reference row added — single row after "Register component" cross-referencing MCP parity + producer wiring + companion claim primitive
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,6 +127,13 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo check -p termlink
+cargo check -p termlink-hub
+cargo check -p termlink-bus
+cargo check -p termlink-mcp
+test -f docs/operations/agent-find-idle.md
+out=$(grep -F "termlink agent find-idle" CLAUDE.md); echo "$out" | grep -q "DISPATCH"
+out=$(./target/release/termlink agent find-idle --help 2>&1); echo "$out" | grep -q "find-idle"
 
 ## RCA
 
@@ -167,6 +174,21 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-06-08 — slice 1: bus library lives in `termlink-bus`, not `termlink-hub`
+- **What changed:** During the slice-1 cut the derivation function landed on `Bus` (`crates/termlink-bus/src/lib.rs`) rather than inside the hub router crate. The presence walk + dedup + LIVE filter is a pure read across topic envelopes + the `meta` table — both already on `Bus`. Putting it there made the function unit-testable against an in-memory bus, and let `handle_agent_find_idle` in `termlink-hub` reduce to a thin parse-and-format wrapper.
+- **Plan impact:** Slice-1 LOC budget split ~80/30 between `termlink-bus` and `termlink-hub` instead of the originally implied "all in hub". Net total stayed under target.
+- **Triggered:** No new task. Added `Meta::distinct_active_claimers(now_ms)` to `termlink-bus/src/meta.rs` to keep the SQL local to the data layer.
+
+### 2026-06-08 — slice 4: `metadata.capabilities` stays absent (not `""`) when empty
+- **What changed:** Producer emits `--metadata capabilities=...` only when non-empty (in both `listener-heartbeat.sh` and the `/be-reachable` passthrough). An empty string would be the wrong signal: the hub reads "absent" as "empty set, never matches a non-empty filter" — exactly what backward-compat agents want.
+- **Plan impact:** None. Backward-compat with pre-T-2045 emitters is structural, not folkloric: an old worker keeps showing up unfiltered (and never matches `--capability`), which is the intended graceful-degrade.
+- **Triggered:** Added explicit `find_idle_capabilities_subset_match` unit test that pins the AND-subset semantics + the empty-set non-match.
+
+### 2026-06-08 — slice 2: hub restart needed for the live smoke (not a regression, expected)
+- **What changed:** Local `target/release/termlink` had the router arm, but the running hub PID was launched from `/root/.cargo/bin/termlink` at 00:59Z — pre-find-idle. The smoke needed `hub stop` + `hub start` with the new binary. Persistent `/var/lib/termlink` runtime_dir made this transparent (no client re-pin needed).
+- **Plan impact:** None for T-2045 itself, but reinforces the deploy pattern for substrate primitives: every new RPC ships in a binary that must replace the running hub before validation. Captured in the live-smoke evidence so future substrate work knows the same step is required.
+- **Triggered:** No new task — this is canonical hub-upgrade behavior. See the live-smoke AC for the literal sequence.
 
 ## Decisions
 
