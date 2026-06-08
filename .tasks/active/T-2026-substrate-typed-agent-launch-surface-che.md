@@ -8,18 +8,18 @@ description: >
   / agent.publish(branch) makes the convention a first-class substrate concept the
   orchestrator can rely on.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:46Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:48:22Z
 date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-09-08            # T-1451: DEFER until Foundation primitives (T-2019/T-2021) ship and stabilize
+revisit_evidence_needed: "Foundation primitives (T-2019, T-2020, T-2021, T-2027) shipped and in AEF use; ≥1 concrete incident where shell-convention git ops produced an integration gap typed RPCs would have caught."
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -58,24 +58,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Exact RPC signatures — return shape for checkout/commit/publish?**
-  confidence: 0
+  confidence: 1
   disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Affects orchestrator dispatcher's error handling
+  rationale: GENUINELY deferred. Return shapes couple to Foundation primitive semantics (T-2019 claim_id vs T-2021 assignment_id as scope handle). Provisional sketch in docs/reports/T-2026-typed-agent-launch-inception.md §5; do not lock until Foundation in production. See artifact §4.a.
 
 - **IW-2: Scope binding — how is 'this agent's worktree' identified — by agent_id, session_id, or claim_id?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Couples to T-2019 + T-2020
+  confidence: 2
+  disposition: partial
+  rationale: LIKELY `claim_id` from T-2019 (with T-2021's transfer_claim providing the orchestrator → worker handoff path). But final answer hinges on whether T-2021 lands as proposed or with shape changes. See artifact §6.IW-2.
 
 - **IW-3: Worktree lifecycle — owned by hub (current dispatch --isolate model) or owned by spoke (more decentralized)?**
-  confidence: 0
+  confidence: 1
   disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Affects ring20's cross-host story
+  rationale: GENUINELY deferred. Hub-owned simplifies merge but couples hosts; spoke-owned matches hub-and-spoke topology but requires worktree-creation primitives on spoke side. Choice hinges on observed cross-host AEF behavior that doesn't exist yet. See artifact §4.b.
 
 - **IW-4: Un-partitionable file handling — §5 says hub-owned regeneration after merge. Does THIS surface expose that, or is it separate?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Could become primitive 11 if it grows
+  confidence: 2
+  disposition: partial
+  rationale: SEPARATE (likely primitive #11). Un-partitionable file regeneration is a §5 concern about machine-generated state that doesn't merge cleanly; the typed-launch verbs are about ordinary agent commits. Splitting keeps T-2026 small and surface-focused. See artifact §6.IW-4.
 
 ## Exploration Plan
 
@@ -139,9 +139,33 @@ After Foundation primitives land. Design phase reflects their actual shape, not 
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** DEFER until Foundation primitives (T-2019, T-2021, T-2027) ship and stabilize. revisit_at=2026-09-08.
 
-**Rationale:** Captured-while-fresh per PL-203; per-primitive design follows operator promotion.
+**Rationale (one-paragraph):** Typed RPCs are a real ergonomics + integration win — structured return shape feeds T-2022's path-declaration story, audit trail per agent, and could auto-release claims when commits succeed. But the verbs' return shapes COUPLE to Foundation primitive semantics: `agent.commit --scope X` needs to know what `scope` means, which depends on whether T-2021 ships `channel.transfer_claim` (likely) or a different shape. Worktree lifecycle (hub-owned vs spoke-owned, IW-3) hinges on observed cross-host AEF behavior that doesn't exist yet. Two of four IW questions are genuinely undecidable without Foundation in production. Designing now risks throwing the design away. The shell-convention path still works for current dispatch model — this is ergonomics, not a blocking gap. Other primitives have higher marginal value at the current point in the build curve.
+
+**Full analysis:** see [docs/reports/T-2026-typed-agent-launch-inception.md](../../docs/reports/T-2026-typed-agent-launch-inception.md).
+
+**Provisional sketch (for orientation only — do NOT lock or build against):**
+
+```
+agent.checkout(target_ref, in_worktree?) → {head, dirty}
+agent.commit(scope_id, message?, paths?) → {commit_hash, paths_modified, paths_added, paths_deleted}
+agent.publish(branch, remote?) → {published, remote_ref, error?}
+```
+
+- `scope_id` = `claim_id` from T-2019 (likely, contingent on T-2021 GO)
+- Each verb posts structured event to per-agent audit topic
+- `agent.commit` optionally fires `channel.release` on the named scope (one-step done-and-release)
+- Sketch only — final shape locks at revisit with Foundation in production
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ⏸ "Signatures locked" — deferred, depend on Foundation.
+- ⏸ "Lifecycle decided" — deferred, needs cross-host AEF evidence.
+- ⏸ "Un-partitionable-file path in scope or split" — provisionally SPLIT (file as primitive #11 if needed).
+
+**Open follow-up tasks to file:**
+- *(At revisit 2026-09-08, conditional on Foundation evidence)* Build task: typed `agent.checkout` + `agent.commit` + `agent.publish` RPCs (~200 LOC, 4-5 vertical slices).
+- *(Conditional)* Inception for primitive #11: un-partitionable file handling per §5.
 
 ## Decisions
 
@@ -162,3 +186,7 @@ After Foundation primitives land. Design phase reflects their actual shape, not 
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:48:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
