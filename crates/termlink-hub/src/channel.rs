@@ -317,6 +317,19 @@ pub async fn handle_channel_create(id: Value, params: &Value) -> RpcResponse {
     handle_channel_create_with(bus, id, params).await
 }
 
+/// T-2058: topic-name patterns that have demonstrated high envelope rates
+/// in the running fleet (per T-2057 audit). Combining one of these with
+/// `Retention::Forever` is the T-1991/G-058 silent-growth vector — the
+/// hub emits a warn log on create so the operator-default path is loud.
+/// The matcher is intentionally tight (specific names + prefixes, NOT
+/// broad `agent-*`) to avoid noise on legitimate operator-named topics.
+pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
+    matches!(name, "agent-presence" | "agent-chat-arc")
+        || name.starts_with("agent-listeners-")
+        || name.starts_with("agent-conv-")
+        || name.starts_with("dm:")
+}
+
 pub(crate) async fn handle_channel_create_with(
     bus: &Bus,
     id: Value,
@@ -330,6 +343,16 @@ pub(crate) async fn handle_channel_create_with(
         .get("retention")
         .and_then(retention_from_json)
         .unwrap_or(Retention::Forever);
+    // T-2058: loud-not-silent warn at create time for the known-high-rate
+    // operator-default vector. Topic still created with requested
+    // retention — this is informational, not a refusal.
+    if matches!(retention, Retention::Forever) && is_high_rate_pattern(name) {
+        tracing::warn!(
+            topic = %name,
+            retention = "forever",
+            "channel.create on high-rate topic with Retention::Forever — consider Messages(N) (e.g. Messages(200) for agent-presence) to prevent silent topic growth (T-1991 / G-058)"
+        );
+    }
     match bus.create_topic(name, retention) {
         Ok(created) => Response::success(
             id,
@@ -1482,6 +1505,33 @@ mod tests {
     use serde_json::json;
     use tempfile::TempDir;
     use termlink_protocol::jsonrpc::RpcResponse;
+
+    // T-2058: high-rate-pattern matcher exhaustiveness.
+    #[test]
+    fn high_rate_matches_named_topics() {
+        assert!(is_high_rate_pattern("agent-presence"));
+        assert!(is_high_rate_pattern("agent-chat-arc"));
+    }
+
+    #[test]
+    fn high_rate_matches_known_prefixes() {
+        assert!(is_high_rate_pattern("agent-listeners-test-T11-1234"));
+        assert!(is_high_rate_pattern("agent-conv-demo-99"));
+        assert!(is_high_rate_pattern("dm:abc:def"));
+    }
+
+    #[test]
+    fn high_rate_does_not_match_legitimate_operator_topics() {
+        // Operator-named durable records should NOT trigger the warn.
+        assert!(!is_high_rate_pattern("channel:learnings"));
+        assert!(!is_high_rate_pattern("policy-decisions"));
+        assert!(!is_high_rate_pattern("framework:pickup"));
+        assert!(!is_high_rate_pattern("broadcast:global"));
+        // Broad `agent-*` prefix is intentionally NOT matched — avoid noise.
+        assert!(!is_high_rate_pattern("agent-my-custom-topic"));
+        // Empty name doesn't match (handled separately in caller).
+        assert!(!is_high_rate_pattern(""));
+    }
 
     fn tmp_bus() -> (TempDir, Bus) {
         let dir = TempDir::new().unwrap();
