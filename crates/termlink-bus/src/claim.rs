@@ -58,6 +58,20 @@ pub struct ReleaseInfo {
 /// claimed on the topic — rows are lazily reaped on the next claim attempt
 /// for the same `(topic, offset)`, so an expired claim only persists in
 /// `claims` until someone tries that offset again.
+/// T-2045 (T-2020 GO): one entry in the `agent.find_idle` result — a LIVE
+/// agent on the local hub's `agent-presence` topic that is NOT currently
+/// holding any claim. Derivation, not persistent state — recomputed per
+/// call from heartbeat + claims. `capabilities` is parsed from the
+/// comma-separated `metadata.capabilities` heartbeat field (empty when
+/// the field is absent on older workers).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdleAgent {
+    pub agent_id: String,
+    pub last_heartbeat_ms: i64,
+    pub role: Option<String>,
+    pub capabilities: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimsSummary {
     /// Number of rows where `claimed_until > now_ms`.

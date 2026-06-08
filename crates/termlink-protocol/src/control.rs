@@ -208,6 +208,22 @@ pub mod method {
     /// existing read-side walker (T-1315).
     pub const CHANNEL_RECEIPTS: &str = "channel.receipts";
 
+    /// T-2045 (T-2020 GO build) — hub-owned idle/busy agent registry, derived.
+    /// Server-side derivation: `LIVE(agent-presence)` ∖ `DISTINCT(claims.claimed_by
+    /// WHERE claimed_until > now)`. No new persistent state.
+    /// Walks the `agent-presence` topic, dedups by `agent_id` keeping latest
+    /// heartbeat, filters to LIVE (heartbeat ts newer than 2×interval, default
+    /// 60s window), applies optional `role` / `capabilities` predicates, then
+    /// excludes every agent_id currently claiming any topic offset. Sorted
+    /// by `last_heartbeat_ms` desc (freshest first).
+    /// Params: `{ role?: string, capabilities?: [string], limit?: u32 }` →
+    /// `{ ok, idle: [{agent_id, last_heartbeat_ms, role, capabilities, hub_id}, ...] }`.
+    /// `capabilities` predicate is subset-match: returned agents must advertise
+    /// every requested capability. Missing capabilities metadata is empty set
+    /// (backward-compat with workers that don't emit the field).
+    /// Old hubs return `MethodNotFound` (-32601).
+    pub const AGENT_FIND_IDLE: &str = "agent.find_idle";
+
     /// T-1286 / T-243 — query who has been seen in a multi-turn conversation.
     /// Hub passively tracks `(conversation_id, agent_id) → last_seen_unix_ms`
     /// by observing every successful `channel.post` whose
@@ -612,6 +628,8 @@ mod tests {
         assert_eq!(method::CHANNEL_CLAIMS_SUMMARY, "channel.claims_summary");
         // T-2044 (arc-parallel-substrate Slice 11).
         assert_eq!(method::CHANNEL_FORCE_RELEASE, "channel.force_release");
+        // T-2045 (T-2020 GO build — idle/busy registry).
+        assert_eq!(method::AGENT_FIND_IDLE, "agent.find_idle");
     }
 
     #[test]

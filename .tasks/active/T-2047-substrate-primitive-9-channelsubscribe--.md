@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2027, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:05Z
-last_update: 2026-06-08T11:33:18Z
+last_update: 2026-06-08T12:20:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,7 +48,7 @@ date_finished: null
 - [x] **AMENDED:** `--from-latest` OVERRIDES `--cursor` and `--limit` (not blocks). They have non-None defaults and clap can't distinguish default-from-explicit for u64 — by-design override is internally consistent (cursor→max_offset, limit→1). Help text documents the override behavior.
 - [x] `cargo check -p termlink` passes (crate name is "termlink", not "termlink-cli")
 - [x] Four unit tests cover both `--once` and `--then-live` modes + empty-topic + offset-0 edge (`cargo test from_latest` → 4 passed)
-- [ ] MCP-tool parity: `termlink_channel_subscribe` accepts `from_latest: bool`; when true, resolves latest offset via `channel.list` and returns the single latest envelope (one-shot — `then_live` skipped since MCP loops externally per tool description)
+- [x] MCP-tool parity: `termlink_channel_subscribe` accepts `from_latest: bool`; when true, resolves latest offset via `channel.list` and returns the single latest envelope (one-shot — `then_live` skipped since MCP loops externally per tool description) — live smoke 2026-06-08T12:50Z via `termlink mcp serve` JSON-RPC: (a) `from_latest: true` on `agent-presence` returned envelope at offset 13441 with marker payload + `next_cursor: 13442`; (b) `from_latest: true` on a non-existent topic returned `{"empty": true, "topic": "..."}`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

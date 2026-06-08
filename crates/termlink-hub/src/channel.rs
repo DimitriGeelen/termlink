@@ -1231,6 +1231,75 @@ pub(crate) async fn handle_channel_claims_summary_with(
     }
 }
 
+/// T-2045 (T-2020 GO) — `agent.find_idle`: derived idle-agent roster.
+/// Server-side join of `agent-presence` (LIVE) ∖ active claims (any topic).
+/// Params: `{ role?: string, capabilities?: [string], limit?: u32 }` →
+/// `{ ok, idle: [...] }`. Default LIVE window is 2× the standard 30s
+/// heartbeat interval (60_000 ms). No new persistent state — pure read.
+pub async fn handle_agent_find_idle(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_agent_find_idle_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_agent_find_idle_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let role = param_str(params, "role").map(String::from);
+    let capabilities: Vec<String> = params
+        .get("capabilities")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u32);
+    // 2× the canonical 30s heartbeat interval — matches /be-reachable default.
+    const DEFAULT_LIVE_WINDOW_MS: i64 = 60_000;
+    match bus.find_idle_agents(
+        role.as_deref(),
+        &capabilities,
+        DEFAULT_LIVE_WINDOW_MS,
+        limit,
+    ) {
+        Ok(idle) => {
+            let entries: Vec<Value> = idle
+                .into_iter()
+                .map(|a| {
+                    json!({
+                        "agent_id": a.agent_id,
+                        "last_heartbeat_ms": a.last_heartbeat_ms,
+                        "role": a.role,
+                        "capabilities": a.capabilities,
+                    })
+                })
+                .collect();
+            Response::success(
+                id,
+                json!({
+                    "ok": true,
+                    "idle": entries,
+                }),
+            )
+            .into()
+        }
+        Err(e) => ErrorResponse::internal_error(
+            id,
+            &format!("agent.find_idle: {e}"),
+        )
+        .into(),
+    }
+}
+
 fn envelope_to_json(offset: u64, env: &Envelope) -> Value {
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&env.payload);
     let mut out = json!({

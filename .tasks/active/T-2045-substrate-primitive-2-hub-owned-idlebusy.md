@@ -34,14 +34,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presence) \ DISTINCT(claims.claimed_by)`. No new persistent state — joins existing presence topic + claims table. See `docs/reports/T-2020-idle-busy-registry-inception.md` §5 for the design.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+**Slice 1 — RPC + bus library + unit tests:**
+- [ ] `agent.find_idle` method constant added to `termlink-protocol`
+- [ ] Bus library derivation function: walks `agent-presence` topic, dedups by `agent_id` keeping latest envelope, filters to LIVE (heartbeat newer than 2×interval, default 60s), anti-joins against active claims (`claimed_until > now`), sorts by `last_heartbeat_ms` desc
+- [ ] Hub router arm for `agent.find_idle` with params `{role?: string, capabilities?: [string], limit?: u32}` → `[{agent_id, last_heartbeat_ms, role, capabilities, hub_id}]`
+- [ ] Unit tests cover: (a) presence-only-no-claims returns all LIVE, (b) presence-with-claims excludes claimed_by, (c) stale (>2×interval) excluded, (d) role filter, (e) capabilities filter (subset match), (f) empty presence → empty result
+- [ ] `cargo check -p termlink` and `cargo check -p termlink-hub` pass
+
+**Slice 2 — CLI verb:**
+- [ ] `termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC
+- [ ] Human-format output: one agent per line with id/age/role/capabilities; `--json` returns the raw array
+- [ ] Live smoke against a real hub returns at least the local-session agent_id
+
+**Slice 3 — MCP tool:**
+- [ ] `termlink_agent_find_idle` MCP tool with params `{role?, capabilities?, limit?}`
+
+**Slice 4 — Heartbeat schema:**
+- [ ] `metadata.capabilities: [string]` added to heartbeat envelope (default empty; old workers omit; server treats missing as empty set)
+- [ ] `listener-heartbeat.sh` reads `TERMLINK_CAPABILITIES` env (comma-separated) and emits in heartbeat metadata
+- [ ] `/be-reachable` wrapper exposes `--capabilities` flag
+
+**Slice 5 — Docs + example:**
+- [ ] `docs/operations/agent-find-idle.md` with runnable orchestrator example: find-idle → claim → release
+- [ ] CLAUDE.md Quick Reference row added
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

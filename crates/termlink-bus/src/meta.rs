@@ -541,6 +541,25 @@ impl Meta {
         Ok(rows)
     }
 
+    /// T-2045: list distinct `claimed_by` values across ALL topics where
+    /// the claim is still active (`claimed_until > now`). This is the
+    /// anti-join input for `agent.find_idle` — an agent currently holding
+    /// any claim on any topic is busy and must be excluded from the idle
+    /// roster. Returns a deduped, lexicographically-sorted vector for
+    /// deterministic test output.
+    pub(crate) fn distinct_active_claimers(&self, now_ms: i64) -> Result<Vec<String>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT claimed_by FROM claims \
+             WHERE claimed_until > ?1 \
+             ORDER BY claimed_by ASC",
+        )?;
+        let rows = stmt
+            .query_map(params![now_ms], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
     /// T-2039: aggregate claim state for `topic`. Single SQL over the
     /// `claims` table using `idx_claims_topic_until` — returns counts plus
     /// the oldest-active and next-expiry markers needed for operator

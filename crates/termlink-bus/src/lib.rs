@@ -17,7 +17,7 @@ mod meta;
 mod retention;
 
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
-pub use claim::{ClaimInfo, ClaimsSummary, ReleaseInfo};
+pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use log::Offset;
@@ -366,6 +366,102 @@ impl Bus {
         }
         let now_ms = now_unix_ms();
         self.meta.claims_summary(topic, now_ms)
+    }
+
+    /// T-2045 (T-2020 GO): server-side derivation of the idle-agent roster.
+    ///
+    /// Walks the `agent-presence` topic from offset 0, dedups by
+    /// `metadata.agent_id` keeping the latest heartbeat per agent, filters
+    /// to LIVE (`ts_unix_ms > now - live_window_ms`), applies the optional
+    /// `role` and `capabilities` predicates, then excludes every agent_id
+    /// currently holding any active claim. Result is sorted by
+    /// `last_heartbeat_ms` descending (freshest first).
+    ///
+    /// `capabilities` predicate is SUBSET match: an agent's parsed
+    /// `metadata.capabilities` (comma-separated) must contain EVERY
+    /// requested capability. Missing/empty metadata.capabilities = empty
+    /// set (backward-compat with workers that don't emit the field).
+    ///
+    /// Returns an empty vec when the `agent-presence` topic doesn't exist
+    /// or contains no LIVE envelopes; never errors on a missing topic
+    /// (unlike `subscribe` / `claims_summary`) — a fresh hub with no
+    /// heartbeats yet is a normal state, not an error.
+    pub fn find_idle_agents(
+        &self,
+        role_filter: Option<&str>,
+        capability_filter: &[String],
+        live_window_ms: i64,
+        limit: Option<u32>,
+    ) -> Result<Vec<IdleAgent>> {
+        const PRESENCE_TOPIC: &str = "agent-presence";
+        let now_ms = now_unix_ms();
+        let cutoff_ms = now_ms - live_window_ms.max(0);
+
+        // Walk presence topic (if it exists). Missing topic = empty fleet.
+        if !self.meta.topic_exists(PRESENCE_TOPIC)? {
+            return Ok(Vec::new());
+        }
+        let iter = self.subscribe(PRESENCE_TOPIC, 0)?;
+
+        // Dedup by agent_id, keep latest by ts_unix_ms.
+        let mut latest: HashMap<String, IdleAgent> = HashMap::new();
+        for item in iter {
+            let (_offset, env) = item?;
+            let Some(agent_id) = env.metadata.get("agent_id").cloned() else {
+                continue;
+            };
+            let role = env.metadata.get("role").cloned();
+            let capabilities: Vec<String> = env
+                .metadata
+                .get("capabilities")
+                .map(|s| {
+                    s.split(',')
+                        .map(|c| c.trim().to_string())
+                        .filter(|c| !c.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let entry = IdleAgent {
+                agent_id: agent_id.clone(),
+                last_heartbeat_ms: env.ts_unix_ms,
+                role,
+                capabilities,
+            };
+            match latest.get(&agent_id) {
+                Some(prev) if prev.last_heartbeat_ms >= entry.last_heartbeat_ms => {}
+                _ => {
+                    latest.insert(agent_id, entry);
+                }
+            }
+        }
+
+        // LIVE + role + capabilities filter.
+        let mut filtered: Vec<IdleAgent> = latest
+            .into_values()
+            .filter(|a| a.last_heartbeat_ms > cutoff_ms)
+            .filter(|a| match role_filter {
+                None => true,
+                Some(r) => a.role.as_deref() == Some(r),
+            })
+            .filter(|a| {
+                capability_filter
+                    .iter()
+                    .all(|req| a.capabilities.iter().any(|c| c == req))
+            })
+            .collect();
+
+        // Anti-join against active claimers (across ALL topics).
+        let claimers = self.meta.distinct_active_claimers(now_ms)?;
+        let claimers_set: std::collections::HashSet<&str> =
+            claimers.iter().map(String::as_str).collect();
+        filtered.retain(|a| !claimers_set.contains(a.agent_id.as_str()));
+
+        // Sort freshest first, then apply limit.
+        filtered.sort_by(|a, b| b.last_heartbeat_ms.cmp(&a.last_heartbeat_ms));
+        if let Some(n) = limit {
+            filtered.truncate(n as usize);
+        }
+        Ok(filtered)
     }
 
     /// Apply the retention policy for `topic`, deleting record index rows
