@@ -4,7 +4,7 @@ name: "Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO bui
 description: >
   Implement the T-2020 GO decision per docs/reports/T-2020-idle-busy-registry-inception.md. Derivation-based: idle_agents = LIVE(presence) \ DISTINCT(claimed_by). Add metadata.capabilities: [string] to heartbeat. Surface as agent.find_idle RPC + termlink agent find-idle CLI. ~150 LOC across 5 vertical slices.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2020, T-2019, T-2021]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:48:48Z
-last_update: 2026-06-08T10:48:48Z
+last_update: 2026-06-08T12:28:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -41,11 +41,11 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 **Slice 1 — RPC + bus library + unit tests:**
-- [ ] `agent.find_idle` method constant added to `termlink-protocol`
-- [ ] Bus library derivation function: walks `agent-presence` topic, dedups by `agent_id` keeping latest envelope, filters to LIVE (heartbeat newer than 2×interval, default 60s), anti-joins against active claims (`claimed_until > now`), sorts by `last_heartbeat_ms` desc
-- [ ] Hub router arm for `agent.find_idle` with params `{role?: string, capabilities?: [string], limit?: u32}` → `[{agent_id, last_heartbeat_ms, role, capabilities, hub_id}]`
-- [ ] Unit tests cover: (a) presence-only-no-claims returns all LIVE, (b) presence-with-claims excludes claimed_by, (c) stale (>2×interval) excluded, (d) role filter, (e) capabilities filter (subset match), (f) empty presence → empty result
-- [ ] `cargo check -p termlink` and `cargo check -p termlink-hub` pass
+- [x] `agent.find_idle` method constant added to `termlink-protocol` (`control.rs:212`)
+- [x] Bus library derivation function: walks `agent-presence` topic, dedups by `agent_id` keeping latest envelope, filters to LIVE (heartbeat newer than 2×interval, default 60s), anti-joins against active claims (`claimed_until > now`), sorts by `last_heartbeat_ms` desc (`Bus::find_idle_agents` in `bus/src/lib.rs`)
+- [x] Hub router arm for `agent.find_idle` with params `{role?: string, capabilities?: [string], limit?: u32}` → `{ok, idle: [...]}` (`hub/src/channel.rs::handle_agent_find_idle`, router arm at `hub/src/router.rs:120`)
+- [x] Unit tests cover: (a) presence-only-no-claims returns all LIVE, (b) presence-with-claims excludes claimed_by, (c) stale (>2×interval) excluded, (d) role filter, (e) capabilities filter (subset match), (f) empty presence → empty result — plus dedup-by-agent_id and limit-truncates-after-sort tests. **8/8 tests passing** (`cargo test -p termlink-bus find_idle`)
+- [x] `cargo check -p termlink` and `cargo check -p termlink-hub` pass
 
 **Slice 2 — CLI verb:**
 - [ ] `termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC
@@ -195,3 +195,6 @@ T-2020 GO build slice. Server-side derivation: `idle_agents = LIVE(agent-presenc
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2045-substrate-primitive-2-hub-owned-idlebusy.md
 - **Context:** Initial task creation
+
+### 2026-06-08T12:28:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

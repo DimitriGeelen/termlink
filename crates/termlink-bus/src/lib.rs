@@ -1217,4 +1217,193 @@ mod tests {
             "must point at the earliest-claimed-until row (next slot to free up)"
         );
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // T-2045 (T-2020 GO) — agent.find_idle derivation tests.
+    // ─────────────────────────────────────────────────────────────────────
+
+    fn heartbeat_env(
+        agent_id: &str,
+        ts_unix_ms: i64,
+        role: Option<&str>,
+        capabilities: Option<&str>,
+    ) -> Envelope {
+        let mut metadata: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
+        metadata.insert("agent_id".to_string(), agent_id.to_string());
+        if let Some(r) = role {
+            metadata.insert("role".to_string(), r.to_string());
+        }
+        if let Some(c) = capabilities {
+            metadata.insert("capabilities".to_string(), c.to_string());
+        }
+        Envelope {
+            topic: "agent-presence".to_string(),
+            sender_id: agent_id.to_string(),
+            msg_type: "heartbeat".to_string(),
+            payload: b"claude-code".to_vec(),
+            artifact_ref: None,
+            ts_unix_ms,
+            metadata,
+        }
+    }
+
+    #[tokio::test]
+    async fn find_idle_missing_presence_topic_returns_empty() {
+        let (_dir, bus) = tmp_bus();
+        // No agent-presence topic created — fresh hub, no heartbeats ever.
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        assert!(idle.is_empty(), "fresh hub must return empty, not error");
+    }
+
+    #[tokio::test]
+    async fn find_idle_presence_only_no_claims_returns_all_live() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 1_000, Some("claude-code"), None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-b", now - 5_000, Some("claude-code"), None))
+            .await
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        assert_eq!(idle.len(), 2);
+        // Sorted freshest-first.
+        assert_eq!(idle[0].agent_id, "agent-a");
+        assert_eq!(idle[1].agent_id, "agent-b");
+    }
+
+    #[tokio::test]
+    async fn find_idle_dedups_by_agent_id_keeping_latest_heartbeat() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        // Three heartbeats for same agent — only the LATEST should appear.
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 10_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 1_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 5_000, None, None))
+            .await
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].last_heartbeat_ms, now - 1_000);
+    }
+
+    #[tokio::test]
+    async fn find_idle_filters_stale_outside_live_window() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        // Fresh agent.
+        bus.post("agent-presence", &heartbeat_env("fresh", now - 1_000, None, None))
+            .await
+            .unwrap();
+        // Stale — outside 60s live window.
+        bus.post("agent-presence", &heartbeat_env("stale", now - 120_000, None, None))
+            .await
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "fresh");
+    }
+
+    #[tokio::test]
+    async fn find_idle_excludes_active_claimers() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        bus.create_topic("work-queue", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("worker-busy", now - 500, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("worker-free", now - 500, None, None))
+            .await
+            .unwrap();
+        // Seed a work-queue offset and claim it as worker-busy.
+        bus.post("work-queue", &env("work-queue", b"task-1")).await.unwrap();
+        bus.claim_offset("work-queue", 0, "worker-busy", 60_000)
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "worker-free");
+    }
+
+    #[tokio::test]
+    async fn find_idle_role_filter_narrows_result() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("claude-1", now - 100, Some("claude-code"), None),
+        )
+        .await
+        .unwrap();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("worker-1", now - 100, Some("test-worker"), None),
+        )
+        .await
+        .unwrap();
+        let idle = bus
+            .find_idle_agents(Some("claude-code"), &[], 60_000, None)
+            .unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "claude-1");
+    }
+
+    #[tokio::test]
+    async fn find_idle_capabilities_subset_match() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("a-build", now - 100, None, Some("build,test")),
+        )
+        .await
+        .unwrap();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("a-test-only", now - 100, None, Some("test")),
+        )
+        .await
+        .unwrap();
+        bus.post("agent-presence", &heartbeat_env("a-none", now - 100, None, None))
+            .await
+            .unwrap();
+        // Require both 'build' and 'test' — only a-build qualifies.
+        let req: Vec<String> = vec!["build".into(), "test".into()];
+        let idle = bus.find_idle_agents(None, &req, 60_000, None).unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "a-build");
+        assert_eq!(idle[0].capabilities, vec!["build", "test"]);
+    }
+
+    #[tokio::test]
+    async fn find_idle_limit_truncates_after_sort() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        // Post three agents with increasing freshness; limit=2 should keep
+        // the two freshest.
+        bus.post("agent-presence", &heartbeat_env("a-old", now - 30_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("a-mid", now - 15_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("a-new", now - 100, None, None))
+            .await
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, Some(2)).unwrap();
+        assert_eq!(idle.len(), 2);
+        assert_eq!(idle[0].agent_id, "a-new");
+        assert_eq!(idle[1].agent_id, "a-mid");
+    }
 }
