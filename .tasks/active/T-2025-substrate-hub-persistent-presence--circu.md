@@ -7,15 +7,15 @@ description: >
   one heartbeat interval after every restart. Channel logs + inbox spool DO survive,
   so message durability is intact; only the liveness picture is fragile.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:42Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:28:22Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,19 +57,19 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Storage — SQLite alongside channel logs, or a separate keyed store?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Co-locating may simplify ops but couples concerns
+  confidence: 4
+  disposition: resolved
+  rationale: MOOT. No new storage needed. The `agent-presence` topic IS already SQLite-backed and durable (retention=forever on the live hub; 13441 posts persisted). Heartbeats flow through `Bus::post()` (`crates/termlink-bus/src/lib.rs:127`), which is the same path as every other channel. Per ADR §3, channel data survives hub restart by construction. The "in-memory" framing in §6 referred to the DERIVED LIVE/STALE/OFFLINE view, not the underlying data. See docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md §2.
 
 - **IW-2: TTL semantics — STALE vs OFFLINE thresholds, recoverable vs evicted?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Default thresholds matter for ring20 partition behavior
+  confidence: 4
+  disposition: resolved
+  rationale: ALREADY CLIENT-SIDE POLICY. `scripts/agent-listeners.sh` and `agent-listeners-fleet.sh` apply consumer-side thresholds (default: LIVE ≤ 35s, STALE ≤ 90s, OFFLINE otherwise). Substrate need not enforce a global TTL — different consumers (orchestrator vs handover vs operator dashboard) want different windows. Keep policy at the consumer; substrate ships the durable data. See artifact §5.IW-2.
 
 - **IW-3: Circuit-breaker scope — per-spoke, per-topic, per-target-host?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Scope choice affects fail-isolation granularity
+  confidence: 3
+  disposition: resolved
+  rationale: CURRENT SCOPE (per-session-id) IS WORKABLE; refinement is conditional. `crates/termlink-hub/src/circuit_breaker.rs` keys per-session-id today (which conflates with per-connection on TCP). A future per-spoke or per-topic split is a refinement that should follow real incident evidence, not speculation. More importantly: persisting circuit-breaker state across hub restart is arguably the WRONG default — restart is a recovery event, and carrying forward OPEN classifications blocks traffic to peers whose underlying issue has healed. See artifact §3.
 
 ## Exploration Plan
 
@@ -133,9 +133,24 @@ At promotion time: (1) decide storage location; (2) define TTL semantics; (3) im
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** NO-GO as captured. Re-scope as documentation-only.
 
-**Rationale:** Captured-while-fresh per PL-203; per-primitive design follows operator promotion.
+**Rationale (one-paragraph):** Investigation shows the captured framing does not match the running system. The `agent-presence` topic IS already durable (retention=forever, SQLite-backed, 13441 posts persisted on the live hub) — what's in-memory is the DERIVED LIVE/STALE/OFFLINE view, which is reconstructed from heartbeats on every query, not stored. The post-restart "blackout" is bounded by one heartbeat interval (~30s) of information staleness, not data loss. Circuit-breaker state IS in-memory (`crates/termlink-hub/src/circuit_breaker.rs`), but persisting it across hub restart is arguably the WRONG default — restart is a recovery event; carrying forward OPEN classifications blocks traffic to peers whose underlying issue has since healed. Building T-2025 as captured would introduce two new SQLite tables (`agent_presence_memo`, `circuit_breaker_state`) that DUPLICATE existing state with the wrong default semantics — the same "two sources of truth" anti-pattern T-2020 identified and avoided.
+
+**Full analysis:** see [docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md](../../docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md).
+
+**Action on NO-GO (documentation-only, blast_radius=0):**
+- Update ADR §6 #7 description to reflect actual state ("presence DATA is durable; derived view is in-memory but reconstructible; circuit-breaker reset is intentional, not a gap").
+- Add post-restart blackout paragraph to `docs/operations/substrate-claim-primitive.md` documenting that `find_idle` (T-2020) returns prior-heartbeat data immediately and refreshes within one heartbeat interval.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ❌ "Storage chosen and tested across hub restart" — no storage needed; data already durable.
+- ❌ "TTL semantics documented" — already client-side policy, not substrate concern.
+- ✅ (negative form) "T-2020 can build against this" — T-2020 already builds against the existing durable topic; no T-2025 dependency.
+
+**Conditional follow-up tasks (only if real evidence surfaces):**
+- *(Optimization, not primitive)* Presence-memo for sub-O(topic_size) `find_idle` queries — file with measured benchmark if T-2020 ships and `find_idle` latency becomes a problem at >30 agents.
+- *(Hub-config, not primitive)* Sticky circuit-breaker flag for deployments that restart hub frequently for unrelated reasons — file with operator pain-point evidence.
 
 ## Decisions
 
@@ -156,3 +171,7 @@ At promotion time: (1) decide storage location; (2) define TTL semantics; (3) im
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:28:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
