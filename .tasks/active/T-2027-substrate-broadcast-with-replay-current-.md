@@ -14,7 +14,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:50Z
-last_update: 2026-06-08T07:31:25Z
+last_update: 2026-06-08T07:33:29Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -97,15 +97,15 @@ At promotion time: (1) consolidate with T-2025 if persistent presence already co
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -170,7 +170,29 @@ At promotion time: (1) consolidate with T-2025 if persistent presence already co
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO with revised scope (ship subscribe-side `--from-latest` flag; defer compaction-side `retention: keep-latest` to T-2028).
+
+Rationale (one-paragraph): The gap is real. Existing `kv` is session-scoped (not topic-shaped, no watch), and `channel.subscribe` lacks atomic "latest + live" mode — the two-call workaround has a race window. The fix splits cleanly: subscribe-side adds one new flag (`--from-latest [--once|--then-live]`) with atomic semantics (hub holds topic read-mutex during latest-resolve + cursor-seek). Compaction-side (`retention: keep-latest`) is an optimization, not a correctness requirement — without it the topic grows; if growth becomes a problem T-2028 addresses it. Build is ~80 LOC across 4 vertical slices, purely additive surface, no schema migration, no conflicts with existing primitives.
+
+Full design + IW dispositions: see [docs/reports/T-2027-broadcast-with-replay-inception.md](../../docs/reports/T-2027-broadcast-with-replay-inception.md).
+
+Build slice plan:
+- Slice 1: `Bus::subscribe_from_latest` library function + unit tests (happy path, empty topic, concurrent-post race).
+- Slice 2: Hub handler — extend `channel.subscribe` parameter parsing to accept `--from-latest` mode; route through the new bus function.
+- Slice 3: CLI flag `--from-latest [--once|--then-live]` on `termlink channel subscribe`; session-client wrapper.
+- Slice 4: MCP tool `termlink_channel_subscribe_from_latest` + help-registry entry + docs showing the late-joiner-dashboard recipe.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "A small bounded spec is locked" — 80 LOC, 4 slices, additive only.
+- ❌ "Use case is fully covered by T-2025" — T-2025 went NO-GO covering presence durability; T-2027 covers a different read pattern.
+
+Open follow-up tasks to file on GO:
+- Build task: Slices 1-4 (`channel.subscribe --from-latest`).
+- (Pre-existing) T-2028 inception for `retention: keep-latest` compaction policy — independent track.
+
+**Date**: 2026-06-08T10:01:17Z
 
 ## Updates
 
@@ -180,3 +202,26 @@ At promotion time: (1) consolidate with T-2025 if persistent presence already co
 ### 2026-06-08T07:31:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T10:01:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO with revised scope (ship subscribe-side `--from-latest` flag; defer compaction-side `retention: keep-latest` to T-2028).
+
+Rationale (one-paragraph): The gap is real. Existing `kv` is session-scoped (not topic-shaped, no watch), and `channel.subscribe` lacks atomic "latest + live" mode — the two-call workaround has a race window. The fix splits cleanly: subscribe-side adds one new flag (`--from-latest [--once|--then-live]`) with atomic semantics (hub holds topic read-mutex during latest-resolve + cursor-seek). Compaction-side (`retention: keep-latest`) is an optimization, not a correctness requirement — without it the topic grows; if growth becomes a problem T-2028 addresses it. Build is ~80 LOC across 4 vertical slices, purely additive surface, no schema migration, no conflicts with existing primitives.
+
+Full design + IW dispositions: see [docs/reports/T-2027-broadcast-with-replay-inception.md](../../docs/reports/T-2027-broadcast-with-replay-inception.md).
+
+Build slice plan:
+- Slice 1: `Bus::subscribe_from_latest` library function + unit tests (happy path, empty topic, concurrent-post race).
+- Slice 2: Hub handler — extend `channel.subscribe` parameter parsing to accept `--from-latest` mode; route through the new bus function.
+- Slice 3: CLI flag `--from-latest [--once|--then-live]` on `termlink channel subscribe`; session-client wrapper.
+- Slice 4: MCP tool `termlink_channel_subscribe_from_latest` + help-registry entry + docs showing the late-joiner-dashboard recipe.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "A small bounded spec is locked" — 80 LOC, 4 slices, additive only.
+- ❌ "Use case is fully covered by T-2025" — T-2025 went NO-GO covering presence durability; T-2027 covers a different read pattern.
+
+Open follow-up tasks to file on GO:
+- Build task: Slices 1-4 (`channel.subscribe --from-latest`).
+- (Pre-existing) T-2028 inception for `retention: keep-latest` compaction policy — independent track.
