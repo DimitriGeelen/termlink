@@ -6,15 +6,15 @@ description: >
   log. Subscriber registers and receives the current value of a designated key, then
   live updates. Smaller spec than the Foundation primitives.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:50Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:31:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,24 +56,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Current-value as a topic-level config, or per-subscriber on registration?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Topic-level is simpler
+  confidence: 4
+  disposition: resolved
+  rationale: PER-SUBSCRIBER on registration (new `--from-latest [--once|--then-live]` flag on `channel.subscribe`). More flexible than a topic config — the same topic can be read in either mode by different consumers (dashboards want from-latest, audit tools want since-offset=0). See docs/reports/T-2027-broadcast-with-replay-inception.md §4-§5.
 
 - **IW-2: How is 'current' defined — last-written, or a separate snapshot the publisher updates?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Two distinct semantics; need to pick one
+  confidence: 4
+  disposition: resolved
+  rationale: LAST-WRITTEN. Adding a separate "publisher writes a snapshot" mechanism doubles the API surface and adds publisher-coordination cost. Last-written is what consumers mean by "current". Future structured-snapshot use cases are an overlay on top, not a substrate primitive. See artifact §5.IW-2.
 
 - **IW-3: Storage — keep current value in SQLite alongside log, or a separate kv store?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Co-locate or separate
+  confidence: 4
+  disposition: resolved
+  rationale: NEITHER — no extra storage needed. The latest envelope IS what's at the topic's max offset. `--from-latest` is a read pattern over existing data. Existing `kv` primitive is session-scoped (not topic-shaped, no watch) so doesn't fit. Compaction is optional and deferred to T-2028. See artifact §5.IW-3.
 
 - **IW-4: Cursor interaction — new subscriber starts at current-value + live, or at cursor=0?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Critical for the UX
+  confidence: 4
+  disposition: resolved
+  rationale: AT CURRENT-VALUE + LIVE. That's the explicit point of the primitive. Old behavior (`--since-offset 0`) remains the explicit replay-everything mode for audit tools. Atomic by design: hub holds topic read-mutex while resolving "latest" and seeking the cursor, so no posts can land between. See artifact §5.IW-4.
 
 ## Exploration Plan
 
@@ -137,9 +137,25 @@ At promotion time: (1) consolidate with T-2025 if persistent presence already co
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO with revised scope (ship subscribe-side `--from-latest` flag; defer compaction-side `retention: keep-latest` to T-2028).
 
-**Rationale:** Captured-while-fresh per PL-203; per-primitive design follows operator promotion.
+**Rationale (one-paragraph):** The gap is real. Existing `kv` is session-scoped (not topic-shaped, no watch), and `channel.subscribe` lacks atomic "latest + live" mode — the two-call workaround has a race window. The fix splits cleanly: subscribe-side adds one new flag (`--from-latest [--once|--then-live]`) with atomic semantics (hub holds topic read-mutex during latest-resolve + cursor-seek). Compaction-side (`retention: keep-latest`) is an optimization, not a correctness requirement — without it the topic grows; if growth becomes a problem T-2028 addresses it. Build is ~80 LOC across 4 vertical slices, purely additive surface, no schema migration, no conflicts with existing primitives.
+
+**Full design + IW dispositions:** see [docs/reports/T-2027-broadcast-with-replay-inception.md](../../docs/reports/T-2027-broadcast-with-replay-inception.md).
+
+**Build slice plan:**
+- Slice 1: `Bus::subscribe_from_latest` library function + unit tests (happy path, empty topic, concurrent-post race).
+- Slice 2: Hub handler — extend `channel.subscribe` parameter parsing to accept `--from-latest` mode; route through the new bus function.
+- Slice 3: CLI flag `--from-latest [--once|--then-live]` on `termlink channel subscribe`; session-client wrapper.
+- Slice 4: MCP tool `termlink_channel_subscribe_from_latest` + help-registry entry + docs showing the late-joiner-dashboard recipe.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ✅ "A small bounded spec is locked" — 80 LOC, 4 slices, additive only.
+- ❌ "Use case is fully covered by T-2025" — T-2025 went NO-GO covering presence durability; T-2027 covers a different read pattern.
+
+**Open follow-up tasks to file on GO:**
+- Build task: Slices 1-4 (`channel.subscribe --from-latest`).
+- *(Pre-existing)* T-2028 inception for `retention: keep-latest` compaction policy — independent track.
 
 ## Decisions
 
@@ -160,3 +176,7 @@ At promotion time: (1) consolidate with T-2025 if persistent presence already co
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:31:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
