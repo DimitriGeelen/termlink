@@ -5632,6 +5632,32 @@ pub(crate) enum AgentAction {
     /// PERSONAL / META — operator's directory of the chat-arc surface.
     /// (`help` is reserved by clap as the built-in help command.)
     Verbs,
+
+    /// T-2045 (T-2020 GO): Hub-derived idle-agent roster.
+    /// Walks `agent-presence`, dedups by `agent_id` keeping latest heartbeat,
+    /// filters to LIVE (heartbeat newer than 60s), excludes every agent_id
+    /// currently holding any active claim, sorts by freshness, applies limit.
+    /// Pure read — no state mutation. Orchestrator's "who can I dispatch to?"
+    /// primitive; pairs with `channel.claim` for the next-step assign verb.
+    FindIdle {
+        /// Filter to agents whose `metadata.role` equals this value (e.g. `claude-code`).
+        #[arg(long)]
+        role: Option<String>,
+
+        /// Require the agent to advertise this capability tag (repeat for AND).
+        /// Capabilities are comma-separated in `metadata.capabilities`; missing
+        /// = empty set (backward-compat with workers that don't emit the field).
+        #[arg(long = "capability", value_name = "TAG")]
+        capabilities: Vec<String>,
+
+        /// Cap result count; default unlimited.
+        #[arg(long)]
+        limit: Option<u32>,
+
+        /// Output as JSON (default: human-readable one-line-per-agent table).
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

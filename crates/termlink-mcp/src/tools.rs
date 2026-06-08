@@ -340,6 +340,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         ("channel", vec![
             ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
             ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
+            ("termlink_agent_find_idle", "T-2045: hub-derived idle-agent roster (LIVE presence ∖ active claimers). Orchestrator's 'who can I dispatch to?' primitive — pair with termlink_channel_claim for assignment."),
             ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
             ("termlink_channel_reply", "Reply to a specific post on a topic"),
             ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
@@ -7643,6 +7644,20 @@ pub struct ChannelSubscribeParams {
 pub struct ChannelListParams {
     /// Optional topic name prefix filter.
     pub prefix: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentFindIdleParams {
+    /// Restrict to agents whose `metadata.role` equals this value (e.g.
+    /// `"claude-code"`). Default: any role.
+    pub role: Option<String>,
+    /// Require the agent to advertise EVERY listed capability tag (subset
+    /// match). Capabilities come from the comma-separated heartbeat field
+    /// `metadata.capabilities`; missing field = empty set. Default: no
+    /// capability filter.
+    pub capabilities: Option<Vec<String>>,
+    /// Cap result count; default unlimited.
+    pub limit: Option<u32>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -27397,6 +27412,45 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.subscribe error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_agent_find_idle",
+        description = "T-2045 (T-2020 GO): hub-derived idle-agent roster. Returns agents on the local hub that are LIVE on `agent-presence` AND are not currently holding any active claim. Orchestrator's `who can I dispatch to?` primitive — pair with `termlink_channel_claim` for the next-step assign verb. Pure read — no state mutation, no auth. Params: `{role?, capabilities? (subset match), limit?}` → `{ok, idle: [{agent_id, last_heartbeat_ms, role, capabilities}, ...]}`."
+    )]
+    async fn termlink_agent_find_idle(
+        &self,
+        Parameters(p): Parameters<AgentFindIdleParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::json!({});
+        if let Some(r) = p.role {
+            params["role"] = serde_json::json!(r);
+        }
+        if let Some(caps) = p.capabilities {
+            if !caps.is_empty() {
+                params["capabilities"] = serde_json::json!(caps);
+            }
+        }
+        if let Some(n) = p.limit {
+            params["limit"] = serde_json::json!(n);
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::AGENT_FIND_IDLE,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("agent.find_idle error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

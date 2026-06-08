@@ -570,6 +570,15 @@ async fn main() -> Result<()> {
                 print_agent_help();
                 Ok(())
             }
+            AgentAction::FindIdle { role, capabilities, limit, json } => {
+                commands::agent_find_idle::cmd_agent_find_idle(
+                    role.as_deref(),
+                    &capabilities,
+                    limit,
+                    json,
+                )
+                .await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

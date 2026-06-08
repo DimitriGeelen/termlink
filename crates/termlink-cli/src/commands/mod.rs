@@ -16,6 +16,7 @@ pub(crate) mod vendor;
 pub(crate) mod identity;
 pub(crate) mod channel;
 pub(crate) mod help;
+pub(crate) mod agent_find_idle;
 
 /// Display options shared across list-style commands (list, discover, remote list).
 pub(crate) struct ListDisplayOpts {
