@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:24Z
-last_update: 2026-06-08T15:46:28Z
+last_update: 2026-06-08T15:58:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,19 +48,19 @@ hub blips.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New module `crates/termlink-hub/src/dedupe.rs` exports a `PostDedupe` struct: TTL-bounded + capacity-bounded LRU keyed by `(sender_id, client_msg_id)`; entries store the cached `{offset, ts_unix_ms}` so a duplicate returns the original success envelope.
-- [ ] `PostDedupe` API: `try_record_or_lookup(sender_id, client_msg_id, now_ms, offset, ts) -> Outcome { Newly_recorded, Duplicate { offset, ts } }` plus `evict_expired(now_ms)` + accessors `entries_active()` / `hits_total()`.
-- [ ] Defaults: TTL = 5 min (`DEFAULT_DEDUPE_TTL_MS = 300_000`), capacity = 10_000 entries (`DEFAULT_DEDUPE_CAPACITY = 10_000`). Both override-able via `TERMLINK_DEDUPE_TTL_MS` / `TERMLINK_DEDUPE_CAPACITY` env vars at hub start.
-- [ ] `OnceLock` global `post_dedupe()` accessor with `init()` matching `governor.rs` pattern; wired into `run_with_tcp` + `run_blocking`.
-- [ ] `handle_channel_post_with` reads optional `client_msg_id` from params (string, 1..=128 chars). When present AND identity verified: checks dedupe BEFORE `bus.post()`. Cache hit → return the cached `Response::success(id, {offset, ts})` envelope without re-appending. Cache miss → post normally + record after success.
-- [ ] `hub.governor_status` response gains three sibling fields: `dedupe_entries_active`, `dedupe_hits_total`, `dedupe_ttl_ms`. MCP parity tool returns the same shape automatically (passthrough).
-- [ ] `PendingPost` (offline_queue) gains optional `client_msg_id: Option<String>` with `#[serde(default, skip_serializing_if = "Option::is_none")]` — old persisted rows deserialize cleanly with `None`, new rows persist + replay the id.
-- [ ] CLI `cmd_channel_post` accepts an optional `client_msg_id: Option<String>` argument; when absent, mints a UUID v4 at call time (existing `uuid` crate). The minted id is passed both directly to the hub AND to `OfflineQueue::enqueue` on the hub-unreachable fallback path so a replay reuses the same id.
-- [ ] Unit tests: ≥7 for `PostDedupe` (insert-then-hit-returns-cached, distinct-sender-no-collision, distinct-msg-no-collision, ttl-eviction, lru-eviction-at-capacity, hit-counter-increments, missing-id-skips-check).
-- [ ] Integration tests in `channel.rs::tests`: ≥3 (no-id-bypasses-dedupe-and-posts-normally, with-id-first-post-succeeds-and-records, with-id-duplicate-returns-cached-offset).
-- [ ] `cargo test -p termlink-hub` passes. `cargo test -p termlink-session` passes. `cargo check -p termlink-cli` passes.
-- [ ] Live smoke on local hub: `termlink remote call local hub.governor_status` shows the three new fields. Two `channel.post` calls with the same `client_msg_id` and same sender produce one offset, with the second call's response `offset` matching the first. `dedupe_hits_total` increments by exactly 1.
-- [ ] Docs: `docs/operations/substrate-post-idempotency.md` (~80 lines) explains the wire shape, hub TTL, operator probe recipe, and the queue-replay scenario. CLAUDE.md Quick Reference gains a row (or extends the existing governor row).
+- [x] New module `crates/termlink-hub/src/dedupe.rs` exports a `PostDedupe` struct: TTL-bounded + capacity-bounded LRU keyed by `(sender_id, client_msg_id)`; entries store the cached `{offset, ts_unix_ms}` so a duplicate returns the original success envelope.
+- [x] `PostDedupe` API: `try_record_or_lookup(sender_id, client_msg_id, now_ms, offset, ts) -> Outcome { Newly_recorded, Duplicate { offset, ts } }` plus `evict_expired(now_ms)` + accessors `entries_active()` / `hits_total()`.
+- [x] Defaults: TTL = 5 min (`DEFAULT_DEDUPE_TTL_MS = 300_000`), capacity = 10_000 entries (`DEFAULT_DEDUPE_CAPACITY = 10_000`). Both override-able via `TERMLINK_DEDUPE_TTL_MS` / `TERMLINK_DEDUPE_CAPACITY` env vars at hub start.
+- [x] `OnceLock` global `post_dedupe()` accessor with `init()` matching `governor.rs` pattern; wired into `run_with_tcp` + `run_blocking`.
+- [x] `handle_channel_post_with` reads optional `client_msg_id` from params (string, 1..=128 chars). When present AND identity verified: checks dedupe BEFORE `bus.post()`. Cache hit → return the cached `Response::success(id, {offset, ts})` envelope without re-appending. Cache miss → post normally + record after success.
+- [x] `hub.governor_status` response gains three sibling fields: `dedupe_entries_active`, `dedupe_hits_total`, `dedupe_ttl_ms`. MCP parity tool returns the same shape automatically (passthrough).
+- [x] `PendingPost` (offline_queue) gains optional `client_msg_id: Option<String>` with `#[serde(default, skip_serializing_if = "Option::is_none")]` — old persisted rows deserialize cleanly with `None`, new rows persist + replay the id.
+- [x] CLI `cmd_channel_post` accepts an optional `client_msg_id: Option<String>` argument; when absent, mints a fresh random 128-bit hex id at call time (via `rand::thread_rng` in `termlink-session::offline_queue::mint_client_msg_id`). The minted id is passed both directly to the hub AND persisted to `PendingPost` so a queue replay reuses the same id.
+- [x] Unit tests: 9 for `PostDedupe` (insert-then-hit-returns-cached, distinct-sender-no-collision, distinct-msg-no-collision, ttl-eviction, lru-eviction-at-capacity, hit-counter-increments, ttl-anchors-to-first-sighting, evict-expired-explicit, zero-ttl-clamps).
+- [x] Integration tests in `channel.rs::tests`: 4 (no-id-bypasses-dedupe-and-posts-normally, with-id-first-post-succeeds-and-records, with-id-duplicate-returns-cached-offset, oversized-id-ignored).
+- [x] `cargo test -p termlink-hub` passes (330/330). `cargo test -p termlink-session` passes (334+). `cargo check -p termlink` passes (cli).
+- [x] Live smoke on test hub (`TERMLINK_DEDUPE_TTL_MS=60000`): `hub.governor_status` returns the three new fields. Two CLI posts with `--client-msg-id T2049-SMOKE-AAA` produce offset=0 both times (deduped=true on second); third with `T2049-SMOKE-BBB` produces offset=1. `dedupe_entries_active=2`, `dedupe_hits_total=1`, bus has exactly 2 envelopes (dedupe absorbed the retry).
+- [x] Docs: `docs/operations/substrate-post-idempotency.md` (~200 lines) explains the wire shape, hub TTL, operator probe recipe, end-to-end queue-replay scenario, and explicit non-goals. CLAUDE.md Quick Reference: governor row extended with dedupe fields + new "Post idempotency (EXACTLY-ONCE)" row.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -152,6 +152,24 @@ grep -q "TERMLINK_DEDUPE_TTL_MS" docs/operations/substrate-post-idempotency.md
 -->
 
 ## Evolution
+
+### 2026-06-08 — workspace lacked `uuid` crate; minted via `rand` instead
+
+- **What changed:** The captured spec said "UUID v4 via existing uuid crate". The workspace doesn't pull `uuid` — `rand` 0.8 is in `termlink-session` already (the load-bearing crate for the offline queue), so we added a tiny `mint_client_msg_id()` helper that fills 16 bytes from `rand::thread_rng()` and hex-encodes them. Same 128-bit entropy as UUID v4 random variant; opaque to the hub either way.
+- **Plan impact:** No spec change — id is opaque on the wire. New `pub fn` in `termlink-session::offline_queue` keeps the call site (in `termlink-cli`) free of a new dependency.
+- **Triggered:** Nothing — net positive (no new workspace dep).
+
+### 2026-06-08 — race-window decision: NO pre-reservation, post-success record
+
+- **What changed:** The original sketch had `try_record_or_lookup` pre-reserve a placeholder entry on miss, so two concurrent retries with the same id would both miss the cache, both `bus.post`, and the hub would double-apply. With pre-reservation, the second concurrent call would see the placeholder and wait. WITHOUT pre-reservation, the race window remains for concurrent retries from the SAME sender_id with the SAME client_msg_id.
+- **Plan impact:** Accepted the trade-off: clients post serially on a given connection (FIFO offline queue → one in-flight at a time). The realistic case is sequential retry (ack lost → wait → retry), which the post-success record path catches reliably. Pre-reservation adds complexity (placeholder offsets, recovery paths) for a degenerate misbehaving-client case.
+- **Triggered:** Documented inline in `try_record_or_lookup`. If a future production incident shows concurrent same-id retries (misbehaving spoke), escalate to pre-reservation via a follow-up task.
+
+### 2026-06-08 — bus offset type is u64 not i64
+
+- **What changed:** `termlink-bus::log::Offset = u64`; first slice 1 draft used `i64` for the dedupe cache's offset field. Compile-fail in slice 2 when wiring to `bus.post()`. Changed `DedupeEntry.offset` and the API to `u64` to match.
+- **Plan impact:** None — i64/u64 are interchangeable in JSON serialization. Bus consumers (subscribe response) already render as `u64`.
+- **Triggered:** Nothing.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
