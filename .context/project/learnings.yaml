@@ -2189,3 +2189,10 @@ learnings:
   date: 2026-06-08
   context: Added via context agent
   application: TBD
+- id: PL-205
+  learning: "Pre-commit hook fail-open on non-executable scanners. Vendored .agentic-framework/agents/git/lib/*.sh ships -rw-r--r-- (no exec bit). The hook's [ ! -x SCANNER ] test triggers an exit 0 'fail open' path with the message 'secret-scan: scanner not found (skipping)'. Net effect: T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate are silently disabled for the lifetime of the vendor copy. Recovery: chmod +x .agentic-framework/agents/git/lib/{secret-scan,dup-task-scan,large-file-scan}.sh. The 'not found (skipping)' line in every commit output is the smoking-gun signal nobody noticed. Permanent fix is upstream — see T-2061."
+  source: P-001
+  task: T-2052
+  date: 2026-06-08
+  context: Added via context agent
+  application: TBD

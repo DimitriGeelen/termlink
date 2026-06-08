@@ -4,20 +4,20 @@ name: "Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058
 description: >
   Today's G-058 incident: .context/working/fw-vec-index.db (288MB) accidentally committed 2026-05-25 in b7f18de5, silently rejected by GitHub's 100MB pre-receive hook for 14 days, 805 commits of mirror drift. Canary detected drift correctly but recovery playbook only covered PAT-rotation. Add a structural gate: agents/git pre-commit hook checks each staged blob's size; >50MB → block with hint. Mirrors the secret-scan pattern. Also: extend scripts/check-mirror-freshness.sh diagnosis branch to recognize the file-size-rejection error pattern in pre-receive output. Cost: ~40 LOC + doc update.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, prevention, git-hook, g-058]
-components: []
+components: [scripts/check-mirror-freshness.sh]
 related_tasks: [T-1696, T-1799]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:48Z
-last_update: 2026-06-08T19:11:23Z
-date_finished: null
+last_update: 2026-06-08T19:16:00Z
+date_finished: 2026-06-08T19:16:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -218,3 +218,6 @@ out=$(bash scripts/check-mirror-freshness.sh --json 2>&1); echo "$out" | grep -q
 
 ### 2026-06-08T19:11:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T19:16:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

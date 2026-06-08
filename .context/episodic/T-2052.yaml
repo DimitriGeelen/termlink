@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2052: Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058 prevention follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T19:16:04Z
+# ============================================================================
+
+task_id: T-2052
+task_name: "Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058 prevention follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:48Z
+completed: 2026-06-08T19:16:00Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T21:15:15+02:00
+last_commit: 2026-06-08T21:15:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  activate large-file gate diagnostically + canary root-cause diagnosis (G-058 prevention)
+
+# Key outcomes
+outcomes:
+  - '`.git/hooks/pre-commit` re-installed and contains T-1844 (secret-scan), T-1863 (dup-task-scan), and T-1845 (large-file gate) wiring'
+  - 'Live-fire test: staging a 15MB blob with focus set is BLOCKED by the large-file gate (15.0 MiB > 10.0 MiB threshold, T-1845 origin marker shown in the block message) — commit aborted, HEAD unchanged'
+  - '**Discovered + fixed install-time chmod gap**: ALL scanner scripts (secret-scan, dup-task-scan, large-file-scan) were `-rw-r--r--`, hook check `[ ! -x "$SCANNER" ]` was firing → hook exited 0 (fail open) silently. After `chmod +x` the gate fires correctly. Documented in CLAUDE.md mirror-canary section as the failure signal `secret-scan: scanner not found (skipping)`.'
+  - '`scripts/check-mirror-freshness.sh` extended: when drift is detected, scans `github_head..origin_head` for blobs ≥100MB (GitHub''s GH001 limit) and surfaces sha+path+size with cleanup hint'
+  - 'JSON mode adds `oversize_blobs` count + `oversize_first` field; synced state shows `oversize_blobs:0`'
+  - 'CLAUDE.md mirror-canary section extended with the T-2052 root-cause-diagnosis paragraph + chmod gap signal'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-mirror-freshness.sh'
+  - '.tasks/active/T-2052-pre-commit-blob-size-gate--block-any-sin.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T21:15:15"
+    action: "T-2052: activate large-file gate diagnostically + canary root-cause diagnosis (G-058 prevention)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 506 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [framework, prevention, git-hook, g-058]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 506
+  commits: 1
+  files_changed: 3
+  lines_added: 118
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2052-pre-commit-blob-size-gate--block-any-sin.md
+generated_by: context-agent-hybrid
