@@ -2182,3 +2182,10 @@ learnings:
   date: 2026-06-07
   context: Added via context agent
   application: TBD
+- id: PL-204
+  learning: "G-058 has two failure modes — PAT-rotation (T-1799 path) and oversized-blob (today). Recovery playbook covers only the first. Canary correctly detects drift but doesn't classify root cause. Diagnosis branch must inspect pre-receive output for file-size-rejection (GH001) AND auth-failure separately. Single root-cause assumption in the playbook = 14-day silent failure on the second mode."
+  source: unknown
+  task: T-2052
+  date: 2026-06-08
+  context: Added via context agent
+  application: TBD
