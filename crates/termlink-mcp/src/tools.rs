@@ -7627,10 +7627,16 @@ pub struct AgentStarredParams {
 pub struct ChannelSubscribeParams {
     /// Topic name
     pub topic: String,
-    /// Cursor to start at. Default: 0.
+    /// Cursor to start at. Default: 0. Ignored when `from_latest` is true.
     pub cursor: Option<u64>,
-    /// Max messages per call. Default: 100, max 1000.
+    /// Max messages per call. Default: 100, max 1000. Forced to 1 when `from_latest` is true.
     pub limit: Option<u64>,
+    /// T-2047 broadcast-with-replay: when true, return only the single latest
+    /// envelope on the topic (cursor and limit are overridden). On an empty
+    /// topic, returns `{"empty": true, "topic": "..."}`. The MCP variant is
+    /// one-shot — equivalent to CLI `--from-latest --once`; streaming
+    /// (`--then-live`) is not exposed because the MCP caller loops externally.
+    pub from_latest: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -27329,7 +27335,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_subscribe",
-        description = "Pull messages from a T-1155 bus topic starting at an optional cursor. Returns messages plus a next_cursor for resumption. One-shot — the MCP caller loops externally if needed."
+        description = "Pull messages from a T-1155 bus topic starting at an optional cursor. Returns messages plus a next_cursor for resumption. One-shot — the MCP caller loops externally if needed. T-2047: set from_latest=true to read only the single latest envelope on the topic (late-joiner room-state read without full replay)."
     )]
     async fn termlink_channel_subscribe(
         &self,
@@ -27339,10 +27345,47 @@ impl TermLinkTools {
         if !hub_socket.exists() {
             return json_err("Hub is not running (no socket found)");
         }
+        // T-2047: --from-latest path. Resolve latest offset via channel.list,
+        // then subscribe with cursor=max, limit=1. Empty-topic → return marker.
+        let (cursor, limit) = if p.from_latest.unwrap_or(false) {
+            let list_params = serde_json::json!({"prefix": p.topic});
+            let list_resp = match termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_LIST,
+                list_params,
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("from_latest: channel.list RPC failed: {e}")),
+            };
+            let list_result = match termlink_session::client::unwrap_result(list_resp) {
+                Ok(r) => r,
+                Err(e) => return json_err(format!("from_latest: channel.list error: {e}")),
+            };
+            let topics = list_result["topics"].as_array().cloned().unwrap_or_default();
+            let entry = topics
+                .into_iter()
+                .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(p.topic.as_str()));
+            let count = entry
+                .as_ref()
+                .and_then(|e| e.get("count").and_then(|v| v.as_u64()))
+                .unwrap_or(0);
+            if count == 0 {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "empty": true,
+                    "topic": p.topic,
+                }))
+                .unwrap_or_else(json_err);
+            }
+            (count - 1, 1u64)
+        } else {
+            (p.cursor.unwrap_or(0), p.limit.unwrap_or(100))
+        };
         let params = serde_json::json!({
             "topic": p.topic,
-            "cursor": p.cursor.unwrap_or(0),
-            "limit": p.limit.unwrap_or(100),
+            "cursor": cursor,
+            "limit": limit,
         });
         match termlink_session::client::rpc_call(
             &hub_socket,
