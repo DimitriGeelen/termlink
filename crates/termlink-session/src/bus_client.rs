@@ -71,6 +71,24 @@ pub enum BusClientError {
 /// Default flush cadence for the background task.
 pub const DEFAULT_FLUSH_INTERVAL: Duration = Duration::from_secs(5);
 
+/// T-2055: ±25% jitter on per-tick sleep to desynchronise fleet-wide flush
+/// pulses after a hub bounce. Without it, every spoke that queued during
+/// the outage wakes on the same tick boundary and slams the hub on return,
+/// defeating T-2048's RATE_LIMITED budget. Pure helper so unit tests can
+/// drive a seeded RNG; production callers pass `rand::thread_rng()`.
+pub fn jittered_interval(base: Duration, rng: &mut impl rand::Rng) -> Duration {
+    let span_ms = (base.as_millis() as f64 * 0.25) as i64;
+    if span_ms <= 0 {
+        return base;
+    }
+    let delta_ms = rng.gen_range(-span_ms..=span_ms);
+    if delta_ms >= 0 {
+        base.saturating_add(Duration::from_millis(delta_ms as u64))
+    } else {
+        base.saturating_sub(Duration::from_millis(delta_ms.unsigned_abs()))
+    }
+}
+
 /// Offline-tolerant client for `channel.*` RPCs.
 pub struct BusClient {
     addr: TransportAddr,
@@ -109,10 +127,13 @@ impl BusClient {
             let weak = Arc::downgrade(&client);
             tokio::spawn(async move {
                 loop {
+                    // T-2055: jitter the per-tick sleep so fleet-wide bounces
+                    // don't produce simultaneous flush pulses against the hub.
+                    let tick = jittered_interval(flush_interval, &mut rand::thread_rng());
                     tokio::select! {
                         // Recv resolves immediately when the sender is dropped.
                         _ = &mut shutdown_rx => break,
-                        _ = tokio::time::sleep(flush_interval) => {
+                        _ = tokio::time::sleep(tick) => {
                             let Some(c) = weak.upgrade() else { break; };
                             let _ = c.flush().await;
                         }
@@ -353,6 +374,49 @@ mod tests {
 
         drop(client);
         let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+    }
+
+    #[test]
+    fn jittered_interval_stays_within_25pct_band() {
+        // T-2055: every sample must fall within [3750ms, 6250ms] for a 5s base.
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0xC0FFEE);
+        let base = Duration::from_secs(5);
+        let lo = Duration::from_millis(3750);
+        let hi = Duration::from_millis(6250);
+        for _ in 0..100 {
+            let d = jittered_interval(base, &mut rng);
+            assert!(d >= lo && d <= hi, "jittered {d:?} outside [{lo:?},{hi:?}]");
+        }
+    }
+
+    #[test]
+    fn jittered_interval_actually_varies_across_samples() {
+        // T-2055: confirm we're not accidentally returning the base every time
+        // (e.g. via an off-by-one that collapses span_ms to 0). Sample span
+        // must cover ≥50% of the ±25% band over 100 draws.
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let base = Duration::from_secs(5);
+        let samples: Vec<u128> = (0..100)
+            .map(|_| jittered_interval(base, &mut rng).as_millis())
+            .collect();
+        let min = *samples.iter().min().unwrap();
+        let max = *samples.iter().max().unwrap();
+        let span = max - min;
+        // Full band is 2500ms (±25% of 5000ms). Require ≥50% coverage = 1250ms.
+        assert!(span >= 1250, "jitter range only {span}ms — RNG not driving variance");
+    }
+
+    #[test]
+    fn jittered_interval_handles_tiny_base_safely() {
+        // T-2055: span_ms collapses to 0 for sub-4ms bases; helper must return
+        // base unchanged rather than gen_range(0..=0) panicking.
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0);
+        let base = Duration::from_millis(2);
+        let d = jittered_interval(base, &mut rng);
+        assert_eq!(d, base);
     }
 
     #[tokio::test]
