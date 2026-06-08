@@ -57,22 +57,22 @@ bvp_scores_proposed:
 
 - **IW-1: Push (orchestrator → worker) vs pull (worker requests next) vs both?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: BOTH, but they cost different things. Pull = ZERO new primitives — pure composition of `channel.subscribe` + `channel.claim` (the hub serializes claim attempts, so competing workers all subscribe + claim, whoever wins on offset N processes, others skip to N+1). Push/assign = ONE new RPC `channel.transfer_claim` (atomic ownership transfer). The §6 framing implies both are missing; in practice pull was already there post-T-2019, and assign needs one verb. See docs/reports/T-2021-pull-assign-rpc-inception.md §3, §4.
 
 - **IW-2: Worker selection policy — round-robin, least-loaded, capability-match — hub-side or orchestrator-side?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: ORCHESTRATOR-SIDE. The substrate provides the FILTER (`agent.find_idle` per T-2020 returns LIVE-and-not-busy agents matching role + capabilities). The CHOICE among those candidates is policy and lives in AEF. Keeps the substrate minimal per ADR §4 boundary — substrate ships capabilities, AEF picks policy. Same shape as the conservative/optimistic decision: substrate offers the verb, AEF makes the call. See artifact §6.IW-2.
 
 - **IW-3: Failure mode — assignment unacked within N seconds → reclaim and reassign?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: SOLVED BY T-2019'S LEASE. Orchestrator's `channel.claim --leased <ttl>` IS the failure-mode mechanism. If the assignment envelope is ignored or the target worker dies, the claim auto-expires and the slot returns to the queue. No new reclaim mechanism, no new timer thread, no new state. The lease was designed for exactly this. See artifact §5.
 
 - **IW-4: Is this a new RPC or a composition of (subscribe + claim + ack)?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: BOTH, by mode. Pull is composition (subscribe + claim, zero new code). Assign needs `channel.transfer_claim` — a single new RPC that atomically reassigns claim ownership from orchestrator to worker (a strict generalization of release-then-claim, with the race window removed). Why not just release-then-claim? Because two writes are non-atomic; a second worker can race in. Why not `force_release` + claim? Because force_release bypasses ownership (operator-intervention verb, T-2044); transfer is cooperative and owner-checked. See artifact §4.
 
 ## Exploration Plan
