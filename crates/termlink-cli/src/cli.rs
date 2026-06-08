@@ -3615,6 +3615,28 @@ pub(crate) enum FleetAction {
         dry_run: bool,
     },
 
+    /// T-2062 / T-2028 Track D: fleet-wide aggregation of `hub.governor_status`.
+    ///
+    /// For every hub in `~/.termlink/hubs.toml`, probes the substrate
+    /// connection-cap + per-sender rate-limit + post-dedupe counters that
+    /// T-2048 Track B exposed via RPC. Renders a per-hub block plus
+    /// fleet-wide rollup (total connections active, total capacity_hits,
+    /// total rate_hits, total dedupe_hits, hubs hitting capacity, hubs
+    /// hitting rate limits). Read-only (Observe scope), no mutation.
+    ///
+    /// Pairs with T-2060's `hub status --governor` (single-hub) and
+    /// T-2048's `termlink_hub_governor_status` MCP verb.
+    GovernorStatus {
+        /// Output result as JSON for scripting / dashboards.
+        #[arg(long)]
+        json: bool,
+
+        /// RPC timeout per hub in seconds (default: 8). Each hub is bounded
+        /// independently so a wedged hub cannot hang the fleet view.
+        #[arg(long, default_value = "8")]
+        timeout: u64,
+    },
+
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
     /// copy-pasteable incantation (Tier-1, T-1054). With `--bootstrap-from
     /// <SOURCE>` it actually performs the heal (Tier-2, T-1055, R2 compliance).

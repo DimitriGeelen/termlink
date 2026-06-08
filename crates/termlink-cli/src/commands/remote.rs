@@ -2502,6 +2502,250 @@ pub(crate) async fn cmd_fleet_status(
     Ok(())
 }
 
+/// T-2062 / T-2028 Track D: per-hub result returned by the governor probe.
+/// `Ok(value)` is the parsed `hub.governor_status` envelope.
+/// `Err(msg)` is the operator-visible failure reason (timeout, auth-fail,
+/// connect-refused, RPC error).
+type FleetGovernorResult = std::result::Result<serde_json::Value, String>;
+
+/// T-2062 / T-2028 Track D: pure-helper that turns the per-hub probe results
+/// into the operator-facing block. Pure so a unit test can pin the format
+/// without spinning up hubs.
+///
+/// `hubs` is `(profile_name, result)` in iteration order. Empty input
+/// produces the "no hubs configured" hint instead of an empty block, so
+/// the rendered output is always actionable.
+pub(crate) fn render_fleet_governor_section(
+    hubs: &[(String, FleetGovernorResult)],
+) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+
+    if hubs.is_empty() {
+        let _ = writeln!(
+            out,
+            "No hubs configured. Add hubs with: termlink remote profile add <name> <host:port> --secret-file <path>"
+        );
+        return out;
+    }
+
+    let total = hubs.len();
+    let reachable: usize = hubs.iter().filter(|(_, r)| r.is_ok()).count();
+
+    let _ = writeln!(
+        out,
+        "Fleet governor status — {} hub(s), {} reachable",
+        total, reachable
+    );
+
+    // Per-hub blocks.
+    for (name, result) in hubs {
+        match result {
+            Ok(v) => {
+                let g = |k: &str| -> String {
+                    v.get(k)
+                        .and_then(|x| x.as_i64())
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "n/a".to_string())
+                };
+                let _ = writeln!(out, "  {}  ✓", name);
+                let _ = writeln!(
+                    out,
+                    "    Connections: {}/{} (capacity_hits_total={})",
+                    g("connections_active"),
+                    g("connections_max"),
+                    g("capacity_hits_total"),
+                );
+                let _ = writeln!(
+                    out,
+                    "    Rate buckets: {} active (rate_hits_total={}, max_rate_per_sec={})",
+                    g("rate_buckets_active"),
+                    g("rate_hits_total"),
+                    g("max_rate_per_sec"),
+                );
+                let _ = writeln!(
+                    out,
+                    "    Dedupe: {} entries (hits_total={}, ttl_ms={})",
+                    g("dedupe_entries_active"),
+                    g("dedupe_hits_total"),
+                    g("dedupe_ttl_ms"),
+                );
+            }
+            Err(e) => {
+                let _ = writeln!(out, "  {}  ✗ {}", name, e);
+            }
+        }
+    }
+
+    // Rollup.
+    let sum_i64 = |k: &str| -> i64 {
+        hubs.iter()
+            .filter_map(|(_, r)| r.as_ref().ok())
+            .filter_map(|v| v.get(k).and_then(|x| x.as_i64()))
+            .sum()
+    };
+    let at_capacity: usize = hubs
+        .iter()
+        .filter_map(|(_, r)| r.as_ref().ok())
+        .filter(|v| {
+            let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+            let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+            active >= max
+        })
+        .count();
+    let rate_limited: usize = hubs
+        .iter()
+        .filter_map(|(_, r)| r.as_ref().ok())
+        .filter(|v| v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0) > 0)
+        .count();
+
+    let _ = writeln!(out);
+    let _ = writeln!(out, "Fleet rollup ({} reachable):", reachable);
+    let _ = writeln!(
+        out,
+        "  Total connections active:      {}",
+        sum_i64("connections_active")
+    );
+    let _ = writeln!(
+        out,
+        "  Total capacity_hits_total:     {}",
+        sum_i64("capacity_hits_total")
+    );
+    let _ = writeln!(
+        out,
+        "  Total rate_hits_total:         {}",
+        sum_i64("rate_hits_total")
+    );
+    let _ = writeln!(
+        out,
+        "  Total dedupe_entries_active:   {}",
+        sum_i64("dedupe_entries_active")
+    );
+    let _ = writeln!(
+        out,
+        "  Total dedupe_hits_total:       {}",
+        sum_i64("dedupe_hits_total")
+    );
+    let _ = writeln!(out, "  Hubs at capacity:              {}", at_capacity);
+    let _ = writeln!(out, "  Hubs hitting rate limits:      {}", rate_limited);
+
+    out
+}
+
+/// T-2062 / T-2028 Track D: walk `~/.termlink/hubs.toml`, probe each hub's
+/// `hub.governor_status` RPC under a per-hub `timeout` bound, render the
+/// operator block + fleet rollup. Pure read (Observe scope); no mutation.
+pub(crate) async fn cmd_fleet_governor_status(
+    json_output: bool,
+    timeout_secs: u64,
+) -> Result<()> {
+    use serde_json::json;
+    use termlink_protocol::jsonrpc::RpcResponse;
+
+    let config = crate::config::load_hubs_config();
+    let mut hub_names: Vec<&String> = config.hubs.keys().collect();
+    hub_names.sort();
+
+    let mut results: Vec<(String, FleetGovernorResult)> = Vec::with_capacity(hub_names.len());
+
+    for name in &hub_names {
+        let entry = &config.hubs[*name];
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+
+        let probe = async {
+            let mut client = connect_remote_hub(
+                &entry.address,
+                entry.secret_file.as_deref(),
+                entry.secret.as_deref(),
+                entry.scope.as_deref().unwrap_or("execute"),
+            )
+            .await?;
+            let resp = client
+                .call("hub.governor_status", json!("fleet-gov"), json!({}))
+                .await?;
+            match resp {
+                RpcResponse::Success(r) => Ok::<serde_json::Value, anyhow::Error>(r.result),
+                RpcResponse::Error(e) => {
+                    anyhow::bail!("RPC error {}: {}", e.error.code, e.error.message)
+                }
+            }
+        };
+
+        let result = match tokio::time::timeout(timeout_dur, probe).await {
+            Ok(Ok(v)) => Ok(v),
+            Ok(Err(e)) => Err(e.to_string()),
+            Err(_) => Err(format!("timed out after {}s", timeout_secs)),
+        };
+        results.push(((*name).clone(), result));
+    }
+
+    if json_output {
+        let mut hubs_json: Vec<serde_json::Value> = Vec::new();
+        for (name, r) in &results {
+            match r {
+                Ok(v) => hubs_json.push(json!({
+                    "hub": name,
+                    "ok": true,
+                    "governor": v,
+                })),
+                Err(e) => hubs_json.push(json!({
+                    "hub": name,
+                    "ok": false,
+                    "error": e,
+                })),
+            }
+        }
+
+        let sum_i64 = |k: &str| -> i64 {
+            results
+                .iter()
+                .filter_map(|(_, r)| r.as_ref().ok())
+                .filter_map(|v| v.get(k).and_then(|x| x.as_i64()))
+                .sum()
+        };
+        let at_capacity: usize = results
+            .iter()
+            .filter_map(|(_, r)| r.as_ref().ok())
+            .filter(|v| {
+                let active =
+                    v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                let max =
+                    v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+                active >= max
+            })
+            .count();
+        let rate_limited: usize = results
+            .iter()
+            .filter_map(|(_, r)| r.as_ref().ok())
+            .filter(|v| {
+                v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0) > 0
+            })
+            .count();
+        let reachable = results.iter().filter(|(_, r)| r.is_ok()).count();
+
+        let envelope = json!({
+            "ok": true,
+            "total": results.len(),
+            "reachable": reachable,
+            "hubs": hubs_json,
+            "summary": {
+                "total_connections_active":    sum_i64("connections_active"),
+                "total_capacity_hits_total":   sum_i64("capacity_hits_total"),
+                "total_rate_hits_total":       sum_i64("rate_hits_total"),
+                "total_dedupe_entries_active": sum_i64("dedupe_entries_active"),
+                "total_dedupe_hits_total":     sum_i64("dedupe_hits_total"),
+                "hubs_at_capacity":            at_capacity,
+                "hubs_rate_limited":           rate_limited,
+            }
+        });
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        print!("{}", render_fleet_governor_section(&results));
+    }
+
+    Ok(())
+}
+
 /// T-1667: per-hub state observed at each watch cycle. `(connectivity_status,
 /// pin_check_status, total_legacy_invocations)`. Used to compute cycle-over-cycle
 /// state diffs. `BTreeMap` (not `HashMap`) keeps output ordering stable across
@@ -7045,6 +7289,95 @@ mod tests {
 
     const VALID_SECRET_HEX: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    #[test]
+    fn render_fleet_governor_empty_input_prints_hint() {
+        let out = render_fleet_governor_section(&[]);
+        assert!(
+            out.contains("No hubs configured"),
+            "expected empty-config hint, got: {out}"
+        );
+    }
+
+    #[test]
+    fn render_fleet_governor_formats_mixed_reach() {
+        use serde_json::json;
+        let hub_ok = json!({
+            "connections_active": 12,
+            "connections_max": 256,
+            "capacity_hits_total": 0,
+            "rate_buckets_active": 5,
+            "rate_hits_total": 0,
+            "max_rate_per_sec": 1000,
+            "dedupe_entries_active": 17,
+            "dedupe_hits_total": 3,
+            "dedupe_ttl_ms": 300000,
+        });
+        let hub_capped = json!({
+            "connections_active": 256,
+            "connections_max": 256,
+            "capacity_hits_total": 4,
+            "rate_buckets_active": 12,
+            "rate_hits_total": 9,
+            "max_rate_per_sec": 1000,
+            "dedupe_entries_active": 88,
+            "dedupe_hits_total": 0,
+            "dedupe_ttl_ms": 300000,
+        });
+        let hubs: Vec<(String, FleetGovernorResult)> = vec![
+            ("hub-a".to_string(), Ok(hub_ok)),
+            ("hub-b".to_string(), Ok(hub_capped)),
+            ("hub-c".to_string(), Err("timed out after 8s".to_string())),
+        ];
+        let out = render_fleet_governor_section(&hubs);
+
+        // Header reflects fleet shape.
+        assert!(out.contains("Fleet governor status — 3 hub(s), 2 reachable"),
+            "expected fleet header, got: {out}");
+        // Per-hub markers.
+        assert!(out.contains("hub-a  ✓"), "expected ok marker on hub-a, got: {out}");
+        assert!(out.contains("hub-b  ✓"), "expected ok marker on hub-b, got: {out}");
+        assert!(out.contains("hub-c  ✗ timed out after 8s"),
+            "expected failure marker on hub-c, got: {out}");
+        // Rollup math.
+        assert!(out.contains("Total connections active:      268"),
+            "expected sum 12+256=268, got: {out}");
+        assert!(out.contains("Total capacity_hits_total:     4"),
+            "expected capacity_hits sum, got: {out}");
+        assert!(out.contains("Total rate_hits_total:         9"),
+            "expected rate_hits sum, got: {out}");
+        assert!(out.contains("Hubs at capacity:              1"),
+            "expected at-capacity count, got: {out}");
+        assert!(out.contains("Hubs hitting rate limits:      1"),
+            "expected rate-limited count, got: {out}");
+    }
+
+    #[test]
+    fn render_fleet_governor_tolerates_missing_fields() {
+        use serde_json::json;
+        // Older hub returns partial envelope (T-2060 n/a pattern carried into Track D).
+        let partial = json!({
+            "connections_active": 3,
+            "connections_max": 256,
+            // capacity_hits_total absent
+            "rate_buckets_active": 1,
+            // rate_hits_total absent
+            "max_rate_per_sec": 1000,
+            // dedupe fields absent (pre-T-2049 hub)
+        });
+        let hubs: Vec<(String, FleetGovernorResult)> =
+            vec![("old-hub".to_string(), Ok(partial))];
+        let out = render_fleet_governor_section(&hubs);
+        assert!(out.contains("capacity_hits_total=n/a"),
+            "expected n/a sentinel for missing capacity_hits_total, got: {out}");
+        assert!(out.contains("rate_hits_total=n/a"),
+            "expected n/a sentinel for missing rate_hits_total, got: {out}");
+        assert!(out.contains("Dedupe: n/a entries"),
+            "expected n/a sentinel for missing dedupe section, got: {out}");
+        // Sum still reports what we DID see — partial-i64 sum keeps 0 for absent.
+        assert!(out.contains("Total connections active:      3"),
+            "expected sum from sole hub, got: {out}");
+    }
 
     #[tokio::test]
     async fn connect_rejects_hub_without_colon() {
