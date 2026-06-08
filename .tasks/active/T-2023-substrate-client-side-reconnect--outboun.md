@@ -15,7 +15,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:33Z
-last_update: 2026-06-08T07:41:37Z
+last_update: 2026-06-08T07:43:50Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -98,15 +98,15 @@ At promotion time: (1) measure ring20 hub-blip frequency and duration on existin
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -181,7 +181,39 @@ At promotion time: (1) measure ring20 hub-blip frequency and duration on existin
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: MOSTLY-SHIPPED — partial-GO on three small remaining gaps. The bulk of the primitive shipped under T-1439 before T-2023 was filed.
+
+Rationale (one-paragraph): The §6 framing was correct at filing — there was no outbound queue. T-1439 then shipped one: `crates/termlink-session/src/offline_queue.rs` provides SQLite-backed durable queue (`pending_posts` table), `OfflineQueue::open/enqueue/pop`, `DEFAULT_CAP = 1000`, fail-loudly overflow via `QueueError::Full`, `attempts` counter for poison-pill detection, drain/flush task, and CLI integration in both `channel.rs` and `remote.rs`. IW-1 and IW-2 are fully resolved by that work. What remains: (A) idempotency via `client_msg_id` + hub-side LRU dedupe — the concrete double-apply scenario across hub blips is reproducible and the fix is small (~80 LOC); (B) audit + document the flush loop's backoff parameters; (C) write the operator-facing recipe doc. Three small follow-ups rather than re-shipping the bulk.
+
+Full analysis: see [docs/reports/T-2023-client-reconnect-queue-inception.md](../../docs/reports/T-2023-client-reconnect-queue-inception.md).
+
+Build / follow-up tasks to file on GO:
+
+Gap A — Idempotency (build task, ~80 LOC):
+- Client generates `client_msg_id` on every post (UUID v4 or content-hash + timestamp).
+- Hub maintains short-TTL (~5 min) recently-seen LRU keyed by `(sender_fingerprint, client_msg_id)`.
+- On duplicate: hub silently no-ops the second write, returns the original envelope's offset.
+- Closes the double-apply gap across hub blips.
+
+Gap B — Backoff parameter audit (≤1 session, doc-only):
+- Locate flush loop implementation (somewhere downstream of T-1439's queue).
+- Document initial delay, max delay, jitter, max attempts, dead-letter behavior.
+- Conditional <50 LOC follow-up if any params are poor.
+
+Gap C — Operator recipe documentation (~50 lines docs):
+- Add offline-queue recipe to `docs/operations/`.
+- Describe: how a CLI handles hub-blip, where the queue lives, how to inspect it, how poison-pill rows surface.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "Queue + reconnect implemented" — already shipped under T-1439.
+- ⏸ "Partition-replay test passes" — needs Gap A + integration test.
+- ⏸ "Idempotency confirmed" — exactly Gap A. Open.
+
+Why not full GO of T-2023 as captured: the majority of the work is already shipped. A new build task duplicating that would just re-discover existing code. Three small follow-ups are honest about what's left.
+
+**Date**: 2026-06-08T10:00:19Z
 
 ## Updates
 
@@ -191,3 +223,36 @@ At promotion time: (1) measure ring20 hub-blip frequency and duration on existin
 ### 2026-06-08T07:41:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T10:00:19Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: MOSTLY-SHIPPED — partial-GO on three small remaining gaps. The bulk of the primitive shipped under T-1439 before T-2023 was filed.
+
+Rationale (one-paragraph): The §6 framing was correct at filing — there was no outbound queue. T-1439 then shipped one: `crates/termlink-session/src/offline_queue.rs` provides SQLite-backed durable queue (`pending_posts` table), `OfflineQueue::open/enqueue/pop`, `DEFAULT_CAP = 1000`, fail-loudly overflow via `QueueError::Full`, `attempts` counter for poison-pill detection, drain/flush task, and CLI integration in both `channel.rs` and `remote.rs`. IW-1 and IW-2 are fully resolved by that work. What remains: (A) idempotency via `client_msg_id` + hub-side LRU dedupe — the concrete double-apply scenario across hub blips is reproducible and the fix is small (~80 LOC); (B) audit + document the flush loop's backoff parameters; (C) write the operator-facing recipe doc. Three small follow-ups rather than re-shipping the bulk.
+
+Full analysis: see [docs/reports/T-2023-client-reconnect-queue-inception.md](../../docs/reports/T-2023-client-reconnect-queue-inception.md).
+
+Build / follow-up tasks to file on GO:
+
+Gap A — Idempotency (build task, ~80 LOC):
+- Client generates `client_msg_id` on every post (UUID v4 or content-hash + timestamp).
+- Hub maintains short-TTL (~5 min) recently-seen LRU keyed by `(sender_fingerprint, client_msg_id)`.
+- On duplicate: hub silently no-ops the second write, returns the original envelope's offset.
+- Closes the double-apply gap across hub blips.
+
+Gap B — Backoff parameter audit (≤1 session, doc-only):
+- Locate flush loop implementation (somewhere downstream of T-1439's queue).
+- Document initial delay, max delay, jitter, max attempts, dead-letter behavior.
+- Conditional <50 LOC follow-up if any params are poor.
+
+Gap C — Operator recipe documentation (~50 lines docs):
+- Add offline-queue recipe to `docs/operations/`.
+- Describe: how a CLI handles hub-blip, where the queue lives, how to inspect it, how poison-pill rows surface.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "Queue + reconnect implemented" — already shipped under T-1439.
+- ⏸ "Partition-replay test passes" — needs Gap A + integration test.
+- ⏸ "Idempotency confirmed" — exactly Gap A. Open.
+
+Why not full GO of T-2023 as captured: the majority of the work is already shipped. A new build task duplicating that would just re-discover existing code. Three small follow-ups are honest about what's left.
