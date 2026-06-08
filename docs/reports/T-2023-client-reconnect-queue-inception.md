@@ -71,7 +71,7 @@ The existing flush loop's backoff behavior isn't visible from the offline_queue 
 
 - **IW-1:** ✅ Resolved. Disk-backed (SQLite) per implementation. Confidence=4.
 - **IW-2:** ✅ Resolved. Fail-loudly with `QueueError::Full` per existing implementation; matches R3 stance. Confidence=4.
-- **IW-3:** ⚠ Partial. `attempts` counter exists, but full backoff/jitter/fail-permanent parameters need audit. Confidence=2 (audit will resolve to 4).
+- **IW-3:** ✓ Mostly-resolved (post T-2050 audit, 2026-06-08). Backoff is constant-5s-poll-loop by design; max-attempts (POISON_THRESHOLD=10) + dead-letter (warn-log + pop) work correctly. Jitter is the single real gap — filed as T-2055 (~30 LOC). See `docs/reports/T-2050-offline-queue-backoff-audit.md` for the full disposition. Confidence=4.
 - **IW-4:** ❌ Missing. No `client_msg_id` / dedupe. The real remaining gap. Confidence=4 (problem clear, solution clear).
 
 ## 6. Recommendation

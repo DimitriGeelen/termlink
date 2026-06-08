@@ -1,22 +1,22 @@
 ---
-id: T-2050
-name: "Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)"
+id: T-2055
+name: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)"
 description: >
-  Implement T-2023 Gap B per docs/reports/T-2023-client-reconnect-queue-inception.md §4.B. Locate flush-loop downstream of T-1439's offline_queue.rs. Document: initial-delay, max-delay, jitter, max-attempts, dead-letter behavior. Identify any params with poor defaults; file conditional <50 LOC follow-up if found. Doc-only otherwise.
+  Add ±25% random jitter to the per-tick sleep in BusClient::connect_with_interval (crates/termlink-session/src/bus_client.rs:96-124) so fleet-wide hub bounces don't produce simultaneous flush pulses (thundering-herd against T-2048's RATE_LIMITED). Audit findings in docs/reports/T-2050-offline-queue-backoff-audit.md §'Why jitter is the one real gap'. ≤30 LOC including a unit test using a seeded RNG. rand crate already a workspace dep.
 
-status: started-work
-workflow_type: refactor
+status: captured
+workflow_type: build
 owner: agent
 horizon: now
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
 components: []
-related_tasks: [T-2018, T-2023, T-1439]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-08T10:49:29Z
-last_update: 2026-06-08T16:12:15Z
+created: 2026-06-08T16:13:59Z
+last_update: 2026-06-08T16:13:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,28 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2050: Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)
+# T-2055: Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)
 
 ## Context
 
-Closes T-2023 Gap B (IW-3 — backoff/jitter/dead-letter audit). The
-T-1439 offline-queue flush loop lives in
-`crates/termlink-session/src/bus_client.rs::BusClient::flush` +
-`connect_with_interval`. This task documents the actual parameters,
-identifies any with poor defaults, and files at most ONE conditional
-small follow-up if a fix is warranted.
-
-Doc-only otherwise.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Locate flush-loop implementation: `crates/termlink-session/src/bus_client.rs::BusClient::flush` (the drain pass) + `connect_with_interval` (the tick loop). Verified: no other "flush"-style loop exists in `termlink-session`.
-- [x] Document backoff parameters in `docs/reports/T-2050-offline-queue-backoff-audit.md`: initial-delay, max-delay, jitter, max-attempts (POISON_THRESHOLD), dead-letter behaviour, distinction between transport-failure and hub-reject.
-- [x] Score each parameter against T-2023 IW-3 disposition (✓ ok / ⚠ partial / ❌ missing) with rationale.
-- [x] Recommend at most one small follow-up (≤50 LOC) if a parameter has a poor default; explicit DEFER for any larger redesign — chose: jitter (~30 LOC). DEFER for exponential backoff (no incident evidence) and structural dead-letter signal (doc-only via T-2051 sufficient).
-- [x] Filed follow-up T-2055 with real ACs: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)".
-- [x] Updated T-2023 inception §5 IW-3 disposition from "⚠ Partial, Confidence=2" → "✓ Mostly-resolved, Confidence=4" with explicit pointer to this report.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -94,10 +84,6 @@ Doc-only otherwise.
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-
-test -f docs/reports/T-2050-offline-queue-backoff-audit.md
-grep -q "POISON_THRESHOLD" docs/reports/T-2050-offline-queue-backoff-audit.md
-grep -q "DEFAULT_FLUSH_INTERVAL" docs/reports/T-2050-offline-queue-backoff-audit.md
 #
 # Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
 # `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
@@ -138,12 +124,6 @@ grep -q "DEFAULT_FLUSH_INTERVAL" docs/reports/T-2050-offline-queue-backoff-audit
 -->
 
 ## Evolution
-
-### 2026-06-08 — only one of three suspected gaps is real
-
-- **What changed:** Inception §5 listed three suspected gaps (no exponential backoff, no jitter, no fail-permanent signal). Audit reduces that to one real gap — jitter. Backoff is sane by design (poll-loop, not per-row state machine); fail-permanent signal exists via warn-log + counter (operator-visible via log aggregation).
-- **Plan impact:** Filed ONE follow-up (T-2055) instead of three. Doc-only for the other two with explicit "if real incident, reopen" markers.
-- **Triggered:** T-2055 (jitter wire-in, ~30 LOC) — captured horizon=now.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -190,10 +170,7 @@ grep -q "DEFAULT_FLUSH_INTERVAL" docs/reports/T-2050-offline-queue-backoff-audit
 
 ## Updates
 
-### 2026-06-08T10:49:29Z — task-created [task-create-agent]
+### 2026-06-08T16:13:59Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2050-substrate-primitive-5-gap-b-audit--docum.md
+- **Output:** /opt/termlink/.tasks/active/T-2055-add-25-jitter-to-busclient-flush-interva.md
 - **Context:** Initial task creation
-
-### 2026-06-08T16:12:15Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
