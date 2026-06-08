@@ -8,18 +8,18 @@ description: >
   expected to split into sub-pieces. Absence FORCES conservative launch policy; presence
   is precondition (not trigger) for optimistic.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate, novel-mechanism]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:29Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:45:43Z
 date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-09-08            # T-1451: DEFER pending Foundation primitives + AEF serialization-cost evidence
+revisit_evidence_needed: "Either (a) AEF-layer incident attributable to lacking write-observation; (b) successful git-hook path-declaration spike (T-2022a); or (c) ring20 deployment-shape change that opens up CAP_BPF or CAP_SYS_ADMIN."
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -58,29 +58,29 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Mechanism — inotify, fanotify, ptrace, LD_PRELOAD wrapper, eBPF, FUSE?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Each has different blind spots and host-portability
+  confidence: 4
+  disposition: resolved
+  rationale: NONE at OS level. Mechanism survey (docs/reports/T-2022-fs-write-observation-inception.md §2): inotify=Linux-only (blocks macOS); fanotify+eBPF=CAP requirements not available in container deployment; ptrace=10× syscall slowdown unacceptable; LD_PRELOAD=Rust binaries variable + statically-linked bypass; FUSE=breaks POSIX semantics. The intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf) is EMPTY. Re-scope to git-hook-enforced path declaration. See artifact §3.
 
 - **IW-2: Per-ring20-host viability — does the chosen mechanism work on every host? Container restrictions?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Critical — homogeneous mechanism beats per-host special-casing
+  confidence: 4
+  disposition: resolved
+  rationale: OS-LEVEL MECHANISMS FAIL on portability OR container caps for ring20. Git-hook approach is portable by construction (every host already has git). See artifact §2-§3.
 
 - **IW-3: Blind spots — what file ops are NOT observable?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Determines whether the mechanism is sound enough to bear the conservative→optimistic flip
+  confidence: 3
+  disposition: resolved
+  rationale: For OS-level: every mechanism has a blind spot that breaks the §4 soundness argument. For git-hook: blind spot = unstaged scratch writes that never become commits — but those don't matter because they never persist to shared state. The orchestrator only cares about writes that AGREE WITH OTHER AGENTS' WORK at merge time. See artifact §3, §5.IW-3.
 
 - **IW-4: Cost — per-syscall overhead, kernel buffer pressure, scaling with concurrent agents?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Performance budget vs surfaces-collision-quickly tradeoff
+  confidence: 4
+  disposition: resolved
+  rationale: OS-level: prohibitive for most mechanisms (ptrace 10×, FUSE severe). Git-hook: one network post per commit (typically O(seconds) apart per agent), negligible cost. Scales linearly with commit rate, not write rate. See artifact §5.IW-4.
 
 - **IW-5: Granularity — directory-level, file-level, byte-range — and what does AEF layer need?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Co-discovered per §9
+  confidence: 4
+  disposition: resolved
+  rationale: FILE-LEVEL is sufficient. AEF needs "is anyone else touching path X" — directory is coarse, byte-range is overkill. Git already operates at file granularity, matching the natural abstraction. See artifact §5.IW-5.
 
 ## Exploration Plan
 
@@ -144,9 +144,36 @@ bvp_scores_proposed:
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** DEFER as captured (OS-level FS observation is not viable for ring20). Re-scope to a three-spike sub-arc exploring git-hook-enforced path declaration. revisit_at=2026-09-08.
 
-**Rationale:** Captured-while-fresh per PL-203. SOFT dependency per §9 — co-discovered with AEF layer, not pre-contracted. Likely splits into sub-tasks at design phase.
+**Rationale (one-paragraph):** OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the *concern* the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes *voluntary* announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
+
+**Full analysis:** see [docs/reports/T-2022-fs-write-observation-inception.md](../../docs/reports/T-2022-fs-write-observation-inception.md).
+
+**Re-scoped sub-arc (file on DEFER, run after Foundation primitives land):**
+
+**Spike T-2022a — git-hook path declaration (~80 LOC, ≤1 session):**
+- Pre-commit hook on AEF worktrees posts `{agent_id, branch, paths_modified, paths_added, paths_deleted}` to a coordination topic.
+- Hub maintains sliding-window view: which agents have declared which paths in last N min.
+- Orchestrator queries before dispatching; conservative-applies on overlap.
+
+**Spike T-2022b — bypass detection (~50 LOC, ≤1 session):**
+- Test: agent disables hook + commits. Does orchestrator notice?
+- Mechanism: count commits per agent vs declared path-sets; divergence → alert.
+- Addresses §4's "agent that forgets to announce" failure mode.
+
+**Spike T-2022c — kernel-mechanism fallback (1-2 sessions, CONDITIONAL):**
+- Only if 2022a OR 2022b fail.
+- inotify on Linux-only subset, dropping macOS coverage.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ❌ "Mechanism chosen with measured blind-spot list" — OS-level: blind spots are catastrophic. Git-hook: blind spots are tolerable but unverified — that's exactly what the spikes test.
+- ⏸ "Per-host viability confirmed" — OS-level: no. Git-hook: by construction yes, but unproven at scale.
+- ⏸ "Sub-task decomposition produced" — yes, 3 spikes above. Not auto-GO until spikes run.
+
+**Why DEFER vs full NO-GO:** Conservative policy is correct today but expensive — serializes work that could parallelize. ROI on cracking this is real, just not via the captured mechanism. NO-GO would close the question; DEFER + spike-arc leaves it productively open.
+
+**Documentation follow-up:** add §3's "OS-level vs git-hook trade-off" reasoning to `docs/architecture/parallel-execution-substrate.md` as a §4 addendum.
 
 ## Decisions
 
@@ -167,3 +194,7 @@ bvp_scores_proposed:
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:45:43Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
