@@ -57,22 +57,22 @@ bvp_scores_proposed:
 
 - **IW-1: Current-value as a topic-level config, or per-subscriber on registration?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: PER-SUBSCRIBER on registration (new `--from-latest [--once|--then-live]` flag on `channel.subscribe`). More flexible than a topic config — the same topic can be read in either mode by different consumers (dashboards want from-latest, audit tools want since-offset=0). See docs/reports/T-2027-broadcast-with-replay-inception.md §4-§5.
 
 - **IW-2: How is 'current' defined — last-written, or a separate snapshot the publisher updates?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: LAST-WRITTEN. Adding a separate "publisher writes a snapshot" mechanism doubles the API surface and adds publisher-coordination cost. Last-written is what consumers mean by "current". Future structured-snapshot use cases are an overlay on top, not a substrate primitive. See artifact §5.IW-2.
 
 - **IW-3: Storage — keep current value in SQLite alongside log, or a separate kv store?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: NEITHER — no extra storage needed. The latest envelope IS what's at the topic's max offset. `--from-latest` is a read pattern over existing data. Existing `kv` primitive is session-scoped (not topic-shaped, no watch) so doesn't fit. Compaction is optional and deferred to T-2028. See artifact §5.IW-3.
 
 - **IW-4: Cursor interaction — new subscriber starts at current-value + live, or at cursor=0?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: AT CURRENT-VALUE + LIVE. That's the explicit point of the primitive. Old behavior (`--since-offset 0`) remains the explicit replay-everything mode for audit tools. Atomic by design: hub holds topic read-mutex while resolving "latest" and seeking the cursor, so no posts can land between. See artifact §5.IW-4.
 
 ## Exploration Plan
