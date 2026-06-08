@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T18:57:40Z
-last_update: 2026-06-08T18:57:40Z
+last_update: 2026-06-08T19:06:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,7 +50,7 @@ needing a separate MCP probe.
 
 ### Agent
 - [x] `termlink hub status --governor` calls `hub.governor_status` RPC and renders the counters under a `Governor:` section in human mode (connections_active/max, capacity_hits_total, rate_buckets_active/rate_hits_total/max_rate_per_sec, dedupe_entries_active/hits_total/ttl_ms)
-- [ ] `termlink hub status --governor --json` merges the RPC response into the existing status JSON envelope under a `"governor"` key
+- [x] `termlink hub status --governor --json` merges the RPC response into the existing status JSON envelope under a `"governor"` key
 - [x] When hub is `not_running` or `stale`, `--governor` is a no-op (skip the RPC; render the existing not_running/stale path unchanged)
 - [x] When hub is running but the RPC times out or errors, the Governor section renders `(unavailable: <reason>)` rather than silently dropping
 - [x] `termlink hub status` (without `--governor`) behaves identically to today — no extra RPC call, no extra latency
@@ -91,11 +91,11 @@ needing a separate MCP probe.
 
 ## Verification
 
-cargo build -p termlink-cli 2>&1 | tail -5 | grep -q "Finished"
-cargo test -p termlink-cli --lib 2>&1 | tail -10 | grep -qE "test result: ok"
-grep -q "fn render_governor_section\|fn format_governor" crates/termlink-cli/src/commands/infrastructure.rs
+out=$(cargo build -p termlink 2>&1); echo "$out" | tail -5 | grep -q "Finished"
+out=$(cargo test -p termlink --bin termlink render_governor 2>&1); echo "$out" | grep -qE "test result: ok\."
+grep -q "fn render_governor_section" crates/termlink-cli/src/commands/infrastructure.rs
 grep -q "hub.governor_status" crates/termlink-cli/src/commands/infrastructure.rs
-target/debug/termlink hub status --help 2>&1 | grep -q -- "--governor"
+out=$(target/debug/termlink hub status --help 2>&1); echo "$out" | grep -q -- "--governor"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
