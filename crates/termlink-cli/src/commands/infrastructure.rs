@@ -775,7 +775,52 @@ pub(crate) fn cmd_hub_restart(json: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Result<()> {
+/// T-2060 / T-2028 Track C: render the `hub.governor_status` RPC response
+/// as the human-mode `Governor:` section.
+///
+/// Pure helper — takes the parsed JSON value and produces the multi-line
+/// string. Kept pure so a unit test can pin the format without spinning up
+/// a hub.
+pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let g = |k: &str| -> String {
+        v.get(k)
+            .and_then(|x| x.as_i64())
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    };
+    let _ = writeln!(out, "Governor:");
+    let _ = writeln!(
+        out,
+        "  Connections: {}/{} (capacity_hits_total={})",
+        g("connections_active"),
+        g("connections_max"),
+        g("capacity_hits_total"),
+    );
+    let _ = writeln!(
+        out,
+        "  Rate buckets: {} active (rate_hits_total={}, max_rate_per_sec={})",
+        g("rate_buckets_active"),
+        g("rate_hits_total"),
+        g("max_rate_per_sec"),
+    );
+    let _ = writeln!(
+        out,
+        "  Dedupe: {} entries (hits_total={}, ttl_ms={})",
+        g("dedupe_entries_active"),
+        g("dedupe_hits_total"),
+        g("dedupe_ttl_ms"),
+    );
+    out
+}
+
+pub(crate) async fn cmd_hub_status(
+    json_output: bool,
+    short: bool,
+    check: bool,
+    governor: bool,
+) -> Result<()> {
     // T-1032: Use resolve_hub_paths() for split-brain runtime dir detection
     let (pidfile_path, socket_path) = resolve_hub_paths();
 
@@ -783,6 +828,25 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
         termlink_hub::pidfile::check(&pidfile_path),
         termlink_hub::pidfile::PidfileStatus::Running(_)
     );
+
+    // T-2060: probe governor only when running AND --governor was passed.
+    // Bounded 2s timeout matches the doctor pattern so a wedged hub can't
+    // hang the status verb. Failure is rendered, not silenced.
+    use termlink_session::client;
+    let governor_result: Option<std::result::Result<serde_json::Value, String>> =
+        if governor && is_running {
+            let rpc = client::rpc_call(&socket_path, "hub.governor_status", json!({}));
+            match tokio::time::timeout(std::time::Duration::from_secs(2), rpc).await {
+                Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                    Ok(result) => Some(Ok(result)),
+                    Err(e) => Some(Err::<serde_json::Value, String>(e.to_string())),
+                },
+                Ok(Err(e)) => Some(Err::<serde_json::Value, String>(e.to_string())),
+                Err(_) => Some(Err::<serde_json::Value, String>("timed out after 2s".to_string())),
+            }
+        } else {
+            None
+        };
 
     match termlink_hub::pidfile::check(&pidfile_path) {
         termlink_hub::pidfile::PidfileStatus::NotRunning => {
@@ -807,14 +871,22 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
         termlink_hub::pidfile::PidfileStatus::Running(pid) => {
             let runtime_dir = pidfile_path.parent().map(|p| p.display().to_string()).unwrap_or_default();
             if json_output {
-                println!("{}", json!({
+                let mut env = json!({
                     "ok": true,
                     "status": "running",
                     "pid": pid,
                     "socket": socket_path.display().to_string(),
                     "pidfile": pidfile_path.display().to_string(),
                     "runtime_dir": runtime_dir,
-                }));
+                });
+                if let Some(g) = &governor_result {
+                    let obj = env.as_object_mut().expect("status envelope is object");
+                    match g {
+                        Ok(value) => { obj.insert("governor".into(), value.clone()); }
+                        Err(e) => { obj.insert("governor".into(), json!({"error": e})); }
+                    }
+                }
+                println!("{}", env);
             } else if short {
                 println!("running {pid}");
             } else {
@@ -822,6 +894,12 @@ pub(crate) fn cmd_hub_status(json_output: bool, short: bool, check: bool) -> Res
                 println!("  Runtime dir: {}", runtime_dir);
                 println!("  Socket: {}", socket_path.display());
                 println!("  Pidfile: {}", pidfile_path.display());
+                if let Some(g) = &governor_result {
+                    match g {
+                        Ok(value) => print!("{}", render_governor_section(value)),
+                        Err(e) => println!("Governor: (unavailable: {})", e),
+                    }
+                }
             }
         }
     }
@@ -1513,9 +1591,46 @@ fn group_sessions_by_identity(
 
 #[cfg(test)]
 mod tests {
-    use super::audit_secret_cache;
+    use super::{audit_secret_cache, render_governor_section};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
+
+    // T-2060 / T-2028 Track C: pin the human-mode `Governor:` section.
+    #[test]
+    fn render_governor_section_formats_known_value() {
+        let v = serde_json::json!({
+            "connections_active": 3,
+            "connections_max": 256,
+            "capacity_hits_total": 0,
+            "rate_buckets_active": 5,
+            "rate_hits_total": 0,
+            "max_rate_per_sec": 1000,
+            "dedupe_entries_active": 12,
+            "dedupe_hits_total": 4,
+            "dedupe_ttl_ms": 300000,
+        });
+        let s = render_governor_section(&v);
+        assert!(s.starts_with("Governor:\n"));
+        assert!(s.contains("Connections: 3/256 (capacity_hits_total=0)"));
+        assert!(s.contains("Rate buckets: 5 active (rate_hits_total=0, max_rate_per_sec=1000)"));
+        assert!(s.contains("Dedupe: 12 entries (hits_total=4, ttl_ms=300000)"));
+    }
+
+    // T-2060: missing fields render as "n/a" rather than panic — the
+    // renderer must remain best-effort against an older hub. Smoke-confirmed
+    // on the live .107 hub which is pre-T-2049 (no dedupe_* fields).
+    #[test]
+    fn render_governor_section_tolerates_missing_fields() {
+        let v = serde_json::json!({
+            "connections_active": 1,
+            "connections_max": 256
+            // capacity_hits_total + rate_* + dedupe_* all absent
+        });
+        let s = render_governor_section(&v);
+        assert!(s.contains("Connections: 1/256 (capacity_hits_total=n/a)"));
+        assert!(s.contains("Rate buckets: n/a active"));
+        assert!(s.contains("Dedupe: n/a entries (hits_total=n/a, ttl_ms=n/a)"));
+    }
 
     fn tmpdir(label: &str) -> std::path::PathBuf {
         let base = std::env::temp_dir().join(format!(

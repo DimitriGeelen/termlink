@@ -1238,6 +1238,12 @@ pub(crate) enum HubAction {
         /// Exit non-zero if hub is not running (for scripting/health checks)
         #[arg(long)]
         check: bool,
+
+        /// T-2060 / T-2028 Track C: also probe `hub.governor_status` RPC and
+        /// render connection-cap + rate-limit + dedupe counters inline.
+        /// No-op if hub is not running.
+        #[arg(long)]
+        governor: bool,
     },
     /// Export the live hub HMAC secret from <runtime_dir>/hub.secret
     ///
