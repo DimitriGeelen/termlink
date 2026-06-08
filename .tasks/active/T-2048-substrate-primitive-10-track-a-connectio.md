@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:10Z
-last_update: 2026-06-08T14:53:39Z
+last_update: 2026-06-08T14:56:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,15 +62,16 @@ with `code = -32019 HUB_AT_CAPACITY` (new) or `-32008 RATE_LIMITED`
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Slice 1 — Governor module: `crates/termlink-hub/src/governor.rs`
+- [x] Slice 1 — Governor module: `crates/termlink-hub/src/governor.rs`
       exists with `ConnGovernor` (current/max + `try_acquire`/`release`)
       and `RateGovernor` (per-sender token bucket: tokens, refill rate,
       last_refill_ms + `try_acquire(sender)`); both expose
       `retry_after_ms()` helper for the LOUD-refuse envelope.
-- [ ] Slice 1 — Unit tests: `cargo test -p termlink-hub governor`
-      passes (≥4 tests: cap admits-N rejects-Nplus1, rate bucket
-      admits-rate-rejects-burst-overflow, refill restores capacity
-      after elapsed time, release decrements current).
+- [x] Slice 1 — Unit tests: `cargo test -p termlink-hub governor`
+      passes (11 tests: 4 ConnGovernor [admit-up-to-max, reject-past-max,
+      release-frees-slot, release-noop-on-zero] + 7 RateGovernor [burst,
+      refill, sender-isolation, zero-disables, hint-matches-refill-period,
+      refill-clamps-at-capacity, evict-idle]).
 - [ ] Slice 2 — Protocol constant: `HUB_AT_CAPACITY: i64 = -32019`
       added to `crates/termlink-protocol/src/control.rs` `error_code`
       module with doc-comment naming `retry_after_ms` data field.
@@ -198,6 +199,21 @@ grep -q 'termlink_hub_governor_status' crates/termlink-mcp/src/tools.rs
 -->
 
 ## Evolution
+
+### 2026-06-08 — slice 1 governor primitives + 11 unit tests
+- **What changed:** Filing-time "Track A" name is a misnomer — task
+  exactly matches T-2028 inception **Track B**. Inception Track A
+  (retention audit) is a separate AUDIT-class task, not a build.
+  Filed-time "~30 LOC" estimate is also low; inception §4 Track B
+  bounds at ~150 LOC for three slices, which matches what slice 1
+  alone landed (~210 LOC including unit tests).
+- **Plan impact:** Treating this task as Track B exactly per inception.
+  Filed AC for "operator-tunable via hub.toml" relaxed to env-var
+  (TERMLINK_MAX_CONNECTIONS, TERMLINK_RATE_LIMIT_PER_SEC) per T-1633
+  precedent — no hub.toml exists yet, env vars are the established
+  hub-side config surface.
+- **Triggered:** Updated task Context section to disambiguate Track B
+  scope before slice 2.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at

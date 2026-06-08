@@ -3,6 +3,7 @@ pub mod artifact;
 pub mod bypass;
 pub mod channel;
 pub mod circuit_breaker;
+pub mod governor;
 pub mod inbox;
 pub mod pidfile;
 pub mod remote_store;
