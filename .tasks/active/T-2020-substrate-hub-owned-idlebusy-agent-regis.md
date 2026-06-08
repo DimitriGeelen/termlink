@@ -14,7 +14,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:20Z
-last_update: 2026-06-08T06:57:59Z
+last_update: 2026-06-08T07:03:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -97,15 +97,15 @@ After T-2019 lands. (1) Confirm whether claim implicitly tracks worker state —
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -173,7 +173,32 @@ After T-2019 lands. (1) Confirm whether claim implicitly tracks worker state —
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO with revised scope (no new persistent table — derive from existing `agent-presence` topic + `claims` table).
+
+Rationale (one-paragraph): The registry collapses to a DERIVATION + ONE QUERY VERB, not a new state surface. The substrate already has both data sources (presence topic for liveness + claims table for busy state); the missing piece is the server-side join. Adding a parallel `agent_state` table would duplicate state and create the drift surface that makes IW-4 intractable. Instead: ship `agent.find_idle(role?, capabilities?)` RPC that walks presence (filter to LIVE, apply role/capability predicate) and EXCLUDEs every agent_id in `SELECT DISTINCT claimed_by FROM claims WHERE claimed_until > now`. Extend the heartbeat envelope with `metadata.capabilities: [string]` (backward-compat: missing = empty set). Five small slices following T-2019's vertical pattern; estimated ~150 LOC + ≤1 session. No upstream blockers — T-2025 (persistent presence across restart) is a soft-dep (acceptable degradation: one-heartbeat-interval blackout post-restart). Hard-dep for AEF per §9.
+
+Full design + IW dispositions: see [docs/reports/T-2020-idle-busy-registry-inception.md](../../docs/reports/T-2020-idle-busy-registry-inception.md).
+
+Build slice plan (mirrors T-2019 verticalization):
+- Slice 1: `agent.find_idle` RPC + bus library function + unit tests.
+- Slice 2: CLI verb `termlink agent find-idle`.
+- Slice 3: MCP tool `termlink_agent_find_idle`.
+- Slice 4: Heartbeat schema extension (capabilities) + listener-heartbeat.sh update.
+- Slice 5: Documentation + runnable example (orchestrator → find_idle → claim → release flow).
+- (Optional Slice 6): hub-side derived-snapshot cache — defer until benchmarks demand.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ Approach chosen and matches T-2019's claim semantics (anti-joins on `claims.claimed_by`).
+- ✅ Scale measurement: O(presence_topic_size) + O(claims_table_size). At fleet scale (≤30 agents per ADR §1), <10ms per call expected. T-1991's perf finding (per-binary-version, not topic-size) clarifies the bloat concern is retention/compaction (T-2028), not registry shape.
+- ✅ Build is bounded: ~150 LOC, ≤1 session, 5 vertical slices.
+
+Open follow-up tasks to file on GO:
+- Build task for Slices 1-5.
+- Heartbeat schema migration coordination task (consumers + AEF).
+
+**Date**: 2026-06-08T09:59:44Z
 
 ## Updates
 
@@ -183,3 +208,29 @@ After T-2019 lands. (1) Confirm whether claim implicitly tracks worker state —
 ### 2026-06-08T06:57:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T09:59:44Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO with revised scope (no new persistent table — derive from existing `agent-presence` topic + `claims` table).
+
+Rationale (one-paragraph): The registry collapses to a DERIVATION + ONE QUERY VERB, not a new state surface. The substrate already has both data sources (presence topic for liveness + claims table for busy state); the missing piece is the server-side join. Adding a parallel `agent_state` table would duplicate state and create the drift surface that makes IW-4 intractable. Instead: ship `agent.find_idle(role?, capabilities?)` RPC that walks presence (filter to LIVE, apply role/capability predicate) and EXCLUDEs every agent_id in `SELECT DISTINCT claimed_by FROM claims WHERE claimed_until > now`. Extend the heartbeat envelope with `metadata.capabilities: [string]` (backward-compat: missing = empty set). Five small slices following T-2019's vertical pattern; estimated ~150 LOC + ≤1 session. No upstream blockers — T-2025 (persistent presence across restart) is a soft-dep (acceptable degradation: one-heartbeat-interval blackout post-restart). Hard-dep for AEF per §9.
+
+Full design + IW dispositions: see [docs/reports/T-2020-idle-busy-registry-inception.md](../../docs/reports/T-2020-idle-busy-registry-inception.md).
+
+Build slice plan (mirrors T-2019 verticalization):
+- Slice 1: `agent.find_idle` RPC + bus library function + unit tests.
+- Slice 2: CLI verb `termlink agent find-idle`.
+- Slice 3: MCP tool `termlink_agent_find_idle`.
+- Slice 4: Heartbeat schema extension (capabilities) + listener-heartbeat.sh update.
+- Slice 5: Documentation + runnable example (orchestrator → find_idle → claim → release flow).
+- (Optional Slice 6): hub-side derived-snapshot cache — defer until benchmarks demand.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ Approach chosen and matches T-2019's claim semantics (anti-joins on `claims.claimed_by`).
+- ✅ Scale measurement: O(presence_topic_size) + O(claims_table_size). At fleet scale (≤30 agents per ADR §1), <10ms per call expected. T-1991's perf finding (per-binary-version, not topic-size) clarifies the bloat concern is retention/compaction (T-2028), not registry shape.
+- ✅ Build is bounded: ~150 LOC, ≤1 session, 5 vertical slices.
+
+Open follow-up tasks to file on GO:
+- Build task for Slices 1-5.
+- Heartbeat schema migration coordination task (consumers + AEF).
