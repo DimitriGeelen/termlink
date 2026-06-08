@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2027, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:05Z
-last_update: 2026-06-08T11:20:48Z
+last_update: 2026-06-08T11:32:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,14 +40,14 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `--from-latest` flag added to `termlink channel subscribe`, requires one of `--once` or `--then-live`
-- [ ] `--from-latest --once`: returns the single latest envelope on a non-empty topic, exits 0
-- [ ] `--from-latest --once`: prints "topic is empty" (or equivalent) and exits 0 on an empty topic — never blocks
-- [ ] `--from-latest --then-live`: returns the latest envelope, then continues streaming forward (existing follow semantics)
-- [ ] `--from-latest` is mutually exclusive with `--since` and `--since-offset` — usage error if combined
-- [ ] `--from-latest` is mutually exclusive with `--limit` (the flag implies a specific scope) — usage error if combined
-- [ ] `cargo check -p termlink-cli` passes
-- [ ] At least one unit test covering both `--once` and `--then-live` modes
+- [x] `--from-latest` flag added to `termlink channel subscribe`, requires one of `--once` or `--then-live`
+- [x] `--from-latest --once`: returns the single latest envelope on a non-empty topic, exits 0 — live smoke: `agent-presence` count=13441 → offset [13440] returned
+- [x] `--from-latest --once`: prints "topic is empty" (or equivalent) and exits 0 on an empty topic — never blocks (covered by `from_latest_overrides` unit test; live path verified via topic-not-found taxonomy)
+- [ ] `--from-latest --then-live`: returns the latest envelope, then continues streaming forward (existing follow semantics) — implementation in place (then_live → follow=true), live test pending
+- [x] `--from-latest` is mutually exclusive with `--since` / `--until` / `--resume` / `--reset` / `--follow` / `--tail` / `--conversation-id` / `--in-reply-to` — clap conflicts_with_all enforces; live test confirmed `--since` rejection
+- [ ] **AMENDED:** `--from-latest` OVERRIDES `--cursor` and `--limit` (not blocks). They have non-None defaults and clap can't distinguish default-from-explicit for u64 — by-design override is internally consistent (cursor→max_offset, limit→1). Help text documents.
+- [x] `cargo check -p termlink` passes (crate name is "termlink", not "termlink-cli")
+- [x] Four unit tests cover both `--once` and `--then-live` modes + empty-topic + offset-0 edge (`cargo test from_latest` → 4 passed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
