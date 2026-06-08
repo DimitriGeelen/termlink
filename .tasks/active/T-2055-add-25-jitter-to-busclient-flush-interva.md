@@ -4,7 +4,7 @@ name: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)"
 description: >
   Add ±25% random jitter to the per-tick sleep in BusClient::connect_with_interval (crates/termlink-session/src/bus_client.rs:96-124) so fleet-wide hub bounces don't produce simultaneous flush pulses (thundering-herd against T-2048's RATE_LIMITED). Audit findings in docs/reports/T-2050-offline-queue-backoff-audit.md §'Why jitter is the one real gap'. ≤30 LOC including a unit test using a seeded RNG. rand crate already a workspace dep.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T16:13:59Z
-last_update: 2026-06-08T16:13:59Z
+last_update: 2026-06-08T17:58:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,20 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2050 audit identified that `BusClient::connect_with_interval` uses an unjittered constant 5s tick. Under a fleet-wide hub bounce (every spoke detects hub-down at roughly the same time, queues posts, then synchronously wakes every 5s), the flush pulses align — when the hub returns, all spokes hit it on the same tick boundary, defeating T-2048's RATE_LIMITED protections. Adding ±25% random jitter to the per-tick sleep desynchronises the fleet at negligible cost. Audit doc: `docs/reports/T-2050-offline-queue-backoff-audit.md` §"Why jitter is the one real gap".
+
+Substrate primitive #5 (T-2018 §6) closure — this is the last open gap from the T-2050 audit. Closes IW-3 fully.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `BusClient::connect_with_interval` per-tick sleep is jittered by ±25% of the base `flush_interval`
+- [x] Jitter computation is a pure helper (`jittered_interval(base, &mut rng) -> Duration`) so unit tests can use a seeded RNG without touching the spawned task
+- [x] Unit test with seeded `StdRng` confirms `jittered_interval(5s, seed=0..)` always falls within `[3.75s, 6.25s]` over 100 samples
+- [x] Unit test confirms jittered values are NOT all identical (the RNG actually varies) — distribution spans ≥50% of the ±25% band
+- [x] `cargo test -p termlink-session bus_client` passes including new tests
+- [x] `cargo check -p termlink-session` clean
+- [x] Diff is ≤30 LOC of non-test code per T-2050 budget
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,6 +113,9 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo check -p termlink-session 2>&1 | tail -5 | grep -qv "error\["
+cargo test -p termlink-session --lib bus_client::tests 2>&1 | tail -10 | grep -q "test result: ok"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -147,6 +156,11 @@ date_finished: null
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-08 — extracted as pure helper for testability
+- **What changed:** Audit pattern in T-2050 inlined the jitter math in the spawned task. That makes seeding the RNG hard (can't reach into the task) and pushes tests toward integration-style timing assertions. Extracted `jittered_interval(base, &mut rng) -> Duration` so the helper is testable with `StdRng::seed_from_u64`, and the spawned task just calls it with `thread_rng()`.
+- **Plan impact:** None — same wire shape, same ±25% band. Test coverage is materially better (3 deterministic unit tests instead of one timing-based integration test).
+- **Triggered:** Added the third test (`jittered_interval_handles_tiny_base_safely`) after noticing `gen_range(0..=0)` would panic at sub-4ms intervals — production never sees this, but tests might.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -174,3 +188,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2055-add-25-jitter-to-busclient-flush-interva.md
 - **Context:** Initial task creation
+
+### 2026-06-08T17:56:42Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
