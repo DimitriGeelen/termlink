@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T22:31:53Z
-last_update: 2026-06-08T22:31:53Z
+last_update: 2026-06-08T22:58:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,12 +56,12 @@ UX of the §6 #10 substrate-governor arc.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `FleetAction::GovernorStatus` gains a `--notify <CMD>` flag, requires `--watch` (clap `requires`).
-- [ ] `fire_governor_notify()` helper invokes `sh -c <CMD>` fire-and-forget with full env-var payload (15 vars: HUB, KIND, TS + before/after for reach/conn_active/cap_hits/rate_hits/dedupe_hits + delta vars for the three counters).
-- [ ] Watch loop fires the hook on every per-hub change cycle (`transition` | `new` | `removed`) — NOT on baseline cycle (no prior state to diff).
-- [ ] Hanging notify scripts do NOT block the watch loop (spawn-and-continue, OS reaps child); spawn failure logs to stderr but watch continues.
-- [ ] A pure helper `build_governor_notify_env()` materializes the env-var dict and is unit-tested with ≥2 cases: counter delta math + None→Some dedupe transition.
-- [ ] CLAUDE.md BACKPRESSURE row updated with `--notify` example.
+- [x] `FleetAction::GovernorStatus` gains a `--notify <CMD>` flag, requires `--watch` (clap `requires`). — cli.rs `#[arg(long, value_name = "CMD", requires = "watch")] notify: Option<String>`.
+- [x] `fire_governor_notify()` helper invokes `sh -c <CMD>` fire-and-forget with full env-var payload (15 vars: HUB, KIND, TS + before/after for reach/conn_active/cap_hits/rate_hits/dedupe_hits + delta vars for the three counters). — remote.rs, calls `build_governor_notify_env` to build the dict, threads into `Command::env` per pair, spawn-and-continue.
+- [x] Watch loop fires the hook on every per-hub change cycle (`transition` | `new` | `removed`) — NOT on baseline cycle (no prior state to diff). — three new `if let Some(cmd) = notify.as_deref()` arms in the change branch; baseline branch unchanged.
+- [x] Hanging notify scripts do NOT block the watch loop (spawn-and-continue, OS reaps child); spawn failure logs to stderr but watch continues. — `child.spawn()` returns immediately; live smoke confirms 2 events fired during a 14s watch run with the loop continuing through the next cycle.
+- [x] A pure helper `build_governor_notify_env()` materializes the env-var dict and is unit-tested with ≥2 cases: counter delta math + None→Some dedupe transition. — both pass: `build_governor_notify_env_computes_cap_hits_delta` + `build_governor_notify_env_handles_dedupe_none_to_some`. 829 → 831 bin lib tests.
+- [x] CLAUDE.md BACKPRESSURE row updated with `--notify` example. — row 1170 paragraph extended with T-2065 description + recipe (`--watch 30 --notify /usr/local/bin/page-on-cap.sh`); env-var dict referenced. docs/operations/substrate-governor.md also gained a `--notify` script-template recipe.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
