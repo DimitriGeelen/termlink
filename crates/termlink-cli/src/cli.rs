@@ -3628,13 +3628,27 @@ pub(crate) enum FleetAction {
     /// T-2048's `termlink_hub_governor_status` MCP verb.
     GovernorStatus {
         /// Output result as JSON for scripting / dashboards.
-        #[arg(long)]
+        /// Incompatible with `--watch` (streaming text only).
+        #[arg(long, conflicts_with = "watch")]
         json: bool,
 
         /// RPC timeout per hub in seconds (default: 8). Each hub is bounded
         /// independently so a wedged hub cannot hang the fleet view.
         #[arg(long, default_value = "8")]
         timeout: u64,
+
+        /// T-2064 (T-2028 §6 #10 Track E): re-poll the fleet every N seconds
+        /// and emit per-hub state changes (capacity_hits / rate_hits /
+        /// dedupe_hits deltas, reachable transitions). N clamped to [5, 3600].
+        /// Cycle 1 prints a baseline; subsequent cycles print only changed
+        /// hubs plus a silent-cycle marker. SIGINT exits cleanly.
+        ///
+        /// Pattern parity with `fleet doctor --watch` (T-1667). Designed for
+        /// "leave running in a terminal" surveillance — answers
+        /// "is the substrate being refused right now?" without re-running a
+        /// one-shot every minute.
+        #[arg(long, value_name = "SECONDS")]
+        watch: Option<u64>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the

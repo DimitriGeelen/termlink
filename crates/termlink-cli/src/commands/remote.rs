@@ -2746,6 +2746,260 @@ pub(crate) async fn cmd_fleet_governor_status(
     Ok(())
 }
 
+/// T-2064 (T-2028 §6 #10 Track E): per-hub governor state observed each cycle.
+/// `(reachable, connections_active, connections_max, capacity_hits_total,
+/// rate_hits_total, dedupe_hits_total)`. dedupe_hits is `Option<i64>` because
+/// older hubs predating T-2049 omit the field; the renderer formats those as
+/// "n/a" rather than masking them as 0.
+type WatchGovernorState = (bool, i64, i64, i64, i64, Option<i64>);
+
+/// T-2064: pure helper that formats one change line for a hub whose governor
+/// state moved between cycles. Extracted for unit-testability — the loop body
+/// just calls this. Inputs are `(prev, current)` tuples + the cycle timestamp
+/// and hub name. Returns the full println-able line (no trailing newline).
+///
+/// Emission rules:
+///   - cap_hits / rate_hits / dedupe_hits show "X→Y(+delta)" when delta > 0,
+///     "X→Y" when unchanged but other field changed.
+///   - dedupe_hits shows "n/a" when either side lacks the field (older hub
+///     pre-T-2049 or runtime upgrade mid-watch).
+///   - Reachable transitions get a SECOND line appended (separated by '\n')
+///     so the operator's eye catches "X UNREACHABLE" / "X REACHABLE again"
+///     without scanning the conn= cluster.
+pub(crate) fn render_governor_watch_change_line(
+    ts: &str,
+    name: &str,
+    prev: &WatchGovernorState,
+    new: &WatchGovernorState,
+) -> String {
+    let dedupe_str = match (prev.5, new.5) {
+        (Some(p), Some(n)) => {
+            let delta = n.saturating_sub(p).max(0);
+            if delta > 0 {
+                format!("{}→{}(+{})", p, n, delta)
+            } else {
+                format!("{}→{}", p, n)
+            }
+        }
+        _ => "n/a".to_string(),
+    };
+    let cap_delta = new.3.saturating_sub(prev.3).max(0);
+    let rate_delta = new.4.saturating_sub(prev.4).max(0);
+    let cap_str = if cap_delta > 0 {
+        format!("{}→{}(+{})", prev.3, new.3, cap_delta)
+    } else {
+        format!("{}→{}", prev.3, new.3)
+    };
+    let rate_str = if rate_delta > 0 {
+        format!("{}→{}(+{})", prev.4, new.4, rate_delta)
+    } else {
+        format!("{}→{}", prev.4, new.4)
+    };
+
+    let mut line = format!(
+        "{}   {} conn={}/{}→{}/{} cap_hits={} rate_hits={} dedupe_hits={}",
+        ts, name, prev.1, prev.2, new.1, new.2, cap_str, rate_str, dedupe_str,
+    );
+    if !prev.0 && new.0 {
+        line.push_str(&format!("\n{}   {} REACHABLE again", ts, name));
+    } else if prev.0 && !new.0 {
+        line.push_str(&format!("\n{}   {} UNREACHABLE", ts, name));
+    }
+    line
+}
+
+/// T-2064 (T-2028 §6 #10 Track E): continuous-monitor companion to
+/// `cmd_fleet_governor_status`. Re-spawns self with `--json --timeout N` each
+/// cycle, parses the result, tracks per-hub state in a BTreeMap, emits one
+/// baseline cycle then change-only output. SIGINT exits cleanly.
+///
+/// Pattern parity with `cmd_fleet_doctor_watch` (T-1667). Stays narrower —
+/// no notify/auto-heal, because governor-status is observe-only telemetry
+/// (the response to "hub at capacity" is operator policy: tune env vars,
+/// scale out, throttle client, kill runaway poller — there's no symmetric
+/// auto-heal the way `bootstrap_from` heals rotation).
+pub(crate) async fn cmd_fleet_governor_status_watch(
+    secs: u64,
+    timeout_secs: u64,
+) -> Result<()> {
+    if !(5..=3600).contains(&secs) {
+        anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
+    }
+    let exe = std::env::current_exe()
+        .context("--watch: cannot determine self path for subprocess re-spawn")?;
+
+    let args: Vec<String> = vec![
+        "fleet".into(),
+        "governor-status".into(),
+        "--json".into(),
+        "--timeout".into(),
+        timeout_secs.to_string(),
+    ];
+
+    let mut prior: std::collections::BTreeMap<String, WatchGovernorState> =
+        std::collections::BTreeMap::new();
+    let mut cycle: u32 = 0;
+
+    eprintln!(
+        "{} governor-watch: polling every {}s; ctrl-c to stop",
+        crate::manifest::now_rfc3339(),
+        secs,
+    );
+
+    loop {
+        let one_cycle = tokio::process::Command::new(&exe).args(&args).output();
+        let output = tokio::select! {
+            r = one_cycle => r.context("--watch: subprocess spawn failed")?,
+            _ = tokio::signal::ctrl_c() => {
+                println!(
+                    "{} governor-watch stopped (sigint, completed {} cycle(s))",
+                    crate::manifest::now_rfc3339(), cycle
+                );
+                return Ok(());
+            }
+        };
+
+        let ts = crate::manifest::now_rfc3339();
+        let json_doc: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!(
+                    "{} governor-watch: failed to parse subprocess JSON ({}): exit={:?}",
+                    ts, e, output.status.code()
+                );
+                tokio::select! {
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(secs)) => continue,
+                    _ = tokio::signal::ctrl_c() => {
+                        println!(
+                            "{} governor-watch stopped (sigint, completed {} cycle(s))",
+                            crate::manifest::now_rfc3339(), cycle
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+        };
+
+        let mut current: std::collections::BTreeMap<String, WatchGovernorState> =
+            std::collections::BTreeMap::new();
+        if let Some(hubs) = json_doc.get("hubs").and_then(|v| v.as_array()) {
+            for hub in hubs {
+                let name = hub
+                    .get("hub")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("?")
+                    .to_string();
+                let ok = hub.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+                let gov = hub.get("governor");
+                let conn_active = gov
+                    .and_then(|g| g.get("connections_active"))
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(0);
+                let conn_max = gov
+                    .and_then(|g| g.get("connections_max"))
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(-1);
+                let cap_hits = gov
+                    .and_then(|g| g.get("capacity_hits_total"))
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(0);
+                let rate_hits = gov
+                    .and_then(|g| g.get("rate_hits_total"))
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(0);
+                let dedupe_hits = gov
+                    .and_then(|g| g.get("dedupe_hits_total"))
+                    .and_then(|x| x.as_i64());
+                current.insert(
+                    name,
+                    (ok, conn_active, conn_max, cap_hits, rate_hits, dedupe_hits),
+                );
+            }
+        }
+
+        cycle += 1;
+        if cycle == 1 {
+            println!("{} baseline: {} hub(s)", ts, current.len());
+            for (name, st) in &current {
+                let dedupe_str = st
+                    .5
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "n/a".into());
+                println!(
+                    "{}   {} reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={}",
+                    ts,
+                    name,
+                    if st.0 { "ok" } else { "fail" },
+                    st.1,
+                    st.2,
+                    st.3,
+                    st.4,
+                    dedupe_str
+                );
+            }
+        } else {
+            let mut changes = 0u32;
+            for (name, new_state) in &current {
+                let old = prior.get(name);
+                if old != Some(new_state) {
+                    if let Some(o) = old {
+                        println!(
+                            "{}",
+                            render_governor_watch_change_line(&ts, name, o, new_state)
+                        );
+                    } else {
+                        let dedupe_str = new_state
+                            .5
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "n/a".into());
+                        println!(
+                            "{}   {} NEW reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={}",
+                            ts,
+                            name,
+                            if new_state.0 { "ok" } else { "fail" },
+                            new_state.1,
+                            new_state.2,
+                            new_state.3,
+                            new_state.4,
+                            dedupe_str
+                        );
+                    }
+                    changes += 1;
+                }
+            }
+            for (name, old_state) in &prior {
+                if !current.contains_key(name) {
+                    println!(
+                        "{}   {} REMOVED (was reach={} conn={}/{})",
+                        ts,
+                        name,
+                        if old_state.0 { "ok" } else { "fail" },
+                        old_state.1,
+                        old_state.2,
+                    );
+                    changes += 1;
+                }
+            }
+            if changes == 0 {
+                println!("{} no changes (cycle {})", ts, cycle);
+            }
+        }
+
+        prior = current;
+
+        tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_secs(secs)) => {},
+            _ = tokio::signal::ctrl_c() => {
+                println!(
+                    "{} governor-watch stopped (sigint, completed {} cycle(s))",
+                    crate::manifest::now_rfc3339(), cycle
+                );
+                return Ok(());
+            }
+        }
+    }
+}
+
 /// T-1667: per-hub state observed at each watch cycle. `(connectivity_status,
 /// pin_check_status, total_legacy_invocations)`. Used to compute cycle-over-cycle
 /// state diffs. `BTreeMap` (not `HashMap`) keeps output ordering stable across
@@ -7377,6 +7631,88 @@ mod tests {
         // Sum still reports what we DID see — partial-i64 sum keeps 0 for absent.
         assert!(out.contains("Total connections active:      3"),
             "expected sum from sole hub, got: {out}");
+    }
+
+    // T-2064 (T-2028 §6 #10 Track E): render_governor_watch_change_line — pure helper
+    // used by cmd_fleet_governor_status_watch's diff emission. These tests pin the
+    // operator-visible "+delta" formatting + reachability transition lines.
+
+    #[test]
+    fn watch_governor_renders_cap_hits_delta() {
+        // Hub stayed reachable; cap_hits jumped 0 → 5 (5 connections refused).
+        let prev: WatchGovernorState = (true, 200, 256, 0, 0, Some(10));
+        let new: WatchGovernorState = (true, 256, 256, 5, 0, Some(10));
+        let line =
+            render_governor_watch_change_line("2026-06-08T22:00:00Z", "hub-a", &prev, &new);
+        assert!(
+            line.contains("cap_hits=0→5(+5)"),
+            "expected cap_hits delta, got: {line}"
+        );
+        assert!(
+            line.contains("conn=200/256→256/256"),
+            "expected conn pair, got: {line}"
+        );
+        // No reach transition → single-line output.
+        assert!(
+            !line.contains("UNREACHABLE") && !line.contains("REACHABLE again"),
+            "expected no reach transition, got: {line}"
+        );
+    }
+
+    #[test]
+    fn watch_governor_renders_rate_hits_delta() {
+        // Rate-limit fired 3 times between cycles; cap unchanged.
+        let prev: WatchGovernorState = (true, 12, 256, 0, 100, Some(0));
+        let new: WatchGovernorState = (true, 14, 256, 0, 103, Some(0));
+        let line =
+            render_governor_watch_change_line("2026-06-08T22:00:30Z", "hub-b", &prev, &new);
+        assert!(
+            line.contains("rate_hits=100→103(+3)"),
+            "expected rate_hits delta with +3, got: {line}"
+        );
+        // cap_hits unchanged → no delta marker.
+        assert!(
+            line.contains("cap_hits=0→0"),
+            "expected cap_hits unchanged form, got: {line}"
+        );
+        assert!(
+            !line.contains("cap_hits=0→0(+"),
+            "expected no spurious +N on unchanged counter, got: {line}"
+        );
+    }
+
+    #[test]
+    fn watch_governor_renders_reachable_transition() {
+        // Hub went from reachable to UNREACHABLE — operator must see this loudly.
+        let prev: WatchGovernorState = (true, 100, 256, 0, 0, Some(0));
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None);
+        let line =
+            render_governor_watch_change_line("2026-06-08T22:01:00Z", "hub-c", &prev, &new);
+        assert!(
+            line.contains("UNREACHABLE"),
+            "expected UNREACHABLE marker, got: {line}"
+        );
+        // Two-line output: change line + reach transition line.
+        let line_count = line.matches('\n').count();
+        assert_eq!(
+            line_count, 1,
+            "expected exactly one newline (two lines), got {line_count}: {line}"
+        );
+        // dedupe_hits Some→None → n/a sentinel (T-2049 field disappearing case).
+        assert!(
+            line.contains("dedupe_hits=n/a"),
+            "expected n/a for newly-absent dedupe field, got: {line}"
+        );
+
+        // Inverse direction: recovery emits "REACHABLE again".
+        let prev2: WatchGovernorState = (false, 0, -1, 0, 0, None);
+        let new2: WatchGovernorState = (true, 5, 256, 0, 0, Some(0));
+        let line2 =
+            render_governor_watch_change_line("2026-06-08T22:01:30Z", "hub-c", &prev2, &new2);
+        assert!(
+            line2.contains("REACHABLE again"),
+            "expected recovery marker, got: {line2}"
+        );
     }
 
     #[tokio::test]
