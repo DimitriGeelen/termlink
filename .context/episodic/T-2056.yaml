@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2056: Execute T-2025 NO-GO doc actions: ADR §6 #7 actual state + substrate-claim post-restart blackout para
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T18:05:22Z
+# ============================================================================
+
+task_id: T-2056
+task_name: "Execute T-2025 NO-GO doc actions: ADR §6 #7 actual state + substrate-claim post-restart blackout para"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T18:02:52Z
+completed: 2026-06-08T18:05:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T20:05:14+02:00
+last_commit: 2026-06-08T20:05:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  execute T-2025 NO-GO doc actions (substrate primitive #7)
+
+# Key outcomes
+outcomes:
+  - '`docs/architecture/parallel-execution-substrate.md` §6 #7 reflects actual state: presence DATA durable (channel topic), DERIVED VIEW in-memory but reconstructible, circuit-breaker reset on restart is intentional'
+  - '`docs/operations/substrate-claim-primitive.md` carries a "post-restart blackout window" paragraph naming the one-heartbeat-interval (~30s) reconstruction bound and pointing at T-2025 for the design rationale'
+  - 'Both doc edits cross-reference T-2025 inception (so a reader can trace back)'
+  - 'No code changes — pure docs'
+  - '`grep -qi "presence DATA is durable" docs/architecture/parallel-execution-substrate.md` succeeds'
+  - '`grep -qi "post-restart blackout" docs/operations/substrate-claim-primitive.md` succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/architecture/parallel-execution-substrate.md'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2056-execute-t-2025-no-go-doc-actions-adr-6-7.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T20:05:14"
+    action: "T-2056: execute T-2025 NO-GO doc actions (substrate primitive #7)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, docs]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 238
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2056-execute-t-2025-no-go-doc-actions-adr-6-7.md
+generated_by: context-agent-hybrid

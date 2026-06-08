@@ -4,10 +4,10 @@ name: "Execute T-2025 NO-GO doc actions: ADR §6 #7 actual state + substrate-cla
 description: >
   Execute T-2025 NO-GO doc actions: ADR §6 #7 actual state + substrate-claim post-restart blackout para
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, docs]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T18:02:52Z
-last_update: 2026-06-08T18:02:52Z
-date_finished: null
+last_update: 2026-06-08T18:05:19Z
+date_finished: 2026-06-08T18:05:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -189,3 +189,6 @@ grep -q "T-2025" docs/operations/substrate-claim-primitive.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2056-execute-t-2025-no-go-doc-actions-adr-6-7.md
 - **Context:** Initial task creation
+
+### 2026-06-08T18:05:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
