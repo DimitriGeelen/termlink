@@ -6,15 +6,15 @@ description: >
   no in-flight counter. Heartbeats land in a topic and LIVE/STALE/OFFLINE classification
   is client-side. Orchestrator needs a reliable picture of who is free to assign safely.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:20Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T06:57:59Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,24 +56,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Hub-tracked vs server-side-derived from heartbeat topic?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Derivation is cheap but stale; hub-tracked is current but adds write-path
+  confidence: 4
+  disposition: resolved
+  rationale: DERIVE + future hub-side cache. New table duplicates state in `agent-presence` topic + `claims` table — two sources of truth = drift surface (makes IW-4 intractable). Append-log is the substrate's primary surface per ADR §2; a parallel agent_state table contradicts §5's "one writer, serialized" stance. Derivation `idle_agents = LIVE(presence) \ DISTINCT(claimed_by)` is O(presence) + O(claims) — both tiny at fleet scale (≤30 agents per §1). See docs/reports/T-2020-idle-busy-registry-inception.md §4.IW-1.
 
 - **IW-2: Granularity — by agent_id, by role, by capability tag?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Capability-tag is more flexible but harder to migrate to
+  confidence: 4
+  disposition: resolved
+  rationale: BOTH role AND capability, with capability as a structured array. Single-string role (today) is insufficient for "give me an idle worker that can build AND publish". Per T-1165 federate-don't-converge, metadata fields scale better than naming conventions. Add `metadata.capabilities: [string]` to heartbeat (backward-compat: missing = empty set). agent_id remains primary key. See artifact §4.IW-2.
 
 - **IW-3: Update rate — pushed by worker on transition vs polled by hub on each assign?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Push is low-latency; poll is fail-safe
+  confidence: 4
+  disposition: resolved
+  rationale: PULL on each assign. Every `claim`/`release` already mutates the `claims` table — the hub can DERIVE busy/idle from that at read time. Pushing busy/idle transitions adds a write hot-path workers don't need. Pull-on-assign is also more failure-tolerant: registry is always consistent with current truth at query time. Future optimization: cache derived snapshot in hub memory with invalidation on `claim`/`release` — not needed for launch. See artifact §4.IW-3.
 
 - **IW-4: Race resolution — worker says BUSY but hub thinks IDLE: who wins?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Tie to T-2019's claim semantics for consistency
+  confidence: 4
+  disposition: resolved
+  rationale: HUB WINS — orchestrator's view is authoritative because it's consistent across orchestrators while the worker's view is only consistent with itself. For the orchestration plane to be sound, the hub MUST be authoritative. Workers that disagree reconcile by releasing local state, not by overriding hub state. Edge case "worker holds claim but orchestrator marked it idle" is impossible because claims table is already in the derivation. See artifact §4.IW-4.
 
 ## Exploration Plan
 
@@ -137,9 +137,28 @@ After T-2019 lands. (1) Confirm whether claim implicitly tracks worker state —
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO with revised scope (no new persistent table — derive from existing `agent-presence` topic + `claims` table).
 
-**Rationale:** Captured-while-fresh per PL-203; per-primitive design follows operator promotion.
+**Rationale (one-paragraph):** The registry collapses to a DERIVATION + ONE QUERY VERB, not a new state surface. The substrate already has both data sources (presence topic for liveness + claims table for busy state); the missing piece is the server-side join. Adding a parallel `agent_state` table would duplicate state and create the drift surface that makes IW-4 intractable. Instead: ship `agent.find_idle(role?, capabilities?)` RPC that walks presence (filter to LIVE, apply role/capability predicate) and EXCLUDEs every agent_id in `SELECT DISTINCT claimed_by FROM claims WHERE claimed_until > now`. Extend the heartbeat envelope with `metadata.capabilities: [string]` (backward-compat: missing = empty set). Five small slices following T-2019's vertical pattern; estimated ~150 LOC + ≤1 session. No upstream blockers — T-2025 (persistent presence across restart) is a soft-dep (acceptable degradation: one-heartbeat-interval blackout post-restart). Hard-dep for AEF per §9.
+
+**Full design + IW dispositions:** see [docs/reports/T-2020-idle-busy-registry-inception.md](../../docs/reports/T-2020-idle-busy-registry-inception.md).
+
+**Build slice plan (mirrors T-2019 verticalization):**
+- Slice 1: `agent.find_idle` RPC + bus library function + unit tests.
+- Slice 2: CLI verb `termlink agent find-idle`.
+- Slice 3: MCP tool `termlink_agent_find_idle`.
+- Slice 4: Heartbeat schema extension (capabilities) + listener-heartbeat.sh update.
+- Slice 5: Documentation + runnable example (orchestrator → find_idle → claim → release flow).
+- (Optional Slice 6): hub-side derived-snapshot cache — defer until benchmarks demand.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ✅ Approach chosen and matches T-2019's claim semantics (anti-joins on `claims.claimed_by`).
+- ✅ Scale measurement: O(presence_topic_size) + O(claims_table_size). At fleet scale (≤30 agents per ADR §1), <10ms per call expected. T-1991's perf finding (per-binary-version, not topic-size) clarifies the bloat concern is retention/compaction (T-2028), not registry shape.
+- ✅ Build is bounded: ~150 LOC, ≤1 session, 5 vertical slices.
+
+**Open follow-up tasks to file on GO:**
+- Build task for Slices 1-5.
+- Heartbeat schema migration coordination task (consumers + AEF).
 
 ## Decisions
 
@@ -160,3 +179,7 @@ After T-2019 lands. (1) Confirm whether claim implicitly tracks worker state —
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T06:57:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

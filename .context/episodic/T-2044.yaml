@@ -1,0 +1,115 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2044: Substrate Slice 11: channel claim-force-release — operator intervention verb (T-2019 extension)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T06:54:50Z
+# ============================================================================
+
+task_id: T-2044
+task_name: "Substrate Slice 11: channel claim-force-release — operator intervention verb (T-2019 extension)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T06:32:43Z
+completed: 2026-06-08T06:48:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T08:48:12+02:00
+last_commit: 2026-06-08T08:48:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate Slice 11 — channel.force_release operator intervention verb
+
+# Key outcomes
+outcomes:
+  - '`crates/termlink-bus/src/meta.rs`: add `force_release_claim(claim_id, reason)` library function — same DELETE path as `release_claim` but no `claimed_by != claimer` check; returns `ReleaseInfo` with `ack=false` semantics'
+  - '`crates/termlink-bus/src/lib.rs`: pub wrapper `force_release_claim` on `Bus` + unit test verifying force-release succeeds where `release_claim` fails with `ClaimNotOwned`'
+  - '`crates/termlink-hub/src/channel.rs`: `handle_channel_force_release` RPC handler — params `{topic, claim_id, reason?}`, returns `{ok: true, topic, offset, claim_id, forced_by_reason}`'
+  - '`crates/termlink-protocol/src/control.rs`: register `CHANNEL_FORCE_RELEASE = "channel.force_release"` constant with doc-block matching existing pattern'
+  - '`crates/termlink-hub/src/router.rs`: route `CHANNEL_FORCE_RELEASE` → `channel::handle_channel_force_release` + add to allow-list at line 833-block'
+  - '`crates/termlink-cli/src/cli.rs` + `commands/channel.rs`: `channel claim-force-release <topic> <claim_id> [--reason "..."]` CLI verb wrapping the RPC, with `--json` mode'
+  - '`crates/termlink-mcp/src/tools.rs`: `termlink_channel_claim_force_release` MCP tool — symmetry per established pattern (T-2043 closure)'
+  - 'Live verification: spin a fresh hub, claim with claimer A, force-release with caller B + reason, verify (a) RPC returns ok, (b) `channel claims` shows the slot freed, (c) a follow-up `claim` from claimer C succeeds and gets a fresh `claim_id`'
+  - '`docs/operations/substrate-claim-primitive.md`: add "Stuck-worker intervention" section under the existing "Stuck-worker pattern" — show the diagnostic-then-fix recipe (`claims-summary --watch` flags → `claim-force-release` clears)'
+  - '`.context/project/concerns.yaml`: log G-064 candidate — hub has no per-user authorization model, force-release is operator-equivalent only because anyone with hub access has full control'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-08.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/concerns.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.release-mirror-canary.log'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-bus/src/claim.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'crates/termlink-session/src/claim_client.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2044-substrate-slice-11-channel-claim-force-r.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T08:48:12"
+    action: "T-2044: substrate Slice 11 — channel.force_release operator intervention verb"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 34
+  lines_added: 1181
+  lines_removed: 56
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2044-substrate-slice-11-channel-claim-force-r.md
+generated_by: context-agent-hybrid
