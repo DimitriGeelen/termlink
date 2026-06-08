@@ -7,15 +7,15 @@ description: >
   no outbound queue). A worker that finishes during a hub blip loses its completion
   report. Needed so the governance plane does not silently drop ledger messages.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:33Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:41:37Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,24 +57,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Queue location — in-memory (lost on spoke crash) vs spilled to disk (durable across spoke restart)?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Disk is the right answer; question is which disk path
+  confidence: 4
+  disposition: resolved
+  rationale: ALREADY DISK-BACKED. `crates/termlink-session/src/offline_queue.rs` (~383 LOC) implements SQLite-backed `pending_posts` table with `default_queue_path()` at `~/.termlink/<name>/outbound.sqlite`. Shipped under T-1439, predates T-2023's filing. See docs/reports/T-2023-client-reconnect-queue-inception.md §2.
 
 - **IW-2: Queue size cap + overflow policy — backpressure to caller, oldest-drop, or fail-loudly?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Fail-loudly preserves correctness over throughput; default for ledger writes
+  confidence: 4
+  disposition: resolved
+  rationale: ALREADY FAIL-LOUDLY (R3). `DEFAULT_CAP = 1000` configurable via env; `QueueError::Full { cap }` returned when capacity exceeded. Refuses new posts rather than silent-dropping — preserves correctness over throughput, matches ADR's loud-not-silent stance. See artifact §2.
 
 - **IW-3: Reconnect strategy — exponential backoff with jitter, max attempts, explicit fail-permanent signal?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Standard pattern; details matter for ring20 partition behavior
+  confidence: 2
+  disposition: partial
+  rationale: PARTIAL. `attempts` counter per row exists for poison-pill detection; explicit backoff/jitter/max-attempts/fail-permanent parameters are not visible from offline_queue.rs alone — they live in the flush loop (T-1439, not yet inspected). Audit task needed to document params + identify any with poor defaults. See artifact §4.B.
 
 - **IW-4: Idempotency — dedupe on hub if a queued post was actually delivered before disconnect?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Tie to message-id or content hash
+  confidence: 4
+  disposition: open
+  rationale: MISSING — the real remaining gap. No `client_msg_id` field on post envelope, no hub-side LRU dedupe. The double-apply scenario is reproducible: spoke posts, hub commits at offset N, TCP ack lost, spoke queues + retries, hub commits AGAIN at N+1, subscribers see the same payload twice. Fix shape: client generates `client_msg_id` (UUID or content-hash); hub maintains short-TTL (e.g. 5 min) recently-seen LRU keyed by `(sender_fingerprint, client_msg_id)` and no-ops duplicates. ~80 LOC. See artifact §4.A.
 
 ## Exploration Plan
 
@@ -138,9 +138,35 @@ At promotion time: (1) measure ring20 hub-blip frequency and duration on existin
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** MOSTLY-SHIPPED — partial-GO on three small remaining gaps. The bulk of the primitive shipped under T-1439 before T-2023 was filed.
 
-**Rationale:** Captured-while-fresh per PL-203; per-primitive design follows operator promotion.
+**Rationale (one-paragraph):** The §6 framing was correct at filing — there was no outbound queue. T-1439 then shipped one: `crates/termlink-session/src/offline_queue.rs` provides SQLite-backed durable queue (`pending_posts` table), `OfflineQueue::open/enqueue/pop`, `DEFAULT_CAP = 1000`, fail-loudly overflow via `QueueError::Full`, `attempts` counter for poison-pill detection, drain/flush task, and CLI integration in both `channel.rs` and `remote.rs`. IW-1 and IW-2 are fully resolved by that work. What remains: (A) idempotency via `client_msg_id` + hub-side LRU dedupe — the concrete double-apply scenario across hub blips is reproducible and the fix is small (~80 LOC); (B) audit + document the flush loop's backoff parameters; (C) write the operator-facing recipe doc. Three small follow-ups rather than re-shipping the bulk.
+
+**Full analysis:** see [docs/reports/T-2023-client-reconnect-queue-inception.md](../../docs/reports/T-2023-client-reconnect-queue-inception.md).
+
+**Build / follow-up tasks to file on GO:**
+
+**Gap A — Idempotency (build task, ~80 LOC):**
+- Client generates `client_msg_id` on every post (UUID v4 or content-hash + timestamp).
+- Hub maintains short-TTL (~5 min) recently-seen LRU keyed by `(sender_fingerprint, client_msg_id)`.
+- On duplicate: hub silently no-ops the second write, returns the original envelope's offset.
+- Closes the double-apply gap across hub blips.
+
+**Gap B — Backoff parameter audit (≤1 session, doc-only):**
+- Locate flush loop implementation (somewhere downstream of T-1439's queue).
+- Document initial delay, max delay, jitter, max attempts, dead-letter behavior.
+- Conditional <50 LOC follow-up if any params are poor.
+
+**Gap C — Operator recipe documentation (~50 lines docs):**
+- Add offline-queue recipe to `docs/operations/`.
+- Describe: how a CLI handles hub-blip, where the queue lives, how to inspect it, how poison-pill rows surface.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ✅ "Queue + reconnect implemented" — already shipped under T-1439.
+- ⏸ "Partition-replay test passes" — needs Gap A + integration test.
+- ⏸ "Idempotency confirmed" — exactly Gap A. Open.
+
+**Why not full GO of T-2023 as captured:** the majority of the work is already shipped. A new build task duplicating that would just re-discover existing code. Three small follow-ups are honest about what's left.
 
 ## Decisions
 
@@ -161,3 +187,7 @@ At promotion time: (1) measure ring20 hub-blip frequency and duration on existin
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:41:37Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
