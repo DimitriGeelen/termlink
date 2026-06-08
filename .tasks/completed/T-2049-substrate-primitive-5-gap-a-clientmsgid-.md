@@ -4,20 +4,20 @@ name: "Substrate primitive #5 Gap A: client_msg_id + hub LRU dedupe for offline-
 description: >
   Implement T-2023 Gap A per docs/reports/T-2023-client-reconnect-queue-inception.md §4.A. Closes the double-apply gap: client posts → hub commits at offset N → TCP ack lost → spoke queues retry → hub commits AGAIN at N+1. Fix: client generates client_msg_id (UUID v4 or content-hash), hub maintains short-TTL (~5min) recently-seen LRU keyed by (sender_fingerprint, client_msg_id), no-ops duplicates. ~80 LOC.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/offline_queue.rs, crates/termlink-session/tests/bus_client_integration.rs]
 related_tasks: [T-2018, T-2023, T-1439]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:24Z
-last_update: 2026-06-08T16:08:45Z
-date_finished: null
+last_update: 2026-06-08T16:09:12Z
+date_finished: 2026-06-08T16:09:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -223,3 +223,6 @@ grep -q "TERMLINK_DEDUPE_TTL_MS" docs/operations/substrate-post-idempotency.md
 
 ### 2026-06-08T15:46:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T16:09:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

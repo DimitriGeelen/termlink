@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2049: Substrate primitive #5 Gap A: client_msg_id + hub LRU dedupe for offline-queue idempotency (T-2023 GO follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T16:09:27Z
+# ============================================================================
+
+task_id: T-2049
+task_name: "Substrate primitive #5 Gap A: client_msg_id + hub LRU dedupe for offline-queue idempotency (T-2023 GO follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:24Z
+completed: 2026-06-08T16:09:12Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T17:46:40+02:00
+last_commit: 2026-06-08T18:09:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  author real ACs — Gap A (client_msg_id + hub LRU dedupe + spoke wire-in). fix Verification — cargo package is 'termlink' not 'termlink-cli'
+
+# Key outcomes
+outcomes:
+  - 'New module `crates/termlink-hub/src/dedupe.rs` exports a `PostDedupe` struct: TTL-bounded + capacity-bounded LRU keyed by `(sender_id, client_msg_id)`; entries store the cached `{offset, ts_unix_ms}` so a duplicate returns the original success envelope.'
+  - '`PostDedupe` API: `try_record_or_lookup(sender_id, client_msg_id, now_ms, offset, ts) -> Outcome { Newly_recorded, Duplicate { offset, ts } }` plus `evict_expired(now_ms)` + accessors `entries_active()` / `hits_total()`.'
+  - 'Defaults: TTL = 5 min (`DEFAULT_DEDUPE_TTL_MS = 300_000`), capacity = 10_000 entries (`DEFAULT_DEDUPE_CAPACITY = 10_000`). Both override-able via `TERMLINK_DEDUPE_TTL_MS` / `TERMLINK_DEDUPE_CAPACITY` env vars at hub start.'
+  - '`OnceLock` global `post_dedupe()` accessor with `init()` matching `governor.rs` pattern; wired into `run_with_tcp` + `run_blocking`.'
+  - '`handle_channel_post_with` reads optional `client_msg_id` from params (string, 1..=128 chars). When present AND identity verified: checks dedupe BEFORE `bus.post()`. Cache hit → return the cached `Response::success(id, {offset, ts})` envelope without re-appending. Cache miss → post normally + record after success.'
+  - '`hub.governor_status` response gains three sibling fields: `dedupe_entries_active`, `dedupe_hits_total`, `dedupe_ttl_ms`. MCP parity tool returns the same shape automatically (passthrough).'
+  - '`PendingPost` (offline_queue) gains optional `client_msg_id: Option<String>` with `#[serde(default, skip_serializing_if = "Option::is_none")]` — old persisted rows deserialize cleanly with `None`, new rows persist + replay the id.'
+  - 'CLI `cmd_channel_post` accepts an optional `client_msg_id: Option<String>` argument; when absent, mints a fresh random 128-bit hex id at call time (via `rand::thread_rng` in `termlink-session::offline_queue::mint_client_msg_id`). The minted id is passed both directly to the hub AND persisted to `PendingPost` so a queue replay reuses the same id.'
+  - 'Unit tests: 9 for `PostDedupe` (insert-then-hit-returns-cached, distinct-sender-no-collision, distinct-msg-no-collision, ttl-eviction, lru-eviction-at-capacity, hit-counter-increments, ttl-anchors-to-first-sighting, evict-expired-explicit, zero-ttl-clamps).'
+  - 'Integration tests in `channel.rs::tests`: 4 (no-id-bypasses-dedupe-and-posts-normally, with-id-first-post-succeeds-and-records, with-id-duplicate-returns-cached-offset, oversized-id-ignored).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Verification — cargo package is ''termlink'' not ''termlink-cli'''
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2049-substrate-primitive-5-gap-a-clientmsgid-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T17:46:40"
+    action: "T-2049: author real ACs — Gap A (client_msg_id + hub LRU dedupe + spoke wire-in)"
+  - time: "2026-06-08T18:09:07"
+    action: "T-2049: fix Verification — cargo package is 'termlink' not 'termlink-cli'"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 319 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 319
+  commits: 2
+  files_changed: 1
+  lines_added: 39
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2049-substrate-primitive-5-gap-a-clientmsgid-.md
+generated_by: context-agent-hybrid
