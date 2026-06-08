@@ -2907,6 +2907,113 @@ fn fire_governor_notify(
     }
 }
 
+/// T-2066 (Track G): build one append-only NDJSON entry for the
+/// `--log <PATH>` audit trail. Pure helper — no IO — so unit tests pin
+/// the counter-delta math + dedupe-null serialization without touching
+/// disk. Flat schema is jq-friendly: every per-counter field is a sibling,
+/// every value is a number or null, never a string.
+///
+/// Mirror of `append_rotation_log` (T-1671) in shape; differs in:
+///   - numeric counters (rotation.log used strings everywhere)
+///   - nullable dedupe fields (None side → JSON null, NOT omitted)
+///   - explicit *_delta fields (rotation.log left this to the reader)
+///
+/// `prev=None` ⇒ "new" event (first observation of a hub mid-watch).
+/// `new=None`  ⇒ "removed" event (hub disappeared from hubs.toml mid-watch).
+pub(crate) fn build_governor_log_entry(
+    hub: &str,
+    kind: &str,
+    ts: &str,
+    prev: Option<&WatchGovernorState>,
+    new: Option<&WatchGovernorState>,
+) -> serde_json::Value {
+    let reach_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        match s {
+            Some(st) => serde_json::Value::String(
+                if st.0 { "ok".into() } else { "fail".into() }
+            ),
+            None => serde_json::Value::Null,
+        }
+    };
+    let conn_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.map(|st| serde_json::json!(st.1)).unwrap_or(serde_json::Value::Null)
+    };
+    let cap_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.map(|st| serde_json::json!(st.3)).unwrap_or(serde_json::Value::Null)
+    };
+    let rate_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.map(|st| serde_json::json!(st.4)).unwrap_or(serde_json::Value::Null)
+    };
+    let dedupe_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.and_then(|st| st.5)
+            .map(|n| serde_json::json!(n))
+            .unwrap_or(serde_json::Value::Null)
+    };
+    let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> serde_json::Value {
+        match (old_v, new_v) {
+            (Some(o), Some(n)) => serde_json::json!((n - o).max(0)),
+            _ => serde_json::Value::Null,
+        }
+    };
+
+    serde_json::json!({
+        "ts": ts,
+        "hub": hub,
+        "kind": kind,
+        "old_reach": reach_v(prev),
+        "new_reach": reach_v(new),
+        "old_conn_active": conn_v(prev),
+        "new_conn_active": conn_v(new),
+        "old_cap_hits": cap_v(prev),
+        "new_cap_hits": cap_v(new),
+        "cap_hits_delta": counter_delta(prev.map(|s| s.3), new.map(|s| s.3)),
+        "old_rate_hits": rate_v(prev),
+        "new_rate_hits": rate_v(new),
+        "rate_hits_delta": counter_delta(prev.map(|s| s.4), new.map(|s| s.4)),
+        "old_dedupe_hits": dedupe_v(prev),
+        "new_dedupe_hits": dedupe_v(new),
+        "dedupe_hits_delta": counter_delta(
+            prev.and_then(|s| s.5),
+            new.and_then(|s| s.5),
+        ),
+    })
+}
+
+/// T-2066 (Track G): append one NDJSON line for a governor watch event.
+/// Best-effort: parent dir auto-created if missing, write failures
+/// (disk full, permission denied, parent-dir-create denied) log to stderr
+/// but never crash the watch. Same shape as T-1671's `append_rotation_log`.
+fn append_governor_log(path: &std::path::Path, entry: &serde_json::Value) {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        eprintln!(
+            "{} governor-watch: --log mkdir failed ({}): {} (entry dropped, watch continues)",
+            crate::manifest::now_rfc3339(),
+            parent.display(),
+            e
+        );
+        return;
+    }
+    let line = format!("{}\n", entry);
+    use std::io::Write;
+    let res = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .and_then(|mut f| f.write_all(line.as_bytes()));
+    if let Err(e) = res {
+        eprintln!(
+            "{} governor-watch: --log write failed ({}): {} (entry dropped, watch continues)",
+            crate::manifest::now_rfc3339(),
+            path.display(),
+            e
+        );
+    }
+}
+
 /// T-2064 (T-2028 §6 #10 Track E): continuous-monitor companion to
 /// `cmd_fleet_governor_status`. Re-spawns self with `--json --timeout N` each
 /// cycle, parses the result, tracks per-hub state in a BTreeMap, emits one
@@ -2914,13 +3021,14 @@ fn fire_governor_notify(
 ///
 /// Pattern parity with `cmd_fleet_doctor_watch` (T-1667). T-2065 added `notify`
 /// for operator-pluggable hooks on per-hub transitions (mirror of T-1669's
-/// `fleet doctor --notify`). No auto-heal counterpart — governor-status is
-/// observe-only telemetry, the response to "hub at capacity" is operator
-/// policy (tune env vars, scale out, throttle client, kill runaway poller).
+/// `fleet doctor --notify`). T-2066 added `log` for an append-only NDJSON
+/// audit trail (mirror of T-1671's `~/.termlink/rotation.log`). No auto-heal
+/// counterpart — governor-status is observe-only telemetry.
 pub(crate) async fn cmd_fleet_governor_status_watch(
     secs: u64,
     timeout_secs: u64,
     notify: Option<String>,
+    log: Option<std::path::PathBuf>,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!("--watch: interval must be 5..=3600 seconds (got {})", secs);
@@ -3053,6 +3161,13 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                                 Some(o), Some(new_state),
                             );
                         }
+                        if let Some(path) = log.as_deref() {
+                            let entry = build_governor_log_entry(
+                                name, "transition", &ts,
+                                Some(o), Some(new_state),
+                            );
+                            append_governor_log(path, &entry);
+                        }
                     } else {
                         let dedupe_str = new_state
                             .5
@@ -3075,6 +3190,13 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                                 None, Some(new_state),
                             );
                         }
+                        if let Some(path) = log.as_deref() {
+                            let entry = build_governor_log_entry(
+                                name, "new", &ts,
+                                None, Some(new_state),
+                            );
+                            append_governor_log(path, &entry);
+                        }
                     }
                     changes += 1;
                 }
@@ -3094,6 +3216,13 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             cmd, name, "removed", &ts,
                             Some(old_state), None,
                         );
+                    }
+                    if let Some(path) = log.as_deref() {
+                        let entry = build_governor_log_entry(
+                            name, "removed", &ts,
+                            Some(old_state), None,
+                        );
+                        append_governor_log(path, &entry);
                     }
                     changes += 1;
                 }
@@ -7870,6 +7999,76 @@ mod tests {
         assert_eq!(lookup2("TERMLINK_GOV_OLD_CONN_ACTIVE"), "");
         assert_eq!(lookup2("TERMLINK_GOV_NEW_CONN_ACTIVE"), "51");
         assert_eq!(lookup2("TERMLINK_GOV_CHANGE_KIND"), "new");
+    }
+
+    // T-2066 (Track G): build_governor_log_entry — pure helper for the
+    // append-only NDJSON audit trail. Pins counter-delta math + nullable
+    // dedupe serialization (None side → JSON null, not omitted).
+
+    #[test]
+    fn build_governor_log_entry_computes_deltas_and_string_reach() {
+        let prev: WatchGovernorState = (true, 10, 256, 100, 50, Some(7));
+        let new: WatchGovernorState = (true, 11, 256, 117, 50, Some(7));
+        let entry = build_governor_log_entry(
+            "hub-a", "transition", "2026-06-08T23:00:00Z",
+            Some(&prev), Some(&new),
+        );
+        assert_eq!(entry["hub"], "hub-a");
+        assert_eq!(entry["kind"], "transition");
+        assert_eq!(entry["ts"], "2026-06-08T23:00:00Z");
+        // Reach is a JSON string, not an int.
+        assert_eq!(entry["old_reach"], "ok");
+        assert_eq!(entry["new_reach"], "ok");
+        // Counters are numeric — caller can `jq 'select(.cap_hits_delta>0)'`.
+        assert_eq!(entry["old_cap_hits"], 100);
+        assert_eq!(entry["new_cap_hits"], 117);
+        assert_eq!(entry["cap_hits_delta"], 17);
+        // Unchanged counter → delta 0 (NOT null).
+        assert_eq!(entry["rate_hits_delta"], 0);
+        // Some/Some dedupe → numeric delta 0, NOT null.
+        assert_eq!(entry["dedupe_hits_delta"], 0);
+        assert_eq!(entry["new_dedupe_hits"], 7);
+    }
+
+    #[test]
+    fn build_governor_log_entry_serializes_null_for_missing_sides() {
+        use serde_json::Value;
+        // "new" event: prev=None ⇒ all old_* fields are JSON null (not omitted).
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None);
+        let entry = build_governor_log_entry(
+            "fresh-hub", "new", "2026-06-08T23:01:00Z",
+            None, Some(&new),
+        );
+        assert_eq!(entry["kind"], "new");
+        assert_eq!(entry["old_reach"], Value::Null);
+        assert_eq!(entry["old_conn_active"], Value::Null);
+        assert_eq!(entry["old_cap_hits"], Value::Null);
+        // new side: reach=fail, conn=0, counters 0
+        assert_eq!(entry["new_reach"], "fail");
+        assert_eq!(entry["new_conn_active"], 0);
+        assert_eq!(entry["new_cap_hits"], 0);
+        // Delta cannot be computed when prev is None ⇒ null
+        assert_eq!(entry["cap_hits_delta"], Value::Null);
+        // Pre-T-2049 hub: dedupe_hits None on new side too ⇒ null
+        assert_eq!(entry["new_dedupe_hits"], Value::Null);
+        assert_eq!(entry["dedupe_hits_delta"], Value::Null);
+
+        // "removed" event: new=None ⇒ all new_* fields are null
+        let prev: WatchGovernorState = (true, 5, 256, 3, 0, Some(2));
+        let entry2 = build_governor_log_entry(
+            "gone-hub", "removed", "2026-06-08T23:02:00Z",
+            Some(&prev), None,
+        );
+        assert_eq!(entry2["kind"], "removed");
+        assert_eq!(entry2["new_reach"], Value::Null);
+        assert_eq!(entry2["new_conn_active"], Value::Null);
+        assert_eq!(entry2["new_cap_hits"], Value::Null);
+        // Old side preserved
+        assert_eq!(entry2["old_conn_active"], 5);
+        assert_eq!(entry2["old_dedupe_hits"], 2);
+        // Delta null (cannot compute)
+        assert_eq!(entry2["rate_hits_delta"], Value::Null);
+        assert_eq!(entry2["dedupe_hits_delta"], Value::Null);
     }
 
     #[test]

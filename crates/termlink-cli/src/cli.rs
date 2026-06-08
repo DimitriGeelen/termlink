@@ -3681,6 +3681,29 @@ pub(crate) enum FleetAction {
         ///   [ "$TERMLINK_GOV_CAP_HITS_DELTA" -gt 0 ] || exit 0
         #[arg(long, value_name = "CMD", requires = "watch")]
         notify: Option<String>,
+
+        /// T-2066 (T-2028 §6 #10 Track G): append one NDJSON line to PATH for
+        /// every per-hub transition / new / removed event during `--watch`
+        /// (skipped on baseline cycle). Requires `--watch`. Parent dir is
+        /// auto-created. Best-effort writes — disk-full / permission errors
+        /// log to stderr but the watch continues.
+        ///
+        /// Per-event JSON schema (flat for jq-friendliness):
+        ///   {ts, hub, kind,                              // event metadata
+        ///    old_reach, new_reach,                       // "ok"|"fail"|null
+        ///    old_conn_active, new_conn_active,           // i64
+        ///    old_cap_hits, new_cap_hits, cap_hits_delta, // i64
+        ///    old_rate_hits, new_rate_hits, rate_hits_delta,
+        ///    old_dedupe_hits, new_dedupe_hits, dedupe_hits_delta} // i64|null
+        ///
+        /// Mirror of T-1671's `~/.termlink/rotation.log` pattern. Pair with
+        /// shell scripts for forensic retrospectives: e.g.
+        ///   jq -c 'select(.hub=="ring20-management" and .cap_hits_delta>0)' \
+        ///     ~/.termlink/governor.log
+        /// A future `fleet governor-history` retrospective view will read
+        /// this file natively.
+        #[arg(long, value_name = "PATH", requires = "watch")]
+        log: Option<std::path::PathBuf>,
     },
 
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
