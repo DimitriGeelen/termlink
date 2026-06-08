@@ -4,7 +4,7 @@ name: "Substrate primitive #10 Track A: connection cap + rate limit (T-2028 PART
 description: >
   Implement T-2028 Track A per docs/reports/T-2028-throughput-retention-inception.md. Hub-side max_connections (default 256) + per-connection rate limit (default 1000 req/sec, token-bucket). Reject-with-retry-after on overflow. Operator-tunable via hub.toml. ~30 LOC scope. Tracks B (observability) + C (retention default tuning) follow as separate tasks.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:10Z
-last_update: 2026-06-08T10:49:10Z
+last_update: 2026-06-08T14:53:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,78 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Implements T-2028 PARTIAL-GO **Track B** (the inception report at
+`docs/reports/T-2028-throughput-retention-inception.md` §4 Track B):
+hub-side connection cap + per-sender rate limit + loud-refuse RPC error.
+Track A's name on this task is a misnomer from filing — the task
+matches inception Track B exactly. (Tracks A "retention audit" and C
+"budget observability" remain separate.)
+
+Three vertical slices:
+1. Governor primitives in `crates/termlink-hub/src/governor.rs`
+   (`ConnGovernor` + per-sender `RateGovernor` token bucket) + unit tests.
+2. Wire governor into accept loop (connection-cap check before spawn)
+   and per-request RPC dispatch (rate-limit check before route), plus
+   protocol constants for structured refuse-with-`retry_after_ms`.
+3. Observability — `hub.governor_status` RPC + CLI surfacing +
+   docs page + CLAUDE.md Quick Reference row.
+
+Defaults per task description: `max_connections=256`,
+`rate_limit_per_sec=1000` per sender. Operator-tunable via
+`TERMLINK_MAX_CONNECTIONS` and `TERMLINK_RATE_LIMIT_PER_SEC` env
+vars (hub-side, T-1633 pattern).
+
+Refuse semantics (IW-3 — LOUD, never silent): structured `RpcError`
+with `code = -32019 HUB_AT_CAPACITY` (new) or `-32008 RATE_LIMITED`
+(existing, currently unused) and `data: {retry_after_ms: u64}`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Slice 1 — Governor module: `crates/termlink-hub/src/governor.rs`
+      exists with `ConnGovernor` (current/max + `try_acquire`/`release`)
+      and `RateGovernor` (per-sender token bucket: tokens, refill rate,
+      last_refill_ms + `try_acquire(sender)`); both expose
+      `retry_after_ms()` helper for the LOUD-refuse envelope.
+- [ ] Slice 1 — Unit tests: `cargo test -p termlink-hub governor`
+      passes (≥4 tests: cap admits-N rejects-Nplus1, rate bucket
+      admits-rate-rejects-burst-overflow, refill restores capacity
+      after elapsed time, release decrements current).
+- [ ] Slice 2 — Protocol constant: `HUB_AT_CAPACITY: i64 = -32019`
+      added to `crates/termlink-protocol/src/control.rs` `error_code`
+      module with doc-comment naming `retry_after_ms` data field.
+      Existing `RATE_LIMITED: i64 = -32008` reused for rate-limit path.
+- [ ] Slice 2 — Accept-loop wiring: `run_accept_loop` in
+      `crates/termlink-hub/src/server.rs` consults `ConnGovernor`
+      before spawning `handle_connection`. On full, writes one
+      JSON-RPC error envelope (HUB_AT_CAPACITY + retry_after_ms) and
+      closes — never silent drop.
+- [ ] Slice 2 — Per-RPC wiring: `handle_connection` consults
+      `RateGovernor` keyed by sender identity (peer_addr for TCP,
+      peer_pid for Unix, sender_id from params.from when set)
+      before `router::route`. On overflow, returns structured
+      RATE_LIMITED error with retry_after_ms.
+- [ ] Slice 2 — Configurable defaults: `TERMLINK_MAX_CONNECTIONS`
+      (default 256) and `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000)
+      env vars read at hub start; emitted as `tracing::info!` at
+      startup so operators see active config.
+- [ ] Slice 3 — Observability RPC: `hub.governor_status` returns
+      `{connections_active, connections_max, rate_buckets_active,
+      rate_hits_total, capacity_hits_total, max_rate_per_sec}` and
+      requires Observe scope.
+- [ ] Slice 3 — MCP parity: `termlink_hub_governor_status` MCP tool
+      added with help-registry entry.
+- [ ] Slice 3 — Docs: `docs/operations/substrate-governor.md` describes
+      the two governors, defaults, override env vars, refuse error
+      shapes, and the `hub.governor_status` recipe.
+- [ ] Slice 3 — CLAUDE.md Quick Reference row added under substrate
+      primitives section.
+- [ ] Live smoke: deploy via
+      `cargo install --path crates/termlink-cli --force --offline`
+      + `systemctl restart termlink-hub`; verify `hub.governor_status`
+      returns expected shape; observe HUB_AT_CAPACITY when concurrent
+      connections exceed cap (use small TERMLINK_MAX_CONNECTIONS=4 for
+      test); observe RATE_LIMITED when burst exceeds bucket.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +170,16 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo check --workspace
+cargo test -p termlink-hub governor
+test -f crates/termlink-hub/src/governor.rs
+out=$(cargo run -p termlink-cli --bin termlink --offline -- --help 2>&1); echo "$out" | head -n 5 > /dev/null
+out=$(grep -c 'HUB_AT_CAPACITY' crates/termlink-protocol/src/control.rs); test "$out" -ge 1
+out=$(grep -c 'RATE_LIMITED' crates/termlink-protocol/src/control.rs); test "$out" -ge 1
+test -f docs/operations/substrate-governor.md
+grep -q 'substrate-governor\|hub.governor_status\|hub_governor_status' CLAUDE.md
+grep -q 'termlink_hub_governor_status' crates/termlink-mcp/src/tools.rs
 
 ## RCA
 
@@ -174,3 +248,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2048-substrate-primitive-10-track-a-connectio.md
 - **Context:** Initial task creation
+
+### 2026-06-08T14:53:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
