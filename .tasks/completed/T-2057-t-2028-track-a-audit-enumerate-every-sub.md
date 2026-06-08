@@ -4,10 +4,10 @@ name: "T-2028 Track A audit: enumerate every substrate-created topic's retention
 description: >
   T-2028 Track A audit: enumerate every substrate-created topic's retention policy, surface uncovered Forever-retention growth risks
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, audit, docs]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T18:07:44Z
-last_update: 2026-06-08T18:07:44Z
-date_finished: null
+last_update: 2026-06-08T18:11:28Z
+date_finished: 2026-06-08T18:11:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -192,3 +192,6 @@ grep -q "## §6" docs/reports/T-2057-track-a-retention-audit.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2057-t-2028-track-a-audit-enumerate-every-sub.md
 - **Context:** Initial task creation
+
+### 2026-06-08T18:11:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2057: T-2028 Track A audit: enumerate every substrate-created topic's retention policy, surface uncovered Forever-retention growth risks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T18:11:30Z
+# ============================================================================
+
+task_id: T-2057
+task_name: "T-2028 Track A audit: enumerate every substrate-created topic's retention policy, surface uncovered Forever-retention growth risks"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T18:07:44Z
+completed: 2026-06-08T18:11:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T20:11:20+02:00
+last_commit: 2026-06-08T20:11:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Track A retention audit — substrate code OK, operator default is the gap
+
+# Key outcomes
+outcomes:
+  - '`docs/reports/T-2057-track-a-retention-audit.md` exists with sections: §1 scope, §2 substrate-code creation sites (table), §3 RPC default behavior, §4 live-hub evidence, §5 findings, §6 follow-up task list'
+  - '§2 enumerates every non-test `bus.create_topic(name, retention)` call in `crates/` with (file:line, topic name, retention) — verified by grep'
+  - '§3 documents the `channel.create` RPC behavior when `retention` is omitted (falls back to `Retention::Forever`), and the CLI''s `--retention` flag default'
+  - '§4 captures live-hub evidence from `termlink channel list --json` showing 1,331 total topics, 1,152 (87%) on Forever, agent-presence at 13,443 envelopes — concrete T-1991 reproduction'
+  - '§5 explicitly classifies each topic-creation path as `OK` / `OPERATOR-GAP` / `CODE-GAP`, with rationale'
+  - '§6 lists concrete follow-up tasks (one per gap): code-side fixes (e.g. `Retention::Latest` add), operator runbook entries (e.g. `agent-presence` retention=Messages(N) recipe), or doc updates'
+  - 'No code changes — pure audit doc'
+  - '`grep -q "Track A retention audit" docs/reports/T-2057-track-a-retention-audit.md` succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2057-track-a-retention-audit.md'
+  - '.tasks/active/T-2057-t-2028-track-a-audit-enumerate-every-sub.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T20:11:20"
+    action: "T-2057: Track A retention audit — substrate code OK, operator default is the gap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, audit, docs]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 384
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2057-t-2028-track-a-audit-enumerate-every-sub.md
+generated_by: context-agent-hybrid
