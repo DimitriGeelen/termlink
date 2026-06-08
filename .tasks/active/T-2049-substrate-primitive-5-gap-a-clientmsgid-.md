@@ -4,7 +4,7 @@ name: "Substrate primitive #5 Gap A: client_msg_id + hub LRU dedupe for offline-
 description: >
   Implement T-2023 Gap A per docs/reports/T-2023-client-reconnect-queue-inception.md §4.A. Closes the double-apply gap: client posts → hub commits at offset N → TCP ack lost → spoke queues retry → hub commits AGAIN at N+1. Fix: client generates client_msg_id (UUID v4 or content-hash), hub maintains short-TTL (~5min) recently-seen LRU keyed by (sender_fingerprint, client_msg_id), no-ops duplicates. ~80 LOC.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:24Z
-last_update: 2026-06-08T10:49:24Z
+last_update: 2026-06-08T15:46:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,33 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Closes T-2023 Gap A (IW-4 — idempotency). See
+`docs/reports/T-2023-client-reconnect-queue-inception.md` §4.A for the
+problem (TCP ack lost → spoke retries → hub double-applies the post at
+two offsets) and the recommended shape (`client_msg_id` opaque token +
+short-TTL hub-side LRU keyed by `(sender_fingerprint, client_msg_id)`,
+silent no-op on dup that returns the cached `{offset, ts}`).
+
+Backward compatible: `client_msg_id` is optional. Old clients keep
+working unchanged; opt-in callers gain exactly-once semantics across
+hub blips.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] New module `crates/termlink-hub/src/dedupe.rs` exports a `PostDedupe` struct: TTL-bounded + capacity-bounded LRU keyed by `(sender_id, client_msg_id)`; entries store the cached `{offset, ts_unix_ms}` so a duplicate returns the original success envelope.
+- [ ] `PostDedupe` API: `try_record_or_lookup(sender_id, client_msg_id, now_ms, offset, ts) -> Outcome { Newly_recorded, Duplicate { offset, ts } }` plus `evict_expired(now_ms)` + accessors `entries_active()` / `hits_total()`.
+- [ ] Defaults: TTL = 5 min (`DEFAULT_DEDUPE_TTL_MS = 300_000`), capacity = 10_000 entries (`DEFAULT_DEDUPE_CAPACITY = 10_000`). Both override-able via `TERMLINK_DEDUPE_TTL_MS` / `TERMLINK_DEDUPE_CAPACITY` env vars at hub start.
+- [ ] `OnceLock` global `post_dedupe()` accessor with `init()` matching `governor.rs` pattern; wired into `run_with_tcp` + `run_blocking`.
+- [ ] `handle_channel_post_with` reads optional `client_msg_id` from params (string, 1..=128 chars). When present AND identity verified: checks dedupe BEFORE `bus.post()`. Cache hit → return the cached `Response::success(id, {offset, ts})` envelope without re-appending. Cache miss → post normally + record after success.
+- [ ] `hub.governor_status` response gains three sibling fields: `dedupe_entries_active`, `dedupe_hits_total`, `dedupe_ttl_ms`. MCP parity tool returns the same shape automatically (passthrough).
+- [ ] `PendingPost` (offline_queue) gains optional `client_msg_id: Option<String>` with `#[serde(default, skip_serializing_if = "Option::is_none")]` — old persisted rows deserialize cleanly with `None`, new rows persist + replay the id.
+- [ ] CLI `cmd_channel_post` accepts an optional `client_msg_id: Option<String>` argument; when absent, mints a UUID v4 at call time (existing `uuid` crate). The minted id is passed both directly to the hub AND to `OfflineQueue::enqueue` on the hub-unreachable fallback path so a replay reuses the same id.
+- [ ] Unit tests: ≥7 for `PostDedupe` (insert-then-hit-returns-cached, distinct-sender-no-collision, distinct-msg-no-collision, ttl-eviction, lru-eviction-at-capacity, hit-counter-increments, missing-id-skips-check).
+- [ ] Integration tests in `channel.rs::tests`: ≥3 (no-id-bypasses-dedupe-and-posts-normally, with-id-first-post-succeeds-and-records, with-id-duplicate-returns-cached-offset).
+- [ ] `cargo test -p termlink-hub` passes. `cargo test -p termlink-session` passes. `cargo check -p termlink-cli` passes.
+- [ ] Live smoke on local hub: `termlink remote call local hub.governor_status` shows the three new fields. Two `channel.post` calls with the same `client_msg_id` and same sender produce one offset, with the second call's response `offset` matching the first. `dedupe_hits_total` increments by exactly 1.
+- [ ] Docs: `docs/operations/substrate-post-idempotency.md` (~80 lines) explains the wire shape, hub TTL, operator probe recipe, and the queue-replay scenario. CLAUDE.md Quick Reference gains a row (or extends the existing governor row).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -84,6 +103,15 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+
+cargo check -p termlink-hub
+cargo check -p termlink-session
+cargo check -p termlink-cli
+cargo test -p termlink-hub --lib dedupe::tests --no-fail-fast 2>&1 | grep -q "test result: ok"
+out=$(cargo test -p termlink-hub --lib channel::tests::dedupe 2>&1); echo "$out" | grep -q "test result: ok"
+out=$(cargo test -p termlink-session --lib offline_queue 2>&1); echo "$out" | grep -q "test result: ok"
+test -f docs/operations/substrate-post-idempotency.md
+grep -q "TERMLINK_DEDUPE_TTL_MS" docs/operations/substrate-post-idempotency.md
 #
 # Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
 # `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
@@ -174,3 +202,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2049-substrate-primitive-5-gap-a-clientmsgid-.md
 - **Context:** Initial task creation
+
+### 2026-06-08T15:46:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
