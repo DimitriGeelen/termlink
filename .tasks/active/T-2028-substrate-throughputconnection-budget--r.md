@@ -15,7 +15,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:55Z
-last_update: 2026-06-08T07:37:41Z
+last_update: 2026-06-08T07:39:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -103,15 +103,15 @@ Treat as a cross-cutting review. After Foundation lands, review each Foundation/
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -191,7 +191,44 @@ Treat as a cross-cutting review. After Foundation lands, review each Foundation/
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: PARTIAL GO with three sub-tracks (A: retention audit + Retention::Latest; B: connection cap + per-sender rate limit; C: budget observability). Each track is a small independent build task.
+
+Rationale (one-paragraph): The §6 framing bundles three sub-problems with very different statuses. Retention/compaction ALREADY EXISTS as per-topic policy with both time-based (Days) and size-based (Messages) modes — T-1991 was an operator-awareness gap, not an API gap, since the bounded policy was always available for agent-presence. One small additive surface (`Retention::Latest` to complete T-2027's broadcast-with-replay story) closes the retention half. Connection cap + per-sender rate limit ARE genuinely missing — standard governor pattern, ~150 LOC, refuse-with-structured-error semantics keep failures loud. Budget observability (surface state in `channel info` + `hub status`) is the T-1991-prevention piece: had operators seen "agent-presence growing 60 env/min, retention=Forever, runway=30 min" they would have set retention before the wedge. Three small independent tasks ship cleanly in order without bundling.
+
+Full design + IW dispositions: see [docs/reports/T-2028-throughput-retention-inception.md](../../docs/reports/T-2028-throughput-retention-inception.md).
+
+Build slice plan (three independent tracks):
+
+Track A — Retention audit + `Retention::Latest` (~30 LOC):
+- Audit topics created by substrate code; ensure each sets a retention.
+- Add `Retention::Latest` enum variant + compaction case (keep most recent envelope only).
+- Bundle with T-2027 build task if T-2027 goes (subscribe-side + compaction-side complete the broadcast-with-replay story together).
+
+Track B — Connection cap + per-sender rate limit (~150 LOC):
+- Per-process connection governor (`MAX_CLIENT_CONNECTIONS=64` configurable).
+- Per-sender token bucket (e.g. 100 RPCs/s/sender).
+- Refuse with `code=-32029 OVERLOADED`, `retry_after_ms` in error data.
+- CLI surfacing: "hub at capacity (retry in 2.3s)".
+
+Track C — Budget observability (~80 LOC):
+- Surface in `channel info <topic>`: current size, retention policy, growth rate over last hour.
+- Surface in `hub status`: connection count, rate-limit hits, top senders by RPC count.
+- CLI + MCP read paths.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "Cross-cutting review surfaced concrete budget" — three tracks, each scoped and sized.
+- ✅ "Each primitive's design respects it" — retention already does; connection/rate gets per-sender bucket; observability surfaces it.
+- ✅ "Missing policy primitives bounded and small" — 30 + 150 + 80 LOC.
+
+Open follow-up tasks to file on GO:
+- Track A audit + `Retention::Latest` build task (consider bundling with T-2027 Slice 1-4).
+- Track B governor build task.
+- Track C observability build task.
+- (Operator) Set `agent-presence` retention to `Messages(200)` (or measure-informed N) — small operator action once Track A lands, prevents T-1991 recurrence.
+
+**Date**: 2026-06-08T10:01:26Z
 
 ## Updates
 
@@ -201,3 +238,41 @@ Treat as a cross-cutting review. After Foundation lands, review each Foundation/
 ### 2026-06-08T07:37:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T10:01:26Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: PARTIAL GO with three sub-tracks (A: retention audit + Retention::Latest; B: connection cap + per-sender rate limit; C: budget observability). Each track is a small independent build task.
+
+Rationale (one-paragraph): The §6 framing bundles three sub-problems with very different statuses. Retention/compaction ALREADY EXISTS as per-topic policy with both time-based (Days) and size-based (Messages) modes — T-1991 was an operator-awareness gap, not an API gap, since the bounded policy was always available for agent-presence. One small additive surface (`Retention::Latest` to complete T-2027's broadcast-with-replay story) closes the retention half. Connection cap + per-sender rate limit ARE genuinely missing — standard governor pattern, ~150 LOC, refuse-with-structured-error semantics keep failures loud. Budget observability (surface state in `channel info` + `hub status`) is the T-1991-prevention piece: had operators seen "agent-presence growing 60 env/min, retention=Forever, runway=30 min" they would have set retention before the wedge. Three small independent tasks ship cleanly in order without bundling.
+
+Full design + IW dispositions: see [docs/reports/T-2028-throughput-retention-inception.md](../../docs/reports/T-2028-throughput-retention-inception.md).
+
+Build slice plan (three independent tracks):
+
+Track A — Retention audit + `Retention::Latest` (~30 LOC):
+- Audit topics created by substrate code; ensure each sets a retention.
+- Add `Retention::Latest` enum variant + compaction case (keep most recent envelope only).
+- Bundle with T-2027 build task if T-2027 goes (subscribe-side + compaction-side complete the broadcast-with-replay story together).
+
+Track B — Connection cap + per-sender rate limit (~150 LOC):
+- Per-process connection governor (`MAX_CLIENT_CONNECTIONS=64` configurable).
+- Per-sender token bucket (e.g. 100 RPCs/s/sender).
+- Refuse with `code=-32029 OVERLOADED`, `retry_after_ms` in error data.
+- CLI surfacing: "hub at capacity (retry in 2.3s)".
+
+Track C — Budget observability (~80 LOC):
+- Surface in `channel info <topic>`: current size, retention policy, growth rate over last hour.
+- Surface in `hub status`: connection count, rate-limit hits, top senders by RPC count.
+- CLI + MCP read paths.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ✅ "Cross-cutting review surfaced concrete budget" — three tracks, each scoped and sized.
+- ✅ "Each primitive's design respects it" — retention already does; connection/rate gets per-sender bucket; observability surfaces it.
+- ✅ "Missing policy primitives bounded and small" — 30 + 150 + 80 LOC.
+
+Open follow-up tasks to file on GO:
+- Track A audit + `Retention::Latest` build task (consider bundling with T-2027 Slice 1-4).
+- Track B governor build task.
+- Track C observability build task.
+- (Operator) Set `agent-presence` retention to `Messages(200)` (or measure-informed N) — small operator action once Track A lands, prevents T-1991 recurrence.
