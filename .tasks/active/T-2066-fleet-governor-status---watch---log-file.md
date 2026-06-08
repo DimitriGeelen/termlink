@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T23:16:33Z
-last_update: 2026-06-08T23:16:33Z
+last_update: 2026-06-08T23:34:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -68,13 +68,13 @@ A future `fleet governor-history` retrospective view can read this file
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `FleetAction::GovernorStatus` gains a `--log <PATH>` flag, requires `--watch` (clap `requires`).
-- [ ] Pure helper `build_governor_log_entry(hub, kind, ts, prev, new) -> serde_json::Value` emits the flat NDJSON schema with numeric counters + nullable dedupe fields.
-- [ ] `append_governor_log(path, entry)` opens append + create, writes one `{}\n` line per call, parent dir auto-created if missing.
-- [ ] Write failures (disk full, permission denied) log to stderr but never crash the watch (best-effort, same shape as T-1671 `append_rotation_log`).
-- [ ] Watch loop fires the log append on every per-hub transition / new / removed (same gate as `--notify`, NOT on baseline).
-- [ ] ≥2 unit tests pin: counter delta math in the entry + dedupe-null serialization (None side renders as JSON null, not omitted).
-- [ ] CLAUDE.md BACKPRESSURE row updated with `--log` example.
+- [x] `FleetAction::GovernorStatus` gains a `--log <PATH>` flag, requires `--watch` (clap `requires`). — cli.rs `#[arg(long, value_name = "PATH", requires = "watch")] log: Option<std::path::PathBuf>`.
+- [x] Pure helper `build_governor_log_entry(hub, kind, ts, prev, new) -> serde_json::Value` emits the flat NDJSON schema with numeric counters + nullable dedupe fields. — remote.rs ~line 2840; verified live: smoke produced `{ts, hub, kind, old_reach, new_reach, old_conn_active, new_conn_active, old_cap_hits, new_cap_hits, cap_hits_delta, old_rate_hits, new_rate_hits, rate_hits_delta, old_dedupe_hits, new_dedupe_hits, dedupe_hits_delta}` with `new_dedupe_hits: null`.
+- [x] `append_governor_log(path, entry)` opens append + create, writes one `{}\n` line per call, parent dir auto-created if missing. — `OpenOptions::new().create(true).append(true)` + `write_all("{}\n".as_bytes())`; parent dir check at top with `create_dir_all`.
+- [x] Write failures (disk full, permission denied) log to stderr but never crash the watch (best-effort, same shape as T-1671 `append_rotation_log`). — `if let Err(e) = res { eprintln!(...) }`; no `return Err` — function is fn(), not Result.
+- [x] Watch loop fires the log append on every per-hub transition / new / removed (same gate as `--notify`, NOT on baseline). — three new `if let Some(path) = log.as_deref()` arms parallel to the notify arms; baseline branch unchanged. Live smoke: 1 transition fired during 22s watch ⇒ 1 NDJSON line in `/tmp/gov-test.log`.
+- [x] ≥2 unit tests pin: counter delta math in the entry + dedupe-null serialization (None side renders as JSON null, not omitted). — `build_governor_log_entry_computes_deltas_and_string_reach` + `build_governor_log_entry_serializes_null_for_missing_sides`. 831 → 833 bin lib tests.
+- [x] CLAUDE.md BACKPRESSURE row updated with `--log` example. — row 1170 paragraph extended with T-2066 description + dual recipe (`--watch 30 --log ~/.termlink/governor.log --notify /usr/local/bin/page-on-cap.sh`). jq retrospective example included.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
