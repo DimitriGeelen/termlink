@@ -4,10 +4,10 @@ name: "Substrate primitive #5 Gap C: offline-queue operator recipe doc (T-2023 G
 description: >
   Implement T-2023 Gap C per docs/reports/T-2023-client-reconnect-queue-inception.md. Write docs/operations/offline-queue-recipe.md (~50 lines). Describe: how a CLI handles hub-blip, where the SQLite queue lives (~/.termlink/<name>/outbound.sqlite), how to inspect it, how poison-pill rows surface, how to drain manually.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, docs, resilience]
 components: []
 related_tasks: [T-2018, T-2023, T-1439]
@@ -16,8 +16,8 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:33Z
-last_update: 2026-06-08T16:17:03Z
-date_finished: null
+last_update: 2026-06-08T16:19:40Z
+date_finished: 2026-06-08T16:19:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -194,3 +194,6 @@ grep -q "substrate-offline-queue-recipe" docs/operations/substrate-post-idempote
 
 ### 2026-06-08T16:17:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T16:19:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

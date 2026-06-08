@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2051: Substrate primitive #5 Gap C: offline-queue operator recipe doc (T-2023 GO follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T16:19:43Z
+# ============================================================================
+
+task_id: T-2051
+task_name: "Substrate primitive #5 Gap C: offline-queue operator recipe doc (T-2023 GO follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:33Z
+completed: 2026-06-08T16:19:40Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T18:19:37+02:00
+last_commit: 2026-06-08T18:19:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  offline-queue operator recipe doc + cross-links + CLAUDE.md row
+
+# Key outcomes
+outcomes:
+  - 'New file `docs/operations/substrate-offline-queue-recipe.md` (~210 lines): what the queue is, where it lives on disk, how a `channel post` call invokes it, how to inspect pending rows, how to manually drain, how poison-pill rows surface, how to set TERMLINK_OUTBOUND_CAP.'
+  - 'Section "End-to-end recipe" walks a fresh operator through the queue-replay scenario with copy-paste commands (sqlite3 against `~/.termlink/outbound.sqlite`, `termlink remote call local hub.governor_status` for dedupe_hits_total).'
+  - 'Section "Failure modes & how to spot them" covers: hub-down (queue accumulates), full queue (R3 loud-fail), poison-pill (warn-log + dropped_poison counter, T-2050 pointer for the audit), interplay with T-2049 idempotency.'
+  - 'CLAUDE.md Quick Reference gains "Offline queue (RESILIENCE)" row pointing at the new recipe + the T-2050 audit.'
+  - 'Cross-link added in `docs/operations/substrate-post-idempotency.md` "Related" section.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/operations/substrate-offline-queue-recipe.md'
+  - 'docs/operations/substrate-post-idempotency.md'
+  - '.tasks/active/T-2051-substrate-primitive-5-gap-c-offline-queu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T18:19:37"
+    action: "T-2051: offline-queue operator recipe doc + cross-links + CLAUDE.md row"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 330 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, docs, resilience]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 330
+  commits: 1
+  files_changed: 4
+  lines_added: 246
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2051-substrate-primitive-5-gap-c-offline-queu.md
+generated_by: context-agent-hybrid
