@@ -93,15 +93,15 @@ At promotion time: (1) decide storage location; (2) define TTL semantics; (3) im
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -165,7 +165,28 @@ At promotion time: (1) decide storage location; (2) define TTL semantics; (3) im
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO as captured. Re-scope as documentation-only.
+
+Rationale (one-paragraph): Investigation shows the captured framing does not match the running system. The `agent-presence` topic IS already durable (retention=forever, SQLite-backed, 13441 posts persisted on the live hub) — what's in-memory is the DERIVED LIVE/STALE/OFFLINE view, which is reconstructed from heartbeats on every query, not stored. The post-restart "blackout" is bounded by one heartbeat interval (~30s) of information staleness, not data loss. Circuit-breaker state IS in-memory (`crates/termlink-hub/src/circuit_breaker.rs`), but persisting it across hub restart is arguably the WRONG default — restart is a recovery event; carrying forward OPEN classifications blocks traffic to peers whose underlying issue has since healed. Building T-2025 as captured would introduce two new SQLite tables (`agent_presence_memo`, `circuit_breaker_state`) that DUPLICATE existing state with the wrong default semantics — the same "two sources of truth" anti-pattern T-2020 identified and avoided.
+
+Full analysis: see [docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md](../../docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md).
+
+Action on NO-GO (documentation-only, blast_radius=0):
+- Update ADR §6 #7 description to reflect actual state ("presence DATA is durable; derived view is in-memory but reconstructible; circuit-breaker reset is intentional, not a gap").
+- Add post-restart blackout paragraph to `docs/operations/substrate-claim-primitive.md` documenting that `find_idle` (T-2020) returns prior-heartbeat data immediately and refreshes within one heartbeat interval.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ❌ "Storage chosen and tested across hub restart" — no storage needed; data already durable.
+- ❌ "TTL semantics documented" — already client-side policy, not substrate concern.
+- ✅ (negative form) "T-2020 can build against this" — T-2020 already builds against the existing durable topic; no T-2025 dependency.
+
+Conditional follow-up tasks (only if real evidence surfaces):
+- (Optimization, not primitive) Presence-memo for sub-O(topic_size) `find_idle` queries — file with measured benchmark if T-2020 ships and `find_idle` latency becomes a problem at >30 agents.
+- (Hub-config, not primitive) Sticky circuit-breaker flag for deployments that restart hub frequently for unrelated reasons — file with operator pain-point evidence.
+
+**Date**: 2026-06-08T11:21:06Z
 
 ## Updates
 
@@ -175,3 +196,25 @@ At promotion time: (1) decide storage location; (2) define TTL semantics; (3) im
 ### 2026-06-08T07:28:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T11:21:06Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO as captured. Re-scope as documentation-only.
+
+Rationale (one-paragraph): Investigation shows the captured framing does not match the running system. The `agent-presence` topic IS already durable (retention=forever, SQLite-backed, 13441 posts persisted on the live hub) — what's in-memory is the DERIVED LIVE/STALE/OFFLINE view, which is reconstructed from heartbeats on every query, not stored. The post-restart "blackout" is bounded by one heartbeat interval (~30s) of information staleness, not data loss. Circuit-breaker state IS in-memory (`crates/termlink-hub/src/circuit_breaker.rs`), but persisting it across hub restart is arguably the WRONG default — restart is a recovery event; carrying forward OPEN classifications blocks traffic to peers whose underlying issue has since healed. Building T-2025 as captured would introduce two new SQLite tables (`agent_presence_memo`, `circuit_breaker_state`) that DUPLICATE existing state with the wrong default semantics — the same "two sources of truth" anti-pattern T-2020 identified and avoided.
+
+Full analysis: see [docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md](../../docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md).
+
+Action on NO-GO (documentation-only, blast_radius=0):
+- Update ADR §6 #7 description to reflect actual state ("presence DATA is durable; derived view is in-memory but reconstructible; circuit-breaker reset is intentional, not a gap").
+- Add post-restart blackout paragraph to `docs/operations/substrate-claim-primitive.md` documenting that `find_idle` (T-2020) returns prior-heartbeat data immediately and refreshes within one heartbeat interval.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ❌ "Storage chosen and tested across hub restart" — no storage needed; data already durable.
+- ❌ "TTL semantics documented" — already client-side policy, not substrate concern.
+- ✅ (negative form) "T-2020 can build against this" — T-2020 already builds against the existing durable topic; no T-2025 dependency.
+
+Conditional follow-up tasks (only if real evidence surfaces):
+- (Optimization, not primitive) Presence-memo for sub-O(topic_size) `find_idle` queries — file with measured benchmark if T-2020 ships and `find_idle` latency becomes a problem at >30 agents.
+- (Hub-config, not primitive) Sticky circuit-breaker flag for deployments that restart hub frequently for unrelated reasons — file with operator pain-point evidence.
