@@ -173,6 +173,29 @@ pub mod method {
     /// hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_FORCE_RELEASE: &str = "channel.force_release";
 
+    /// T-2046 — atomic ownership transfer of an existing claim
+    /// (T-2021 GO, arc-parallel-substrate primitive #3). Cooperative +
+    /// owner-checked counterpart to `CHANNEL_FORCE_RELEASE`: the orchestrator
+    /// (or current owner) hands the lease to a chosen worker without
+    /// releasing it, eliminating the race window between `release` and the
+    /// worker's `claim`. Distinct from `CHANNEL_FORCE_RELEASE` which is the
+    /// operator-Tier-0 ownership-bypass verb.
+    ///
+    /// The lease timestamps (`claimed_at`, `claimed_until`) survive the
+    /// transfer — only `claimed_by` mutates. Use `CHANNEL_RENEW` to extend
+    /// the lease after transfer if the receiving worker needs more time.
+    ///
+    /// Params: `{ claim_id, to_owner, by, reason? }` →
+    /// `{ ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until }`.
+    /// `by` is required and must equal the current `claimed_by` — this is
+    /// the cooperative path, not a bypass. `reason` is optional audit
+    /// metadata, surfaced but not persisted.
+    /// Errors: `CLAIM_NOT_FOUND` (-32016), `CLAIM_NOT_OWNED` (-32017) when
+    /// `by` ≠ current `claimed_by`, `CLAIM_EXPIRED` (-32018) when the lease
+    /// lapsed before transfer (stale row is lazily evicted so the slot
+    /// becomes claimable). Old hubs return `MethodNotFound` (-32601).
+    pub const CHANNEL_TRANSFER_CLAIM: &str = "channel.transfer_claim";
+
     /// T-2037 — list current claim rows for `topic` (arc-parallel-substrate
     /// Slice 4). Read-only introspection — answers "what is currently
     /// claimed?" without forcing the caller to attempt a `channel.claim`.
@@ -628,6 +651,7 @@ mod tests {
         assert_eq!(method::CHANNEL_CLAIMS_SUMMARY, "channel.claims_summary");
         // T-2044 (arc-parallel-substrate Slice 11).
         assert_eq!(method::CHANNEL_FORCE_RELEASE, "channel.force_release");
+        assert_eq!(method::CHANNEL_TRANSFER_CLAIM, "channel.transfer_claim");
         // T-2045 (T-2020 GO build — idle/busy registry).
         assert_eq!(method::AGENT_FIND_IDLE, "agent.find_idle");
     }

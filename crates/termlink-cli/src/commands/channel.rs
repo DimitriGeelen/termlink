@@ -9000,6 +9000,57 @@ pub(crate) async fn cmd_channel_claim_force_release(
 }
 
 // ---------------------------------------------------------------------------
+// T-2046 — arc-parallel-substrate primitive #3 (T-2021 GO): cooperative,
+// owner-checked atomic ownership transfer of an existing claim. The
+// orchestrator-to-worker handoff path that eliminates the release-then-
+// claim race window. Distinct from claim-force-release (operator-Tier-0
+// ownership bypass) — see channel.transfer_claim doc-comment in
+// termlink-protocol for the full taxonomy.
+// ---------------------------------------------------------------------------
+
+pub(crate) async fn cmd_channel_claim_transfer(
+    claim_id: &str,
+    to_owner: &str,
+    by: &str,
+    reason: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let r = termlink_session::claim_client::channel_transfer_claim(
+        &addr, claim_id, to_owner, by, reason,
+    )
+    .await
+    .map_err(|e| anyhow!("channel.transfer_claim failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "claim_id": r.claim_id,
+                "topic": r.topic,
+                "offset": r.offset,
+                "from_owner": r.from_owner,
+                "to_owner": r.to_owner,
+                "claimed_at": r.claimed_at,
+                "claimed_until": r.claimed_until,
+                "reason": r.reason,
+            })
+        );
+    } else {
+        println!(
+            "{} transferred {}:{} from {} → {}",
+            r.claim_id, r.topic, r.offset, r.from_owner, r.to_owner
+        );
+        if let Some(reason) = &r.reason {
+            println!("reason:        {reason}");
+        }
+        println!("claimed_until: {} (lease preserved)", r.claimed_until);
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // T-2037 — arc-parallel-substrate Slice 4: channel.claims listing verb.
 // Read-only introspection. Answers "what's currently claimed on this
 // topic?" without forcing the operator to attempt a claim.

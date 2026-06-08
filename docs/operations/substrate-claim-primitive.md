@@ -18,6 +18,7 @@ exclusive-delivery semantics:
 | `channel.release(claim_id, claimer, ack)` | Consume the claim — ack=true advances cursor, ack=false reopens slot | CLI `termlink channel release`, Rust `LeasedClaim::{ack,nack}`, `Drop` |
 | `channel.claims(topic, include_expired?)` | Read-only listing — answers "what is currently claimed?" without forcing a claim attempt | CLI `termlink channel claims`, Rust `channel_claims`, returns `Vec<ClaimSummary>` |
 | `channel.claims_summary(topic)` | Read-only aggregate — answers "how busy is this topic, is anything stuck?" in one O(1) call (active vs expired counts, oldest-active age, next free slot) | CLI `termlink channel claims-summary` (+ `--watch <secs>` for continuous monitor mode, Slice 8), Rust `channel_claims_summary`, returns `ClaimsAggregate` |
+| `channel.transfer_claim(claim_id, to_owner, by, reason?)` | T-2046: atomic ownership transfer of an existing claim — orchestrator-to-worker handoff that eliminates the release-then-claim race. Lease timestamps preserved. Cooperative + owner-checked (`by` must equal current `claimed_by`), distinct from `force_release` which is operator-Tier-0 bypass | CLI `termlink channel claim-transfer`, Rust `channel_transfer_claim`, returns `TransferSummary` |
 
 The exclusive-delivery guarantee comes from a `UNIQUE(topic, offset)` SQL
 constraint on the hub-side claims table. Two workers claiming the same
@@ -427,6 +428,53 @@ If you genuinely need an immediate override (e.g. operator-paged
 incident), use the original `claimer` value with `channel release` — the
 hub trusts ownership-by-claimer-string, not network-source.
 
+### "Hand a unit to a specific worker without a race window" (T-2046)
+
+The naive composition fails because claims are owner-bound: if the
+orchestrator releases first and the worker re-claims, a different worker
+can win the race. Use `channel.transfer_claim` instead — single atomic
+UPDATE under transaction, lease timestamps preserved, ownership advances
+in one step.
+
+End-to-end assign recipe (orchestrator + worker):
+
+```bash
+# Orchestrator side ─────────────────────────────────────────────────────
+WORKER=$(termlink agent find-idle --role builder --capability rust \
+           --limit 1 --json | jq -r '.idle[0].agent_id')
+
+CLAIM=$(termlink channel claim work-queue:role-builder 0 \
+           --claimer orch --ttl-ms 120000 --json | jq -r '.claim_id')
+
+termlink channel post "dm:orch:$WORKER" \
+  --msg-type assign \
+  --metadata "claim_id=$CLAIM" \
+  --metadata "source_topic=work-queue:role-builder" \
+  --metadata "source_offset=0" \
+  --payload "T-XXX"
+
+# Worker side ───────────────────────────────────────────────────────────
+# (reads dm:orch:<worker> envelope, extracts claim_id, then:)
+termlink channel claim-transfer \
+  --claim-id "$CLAIM" \
+  --to-owner "$WORKER" \
+  --by orch \
+  --reason "T-XXX"
+
+# ... worker processes the unit ...
+
+termlink channel release \
+  --claim-id "$CLAIM" --claimer "$WORKER" --ack
+```
+
+If the worker never picks up the envelope within the lease window, the
+orchestrator's claim lapses → lazy evict on the next claim attempt
+frees the slot. No new timeout machinery; T-2019's lease IS the
+failure mode. If the orchestrator instead needs to forcibly break the
+claim (worker stuck, system page) it falls back to
+`channel claim-force-release` — that's the Tier-0 verb;
+`channel claim-transfer` is the cooperative path.
+
 ## Error code reference
 
 | Code   | Variant       | When                                                 |
@@ -466,3 +514,4 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 9 (T-2042):** `channel claims-summary --all` fleet-wide sweep — queries `channel.list` and per-topic calls `channel.claims_summary`, annotates `[POTENTIALLY STUCK]` on topics with `expired_count > 0` OR `oldest_active_age_ms > 60_000`, footer reports total + stuck counts. Composes with `--watch` (live fleet dashboard) and `--json` (`{ok, topic_count, stuck_count, topics: [...]}` envelope). Per-topic fetch errors during the sweep are non-fatal.
 - **Slice 10 (T-2043):** `termlink_channel_claims_summary_all` MCP tool — symmetric closure of the fleet-wide sweep for AI investigator agents. Same envelope shape as Slice 9 (`{ok, topic_count, stuck_count, topics: [...]}` with `potentially_stuck: bool` per topic). Read-only; no auth, no network beyond hub UDS. The cold-start verb when an agent must answer "which topic has the stuck worker?" without shelling out.
 - **Slice 11 (T-2044):** `channel claim-force-release` + `termlink_channel_claim_force_release` — operator-Tier-0 intervention verb that bypasses `claimed_by == claimer` ownership check. Closes the operations loop from observability (Slices 8/9/10) to intervention: detection → diagnosis → force-release. Semantics match `release(ack=false)`; cursor untouched, slot freed. Returns `{forced_from, forced_reason}` audit anchors. Single-operator-per-hub trust model documented under G-064.
+- **Primitive #3 (T-2046, T-2021 GO):** `channel.transfer_claim` RPC + `termlink channel claim-transfer` CLI + `termlink_channel_claim_transfer` MCP — atomic cooperative ownership transfer of an existing claim. The orchestrator-to-worker handoff path that eliminates the release-then-claim race. Distinct from `claim-force-release`: transfer is `by`-gated (`CLAIM_NOT_OWNED` when mismatched), force-release bypasses ownership entirely. Lease timestamps survive the transfer; only `claimed_by` mutates. Pairs with `agent.find_idle` (T-2045) for the full assign workflow.

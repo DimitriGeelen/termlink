@@ -399,6 +399,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
             ("termlink_channel_claim_force_release", "Operator-Tier-0 force release — bypass claimer-ownership check to clear a stuck claim faster than TTL expiry (T-2044)"),
+            ("termlink_channel_claim_transfer", "T-2046: atomic ownership transfer of an existing claim — cooperative + owner-checked orchestrator-to-worker handoff that eliminates the release-then-claim race. Distinct from claim_force_release (Tier-0 bypass)."),
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
@@ -8078,6 +8079,25 @@ pub struct ChannelClaimForceReleaseParams {
     /// Optional operator-supplied audit reason. Echoed in the response
     /// and useful for downstream audit-log forwarding (e.g. write to a
     /// `claim-history` topic). Defaults to `None`.
+    pub reason: Option<String>,
+}
+
+/// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3) — params for
+/// `termlink_channel_claim_transfer`. Cooperative + owner-checked
+/// ownership transition (distinct from `ChannelClaimForceReleaseParams`,
+/// the operator-Tier-0 bypass). All three string fields are required;
+/// `reason` is optional audit metadata.
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimTransferParams {
+    /// Claim handle returned by the original `channel.claim` call.
+    pub claim_id: String,
+    /// The new owner the lease transfers TO (e.g. `worker-A`).
+    pub to_owner: String,
+    /// The current owner of the lease — MUST equal the row's
+    /// `claimed_by` (returns CLAIM_NOT_OWNED -32017 otherwise).
+    pub by: String,
+    /// Optional audit reason — echoed in the response, surfaced but not
+    /// persisted in the claims table.
     pub reason: Option<String>,
 }
 
@@ -19909,6 +19929,40 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.force_release error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_claim_transfer",
+        description = "Atomic ownership transfer of an existing claim — MCP parity for `termlink channel claim-transfer --claim-id <id> --to-owner <new> --by <current> [--reason <text>]` CLI verb (T-2046, arc-parallel-substrate primitive #3, T-2021 GO). Cooperative + owner-checked: `by` MUST equal the row's current `claimed_by` (returns CLAIM_NOT_OWNED -32017 otherwise) — this is the orchestrator-to-worker handoff path, NOT the operator-Tier-0 bypass (use `termlink_channel_claim_force_release` for that). Lease timestamps (`claimed_at`, `claimed_until`) survive the transfer; only `claimed_by` mutates. Use case: orchestrator claims an offset on a worker's behalf, posts a DM with the claim_id to the worker via `termlink_channel_post` on `dm:orch:worker`, worker reads the envelope and calls `termlink_channel_claim_transfer(by=orch, to_owner=worker)` to take ownership atomically — no release-then-claim race window. Returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016), CLAIM_NOT_OWNED (-32017) when `by` mismatches, CLAIM_EXPIRED (-32018) when lease lapsed before transfer (stale row lazily evicted). Use after `termlink_agent_find_idle` (T-2045) returns a chosen worker; pair with `termlink_channel_release` for the terminal step in the assign workflow."
+    )]
+    async fn termlink_channel_claim_transfer(
+        &self,
+        Parameters(p): Parameters<ChannelClaimTransferParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::Map::new();
+        params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
+        params.insert("to_owner".to_string(), serde_json::Value::String(p.to_owner));
+        params.insert("by".to_string(), serde_json::Value::String(p.by));
+        if let Some(reason) = p.reason {
+            params.insert("reason".to_string(), serde_json::Value::String(reason));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_TRANSFER_CLAIM,
+            serde_json::Value::Object(params),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.transfer_claim error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2021, T-2019, T-2020, T-2044]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:01Z
-last_update: 2026-06-08T13:20:44Z
+last_update: 2026-06-08T14:04:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,18 +48,18 @@ T-2021 GO build (see `docs/reports/T-2021-pull-assign-rpc-inception.md`). Atomic
 - [x] `cargo check -p termlink-bus` passes.
 
 **Slice 2 — Hub handler + router arm + protocol const:**
-- [ ] `CHANNEL_TRANSFER_CLAIM = "channel.transfer_claim"` method constant added to `crates/termlink-protocol/src/control.rs` with doc-comment naming `CLAIM_NOT_FOUND / CLAIM_NOT_OWNED / CLAIM_EXPIRED` errors and the cooperative-vs-force distinction vs `CHANNEL_FORCE_RELEASE`.
-- [ ] `handle_channel_transfer_claim` handler in `crates/termlink-hub/src/channel.rs` parses `{claim_id, to_owner, by, reason?}`, calls `Bus::transfer_claim`, maps `BusError::{ClaimNotFound,ClaimNotOwned,ClaimExpired}` to JSON-RPC -32016 / -32017 / -32018, returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_until}` on success.
-- [ ] Router arm added to `crates/termlink-hub/src/router.rs` + governance allowlist entry. `cargo check -p termlink-hub` passes.
+- [x] `CHANNEL_TRANSFER_CLAIM = "channel.transfer_claim"` constant in `crates/termlink-protocol/src/control.rs` with full doc-comment naming the error taxonomy and cooperative-vs-force distinction. Assert added to the const test block.
+- [x] `handle_channel_transfer_claim` + `handle_channel_transfer_claim_with` in `crates/termlink-hub/src/channel.rs` — mirrors `handle_channel_renew` shape, parses `{claim_id, to_owner, by, reason?}`, maps `BusError::{ClaimNotFound,ClaimNotOwned,ClaimExpired}` to `-32016 / -32017 / -32018` via `error_code::*`, returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}`.
+- [x] Router arm at `crates/termlink-hub/src/router.rs:114` (between FORCE_RELEASE and RENEW), governance allowlist entry next to FORCE_RELEASE. `cargo check -p termlink-hub` passes.
 
 **Slice 3 — CLI verb:**
-- [ ] `termlink channel claim-transfer --claim-id C --to-owner W --by B [--reason ...] [--json]` — clap subcommand under `ChannelAction`, dispatch in `main.rs`, impl in `crates/termlink-cli/src/commands/channel_claim_transfer.rs`. Renders human-format one-line summary; `--json` returns the raw RPC envelope.
-- [ ] `cargo check -p termlink` passes; live smoke against local hub: claim → transfer → release succeeds end-to-end with distinct owner strings.
+- [x] `termlink channel claim-transfer --claim-id C --to-owner W --by B [--reason ...] [--json]` — `ChannelAction::ClaimTransfer` clap variant in `cli.rs`, dispatch in `main.rs`, impl `cmd_channel_claim_transfer` in `commands/channel.rs`, session client `channel_transfer_claim` + `TransferSummary` + `parse_transfer_response` in `claim_client.rs`. Renders one-line human summary `<claim_id> transferred <topic>:<offset> from <from> → <to>` (+ optional reason line + lease-preserved note); `--json` returns the raw RPC envelope.
+- [x] `cargo check -p termlink` passes; live smoke 2026-06-08T14:25Z against local hub (post `cargo install --path crates/termlink-cli --force` + `systemctl restart termlink-hub`): claim → transfer → release end-to-end. **All 4 paths green:** (a) happy `orch → worker-A` with reason returned `{from_owner:orch, to_owner:worker-A, claimed_at:1780928755344, claimed_until:1780928815344, reason:"T-2046 live smoke"}` — lease ts preserved; (b) wrong `by=imposter` → "claim ... is held by another claimer" (CLAIM_NOT_OWNED); (c) bogus claim_id → "claim ... not found (never existed, released, or expired)" (CLAIM_NOT_FOUND); (d) release by new owner-A with `ack=true` succeeded — confirms transfer was atomic + owner-bound.
 
 **Slice 4 — MCP tool + docs:**
-- [ ] `termlink_channel_claim_transfer` MCP tool with `ChannelClaimTransferParams {claim_id, to_owner, by, reason?}` in `crates/termlink-mcp/src/tools.rs` + tool-index entry. `cargo check -p termlink-mcp` passes.
-- [ ] `docs/operations/substrate-claim-primitive.md` extended with: (a) row in the surface table, (b) `transfer_claim` lifecycle entry, (c) cooperative-vs-force distinction, (d) end-to-end assign recipe (`agent.find_idle` → `channel.claim` → `channel.post` to `dm:O:W` → worker reads → `channel.transfer_claim` → process → `channel.release`).
-- [ ] CLAUDE.md Quick Reference: row added cross-referencing MCP parity, the orchestrator recipe location, and the distinction vs `force_release`.
+- [x] `termlink_channel_claim_transfer` MCP tool with `ChannelClaimTransferParams {claim_id, to_owner, by, reason?}` in `crates/termlink-mcp/src/tools.rs` + tool-index entry between FORCE_RELEASE and RENEW. `cargo check -p termlink-mcp` passes.
+- [x] `docs/operations/substrate-claim-primitive.md` extended: (a) row in surface table with full description, (b) new diagnostic recipe section "Hand a unit to a specific worker without a race window" with end-to-end shell example (find-idle → claim → channel.post DM → claim-transfer → release), (c) explicit cooperative-vs-force distinction in body, (d) References entry "Primitive #3 (T-2046, T-2021 GO)" closing the substrate primitive series.
+- [x] CLAUDE.md Quick Reference row "Transfer claim ownership (ASSIGN)" added between Find-idle and Cross-host-handoff rows. Cross-references MCP parity, the assign recipe doc location, and the claim-force-release distinction.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,6 +124,17 @@ T-2021 GO build (see `docs/reports/T-2021-pull-assign-rpc-inception.md`). Atomic
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo check -p termlink-bus
+cargo check -p termlink-protocol
+cargo check -p termlink-hub
+cargo check -p termlink
+cargo check -p termlink-mcp
+cargo check -p termlink-session
+out=$(cargo test -p termlink-bus transfer_claim 2>&1); echo "$out" | grep -q "6 passed"
+test -f docs/operations/substrate-claim-primitive.md
+out=$(grep -F "channel.transfer_claim" docs/operations/substrate-claim-primitive.md); echo "$out" | grep -q "atomic"
+out=$(grep -F "claim-transfer" CLAUDE.md); echo "$out" | grep -q "ASSIGN"
+out=$(./target/release/termlink channel claim-transfer --help 2>&1); echo "$out" | grep -q "claim-transfer"
 
 ## RCA
 
@@ -164,6 +175,21 @@ T-2021 GO build (see `docs/reports/T-2021-pull-assign-rpc-inception.md`). Atomic
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-06-08 — slice 1: lease timestamps survive transfer; only `claimed_by` mutates
+- **What changed:** The T-2021 inception specified the RPC shape but left "what about ttl?" implicit. During slice 1 it became clear that the cleanest semantics are: transfer is purely ownership advance — `claimed_at` and `claimed_until` are preserved. Renew is a separate verb; transfer is not a re-lease. Workers wanting a longer window after receiving a transferred claim call `channel.renew(by=new_owner, additional_ttl_ms=...)` as a follow-up.
+- **Plan impact:** None for code shape; clarified the response envelope and the doc story. Lease-preservation IS the natural single-row UPDATE; mixing ttl reset would require a now-ms parameter through the bus layer, defeating the simplicity.
+- **Triggered:** No new task. Captured in `TransferInfo` doc-comment + the "Hand a unit to a specific worker" recipe (lease-preserved note in the human format CLI output).
+
+### 2026-06-08 — slice 3: live smoke required cargo install + systemctl restart
+- **What changed:** Unlike T-2045 where `./target/release/termlink hub stop && hub start` worked because nothing else was managing the hub, T-2046's hub-side surface (transfer_claim handler) is hosted in the systemd-managed `termlink-hub.service` on this host. The local `./target/release/termlink` binary alone cannot validate the RPC end-to-end — the hub PID must come from the upgraded binary. The deploy step is therefore canonical: `cargo install --path crates/termlink-cli --force` (replaces `/root/.cargo/bin/termlink`) → `systemctl restart termlink-hub` (clean restart with `/var/lib/termlink` persistent runtime_dir → no client re-pin, no broken connections).
+- **Plan impact:** Captured the install + restart sequence as the validated path for any substrate hub-side primitive. Future T-2018 primitives that add hub handlers will hit this same wall — surfacing it now means they can pre-budget the 6-minute release build.
+- **Triggered:** No new task. Should the `cargo install` step ever become a blocker (e.g. cross-host parity), file a deploy-tooling task. For now the local hub fully validates the protocol.
+
+### 2026-06-08 — slice 4: assign recipe lives in substrate-claim-primitive.md (not a new file)
+- **What changed:** Considered splitting the assign recipe into its own `docs/operations/substrate-assign-primitive.md` for symmetry with `agent-find-idle.md`. Decided against — transfer_claim is fundamentally a verb in the claim lifecycle, not a separate primitive's worth of documentation surface. Adding the recipe to the existing claim primitive doc (in the Diagnostic Recipes section, between force-release and the error reference) keeps related material co-located.
+- **Plan impact:** Avoided creating a third operations doc. The existing doc gained one row in the surface table, one recipe section, and one References entry — still all sub-300-line growth.
+- **Triggered:** No new task.
 
 ## Decisions
 

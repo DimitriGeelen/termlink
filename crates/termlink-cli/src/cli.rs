@@ -3193,6 +3193,39 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3) — atomic
+    /// ownership transfer of an existing claim. Cooperative + owner-checked:
+    /// `--by` MUST equal the current claimed_by (`CLAIM_NOT_OWNED` otherwise).
+    /// Distinct from `claim-force-release` which is the operator-Tier-0
+    /// ownership-bypass verb. Lease timestamps (`claimed_at`, `claimed_until`)
+    /// survive the transfer — only `claimed_by` mutates.
+    ///
+    /// Use this when an orchestrator has claimed a slot on a worker's behalf
+    /// and now needs to atomically hand the lease to that worker without
+    /// the release-then-claim race window.
+    ClaimTransfer {
+        /// Opaque claim_id returned by the original `channel claim` (look it
+        /// up via `channel claims <topic>` if needed).
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// New owner the lease transfers TO (e.g. `worker-A`).
+        #[arg(long = "to-owner")]
+        to_owner: String,
+        /// Current owner of the claim. MUST equal the row's `claimed_by` —
+        /// cooperative gate (`CLAIM_NOT_OWNED` otherwise).
+        #[arg(long)]
+        by: String,
+        /// Optional audit reason — echoed in the response, surfaced but not
+        /// persisted in the claims table.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// T-2044 (arc-parallel-substrate Slice 11) — operator-Tier-0 force
     /// release of a held claim. Wraps the `channel.force_release` JSON-RPC
     /// verb shipped in T-2044. Bypasses the `claimed_by == claimer`

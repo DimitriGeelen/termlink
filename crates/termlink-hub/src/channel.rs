@@ -1041,6 +1041,91 @@ pub(crate) async fn handle_channel_force_release_with(
     }
 }
 
+/// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3) — `channel.transfer_claim(claim_id, to_owner, by, reason?)`.
+/// Atomic ownership transfer of an existing claim. Cooperative + owner-checked:
+/// `by` MUST equal the row's current `claimed_by` (`CLAIM_NOT_OWNED` otherwise) —
+/// this is the orchestrator-to-worker handoff path, not the operator-Tier-0
+/// bypass (that's `channel.force_release`). Lease timestamps survive the
+/// transfer; only `claimed_by` mutates.
+pub async fn handle_channel_transfer_claim(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_transfer_claim_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_transfer_claim_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let claim_id = match param_str(params, "claim_id") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claim_id' in params").into(),
+    };
+    let to_owner = match param_str(params, "to_owner") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'to_owner' in params").into(),
+    };
+    let by = match param_str(params, "by") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'by' in params").into(),
+    };
+    let reason = param_str(params, "reason");
+    match bus.transfer_claim(claim_id, to_owner, by, reason) {
+        Ok(info) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "claim_id": info.claim_id,
+                "topic": info.topic,
+                "offset": info.offset,
+                "from_owner": info.from_owner,
+                "to_owner": info.to_owner,
+                "claimed_at": info.claimed_at,
+                "claimed_until": info.claimed_until,
+                "reason": info.reason,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotFound(cid)) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_FOUND,
+            &format!("channel.transfer_claim: claim {cid:?} not found"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimExpired { claim_id: cid }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_EXPIRED,
+            &format!("channel.transfer_claim: claim {cid:?} lease has lapsed"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotOwned {
+            claim_id: cid,
+            claimed_by,
+            attempted_by,
+        }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_OWNED,
+            &format!(
+                "channel.transfer_claim: claim {cid:?} held by {claimed_by:?}, not {attempted_by:?}"
+            ),
+            json!({
+                "claim_id": cid,
+                "claimed_by": claimed_by,
+                "attempted_by": attempted_by,
+            }),
+        )
+        .into(),
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("channel.transfer_claim: {e}")).into()
+        }
+    }
+}
+
 /// T-2030 (arc-parallel-substrate Slice 2) — `channel.renew(claim_id, claimer, additional_ttl_ms?)`.
 /// Extends a worker's lease before `claimed_until`. Gates on caller-is-original-claimer
 /// AND not-yet-expired; returns the refreshed `ClaimInfo` shape on success.

@@ -70,6 +70,24 @@ pub struct ForceReleaseSummary {
     pub forced_reason: Option<String>,
 }
 
+/// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3) — successful
+/// response shape for `channel.transfer_claim`. Distinct from
+/// [`ReleaseSummary`] / [`ForceReleaseSummary`] in that transfer is an
+/// ownership transition, not a release — the claim_id stays live, the
+/// lease timestamps survive, and the response names both endpoints of
+/// the handoff. `reason` is operator-supplied audit metadata.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransferSummary {
+    pub claim_id: String,
+    pub topic: String,
+    pub offset: u64,
+    pub from_owner: String,
+    pub to_owner: String,
+    pub claimed_at: i64,
+    pub claimed_until: i64,
+    pub reason: Option<String>,
+}
+
 /// T-2039 (arc-parallel-substrate Slice 6) — aggregate claim state for a
 /// topic from `channel.claims_summary`. Distinct from the per-claim
 /// [`ClaimSummary`] (which mirrors `ClaimInfo`); this is the "how busy /
@@ -193,6 +211,34 @@ pub async fn channel_force_release(
     parse_force_release_response(resp)
 }
 
+/// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3): issue a
+/// `channel.transfer_claim` RPC. Cooperative + owner-checked: `by` must
+/// equal the row's current `claimed_by` (returns `ClaimError::Hub
+/// {code: -32017, ..}` otherwise). Distinct from `channel_force_release`
+/// which bypasses ownership.
+///
+/// Lease timestamps survive the transfer — only `claimed_by` mutates.
+/// `reason` is operator-supplied audit metadata, echoed verbatim in the
+/// response but not persisted in the claims table.
+pub async fn channel_transfer_claim(
+    addr: &TransportAddr,
+    claim_id: &str,
+    to_owner: &str,
+    by: &str,
+    reason: Option<&str>,
+) -> Result<TransferSummary, ClaimError> {
+    let mut params = json!({
+        "claim_id": claim_id,
+        "to_owner": to_owner,
+        "by": by,
+    });
+    if let Some(r) = reason {
+        params["reason"] = json!(r);
+    }
+    let resp = rpc_call_addr(addr, method::CHANNEL_TRANSFER_CLAIM, params).await?;
+    parse_transfer_response(resp)
+}
+
 /// T-2037 (arc-parallel-substrate Slice 4): list current claim rows for
 /// `topic`. Read-only introspection — answers "what is currently
 /// claimed?" without forcing the caller to attempt a `channel.claim`.
@@ -305,6 +351,44 @@ fn parse_force_release_response(
                 offset,
                 forced_from,
                 forced_reason,
+            })
+        }
+        RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
+    }
+}
+
+fn parse_transfer_response(
+    resp: RpcResponse,
+) -> Result<TransferSummary, ClaimError> {
+    match resp {
+        RpcResponse::Success(ok) => {
+            let r = &ok.result;
+            let claim_id = field_str(r, "claim_id")?;
+            let topic = field_str(r, "topic")?;
+            let offset = field_u64(r, "offset")?;
+            let from_owner = field_str(r, "from_owner")?;
+            let to_owner = field_str(r, "to_owner")?;
+            let claimed_at = r
+                .get("claimed_at")
+                .and_then(|v| v.as_i64())
+                .unwrap_or_default();
+            let claimed_until = r
+                .get("claimed_until")
+                .and_then(|v| v.as_i64())
+                .unwrap_or_default();
+            let reason = r
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            Ok(TransferSummary {
+                claim_id,
+                topic,
+                offset,
+                from_owner,
+                to_owner,
+                claimed_at,
+                claimed_until,
+                reason,
             })
         }
         RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),

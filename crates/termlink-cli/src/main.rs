@@ -1564,6 +1564,24 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ClaimTransfer {
+                claim_id,
+                to_owner,
+                by,
+                reason,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_claim_transfer(
+                    &claim_id,
+                    &to_owner,
+                    &by,
+                    reason.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Claims {
                 topic,
                 include_expired,
