@@ -7,15 +7,15 @@ description: >
   authenticated path (loopback TCP same-host, TCP cross-host, both HMAC + cert pinning)
   to retire the privileged sidecar UDS listener.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:37Z
-last_update: 2026-06-08T07:35:18Z
+last_update: 2026-06-08T11:20:55Z
 date_finished:
 revisit_at: 2026-09-08            # T-1451: DEFER pending measurement spike; revisit in 90d (gives Foundation primitives time to ship)
 revisit_evidence_needed: "Latency-spike numbers under concurrent-agent load (≥10 simultaneous clients), or a concrete UID-trust incident, or operator decision to retire the privileged sidecar."
@@ -93,15 +93,15 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -175,7 +175,38 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER with measurement-first plan. Spike latency under concurrent-agent load before locking the migration. Resume the decision with data (revisit_at=2026-09-08).
+
+Rationale (one-paragraph): Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is measurement: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
+
+Full analysis: see [docs/reports/T-2024-symmetric-auth-inception.md](../../docs/reports/T-2024-symmetric-auth-inception.md).
+
+Two-track unblock plan:
+
+Track A — measurement spike (can run now, ≤1 session):
+- Set up local hub with both UDS and TCP listeners on loopback.
+- Drive synthetic concurrent load: 10 clients × subscribe + 10 × post + 10 × claim/release cycles.
+- Measure: p50/p95/p99 round-trip latency for each path; CPU/syscall overhead; connection-establish cost.
+- Write `docs/reports/T-2024-latency-spike.md` with raw numbers + decision update.
+
+Track B — re-decide based on data (after Track A):
+- TCP-loopback p99 ≤ 2× UDS p99 → GO, file Phase-1 coexistence build task.
+- TCP-loopback p99 > 5× UDS p99 → NO-GO, document gap, leave UDS in place but file audit-logging task to make trust-model gap observable.
+- Between 2× and 5× → operator judgment with raw numbers in hand.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ⏸ "Latency measurement confirms §7's assumption" — UNRESOLVED, this is the gate.
+- ✅ "Migration recipe is reversible" — staged coexistence pattern (4 phases) keeps UDS available throughout deprecation cycle.
+- ✅ "UDS path can be retired cleanly" — yes, but only post-cutover after deprecation cycle completes.
+
+Open follow-up tasks to file:
+- (Immediate, on DEFER) Spike task — "T-2024 latency-measurement spike: TCP-loopback vs UDS under concurrent-agent load".
+- (Conditional, on Track A → GO) Phase-1 build task — coexistence path with opt-in config flag.
+- (Conditional, on Track A → NO-GO) Audit-logging task — add structured audit log on UDS path so trust-model gap is observable.
+
+**Date**: 2026-06-08T11:20:55Z
 
 ## Updates
 
@@ -185,3 +216,40 @@ At promotion time: (1) measure loopback TCP latency under concurrent-agent load;
 ### 2026-06-08T07:35:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T11:20:55Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER with measurement-first plan. Spike latency under concurrent-agent load before locking the migration. Resume the decision with data (revisit_at=2026-09-08).
+
+Rationale (one-paragraph): Unlike T-2020/T-2021/T-2025/T-2027, this primitive is not verb-shaped — it's a transport-and-trust-model change that retires the UDS path. The cross-host TCP+HMAC+cert primitives already exist and work; nothing is missing infrastructure-wise. What IS missing is measurement: §7 asserts loopback TCP latency is negligible at homelab scale, but no spike has been run, and T-2019..T-2021 increase concurrent client load above prior measurement points. The same "asserted without evidence" shape as the T-1991 agent-presence bloat finding. The cost of a measurement spike (≤1 session) is small relative to the cost of cutting over and discovering a latency regression after some local-tool's UX degraded. Migration is recoverable but the risk surface is comparable to a CLI flag rename, not a verb addition.
+
+Full analysis: see [docs/reports/T-2024-symmetric-auth-inception.md](../../docs/reports/T-2024-symmetric-auth-inception.md).
+
+Two-track unblock plan:
+
+Track A — measurement spike (can run now, ≤1 session):
+- Set up local hub with both UDS and TCP listeners on loopback.
+- Drive synthetic concurrent load: 10 clients × subscribe + 10 × post + 10 × claim/release cycles.
+- Measure: p50/p95/p99 round-trip latency for each path; CPU/syscall overhead; connection-establish cost.
+- Write `docs/reports/T-2024-latency-spike.md` with raw numbers + decision update.
+
+Track B — re-decide based on data (after Track A):
+- TCP-loopback p99 ≤ 2× UDS p99 → GO, file Phase-1 coexistence build task.
+- TCP-loopback p99 > 5× UDS p99 → NO-GO, document gap, leave UDS in place but file audit-logging task to make trust-model gap observable.
+- Between 2× and 5× → operator judgment with raw numbers in hand.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ⏸ "Latency measurement confirms §7's assumption" — UNRESOLVED, this is the gate.
+- ✅ "Migration recipe is reversible" — staged coexistence pattern (4 phases) keeps UDS available throughout deprecation cycle.
+- ✅ "UDS path can be retired cleanly" — yes, but only post-cutover after deprecation cycle completes.
+
+Open follow-up tasks to file:
+- (Immediate, on DEFER) Spike task — "T-2024 latency-measurement spike: TCP-loopback vs UDS under concurrent-agent load".
+- (Conditional, on Track A → GO) Phase-1 build task — coexistence path with opt-in config flag.
+- (Conditional, on Track A → NO-GO) Audit-logging task — add structured audit log on UDS path so trust-model gap is observable.
+
+### 2026-06-08T11:20:55Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task
