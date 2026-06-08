@@ -4,20 +4,20 @@ name: "Substrate primitive #9: channel.subscribe --from-latest [--once|--then-li
 description: >
   Implement the T-2027 GO decision per docs/reports/T-2027-broadcast-with-replay-inception.md. New subscribe flags: --from-latest --once (read latest envelope and exit, atomic), --from-latest --then-live (read latest then stream forward). Late-joiner room-state read for chat-arc / dm:* topics without full replay. Defers compaction to T-2028. ~80 LOC across 4 vertical slices.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, supporting]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-2018, T-2027, T-2028]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:05Z
-last_update: 2026-06-08T12:27:02Z
-date_finished: null
+last_update: 2026-06-08T12:28:06Z
+date_finished: 2026-06-08T12:28:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -136,6 +136,16 @@ grep -q "from_latest" crates/termlink-mcp/src/tools.rs
 
 ## Evolution
 
+### 2026-06-08 — Clap can't distinguish default-from-explicit for u64
+- **What changed:** AC 6 was originally written as "blocks `--cursor` / `--limit`" — but clap's u64 with a non-None default value reaches the validator as `Some(0)`, indistinguishable from an explicit `--cursor 0`. AMENDED to "OVERRIDES" — by-design override with `cursor→max_offset, limit→1`. Help text documents.
+- **Plan impact:** none — override semantics are internally consistent; the unit test (`from_latest_overrides`) exercises this directly.
+- **Triggered:** task-file AC 6 marked AMENDED + ticked; no new sub-tasks.
+
+### 2026-06-08 — MCP one-shot vs CLI streaming asymmetry
+- **What changed:** `--then-live` is meaningful on the CLI (returns latest then streams), but the MCP tool description says "One-shot — the MCP caller loops externally". So the MCP variant exposes only `from_latest: bool` and behaves as `--once`; streaming is not surfaced. This is consistent with the existing tool contract, not a regression.
+- **Plan impact:** Slice 3 (MCP parity) ships with reduced surface vs CLI — documented in the tool description so callers know to loop externally if they want streaming behavior.
+- **Triggered:** none — symmetric-where-it-matters, asymmetric-where-the-MCP-contract-says-so.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -188,3 +198,6 @@ grep -q "from_latest" crates/termlink-mcp/src/tools.rs
 
 ### 2026-06-08T11:20:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T12:28:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

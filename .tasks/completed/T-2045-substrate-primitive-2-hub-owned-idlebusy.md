@@ -4,20 +4,20 @@ name: "Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO bui
 description: >
   Implement the T-2020 GO decision per docs/reports/T-2020-idle-busy-registry-inception.md. Derivation-based: idle_agents = LIVE(presence) \ DISTINCT(claimed_by). Add metadata.capabilities: [string] to heartbeat. Surface as agent.find_idle RPC + termlink agent find-idle CLI. ~150 LOC across 5 vertical slices.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, foundation]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, scripts/be-reachable.sh]
 related_tasks: [T-2018, T-2020, T-2019, T-2021]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:48:48Z
-last_update: 2026-06-08T12:37:25Z
-date_finished: null
+last_update: 2026-06-08T13:19:02Z
+date_finished: 2026-06-08T13:19:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -220,3 +220,6 @@ out=$(./target/release/termlink agent find-idle --help 2>&1); echo "$out" | grep
 
 ### 2026-06-08T12:28:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T13:19:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

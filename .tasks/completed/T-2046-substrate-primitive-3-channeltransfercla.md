@@ -4,20 +4,20 @@ name: "Substrate primitive #3: channel.transfer_claim RPC (T-2021 GO build slice
 description: >
   Implement the T-2021 GO decision per docs/reports/T-2021-pull-assign-rpc-inception.md. ONE new RPC: channel.transfer_claim(claim_id, to_owner, by, reason?). Atomic ownership transfer (cooperative + owner-checked, distinct from T-2044 force_release). Pull-side is pure composition of subscribe + claim — no new code. ~120 LOC across 4 vertical slices.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, foundation]
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-2018, T-2021, T-2019, T-2020, T-2044]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:01Z
-last_update: 2026-06-08T14:04:41Z
-date_finished: null
+last_update: 2026-06-08T14:27:51Z
+date_finished: 2026-06-08T14:27:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -221,3 +221,6 @@ out=$(./target/release/termlink channel claim-transfer --help 2>&1); echo "$out"
 
 ### 2026-06-08T13:20:44Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T14:27:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

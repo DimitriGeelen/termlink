@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2046: Substrate primitive #3: channel.transfer_claim RPC (T-2021 GO build slice)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T14:28:20Z
+# ============================================================================
+
+task_id: T-2046
+task_name: "Substrate primitive #3: channel.transfer_claim RPC (T-2021 GO build slice)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:01Z
+completed: 2026-06-08T14:27:51Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`Bus::transfer_claim(claim_id, to_owner, by, reason)` added to `crates/termlink-bus/src/lib.rs` and `Meta::transfer_claim` to `crates/termlink-bus/src/meta.rs`. Atomic single-row UPDATE under transaction: gates SELECT → check expired (lazy-evict + `ClaimExpired`) → check `claimed_by == by` (`ClaimNotOwned`) → UPDATE `claimed_by = to_owner` → return `TransferInfo` with `from_owner` and `to_owner` distinguished.'
+  - '`TransferInfo` struct re-exported from `termlink-bus` with: `claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason`.'
+  - 'Unit tests cover: (a) happy path + lease preservation, (b) claim-not-found → `ClaimNotFound`, (c) expired claim → `ClaimExpired` + row evicted + slot reclaimable, (d) `by` ≠ `claimed_by` → `ClaimNotOwned` + row intact, (e) self-transfer (to_owner == claimed_by) success-path, (f) cursor-advances-belong-to-new-owner (A→B transfer + ack release by B: B''s cursor advances past offset, A''s stays None). **6/6 tests passing** under `cargo test -p termlink-bus transfer_claim`.'
+  - '`cargo check -p termlink-bus` passes.'
+  - '`CHANNEL_TRANSFER_CLAIM = "channel.transfer_claim"` constant in `crates/termlink-protocol/src/control.rs` with full doc-comment naming the error taxonomy and cooperative-vs-force distinction. Assert added to the const test block.'
+  - '`handle_channel_transfer_claim` + `handle_channel_transfer_claim_with` in `crates/termlink-hub/src/channel.rs` — mirrors `handle_channel_renew` shape, parses `{claim_id, to_owner, by, reason?}`, maps `BusError::{ClaimNotFound,ClaimNotOwned,ClaimExpired}` to `-32016 / -32017 / -32018` via `error_code::*`, returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}`.'
+  - 'Router arm at `crates/termlink-hub/src/router.rs:114` (between FORCE_RELEASE and RENEW), governance allowlist entry next to FORCE_RELEASE. `cargo check -p termlink-hub` passes.'
+  - '`termlink channel claim-transfer --claim-id C --to-owner W --by B [--reason ...] [--json]` — `ChannelAction::ClaimTransfer` clap variant in `cli.rs`, dispatch in `main.rs`, impl `cmd_channel_claim_transfer` in `commands/channel.rs`, session client `channel_transfer_claim` + `TransferSummary` + `parse_transfer_response` in `claim_client.rs`. Renders one-line human summary `<claim_id> transferred <topic>:<offset> from <from> → <to>` (+ optional reason line + lease-preserved note); `--json` returns the raw RPC envelope.'
+  - '`cargo check -p termlink` passes; live smoke 2026-06-08T14:25Z against local hub (post `cargo install --path crates/termlink-cli --force` + `systemctl restart termlink-hub`): claim → transfer → release end-to-end. **All 4 paths green:** (a) happy `orch → worker-A` with reason returned `{from_owner:orch, to_owner:worker-A, claimed_at:1780928755344, claimed_until:1780928815344, reason:"T-2046 live smoke"}` — lease ts preserved; (b) wrong `by=imposter` → "claim ... is held by another claimer" (CLAIM_NOT_OWNED); (c) bogus claim_id → "claim ... not found (never existed, released, or expired)" (CLAIM_NOT_FOUND); (d) release by new owner-A with `ack=true` succeeded — confirms transfer was atomic + owner-bound.'
+  - '`termlink_channel_claim_transfer` MCP tool with `ChannelClaimTransferParams {claim_id, to_owner, by, reason?}` in `crates/termlink-mcp/src/tools.rs` + tool-index entry between FORCE_RELEASE and RENEW. `cargo check -p termlink-mcp` passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 218 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, foundation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 218
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2046-substrate-primitive-3-channeltransfercla.md
+generated_by: context-agent-hybrid

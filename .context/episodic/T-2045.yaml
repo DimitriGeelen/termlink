@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2045: Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO build slice)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T13:19:30Z
+# ============================================================================
+
+task_id: T-2045
+task_name: "Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO build slice)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:48:48Z
+completed: 2026-06-08T13:19:02Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T15:18:54+02:00
+last_commit: 2026-06-08T15:18:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  slice 5 docs + live smoke evidence (closure-ready)
+
+# Key outcomes
+outcomes:
+  - '`agent.find_idle` method constant added to `termlink-protocol` (`control.rs:212`)'
+  - 'Bus library derivation function: walks `agent-presence` topic, dedups by `agent_id` keeping latest envelope, filters to LIVE (heartbeat newer than 2×interval, default 60s), anti-joins against active claims (`claimed_until > now`), sorts by `last_heartbeat_ms` desc (`Bus::find_idle_agents` in `bus/src/lib.rs`)'
+  - 'Hub router arm for `agent.find_idle` with params `{role?: string, capabilities?: [string], limit?: u32}` → `{ok, idle: [...]}` (`hub/src/channel.rs::handle_agent_find_idle`, router arm at `hub/src/router.rs:120`)'
+  - 'Unit tests cover: (a) presence-only-no-claims returns all LIVE, (b) presence-with-claims excludes claimed_by, (c) stale (>2×interval) excluded, (d) role filter, (e) capabilities filter (subset match), (f) empty presence → empty result — plus dedup-by-agent_id and limit-truncates-after-sort tests. **8/8 tests passing** (`cargo test -p termlink-bus find_idle`)'
+  - '`cargo check -p termlink` and `cargo check -p termlink-hub` pass'
+  - '`termlink agent find-idle [--role R] [--capability C] [--limit N] [--json]` calls the RPC — `AgentAction::FindIdle` in `cli.rs`, dispatch in `main.rs`, impl in `commands/agent_find_idle.rs`'
+  - 'Human-format output: one agent per line with id/age/role/capabilities; `--json` returns the raw array'
+  - 'Live smoke against a real hub returns at least the local-session agent_id — verified 2026-06-08T13:15Z post-hub-restart on the bhg34ttiq build. `/be-reachable start --agent-id smoke-T2045-claude` with `TERMLINK_CAPABILITIES="claude-code,rust,smoke-test"` produced `idle:[{agent_id:smoke-T2045-claude, capabilities:[claude-code,rust,smoke-test], role:claude-code, last_heartbeat_ms:1780924555851}]`. Filters exercised live: `--capability rust` matches; `--capability python` empty; `--role claude-code` matches; human-format renders `smoke-T2045-claude\tage=16s\trole=claude-code\tcapabilities=claude-code,rust,smoke-test`'
+  - '`termlink_agent_find_idle` MCP tool with params `{role?, capabilities?, limit?}` — `AgentFindIdleParams` + handler in `crates/termlink-mcp/src/tools.rs`, registered in tool index. `cargo check -p termlink-mcp` passes.'
+  - '`metadata.capabilities` (comma-separated string) supported on the server side — bus library reads it, treats absent as empty set; covered by `find_idle_capabilities_subset_match` unit test'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/operations/agent-find-idle.md'
+  - '.tasks/active/T-2045-substrate-primitive-2-hub-owned-idlebusy.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T15:18:54"
+    action: "T-2045: slice 5 docs + live smoke evidence (closure-ready)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 150 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, foundation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 150
+  commits: 1
+  files_changed: 3
+  lines_added: 191
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2045-substrate-primitive-2-hub-owned-idlebusy.md
+generated_by: context-agent-hybrid

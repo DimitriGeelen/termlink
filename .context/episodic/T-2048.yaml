@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2048: Substrate primitive #10 Track A: connection cap + rate limit (T-2028 PARTIAL-GO Track A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T15:25:39Z
+# ============================================================================
+
+task_id: T-2048
+task_name: "Substrate primitive #10 Track A: connection cap + rate limit (T-2028 PARTIAL-GO Track A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:10Z
+completed: 2026-06-08T15:25:25Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T16:56:22+02:00
+last_commit: 2026-06-08T16:56:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  author real ACs — Track B (connection cap + rate limit + LOUD-refuse RPC)
+
+# Key outcomes
+outcomes:
+  - 'Slice 1 — Governor module: `crates/termlink-hub/src/governor.rs`'
+  - 'Slice 1 — Unit tests: `cargo test -p termlink-hub governor`'
+  - 'Slice 2 — Protocol constant: `HUB_AT_CAPACITY: i64 = -32019`'
+  - 'Slice 2 — Accept-loop wiring: `run_accept_loop` in'
+  - 'Slice 2 — Per-RPC wiring: `handle_connection` consults'
+  - 'Slice 2 — Configurable defaults: `TERMLINK_MAX_CONNECTIONS`'
+  - 'Slice 3 — Observability RPC: `hub.governor_status` returns'
+  - 'Slice 3 — MCP parity: `termlink_hub_governor_status` MCP tool'
+  - 'Slice 3 — Docs: `docs/operations/substrate-governor.md` describes'
+  - 'Slice 3 — CLAUDE.md Quick Reference row "Hub governor status'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2048-substrate-primitive-10-track-a-connectio.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T16:56:22"
+    action: "T-2048: author real ACs — Track B (connection cap + rate limit + LOUD-refuse RPC)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 276 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, supporting]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 276
+  commits: 1
+  files_changed: 1
+  lines_added: 83
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2048-substrate-primitive-10-track-a-connectio.md
+generated_by: context-agent-hybrid

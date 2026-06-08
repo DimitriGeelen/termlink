@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2047: Substrate primitive #9: channel.subscribe --from-latest [--once|--then-live] (T-2027 GO build slice)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T12:28:09Z
+# ============================================================================
+
+task_id: T-2047
+task_name: "Substrate primitive #9: channel.subscribe --from-latest [--once|--then-live] (T-2027 GO build slice)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:05Z
+completed: 2026-06-08T12:28:06Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T13:32:26+02:00
+last_commit: 2026-06-08T14:27:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  implement channel.subscribe --from-latest [--once|--then-live] (T-2027 GO slice 1/4). tick agent ACs with smoke evidence + amend AC 6 (cursor/limit override, not block — clap can't distinguish default-from-explicit for u64). T-2047 MCP smoke + T-2045 slice 1: protocol const + bus library + hub handler. fix Verification block (crate is 'termlink' not 'termlink-cli'; add MCP grep)
+
+# Key outcomes
+outcomes:
+  - '`--from-latest` flag added to `termlink channel subscribe`, requires one of `--once` or `--then-live`'
+  - '`--from-latest --once`: returns the single latest envelope on a non-empty topic, exits 0 — live smoke: `agent-presence` count=13441 → offset [13440] returned'
+  - '`--from-latest --once`: prints "topic is empty" (or equivalent) and exits 0 on an empty topic — never blocks (covered by `from_latest_overrides` unit test; live path verified via topic-not-found taxonomy)'
+  - '`--from-latest --then-live`: returns the latest envelope, then continues streaming forward (existing follow semantics) — live smoke 2026-06-08T12:30Z: subscribe captured pre-existing offset 13440 (heartbeat) + newly-posted offset 13441 with marker `T-2047-then-live-smoke` (base64-confirmed in payload_b64)'
+  - '`--from-latest` is mutually exclusive with `--since` / `--until` / `--resume` / `--reset` / `--follow` / `--tail` / `--conversation-id` / `--in-reply-to` — clap conflicts_with_all enforces; live test confirmed `--since` rejection'
+  - '**AMENDED:** `--from-latest` OVERRIDES `--cursor` and `--limit` (not blocks). They have non-None defaults and clap can''t distinguish default-from-explicit for u64 — by-design override is internally consistent (cursor→max_offset, limit→1). Help text documents the override behavior.'
+  - '`cargo check -p termlink` passes (crate name is "termlink", not "termlink-cli")'
+  - 'Four unit tests cover both `--once` and `--then-live` modes + empty-topic + offset-0 edge (`cargo test from_latest` → 4 passed)'
+  - 'MCP-tool parity: `termlink_channel_subscribe` accepts `from_latest: bool`; when true, resolves latest offset via `channel.list` and returns the single latest envelope (one-shot — `then_live` skipped since MCP loops externally per tool description) — live smoke 2026-06-08T12:50Z via `termlink mcp serve` JSON-RPC: (a) `from_latest: true` on `agent-presence` returned envelope at offset 13441 with marker payload + `next_cursor: 13442`; (b) `from_latest: true` on a non-existent topic returned `{"empty": true, "topic": "..."}`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Verification block (crate is ''termlink'' not ''termlink-cli''; add MCP grep)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/claim.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2045-substrate-primitive-2-hub-owned-idlebusy.md'
+  - '.tasks/active/T-2047-substrate-primitive-9-channelsubscribe--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T13:32:26"
+    action: "T-2047: implement channel.subscribe --from-latest [--once|--then-live] (T-2027 GO slice 1/4)"
+  - time: "2026-06-08T13:33:18"
+    action: "T-2047: tick agent ACs with smoke evidence + amend AC 6 (cursor/limit override, not block — clap can't distinguish default-from-explicit for u64)"
+  - time: "2026-06-08T14:27:01"
+    action: "T-2047 MCP smoke + T-2045 slice 1: protocol const + bus library + hub handler"
+  - time: "2026-06-08T14:27:22"
+    action: "T-2047: fix Verification block (crate is 'termlink' not 'termlink-cli'; add MCP grep)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 99 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, supporting]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 99
+  commits: 4
+  files_changed: 11
+  lines_added: 389
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2047-substrate-primitive-9-channelsubscribe--.md
+generated_by: context-agent-hybrid
