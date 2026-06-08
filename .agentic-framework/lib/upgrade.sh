@@ -116,6 +116,115 @@ print('JSON_END')
     return 0
 }
 
+# T-2095 (T-2078 V1-D, F2): self-vendor extraction.
+#
+# Refreshes the framework's own .agentic-framework/lib/ from FRAMEWORK_ROOT/lib/.
+# Origin: T-1217 — without this, new lib/*.sh files (e.g., watchtower.sh from
+# T-1154) go stale in the vendored copy, causing pre-push audit errors for the
+# framework repo itself.
+#
+# Was inlined in do_upgrade body until T-2095 — extracted so it can be invoked
+# explicitly via `fw vendor self` (cron / pre-push / manual) AND opted out of
+# do_upgrade via `--no-self-vendor` (operators who have wired pre-push and don't
+# want the inline redundancy).
+#
+# Structural consumer-safety: the function early-returns when
+# $FRAMEWORK_ROOT/.agentic-framework/lib does not exist — this is the case for
+# any consumer's vendored copy (no nested .agentic-framework/lib/). T-1217's
+# guard is preserved unchanged; the extraction is pure refactor.
+#
+# Args:
+#   $1 — dry_run flag ("true" / "false"). When "true", reports what would
+#        be synced without copying files.
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_libs() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # T-1217 structural guard — consumer's .agentic-framework/ has no nested
+    # .agentic-framework/lib/, so this branch is the consumer-safe early exit.
+    if [ ! -d "$_self_vendor/lib" ]; then
+        return 0
+    fi
+    local _sv_updated=0
+    local _sv_src _sv_name _sv_dst
+    for _sv_src in "$FRAMEWORK_ROOT/lib/"*.sh; do
+        [ -f "$_sv_src" ] || continue
+        _sv_name=$(basename "$_sv_src")
+        _sv_dst="$_self_vendor/lib/$_sv_name"
+        if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                cp "$_sv_src" "$_sv_dst"
+                [ -x "$_sv_src" ] && chmod +x "$_sv_dst"
+            fi
+            _sv_updated=$((_sv_updated + 1))
+        fi
+    done
+    if [ "$_sv_updated" -gt 0 ]; then
+        # T-2239: dry-run reports what WOULD happen; real-run reports what DID.
+        # Same prefix, distinct verb — preserves the count semantic for both modes
+        # and prevents the message from lying about state when the cp guard above
+        # is honoured. Pre-push wiring (the F2 N×M follow-on) depends on this split.
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_sv_updated file(s) to .agentic-framework/lib/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_sv_updated file(s) to .agentic-framework/lib/"
+        fi
+    fi
+    return 0
+}
+
+# T-2241 (F2 N×M follow-on): self-vendor the framework's own .tasks/templates/
+# from FRAMEWORK_ROOT/.tasks/templates/ to .agentic-framework/.tasks/templates/.
+# Sibling to _self_vendor_libs — same shape, same dry-run/real-run wording split,
+# same structural consumer-safety. T-2240 pre-push gate greps for "would sync" —
+# this helper's output uses the identical prefix so the gate catches BOTH classes
+# automatically (libs + templates) with one regex.
+#
+# Origin: T-2240 close surfaced template drift as a sibling class — vendored copy
+# of `.tasks/templates/default.md` lacked `arc_id` + `bvp_scores` comment blocks
+# the master had (T-1849 / T-1918). Without this helper, every consumer vendoring
+# from origin would inherit stale templates and miss schema fields.
+#
+# Inputs:
+#   $1 — dry_run ("true" / "false"). When "true", computes what WOULD sync
+#        without copying files.
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_templates() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # Structural guard mirror of _self_vendor_libs: consumer's vendored copy has
+    # no nested .agentic-framework/.tasks/templates/, so this branch is the
+    # consumer-safe early exit. Also covers the (unlikely but valid) case of a
+    # fresh framework checkout where .agentic-framework/ exists but the templates
+    # dir hasn't been created yet — fall through silently.
+    if [ ! -d "$_self_vendor/.tasks/templates" ]; then
+        return 0
+    fi
+    local _svt_updated=0
+    local _svt_src _svt_name _svt_dst
+    for _svt_src in "$FRAMEWORK_ROOT/.tasks/templates/"*.md; do
+        [ -f "$_svt_src" ] || continue
+        _svt_name=$(basename "$_svt_src")
+        _svt_dst="$_self_vendor/.tasks/templates/$_svt_name"
+        if [ ! -f "$_svt_dst" ] || ! diff -q "$_svt_src" "$_svt_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                cp "$_svt_src" "$_svt_dst"
+            fi
+            _svt_updated=$((_svt_updated + 1))
+        fi
+    done
+    if [ "$_svt_updated" -gt 0 ]; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svt_updated template(s) to .agentic-framework/.tasks/templates/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_svt_updated template(s) to .agentic-framework/.tasks/templates/"
+        fi
+    fi
+    return 0
+}
+
 do_upgrade() {
     local target_dir=""
     local dry_run=false
@@ -129,12 +238,27 @@ do_upgrade() {
     # operator rolling consumer back to an older framework version on purpose).
     # Default refuses ahead→behind direction with diagnostic + T-1828 context.
     local force_downgrade=false
+    # T-2093 F4 (T-2078 V1-B): opt-in strict mode — any per-step non-zero
+    # aborts the upgrade and emits a PARTIAL diagnostic. Off by default for
+    # backward-compat; the same per-step counter (failed_steps) drives a
+    # non-blocking footer warning when off.
+    local strict=false
+    local failed_steps=0
+    local _strict_abort_step=""
+    # T-2095 (T-2078 V1-D, F2): opt-out of the inline self-vendor call. Off by
+    # default — preserves T-1217's invariant (framework's .agentic-framework/lib/
+    # stays in sync with FRAMEWORK_ROOT/lib/) on every developer machine that
+    # hasn't yet wired `fw vendor self` into pre-push. Operators who have wired
+    # pre-push (no inline redundancy needed) opt out via --no-self-vendor.
+    local no_self_vendor=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --dry-run) dry_run=true; shift ;;
             --force) force=true; shift ;;
             --force-downgrade) force_downgrade=true; shift ;;
+            --strict) strict=true; shift ;;
+            --no-self-vendor) no_self_vendor=true; shift ;;
             --dedupe-user-hooks) dedupe_user_hooks=true; shift ;;
             --from-upstream)
                 from_upstream="$2"; shift 2 ;;
@@ -151,6 +275,15 @@ do_upgrade() {
                 echo "Options:"
                 echo "  --dry-run               Show what would change without modifying files"
                 echo "  --force                 Overwrite even if project files are newer"
+                echo "  --strict                Abort on the first per-step failure with a PARTIAL"
+                echo "                          diagnostic (T-2093 V1-B, F4). Without this flag the"
+                echo "                          upgrade continues on step failure (current behaviour)"
+                echo "                          but a PARTIAL footer surfaces the count."
+                echo "  --no-self-vendor        Skip the inline framework self-vendor refresh"
+                echo "                          (T-2095 V1-D, F2). Default: keep inline (T-1217"
+                echo "                          invariant). Opt-out for operators who fire"
+                echo "                          'fw vendor self' from pre-push and don't want the"
+                echo "                          per-upgrade redundancy."
                 echo "  --force-downgrade       Allow upgrade to rewrite the consumer's pinned version"
                 echo "                          to a LOWER framework version (T-1839 guard bypass)."
                 echo "                          Default: refuse with diagnostic referencing T-1828."
@@ -186,6 +319,24 @@ do_upgrade() {
                 ;;
         esac
     done
+
+    # T-2094 F8 (T-2078 V1-C): pre-flight tooling check. Fail fast BEFORE any
+    # mutation if a required tool is missing — minimal LXC / Alpine containers
+    # can lack one of python3/git/diff/sed/mktemp and the existing flow crashes
+    # mid-step with a generic "command not found" and no rollback. Cheap
+    # insurance per T-2078 §F8 ("Fix shape: explicit pre-flight at the top of
+    # do_upgrade after arg parse").
+    local _t2094_missing=()
+    for _t2094_required in python3 git diff sed mktemp; do
+        command -v "$_t2094_required" >/dev/null 2>&1 || _t2094_missing+=("$_t2094_required")
+    done
+    if [ "${#_t2094_missing[@]}" -gt 0 ]; then
+        for _t2094_t in "${_t2094_missing[@]}"; do
+            echo "ERROR: required tool missing: $_t2094_t" >&2
+        done
+        echo "Aborting before any file mutation. Install the missing tool(s) and re-run." >&2
+        return 1
+    fi
 
     # Default to PROJECT_ROOT or current directory
     if [ -z "$target_dir" ]; then
@@ -226,13 +377,24 @@ do_upgrade() {
         # collapse — instead of erroring (T-1542 behaviour), try to clone
         # upstream to a tempdir and re-run with that as source.
 
-        # Resolve upstream URL: --from-upstream flag > .framework.yaml upstream_repo
+        # Resolve upstream URL — three-leg fallback chain (T-2232):
+        #   1. --from-upstream flag (explicit operator override)
+        #   2. .framework.yaml upstream_repo: (auto-filled by fw init since T-575)
+        #   3. vendored .agentic-framework/.upstream sentinel (T-2232 self-healing
+        #      for legacy consumers init'd before T-575 or without a framework
+        #      origin at init time — the durable fix for ring20-dashboard's
+        #      .121do field failure class)
+        # _upstream_source records which leg fired, used for the observability
+        # line below and for the self-healing yaml-persist step at the end.
         local _upstream_url="$from_upstream"
+        local _upstream_source=""
+        [ -n "$_upstream_url" ] && _upstream_source="--from-upstream flag"
         if [ -z "$_upstream_url" ] && [ -f "$target_dir/.framework.yaml" ]; then
             _upstream_url=$(grep "^upstream_repo:" "$target_dir/.framework.yaml" 2>/dev/null \
                 | head -1 \
                 | sed -E 's/^upstream_repo:[[:space:]]*//' \
                 | sed -E 's/[[:space:]]+$//')
+            [ -n "$_upstream_url" ] && _upstream_source=".framework.yaml upstream_repo:"
             # Normalise GitHub shorthand (owner/repo) to full URL.
             # Recognised URL prefixes: http(s)://, ssh://, git://, file://,
             # git@host:path (SSH shorthand). Everything else is treated as
@@ -241,6 +403,17 @@ do_upgrade() {
                && ! echo "$_upstream_url" | grep -qE '^(https?|ssh|git|file)://|^git@'; then
                 _upstream_url="https://github.com/${_upstream_url}.git"
             fi
+        fi
+        # T-2232 leg 3: vendored .upstream sentinel (written by do_vendor in
+        # bin/fw — see the parallel block there). Read first line that is not
+        # a comment and not empty; that's the URL.
+        local _sentinel_path="$_consumer_vendor_canon/.upstream"
+        if [ -z "$_upstream_url" ] && [ -f "$_sentinel_path" ]; then
+            _upstream_url=$(grep -v '^[[:space:]]*#' "$_sentinel_path" 2>/dev/null \
+                | grep -v '^[[:space:]]*$' \
+                | head -1 \
+                | sed -E 's/[[:space:]]+$//')
+            [ -n "$_upstream_url" ] && _upstream_source="vendored .agentic-framework/.upstream sentinel (T-2232)"
         fi
 
         if [ -z "$_upstream_url" ]; then
@@ -270,6 +443,7 @@ do_upgrade() {
 
         echo -e "${BOLD}Bare-from-consumer detected — auto-cloning upstream${NC}"
         echo "  Upstream URL:  $_upstream_url"
+        echo "  Resolved via:  $_upstream_source"
         echo "  Target:        $target_dir"
         echo ""
 
@@ -319,32 +493,35 @@ do_upgrade() {
         env FRAMEWORK_ROOT="$_tmpd/fw" PROJECT_ROOT="$target_dir" \
             "$_tmpd/fw/bin/fw" "${_replay_args[@]}"
         local _rc=$?
+        # T-2232 self-healing: if the upstream resolved via the vendored
+        # .upstream sentinel (precedence-3 leg) and the auto-clone succeeded,
+        # persist the URL to .framework.yaml so the next upgrade skips the
+        # sentinel fallback. Operator gets a clean .framework.yaml without
+        # having to remediate by hand. Skipped on dry-run (handled above) and
+        # on failure (we only want to durably commit a known-good URL).
+        if [ "$_rc" -eq 0 ] \
+           && [ "$_upstream_source" = "vendored .agentic-framework/.upstream sentinel (T-2232)" ] \
+           && [ -f "$target_dir/.framework.yaml" ] \
+           && ! grep -q "^upstream_repo:" "$target_dir/.framework.yaml" 2>/dev/null; then
+            echo "upstream_repo: $_upstream_url" >> "$target_dir/.framework.yaml"
+            echo -e "  ${GREEN}Self-heal:${NC} persisted upstream_repo to .framework.yaml (T-2232)"
+        fi
         # trap fires on return — tempdir cleaned up
         return $_rc
     fi
 
-    # T-1217: Self-vendor — refresh framework's own .agentic-framework/ before pushing to consumers.
-    # Without this, new lib/*.sh files (e.g., watchtower.sh from T-1154) go stale in the vendored
-    # copy, causing pre-push audit errors for the framework repo itself.
-    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
-    if [ -d "$_self_vendor/lib" ]; then
-        local _sv_updated=0
-        for _sv_src in "$FRAMEWORK_ROOT/lib/"*.sh; do
-            [ -f "$_sv_src" ] || continue
-            local _sv_name
-            _sv_name=$(basename "$_sv_src")
-            local _sv_dst="$_self_vendor/lib/$_sv_name"
-            if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1; then
-                if [ "$dry_run" != true ]; then
-                    cp "$_sv_src" "$_sv_dst"
-                    [ -x "$_sv_src" ] && chmod +x "$_sv_dst"
-                fi
-                _sv_updated=$((_sv_updated + 1))
-            fi
-        done
-        if [ "$_sv_updated" -gt 0 ]; then
-            echo -e "  ${GREEN}Self-vendor:${NC} synced $_sv_updated file(s) to .agentic-framework/lib/"
-        fi
+    # T-1217 / T-2095 (T-2078 V1-D, F2): self-vendor refresh.
+    # Inline call preserved by default for backward compat (T-1217 invariant).
+    # Operators who have wired `fw vendor self` into pre-push can opt out with
+    # --no-self-vendor to eliminate the per-upgrade redundancy. The helper
+    # itself is structurally consumer-safe: it early-returns when the framework
+    # vendored copy doesn't exist (consumer scenario).
+    if [ "$no_self_vendor" = true ]; then
+        echo -e "  ${YELLOW}Self-vendor skipped${NC} (--no-self-vendor)"
+    else
+        _self_vendor_libs "$dry_run"
+        # T-2241: sibling sync — templates drift class, same flag gates both
+        _self_vendor_templates "$dry_run"
     fi
 
     local project_name
@@ -652,10 +829,26 @@ CRONREGEOF
 
     local vendored_dir="$target_dir/.agentic-framework"
     if [ -d "$vendored_dir" ]; then
+        # T-2093 F5 fix: capture do_vendor's exit via PIPESTATUS — the pipe
+        # through `sed` always exits 0 and used to mask vendor failures
+        # (T-1109's enumeration-divergence class). Without this, a vendor
+        # source missing a file produced a silent "Upgrade Complete".
+        local _vendor_rc=0
         if [ "$dry_run" = true ]; then
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" --dry-run 2>&1 | sed 's/^/  /'
+            _vendor_rc=${PIPESTATUS[0]}
         else
             do_vendor --target "$target_dir" --source "$FRAMEWORK_ROOT" 2>&1 | sed 's/^/  /'
+            _vendor_rc=${PIPESTATUS[0]}
+        fi
+        if [ "$_vendor_rc" -ne 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  do_vendor exited $_vendor_rc — vendor sync may be partial (F5)"
+            failed_steps=$((failed_steps + 1))
+            if [ "$strict" = true ]; then
+                echo -e "  ${RED}STRICT ABORT${NC}  step 4b (vendor) failed — see T-2093 F4 + spec §F4"
+                _strict_abort_step="4b (vendor)"
+                return 1
+            fi
         fi
         changes=$((changes + 1))
     else
@@ -883,10 +1076,13 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
                 echo -e "  ${CYAN}WOULD UPDATE${NC}  $reason"
             else
                 cp "$settings_file" "${settings_file}.bak"
-                local save_force="${force:-false}"
-                force=true
-                generate_claude_code_config "$target_dir"
-                force="$save_force"
+                # T-2093 F6 (T-2078 V1-B): subshell-scope the force=true override.
+                # The old save_force / restore-on-exit pattern leaked force=true into
+                # the rest of do_upgrade if generate_claude_code_config exited via
+                # set -e mid-function — a stuck-on force=true crosses governance
+                # (the flag is a sovereignty bypass). Subshell makes the override
+                # impossible to leak; the parent's `force` stays untouched.
+                ( force=true; generate_claude_code_config "$target_dir" )
                 echo -e "  ${GREEN}UPDATED${NC}  Hooks regenerated ($reason). Backup: settings.json.bak"
             fi
         else
@@ -959,9 +1155,9 @@ print(sum(len(v) for v in data.get('hooks', {}).values()))
         if [ "$dry_run" = true ]; then
             echo -e "  ${CYAN}WOULD CREATE${NC}  .claude/settings.json ($fw_hook_count hooks)"
         else
-            force=true
-            generate_claude_code_config "$target_dir"
-            force=false
+            # T-2093 F6 (T-2078 V1-B): subshell-scope force=true (see sibling
+            # site ~line 916). Same mutation-leak risk; same fix.
+            ( force=true; generate_claude_code_config "$target_dir" )
             echo -e "  ${GREEN}CREATED${NC}  .claude/settings.json ($fw_hook_count hooks)"
         fi
     fi
@@ -1338,14 +1534,38 @@ EOF
     # ── Summary ──
     echo ""
     if [ "$dry_run" = true ]; then
-        echo -e "${CYAN}=== Dry Run Complete ===${NC}"
-        echo ""
+        # T-2093 F4 (dry-run parity): when any step would have failed under
+        # live mode, surface a PARTIAL hint so the operator can decide
+        # whether to fix the cause or re-run with --strict. Without this
+        # the dry-run lies — it announces success even when a stubbed step
+        # already returned non-zero.
+        if [ "$failed_steps" -gt 0 ] && [ "$strict" != true ]; then
+            echo -e "${YELLOW}=== Dry Run PARTIAL ===${NC}"
+            echo ""
+            echo "  $failed_steps step(s) reported failure during dry-run."
+            echo "  Run with ${BOLD}--strict${NC} to fail-fast on the first failure under live mode."
+            echo ""
+        else
+            echo -e "${CYAN}=== Dry Run Complete ===${NC}"
+            echo ""
+        fi
         echo "  $changes change(s) would be made"
         echo "  $skipped item(s) skipped (manual review needed)"
+        if [ "$failed_steps" -gt 0 ]; then
+            echo "  $failed_steps step(s) reported failure"
+        fi
         echo ""
         echo "Run without --dry-run to apply changes."
     else
-        if [ "$changes" -gt 0 ]; then
+        # T-2093 F4 (T-2078 V1-B): PARTIAL footer when failures slipped through
+        # under non-strict mode. Strict mode already aborted inside the failing
+        # step; this footer is the advisory equivalent — the operator sees the
+        # banner and can re-run with --strict to fail-fast next time.
+        if [ "$failed_steps" -gt 0 ] && [ "$strict" != true ]; then
+            echo -e "${YELLOW}=== Upgrade PARTIAL ===${NC}"
+            echo "  $failed_steps step(s) reported failure (non-strict mode — continue)"
+            echo "  Re-run with ${BOLD}--strict${NC} to fail-fast on the first per-step failure."
+        elif [ "$changes" -gt 0 ]; then
             echo -e "${GREEN}=== Upgrade Complete ===${NC}"
         else
             echo -e "${GREEN}=== Already Up To Date ===${NC}"
@@ -1353,6 +1573,9 @@ EOF
         echo ""
         echo "  $changes change(s) applied"
         echo "  $skipped item(s) skipped"
+        if [ "$failed_steps" -gt 0 ]; then
+            echo "  $failed_steps step(s) failed"
+        fi
 
         if [ "$changes" -gt 0 ]; then
             echo ""
@@ -1360,6 +1583,41 @@ EOF
             echo "  1. Review changes: cd $target_dir && git diff"
             echo "  2. Commit: fw git commit -m 'T-012: fw upgrade — sync framework improvements'"
             echo "  3. Run: fw doctor  # Verify health"
+
+            # T-2094 F10 (T-2078 V1-C): post-upgrade fw doctor advisory.
+            _t2094_emit_doctor_advisory "$target_dir"
         fi
     fi
+}
+
+# T-2094 F10 (T-2078 V1-C): post-upgrade fw doctor advisory helper.
+#
+# Closes the verification loop within the same invocation — operator sees
+# health-check output before the next action, when working memory of "what
+# just upgraded" is still warm. Non-blocking by spec: doctor exit code does
+# NOT affect do_upgrade exit. Per L-387 single-pipe discipline, the
+# trim+indent stage uses awk (reads all input, prints first 20 lines) rather
+# than `head -20 | sed` which closes stdin early and SIGPIPEs the upstream
+# echo.
+#
+# Extracted as a helper so the bats suite can exercise it in isolation
+# without spinning up a 10-step do_upgrade integration (T-2094 tests t3-t5).
+#
+# Args:
+#   $1 — target_dir (consumer project root; passed to fw doctor as PROJECT_ROOT)
+_t2094_emit_doctor_advisory() {
+    local target_dir="$1"
+    local _doctor_out=""
+    local _doctor_rc=0
+    echo ""
+    echo -e "  ${BOLD}Post-upgrade health check (advisory):${NC}"
+    _doctor_out=$(PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" doctor 2>&1) || _doctor_rc=$?
+    echo "$_doctor_out" | awk 'NR<=20 {print "    " $0}'
+    echo ""
+    if [ "$_doctor_rc" -ne 0 ]; then
+        echo -e "  ${YELLOW}Advisory:${NC} doctor exited $_doctor_rc — doctor exit code does not affect upgrade success."
+    else
+        echo -e "  ${GREEN}Advisory:${NC} doctor PASS (exit 0)."
+    fi
+    return 0  # always 0 — F10 is non-blocking by spec
 }

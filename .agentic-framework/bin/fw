@@ -365,6 +365,38 @@ __pycache__/
 GITIGNORE
     echo -e "  ${GREEN}✓${NC} .gitignore"
 
+    # T-2232: write .upstream sentinel so an in-consumer `fw upgrade` can
+    # self-recover when .framework.yaml has no upstream_repo: set (legacy
+    # consumers init'd before T-575's auto-detect, or consumers whose
+    # framework had no git remote at init time). Resolution chain at upgrade
+    # time becomes: --from-upstream flag > .framework.yaml upstream_repo >
+    # this vendored sentinel > error. Symmetric with lib/init.sh:212-228
+    # (same git origin auto-detect; just runs at vendor-time so the answer
+    # travels with the vendored copy). Skip silently when no origin —
+    # vendored-without-sentinel is a legitimate state (file:// checkouts,
+    # detached forks). Origin: ring20-dashboard .121do field failure
+    # (T-2231), durable fix for the in-consumer upgrade path class.
+    local _vendor_origin=""
+    if [ -d "$vendor_source/.git" ]; then
+        _vendor_origin=$(git -C "$vendor_source" remote get-url origin 2>/dev/null) || true
+        if [ -z "$_vendor_origin" ]; then
+            _vendor_origin=$(git -C "$vendor_source" remote -v 2>/dev/null | grep "(push)" | head -1 | awk '{print $2}') || true
+        fi
+    fi
+    if [ -n "$_vendor_origin" ]; then
+        cat > "$dest/.upstream" <<UPSTREAM
+# Vendored Agentic Engineering Framework — upstream sentinel (T-2232).
+# Records the framework's git origin URL at vendor-time so an in-consumer
+# \`fw upgrade\` can self-recover when .framework.yaml has no upstream_repo:.
+# Resolution precedence (in lib/upgrade.sh): --from-upstream flag, then
+# .framework.yaml upstream_repo:, then this sentinel. After a successful
+# sentinel-driven recovery, upgrade.sh persists the URL to .framework.yaml
+# so subsequent upgrades skip this fallback. Do not edit by hand.
+$_vendor_origin
+UPSTREAM
+        echo -e "  ${GREEN}✓${NC} .upstream (sentinel: $_vendor_origin)"
+    fi
+
     # Ensure bin/fw is executable
     chmod +x "$dest/bin/fw" 2>/dev/null || true
 
@@ -590,6 +622,7 @@ show_help() {
     echo -e "  ${GREEN}hook${NC} <name>          Run a framework hook (used by .claude/settings.json)"
     echo -e "  ${GREEN}hook-enable${NC} <args>   Register a hook in .claude/settings.json (idempotent)"
     echo -e "  ${GREEN}upgrade${NC} [dir]        Sync framework improvements to consumer project"
+    echo -e "  ${GREEN}consumer-recover${NC} <host> [path]  Recover legacy vendored consumer (pre-T-2232). Dry-run default; --apply executes."
     echo -e "  ${YELLOW}setup${NC} [dir]          Deprecated — alias for init"
     echo -e "  ${GREEN}build${NC}                Compile TypeScript sources (lib/ts/src → lib/ts/dist)"
     echo -e "  ${GREEN}harvest${NC} [dir]        Harvest learnings from project to framework"
@@ -762,8 +795,14 @@ do_doctor() {
     # Consumer projects don't have both copies; their .agentic-framework IS the framework.
     # Drift = consumers pulling via `fw upgrade` get stale hooks/libs (T-1432, T-1433).
     if [ "$PROJECT_ROOT" = "$FRAMEWORK_ROOT" ] && [ -d "$FRAMEWORK_ROOT/.agentic-framework" ]; then
-        local _vdrift=0
-        local _vdrift_list=""
+        # T-2243: count libs and templates classes separately so each class
+        # always gets visibility in the WARN list — pre-T-2243 the global
+        # "first 5" bucket let large libs drift bury small templates drift
+        # (4-test exploration found 64 libs drifts could mask 1 templates
+        # drift entirely). Per-class lists mirror the pre-push gate's
+        # "would sync N <class>(s)" shape from T-2240/T-2241.
+        local _vdrift_libs=0 _vdrift_tpl=0
+        local _vdrift_libs_list="" _vdrift_tpl_list=""
         local _f _vf _rel
         # T-1521: Walk the vendored tree itself, not a hand-curated source glob.
         # T-1434's original glob list missed agents/handover, agents/audit,
@@ -774,21 +813,45 @@ do_doctor() {
             _f="$FRAMEWORK_ROOT/$_rel"
             [ -f "$_f" ] || continue
             if ! diff -q "$_f" "$_vf" >/dev/null 2>&1; then
-                _vdrift=$((_vdrift + 1))
-                if [ "$_vdrift" -le 5 ]; then
-                    _vdrift_list="$_vdrift_list\n           - $_rel"
+                _vdrift_libs=$((_vdrift_libs + 1))
+                if [ "$_vdrift_libs" -le 5 ]; then
+                    _vdrift_libs_list="$_vdrift_libs_list\n           - $_rel"
                 fi
             fi
         done < <(find "$FRAMEWORK_ROOT/.agentic-framework"/{bin,lib,agents,web} -type f \
                     \( -name "*.sh" -o -name "*.py" -o -name "fw" -o -name "*.html" \) \
                     -not -path "*/__pycache__/*" \
                     2>/dev/null)
+        # T-2243: templates class (T-2241 sibling). _self_vendor_templates()
+        # syncs .tasks/templates/*.md into .agentic-framework/.tasks/templates/.
+        # Separate find — adding `.md` to the libs find pattern above would
+        # also flag lib/templates/*.md and agents/*/AGENT.md files, which
+        # aren't part of the self-vendor scope.
+        if [ -d "$FRAMEWORK_ROOT/.agentic-framework/.tasks/templates" ]; then
+            while IFS= read -r _vf; do
+                _rel="${_vf#$FRAMEWORK_ROOT/.agentic-framework/}"
+                _f="$FRAMEWORK_ROOT/$_rel"
+                [ -f "$_f" ] || continue
+                if ! diff -q "$_f" "$_vf" >/dev/null 2>&1; then
+                    _vdrift_tpl=$((_vdrift_tpl + 1))
+                    if [ "$_vdrift_tpl" -le 5 ]; then
+                        _vdrift_tpl_list="$_vdrift_tpl_list\n           - $_rel"
+                    fi
+                fi
+            done < <(find "$FRAMEWORK_ROOT/.agentic-framework/.tasks/templates" -type f -name "*.md" 2>/dev/null)
+        fi
+        local _vdrift=$((_vdrift_libs + _vdrift_tpl))
         if [ "$_vdrift" -eq 0 ]; then
             echo -e "  ${GREEN}OK${NC}  No vendored-source drift"
         else
             echo -e "  ${YELLOW}WARN${NC}  Vendored-source drift: $_vdrift file(s) out of sync"
             echo -e "         Run: fw vendor  (sync .agentic-framework/ with source)"
-            [ -n "$_vdrift_list" ] && echo -e "         First $([ $_vdrift -gt 5 ] && echo 5 || echo $_vdrift):$_vdrift_list"
+            if [ "$_vdrift_libs" -gt 0 ]; then
+                echo -e "         libs ($_vdrift_libs) — first $([ $_vdrift_libs -gt 5 ] && echo 5 || echo $_vdrift_libs):$_vdrift_libs_list"
+            fi
+            if [ "$_vdrift_tpl" -gt 0 ]; then
+                echo -e "         templates ($_vdrift_tpl) — first $([ $_vdrift_tpl -gt 5 ] && echo 5 || echo $_vdrift_tpl):$_vdrift_tpl_list"
+            fi
             warnings=$((warnings + 1))
         fi
     fi
@@ -5061,6 +5124,12 @@ PYREVQ
         source "$FW_LIB_DIR/upgrade.sh"
         do_upgrade "$@"
         ;;
+    consumer-recover)
+        # T-2233 / T-2235 — one-command recovery for legacy vendored consumers
+        # (pre-T-1634 / pre-T-2232 consumers that cannot self-heal via fw upgrade).
+        source "$FW_LIB_DIR/consumer-recover.sh"
+        do_consumer_recover "$@"
+        ;;
     setup)
         echo -e "${YELLOW}NOTE: 'fw setup' is deprecated — use 'fw init' instead.${NC}"
         echo "  fw init auto-detects interactive mode and runs first-run walkthrough."
@@ -5818,6 +5887,43 @@ else:
 PYSEARCH
         ;;
     vendor)
+        # T-2095 (T-2078 V1-D, F2): `fw vendor self` subcommand routes to the
+        # self-vendor helper extracted from lib/upgrade.sh:do_upgrade. Provides
+        # an explicit entry point for cron / pre-push / manual invocation
+        # without firing the full 10-step do_upgrade flow. All other `fw vendor`
+        # args pass through to do_vendor unchanged (consumer-direction vendor).
+        if [ "${1:-}" = "self" ]; then
+            shift
+            # Source lib/upgrade.sh to pick up _self_vendor_libs() — already
+            # sourced at bin/fw startup for do_upgrade, but be defensive in
+            # case this code path runs before that.
+            command -v _self_vendor_libs >/dev/null 2>&1 || source "$FRAMEWORK_ROOT/lib/upgrade.sh"
+            if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+                echo "fw vendor self - Refresh framework's vendored copies from FRAMEWORK_ROOT/"
+                echo ""
+                echo "Usage: fw vendor self [--dry-run]"
+                echo ""
+                echo "Refreshes both vendored classes from \$FRAMEWORK_ROOT:"
+                echo "  - .agentic-framework/lib/                 ← lib/*.sh           (T-2095 V1-D)"
+                echo "  - .agentic-framework/.tasks/templates/    ← .tasks/templates/  (T-2241)"
+                echo ""
+                echo "T-1217 / T-2078 §F2 / T-2095 V1-D / T-2241. Extracted from do_upgrade so it can be"
+                echo "invoked explicitly (cron, pre-push, manual) without firing the full upgrade flow."
+                echo ""
+                echo "Structural consumer-safety: when invoked from a consumer's vendored bin/fw,"
+                echo "each helper early-returns because consumer's .agentic-framework/ has no nested"
+                echo ".agentic-framework/lib/ or .agentic-framework/.tasks/templates/. Idempotent —"
+                echo "only touches files that diff."
+                exit 0
+            fi
+            _vs_dry=false
+            [ "${1:-}" = "--dry-run" ] && _vs_dry=true
+            _self_vendor_libs "$_vs_dry"
+            # T-2241: sibling — templates drift class. T-2240 pre-push gate
+            # greps for "would sync" across BOTH helpers' output with one regex.
+            _self_vendor_templates "$_vs_dry"
+            exit $?
+        fi
         do_vendor "$@"
         ;;
     hook)
