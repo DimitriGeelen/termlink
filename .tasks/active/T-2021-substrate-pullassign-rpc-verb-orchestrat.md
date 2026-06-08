@@ -6,15 +6,15 @@ description: >
   recipient). No give-me-the-next-unit RPC and no clean inverse for the orchestrator
   to hand a specific unit to a specific worker as a first-class operation.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:24Z
-last_update: '2026-06-07T11:41:30Z'
+last_update: 2026-06-08T07:25:04Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,24 +56,24 @@ bvp_scores_proposed:
 ## Open Questions
 
 - **IW-1: Push (orchestrator → worker) vs pull (worker requests next) vs both?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Push fits §6 'orchestrator's explicit act'; pull is friendlier to autonomous workers
+  confidence: 4
+  disposition: resolved
+  rationale: BOTH, but they cost different things. Pull = ZERO new primitives — pure composition of `channel.subscribe` + `channel.claim` (the hub serializes claim attempts, so competing workers all subscribe + claim, whoever wins on offset N processes, others skip to N+1). Push/assign = ONE new RPC `channel.transfer_claim` (atomic ownership transfer). The §6 framing implies both are missing; in practice pull was already there post-T-2019, and assign needs one verb. See docs/reports/T-2021-pull-assign-rpc-inception.md §3, §4.
 
 - **IW-2: Worker selection policy — round-robin, least-loaded, capability-match — hub-side or orchestrator-side?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Hub-side simplifies clients but couples policy to substrate
+  confidence: 4
+  disposition: resolved
+  rationale: ORCHESTRATOR-SIDE. The substrate provides the FILTER (`agent.find_idle` per T-2020 returns LIVE-and-not-busy agents matching role + capabilities). The CHOICE among those candidates is policy and lives in AEF. Keeps the substrate minimal per ADR §4 boundary — substrate ships capabilities, AEF picks policy. Same shape as the conservative/optimistic decision: substrate offers the verb, AEF makes the call. See artifact §6.IW-2.
 
 - **IW-3: Failure mode — assignment unacked within N seconds → reclaim and reassign?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Ties to T-2019's lease/ack semantics
+  confidence: 4
+  disposition: resolved
+  rationale: SOLVED BY T-2019'S LEASE. Orchestrator's `channel.claim --leased <ttl>` IS the failure-mode mechanism. If the assignment envelope is ignored or the target worker dies, the claim auto-expires and the slot returns to the queue. No new reclaim mechanism, no new timer thread, no new state. The lease was designed for exactly this. See artifact §5.
 
 - **IW-4: Is this a new RPC or a composition of (subscribe + claim + ack)?**
-  confidence: 0
-  disposition: deferred
-  rationale: captured-while-fresh per [[PL-203]]; design-phase decision — hint: Resolves naturally once 1+2 land
+  confidence: 4
+  disposition: resolved
+  rationale: BOTH, by mode. Pull is composition (subscribe + claim, zero new code). Assign needs `channel.transfer_claim` — a single new RPC that atomically reassigns claim ownership from orchestrator to worker (a strict generalization of release-then-claim, with the race window removed). Why not just release-then-claim? Because two writes are non-atomic; a second worker can race in. Why not `force_release` + claim? Because force_release bypasses ownership (operator-intervention verb, T-2044); transfer is cooperative and owner-checked. See artifact §4.
 
 ## Exploration Plan
 
@@ -137,9 +137,27 @@ After T-2019 + T-2020 land. Likely starts as a composition spike: does (claim + 
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO with revised scope (ship `channel.transfer_claim` only; pull is already a pure composition of existing verbs).
 
-**Rationale:** Captured-while-fresh per PL-203; depends on shape of primitives 1+2.
+**Rationale (one-paragraph):** The §6 framing implies a complex two-way RPC surface; in practice post-T-2019, **pull is already a pure composition** (subscribe + claim, hub serializes, leases catch failures — no new primitive needed) and **assign needs exactly one new RPC** (`channel.transfer_claim(claim_id, to_owner, by, reason?)` — atomic ownership transfer of an existing claim). That verb closes the only remaining gap: orchestrator's claim is owner-bound, so naive release-then-claim leaves a race window; force_release (T-2044) bypasses ownership and is operator-only. Transfer is the cooperative, owner-checked sibling — strict generalization of release-then-claim with the race window removed. Failure modes are inherited from T-2019's lease (no new timer state). Build is ~120 LOC across 4 vertical slices, mirroring T-2044's plumbing. No upstream blockers — T-2019 shipped, T-2020 recommended GO covers the `agent.find_idle` discovery half.
+
+**Full design + IW dispositions:** see [docs/reports/T-2021-pull-assign-rpc-inception.md](../../docs/reports/T-2021-pull-assign-rpc-inception.md).
+
+**Build slice plan (mirrors T-2019 / T-2044 verticalization):**
+- Slice 1: `channel.transfer_claim` bus library function + atomic UPDATE in claims table + unit tests (by-mismatch, expired, not-found, happy path).
+- Slice 2: Hub handler in `crates/termlink-hub/src/channel.rs` + router allow-list + protocol constant + error-code wiring.
+- Slice 3: CLI verb `termlink channel claim-transfer --claim-id C --to-owner W [--reason "..."]` + session-client wrapper + JSON envelope.
+- Slice 4: MCP tool `termlink_channel_claim_transfer` + help-registry entry + docs in `docs/operations/substrate-claim-primitive.md` showing the orchestrator → worker assign recipe end-to-end.
+- (Optional Slice 5): Pull-recipe documentation — no code, just the worker-loop incantation. Could roll into Slice 4.
+
+**GO criteria evaluation (from §Go/No-Go Criteria):**
+- ✅ Composition decision is final (pull = composition, assign = `transfer_claim` + envelope convention).
+- ✅ AEF orchestrator can build against the resulting interface — five named verbs, concrete payload shape, error codes inherited from T-2019.
+- ✅ Failure mode is named and bounded — lease expiry handles unacked assignments; `force_release` handles orchestrator crash mid-handoff; `transfer_claim` itself is atomic.
+
+**Open follow-up tasks to file on GO:**
+- Build task for Slices 1-4 (`channel.transfer_claim` end-to-end).
+- AEF-side integration task: orchestrator dispatcher pattern over the new verb (not substrate-owned; for the §9 collaboration seam).
 
 ## Decisions
 
@@ -160,3 +178,7 @@ After T-2019 + T-2020 land. Likely starts as a composition spike: does (claim + 
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T07:25:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
