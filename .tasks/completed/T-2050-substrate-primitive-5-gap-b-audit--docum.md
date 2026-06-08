@@ -4,10 +4,10 @@ name: "Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush
 description: >
   Implement T-2023 Gap B per docs/reports/T-2023-client-reconnect-queue-inception.md §4.B. Locate flush-loop downstream of T-1439's offline_queue.rs. Document: initial-delay, max-delay, jitter, max-attempts, dead-letter behavior. Identify any params with poor defaults; file conditional <50 LOC follow-up if found. Doc-only otherwise.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
 components: []
 related_tasks: [T-2018, T-2023, T-1439]
@@ -16,8 +16,8 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:29Z
-last_update: 2026-06-08T16:12:15Z
-date_finished: null
+last_update: 2026-06-08T16:14:57Z
+date_finished: 2026-06-08T16:14:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -197,3 +197,6 @@ grep -q "DEFAULT_FLUSH_INTERVAL" docs/reports/T-2050-offline-queue-backoff-audit
 
 ### 2026-06-08T16:12:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T16:14:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

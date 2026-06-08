@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2050: Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T16:14:59Z
+# ============================================================================
+
+task_id: T-2050
+task_name: "Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T10:49:29Z
+completed: 2026-06-08T16:14:57Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T18:14:51+02:00
+last_commit: 2026-06-08T18:14:51+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  audit T-1439 flush-loop backoff params + file T-2055 (jitter follow-up)
+
+# Key outcomes
+outcomes:
+  - 'Locate flush-loop implementation: `crates/termlink-session/src/bus_client.rs::BusClient::flush` (the drain pass) + `connect_with_interval` (the tick loop). Verified: no other "flush"-style loop exists in `termlink-session`.'
+  - 'Document backoff parameters in `docs/reports/T-2050-offline-queue-backoff-audit.md`: initial-delay, max-delay, jitter, max-attempts (POISON_THRESHOLD), dead-letter behaviour, distinction between transport-failure and hub-reject.'
+  - 'Score each parameter against T-2023 IW-3 disposition (✓ ok / ⚠ partial / ❌ missing) with rationale.'
+  - 'Recommend at most one small follow-up (≤50 LOC) if a parameter has a poor default; explicit DEFER for any larger redesign — chose: jitter (~30 LOC). DEFER for exponential backoff (no incident evidence) and structural dead-letter signal (doc-only via T-2051 sufficient).'
+  - 'Filed follow-up T-2055 with real ACs: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)".'
+  - 'Updated T-2023 inception §5 IW-3 disposition from "⚠ Partial, Confidence=2" → "✓ Mostly-resolved, Confidence=4" with explicit pointer to this report.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2023-client-reconnect-queue-inception.md'
+  - 'docs/reports/T-2050-offline-queue-backoff-audit.md'
+  - '.tasks/active/T-2050-substrate-primitive-5-gap-b-audit--docum.md'
+  - '.tasks/active/T-2055-add-25-jitter-to-busclient-flush-interva.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T18:14:51"
+    action: "T-2050: audit T-1439 flush-loop backoff params + file T-2055 (jitter follow-up)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 325 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 325
+  commits: 1
+  files_changed: 4
+  lines_added: 359
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2050-substrate-primitive-5-gap-b-audit--docum.md
+generated_by: context-agent-hybrid
