@@ -177,3 +177,6 @@ itself an outage event. Not in T-2049's scope.
   FIFO that calls this with the same id on every replay)
 - T-1427 — the signed-sender identity invariant that namespaces the
   dedupe key safely
+- `docs/operations/substrate-offline-queue-recipe.md` — operator-side
+  workflow for inspecting the queue, manual drain, poison-pill triage
+  (T-2051)

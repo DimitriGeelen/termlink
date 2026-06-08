@@ -4,7 +4,7 @@ name: "Substrate primitive #5 Gap C: offline-queue operator recipe doc (T-2023 G
 description: >
   Implement T-2023 Gap C per docs/reports/T-2023-client-reconnect-queue-inception.md. Write docs/operations/offline-queue-recipe.md (~50 lines). Describe: how a CLI handles hub-blip, where the SQLite queue lives (~/.termlink/<name>/outbound.sqlite), how to inspect it, how poison-pill rows surface, how to drain manually.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:33Z
-last_update: 2026-06-08T10:49:33Z
+last_update: 2026-06-08T16:17:03Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,19 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Closes T-2023 Gap C (operator-recipe documentation) — the offline
+queue exists (T-1439) but the operator-side workflow ("hub blip, my
+post is queued — what do I do?") isn't documented in the operations
+directory. Without this, the feature is invisible to operators.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] New file `docs/operations/substrate-offline-queue-recipe.md` (~210 lines): what the queue is, where it lives on disk, how a `channel post` call invokes it, how to inspect pending rows, how to manually drain, how poison-pill rows surface, how to set TERMLINK_OUTBOUND_CAP.
+- [x] Section "End-to-end recipe" walks a fresh operator through the queue-replay scenario with copy-paste commands (sqlite3 against `~/.termlink/outbound.sqlite`, `termlink remote call local hub.governor_status` for dedupe_hits_total).
+- [x] Section "Failure modes & how to spot them" covers: hub-down (queue accumulates), full queue (R3 loud-fail), poison-pill (warn-log + dropped_poison counter, T-2050 pointer for the audit), interplay with T-2049 idempotency.
+- [x] CLAUDE.md Quick Reference gains "Offline queue (RESILIENCE)" row pointing at the new recipe + the T-2050 audit.
+- [x] Cross-link added in `docs/operations/substrate-post-idempotency.md` "Related" section.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -84,6 +89,12 @@ date_finished: null
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+
+test -f docs/operations/substrate-offline-queue-recipe.md
+grep -q "TERMLINK_OUTBOUND_CAP" docs/operations/substrate-offline-queue-recipe.md
+grep -q "outbound.sqlite" docs/operations/substrate-offline-queue-recipe.md
+grep -q "T-2050" docs/operations/substrate-offline-queue-recipe.md
+grep -q "substrate-offline-queue-recipe" docs/operations/substrate-post-idempotency.md
 #
 # Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
 # `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
@@ -124,6 +135,12 @@ date_finished: null
 -->
 
 ## Evolution
+
+### 2026-06-08 — doc scope landed in step with T-2049 + T-2050
+
+- **What changed:** Original Gap C spec said ~50 lines. Final doc is ~210 lines because the dedupe (T-2049) + audit (T-2050) outputs landed first and the recipe needed to cross-link both. Net: operators get a single landing page that connects the queue ↔ idempotency ↔ backoff-audit triangle.
+- **Plan impact:** None — still doc-only.
+- **Triggered:** Nothing.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -174,3 +191,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2051-substrate-primitive-5-gap-c-offline-queu.md
 - **Context:** Initial task creation
+
+### 2026-06-08T16:17:03Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
