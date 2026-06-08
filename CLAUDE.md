@@ -53,6 +53,21 @@ operator restoration (T-1695-style task: inspect OneDev job log, rotate
 `bash scripts/check-mirror-freshness.sh` (exit 0 = synced, 1 = drift,
 2 = network/tooling error).
 
+**Root-cause diagnosis on drift (T-2052).** When drift is detected, the canary
+now scans the `github_head..origin_head` commit range for any blob ≥100MB —
+GitHub's per-file pre-receive limit (GH001). If found, the canary's drift
+output surfaces the offending sha+path+size and a cleanup hint instead of just
+"drift". This catches the G-058 ROOT CAUSE class (288MB fw-vec-index.db
+committed 2026-05-25 silently rejected for 14 days), not just the symptom.
+Empty `oversize_blobs` in `--json` output means drift has a different cause
+(token, network, OneDev job-runner) — operator should still inspect the
+OneDev job log per the T-1695 playbook. Pair with the active pre-commit
+large-file gate (T-1845, 10 MiB BLOCK) which prevents new oversize blobs from
+entering the history in the first place; `fw git install-hooks` activates it
+if you see `secret-scan: scanner not found (skipping)` in commit output
+(indicates the scanner scripts are non-executable — T-2052 install-time
+chmod gap).
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

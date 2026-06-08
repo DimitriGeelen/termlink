@@ -4,7 +4,7 @@ name: "Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058
 description: >
   Today's G-058 incident: .context/working/fw-vec-index.db (288MB) accidentally committed 2026-05-25 in b7f18de5, silently rejected by GitHub's 100MB pre-receive hook for 14 days, 805 commits of mirror drift. Canary detected drift correctly but recovery playbook only covered PAT-rotation. Add a structural gate: agents/git pre-commit hook checks each staged blob's size; >50MB → block with hint. Mirrors the secret-scan pattern. Also: extend scripts/check-mirror-freshness.sh diagnosis branch to recognize the file-size-rejection error pattern in pre-receive output. Cost: ~40 LOC + doc update.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-1696, T-1799]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:48Z
-last_update: 2026-06-08T10:49:48Z
+last_update: 2026-06-08T19:11:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**SCOPE PIVOT (2026-06-08)**: The blob-size gate is **already shipped** in
+the framework as T-1845 (`agents/git/lib/large-file-scan.sh`, 10 MiB BLOCK
+threshold, 1 MiB WARN, allowlist support). The hooks installer
+(`hooks.sh:install_hooks`) wires it into the pre-commit hook alongside
+secret-scan (T-1844) and dup-task-scan (T-1863).
+
+**The actual gap is install drift**: the active `.git/hooks/pre-commit`
+in this project was last installed during the T-1844 era and only ran
+the secret-scan block. T-1845 + T-1863 never propagated because the hook
+was never re-installed. The 288MB fw-vec-index.db that triggered G-058
+on 2026-05-25 predates T-1845 by weeks; however, anything 10MB+ that
+would be committed today still slips through this project's stale hook.
+
+This task now delivers:
+1. Re-install hooks so T-1845 large-file gate is live in this project
+2. Verify gate fires on a synthetic 15MB blob test
+3. Extend `scripts/check-mirror-freshness.sh` diagnostic to recognize
+   GitHub's file-size-rejection error pattern (the second half of the
+   original task description — still load-bearing)
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `.git/hooks/pre-commit` re-installed and contains T-1844 (secret-scan), T-1863 (dup-task-scan), and T-1845 (large-file gate) wiring
+- [x] Live-fire test: staging a 15MB blob with focus set is BLOCKED by the large-file gate (15.0 MiB > 10.0 MiB threshold, T-1845 origin marker shown in the block message) — commit aborted, HEAD unchanged
+- [x] **Discovered + fixed install-time chmod gap**: ALL scanner scripts (secret-scan, dup-task-scan, large-file-scan) were `-rw-r--r--`, hook check `[ ! -x "$SCANNER" ]` was firing → hook exited 0 (fail open) silently. After `chmod +x` the gate fires correctly. Documented in CLAUDE.md mirror-canary section as the failure signal `secret-scan: scanner not found (skipping)`.
+- [x] `scripts/check-mirror-freshness.sh` extended: when drift is detected, scans `github_head..origin_head` for blobs ≥100MB (GitHub's GH001 limit) and surfaces sha+path+size with cleanup hint
+- [x] JSON mode adds `oversize_blobs` count + `oversize_first` field; synced state shows `oversize_blobs:0`
+- [x] CLAUDE.md mirror-canary section extended with the T-2052 root-cause-diagnosis paragraph + chmod gap signal
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +96,14 @@ date_finished: null
 -->
 
 ## Verification
+
+test -x .agentic-framework/agents/git/lib/secret-scan.sh
+test -x .agentic-framework/agents/git/lib/large-file-scan.sh
+test -x .agentic-framework/agents/git/lib/dup-task-scan.sh
+grep -q "LARGE_FILE_SCANNER\|T-1845" .git/hooks/pre-commit
+grep -q "oversize_hint\|oversize_blobs" scripts/check-mirror-freshness.sh
+grep -q "T-2052" CLAUDE.md
+out=$(bash scripts/check-mirror-freshness.sh --json 2>&1); echo "$out" | grep -q "oversize_blobs"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -125,6 +154,18 @@ date_finished: null
 
 ## Evolution
 
+### 2026-06-08 — scope pivot: prevention exists, install gap was real
+
+- **What changed:** Started believing T-2052 needed to BUILD a blob-size pre-commit gate. Discovery: T-1845 already shipped it in the framework (`large-file-scan.sh`, 10 MiB BLOCK, allowlist, wired in `hooks.sh`). The actual gap is install drift: this project's `.git/hooks/pre-commit` was written in the T-1844 era and never refreshed, so it only ran secret-scan. Re-installing wired all three gates.
+- **Plan impact:** Original 40-LOC budget evaporated for the gate itself; reallocated to the install-time chmod gap discovery + mirror-canary diagnostic extension.
+- **Triggered:** Two structural prevention discoveries — (a) install drift on hook lib (likely affects multiple consumer projects of the framework), (b) chmod missing on vendored lib scripts (every secret-scan invocation in commits showed `scanner not found (skipping)` — fail-open behavior nobody noticed because no one had been intentionally committing a secret to test). The chmod gap is the bigger find: it silently disabled T-1844 secret-scan in this project for the lifetime of the vendor copy.
+
+### 2026-06-08 — root-cause diagnosis added to canary
+
+- **What changed:** Original spec asked for "diagnose file-size rejection pattern in pre-receive output". The canary doesn't read pre-receive output (it just compares HEADs via ls-remote). Reframed to: when drift is detected, scan the local `github_head..origin_head` commit range for blobs ≥100MB (GitHub's GH001 per-file limit). If found, surface sha+path+size with cleanup hint. This catches the G-058 root cause (288MB blob silently rejected for 14 days) instead of just "drift".
+- **Plan impact:** No prose change needed in the hint; the implementation is local-only (no GitHub API needed), so canary stays self-contained.
+- **Triggered:** No new task; closes the loop on T-2052 as originally framed.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -174,3 +215,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2052-pre-commit-blob-size-gate--block-any-sin.md
 - **Context:** Initial task creation
+
+### 2026-06-08T19:11:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

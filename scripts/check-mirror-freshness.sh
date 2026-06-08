@@ -97,9 +97,48 @@ if [ -n "$latest_tag" ]; then
     fi
 fi
 
+# T-2052: structural drift diagnosis — scan the github_head..origin_head range
+# for blobs over GitHub's 100MB pre-receive limit (GH001). When this fires,
+# the mirror job's silent rejection is the explained root cause: the operator
+# should clean up the offending blob from history rather than rotate the PAT.
+# Falls back gracefully if range is unresolvable (diverged or shallow clone).
+oversize_hint=""
+if [ "$status" = drift ] && [ -n "$github_head" ] && [ -n "$origin_head" ]; then
+    if git merge-base --is-ancestor "$github_head" "$origin_head" 2>/dev/null; then
+        # GitHub's per-file limit is 100 MiB (104857600 bytes). Use 100 MB
+        # (decimal) as a slightly conservative trigger: any blob ≥100 MB will
+        # also fail the 100 MiB hard limit, and operators reading the message
+        # think in "100MB" terms.
+        BIG_BYTES=100000000
+        oversize_hint=$(
+            git rev-list "$github_head..$origin_head" 2>/dev/null \
+                | while read -r sha; do
+                    git diff-tree --no-commit-id --name-only -r "$sha" 2>/dev/null \
+                        | while read -r path; do
+                            [ -z "$path" ] && continue
+                            sz=$(git cat-file -s "$sha:$path" 2>/dev/null || echo 0)
+                            if [ "$sz" -ge "$BIG_BYTES" ] 2>/dev/null; then
+                                printf '%s %s %s\n' "$sha" "$sz" "$path"
+                                break
+                            fi
+                        done
+                done | head -n 5
+        )
+    fi
+fi
+
 if [ "$FORMAT" = json ]; then
-    printf '{"status":"%s","behind":"%s","origin":"%s","github":"%s","latest_tag":"%s","tag_status":"%s"}\n' \
-        "$status" "$behind" "$origin_head" "$github_head" "$latest_tag" "$tag_status"
+    if [ -n "$oversize_hint" ]; then
+        # Best-effort JSON: just count hits + the first one (avoid embedded newlines).
+        oversize_count=$(echo "$oversize_hint" | wc -l | tr -d ' ')
+        first_oversize=$(echo "$oversize_hint" | head -n 1)
+        printf '{"status":"%s","behind":"%s","origin":"%s","github":"%s","latest_tag":"%s","tag_status":"%s","oversize_blobs":%s,"oversize_first":"%s"}\n' \
+            "$status" "$behind" "$origin_head" "$github_head" "$latest_tag" "$tag_status" \
+            "$oversize_count" "$first_oversize"
+    else
+        printf '{"status":"%s","behind":"%s","origin":"%s","github":"%s","latest_tag":"%s","tag_status":"%s","oversize_blobs":0}\n' \
+            "$status" "$behind" "$origin_head" "$github_head" "$latest_tag" "$tag_status"
+    fi
 elif [ "$QUIET" = 1 ] && [ "$status" = synced ]; then
     :
 else
@@ -112,6 +151,18 @@ else
         fi
         if [ "$tag_status" = missing ]; then
             echo "  Latest tag $latest_tag is NOT on GitHub (tag mirror broken)"
+        fi
+        if [ -n "$oversize_hint" ]; then
+            echo ""
+            echo "  Likely cause — oversize blob(s) over GitHub's 100MB pre-receive limit:"
+            echo "$oversize_hint" | while read -r sha sz path; do
+                mb=$(awk -v b="$sz" 'BEGIN{printf "%.1f", b/1048576}')
+                printf '    %s  %s  %s MiB\n' "$sha" "$path" "$mb"
+            done
+            echo ""
+            echo "  Diagnose history: bash .agentic-framework/agents/git/lib/large-file-scan.sh scan-tree"
+            echo "  Clean recipe: git rm --cached <path> and BFG / git-filter-repo to scrub history"
+            echo "  Origin: T-2052 (G-058 root-cause class — silent mirror rejection on file size)"
         fi
     elif [ "$status" = diverged ]; then
         echo "  GitHub and origin have diverged — manual investigation needed"
