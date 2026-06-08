@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T20:10:25Z
-last_update: 2026-06-08T20:10:25Z
+last_update: 2026-06-08T20:17:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -116,7 +116,7 @@ Bundled because (a) the MCP surface needs the same recipe paragraph the doc is m
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 out=$(cargo build -p termlink-mcp 2>&1); echo "$out" | tail -5 | grep -q "Finished"
-out=$(cargo test -p termlink-mcp 2>&1); echo "$out" | grep -qE "test result: ok\."
+out=$(cargo test -p termlink-mcp --lib 2>&1); echo "$out" | grep -qE "test result: ok\."
 grep -q "termlink_fleet_governor_status" crates/termlink-mcp/src/tools.rs
 grep -q "termlink fleet governor-status\|termlink_fleet_governor_status" docs/operations/substrate-governor.md
 grep -q "dedupe_entries_active\|dedupe_hits_total" docs/operations/substrate-governor.md
