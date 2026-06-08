@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2023: Substrate: client-side reconnect + outbound queue for spokes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T10:04:56Z
+# ============================================================================
+
+task_id: T-2023
+task_name: "Substrate: client-side reconnect + outbound queue for spokes"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T11:36:33Z
+completed: 2026-06-08T10:04:54Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-08T09:43:50+02:00
+last_commit: 2026-06-08T12:04:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception research artifact + MOSTLY-SHIPPED finding — substrate primitive #5 (client reconnect + outbound queue). inception decision GO (via Watchtower). fix Open Question dispositions for T-2190 gate (resolved/partial → answered, open → deferred)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Open Question dispositions for T-2190 gate (resolved/partial → answered, open → deferred)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2023-client-reconnect-queue-inception.md'
+  - '.tasks/active/T-2023-substrate-client-side-reconnect--outboun.md'
+  - '.tasks/completed/T-2021-substrate-pullassign-rpc-verb-orchestrat.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T09:43:50"
+    action: "T-2023: inception research artifact + MOSTLY-SHIPPED finding — substrate primitive #5 (client reconnect + outbound queue)"
+  - time: "2026-06-08T12:00:19"
+    action: "T-2023: inception decision GO (via Watchtower)"
+  - time: "2026-06-08T12:04:49"
+    action: "T-2023: fix Open Question dispositions for T-2190 gate (resolved/partial → answered, open → deferred)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1348 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1348
+  commits: 3
+  files_changed: 3
+  lines_added: 224
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2023-substrate-client-side-reconnect--outboun.md
+generated_by: context-agent-hybrid

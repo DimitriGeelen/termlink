@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2020: Substrate: hub-owned idle/busy agent registry
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T10:04:31Z
+# ============================================================================
+
+task_id: T-2020
+task_name: "Substrate: hub-owned idle/busy agent registry"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-07T11:36:20Z
+completed: 2026-06-08T10:04:28Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-08T09:03:24+02:00
+last_commit: 2026-06-08T12:03:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception research artifact + Recommendation block — substrate primitive #2 (idle/busy registry). inception decision GO (via Watchtower). fix Open Question dispositions for T-2190 gate (resolved → answered)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Open Question dispositions for T-2190 gate (resolved → answered)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-08.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2044.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/T-2020-idle-busy-registry-inception.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2020-substrate-hub-owned-idlebusy-agent-regis.md'
+  - '.tasks/completed/T-2044-substrate-slice-11-channel-claim-force-r.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T09:03:24"
+    action: "T-2020: inception research artifact + Recommendation block — substrate primitive #2 (idle/busy registry)"
+  - time: "2026-06-08T11:59:45"
+    action: "T-2020: inception decision GO (via Watchtower)"
+  - time: "2026-06-08T12:03:05"
+    action: "T-2020: fix Open Question dispositions for T-2190 gate (resolved → answered)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1348 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1348
+  commits: 3
+  files_changed: 19
+  lines_added: 541
+  lines_removed: 94
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2020-substrate-hub-owned-idlebusy-agent-regis.md
+generated_by: context-agent-hybrid
