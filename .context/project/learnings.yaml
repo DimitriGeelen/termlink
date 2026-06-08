@@ -2190,9 +2190,10 @@ learnings:
   context: Added via context agent
   application: TBD
 - id: PL-205
-  learning: "Pre-commit hook fail-open on non-executable scanners. Vendored .agentic-framework/agents/git/lib/*.sh ships -rw-r--r-- (no exec bit). The hook's [ ! -x SCANNER ] test triggers an exit 0 'fail open' path with the message 'secret-scan: scanner not found (skipping)'. Net effect: T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate are silently disabled for the lifetime of the vendor copy. Recovery: chmod +x .agentic-framework/agents/git/lib/{secret-scan,dup-task-scan,large-file-scan}.sh. The 'not found (skipping)' line in every commit output is the smoking-gun signal nobody noticed. Permanent fix is upstream — see T-2061."
+  learning: "Pre-commit hook fail-open on non-executable scanners. Original symptom: vendored .agentic-framework/agents/git/lib/*.sh shipped -rw-r--r-- (no exec bit); the hook's [ ! -x SCANNER ] test triggered an exit 0 'fail open' path with the message 'secret-scan: scanner not found (skipping)'. Net effect: T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate were silently disabled for the lifetime of any non-exec vendor copy. T-2061 RESOLVED this structurally in upstream commits 00d81b2b2 + 3e94344c5 (origin/master, agentic-engineering-framework, 2026-06-08): pre-commit hook now gates on -f (file existence) instead of -x, AND invokes via `bash \"$SCANNER\" scan-staged` so the exec bit is irrelevant for both the gate AND the invocation. Smoking-gun signal in old-hook output: the line 'secret-scan: scanner not found at <path> (skipping)' followed by no further scanner messages (dup-task-scan and large-file-scan silently no-op'd). Recovery on a stale consumer until they pull the upstream + run `fw git install-hooks`: chmod +x .agentic-framework/agents/git/lib/{secret,dup-task,large-file}-scan.sh."
   source: P-001
   task: T-2052
+  related_tasks: [T-2061]
   date: 2026-06-08
-  context: Added via context agent
-  application: TBD
+  context: Added via context agent (T-2052) + updated post-fix (T-2061)
+  application: Any consumer adopting upstream beyond commit 3e94344c5 inherits the structural fix on next `fw upgrade` + `fw git install-hooks`. Pre-fix consumers should chmod +x as the quick recovery.

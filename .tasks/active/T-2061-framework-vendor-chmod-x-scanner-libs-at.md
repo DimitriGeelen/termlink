@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T19:15:43Z
-last_update: 2026-06-08T19:26:32Z
+last_update: 2026-06-08T19:27:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,9 +64,9 @@ test fixture in `crates/termlink-cli/src/commands/infrastructure.rs:2125`.
 - [x] Upstream task filed (this card) with full context describing the gap and the two fix options
 - [x] `.secret-scan-allowlist` added with regex for the test-fixture PEM in `infrastructure.rs:2125` (T-2052 fallout — activating secret-scan surfaced one false-positive that needed allowlisting)
 - [x] `bash .agentic-framework/agents/git/lib/secret-scan.sh scan-tree` exits 0 with no findings after the allowlist edit
-- [ ] Upstream change lands on `/opt/999-AEF` `origin/master` (Channel-1 upstream-mirror pattern: patch + commit + push via `termlink_run`)
-- [ ] Confirm fresh `fw upgrade` in a test consumer project results in executable scanner libs (no `secret-scan: scanner not found (skipping)` in subsequent commit output)
-- [ ] PL-205 learning updated with reference to the upstream fix once it lands
+- [x] Upstream change landed on origin/master — commits `00d81b2b2` (hook patch) + `3e94344c5` (self-vendor refresh via T-2240 gate). Pushed via Channel-1 `termlink_run` against `/opt/999-Agentic-Engineering-Framework`. Range: `7bdb71d22..3e94344c5`.
+- [x] **Structural fix verified independent of exec bits.** Stripped `.agentic-framework/agents/git/lib/{secret,dup-task,large-file}-scan.sh` to `-rw-r--r--` and attempted to commit a 15 MiB synthetic blob — the large-file gate fired with the correct `[BLOCK] .t2061-bigfile-test.bin — 15.0 MiB (threshold 10.0 MiB)` message. The hook now invokes via `bash "$SCANNER"` and gates on `-f`, so exec bits cannot disable the scanner. Scope pivoted from "chmod at vendor time" (the original task title) — see Evolution.
+- [x] PL-205 learning updated with the upstream fix reference (commits + new structural-bulletproof gate pattern)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -149,6 +149,12 @@ test fixture in `crates/termlink-cli/src/commands/infrastructure.rs:2125`.
 -->
 
 ## Evolution
+
+### 2026-06-08 — Scope pivot: gate-in-hook beats chmod-at-vendor
+
+- **What changed:** T-2061 originally proposed two fixes — (a) chmod +x scanner libs in `hooks.sh:install_hooks` before writing the hook, OR (b) preserve exec bits in `fw upgrade`/`do_vendor`. Investigation showed both miss the structural point. The pre-commit hook gated on `[ -x "$SCANNER" ]` and then invoked the scanner as `"$SCANNER" scan-staged` (direct exec). The `-x` test was BOTH the gate AND a precondition for the invocation — meaning a stripped exec bit silently fail-opened the entire scanner under the older code path. Fixing chmod at vendor time would have closed the symptom for new vendor copies, but any future code path that landed a stale exec-bit-less file (rsync, manual cp, container layer flattening) would re-introduce the silent fail. The right fix is structural: gate on `-f` (file existence) and invoke via `bash "$SCANNER" scan-staged` so the exec bit becomes irrelevant.
+- **Plan impact:** ACs 4–6 were rewritten. AC 4 stays "land upstream" but the patch is now the gate-in-hook change, not a chmod call. AC 5 becomes "structural fix verified independent of exec bits" (stripped libs to `-rw-r--r--`, confirmed gate still fires). AC 6 stays as PL-205 update but with the new patch reference.
+- **Triggered:** No new sub-tasks. The original task title still reads "chmod +x scanner libs at install or vendor time" — a stale framing but kept for git-blame traceability with the prior session's filing. Future readers should treat the Evolution entry as the canonical narrative.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
