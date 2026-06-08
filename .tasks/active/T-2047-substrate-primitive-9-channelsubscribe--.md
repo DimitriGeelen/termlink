@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2027, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:05Z
-last_update: 2026-06-08T12:20:40Z
+last_update: 2026-06-08T12:27:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -83,9 +83,9 @@ date_finished: null
 
 ## Verification
 
-cargo check -p termlink-cli 2>&1 | tail -3 | grep -q "Finished\|warning"
-cargo build -p termlink-cli --release 2>&1 | tail -3 | grep -q "Finished\|warning"
+out=$(cargo check -p termlink 2>&1); echo "$out" | grep -q "Finished\|warning"
 grep -q "from-latest" crates/termlink-cli/src/commands/channel.rs
+grep -q "from_latest" crates/termlink-mcp/src/tools.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
