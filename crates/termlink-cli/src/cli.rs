@@ -2450,6 +2450,27 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "MS")]
         since: Option<i64>,
 
+        /// Read only the latest envelope on the topic (broadcast-with-replay,
+        /// T-2027 / T-2047). Requires exactly one of `--once` or `--then-live`.
+        /// On an empty topic, prints "topic is empty" and exits 0 — never
+        /// blocks. Mutually exclusive with `--cursor`, `--limit`, `--since`,
+        /// `--until`, `--resume`, `--reset`, `--follow`, `--tail`.
+        #[arg(
+            long,
+            conflicts_with_all = ["resume", "reset", "follow", "tail", "since", "until", "conversation_id", "in_reply_to"]
+        )]
+        from_latest: bool,
+
+        /// With `--from-latest`: fetch the latest envelope and exit.
+        /// Mutually exclusive with `--then-live`. Ignored without `--from-latest`.
+        #[arg(long, conflicts_with = "then_live")]
+        once: bool,
+
+        /// With `--from-latest`: fetch the latest envelope, then stream forward.
+        /// Mutually exclusive with `--once`. Ignored without `--from-latest`.
+        #[arg(long, conflicts_with = "once")]
+        then_live: bool,
+
         /// Drop envelopes whose `ts > <ms>` from the printed output (T-1352).
         /// Closing pair to `--since`. Combine for an arbitrary
         /// `[since, until]` window. Same render-side semantics — pagination

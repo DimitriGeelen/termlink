@@ -932,7 +932,22 @@ async fn main() -> Result<()> {
                 show_forwards,
                 hub,
                 json,
+                from_latest,
+                once,
+                then_live,
             } => {
+                // T-2047: validate --from-latest sub-mode (clap conflicts_with handles
+                // most pairs but cannot express "if A then exactly one of B|C").
+                if from_latest && !once && !then_live {
+                    anyhow::bail!(
+                        "--from-latest requires exactly one of --once or --then-live"
+                    );
+                }
+                if (once || then_live) && !from_latest {
+                    anyhow::bail!(
+                        "--once / --then-live only valid with --from-latest"
+                    );
+                }
                 commands::channel::cmd_channel_subscribe(
                     &topic,
                     cursor,
@@ -955,6 +970,8 @@ async fn main() -> Result<()> {
                     show_forwards,
                     hub.as_deref(),
                     json,
+                    from_latest,
+                    then_live,
                 )
                 .await
             }

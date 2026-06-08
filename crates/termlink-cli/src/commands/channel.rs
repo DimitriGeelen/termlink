@@ -1852,6 +1852,7 @@ pub(crate) async fn cmd_channel_dm(
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
                 None, None, None, false, None, None, false, hub, json_output,
+                false, false, // T-2047: from_latest, then_live (default off)
             )
             .await
         }
@@ -7897,6 +7898,10 @@ pub(crate) async fn cmd_channel_subscribe(
     show_forwards: bool,
     hub: Option<&str>,
     json_output: bool,
+    // T-2047: broadcast-with-replay flags. from_latest=true overrides
+    // (cursor, limit, follow) — see early-return block below.
+    from_latest: bool,
+    then_live: bool,
 ) -> Result<()> {
     use std::fmt::Write as _;
     let tail_mode = tail.is_some();
@@ -7906,6 +7911,25 @@ pub(crate) async fn cmd_channel_subscribe(
     // complete output for one envelope (1+ lines, with trailing newlines).
     let mut env_outputs: Vec<String> = Vec::new();
     let sock = hub_socket_or_json_exit(hub, json_output)?;
+    // T-2047: broadcast-with-replay. Override (cursor, limit, follow) to fetch
+    // just the latest envelope; --then-live then continues streaming forward.
+    // Empty-topic path returns immediately — late-joiner reads must NEVER block.
+    let (cursor, limit, follow) = if from_latest {
+        let latest = resolve_latest_offset(&sock, topic).await?;
+        match from_latest_overrides(latest, then_live) {
+            None => {
+                if json_output {
+                    println!("{{\"empty\":true,\"topic\":{}}}", json!(topic));
+                } else {
+                    println!("topic is empty");
+                }
+                return Ok(());
+            }
+            Some(o) => o,
+        }
+    } else {
+        (cursor, limit, follow)
+    };
     // T-1344: when --show-parent is on, seed an offset-keyed cache by walking
     // the topic once before the streaming loop. Live envelopes seen during
     // --follow are added to the cache as they arrive (see emission loop).
@@ -8450,6 +8474,19 @@ pub(crate) async fn cmd_channel_list(
         }
     }
     Ok(())
+}
+
+/// T-2047: pure decision helper for `--from-latest` mode. Given the topic's
+/// current latest offset (or None for empty topic) and the then_live flag,
+/// returns the (cursor, limit, follow) override the caller should use.
+/// Returns None when the topic is empty — caller emits the "topic is empty"
+/// message and exits. Extracted to keep the substrate-broadcast logic
+/// trivially testable without a live hub.
+pub(crate) fn from_latest_overrides(
+    latest_offset: Option<u64>,
+    then_live: bool,
+) -> Option<(u64, u64, bool)> {
+    latest_offset.map(|max| (max, 1u64, then_live))
 }
 
 /// T-1335: walk a single topic to completion via `channel.subscribe` paging.
@@ -9364,6 +9401,44 @@ mod tests {
     fn paginated_tail_start_slice_above_count_saturates_to_zero() {
         // Asking for MORE than the topic holds must NOT underflow — start 0.
         assert_eq!(paginated_tail_start(300, 5000), 0);
+    }
+
+    // ---- T-2047 from_latest_overrides tests -----------------------------
+
+    #[test]
+    fn from_latest_once_on_nonempty_topic_returns_max_offset_limit1_no_follow() {
+        // --from-latest --once: fetch envelope at latest offset, exit. Hub
+        // cursor is inclusive (per walk_topic_full evidence) — cursor=max
+        // with limit=1 returns exactly that envelope.
+        let result = from_latest_overrides(Some(42), false);
+        assert_eq!(result, Some((42, 1, false)));
+    }
+
+    #[test]
+    fn from_latest_then_live_on_nonempty_topic_returns_max_offset_limit1_follow() {
+        // --from-latest --then-live: fetch envelope at latest offset, then
+        // continue streaming forward — main loop reuses --follow semantics
+        // with next_cursor = max+1 on subsequent iterations.
+        let result = from_latest_overrides(Some(42), true);
+        assert_eq!(result, Some((42, 1, true)));
+    }
+
+    #[test]
+    fn from_latest_on_empty_topic_returns_none() {
+        // Empty topic (resolve_latest_offset returned None) — caller emits
+        // "topic is empty" + returns Ok(()). Late-joiner reads MUST NOT
+        // block on an empty topic.
+        assert_eq!(from_latest_overrides(None, false), None);
+        assert_eq!(from_latest_overrides(None, true), None);
+    }
+
+    #[test]
+    fn from_latest_at_offset_zero_returns_zero_not_none() {
+        // Edge case: topic with exactly one envelope (latest offset = 0).
+        // Must NOT confuse offset=0 with empty-topic — the Some/None
+        // distinction in resolve_latest_offset already disambiguates.
+        let result = from_latest_overrides(Some(0), false);
+        assert_eq!(result, Some((0, 1, false)));
     }
 
     #[test]

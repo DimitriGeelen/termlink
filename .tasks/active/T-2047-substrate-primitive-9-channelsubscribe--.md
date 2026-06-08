@@ -4,7 +4,7 @@ name: "Substrate primitive #9: channel.subscribe --from-latest [--once|--then-li
 description: >
   Implement the T-2027 GO decision per docs/reports/T-2027-broadcast-with-replay-inception.md. New subscribe flags: --from-latest --once (read latest envelope and exit, atomic), --from-latest --then-live (read latest then stream forward). Late-joiner room-state read for chat-arc / dm:* topics without full replay. Defers compaction to T-2028. ~80 LOC across 4 vertical slices.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2027, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:05Z
-last_update: 2026-06-08T10:49:05Z
+last_update: 2026-06-08T11:20:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,8 +40,14 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `--from-latest` flag added to `termlink channel subscribe`, requires one of `--once` or `--then-live`
+- [ ] `--from-latest --once`: returns the single latest envelope on a non-empty topic, exits 0
+- [ ] `--from-latest --once`: prints "topic is empty" (or equivalent) and exits 0 on an empty topic — never blocks
+- [ ] `--from-latest --then-live`: returns the latest envelope, then continues streaming forward (existing follow semantics)
+- [ ] `--from-latest` is mutually exclusive with `--since` and `--since-offset` — usage error if combined
+- [ ] `--from-latest` is mutually exclusive with `--limit` (the flag implies a specific scope) — usage error if combined
+- [ ] `cargo check -p termlink-cli` passes
+- [ ] At least one unit test covering both `--once` and `--then-live` modes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +81,10 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo check -p termlink-cli 2>&1 | tail -3 | grep -q "Finished\|warning"
+cargo build -p termlink-cli --release 2>&1 | tail -3 | grep -q "Finished\|warning"
+grep -q "from-latest" crates/termlink-cli/src/commands/channel.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,3 +184,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2047-substrate-primitive-9-channelsubscribe--.md
 - **Context:** Initial task creation
+
+### 2026-06-08T11:20:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
