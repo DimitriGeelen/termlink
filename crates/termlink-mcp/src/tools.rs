@@ -296,6 +296,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_hub_probe", "Pre-pin TLS probe — confirm a remote hub is up and capture its current fingerprint"),
             ("termlink_hub_fingerprint", "TLS fingerprint of the local hub for peers to pin"),
             ("termlink_hub_export_secret", "Read local hub.secret for out-of-band share (G-011 R3 authoritative source)"),
+            ("termlink_hub_governor_status", "T-2048 — read connection-cap + rate-limit governor counters (capacity_hits_total, rate_hits_total, etc.)"),
         ]),
         ("tofu", vec![
             ("termlink_tofu_list", "List TOFU-pinned hub fingerprints from ~/.termlink/known_hubs"),
@@ -12414,6 +12415,34 @@ impl TermLinkTools {
         };
 
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)
+    }
+
+    #[tool(
+        name = "termlink_hub_governor_status",
+        description = "T-2048 / T-2028 Track B: read the local hub's connection-cap + per-sender rate-limit governor state via `hub.governor_status`. Returns `{ok, connections_active, connections_max, capacity_hits_total, rate_buckets_active, rate_hits_total, max_rate_per_sec}`. Pure read, scope=Observe. Pair with `termlink_hub_status` (lifecycle) and `termlink_doctor` (bus state) for full hub-health rollup. `capacity_hits_total > 0` means at least one connection was refused with HUB_AT_CAPACITY (-32019); `rate_hits_total > 0` means at least one RPC was refused with RATE_LIMITED (-32008). Operators tune via `TERMLINK_MAX_CONNECTIONS` (default 256) + `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000) env vars at hub start. Returns `{ok: false, error}` if the hub isn't running."
+    )]
+    async fn termlink_hub_governor_status(&self) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return serde_json::json!({
+                "ok": false,
+                "error": "Hub is not running. Start it with: termlink hub start"
+            })
+            .to_string();
+        }
+        match client::rpc_call(&hub_socket, "hub.governor_status", serde_json::json!({})).await {
+            Ok(resp) => match client::unwrap_result(resp) {
+                Ok(result) => {
+                    let mut out = result.clone();
+                    if let Some(obj) = out.as_object_mut() {
+                        obj.insert("ok".into(), serde_json::Value::Bool(true));
+                    }
+                    serde_json::to_string_pretty(&out).unwrap_or_else(json_err)
+                }
+                Err(e) => serde_json::json!({"ok": false, "error": e.to_string()}).to_string(),
+            },
+            Err(e) => serde_json::json!({"ok": false, "error": e.to_string()}).to_string(),
+        }
     }
 
     #[tool(

@@ -352,7 +352,8 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::SESSION_WHOAMI
         | control::method::EVENT_COLLECT
         | "hub.version"
-        | "hub.bus_state" => PermissionScope::Observe,
+        | "hub.bus_state"
+        | "hub.governor_status" => PermissionScope::Observe,
 
         // Interact: mutates hub state or fan-out operations
         control::method::EVENT_BROADCAST

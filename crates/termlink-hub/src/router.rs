@@ -135,6 +135,7 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         "hub.version" => handle_hub_version(id),
         "hub.legacy_usage" => handle_hub_legacy_usage(id, &req.params),
         "hub.bus_state" => handle_hub_bus_state(id),
+        "hub.governor_status" => handle_hub_governor_status(id),
         control::method::HUB_CAPABILITIES => handle_hub_capabilities(id),
         _ => forward_to_target(req, id).await,
     };
@@ -802,6 +803,45 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
     .into()
 }
 
+/// Handle `hub.governor_status` — return T-2048 governor telemetry.
+///
+/// Tier-A. No params, scope=Observe. Reads from the process-global
+/// `ConnGovernor` + `RateGovernor` installed at hub start (or lazily
+/// initialised with defaults if `governor::init` was somehow skipped).
+///
+/// Response shape:
+/// ```json
+/// {
+///   "connections_active": u32,
+///   "connections_max": u32,
+///   "capacity_hits_total": u64,
+///   "rate_buckets_active": usize,
+///   "rate_hits_total": u64,
+///   "max_rate_per_sec": u32
+/// }
+/// ```
+///
+/// Pair with `hub.bus_state` (G-050) for full hub-health rollup. T-1991
+/// "found in production not predicted" failure mode becomes a
+/// "fleet doctor surfaces it" event as soon as a wrapper consumes
+/// this RPC.
+fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
+    let conn = crate::governor::conn_governor();
+    let rate = crate::governor::rate_governor();
+    Response::success(
+        id,
+        json!({
+            "connections_active": conn.current(),
+            "connections_max": conn.max(),
+            "capacity_hits_total": conn.capacity_hits_total(),
+            "rate_buckets_active": rate.buckets_active(),
+            "rate_hits_total": rate.rate_hits_total(),
+            "max_rate_per_sec": rate.rate_per_sec(),
+        }),
+    )
+    .into()
+}
+
 /// Handle `hub.capabilities` — return the list of JSON-RPC methods this hub
 /// serves directly (T-1215 / T-1214 GO Option B). Enables federating clients
 /// to detect stranger-lineage peers and avoid probing each method individually.
@@ -853,6 +893,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         "hub.version",
         "hub.legacy_usage",
         "hub.bus_state",
+        "hub.governor_status",
         control::method::HUB_CAPABILITIES,
     ];
     methods.sort_unstable();

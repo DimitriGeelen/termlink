@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2028]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:10Z
-last_update: 2026-06-08T14:58:36Z
+last_update: 2026-06-08T15:05:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -97,23 +97,37 @@ with `code = -32019 HUB_AT_CAPACITY` (new) or `-32008 RATE_LIMITED`
       `governor::DEFAULT_RATE_LIMIT_PER_SEC`) env vars read at hub
       start in `governor::init()`. `tracing::info!` emits active
       config at startup ("Hub governors active (T-2048 — ...)").
-- [ ] Slice 3 — Observability RPC: `hub.governor_status` returns
-      `{connections_active, connections_max, rate_buckets_active,
-      rate_hits_total, capacity_hits_total, max_rate_per_sec}` and
-      requires Observe scope.
-- [ ] Slice 3 — MCP parity: `termlink_hub_governor_status` MCP tool
-      added with help-registry entry.
-- [ ] Slice 3 — Docs: `docs/operations/substrate-governor.md` describes
+- [x] Slice 3 — Observability RPC: `hub.governor_status` returns
+      `{connections_active, connections_max, capacity_hits_total,
+      rate_buckets_active, rate_hits_total, max_rate_per_sec}` and
+      requires Observe scope. Registered in `route()` + `hub_method_scope`
+      + `handle_hub_capabilities` methods list.
+- [x] Slice 3 — MCP parity: `termlink_hub_governor_status` MCP tool
+      added (subprocesses via `client::rpc_call` over local UDS), plus
+      help-registry entry under "hub" category.
+- [x] Slice 3 — Docs: `docs/operations/substrate-governor.md` describes
       the two governors, defaults, override env vars, refuse error
-      shapes, and the `hub.governor_status` recipe.
-- [ ] Slice 3 — CLAUDE.md Quick Reference row added under substrate
-      primitives section.
-- [ ] Live smoke: deploy via
+      shapes, operator probe + tighter-limit recipes, and the
+      "what this does NOT do" boundary list.
+- [x] Slice 3 — CLAUDE.md Quick Reference row "Hub governor status
+      (BACKPRESSURE)" added between Transfer-claim and Cross-host-handoff
+      rows in the substrate-primitive cluster.
+- [x] Live smoke (2026-06-08 17:23Z): deployed via
       `cargo install --path crates/termlink-cli --force --offline`
-      + `systemctl restart termlink-hub`; verify `hub.governor_status`
-      returns expected shape; observe HUB_AT_CAPACITY when concurrent
-      connections exceed cap (use small TERMLINK_MAX_CONNECTIONS=4 for
-      test); observe RATE_LIMITED when burst exceeds bucket.
+      + `systemctl restart termlink-hub`; production hub logs
+      "Hub governors active (T-2048 — ...) max_connections=256
+      rate_limit_per_sec=1000" at startup; `hub.governor_status`
+      returns full shape with expected baselines. Cap smoke
+      (separate test hub at /tmp/termlink-test-T2048,
+      `TERMLINK_MAX_CONNECTIONS=4`): 5th simultaneous connection
+      gets `{"id":null,"error":{"code":-32019,"message":"Hub at
+      capacity (retry in 1000ms)","data":{"retry_after_ms":1000}}}`
+      and `capacity_hits_total` increments to 1. Rate smoke
+      (`TERMLINK_RATE_LIMIT_PER_SEC=10`): burst of 15 from same
+      sender admits 10 + denies 5 with `code=-32008`
+      `data={"retry_after_ms":100,"sender":"burst-test-sender"}`;
+      `rate_hits_total` increments to 5. Both LOUD-refuse paths
+      validated; structured envelopes match the doc spec exactly.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -221,6 +235,26 @@ grep -q 'termlink_hub_governor_status' crates/termlink-mcp/src/tools.rs
   hub-side config surface.
 - **Triggered:** Updated task Context section to disambiguate Track B
   scope before slice 2.
+
+### 2026-06-08 — slice 3 observability RPC + live smoke
+- **What changed:** Hub-side governor state observable via
+  `hub.governor_status` (read-only Tier-A JSON-RPC, scope=Observe).
+  MCP parity tool `termlink_hub_governor_status` calls the same RPC
+  via local UDS. Inception §4 Track B sub-task "observability into
+  hub status" deliberately scoped narrowly: a dedicated RPC instead
+  of grafting governor counters onto `hub.bus_state` (which is
+  T-1446's G-050 audit telemetry — different concerns, distinct
+  rollups in `fleet doctor`).
+- **Plan impact:** None — slice 3 went per-plan. Cap smoke + rate
+  smoke both passed first try. Production hub remains on defaults
+  (256/1000) and the separate test-hub instance at
+  `/tmp/termlink-test-T2048` with `max=4, rate=10` validated both
+  refuse paths without disrupting any production state.
+- **Triggered:** Track B is now shippable. Track A (retention audit)
+  and Track C (budget visibility in `channel info`) remain as
+  filed-but-uncaptured follow-ups per the inception §6
+  recommendation. No new task filed — they're in the inception
+  artifact and will fan out when T-2027 lands.
 
 ### 2026-06-08 — slice 2 wiring + drain-counter dual-tracker
 - **What changed:** Naive substitution of the per-loop
