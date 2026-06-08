@@ -108,20 +108,60 @@ Field semantics:
   `TERMLINK_RATE_LIMIT_PER_SEC` or `DEFAULT_RATE_LIMIT_PER_SEC`
   (1000).
 
+T-2049 added three post-idempotency fields (present on any hub running
+≥ T-2049; older hubs omit them — CLI/MCP renderers fall back to `n/a`):
+
+- `dedupe_entries_active`: number of `(sender_id, client_msg_id)` keys
+  currently live in the post-dedupe LRU. Bounded by
+  `TERMLINK_DEDUPE_CAPACITY` (default 10_000). Steady-state under
+  normal traffic; a steady climb here means the LRU window is too
+  small for the post-rate.
+- `dedupe_hits_total`: monotonic counter; every time a `channel.post`
+  matched a prior `(sender_id, client_msg_id)` pair and was returned
+  the cached envelope (exactly-once retry absorbed), this increments.
+  Non-zero is the "spoke-side retry budget actually fired" signal —
+  expected during hub blips, suspicious during steady state.
+- `dedupe_ttl_ms`: LRU eviction TTL at hub-start; matches
+  `TERMLINK_DEDUPE_TTL_MS` (default 300_000 = 5 min). A spoke retry
+  beyond this window will double-apply — operators tuning for higher
+  blip tolerance bump it here.
+
+See `docs/operations/substrate-post-idempotency.md` for the full
+exactly-once delivery model these fields surface.
+
 ### Recipe — operator probe
 
+The hub.governor_status envelope is reachable through four parallel
+routes — pick the one that fits the caller:
+
 ```sh
-# CLI (forwarded JSON-RPC via local socket — no flag-parsing needed)
+# 1. Raw RPC (local socket; no auth setup)
 termlink remote call local hub.governor_status
 
-# MCP parity
-termlink_hub_governor_status
+# 2. Single-hub CLI inline with lifecycle (T-2060, Track C)
+termlink hub status --governor
 
-# As a one-liner (Unix-socket only — no auth setup)
+# 3. Fleet-wide aggregation across every hub in ~/.termlink/hubs.toml
+#    (T-2062, Track D) — answers "which hub is wedged / hitting cap?"
+termlink fleet governor-status            # human-readable
+termlink fleet governor-status --json     # for scripts / dashboards
+termlink fleet governor-status --timeout 5  # tighter per-hub bound
+
+# 4. MCP parity for agents — single-hub + fleet
+termlink_hub_governor_status              # one local hub (T-2048)
+termlink_fleet_governor_status            # walks every profile (T-2063)
+
+# 5. Bare-bones inspection one-liner (Unix socket only, no termlink CLI needed)
 echo '{"jsonrpc":"2.0","id":1,"method":"hub.governor_status","params":{}}' \
   | socat - UNIX-CONNECT:$(termlink hub status --json | jq -r .socket) \
   | jq .result
 ```
+
+The fleet view returns `{ok, total, reachable, hubs[], summary}` —
+the `summary` rollup includes `total_*` sums plus `hubs_at_capacity`
+and `hubs_rate_limited` counts. Per-hub failures (timeout / RPC error
+on older hubs that lack the verb) are surfaced as `{ok:false, error}`
+without short-circuiting the rest of the fleet.
 
 ### Recipe — set tighter limits for canary testing
 

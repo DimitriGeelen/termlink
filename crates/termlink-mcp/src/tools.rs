@@ -308,6 +308,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_fleet_doctor", "Auth + TLS health sweep across all profiles. Detects auth-mismatch (secret rotation) and pin-drift (cert rotation)"),
             ("termlink_fleet_history", "Retrospective rotation/heal history from ~/.termlink/rotation.log + heal.log. Filter by --hub, --since-days, --include-heals"),
             ("termlink_fleet_status", "Per-profile connectivity status across the fleet"),
+            ("termlink_fleet_governor_status", "T-2063/T-2028 Track D — fleet-wide aggregation of hub.governor_status (per-hub backpressure + rollup totals + hubs_at_capacity / hubs_rate_limited counts)"),
             ("termlink_fleet_bootstrap_check", "Validate declared bootstrap_from channels return parseable 64-hex secrets BEFORE auto-heal fires (preflight)"),
             ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
             ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
@@ -9340,6 +9341,18 @@ pub struct FleetStatusParams {
     pub verbose: Option<bool>,
 }
 
+// T-2063 / T-2028 Track D: Fleet governor-status params (agent-callable
+// MCP parity for the `termlink fleet governor-status` CLI shipped in
+// T-2062). Same shape as FleetStatusParams but only `timeout` is meaningful
+// here (no verbose / no per-hub names — the governor counters are
+// hub-derived, not session-derived).
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetGovernorStatusParams {
+    /// Timeout per hub in seconds (default: 8). Each hub is bounded
+    /// independently so a wedged hub cannot hang the fleet view.
+    pub timeout: Option<u64>,
+}
+
 // T-1661: Fleet verify params (TLS pin drift check)
 #[derive(Deserialize, JsonSchema)]
 pub struct FleetVerifyParams {
@@ -14570,6 +14583,142 @@ impl TermLinkTools {
             "summary": {"total": fleet.len(), "up": up_count, "down": down_count, "auth_fail": auth_fail_count},
             "actions": actions,
         })).unwrap_or_else(json_err)
+    }
+
+    // === Fleet governor-status (T-2063 / T-2028 Track D) ===
+
+    #[tool(
+        name = "termlink_fleet_governor_status",
+        description = "T-2063 / T-2028 Track D: fleet-wide aggregation of `hub.governor_status`. Walks every hub in ~/.termlink/hubs.toml, probes the substrate connection-cap + per-sender rate-limit + post-dedupe counters that T-2048 Track B exposed via RPC, and returns a per-hub + fleet-rollup envelope. Each hub is bounded by per-hub `tokio::time::timeout` (default 8s) — a wedged hub cannot hang the fleet view. Pure read (Observe scope), no mutation. Returns `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary{total_connections_active, total_capacity_hits_total, total_rate_hits_total, total_dedupe_entries_active, total_dedupe_hits_total, hubs_at_capacity, hubs_rate_limited}}`. Use to answer 'which hub is wedged / hitting capacity / rate-limited?' in one call without iterating profiles. CLI parity: `termlink fleet governor-status [--json] [--timeout SECS]` (T-2062). Single-hub MCP parity: `termlink_hub_governor_status`. See `docs/operations/substrate-governor.md`."
+    )]
+    async fn termlink_fleet_governor_status(
+        &self,
+        Parameters(p): Parameters<FleetGovernorStatusParams>,
+    ) -> String {
+        use termlink_protocol::jsonrpc::RpcResponse;
+
+        let profiles = list_all_hub_profiles();
+        if profiles.is_empty() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "total": 0,
+                "reachable": 0,
+                "hubs": [],
+                "summary": {
+                    "total_connections_active":    0,
+                    "total_capacity_hits_total":   0,
+                    "total_rate_hits_total":       0,
+                    "total_dedupe_entries_active": 0,
+                    "total_dedupe_hits_total":     0,
+                    "hubs_at_capacity":            0,
+                    "hubs_rate_limited":           0,
+                },
+                "message": "No hubs configured in ~/.termlink/hubs.toml",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let timeout_secs = p.timeout.unwrap_or(8);
+        let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+
+        let mut hubs_json: Vec<serde_json::Value> = Vec::with_capacity(profiles.len());
+        let mut reachable: usize = 0;
+        let mut sum_connections_active: i64 = 0;
+        let mut sum_capacity_hits: i64 = 0;
+        let mut sum_rate_hits: i64 = 0;
+        let mut sum_dedupe_entries: i64 = 0;
+        let mut sum_dedupe_hits: i64 = 0;
+        let mut hubs_at_capacity: usize = 0;
+        let mut hubs_rate_limited: usize = 0;
+
+        for (name, address, secret_file, secret_hex) in &profiles {
+            let probe = async {
+                let mut client = connect_remote_hub_mcp(
+                    address,
+                    secret_file.as_deref(),
+                    secret_hex.as_deref(),
+                    "execute",
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+                let resp = client
+                    .call(
+                        "hub.governor_status",
+                        serde_json::json!("mcp-fleet-gov"),
+                        serde_json::json!({}),
+                    )
+                    .await?;
+                match resp {
+                    RpcResponse::Success(r) => {
+                        Ok::<serde_json::Value, anyhow::Error>(r.result)
+                    }
+                    RpcResponse::Error(e) => {
+                        anyhow::bail!(
+                            "RPC error {}: {}",
+                            e.error.code,
+                            e.error.message
+                        )
+                    }
+                }
+            };
+
+            match tokio::time::timeout(timeout_dur, probe).await {
+                Ok(Ok(v)) => {
+                    reachable += 1;
+                    let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                    let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+                    let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                    let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                    let ded_entries = v.get("dedupe_entries_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                    let ded_hits = v.get("dedupe_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+
+                    sum_connections_active += active;
+                    sum_capacity_hits += cap_hits;
+                    sum_rate_hits += rate_hits;
+                    sum_dedupe_entries += ded_entries;
+                    sum_dedupe_hits += ded_hits;
+                    if active >= max { hubs_at_capacity += 1; }
+                    if rate_hits > 0 { hubs_rate_limited += 1; }
+
+                    hubs_json.push(serde_json::json!({
+                        "hub": name,
+                        "ok": true,
+                        "governor": v,
+                    }));
+                }
+                Ok(Err(e)) => {
+                    hubs_json.push(serde_json::json!({
+                        "hub": name,
+                        "ok": false,
+                        "error": e.to_string(),
+                    }));
+                }
+                Err(_) => {
+                    hubs_json.push(serde_json::json!({
+                        "hub": name,
+                        "ok": false,
+                        "error": format!("timed out after {}s", timeout_secs),
+                    }));
+                }
+            }
+        }
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "total": profiles.len(),
+            "reachable": reachable,
+            "hubs": hubs_json,
+            "summary": {
+                "total_connections_active":    sum_connections_active,
+                "total_capacity_hits_total":   sum_capacity_hits,
+                "total_rate_hits_total":       sum_rate_hits,
+                "total_dedupe_entries_active": sum_dedupe_entries,
+                "total_dedupe_hits_total":     sum_dedupe_hits,
+                "hubs_at_capacity":            hubs_at_capacity,
+                "hubs_rate_limited":           hubs_rate_limited,
+            }
+        }))
+        .unwrap_or_else(json_err)
     }
 
     // === Fleet verify (T-1661) — TLS pin drift check, no auth required ===
