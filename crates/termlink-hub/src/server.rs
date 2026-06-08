@@ -246,6 +246,11 @@ pub async fn run_with_tcp(
     // falls back to DEFAULT_MAX_CONNECTIONS / DEFAULT_RATE_LIMIT_PER_SEC.
     crate::governor::init();
 
+    // T-2049: Install client_msg_id LRU dedupe cache. Reads
+    // TERMLINK_DEDUPE_TTL_MS / TERMLINK_DEDUPE_CAPACITY from env, falls
+    // back to DEFAULT_DEDUPE_TTL_MS / DEFAULT_DEDUPE_CAPACITY.
+    crate::dedupe::init();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
@@ -331,6 +336,8 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     // T-2048: Governors (idempotent — no-op if `run_with_tcp` already
     // installed them, e.g. tests that spin up both shapes).
     crate::governor::init();
+    // T-2049: Dedupe cache (idempotent).
+    crate::dedupe::init();
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;

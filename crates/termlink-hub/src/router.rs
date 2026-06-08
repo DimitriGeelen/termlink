@@ -817,17 +817,25 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 ///   "capacity_hits_total": u64,
 ///   "rate_buckets_active": usize,
 ///   "rate_hits_total": u64,
-///   "max_rate_per_sec": u32
+///   "max_rate_per_sec": u32,
+///   "dedupe_entries_active": u64,
+///   "dedupe_hits_total": u64,
+///   "dedupe_ttl_ms": i64
 /// }
 /// ```
 ///
 /// Pair with `hub.bus_state` (G-050) for full hub-health rollup. T-1991
 /// "found in production not predicted" failure mode becomes a
 /// "fleet doctor surfaces it" event as soon as a wrapper consumes
-/// this RPC.
+/// this RPC. T-2049 adds the three `dedupe_*` fields so operators can
+/// see how many client_msg_id duplicates the hub has absorbed (a
+/// non-zero `dedupe_hits_total` is the smoking gun for "hub blip
+/// caused a spoke retry — and we caught it before subscribers saw
+/// the double-apply").
 fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
+    let dedupe = crate::dedupe::post_dedupe();
     Response::success(
         id,
         json!({
@@ -837,6 +845,9 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "rate_buckets_active": rate.buckets_active(),
             "rate_hits_total": rate.rate_hits_total(),
             "max_rate_per_sec": rate.rate_per_sec(),
+            "dedupe_entries_active": dedupe.entries_active(),
+            "dedupe_hits_total": dedupe.hits_total(),
+            "dedupe_ttl_ms": dedupe.ttl_ms(),
         }),
     )
     .into()

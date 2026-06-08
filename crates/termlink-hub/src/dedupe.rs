@@ -92,7 +92,7 @@ fn parse_env_usize(name: &str, default: usize) -> usize {
 /// retrying client sees the same response shape as the first call.
 #[derive(Debug, Clone, Copy)]
 struct DedupeEntry {
-    offset: i64,
+    offset: u64,
     ts_unix_ms: i64,
     seen_at_ms: i64,
 }
@@ -110,7 +110,7 @@ pub enum DedupeOutcome {
     Newly,
     /// Already-seen pair. The cached `(offset, ts_unix_ms)` of the
     /// original successful post is returned verbatim.
-    Duplicate { offset: i64, ts_unix_ms: i64 },
+    Duplicate { offset: u64, ts_unix_ms: i64 },
 }
 
 /// Process-global recently-seen-posts cache.
@@ -202,7 +202,7 @@ impl PostDedupe {
         sender_id: &str,
         client_msg_id: &str,
         now_ms: i64,
-        offset: i64,
+        offset: u64,
         ts_unix_ms: i64,
     ) {
         let key = (sender_id.to_string(), client_msg_id.to_string());

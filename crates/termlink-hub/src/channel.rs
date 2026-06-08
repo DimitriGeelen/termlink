@@ -473,6 +473,34 @@ pub(crate) async fn handle_channel_post_with(
         })
         .unwrap_or_default();
 
+    // T-2049 Gap A — idempotency via optional client_msg_id. Verified
+    // sender_id (T-1427) namespaces the dedupe so the cache cannot be
+    // poisoned across senders. Length-bounded to 1..=128 chars to keep
+    // the cache key small; longer payloads should hash before submission.
+    let client_msg_id = params
+        .get("client_msg_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && s.len() <= 128);
+    if let Some(ref cid) = client_msg_id {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        match crate::dedupe::post_dedupe().try_record_or_lookup(&sender_id, cid, now) {
+            crate::dedupe::DedupeOutcome::Duplicate { offset, ts_unix_ms } => {
+                // Silent no-op — return the cached envelope so the
+                // retrying spoke sees success and stops retrying.
+                return Response::success(
+                    id,
+                    json!({"offset": offset, "ts": ts_unix_ms, "deduped": true}),
+                )
+                .into();
+            }
+            crate::dedupe::DedupeOutcome::Newly => { /* fall through to post */ }
+        }
+    }
+
     let env = Envelope {
         topic: topic.clone(),
         sender_id,
@@ -484,6 +512,22 @@ pub(crate) async fn handle_channel_post_with(
     };
     match bus.post(&topic, &env).await {
         Ok(offset) => {
+            // T-2049 Gap A — record successful offset so retries of this
+            // (sender_id, client_msg_id) within the TTL hit the cache
+            // path above and return the same offset without re-appending.
+            if let Some(ref cid) = client_msg_id {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                crate::dedupe::post_dedupe().record_offset(
+                    &env.sender_id,
+                    cid,
+                    now,
+                    offset,
+                    env.ts_unix_ms,
+                );
+            }
             // T-1286 / T-243: passive presence tracking. When the envelope
             // carries metadata.conversation_id, record (cid, sender_id) →
             // ts so dialog.presence can answer "who's active here?"
@@ -2544,5 +2588,105 @@ mod tests {
                 "trial {trial}: subscribe took {elapsed:?}, expected <2s (T-2013 regression — block_in_place not engaged?)"
             );
         }
+    }
+
+    // T-2049 Gap A — client_msg_id idempotency integration tests.
+    //
+    // These exercise the full `handle_channel_post_with` path: optional
+    // `client_msg_id` param, hub-side dedupe, cached-offset replay on
+    // duplicate. The PostDedupe is a process-global, so we use
+    // distinct (sender_id, client_msg_id) pairs per test to avoid
+    // cross-test pollution under cargo's parallel harness — matching
+    // the dual-tracker discipline from T-2048 slice 2.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_no_client_msg_id_bypasses_dedupe_and_posts_normally() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:bypass", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[51u8; 32]);
+
+        let p1 = post_params(&key, "dedupe:bypass", "test", b"first", 1_000);
+        let p2 = post_params(&key, "dedupe:bypass", "test", b"second", 2_000);
+
+        let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p1).await);
+        let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p2).await);
+
+        // Without client_msg_id both posts append normally — two distinct offsets.
+        assert_ne!(r1["offset"], r2["offset"]);
+        assert!(r1.get("deduped").is_none());
+        assert!(r2.get("deduped").is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_with_client_msg_id_first_post_succeeds_and_records() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:first", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[52u8; 32]);
+
+        let mut p = post_params(&key, "dedupe:first", "test", b"hello", 1_000);
+        p.as_object_mut()
+            .unwrap()
+            .insert("client_msg_id".into(), json!("uniq-T2049-first-52"));
+
+        let r = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        // First post: real append, no deduped marker on success path.
+        assert!(r["offset"].as_i64().unwrap() >= 0);
+        assert!(r.get("deduped").is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_with_client_msg_id_duplicate_returns_cached_offset() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:dup", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[53u8; 32]);
+
+        let mut p = post_params(&key, "dedupe:dup", "test", b"world", 1_000);
+        p.as_object_mut()
+            .unwrap()
+            .insert("client_msg_id".into(), json!("uniq-T2049-dup-53"));
+
+        let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let offset1 = r1["offset"].as_i64().unwrap();
+
+        // Replay the SAME params — hub sees same (sender_id, client_msg_id) → cached.
+        let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
+        let offset2 = r2["offset"].as_i64().unwrap();
+
+        // Same offset → no double-apply.
+        assert_eq!(offset1, offset2);
+        // Second response carries the deduped marker.
+        assert_eq!(r2["deduped"], json!(true));
+
+        // Subscribe confirms only ONE envelope landed on the topic.
+        let sub = unwrap_success(
+            handle_channel_subscribe_with(&bus, json!(3), &json!({"topic": "dedupe:dup"})).await,
+        );
+        let msgs = sub["messages"].as_array().unwrap();
+        assert_eq!(
+            msgs.len(),
+            1,
+            "expected 1 envelope (dedupe absorbed retry), got {}",
+            msgs.len()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_oversized_client_msg_id_is_ignored() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:over", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[54u8; 32]);
+
+        // 129-char id — past the 128 ceiling. Treated as if absent.
+        let huge = "x".repeat(129);
+        let mut p = post_params(&key, "dedupe:over", "test", b"a", 1_000);
+        p.as_object_mut()
+            .unwrap()
+            .insert("client_msg_id".into(), json!(huge));
+
+        let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
+
+        // Oversized id is filtered out → both posts append normally.
+        assert_ne!(r1["offset"], r2["offset"]);
     }
 }
