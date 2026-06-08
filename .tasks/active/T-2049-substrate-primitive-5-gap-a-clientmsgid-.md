@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:24Z
-last_update: 2026-06-08T15:58:29Z
+last_update: 2026-06-08T16:08:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,7 +106,7 @@ hub blips.
 
 cargo check -p termlink-hub
 cargo check -p termlink-session
-cargo check -p termlink-cli
+cargo check -p termlink
 cargo test -p termlink-hub --lib dedupe::tests --no-fail-fast 2>&1 | grep -q "test result: ok"
 out=$(cargo test -p termlink-hub --lib channel::tests::dedupe 2>&1); echo "$out" | grep -q "test result: ok"
 out=$(cargo test -p termlink-session --lib offline_queue 2>&1); echo "$out" | grep -q "test result: ok"
