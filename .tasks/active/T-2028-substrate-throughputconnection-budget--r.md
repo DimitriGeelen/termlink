@@ -58,27 +58,27 @@ bvp_scores_proposed:
 
 - **IW-1: Per-topic retention — Days(N) / Forever / message-count — confirm the existing API or add it?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: ALREADY EXISTS. `crates/termlink-bus/src/retention.rs` defines `enum Retention { Forever, Days(N), Messages(N) }`; `Bus::create_topic(name, retention)` and `Bus::topic_retention(topic)` are in `lib.rs:92-103`; compaction logic at `lib.rs:375-385`. Per-topic policy, set at creation time. One small addition worth shipping: `Retention::Latest` as T-2027's compaction-side sibling. See docs/reports/T-2028-throughput-retention-inception.md §2, §4.A.
 
 - **IW-2: Compaction trigger — time-based, size-based, both? Per-topic policy?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: BOTH MODES EXIST, per-topic. `Retention::Days(N)` = time-based; `Retention::Messages(N)` = size-based. Compaction enforces whichever policy the topic was created with. T-1991 was a case where the bounded-policy was available but `agent-presence` had been set to `Forever` — operator awareness gap, not API gap. See artifact §3.
 
 - **IW-3: Connection cap — per-process, per-host, per-hub? Behavior when hit — queue or refuse?**
   confidence: 3
-  disposition: resolved
+  disposition: answered
   rationale: PER-PROCESS, REFUSE with structured error. Per-process matches the deployment shape (typically one hub per host); refuse-with-structured-error is loud per IW-3 hint and aligns with G-058 silent-failure precedent. Concrete: `code=-32029 OVERLOADED`, `retry_after_ms` in error data, surfaced in CLI as "hub at capacity (retry in 2.3s)". See artifact §4.B.
 
 - **IW-4: Rate limit — per-sender, per-topic, per-RPC? Budget visible to clients in `topic info`?**
   confidence: 3
-  disposition: resolved
+  disposition: answered
   rationale: PER-SENDER. Per-topic adds policy complexity for limited gain; per-RPC is too granular. Per-sender bucket aligns with the trust-model (HMAC identifies the sender). Observability: surface via `hub status` (top senders, hit counts) + per-RPC response headers (X-RateLimit-style). Visible via Track C (separate small build task). See artifact §4.B-C.
 
 - **IW-5: T-1991 precedent — what was the would-have-helped policy?**
   confidence: 4
-  disposition: resolved
+  disposition: answered
   rationale: TWO-PRONGED. The actual fix was subscribe-path resilience (per-binary-version slowdown regression). But topic-size bounding via `Retention::Messages(200)` on agent-presence was ALWAYS available — just not applied. The deeper miss was observability: had `channel info agent-presence` surfaced "growing 60 envelopes/min, retention=Forever, runway-to-pain ~30 min", an operator would have set retention before the wedge. Hence Track C (observability) is core to preventing T-1991 recurrence. See artifact §3.
 
 ## Exploration Plan
