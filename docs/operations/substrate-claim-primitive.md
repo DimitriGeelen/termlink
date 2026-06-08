@@ -273,6 +273,51 @@ exactly one is required. Run `claims-summary --all` cold; once a
 suspicious topic is identified, drill in with
 `channel claims <topic>` for the per-claim breakdown.
 
+**Stuck-worker intervention (Slice 11).** Detection (Slices 8 + 9)
+surfaces the stuck claim; ordinary `channel release` refuses to clear
+it because the operator is not the original claimer
+(`CLAIM_NOT_OWNED` -32017). The intervention verb is
+`channel claim-force-release`, which bypasses the ownership check —
+semantics match `release(ack=false)`, so the cursor stays put and the
+slot reopens for the next worker to retry the work:
+
+```
+$ termlink channel claims work-q2
+   offset  claimer               claim_id                   remain_ms  state
+        5  worker-7-pid-9919     74b3a8f1-c1d2-46e2-...     -2147483    EXPIRED
+$ termlink channel claim-force-release --claim-id 74b3a8f1-c1d2-46e2-... --reason "worker-7 host rebooted"
+claim_id:      74b3a8f1-c1d2-46e2-...
+topic:         work-q2
+offset:        5
+forced_from:   worker-7-pid-9919
+forced_reason: worker-7 host rebooted
+(slot freed for next worker; cursor not advanced)
+```
+
+The complete operations loop is now `detect → diagnose → intervene`:
+
+| Step | Verb | What it answers |
+|------|------|-----------------|
+| Detect | `channel claims-summary --watch <secs>` (Slice 8) or `--all --watch <secs>` (Slice 9 + 8) | "Is anything stuck right now?" |
+| Diagnose | `channel claims <topic>` (Slice 4) | "Which claim_id is stuck and who owns it?" |
+| Intervene | `channel claim-force-release --claim-id <id> --reason "..."` (Slice 11) | "Clear it now without waiting for TTL expiry." |
+
+`--reason` is optional but encouraged — it is echoed in the response
+under `forced_reason` for downstream audit-log forwarding (e.g. emit
+to a `<topic>:claim-events` topic for retrospective via the standard
+`channel subscribe` pattern). The forced original claimer is always
+echoed in `forced_from`.
+
+**Authorization scope.** The hub today trusts any authenticated caller
+equally — there is no per-user authorization model. Per ADR §6 #6
+(symmetric authentication across transports), authentication is
+transport-level (UID-trust UDS for same-host, HMAC + cert pinning for
+cross-host); `claim-force-release` is consistent with this model
+(anyone who can reach the hub can break any claim). For a future
+multi-tenant scenario this asymmetry would need addressing alongside
+T-2024; tracked separately under G-064. For ring20 homelab /
+single-operator-per-hub usage this is the deliberate trade.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
@@ -419,3 +464,5 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 7 (T-2040):** `termlink_channel_claims_summary` MCP tool — agent-callable companion for AI investigators to query topic load + stuck-worker state without shelling out.
 - **Slice 8 (T-2041):** `channel claims-summary --watch <secs>` continuous-monitor CLI mode — re-runs the aggregate every N seconds (clamped 5..=3600), clears the screen between frames, tolerates per-tick fetch errors. Hands-off form of the cron stuck-worker recipe; ideal for incident triage side terminals.
 - **Slice 9 (T-2042):** `channel claims-summary --all` fleet-wide sweep — queries `channel.list` and per-topic calls `channel.claims_summary`, annotates `[POTENTIALLY STUCK]` on topics with `expired_count > 0` OR `oldest_active_age_ms > 60_000`, footer reports total + stuck counts. Composes with `--watch` (live fleet dashboard) and `--json` (`{ok, topic_count, stuck_count, topics: [...]}` envelope). Per-topic fetch errors during the sweep are non-fatal.
+- **Slice 10 (T-2043):** `termlink_channel_claims_summary_all` MCP tool — symmetric closure of the fleet-wide sweep for AI investigator agents. Same envelope shape as Slice 9 (`{ok, topic_count, stuck_count, topics: [...]}` with `potentially_stuck: bool` per topic). Read-only; no auth, no network beyond hub UDS. The cold-start verb when an agent must answer "which topic has the stuck worker?" without shelling out.
+- **Slice 11 (T-2044):** `channel claim-force-release` + `termlink_channel_claim_force_release` — operator-Tier-0 intervention verb that bypasses `claimed_by == claimer` ownership check. Closes the operations loop from observability (Slices 8/9/10) to intervention: detection → diagnosis → force-release. Semantics match `release(ack=false)`; cursor untouched, slot freed. Returns `{forced_from, forced_reason}` audit anchors. Single-operator-per-hub trust model documented under G-064.

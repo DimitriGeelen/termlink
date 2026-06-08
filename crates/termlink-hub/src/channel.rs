@@ -991,6 +991,56 @@ pub(crate) async fn handle_channel_release_with(
     }
 }
 
+/// T-2044 (arc-parallel-substrate Slice 11) — `channel.force_release(claim_id, reason?)`.
+/// Operator-Tier-0 force-release: bypasses the `claimed_by == claimer`
+/// ownership check that `channel.release` enforces. Semantics match
+/// `release(ack=false)` — cursor unchanged, slot freed for the next worker.
+/// Echoes the original claimer in `forced_from` and the operator-supplied
+/// reason in `forced_reason` for the audit trail.
+pub async fn handle_channel_force_release(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_force_release_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_force_release_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let claim_id = match param_str(params, "claim_id") {
+        Some(c) if !c.is_empty() => c,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'claim_id' in params").into(),
+    };
+    let reason = param_str(params, "reason");
+    match bus.force_release_claim(claim_id, reason) {
+        Ok(info) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "claim_id": info.claim_id,
+                "topic": info.topic,
+                "offset": info.offset,
+                "forced_from": info.forced_from,
+                "forced_reason": info.forced_reason,
+            }),
+        )
+        .into(),
+        Err(termlink_bus::BusError::ClaimNotFound(cid)) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_NOT_FOUND,
+            &format!("channel.force_release: claim {cid:?} not found"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("channel.force_release: {e}")).into()
+        }
+    }
+}
+
 /// T-2030 (arc-parallel-substrate Slice 2) — `channel.renew(claim_id, claimer, additional_ttl_ms?)`.
 /// Extends a worker's lease before `claimed_until`. Gates on caller-is-original-claimer
 /// AND not-yet-expired; returns the refreshed `ClaimInfo` shape on success.

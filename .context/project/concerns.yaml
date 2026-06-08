@@ -2,6 +2,22 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-064
+  type: gap
+  title: "Hub has no per-user authorization model — every authenticated caller has equal privilege over every claim, channel, and primitive surface"
+  description: "TermLink hubs authenticate at the TRANSPORT layer (UID-trust UDS for same-host, HMAC + cert pinning for cross-host per ADR §2 + §6 #6), not at the USER layer. Once a caller is on the wire, the hub treats every authenticated call as equally privileged: any caller can claim, release, force-release (T-2044), renew, post, subscribe, drop topics on any other caller's behalf. The arc-parallel-substrate primitive #1 (claim semantics, T-2019) bakes this in — Slice 11's `channel.force_release` deliberately bypasses the claimed_by==claimer ownership invariant because operators need a way to break stuck claims faster than TTL expiry. For ring20 / single-operator homelab usage this is the deliberate trust trade. For any future multi-tenant or multi-agent-trust-boundary scenario, this asymmetry is real and unresolved: the hub cannot distinguish 'orchestrator clearing a wedged worker' from 'rogue worker stealing a peer's claim'. §6 #6 (T-2024) addresses TRANSPORT symmetry (UDS auth-bypass → loopback TCP HMAC) but does NOT introduce per-user roles."
+  spec_reference: "T-2044 (Slice 11 force-release where this gap surfaced); ADR §2 + §6 #6 (transport-level auth model); T-2024 inception (symmetric transport auth — does NOT close this gap)"
+  severity: low
+  trigger_fired: true
+  trigger_event: "2026-06-08 T-2044 Slice 11 design — the force-release verb makes the operator-vs-rogue ambiguity load-bearing for the first time (prior verbs at least gated on claimed_by match)"
+  detection_lag_days: 0
+  what_works_now: "Single-operator-per-hub deployments work as intended — the operator IS the only authenticated caller, so the lack of per-user isolation is invisible. Ring20 has been running this model for 12+ months without incident. The trust model is documented in the operator runbook (docs/operations/substrate-claim-primitive.md, Authorization scope section) so consumers are not surprised."
+  what_remains: "(1) Decide whether multi-tenant or multi-trust-boundary use cases are within TermLink's scope. (2) If yes, design a per-call identity model (probably layered on top of T-2024 — once the wire auth is symmetric, the next step is per-call signed claims of caller-id, with the hub enforcing principal scoping per topic / per primitive). (3) If no, formally close G-064 as a deliberate non-goal once T-2024 ships and the trust model is documented at ADR level. (4) Audit existing verbs that should arguably require operator role (claim-force-release, channel.trim, hub.* admin verbs) and tag them so a future role-model can find the surface area."
+  mitigation_candidate: "Defer until multi-tenant use case surfaces. Document in runbook so consumers are not surprised (done in T-2044). Re-evaluate after T-2024 lands (transport symmetry is a precondition for any per-user auth layer)."
+  status: watching
+  created: 2026-06-08
+  related_tasks: [T-2044, T-2024, T-2019, T-2018]
+
 - id: G-063
   type: gap
   title: "framework:pickup topic accumulates pickups with zero receipts — write-only sink masks consumer-side absence"

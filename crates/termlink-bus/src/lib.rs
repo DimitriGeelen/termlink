@@ -289,6 +289,27 @@ impl Bus {
         self.meta.release_claim(claim_id, claimer, ack)
     }
 
+    /// T-2044 (arc-parallel-substrate Slice 11): operator-Tier-0 force release
+    /// of a claim. Bypasses the `claimed_by == claimer` ownership check
+    /// `release_claim` enforces — for situations where an operator must clear
+    /// a stuck claim faster than the natural TTL expiry path. Semantics match
+    /// `release(ack=false)`: cursor unchanged, slot freed for the next worker.
+    /// The optional `reason` is returned in `ReleaseInfo.forced_reason` for
+    /// upstream audit trails.
+    ///
+    /// Errors:
+    /// - `BusError::ClaimNotFound` — unknown / already-released `claim_id`.
+    ///
+    /// Does NOT return `ClaimNotOwned` — bypassing that check is the whole
+    /// point of this verb.
+    pub fn force_release_claim(
+        &self,
+        claim_id: &str,
+        reason: Option<&str>,
+    ) -> Result<ReleaseInfo> {
+        self.meta.force_release_claim(claim_id, reason)
+    }
+
     /// T-2030 (arc-parallel-substrate Slice 2): extend the lease on a held
     /// claim by `additional_ttl_ms` past *now*. Used by long-running
     /// workers to retain ownership before `claimed_until` lapses.
@@ -833,6 +854,65 @@ mod tests {
             .release_claim(&first.claim_id, "worker-A", true)
             .unwrap_err();
         assert!(matches!(err, BusError::ClaimNotFound(_)), "got {err:?}");
+    }
+
+    // ── T-2044 (arc-parallel-substrate Slice 11): force-release semantics ──
+
+    #[tokio::test]
+    async fn force_release_succeeds_where_release_fails_with_not_owned() {
+        // The whole point of the force path: an operator can break a claim
+        // they don't own, where ordinary release_claim refuses.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 30_000).unwrap();
+        // Ordinary release by a non-owner fails.
+        let err = bus
+            .release_claim(&c.claim_id, "worker-B", false)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimNotOwned { ref claim_id, .. } if claim_id == &c.claim_id),
+            "expected ClaimNotOwned, got {err:?}"
+        );
+        // Force-release succeeds and surfaces the original claimer.
+        let r = bus
+            .force_release_claim(&c.claim_id, Some("worker-A wedged"))
+            .unwrap();
+        assert_eq!(r.offset, 0);
+        assert!(!r.ack, "force-release uses ack=false semantics");
+        assert_eq!(r.forced_from.as_deref(), Some("worker-A"));
+        assert_eq!(r.forced_reason.as_deref(), Some("worker-A wedged"));
+        // Cursor for worker-A was NOT advanced.
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
+        // Slot is free — worker-B can now claim it.
+        let c2 = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
+        assert_eq!(c2.claimer, "worker-B");
+        assert_ne!(c2.claim_id, c.claim_id);
+    }
+
+    #[tokio::test]
+    async fn force_release_on_unknown_claim_returns_not_found() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        let err = bus
+            .force_release_claim("nonexistent-claim-id", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimNotFound(ref cid) if cid == "nonexistent-claim-id"),
+            "expected ClaimNotFound, got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn force_release_without_reason_leaves_reason_none() {
+        // The reason field is operator-supplied audit metadata, optional.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 30_000).unwrap();
+        let r = bus.force_release_claim(&c.claim_id, None).unwrap();
+        assert_eq!(r.forced_from.as_deref(), Some("worker-A"));
+        assert_eq!(r.forced_reason, None);
     }
 
     // ── T-2030 (arc-parallel-substrate Slice 2): renew semantics ──

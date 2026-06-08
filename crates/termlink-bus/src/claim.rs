@@ -27,12 +27,24 @@ pub struct ClaimInfo {
 /// Result of releasing a claim. `ack=true` means the claimer's cursor was
 /// advanced past `offset`; `ack=false` means the slot is free for another
 /// worker to claim.
+///
+/// `forced_from` and `forced_reason` are populated only by
+/// `Bus::force_release_claim` (T-2044, Slice 11) — operator-Tier-0 path that
+/// bypasses the `claimed_by == claimer` ownership check. The regular
+/// `release_claim` path leaves both `None`.
 #[derive(Debug, Clone)]
 pub struct ReleaseInfo {
     pub claim_id: String,
     pub topic: String,
     pub offset: u64,
     pub ack: bool,
+    /// Original claimer of the row, populated only when this release was a
+    /// force-release (T-2044). `None` for ordinary owner-initiated release.
+    pub forced_from: Option<String>,
+    /// Operator-supplied audit reason, populated only when this release was a
+    /// force-release (T-2044). `None` when no reason was provided OR when the
+    /// release was owner-initiated.
+    pub forced_reason: Option<String>,
 }
 
 /// Aggregate view of claim state on a topic — T-2039 (arc-parallel-substrate

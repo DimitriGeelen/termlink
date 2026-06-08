@@ -154,6 +154,25 @@ pub mod method {
     /// Errors: `CLAIM_NOT_FOUND` (-32016), `CLAIM_NOT_OWNED` (-32017).
     pub const CHANNEL_RELEASE: &str = "channel.release";
 
+    /// T-2044 — operator-Tier-0 force release of a held claim
+    /// (arc-parallel-substrate Slice 11). Bypasses `channel.release`'s
+    /// `claimed_by == claimer` ownership check; semantics match
+    /// `release(ack=false)` (cursor untouched, slot freed). For situations
+    /// where an operator must clear a stuck claim faster than the natural
+    /// TTL expiry path — pairs with `channel.claims_summary --watch` for
+    /// detection (Slice 8) and is the operator-intervention companion to
+    /// the existing claimer-initiated release.
+    /// Params: `{ topic?, claim_id, reason? }` →
+    /// `{ ok, claim_id, topic, offset, forced_from, forced_reason }`.
+    /// `topic` is accepted for symmetry with surrounding verbs but is not
+    /// required — the hub derives it from `claim_id`. `forced_from` echoes
+    /// the original claimer for the audit trail; `forced_reason` echoes the
+    /// operator-supplied reason (null when omitted).
+    /// Errors: `CLAIM_NOT_FOUND` (-32016). Notably does NOT return
+    /// `CLAIM_NOT_OWNED` — bypassing that check is the whole point. Old
+    /// hubs return `MethodNotFound` (-32601).
+    pub const CHANNEL_FORCE_RELEASE: &str = "channel.force_release";
+
     /// T-2037 — list current claim rows for `topic` (arc-parallel-substrate
     /// Slice 4). Read-only introspection — answers "what is currently
     /// claimed?" without forcing the caller to attempt a `channel.claim`.
@@ -591,6 +610,8 @@ mod tests {
         assert_eq!(method::CHANNEL_CLAIMS, "channel.claims");
         // T-2039 (arc-parallel-substrate Slice 6).
         assert_eq!(method::CHANNEL_CLAIMS_SUMMARY, "channel.claims_summary");
+        // T-2044 (arc-parallel-substrate Slice 11).
+        assert_eq!(method::CHANNEL_FORCE_RELEASE, "channel.force_release");
     }
 
     #[test]

@@ -380,6 +380,55 @@ impl Meta {
             topic,
             offset: offset_u,
             ack,
+            forced_from: None,
+            forced_reason: None,
+        })
+    }
+
+    /// T-2044 (arc-parallel-substrate Slice 11): operator-Tier-0 force release.
+    /// Same DELETE path as `release_claim` but WITHOUT the
+    /// `claimed_by == claimer` ownership check — used when an operator needs
+    /// to break a stuck claim faster than the natural TTL expiry. Cursor is
+    /// NOT advanced (`ack=false` semantics — work returns for retry, not
+    /// silently consumed). The `reason` parameter is recorded in the returned
+    /// `ReleaseInfo.forced_reason` field for audit-trail surface in higher
+    /// layers; not persisted in the claims table (which is current-state only).
+    ///
+    /// Returns `BusError::ClaimNotFound` for an unknown / already-released
+    /// claim. Does NOT return `ClaimNotOwned` — that's the whole point of the
+    /// force path.
+    pub(crate) fn force_release_claim(
+        &self,
+        claim_id: &str,
+        reason: Option<&str>,
+    ) -> Result<ReleaseInfo> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
+            "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        );
+        let (topic, offset_i, claimed_by) = match row {
+            Ok(t) => t,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(BusError::ClaimNotFound(claim_id.to_string()));
+            }
+            Err(e) => return Err(BusError::Sqlite(e)),
+        };
+        let offset_u = offset_i as u64;
+        tx.execute(
+            "DELETE FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+        )?;
+        tx.commit()?;
+        Ok(ReleaseInfo {
+            claim_id: claim_id.to_string(),
+            topic,
+            offset: offset_u,
+            ack: false,
+            forced_from: Some(claimed_by),
+            forced_reason: reason.map(|s| s.to_string()),
         })
     }
 

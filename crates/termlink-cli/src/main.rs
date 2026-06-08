@@ -1524,6 +1524,20 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ClaimForceRelease {
+                claim_id,
+                reason,
+                hub,
+                json,
+            } => {
+                commands::channel::cmd_channel_claim_force_release(
+                    &claim_id,
+                    reason.as_deref(),
+                    hub.as_deref(),
+                    json,
+                )
+                .await
+            }
             ChannelAction::Claims {
                 topic,
                 include_expired,

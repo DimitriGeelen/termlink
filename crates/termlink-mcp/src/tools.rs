@@ -397,6 +397,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)"),
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
+            ("termlink_channel_claim_force_release", "Operator-Tier-0 force release — bypass claimer-ownership check to clear a stuck claim faster than TTL expiry (T-2044)"),
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
@@ -8042,6 +8043,21 @@ pub struct ChannelReleaseParams {
     /// (work done correctly — won't be redelivered). If false (default),
     /// leave the cursor unchanged and reopen the slot for another worker.
     pub ack: Option<bool>,
+}
+
+/// T-2044 (arc-parallel-substrate Slice 11) — params for
+/// `termlink_channel_claim_force_release`. Operator-Tier-0 path that
+/// bypasses the `claimed_by == claimer` ownership check. No `claimer`
+/// field by design — that's the whole point.
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimForceReleaseParams {
+    /// Claim handle to force-release. Look it up via
+    /// `termlink_channel_claims` when you don't have it cached.
+    pub claim_id: String,
+    /// Optional operator-supplied audit reason. Echoed in the response
+    /// and useful for downstream audit-log forwarding (e.g. write to a
+    /// `claim-history` topic). Defaults to `None`.
+    pub reason: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -19840,6 +19856,38 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.release error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_claim_force_release",
+        description = "Operator-Tier-0 force release of a held claim — MCP parity for `termlink channel claim-force-release --claim-id <id> [--reason <text>]` CLI verb (T-2044, arc-parallel-substrate Slice 11). Bypasses the `claimed_by == claimer` ownership check that `termlink_channel_release` enforces — for when an operator must clear a stuck claim faster than the natural TTL expiry path. Semantics match `release(ack=false)`: cursor unchanged, slot freed for the next worker, work returns for retry (not silently consumed). The optional `reason` is echoed in the response for downstream audit-log forwarding. Returns `{ok, claim_id, topic, offset, forced_from, forced_reason}` on success — `forced_from` is the original claimer (audit anchor); `forced_reason` echoes the input or is null. Hub error codes: CLAIM_NOT_FOUND (-32016) for unknown/already-released claim_id. Does NOT return CLAIM_NOT_OWNED — bypassing that check is the whole point. Use this after `termlink_channel_claims_summary_all` flags a topic `potentially_stuck`: detection (Slice 9 fleet sweep) → diagnosis (Slice 4 per-claim) → intervention (this verb). Authorization model: the hub trusts any authenticated caller equally (transport-level auth, ADR §6 #6); per-user authorization is out of §6 scope and tracked separately (G-064)."
+    )]
+    async fn termlink_channel_claim_force_release(
+        &self,
+        Parameters(p): Parameters<ChannelClaimForceReleaseParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let mut params = serde_json::Map::new();
+        params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
+        if let Some(reason) = p.reason {
+            params.insert("reason".to_string(), serde_json::Value::String(reason));
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_FORCE_RELEASE,
+            serde_json::Value::Object(params),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.force_release error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

@@ -3172,6 +3172,32 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// T-2044 (arc-parallel-substrate Slice 11) — operator-Tier-0 force
+    /// release of a held claim. Wraps the `channel.force_release` JSON-RPC
+    /// verb shipped in T-2044. Bypasses the `claimed_by == claimer`
+    /// ownership check that `channel release` enforces — for when an
+    /// operator must clear a stuck claim faster than the natural TTL
+    /// expiry path. Semantics match `release --ack=false` (cursor
+    /// unchanged, slot freed for the next worker, work returns for retry).
+    /// Pairs with `channel claims-summary --watch` for stuck-worker
+    /// detection: detection (Slice 8) → diagnosis (Slice 9) → intervention
+    /// (Slice 11).
+    ClaimForceRelease {
+        /// Opaque claim_id of the stuck claim (look it up via
+        /// `channel claims <topic>`).
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Operator-supplied audit reason (echoed in the response and
+        /// useful for downstream audit-log forwarding). Optional.
+        #[arg(long)]
+        reason: Option<String>,
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// T-2037 (arc-parallel-substrate Slice 4) — list current claim rows for
     /// a topic. Read-only introspection — answers "what is currently
     /// claimed?" without forcing the operator to attempt a `channel claim`.

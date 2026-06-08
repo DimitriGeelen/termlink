@@ -55,6 +55,21 @@ pub struct ReleaseSummary {
     pub ack: bool,
 }
 
+/// T-2044 (arc-parallel-substrate Slice 11) — successful response shape for
+/// `channel.force_release`. Distinct from [`ReleaseSummary`] in that the
+/// operator-Tier-0 path echoes the original claimer (`forced_from`) and the
+/// audit reason (`forced_reason`) instead of the `ack` flag — force-release
+/// has `ack=false` semantics by definition (cursor untouched), so the
+/// `ack` field would always be `false` and is dropped.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForceReleaseSummary {
+    pub claim_id: String,
+    pub topic: String,
+    pub offset: u64,
+    pub forced_from: Option<String>,
+    pub forced_reason: Option<String>,
+}
+
 /// T-2039 (arc-parallel-substrate Slice 6) — aggregate claim state for a
 /// topic from `channel.claims_summary`. Distinct from the per-claim
 /// [`ClaimSummary`] (which mirrors `ClaimInfo`); this is the "how busy /
@@ -159,6 +174,25 @@ pub async fn channel_release(
     parse_release_response(resp)
 }
 
+/// T-2044 (arc-parallel-substrate Slice 11): issue a `channel.force_release`
+/// RPC. Direct call — never queued. Bypasses the `claimed_by == claimer`
+/// ownership check that `channel_release` enforces; for situations where
+/// an operator must clear a stuck claim faster than the natural TTL expiry.
+/// Semantics match `release(ack=false)` (cursor unchanged, slot freed).
+/// `reason` is operator-supplied audit metadata, echoed in the response.
+pub async fn channel_force_release(
+    addr: &TransportAddr,
+    claim_id: &str,
+    reason: Option<&str>,
+) -> Result<ForceReleaseSummary, ClaimError> {
+    let mut params = json!({ "claim_id": claim_id });
+    if let Some(r) = reason {
+        params["reason"] = json!(r);
+    }
+    let resp = rpc_call_addr(addr, method::CHANNEL_FORCE_RELEASE, params).await?;
+    parse_force_release_response(resp)
+}
+
 /// T-2037 (arc-parallel-substrate Slice 4): list current claim rows for
 /// `topic`. Read-only introspection — answers "what is currently
 /// claimed?" without forcing the caller to attempt a `channel.claim`.
@@ -242,6 +276,35 @@ fn parse_release_response(resp: RpcResponse) -> Result<ReleaseSummary, ClaimErro
                 topic,
                 offset,
                 ack,
+            })
+        }
+        RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),
+    }
+}
+
+fn parse_force_release_response(
+    resp: RpcResponse,
+) -> Result<ForceReleaseSummary, ClaimError> {
+    match resp {
+        RpcResponse::Success(ok) => {
+            let r = &ok.result;
+            let claim_id = field_str(r, "claim_id")?;
+            let topic = field_str(r, "topic")?;
+            let offset = field_u64(r, "offset")?;
+            let forced_from = r
+                .get("forced_from")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let forced_reason = r
+                .get("forced_reason")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            Ok(ForceReleaseSummary {
+                claim_id,
+                topic,
+                offset,
+                forced_from,
+                forced_reason,
             })
         }
         RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),

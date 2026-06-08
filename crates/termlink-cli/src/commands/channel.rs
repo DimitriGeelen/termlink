@@ -8917,6 +8917,52 @@ pub(crate) async fn cmd_channel_release(
 }
 
 // ---------------------------------------------------------------------------
+// T-2044 — arc-parallel-substrate Slice 11: channel.force_release verb.
+// Operator-Tier-0 intervention. Bypasses the claimed_by==claimer check that
+// `release` enforces; used when a stuck claim must be cleared faster than
+// the natural TTL expiry path. Semantics match release(ack=false).
+// ---------------------------------------------------------------------------
+
+pub(crate) async fn cmd_channel_claim_force_release(
+    claim_id: &str,
+    reason: Option<&str>,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let addr = hub_socket(hub)?;
+    let r = termlink_session::claim_client::channel_force_release(&addr, claim_id, reason)
+        .await
+        .map_err(|e| anyhow!("channel.force_release failed: {e}"))?;
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "claim_id": r.claim_id,
+                "topic": r.topic,
+                "offset": r.offset,
+                "forced_from": r.forced_from,
+                "forced_reason": r.forced_reason,
+            })
+        );
+    } else {
+        println!("claim_id:      {}", r.claim_id);
+        println!("topic:         {}", r.topic);
+        println!("offset:        {}", r.offset);
+        println!(
+            "forced_from:   {}",
+            r.forced_from.as_deref().unwrap_or("<unknown>")
+        );
+        println!(
+            "forced_reason: {}",
+            r.forced_reason.as_deref().unwrap_or("<none>")
+        );
+        println!("(slot freed for next worker; cursor not advanced)");
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // T-2037 — arc-parallel-substrate Slice 4: channel.claims listing verb.
 // Read-only introspection. Answers "what's currently claimed on this
 // topic?" without forcing the operator to attempt a claim.
