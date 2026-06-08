@@ -8,15 +8,15 @@ description: >
   expected to split into sub-pieces. Absence FORCES conservative launch policy; presence
   is precondition (not trigger) for optimistic.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [arc:arc-parallel-substrate, novel-mechanism]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:29Z
-last_update: 2026-06-08T07:45:43Z
+last_update: 2026-06-08T11:20:49Z
 date_finished:
 revisit_at: 2026-09-08            # T-1451: DEFER pending Foundation primitives + AEF serialization-cost evidence
 revisit_evidence_needed: "Either (a) AEF-layer incident attributable to lacking write-observation; (b) successful git-hook path-declaration spike (T-2022a); or (c) ring20 deployment-shape change that opens up CAP_BPF or CAP_SYS_ADMIN."
@@ -104,15 +104,15 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -188,7 +188,40 @@ bvp_scores_proposed:
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER as captured (OS-level FS observation is not viable for ring20). Re-scope to a three-spike sub-arc exploring git-hook-enforced path declaration. revisit_at=2026-09-08.
+
+Rationale (one-paragraph): OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the concern the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes voluntary announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
+
+Full analysis: see [docs/reports/T-2022-fs-write-observation-inception.md](../../docs/reports/T-2022-fs-write-observation-inception.md).
+
+Re-scoped sub-arc (file on DEFER, run after Foundation primitives land):
+
+Spike T-2022a — git-hook path declaration (~80 LOC, ≤1 session):
+- Pre-commit hook on AEF worktrees posts `{agent_id, branch, paths_modified, paths_added, paths_deleted}` to a coordination topic.
+- Hub maintains sliding-window view: which agents have declared which paths in last N min.
+- Orchestrator queries before dispatching; conservative-applies on overlap.
+
+Spike T-2022b — bypass detection (~50 LOC, ≤1 session):
+- Test: agent disables hook + commits. Does orchestrator notice?
+- Mechanism: count commits per agent vs declared path-sets; divergence → alert.
+- Addresses §4's "agent that forgets to announce" failure mode.
+
+Spike T-2022c — kernel-mechanism fallback (1-2 sessions, CONDITIONAL):
+- Only if 2022a OR 2022b fail.
+- inotify on Linux-only subset, dropping macOS coverage.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ❌ "Mechanism chosen with measured blind-spot list" — OS-level: blind spots are catastrophic. Git-hook: blind spots are tolerable but unverified — that's exactly what the spikes test.
+- ⏸ "Per-host viability confirmed" — OS-level: no. Git-hook: by construction yes, but unproven at scale.
+- ⏸ "Sub-task decomposition produced" — yes, 3 spikes above. Not auto-GO until spikes run.
+
+Why DEFER vs full NO-GO: Conservative policy is correct today but expensive — serializes work that could parallelize. ROI on cracking this is real, just not via the captured mechanism. NO-GO would close the question; DEFER + spike-arc leaves it productively open.
+
+Documentation follow-up: add §3's "OS-level vs git-hook trade-off" reasoning to `docs/architecture/parallel-execution-substrate.md` as a §4 addendum.
+
+**Date**: 2026-06-08T11:20:49Z
 
 ## Updates
 
@@ -198,3 +231,42 @@ bvp_scores_proposed:
 ### 2026-06-08T07:45:43Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-06-08T11:20:49Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER as captured (OS-level FS observation is not viable for ring20). Re-scope to a three-spike sub-arc exploring git-hook-enforced path declaration. revisit_at=2026-09-08.
+
+Rationale (one-paragraph): OS-level FS observation as a substrate primitive is not viable in the ring20 deployment. The mechanism survey (artifact §2) finds an empty intersection of (portable across Linux+macOS) ∧ (works in capability-dropped containers) ∧ (catches Rust agent writes) ∧ (acceptable perf cost). HOWEVER, the concern the primitive addresses — detecting parallel writes to the same file for the conservative→optimistic flip — is real and worth resolving at a different abstraction layer. The key insight: §4's "honor-system is unsafe" worry assumes voluntary announcement; if announcement is structurally enforced via a pre-commit git hook (the agent can't bypass without disabling the hook, which is itself observable), it moves from "honor-system" to "hook-enforced declaration" — sound for the ring20 cooperating-agent trust model. File granularity matches what AEF actually needs (git already operates there). Three small spikes test this re-scoping. If they succeed, the substrate gets the capability §6 #4 asks for at a tractable abstraction; if they fail, T-2022c falls back to kernel-mechanism on the Linux subset only.
+
+Full analysis: see [docs/reports/T-2022-fs-write-observation-inception.md](../../docs/reports/T-2022-fs-write-observation-inception.md).
+
+Re-scoped sub-arc (file on DEFER, run after Foundation primitives land):
+
+Spike T-2022a — git-hook path declaration (~80 LOC, ≤1 session):
+- Pre-commit hook on AEF worktrees posts `{agent_id, branch, paths_modified, paths_added, paths_deleted}` to a coordination topic.
+- Hub maintains sliding-window view: which agents have declared which paths in last N min.
+- Orchestrator queries before dispatching; conservative-applies on overlap.
+
+Spike T-2022b — bypass detection (~50 LOC, ≤1 session):
+- Test: agent disables hook + commits. Does orchestrator notice?
+- Mechanism: count commits per agent vs declared path-sets; divergence → alert.
+- Addresses §4's "agent that forgets to announce" failure mode.
+
+Spike T-2022c — kernel-mechanism fallback (1-2 sessions, CONDITIONAL):
+- Only if 2022a OR 2022b fail.
+- inotify on Linux-only subset, dropping macOS coverage.
+
+GO criteria evaluation (from §Go/No-Go Criteria):
+- ❌ "Mechanism chosen with measured blind-spot list" — OS-level: blind spots are catastrophic. Git-hook: blind spots are tolerable but unverified — that's exactly what the spikes test.
+- ⏸ "Per-host viability confirmed" — OS-level: no. Git-hook: by construction yes, but unproven at scale.
+- ⏸ "Sub-task decomposition produced" — yes, 3 spikes above. Not auto-GO until spikes run.
+
+Why DEFER vs full NO-GO: Conservative policy is correct today but expensive — serializes work that could parallelize. ROI on cracking this is real, just not via the captured mechanism. NO-GO would close the question; DEFER + spike-arc leaves it productively open.
+
+Documentation follow-up: add §3's "OS-level vs git-hook trade-off" reasoning to `docs/architecture/parallel-execution-substrate.md` as a §4 addendum.
+
+### 2026-06-08T11:20:49Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task
