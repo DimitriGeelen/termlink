@@ -487,6 +487,39 @@ claim (worker stuck, system page) it falls back to
 The Rust client surfaces each as a typed `ClaimError` variant. CLI
 verbs surface them as `anyhow!` errors on stderr with non-zero exit.
 
+## Post-restart blackout window (T-2025)
+
+Closely related to `find_idle` (T-2020) and the claim verbs: when the hub
+restarts, the derived LIVE/STALE/OFFLINE presence view briefly reverts to
+"every agent's last-known heartbeat" because the in-memory aggregator
+hasn't seen this generation's traffic yet. Operators sometimes ask whether
+this is a data-loss event — it isn't. Per the T-2025 inception (NO-GO,
+2026-06-08, intentionally re-scoped to docs-only):
+
+- **Presence DATA is durable.** Heartbeats flow through `Bus::post` onto
+  the `agent-presence` channel topic, which is SQLite-backed alongside
+  every other log. A restart doesn't lose anything.
+- **The DERIVED VIEW (LIVE / STALE / OFFLINE) is in-memory but
+  reconstructible.** Clients compute it from the durable heartbeat
+  stream on every query, applying client-side TTL policy. After a
+  restart, the first query returns prior-heartbeat data immediately;
+  the view fully refreshes within one heartbeat interval (~30s by
+  default) once new heartbeats land. There is no "everyone unknown"
+  state — only briefly-staler data.
+- **`find_idle` works during the blackout window.** It still returns the
+  pre-restart presence set; results may be marginally stale but never
+  empty-by-construction. If an orchestrator dispatches based on a
+  blackout-window query, the worst case is one round-trip of "claim
+  accepted, worker turns out to be dead" → lazy-evict cleans it up on
+  the next renew. The substrate stays correct.
+- **Circuit-breaker reset is intentional.** Hub-level breaker state is
+  in-memory by design: a restart is a recovery event, and carrying
+  forward OPEN classifications would block traffic to peers whose
+  underlying issue has since healed. Persisting it would be a
+  regression, not a fix.
+
+Full analysis: [docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md](../reports/T-2025-persistent-presence-circuit-breaker-inception.md).
+
 ## What's NOT in this primitive (intentionally)
 
 - **Work distribution.** Claim is pull-based: workers decide what to claim. There is no orchestrator-side push or fair-share scheduler. (See T-2021 substrate inception for pull/assign verb.)

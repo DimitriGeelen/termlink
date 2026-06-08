@@ -232,10 +232,20 @@ the model above.
    worker that finishes and reports "complete" during a blip loses that report. Needed
    so the governance plane does not silently drop completion/ledger messages, and as the
    substrate half of the sender-side retry the AEF layer relies on.
-7. *Hub-persistent presence + circuit-breaker state.* Both are in-memory today and reset
-   on hub restart, so liveness inference resets to "everyone unknown" for one heartbeat
-   interval after every restart. Channel logs and the inbox spool *do* survive, so
-   message durability is intact; it is the *liveness* picture that is fragile.
+7. *Hub-persistent presence + circuit-breaker state.* Per the T-2025 inception (NO-GO,
+   2026-06-08): the captured "in-memory, fragile across restart" framing turned out not
+   to match the running system, and the primitive was re-scoped to documentation-only.
+   Presence DATA is durable by construction — heartbeats flow through `Bus::post` onto
+   the `agent-presence` channel topic and are SQLite-backed alongside every other
+   channel log. What was framed as "in-memory" is the DERIVED LIVE/STALE/OFFLINE view,
+   which clients reconstruct from the durable heartbeat stream on every query (with
+   client-side TTL policy — different consumers want different windows). After a
+   restart, queries return prior-heartbeat data immediately and refresh within one
+   heartbeat interval (~30s) — a brief view-staleness window, not data loss.
+   Circuit-breaker state IS in-memory by intent: restart is a recovery event, and
+   carrying forward OPEN classifications would block traffic to peers whose underlying
+   issue has since healed. See [docs/reports/T-2025-persistent-presence-circuit-breaker-inception.md](../reports/T-2025-persistent-presence-circuit-breaker-inception.md)
+   for the full analysis and the "two sources of truth" anti-pattern this avoids.
 
 **Contract — make the plane split a first-class concept.**
 8. *Typed agent-launch surface aware of source-tree handoff* — `agent.checkout(ref)`,
