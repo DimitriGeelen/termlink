@@ -4,7 +4,7 @@ name: "Framework vendor: chmod +x scanner libs at install or vendor time (T-2052
 description: >
   Framework upstream gap: hooks.sh:install_hooks writes a pre-commit hook that delegates to agents/git/lib/*.sh, but the vendored scanner libs are not chmod +x. Pre-commit hook checks [ ! -x SCANNER ] and exits 0 fail-open if non-executable, silently disabling T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate. Discovered in T-2052 closure 2026-06-08. Fix options: (a) chmod +x in hooks.sh:install_hooks for each scanner before writing the hook, OR (b) vendor logic in fw upgrade preserves exec bits on lib/*.sh. Needs upstream landing on /opt/999-AEF before next fw upgrade in any consumer project.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T19:15:43Z
-last_update: 2026-06-08T19:15:43Z
+last_update: 2026-06-08T19:26:32Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,39 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2052 discovered that ALL pre-commit scanner libs in vendored consumer
+projects (`.agentic-framework/agents/git/lib/{secret-scan,dup-task-scan,large-file-scan}.sh`)
+ship with `-rw-r--r--` (no exec bit). The pre-commit hook checks
+`[ ! -x "$SCANNER" ]` and exits 0 (fail open) silently if non-executable,
+producing only the line `secret-scan: scanner not found at <path> (skipping)`
+in commit output. Net effect: T-1844 secret-scan + T-1863 dup-task-scan +
+T-1845 large-file gate are silently disabled for the lifetime of the vendor
+copy. The signal nobody noticed for years.
+
+This task ships the upstream fix so the next `fw upgrade` doesn't keep
+re-stripping exec bits in every consumer project. Two valid approaches:
+1. `hooks.sh:install_hooks` chmods +x scanner libs before writing the hook
+2. `fw upgrade`/`fw vendor` logic preserves exec bits during the copy
+
+Option 1 is the right structural fix — `install_hooks` is the single point
+where exec-bit dependence is documented (the hook itself checks `-x`). Once
+landed upstream, an upgrade plus a `fw git install-hooks` heals every
+consumer project mechanically.
+
+Local-side (in this project) the chmod fix was applied as part of T-2052
+but is gitignored (`.agentic-framework/` is vendored, not tracked).
+Also fileged: the local `.secret-scan-allowlist` for the placeholder PEM
+test fixture in `crates/termlink-cli/src/commands/infrastructure.rs:2125`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Upstream task filed (this card) with full context describing the gap and the two fix options
+- [x] `.secret-scan-allowlist` added with regex for the test-fixture PEM in `infrastructure.rs:2125` (T-2052 fallout — activating secret-scan surfaced one false-positive that needed allowlisting)
+- [x] `bash .agentic-framework/agents/git/lib/secret-scan.sh scan-tree` exits 0 with no findings after the allowlist edit
+- [ ] Upstream change lands on `/opt/999-AEF` `origin/master` (Channel-1 upstream-mirror pattern: patch + commit + push via `termlink_run`)
+- [ ] Confirm fresh `fw upgrade` in a test consumer project results in executable scanner libs (no `secret-scan: scanner not found (skipping)` in subsequent commit output)
+- [ ] PL-205 learning updated with reference to the upstream fix once it lands
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +199,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2061-framework-vendor-chmod-x-scanner-libs-at.md
 - **Context:** Initial task creation
+
+### 2026-06-08T19:26:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
