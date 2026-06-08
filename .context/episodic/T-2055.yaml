@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2055: Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T17:59:17Z
+# ============================================================================
+
+task_id: T-2055
+task_name: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T16:13:59Z
+completed: 2026-06-08T17:59:14Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-08T19:58:56+02:00
+last_commit: 2026-06-08T19:59:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ±25% jitter on BusClient flush tick — desync fleet-wide pulses. real ACs + Context + Evolution entry — ready for close
+
+# Key outcomes
+outcomes:
+  - '`BusClient::connect_with_interval` per-tick sleep is jittered by ±25% of the base `flush_interval`'
+  - 'Jitter computation is a pure helper (`jittered_interval(base, &mut rng) -> Duration`) so unit tests can use a seeded RNG without touching the spawned task'
+  - 'Unit test with seeded `StdRng` confirms `jittered_interval(5s, seed=0..)` always falls within `[3.75s, 6.25s]` over 100 samples'
+  - 'Unit test confirms jittered values are NOT all identical (the RNG actually varies) — distribution spans ≥50% of the ±25% band'
+  - '`cargo test -p termlink-session bus_client` passes including new tests'
+  - '`cargo check -p termlink-session` clean'
+  - 'Diff is ≤30 LOC of non-test code per T-2050 budget'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/bus_client.rs'
+  - '.tasks/active/T-2055-add-25-jitter-to-busclient-flush-interva.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T19:58:56"
+    action: "T-2055: ±25% jitter on BusClient flush tick — desync fleet-wide pulses"
+  - time: "2026-06-08T19:59:10"
+    action: "T-2055: real ACs + Context + Evolution entry — ready for close"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 105 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 105
+  commits: 2
+  files_changed: 2
+  lines_added: 88
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2055-add-25-jitter-to-busclient-flush-interva.md
+generated_by: context-agent-hybrid

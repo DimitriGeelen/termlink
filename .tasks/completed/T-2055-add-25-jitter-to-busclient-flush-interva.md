@@ -4,20 +4,20 @@ name: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)"
 description: >
   Add ±25% random jitter to the per-tick sleep in BusClient::connect_with_interval (crates/termlink-session/src/bus_client.rs:96-124) so fleet-wide hub bounces don't produce simultaneous flush pulses (thundering-herd against T-2048's RATE_LIMITED). Audit findings in docs/reports/T-2050-offline-queue-backoff-audit.md §'Why jitter is the one real gap'. ≤30 LOC including a unit test using a seeded RNG. rand crate already a workspace dep.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
-components: []
+components: [crates/termlink-session/src/bus_client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T16:13:59Z
-last_update: 2026-06-08T17:58:56Z
-date_finished: null
+last_update: 2026-06-08T17:59:14Z
+date_finished: 2026-06-08T17:59:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -191,3 +191,6 @@ cargo test -p termlink-session --lib bus_client::tests 2>&1 | tail -10 | grep -q
 
 ### 2026-06-08T17:56:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-08T17:59:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
