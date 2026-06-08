@@ -47,6 +47,34 @@ pub struct ReleaseInfo {
     pub forced_reason: Option<String>,
 }
 
+/// Result of transferring claim ownership — T-2046 (T-2021 GO build,
+/// arc-parallel-substrate primitive #3). Distinct from `ReleaseInfo`:
+/// transfer is an ownership transition, not a terminal release; the
+/// `claim_id`, `topic`, `offset`, `claimed_at`, and `claimed_until` are
+/// preserved, and `claimed_by` advances from `from_owner` to `to_owner` in a
+/// single atomic UPDATE.
+///
+/// Cooperative + owner-checked: `from_owner` must equal the row's
+/// `claimed_by` at transfer time (`ClaimNotOwned` otherwise). Use
+/// `force_release_claim` + `claim_offset` only when bypassing ownership is
+/// intentional (operator-Tier-0); `transfer_claim` is the
+/// orchestrator-to-worker handoff path that preserves the lease.
+#[derive(Debug, Clone)]
+pub struct TransferInfo {
+    pub claim_id: String,
+    pub topic: String,
+    pub offset: u64,
+    pub from_owner: String,
+    pub to_owner: String,
+    pub claimed_at: i64,
+    pub claimed_until: i64,
+    /// Optional audit reason supplied by the caller — returned verbatim so
+    /// higher layers can surface it without persisting it in the claims
+    /// table (which is current-state only, mirroring T-2044's
+    /// `ReleaseInfo.forced_reason` convention).
+    pub reason: Option<String>,
+}
+
 /// Aggregate view of claim state on a topic — T-2039 (arc-parallel-substrate
 /// Slice 6). Computed via a single SQL aggregate over the `claims` table
 /// using `idx_claims_topic_until`. Pairs with [`ClaimInfo`] (per-row detail

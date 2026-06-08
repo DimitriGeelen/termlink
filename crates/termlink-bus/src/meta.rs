@@ -2,7 +2,7 @@ use std::path::Path;
 
 use rusqlite::{Connection, params};
 
-use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo};
+use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo, TransferInfo};
 use crate::{BusError, Result, Retention};
 
 /// SQLite sidecar tracking topics, cursors, and per-topic offset counters.
@@ -429,6 +429,76 @@ impl Meta {
             ack: false,
             forced_from: Some(claimed_by),
             forced_reason: reason.map(|s| s.to_string()),
+        })
+    }
+
+    /// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3): atomic
+    /// ownership transfer of an existing claim. Gates SELECT → expired
+    /// (lazy-evict + `ClaimExpired`) → `claimed_by == by` (`ClaimNotOwned`)
+    /// → UPDATE `claimed_by = to_owner` in a single transaction. The lease
+    /// timestamps (`claimed_at`, `claimed_until`) are preserved — transfer
+    /// is an ownership transition, not a renewal. Caller's optional
+    /// `reason` is returned verbatim in `TransferInfo.reason` for upstream
+    /// audit surface; not persisted in the claims table.
+    ///
+    /// Distinct from `force_release_claim`: this verb is the cooperative,
+    /// owner-checked path used by orchestrators handing a unit of work to
+    /// a chosen worker. The operator-Tier-0 ownership-bypass path is
+    /// `force_release_claim` followed by a fresh `claim_offset`.
+    pub(crate) fn transfer_claim(
+        &self,
+        claim_id: &str,
+        to_owner: &str,
+        by: &str,
+        reason: Option<&str>,
+        now_ms: i64,
+    ) -> Result<TransferInfo> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let row: rusqlite::Result<(String, i64, String, i64, i64)> = tx.query_row(
+            "SELECT topic, offset, claimed_by, claimed_at, claimed_until \
+             FROM claims WHERE claim_id = ?1",
+            params![claim_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        );
+        let (topic, offset_i, claimed_by, claimed_at, claimed_until) = match row {
+            Ok(t) => t,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(BusError::ClaimNotFound(claim_id.to_string()));
+            }
+            Err(e) => return Err(BusError::Sqlite(e)),
+        };
+        if claimed_until <= now_ms {
+            tx.execute(
+                "DELETE FROM claims WHERE claim_id = ?1",
+                params![claim_id],
+            )?;
+            tx.commit()?;
+            return Err(BusError::ClaimExpired {
+                claim_id: claim_id.to_string(),
+            });
+        }
+        if claimed_by != by {
+            return Err(BusError::ClaimNotOwned {
+                claim_id: claim_id.to_string(),
+                claimed_by,
+                attempted_by: by.to_string(),
+            });
+        }
+        tx.execute(
+            "UPDATE claims SET claimed_by = ?1 WHERE claim_id = ?2",
+            params![to_owner, claim_id],
+        )?;
+        tx.commit()?;
+        Ok(TransferInfo {
+            claim_id: claim_id.to_string(),
+            topic,
+            offset: offset_i as u64,
+            from_owner: claimed_by,
+            to_owner: to_owner.to_string(),
+            claimed_at,
+            claimed_until,
+            reason: reason.map(|s| s.to_string()),
         })
     }
 

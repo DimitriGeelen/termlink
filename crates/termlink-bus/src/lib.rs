@@ -17,7 +17,7 @@ mod meta;
 mod retention;
 
 pub use artifact_store::{ArtifactStore, StreamingPutOutcome};
-pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo};
+pub use claim::{ClaimInfo, ClaimsSummary, IdleAgent, ReleaseInfo, TransferInfo};
 pub use envelope::Envelope;
 pub use error::{BusError, Result};
 pub use log::Offset;
@@ -308,6 +308,31 @@ impl Bus {
         reason: Option<&str>,
     ) -> Result<ReleaseInfo> {
         self.meta.force_release_claim(claim_id, reason)
+    }
+
+    /// T-2046 (T-2021 GO, arc-parallel-substrate primitive #3): atomic
+    /// ownership transfer of an existing claim from `by` to `to_owner`.
+    /// Cooperative + owner-checked — distinct from `force_release_claim`
+    /// (operator-Tier-0 ownership bypass).
+    ///
+    /// Lease timestamps are preserved; only `claimed_by` advances. Optional
+    /// `reason` is surfaced verbatim in `TransferInfo.reason` for upstream
+    /// audit, not persisted in the claims table.
+    ///
+    /// Errors:
+    /// - `BusError::ClaimNotFound` — unknown / already-released `claim_id`.
+    /// - `BusError::ClaimExpired` — row exists but `claimed_until <= now`
+    ///   (lazily evicted in the same call so the slot becomes claimable).
+    /// - `BusError::ClaimNotOwned` — `by` is not the current `claimed_by`.
+    pub fn transfer_claim(
+        &self,
+        claim_id: &str,
+        to_owner: &str,
+        by: &str,
+        reason: Option<&str>,
+    ) -> Result<TransferInfo> {
+        let now_ms = now_unix_ms();
+        self.meta.transfer_claim(claim_id, to_owner, by, reason, now_ms)
     }
 
     /// T-2030 (arc-parallel-substrate Slice 2): extend the lease on a held
@@ -1405,5 +1430,135 @@ mod tests {
         assert_eq!(idle.len(), 2);
         assert_eq!(idle[0].agent_id, "a-new");
         assert_eq!(idle[1].agent_id, "a-mid");
+    }
+
+    // ── T-2046 (T-2021 GO, arc-parallel-substrate primitive #3) ──
+    // channel.transfer_claim semantics: atomic ownership transfer with
+    // owner-check + expiry-check, distinct from force_release (Tier-0
+    // bypass). Lease timestamps preserved across transfer.
+
+    #[tokio::test]
+    async fn transfer_claim_happy_path_advances_owner_preserves_lease() {
+        // Orchestrator claims, hands the lease to a worker, the worker
+        // releases successfully. The claimed_at and claimed_until must
+        // survive the transfer untouched.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "orch", 30_000).unwrap();
+        let t = bus
+            .transfer_claim(&c.claim_id, "worker-A", "orch", Some("assign T-XXX"))
+            .unwrap();
+        assert_eq!(t.claim_id, c.claim_id);
+        assert_eq!(t.topic, "work");
+        assert_eq!(t.offset, 0);
+        assert_eq!(t.from_owner, "orch");
+        assert_eq!(t.to_owner, "worker-A");
+        assert_eq!(t.claimed_at, c.claimed_at, "claimed_at must survive transfer");
+        assert_eq!(t.claimed_until, c.claimed_until, "claimed_until must survive transfer");
+        assert_eq!(t.reason.as_deref(), Some("assign T-XXX"));
+        // Worker-A can release; orch cannot.
+        let err = bus.release_claim(&c.claim_id, "orch", true).unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimNotOwned { ref claim_id, .. } if claim_id == &c.claim_id),
+            "post-transfer release by old owner must fail with ClaimNotOwned, got {err:?}"
+        );
+        let r = bus.release_claim(&c.claim_id, "worker-A", true).unwrap();
+        assert_eq!(r.claim_id, c.claim_id);
+        assert!(r.ack);
+    }
+
+    #[tokio::test]
+    async fn transfer_claim_unknown_claim_returns_not_found() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        let err = bus
+            .transfer_claim("nonexistent-claim-id", "worker-A", "orch", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimNotFound(ref cid) if cid == "nonexistent-claim-id"),
+            "expected ClaimNotFound, got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn transfer_claim_expired_claim_returns_expired_and_evicts_row() {
+        // Orchestrator claims with a sub-second TTL; before transferring,
+        // the lease lapses. transfer_claim must report ClaimExpired AND
+        // lazily evict the stale row so a follow-up claim_offset succeeds.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "orch", 50).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+        let err = bus
+            .transfer_claim(&c.claim_id, "worker-A", "orch", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimExpired { ref claim_id } if claim_id == &c.claim_id),
+            "expected ClaimExpired, got {err:?}"
+        );
+        // Slot is reclaimable — a fresh claim by anyone now succeeds.
+        let c2 = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
+        assert_eq!(c2.claimer, "worker-B");
+        assert_ne!(c2.claim_id, c.claim_id);
+    }
+
+    #[tokio::test]
+    async fn transfer_claim_wrong_by_returns_not_owned_without_mutating() {
+        // The cooperative-with-audit verb refuses when `by` doesn't match
+        // the row's claimed_by. The row must remain owned by the original
+        // claimer — a release attempt by the original owner still works.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "orch", 30_000).unwrap();
+        let err = bus
+            .transfer_claim(&c.claim_id, "worker-A", "imposter", None)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimNotOwned { ref claim_id, ref claimed_by, ref attempted_by }
+                if claim_id == &c.claim_id && claimed_by == "orch" && attempted_by == "imposter"),
+            "expected ClaimNotOwned{{claim_id=c, claimed_by=orch, attempted_by=imposter}}, got {err:?}"
+        );
+        // Row is intact — original owner can still release.
+        let r = bus.release_claim(&c.claim_id, "orch", false).unwrap();
+        assert_eq!(r.claim_id, c.claim_id);
+    }
+
+    #[tokio::test]
+    async fn transfer_claim_to_self_is_idempotent_success() {
+        // Self-transfer (to_owner == claimed_by) is legal — useful for
+        // setting `reason` for audit without changing ownership.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 30_000).unwrap();
+        let t = bus
+            .transfer_claim(&c.claim_id, "worker-A", "worker-A", Some("self-tag"))
+            .unwrap();
+        assert_eq!(t.from_owner, "worker-A");
+        assert_eq!(t.to_owner, "worker-A");
+        // Owner is unchanged from worker-A's perspective; release still works.
+        let r = bus.release_claim(&c.claim_id, "worker-A", true).unwrap();
+        assert!(r.ack);
+    }
+
+    #[tokio::test]
+    async fn transfer_claim_then_release_by_new_owner_advances_new_owner_cursor() {
+        // Cursor advances belong to whoever holds the claim at release time.
+        // After A → B transfer + ack release by B, B's cursor advances past
+        // the offset and A's cursor stays at its prior position (None here).
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        bus.post("work", &env("work", b"m1")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 30_000).unwrap();
+        bus.transfer_claim(&c.claim_id, "worker-B", "worker-A", None)
+            .unwrap();
+        let r = bus.release_claim(&c.claim_id, "worker-B", true).unwrap();
+        assert!(r.ack);
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
+        assert_eq!(bus.get_cursor("worker-B", "work").unwrap(), Some(1));
     }
 }
