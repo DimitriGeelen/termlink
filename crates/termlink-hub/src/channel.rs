@@ -551,6 +551,20 @@ pub(crate) async fn handle_channel_post_with(
                     env.ts_unix_ms,
                 );
             }
+            // T-2027/T-2089 slice 1 — broadcast-with-replay cv_index.
+            // When the envelope opts into the current-value pattern by
+            // setting `metadata.cv_key`, record (topic, cv_key) -> offset
+            // with last-write-wins so future
+            // `channel.subscribe --include-current-value` (slice 2)
+            // can read it in O(K). Cap-overflow refusals are silent at
+            // the post layer (post stays atomic); observability comes
+            // via `cv_index::overflow_total`.
+            if let Some(cv_key) = env.metadata.get("cv_key") {
+                let cv_key = cv_key.trim();
+                if !cv_key.is_empty() && cv_key.len() <= 256 {
+                    let _ = crate::cv_index::record(&topic, cv_key, offset);
+                }
+            }
             // T-1286 / T-243: passive presence tracking. When the envelope
             // carries metadata.conversation_id, record (cid, sender_id) →
             // ts so dialog.presence can answer "who's active here?"

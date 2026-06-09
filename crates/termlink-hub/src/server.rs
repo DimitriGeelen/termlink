@@ -251,6 +251,11 @@ pub async fn run_with_tcp(
     // back to DEFAULT_DEDUPE_TTL_MS / DEFAULT_DEDUPE_CAPACITY.
     crate::dedupe::init();
 
+    // T-2027/T-2089 slice 1: Install cv_index for broadcast-with-replay.
+    // Reads TERMLINK_CV_INDEX_CAP_PER_TOPIC from env, falls back to
+    // DEFAULT_CV_INDEX_CAP_PER_TOPIC.
+    crate::cv_index::init();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {

@@ -3,6 +3,7 @@ pub mod artifact;
 pub mod bypass;
 pub mod channel;
 pub mod circuit_breaker;
+pub mod cv_index;
 pub mod dedupe;
 pub mod governor;
 pub mod inbox;
