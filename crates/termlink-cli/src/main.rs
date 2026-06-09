@@ -584,6 +584,15 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            AgentAction::FindIdleHistory { since, agent_id, log, json } => {
+                commands::agent_find_idle::cmd_agent_find_idle_history(
+                    since,
+                    agent_id.as_deref(),
+                    log.as_deref(),
+                    json,
+                )
+                .await
+            }
         },
         Command::File { action } => match action {
             FileAction::Send { target, path, chunk_size, json, timeout } => {

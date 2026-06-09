@@ -5937,6 +5937,30 @@ pub(crate) enum AgentAction {
         #[arg(long, value_name = "PATH", requires = "watch")]
         log: Option<std::path::PathBuf>,
     },
+
+    /// T-2081 (substrate primitive #2 obs arc Slice 4 — mirror of T-2074
+    /// `channel claims-history`): read-only retrospective verb that walks
+    /// `~/.termlink/find-idle.log` (the audit trail written by
+    /// `agent find-idle --watch --log <PATH>`), filters by window +
+    /// agent_id, renders one human-format line per matching entry, and
+    /// prints a per-agent aggregate footer counting `new` vs `removed`
+    /// events. Answers "did claude-alpha go busy in the last hour?" or
+    /// "is this worker flapping?" without keeping the watch terminal
+    /// attached. Pure read; no auth; no network.
+    FindIdleHistory {
+        /// Time window from now in days. Clamped to 1..=365. Default 7.
+        #[arg(long, default_value_t = 7)]
+        since: u32,
+        /// Filter to this exact agent_id. Optional.
+        #[arg(long = "agent-id", value_name = "AGENT_ID")]
+        agent_id: Option<String>,
+        /// Override the log file location. Default `~/.termlink/find-idle.log`.
+        #[arg(long)]
+        log: Option<std::path::PathBuf>,
+        /// Output as JSON envelope instead of human text.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// File transfer actions

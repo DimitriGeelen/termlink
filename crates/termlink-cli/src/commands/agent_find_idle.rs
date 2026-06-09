@@ -418,6 +418,311 @@ pub(crate) async fn cmd_agent_find_idle(
     Ok(())
 }
 
+/// T-2081 (substrate primitive #2 obs arc Slice 4 — mirror of T-2074
+/// `claim_log_path`): default log path for the find-idle audit trail.
+/// Resolves `~/.termlink/find-idle.log`. Falls back to
+/// `./.termlink/find-idle.log` when `$HOME` is unset (rare; CI / docker
+/// minimal images) so the helper never panics — the caller is still
+/// free to override via `--log <PATH>`.
+pub(crate) fn find_idle_log_path() -> std::path::PathBuf {
+    match std::env::var_os("HOME") {
+        Some(home) => std::path::PathBuf::from(home)
+            .join(".termlink")
+            .join("find-idle.log"),
+        None => std::path::PathBuf::from(".termlink").join("find-idle.log"),
+    }
+}
+
+/// T-2081: per-agent aggregate counters for `find-idle-history`. Idle is
+/// a binary state (no `transition` kind — see T-2078 design note), so we
+/// only count `new` and `removed` events. Mirror of T-2074's
+/// `ClaimsHistoryAgg` (drops `transitions`).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FindIdleHistoryAgg {
+    pub new_events: u64,
+    pub removed_events: u64,
+}
+
+/// T-2081: pure helper — parse NDJSON log text into `(entries,
+/// malformed_count)`. Each non-empty line that fails JSON parse OR lacks
+/// required fields (`ts`, `agent_id`, `kind`) is skipped and counted;
+/// the rest are returned in source order. Time-window filter
+/// (`cutoff_secs`) and agent_id exact-match filter applied during the
+/// walk. Mirror of T-2074's `parse_claims_log`.
+///
+/// `cutoff_secs` is "skip any entry whose ts is older than this Unix
+/// epoch seconds". Caller computes `now - since_days * 86400`. Agent-id
+/// filter `None` means "all agents".
+pub(crate) fn parse_find_idle_log(
+    text: &str,
+    cutoff_secs: i64,
+    agent_id_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries = Vec::new();
+    let mut malformed = 0usize;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let agent_id = match v.get("agent_id").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if v.get("kind").and_then(|k| k.as_str()).is_none() {
+            malformed += 1;
+            continue;
+        }
+        if let Some(want) = agent_id_filter {
+            if agent_id != want {
+                continue;
+            }
+        }
+        let entry_secs = rfc3339_to_unix_secs_local(ts_str);
+        if entry_secs < cutoff_secs {
+            continue;
+        }
+        entries.push(v);
+    }
+    (entries, malformed)
+}
+
+/// T-2081: stdlib-only RFC3339→epoch parser. Local copy of the same
+/// helper used by T-2074 `channel::parse_claims_log` and T-2068
+/// `remote::cmd_fleet_history` — kept module-private by deliberate
+/// convention (stdlib-only across the crate; duplicating ~30 lines is
+/// cheaper than introducing a cross-module dependency). Returns 0 on
+/// any parse error (caller treats 0 as "very old").
+fn rfc3339_to_unix_secs_local(ts: &str) -> i64 {
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        parse_u(0, 4),
+        parse_u(5, 2),
+        parse_u(8, 2),
+        parse_u(11, 2),
+        parse_u(14, 2),
+        parse_u(17, 2),
+    ) else {
+        return 0;
+    };
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 {
+        y_shift / 400
+    } else {
+        (y_shift - 399) / 400
+    };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
+/// T-2081: pure helper — aggregate parsed entries into per-agent
+/// counters. `BTreeMap` keeps iteration order stable for the human
+/// footer (alphabetical agent_ids → reproducible test assertions).
+/// Mirror of T-2074's `aggregate_claims_entries` (sans `transitions`).
+pub(crate) fn aggregate_find_idle_entries(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, FindIdleHistoryAgg> {
+    let mut out: std::collections::BTreeMap<String, FindIdleHistoryAgg> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        let agent_id = match e.get("agent_id").and_then(|t| t.as_str()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let kind = match e.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let agg = out.entry(agent_id).or_default();
+        match kind {
+            "new" => agg.new_events += 1,
+            "removed" => agg.removed_events += 1,
+            _ => {}
+        }
+    }
+    out
+}
+
+/// T-2081: render one parsed entry as a single human-readable line.
+/// Format chosen so the eye can scan a 50-line dump and pick out the
+/// kind/agent_id columns. Mirror of T-2074's `render_claim_history_line`.
+fn render_find_idle_history_line(e: &serde_json::Value) -> String {
+    let ts = e.get("ts").and_then(|t| t.as_str()).unwrap_or("-");
+    let agent_id = e.get("agent_id").and_then(|t| t.as_str()).unwrap_or("-");
+    let kind = e.get("kind").and_then(|t| t.as_str()).unwrap_or("-");
+    let role = match e.get("role") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::String(s)) => s.clone(),
+        _ => "-".to_string(),
+    };
+    let caps = match e.get("capabilities") {
+        Some(serde_json::Value::Array(arr)) if !arr.is_empty() => arr
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect::<Vec<_>>()
+            .join(","),
+        _ => "-".to_string(),
+    };
+    let hb = match e.get("last_heartbeat_ms") {
+        Some(serde_json::Value::Number(n)) => format!("{}ms", n),
+        _ => "-".to_string(),
+    };
+    format!(
+        "{}  {}  {}  role={}  caps={}  last_heartbeat={}",
+        ts, agent_id, kind, role, caps, hb
+    )
+}
+
+/// T-2081: the `agent find-idle-history` command implementation.
+/// Read-only: walks the log file, applies filters, renders. Never auths
+/// or talks to a hub. Missing log file → operator hint pointing back at
+/// the writer (`agent find-idle --watch --log`). Mirror of T-2074's
+/// `cmd_channel_claims_history`.
+pub(crate) async fn cmd_agent_find_idle_history(
+    since_days: u32,
+    agent_id_filter: Option<&str>,
+    log_override: Option<&std::path::Path>,
+    json_out: bool,
+) -> anyhow::Result<()> {
+    let since_days = since_days.clamp(1, 365);
+    let path: std::path::PathBuf = log_override
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(find_idle_log_path);
+    let path_str = path.display().to_string();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if json_out {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": true,
+                        "entries": [],
+                        "summary": {
+                            "total": 0,
+                            "per_agent": {},
+                            "since_days": since_days,
+                            "agent_id_filter": agent_id_filter,
+                            "malformed_lines_skipped": 0,
+                            "log_path": path_str,
+                            "note": "log file does not exist yet",
+                        }
+                    })
+                );
+                return Ok(());
+            }
+            println!(
+                "(no log file at {} — write events first with `agent find-idle --watch --log {}`)",
+                path_str, path_str
+            );
+            return Ok(());
+        }
+        Err(e) => anyhow::bail!("find-idle-history: read {:?} failed: {e}", path),
+    };
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+    let (entries, malformed) = parse_find_idle_log(&text, cutoff_secs, agent_id_filter);
+    let agg = aggregate_find_idle_entries(&entries);
+    if json_out {
+        let per_agent: serde_json::Map<String, serde_json::Value> = agg
+            .iter()
+            .map(|(id, a)| {
+                (
+                    id.clone(),
+                    serde_json::json!({
+                        "new": a.new_events,
+                        "removed": a.removed_events,
+                    }),
+                )
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "entries": entries,
+                "summary": {
+                    "total": entries.len(),
+                    "per_agent": per_agent,
+                    "since_days": since_days,
+                    "agent_id_filter": agent_id_filter,
+                    "malformed_lines_skipped": malformed,
+                    "log_path": path_str,
+                }
+            })
+        );
+        return Ok(());
+    }
+    if entries.is_empty() {
+        let id_clause = agent_id_filter
+            .map(|t| format!(" agent_id={:?}", t))
+            .unwrap_or_default();
+        println!(
+            "(no entries in last {} day(s){} — log: {})",
+            since_days, id_clause, path_str
+        );
+        if malformed > 0 {
+            println!("({} malformed line(s) skipped)", malformed);
+        }
+        return Ok(());
+    }
+    for e in &entries {
+        println!("{}", render_find_idle_history_line(e));
+    }
+    println!();
+    println!(
+        "Aggregate (since {} day(s), {} entries{}):",
+        since_days,
+        entries.len(),
+        if malformed > 0 {
+            format!(", {} malformed lines skipped", malformed)
+        } else {
+            String::new()
+        }
+    );
+    for (id, a) in &agg {
+        println!("  {}  {} new  {} removed", id, a.new_events, a.removed_events);
+    }
+    println!("(log: {})", path_str);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -622,5 +927,95 @@ mod tests {
         assert_eq!(b.last_heartbeat_ms, 200);
         assert!(b.role.is_none());
         assert!(b.capabilities.is_empty());
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // T-2081 — find-idle-history helper tests (mirror of T-2074 claims-
+    // history tests). Idle is binary so we test new/removed kinds only
+    // (no transition).
+    // ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn find_idle_history_parse_skips_malformed_and_counts() {
+        // Mix of valid + invalid lines; helper returns only valid in
+        // source order and counts the rest in `malformed`.
+        let text = "\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+not-json\n\
+{\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"b\"}\n\
+{\"agent_id\":\"c\",\"kind\":\"new\"}\n\
+\n\
+{\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"d\",\"kind\":\"removed\"}\n";
+        // cutoff=0 → no time filter applied.
+        let (entries, malformed) = parse_find_idle_log(text, 0, None);
+        assert_eq!(entries.len(), 2, "only the two complete lines survive");
+        assert_eq!(malformed, 3, "not-json + missing-kind + missing-ts all count");
+        assert_eq!(entries[0]["agent_id"], "a");
+        assert_eq!(entries[1]["agent_id"], "d");
+    }
+
+    #[test]
+    fn find_idle_history_parse_applies_cutoff() {
+        let text = "\
+{\"ts\":\"2025-01-01T00:00:00Z\",\"agent_id\":\"old\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"fresh\",\"kind\":\"new\"}\n";
+        // 2026-01-01T00:00:00Z epoch = 1_767_225_600. Cut at 2027 → drop the old.
+        let cutoff = rfc3339_to_unix_secs_local("2027-01-01T00:00:00Z");
+        let (entries, _) = parse_find_idle_log(text, cutoff, None);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["agent_id"], "fresh");
+    }
+
+    #[test]
+    fn find_idle_history_parse_applies_agent_id_filter() {
+        let text = "\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"wanted\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"other\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"wanted\",\"kind\":\"removed\"}\n";
+        let (entries, _) = parse_find_idle_log(text, 0, Some("wanted"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(e["agent_id"], "wanted");
+        }
+    }
+
+    #[test]
+    fn find_idle_history_aggregate_counts_kinds() {
+        let text = "\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"a\",\"kind\":\"removed\"}\n\
+{\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:03:00Z\",\"agent_id\":\"b\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:04:00Z\",\"agent_id\":\"b\",\"kind\":\"unknown_kind\"}\n";
+        let (entries, _) = parse_find_idle_log(text, 0, None);
+        let agg = aggregate_find_idle_entries(&entries);
+        let a = agg.get("a").expect("a present");
+        assert_eq!(a.new_events, 2, "a flipped from busy→idle twice");
+        assert_eq!(a.removed_events, 1);
+        let b = agg.get("b").expect("b present");
+        assert_eq!(b.new_events, 1);
+        // Unknown kind is silently dropped (forward-compatible parser).
+        assert_eq!(b.removed_events, 0);
+    }
+
+    #[test]
+    fn find_idle_history_render_line_handles_null_role_and_empty_caps() {
+        // Same NDJSON shape T-2080's `render_idle_log_line` writes:
+        // role can be null, capabilities can be [].
+        let e = serde_json::json!({
+            "ts": "2030-01-01T00:00:00Z",
+            "agent_id": "x",
+            "kind": "removed",
+            "role": null,
+            "capabilities": [],
+            "last_heartbeat_ms": 1234,
+        });
+        let line = render_find_idle_history_line(&e);
+        assert!(line.contains("2030-01-01T00:00:00Z"));
+        assert!(line.contains("  x  "));
+        assert!(line.contains("removed"));
+        assert!(line.contains("role=-"));
+        assert!(line.contains("caps=-"));
+        assert!(line.contains("last_heartbeat=1234ms"));
     }
 }
