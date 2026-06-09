@@ -1528,11 +1528,12 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::QueueStatus { queue_path, json, watch } => {
+            ChannelAction::QueueStatus { queue_path, json, watch, notify } => {
                 if let Some(secs) = watch {
                     commands::channel::cmd_channel_queue_status_watch(
                         queue_path.as_deref(),
                         secs,
+                        notify.as_deref(),
                     )
                     .await
                 } else {

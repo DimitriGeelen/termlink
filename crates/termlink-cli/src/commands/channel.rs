@@ -8565,15 +8565,74 @@ fn render_queue_event_line(ev: &QueueChangeEvent) -> String {
     )
 }
 
+/// T-2084: build the env var vec for the `--notify` shell command.
+/// Pure helper — tested independently of the spawn path. Mirror of
+/// T-2079's `fire_idle_notify_env`. All values are strings (env vars
+/// can't be typed) — operator scripts parse as needed.
+///
+/// `now_secs` passed in (not read via SystemTime::now) for test
+/// determinism. Caller computes RFC3339 from it.
+pub(crate) fn fire_queue_notify_env(
+    ev: &QueueChangeEvent,
+    queue_path: &std::path::Path,
+    now_secs: u64,
+) -> Vec<(&'static str, String)> {
+    let kind = match ev.kind {
+        QueueChangeKind::Drained => "drained",
+        QueueChangeKind::Pending => "pending",
+    };
+    let ts = crate::manifest::secs_to_rfc3339(now_secs);
+    let oldest_age = ev
+        .oldest_age_ms
+        .map(|ms| ms.to_string())
+        .unwrap_or_else(|| "n/a".to_string());
+    vec![
+        ("TERMLINK_QUEUE_CHANGE_KIND", kind.to_string()),
+        ("TERMLINK_QUEUE_TS", ts),
+        ("TERMLINK_QUEUE_OLD_PENDING", ev.old_pending.to_string()),
+        ("TERMLINK_QUEUE_NEW_PENDING", ev.new_pending.to_string()),
+        ("TERMLINK_QUEUE_OLDEST_AGE_MS", oldest_age),
+        (
+            "TERMLINK_QUEUE_PATH",
+            queue_path.display().to_string(),
+        ),
+    ]
+}
+
+/// T-2084: fire-and-forget spawn of the operator-supplied `--notify`
+/// command with per-event env vars set. `sh -c` wrapper so the
+/// operator can pass a single string with args (e.g.
+/// `"/usr/local/bin/page.sh queue-rail"`). Mirror of T-2079's
+/// `fire_idle_notify`.
+fn fire_queue_notify(cmd: &str, ev: &QueueChangeEvent, queue_path: &std::path::Path, now_secs: u64) {
+    let mut command = tokio::process::Command::new("sh");
+    command.arg("-c").arg(cmd);
+    for (k, v) in fire_queue_notify_env(ev, queue_path, now_secs) {
+        command.env(k, v);
+    }
+    command.stdin(std::process::Stdio::null());
+    command.kill_on_drop(false);
+    match command.spawn() {
+        Ok(child) => drop(child),
+        Err(e) => eprintln!("# queue notify spawn failed: {e}"),
+    }
+}
+
 /// T-2083: the `channel queue-status --watch <secs>` command. Loops
 /// every `interval` (clamped [1, 300]), clears the screen, re-reads
 /// the SQLite snapshot, and renders the table + any state-flip
 /// event lines. SIGINT exits cleanly. Errors during a tick print a
 /// one-line stderr warning and the loop continues — the watch must
 /// NEVER crash because one SQLite read failed.
+///
+/// T-2084: when `notify` is `Some`, each change event also fires the
+/// operator's shell command fire-and-forget per event. Baseline tick
+/// emits no events (diff returns empty on `prev=None`) so no notify
+/// fires on the first tick.
 pub(crate) async fn cmd_channel_queue_status_watch(
     queue_path: Option<&str>,
     interval: u64,
+    notify: Option<&str>,
 ) -> Result<()> {
     use termlink_session::offline_queue::default_queue_path;
 
@@ -8585,13 +8644,12 @@ pub(crate) async fn cmd_channel_queue_status_watch(
 
     let mut prev: Option<QueueSnapshot> = None;
     loop {
-        // Clear screen + home cursor (ANSI). Matches the convention used
-        // by claims-summary --watch and find-idle --watch.
         print!("\x1b[2J\x1b[H");
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
+        let now_secs = (now_ms / 1000).max(0) as u64;
         match read_queue_snapshot(&path) {
             Ok(curr) => {
                 let oldest_age_display = curr
@@ -8608,6 +8666,9 @@ pub(crate) async fn cmd_channel_queue_status_watch(
                 let events = diff_queue_states(&prev, &curr, now_ms);
                 for ev in &events {
                     println!("{}", render_queue_event_line(ev));
+                    if let Some(cmd) = notify {
+                        fire_queue_notify(cmd, ev, &path, now_secs);
+                    }
                 }
                 if events.is_empty() && prev.is_some() {
                     println!("  (no change since last tick)");
@@ -16654,5 +16715,72 @@ mod tests {
         let curr = qsnap(0, None);
         let events = diff_queue_states(&prev, &curr, 1_700_000_010_000);
         assert!(events.is_empty(), "drained→drained must emit no event");
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // T-2084: queue_status_notify — substrate primitive #5 obs arc Slice 2.
+    // Test the pure env-builder. Spawn path is not tested here (would
+    // require capturing a real subprocess); covered via Slice 3's --log
+    // assertion path when both flags coexist.
+    // ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn queue_status_notify_pending_event_sets_all_env_vars() {
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 3,
+            oldest_age_ms: Some(1500),
+        };
+        let path = std::path::PathBuf::from("/tmp/test-queue.sqlite");
+        let env = fire_queue_notify_env(&ev, &path, 1_700_000_000);
+        let map: std::collections::HashMap<&'static str, String> = env.into_iter().collect();
+        assert_eq!(map.get("TERMLINK_QUEUE_CHANGE_KIND").unwrap(), "pending");
+        assert_eq!(map.get("TERMLINK_QUEUE_OLD_PENDING").unwrap(), "0");
+        assert_eq!(map.get("TERMLINK_QUEUE_NEW_PENDING").unwrap(), "3");
+        assert_eq!(map.get("TERMLINK_QUEUE_OLDEST_AGE_MS").unwrap(), "1500");
+        assert_eq!(
+            map.get("TERMLINK_QUEUE_PATH").unwrap(),
+            "/tmp/test-queue.sqlite"
+        );
+        // RFC3339 timestamp should be present and end with Z.
+        let ts = map.get("TERMLINK_QUEUE_TS").unwrap();
+        assert!(ts.ends_with('Z'), "RFC3339 ts must end in Z, got {ts}");
+        assert_eq!(ts.len(), 20, "RFC3339 ts has fixed length");
+    }
+
+    #[test]
+    fn queue_status_notify_drained_event_emits_correct_kind_and_na_age() {
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Drained,
+            old_pending: 7,
+            new_pending: 0,
+            oldest_age_ms: None,
+        };
+        let path = std::path::PathBuf::from("/tmp/q.sqlite");
+        let env = fire_queue_notify_env(&ev, &path, 1_700_000_000);
+        let map: std::collections::HashMap<&'static str, String> = env.into_iter().collect();
+        assert_eq!(map.get("TERMLINK_QUEUE_CHANGE_KIND").unwrap(), "drained");
+        assert_eq!(map.get("TERMLINK_QUEUE_OLD_PENDING").unwrap(), "7");
+        assert_eq!(map.get("TERMLINK_QUEUE_NEW_PENDING").unwrap(), "0");
+        // Drained → no head to age → must serialize as `n/a` per the
+        // schema (operators gate on `[ "$VAR" != "n/a" ]`).
+        assert_eq!(map.get("TERMLINK_QUEUE_OLDEST_AGE_MS").unwrap(), "n/a");
+    }
+
+    #[test]
+    fn queue_status_notify_env_returns_six_vars() {
+        // Schema stability: future slices (--log NDJSON) MUST match this
+        // shape exactly. Locking the cardinality catches accidental
+        // additions/drops.
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 1,
+            oldest_age_ms: Some(0),
+        };
+        let path = std::path::PathBuf::from("/tmp/q.sqlite");
+        let env = fire_queue_notify_env(&ev, &path, 1_700_000_000);
+        assert_eq!(env.len(), 6, "schema is exactly 6 env vars");
     }
 }

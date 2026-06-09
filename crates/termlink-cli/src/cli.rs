@@ -2647,6 +2647,22 @@ pub(crate) enum ChannelAction {
         /// only the table.
         #[arg(long, value_name = "SECS", conflicts_with = "json")]
         watch: Option<u64>,
+
+        /// T-2084 (substrate primitive #5 obs arc Slice 2, mirror of
+        /// T-2079 find-idle `--notify`): operator-pluggable shell
+        /// command fired fire-and-forget per `drained↔pending`
+        /// transition event. Skipped on baseline tick. Hanging scripts
+        /// do NOT block the loop; command-not-found does NOT kill the
+        /// watch. Per-event env vars: `TERMLINK_QUEUE_CHANGE_KIND`
+        /// (`drained`/`pending`), `TERMLINK_QUEUE_TS` (RFC3339),
+        /// `TERMLINK_QUEUE_OLD_PENDING`, `TERMLINK_QUEUE_NEW_PENDING`,
+        /// `TERMLINK_QUEUE_OLDEST_AGE_MS` (or `n/a`),
+        /// `TERMLINK_QUEUE_PATH`. Requires `--watch` (events only exist
+        /// across ticks). Common gate:
+        /// `[ "$TERMLINK_QUEUE_CHANGE_KIND" = "pending" ] || exit 0`
+        /// then page Slack.
+        #[arg(long, value_name = "CMD", requires = "watch")]
+        notify: Option<String>,
     },
     /// Quotable text snippet for citing a channel message in tasks/docs
     /// (T-1363). Walks the topic, finds the target offset, renders it with
