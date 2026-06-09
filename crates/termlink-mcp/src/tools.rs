@@ -343,6 +343,103 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+// T-2075: per-topic aggregate over claims.log entries within window.
+// Mirror of GovernorHubAggMcp shape — different counters (kind taxonomy)
+// but identical aggregation pattern.
+#[derive(Default, Debug, PartialEq, Eq)]
+pub(crate) struct ClaimsTopicAggMcp {
+    pub transitions: u64,
+    pub new_events: u64,
+    pub removed_events: u64,
+}
+
+// T-2075: pure helper — parse claims.log NDJSON into (entries, malformed).
+// Symmetric with parse_governor_log: same signature shape, same skip
+// + count semantics, same RFC3339→epoch parser, same cutoff filter.
+//
+// `topic_filter == None` means "all topics". Lines missing required fields
+// (`ts`, `topic`, `kind`) are counted malformed and skipped — never
+// returned as half-parsed entries.
+pub(crate) fn parse_claims_log(
+    text: &str,
+    cutoff_secs: i64,
+    topic_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed: usize = 0;
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match entry.get("ts").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let topic = match entry.get("topic").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if entry.get("kind").and_then(|k| k.as_str()).is_none() {
+            malformed += 1;
+            continue;
+        }
+        if let Some(want) = topic_filter {
+            if topic != want {
+                continue;
+            }
+        }
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        entries.push(entry);
+    }
+    (entries, malformed)
+}
+
+// T-2075: pure helper — aggregate per-topic kind counts.
+// Mirror of aggregate_governor_entries pattern. BTreeMap keeps insertion
+// order stable so the JSON envelope's per_topic key order is reproducible
+// in test assertions.
+pub(crate) fn aggregate_claims_entries(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, ClaimsTopicAggMcp> {
+    let mut per_topic: std::collections::BTreeMap<String, ClaimsTopicAggMcp> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        let t = e
+            .get("topic")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let kind = match e.get("kind").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let agg = per_topic.entry(t).or_default();
+        match kind {
+            "transition" => agg.transitions += 1,
+            "new" => agg.new_events += 1,
+            "removed" => agg.removed_events += 1,
+            _ => {}
+        }
+    }
+    per_topic
+}
+
 /// T-1941: full help registry — extracted so the phantom-entry guard test
 /// (`help_registry_has_no_phantom_entries`) can introspect it without standing
 /// up the MCP server. `termlink_help` consumes the same fn.
@@ -507,6 +604,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
             ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (expired>0 OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
+            ("termlink_channel_claims_history", "T-2075/T-2074 — retrospective read of ~/.termlink/claims.log NDJSON (written by `channel claims-summary --watch --log`). Per-topic aggregate of transition/new/removed event counts within --since-days window"),
         ]),
         ("channel_poll", vec![
             ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
@@ -9509,6 +9607,20 @@ pub struct FleetGovernorHistoryParams {
     pub log_path: Option<String>,
 }
 
+// T-2075: Channel claims-history params (MCP parity for T-2074).
+// Mirror of FleetGovernorHistoryParams shape but pointed at the claim
+// primitive observability arc audit trail (`~/.termlink/claims.log`).
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelClaimsHistoryParams {
+    /// Look-back window in days (default: 7, clamped 1..=365).
+    pub since_days: Option<u32>,
+    /// Filter to a single topic name (exact match; None = all topics).
+    pub topic: Option<String>,
+    /// Override log path (default: `$HOME/.termlink/claims.log`).
+    /// Use when the watch loop was run with a custom `--log` destination.
+    pub log_path: Option<String>,
+}
+
 // T-1689: Fleet bootstrap-check params (MCP parity for T-1688).
 // Exactly one of `profile`/`all` must be set; both/neither rejected with a
 // structured error from the tool body.
@@ -15925,6 +16037,96 @@ impl TermLinkTools {
                 "per_hub": per_hub_json,
                 "since_days": since_days,
                 "hub_filter": p.hub,
+                "malformed_lines_skipped": malformed,
+                "log_path": log_path.display().to_string(),
+            }
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    // === Channel claims-history (T-2075: MCP parity for T-2074) ===
+
+    #[tool(
+        name = "termlink_channel_claims_history",
+        description = "T-2075 / T-2074 — retrospective read of the claims.log NDJSON audit trail produced by `channel claims-summary --watch --log <path>`. Walks `~/.termlink/claims.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `topic` exact-match, and returns `{ok, entries[], summary{total, per_topic:{<topic>:{transitions, new_events, removed_events}}, since_days, topic_filter, malformed_lines_skipped, log_path}}`. Per-topic aggregates count each change-event kind independently so a caller can answer 'has this topic been flapping (high transitions)?' / 'churning (high new+removed)?' / 'merely transitioned once?' in one call. Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no claim history yet — run `channel claims-summary --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_fleet_governor_history` (T-2069) but pointed at the substrate claim-primitive observability audit trail. CLI parity: `termlink channel claims-history`."
+    )]
+    async fn termlink_channel_claims_history(
+        &self,
+        Parameters(p): Parameters<ChannelClaimsHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+
+        let log_path: std::path::PathBuf = match p.log_path.as_deref() {
+            Some(s) => std::path::PathBuf::from(s),
+            None => {
+                let Some(home) = std::env::var("HOME").ok() else {
+                    return json_err(
+                        "HOME env var not set; cannot resolve claims.log default path",
+                    );
+                };
+                std::path::PathBuf::from(home)
+                    .join(".termlink")
+                    .join("claims.log")
+            }
+        };
+
+        if !log_path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "per_topic": {},
+                    "since_days": since_days,
+                    "topic_filter": p.topic,
+                    "log_path": log_path.display().to_string(),
+                },
+                "hint": "no claim history yet — run `channel claims-summary --watch --log <path>` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let text = match std::fs::read_to_string(&log_path) {
+            Ok(t) => t,
+            Err(e) => return json_err(format!("cannot read {}: {e}", log_path.display())),
+        };
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let (entries, malformed) =
+            parse_claims_log(&text, cutoff, p.topic.as_deref());
+
+        let per_topic = aggregate_claims_entries(&entries);
+
+        let per_topic_json: serde_json::Map<String, serde_json::Value> = per_topic
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    serde_json::json!({
+                        "transitions": v.transitions,
+                        "new_events": v.new_events,
+                        "removed_events": v.removed_events,
+                    }),
+                )
+            })
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": {
+                "total": entries.len(),
+                "per_topic": per_topic_json,
+                "since_days": since_days,
+                "topic_filter": p.topic,
                 "malformed_lines_skipped": malformed,
                 "log_path": log_path.display().to_string(),
             }
@@ -41585,6 +41787,76 @@ YW\tJ
                 "capacity_hits_total": 0, "rate_hits_total": 0,
             }));
         assert!(!mcp_governor_hub_is_pressured(&ok));
+    }
+
+    // T-2075: parse_claims_log + aggregate_claims_entries tests. Mirror of
+    // the governor parse-aggregate tests above but for the claim primitive
+    // observability arc. Same shape, different counter semantics.
+
+    #[test]
+    fn mcp_claims_history_parse_skips_malformed_and_aggregates_kinds() {
+        let in_window_ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "garbage line one\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"work-queue\",\"kind\":\"transition\",\"hub\":\"unix:/tmp/h\"}}\n\
+             this is not json\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"work-queue\",\"kind\":\"transition\",\"hub\":\"unix:/tmp/h\"}}\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"work-queue\",\"kind\":\"new\",\"hub\":\"unix:/tmp/h\"}}\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"other\",\"kind\":\"removed\",\"hub\":\"unix:/tmp/h\"}}\n",
+            ts = in_window_ts
+        );
+        let (entries, malformed) = parse_claims_log(&text, 0, None);
+        assert_eq!(entries.len(), 4, "4 parseable rows");
+        assert_eq!(malformed, 2, "2 garbage rows counted");
+        let agg = aggregate_claims_entries(&entries);
+        assert_eq!(agg.len(), 2);
+        let work = agg.get("work-queue").unwrap();
+        assert_eq!(work.transitions, 2);
+        assert_eq!(work.new_events, 1);
+        assert_eq!(work.removed_events, 0);
+        let other = agg.get("other").unwrap();
+        assert_eq!(other.transitions, 0);
+        assert_eq!(other.new_events, 0);
+        assert_eq!(other.removed_events, 1);
+    }
+
+    #[test]
+    fn mcp_claims_history_parse_applies_topic_filter() {
+        let ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"topic\":\"a\",\"kind\":\"transition\"}}\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"b\",\"kind\":\"transition\"}}\n\
+             {{\"ts\":\"{ts}\",\"topic\":\"a\",\"kind\":\"new\"}}\n",
+            ts = ts
+        );
+        let (entries, _) = parse_claims_log(&text, 0, Some("a"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(e["topic"], "a");
+        }
+    }
+
+    #[test]
+    fn mcp_claims_history_parse_applies_cutoff() {
+        let text = "{\"ts\":\"1990-01-01T00:00:00Z\",\"topic\":\"old\",\"kind\":\"transition\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"topic\":\"new\",\"kind\":\"transition\"}\n";
+        // cutoff = 1_000_000_000 (≈2001-09-09) drops the 1990 row.
+        let (entries, malformed) = parse_claims_log(text, 1_000_000_000, None);
+        assert_eq!(malformed, 0);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["topic"], "new");
+    }
+
+    #[test]
+    fn mcp_claims_history_parse_missing_ts_or_topic_or_kind_is_malformed() {
+        // Each line missing one required field; all should be counted
+        // malformed and zero entries returned.
+        let text = "{\"topic\":\"x\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"topic\":\"x\"}\n";
+        let (entries, malformed) = parse_claims_log(text, 0, None);
+        assert_eq!(entries.len(), 0);
+        assert_eq!(malformed, 3);
     }
 
     #[test]
