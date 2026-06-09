@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T21:00:41Z
-last_update: 2026-06-09T21:00:41Z
+last_update: 2026-06-09T21:09:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,15 +54,16 @@ Out of scope (later slices):
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Clap variant `Subscribe` gains `--include-current-value` flag in `crates/termlink-cli/src/cli.rs`
-- [ ] `main.rs` threads the flag into `cmd_channel_subscribe` invocation
-- [ ] `cmd_channel_subscribe` adds `"include_current_value": true` to the FIRST loop iteration's params (snapshot is a one-shot — subsequent paginated fetches do not re-request)
-- [ ] When the response carries `current_values`, render each entry in non-JSON mode as `[cv:<key>@<offset>] <sender> <msg_type>: <payload>` BEFORE the regular `messages` stream
-- [ ] In `--json` mode, the response's `current_values` array is preserved verbatim in the output JSON-lines header
-- [ ] MCP `termlink_channel_subscribe` tool gains `include_current_value: bool` param (default false), passed through to the JSON-RPC call
-- [ ] `cargo build -p termlink-cli -p termlink-mcp` succeeds
-- [ ] `cargo test -p termlink-hub` 347/347 passes (no regression on slice 1+2)
-- [ ] `cargo test -p termlink-cli` passes (any subscribe tests still green)
+- [x] Clap variant `Subscribe` gains `--include-current-value` flag in `crates/termlink-cli/src/cli.rs`
+- [x] `main.rs` threads the flag into `cmd_channel_subscribe` invocation
+- [x] `cmd_channel_subscribe` adds `"include_current_value": true` to the FIRST loop iteration's params (snapshot is a one-shot — subsequent paginated fetches do not re-request)
+- [x] When the response carries `current_values`, render each entry in non-JSON mode as `[cv:<key>@<offset>] <sender> <msg_type>: <payload>` BEFORE the regular `messages` stream
+- [x] In `--json` mode, the response's `current_values` array is preserved verbatim in the output JSON-lines header
+- [x] MCP `termlink_channel_subscribe` tool gains `include_current_value: bool` param (default false), passed through to the JSON-RPC call
+- [x] `cargo build -p termlink -p termlink-mcp` succeeds (CLI crate is named `termlink`, not `termlink-cli`)
+- [x] `cargo test -p termlink-hub` 347/347 passes (no regression on slice 1+2)
+- [x] `cargo test -p termlink` passes (no subscribe-specific tests, 172 lib tests + 4 interactive_integration tests all green)
+- [x] End-to-end sidecar smoke: cv-tagged posts → `--include-current-value` renders snapshot with last-write-wins (alpha-v2 at offset 2, not alpha-v1 at offset 0); JSON mode emits `{"current_values": [...]}` header before envelope stream
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,8 +98,8 @@ Out of scope (later slices):
 
 ## Verification
 
-cargo build -p termlink-cli -p termlink-mcp --tests 2>&1 | tail -5
-cargo test -p termlink-hub --lib 2>&1 | tail -3 | grep -q "test result: ok"
+cargo build -p termlink -p termlink-mcp --tests 2>&1 | tail -3
+out=$(cargo test -p termlink-hub --lib 2>&1 | tail -3); echo "$out" | grep -q "test result: ok"
 out=$(grep -c "include_current_value" crates/termlink-cli/src/cli.rs); test "$out" -ge 1
 out=$(grep -c "include_current_value" crates/termlink-mcp/src/tools.rs); test "$out" -ge 1
 out=$(grep -c "current_values" crates/termlink-cli/src/commands/channel.rs); test "$out" -ge 1
