@@ -1541,12 +1541,32 @@ pub(crate) async fn handle_agent_find_idle_with(
         .map(|n| n as u32);
     // 2× the canonical 30s heartbeat interval — matches /be-reachable default.
     const DEFAULT_LIVE_WINDOW_MS: i64 = 60_000;
-    match bus.find_idle_agents(
-        role.as_deref(),
-        &capabilities,
-        DEFAULT_LIVE_WINDOW_MS,
-        limit,
-    ) {
+
+    // T-2109: cv_index fast path — substrate primitives 2 + 9 cross-reference.
+    // When the cv_index records `(agent-presence, agent_id) → latest_offset`
+    // for every advertiser (default since T-2107 wired cv_key=$agent_id
+    // into listener-heartbeat.sh), resolve idle agents in O(N_agents)
+    // single-offset reads instead of walking the whole topic. Empty cv_index
+    // (cold start, no producers wired) falls back to the walk path.
+    let cv_entries = crate::cv_index::current_values("agent-presence");
+    let outcome = if !cv_entries.is_empty() {
+        bus.find_idle_agents_from_hint(
+            role.as_deref(),
+            &capabilities,
+            DEFAULT_LIVE_WINDOW_MS,
+            limit,
+            &cv_entries,
+        )
+    } else {
+        bus.find_idle_agents(
+            role.as_deref(),
+            &capabilities,
+            DEFAULT_LIVE_WINDOW_MS,
+            limit,
+        )
+    };
+
+    match outcome {
         Ok(idle) => {
             let entries: Vec<Value> = idle
                 .into_iter()

@@ -192,9 +192,15 @@ Both are MCP-callable from agent contexts; the latter is the cheap
 - **#1 CLAIM** (`channel.claim`, T-2019 / T-2042) — exclusive ownership
   of `(topic, offset)`. Independent from cv_index.
 - **#2 DISPATCH** (`agent.find_idle`, T-2020 / T-2045) — derived idle
-  roster: `LIVE(agent-presence) ∖ DISTINCT(claimed_by)`. **Consumes**
-  the same `agent-presence` topic that #9 indexes — future optimization
-  candidate (find_idle could read cv_index directly).
+  roster: `LIVE(agent-presence) ∖ DISTINCT(claimed_by)`. **Consumes** the
+  same `agent-presence` topic that #9 indexes. **T-2109 closure:**
+  `handle_agent_find_idle` now reads `cv_index().current_values("agent-presence")`
+  and, when non-empty, drives discovery through `Bus::find_idle_agents_from_hint`
+  — `O(N_agents)` single-offset reads instead of `O(N_heartbeats)` walk.
+  Empty cv_index (cold start, or no producers wired post-T-2107) falls
+  back to the walk path, so the substrate stays correct across hub
+  restarts. Producers that opt out via `--no-cv-key` are invisible to the
+  fast path (documented trade-off — opt-out is for tests / migration).
 - **#5 RESILIENCE** (offline queue, T-2018 / T-2051) — durable FIFO
   for blip absorption. cv-tagged posts get the same queue+replay path;
   T-2049 dedupe ensures cv_index doesn't double-record on replay.
@@ -208,4 +214,5 @@ Both are MCP-callable from agent contexts; the latter is the cheap
 - Inception — `docs/reports/T-2089-broadcast-with-replay-inception.md`
 - Test coverage — `crates/termlink-hub/src/cv_index.rs` (8 unit tests),
   `crates/termlink-hub/src/channel.rs` subscribe-with-cv tests (6) +
-  cv_keys handler tests (4)
+  cv_keys handler tests (4), `crates/termlink-bus/src/lib.rs`
+  `envelope_at` + `find_idle_agents_from_hint` tests (13 — T-2109)

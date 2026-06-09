@@ -234,6 +234,29 @@ impl Bus {
         self.meta.oldest_offset(topic)
     }
 
+    /// Read the single envelope at `offset` on `topic`. Returns `None` if
+    /// the offset was swept by retention or never existed. Returns
+    /// `BusError::UnknownTopic` if the topic was never registered.
+    ///
+    /// T-2109: substrate primitive #2 (DISPATCH) consumes this for the
+    /// cv_index fast path — given a `(cv_key, latest_offset)` pair from
+    /// substrate primitive #9 (BROADCAST-WITH-REPLAY), the caller reads
+    /// the envelope to extract metadata.role / metadata.capabilities /
+    /// ts_unix_ms without walking the whole topic.
+    pub fn envelope_at(&self, topic: &str, offset: Offset) -> Result<Option<Envelope>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let mut iter = self.subscribe(topic, offset)?;
+        match iter.next() {
+            None => Ok(None),
+            Some(Err(e)) => Err(e),
+            Some(Ok((found_offset, env))) if found_offset == offset => Ok(Some(env)),
+            // Requested offset was swept; iterator landed on a later record.
+            Some(Ok(_)) => Ok(None),
+        }
+    }
+
     /// Persist a subscriber's cursor. Use this after consuming records so
     /// a crash restart resumes where the subscriber left off.
     pub fn advance_cursor(
@@ -482,6 +505,105 @@ impl Bus {
         filtered.retain(|a| !claimers_set.contains(a.agent_id.as_str()));
 
         // Sort freshest first, then apply limit.
+        filtered.sort_by(|a, b| b.last_heartbeat_ms.cmp(&a.last_heartbeat_ms));
+        if let Some(n) = limit {
+            filtered.truncate(n as usize);
+        }
+        Ok(filtered)
+    }
+
+    /// Hint-driven companion to [`find_idle_agents`]: instead of walking the
+    /// `agent-presence` topic from offset 0, accept a pre-computed
+    /// `[(agent_id, presence_offset)]` list and resolve each agent by a
+    /// single-offset read via [`envelope_at`]. Same filter / sort / limit /
+    /// claimer-anti-join semantics as the walk path.
+    ///
+    /// T-2109: substrate primitive #2 (DISPATCH) consumes this with the
+    /// hub's cv_index (substrate primitive #9, T-2103) as the hint source.
+    /// When the cv_index records `(agent-presence, agent_id) → latest_offset`
+    /// for every advertising agent (default since T-2107 wired
+    /// `cv_key=$agent_id` into `listener-heartbeat.sh`), discovery cost
+    /// drops from O(N_heartbeats) to O(N_agents).
+    ///
+    /// **Trade-off.** Entries whose envelope has been swept by retention
+    /// are silently skipped (cv_index may carry a stale offset). Producers
+    /// that opted out of cv_key tagging are invisible to this path —
+    /// callers should fall back to [`find_idle_agents`] when their hint
+    /// source is empty (cold start, no producers wired).
+    ///
+    /// Returns an empty vec when the `agent-presence` topic doesn't exist;
+    /// never errors on a missing topic.
+    pub fn find_idle_agents_from_hint(
+        &self,
+        role_filter: Option<&str>,
+        capability_filter: &[String],
+        live_window_ms: i64,
+        limit: Option<u32>,
+        hint: &[(String, Offset)],
+    ) -> Result<Vec<IdleAgent>> {
+        const PRESENCE_TOPIC: &str = "agent-presence";
+        let now_ms = now_unix_ms();
+        let cutoff_ms = now_ms - live_window_ms.max(0);
+
+        if !self.meta.topic_exists(PRESENCE_TOPIC)? {
+            return Ok(Vec::new());
+        }
+
+        // Resolve each hint entry via single-offset read. Swept offsets are
+        // skipped, never panic. Dedup by agent_id keeping the freshest
+        // ts_unix_ms in case the hint carries duplicates.
+        let mut latest: HashMap<String, IdleAgent> = HashMap::with_capacity(hint.len());
+        for (agent_id, offset) in hint {
+            let env = match self.envelope_at(PRESENCE_TOPIC, *offset)? {
+                Some(e) => e,
+                None => continue,
+            };
+            let role = env.metadata.get("role").cloned();
+            let capabilities: Vec<String> = env
+                .metadata
+                .get("capabilities")
+                .map(|s| {
+                    s.split(',')
+                        .map(|c| c.trim().to_string())
+                        .filter(|c| !c.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let entry = IdleAgent {
+                agent_id: agent_id.clone(),
+                last_heartbeat_ms: env.ts_unix_ms,
+                role,
+                capabilities,
+            };
+            match latest.get(agent_id) {
+                Some(prev) if prev.last_heartbeat_ms >= entry.last_heartbeat_ms => {}
+                _ => {
+                    latest.insert(agent_id.clone(), entry);
+                }
+            }
+        }
+
+        // Same filter chain as find_idle_agents.
+        let mut filtered: Vec<IdleAgent> = latest
+            .into_values()
+            .filter(|a| a.last_heartbeat_ms > cutoff_ms)
+            .filter(|a| match role_filter {
+                None => true,
+                Some(r) => a.role.as_deref() == Some(r),
+            })
+            .filter(|a| {
+                capability_filter
+                    .iter()
+                    .all(|req| a.capabilities.iter().any(|c| c == req))
+            })
+            .collect();
+
+        // Anti-join against active claimers (across ALL topics).
+        let claimers = self.meta.distinct_active_claimers(now_ms)?;
+        let claimers_set: std::collections::HashSet<&str> =
+            claimers.iter().map(String::as_str).collect();
+        filtered.retain(|a| !claimers_set.contains(a.agent_id.as_str()));
+
         filtered.sort_by(|a, b| b.last_heartbeat_ms.cmp(&a.last_heartbeat_ms));
         if let Some(n) = limit {
             filtered.truncate(n as usize);
@@ -1560,5 +1682,261 @@ mod tests {
         assert!(r.ack);
         assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
         assert_eq!(bus.get_cursor("worker-B", "work").unwrap(), Some(1));
+    }
+
+    // T-2109: find_idle_agents_from_hint — cv_index-driven fast path.
+    // Same shape contract as find_idle_agents but driven by a caller-supplied
+    // [(agent_id, presence_offset)] list. Tests mirror the walk-path tests
+    // above to prove behavior is identical at the boundary.
+
+    #[tokio::test]
+    async fn find_idle_from_hint_missing_topic_returns_empty() {
+        let (_dir, bus) = tmp_bus();
+        let hint: Vec<(String, Offset)> = vec![("agent-a".to_string(), 0)];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        assert!(idle.is_empty(), "missing topic must return empty");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_resolves_offsets_to_envelopes() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 1_000, Some("claude-code"), None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-b", now - 5_000, Some("claude-code"), None))
+            .await
+            .unwrap();
+        // cv_index would record agent-a → 0, agent-b → 1. Simulate that.
+        let hint = vec![("agent-a".to_string(), 0u64), ("agent-b".to_string(), 1u64)];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 2);
+        // Sorted freshest-first — must match walk-path behavior.
+        assert_eq!(idle[0].agent_id, "agent-a");
+        assert_eq!(idle[1].agent_id, "agent-b");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_skips_swept_offsets() {
+        // cv_index can carry an offset whose envelope has been swept by
+        // retention. The fast path must skip such entries cleanly, not panic
+        // and not error.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 1_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-b", now - 2_000, None, None))
+            .await
+            .unwrap();
+        // Trim records < 1 — sweeps offset 0 (agent-a's heartbeat).
+        bus.trim_topic("agent-presence", Some(1)).unwrap();
+
+        // Hint still references the swept offset 0 — fast path skips it.
+        let hint = vec![("agent-a".to_string(), 0u64), ("agent-b".to_string(), 1u64)];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 1, "swept offset must be skipped");
+        assert_eq!(idle[0].agent_id, "agent-b");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_applies_role_filter() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("claude-1", now - 100, Some("claude-code"), None),
+        )
+        .await
+        .unwrap();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("worker-1", now - 100, Some("test-worker"), None),
+        )
+        .await
+        .unwrap();
+        let hint = vec![("claude-1".to_string(), 0u64), ("worker-1".to_string(), 1u64)];
+        let idle = bus
+            .find_idle_agents_from_hint(Some("claude-code"), &[], 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "claude-1");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_applies_capability_filter() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("alpha", now - 100, None, Some("rust,deploy,review")),
+        )
+        .await
+        .unwrap();
+        bus.post(
+            "agent-presence",
+            &heartbeat_env("beta", now - 100, None, Some("rust,review")),
+        )
+        .await
+        .unwrap();
+        let hint = vec![("alpha".to_string(), 0u64), ("beta".to_string(), 1u64)];
+        let req = vec!["rust".to_string(), "deploy".to_string()];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &req, 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 1, "only agents matching all caps remain");
+        assert_eq!(idle[0].agent_id, "alpha");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_excludes_active_claimers() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        bus.create_topic("work-queue", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("worker-busy", now - 500, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("worker-free", now - 500, None, None))
+            .await
+            .unwrap();
+        bus.post("work-queue", &env("work-queue", b"task-1")).await.unwrap();
+        bus.claim_offset("work-queue", 0, "worker-busy", 60_000)
+            .unwrap();
+
+        let hint = vec![("worker-busy".to_string(), 0u64), ("worker-free".to_string(), 1u64)];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "worker-free");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_filters_stale_outside_live_window() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("fresh", now - 1_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("stale", now - 120_000, None, None))
+            .await
+            .unwrap();
+        let hint = vec![("fresh".to_string(), 0u64), ("stale".to_string(), 1u64)];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 1);
+        assert_eq!(idle[0].agent_id, "fresh");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_limit_truncates_after_sort() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("a", now - 3_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("b", now - 1_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("c", now - 2_000, None, None))
+            .await
+            .unwrap();
+        let hint = vec![
+            ("a".to_string(), 0u64),
+            ("b".to_string(), 1u64),
+            ("c".to_string(), 2u64),
+        ];
+        let idle = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, Some(2), &hint)
+            .unwrap();
+        assert_eq!(idle.len(), 2);
+        // Freshest first: b (now-1000), c (now-2000)
+        assert_eq!(idle[0].agent_id, "b");
+        assert_eq!(idle[1].agent_id, "c");
+    }
+
+    // T-2109: Bus::envelope_at — single-offset read primitive for substrate
+    // primitive #2 (DISPATCH) cv_index fast path.
+
+    #[tokio::test]
+    async fn envelope_at_returns_envelope_when_offset_present() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+        bus.post("t", &env("t", b"m1")).await.unwrap();
+        bus.post("t", &env("t", b"m2")).await.unwrap();
+
+        let got = bus.envelope_at("t", 1).unwrap();
+        assert!(got.is_some(), "expected envelope at offset 1");
+        assert_eq!(got.unwrap().payload, b"m1");
+
+        let got0 = bus.envelope_at("t", 0).unwrap();
+        assert_eq!(got0.unwrap().payload, b"m0");
+        let got2 = bus.envelope_at("t", 2).unwrap();
+        assert_eq!(got2.unwrap().payload, b"m2");
+    }
+
+    #[tokio::test]
+    async fn envelope_at_returns_none_when_offset_swept() {
+        // Trim records 0..3 (keeping 3,4). Reading swept offset 1 returns
+        // None — subscribe(t,1) lands on record at offset 3, which is NOT
+        // the requested offset.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0u32..5 {
+            bus.post("t", &env("t", &i.to_le_bytes())).await.unwrap();
+        }
+        let trimmed = bus.trim_topic("t", Some(3)).unwrap();
+        assert_eq!(trimmed, 3);
+
+        // Requested offset 1 was swept; envelope_at returns None.
+        let got = bus.envelope_at("t", 1).unwrap();
+        assert!(got.is_none(), "expected None for swept offset");
+
+        // Live offsets still resolve.
+        let got3 = bus.envelope_at("t", 3).unwrap();
+        assert!(got3.is_some());
+    }
+
+    #[tokio::test]
+    async fn envelope_at_returns_none_when_offset_beyond_tail() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+
+        let got = bus.envelope_at("t", 99).unwrap();
+        assert!(got.is_none(), "expected None for offset past tail");
+    }
+
+    #[tokio::test]
+    async fn envelope_at_returns_unknown_topic_when_topic_missing() {
+        let (_dir, bus) = tmp_bus();
+        let err = bus.envelope_at("nonexistent", 0).unwrap_err();
+        assert!(
+            matches!(err, BusError::UnknownTopic(t) if t == "nonexistent"),
+            "expected UnknownTopic"
+        );
+    }
+
+    #[tokio::test]
+    async fn envelope_at_empty_topic_returns_none() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let got = bus.envelope_at("t", 0).unwrap();
+        assert!(got.is_none(), "expected None on empty topic");
     }
 }
