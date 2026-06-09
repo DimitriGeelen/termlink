@@ -660,6 +660,16 @@ pub(crate) async fn handle_channel_subscribe_with(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    // T-2027/T-2089 slice 2: optional broadcast-with-replay current-value
+    // surface. When `include_current_value=true`, the response gains a
+    // `current_values: [{cv_key, offset, msg}, ...]` array carrying the
+    // hub-side cv_index snapshot for this topic. Backward compatible —
+    // when false/absent, the response shape is byte-identical to pre-slice-2.
+    let include_current_value = params
+        .get("include_current_value")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
     let iter = if timeout_ms > 0 {
         match bus
             .subscribe_blocking(
@@ -747,11 +757,54 @@ pub(crate) async fn handle_channel_subscribe_with(
         return ErrorResponse::internal_error(id, &msg).into();
     }
     let next_cursor = last_offset.map(|o| o + 1).unwrap_or(cursor);
-    Response::success(
-        id,
-        json!({"messages": messages, "next_cursor": next_cursor}),
-    )
-    .into()
+
+    // T-2027/T-2089 slice 2 — assemble the current-value prefix from the
+    // cv_index. Each entry is a single O(1) seek-and-read via
+    // `bus.subscribe(topic, offset).next()`. Total cost: O(K) where K is
+    // the topic's distinct cv_keys. Stale entries (offset references an
+    // envelope past retention horizon) are silently skipped — slice 2
+    // does not lazy-reconcile. Wrapped in block_in_place per the T-2013
+    // invariant (synchronous bus iter walks must not pin tokio workers).
+    let current_values_json: Option<Vec<Value>> = if include_current_value {
+        let cv_entries = crate::cv_index::current_values(&topic);
+        let bus_for_cv = bus;
+        let topic_for_cv = topic.clone();
+        let cvs = tokio::task::block_in_place(move || {
+            let mut out: Vec<Value> = Vec::with_capacity(cv_entries.len());
+            for (cv_key, offset) in cv_entries {
+                let iter = match bus_for_cv.subscribe(&topic_for_cv, offset) {
+                    Ok(i) => i,
+                    Err(_) => continue, // topic vanished mid-call; skip
+                };
+                let mut iter = iter;
+                match iter.next() {
+                    Some(Ok((env_offset, env))) if env_offset == offset => {
+                        out.push(json!({
+                            "cv_key": cv_key,
+                            "offset": offset,
+                            "msg": envelope_to_json(offset, &env),
+                        }));
+                    }
+                    // Stale index entry (offset past retention or moved):
+                    // skip silently. Future slice could repair the index
+                    // here, but slice 2 prefers a clean read path.
+                    _ => continue,
+                }
+            }
+            out
+        });
+        Some(cvs)
+    } else {
+        None
+    };
+
+    let mut body = json!({"messages": messages, "next_cursor": next_cursor});
+    if let Some(cvs) = current_values_json {
+        body.as_object_mut()
+            .expect("subscribe response body is an object")
+            .insert("current_values".to_string(), Value::Array(cvs));
+    }
+    Response::success(id, body).into()
 }
 
 /// `channel.receipts(topic)` → `{topic, receipts: [{sender_id, up_to, ts_unix_ms}, ...]}`.
@@ -2752,5 +2805,171 @@ mod tests {
 
         // Oversized id is filtered out → both posts append normally.
         assert_ne!(r1["offset"], r2["offset"]);
+    }
+
+    // ─── T-2104: substrate primitive 9 slice 2 — channel.subscribe ───
+    // ─── include_current_value tests. Each test uses a unique topic ───
+    // ─── name to avoid cv_index global-state cross-test interference. ─
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_omit_include_current_value_omits_field() {
+        // T-2104 back-compat — subscribe without the new param returns no
+        // `current_values` key (pre-slice-2 response shape unchanged).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:omit", Retention::Forever).unwrap();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "cv:omit", "cursor": 0}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert!(v.get("current_values").is_none(), "field must be absent when param omitted");
+        assert!(v.get("messages").is_some());
+        assert!(v.get("next_cursor").is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_include_current_value_false_omits_field() {
+        // T-2104 — explicit false also omits the field (vs empty array).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:false", Retention::Forever).unwrap();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "cv:false", "cursor": 0, "include_current_value": false}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert!(v.get("current_values").is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_include_current_value_true_empty_returns_empty_array() {
+        // T-2104 — true on a topic with no cv-tagged posts → present-but-empty.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:empty-true", Retention::Forever).unwrap();
+        let key = signing_key();
+        // Post without cv_key — shouldn't populate the index.
+        let p = post_params(&key, "cv:empty-true", "n", b"x", 1_000);
+        let _ = handle_channel_post_with(&bus, json!(1), &p).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "cv:empty-true", "cursor": 0, "include_current_value": true}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let cvs = v["current_values"].as_array().expect("current_values present");
+        assert!(cvs.is_empty(), "no cv_key posts → empty current_values");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_include_current_value_true_one_key() {
+        // T-2104 — one cv-tagged post → one current_values entry pointing
+        // at the right offset and carrying the envelope inline.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:one-key", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params_with_meta(
+            &key, "cv:one-key", "presence", b"alive", 2_000,
+            Some(json!({"cv_key": "agent-alpha"})),
+        );
+        let post = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let offset = post["offset"].as_u64().unwrap();
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(2),
+            &json!({"topic": "cv:one-key", "cursor": 99, "include_current_value": true}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let cvs = v["current_values"].as_array().expect("current_values present");
+        assert_eq!(cvs.len(), 1);
+        assert_eq!(cvs[0]["cv_key"].as_str(), Some("agent-alpha"));
+        assert_eq!(cvs[0]["offset"].as_u64(), Some(offset));
+        // Envelope inline + signal that envelope_to_json wrapped it.
+        let msg = &cvs[0]["msg"];
+        assert!(msg.is_object(), "msg should be the JSON-encoded envelope");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(msg["payload_b64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(&bytes, b"alive");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_include_current_value_multi_key() {
+        // T-2104 — distinct cv_keys → distinct entries.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:multi", Retention::Forever).unwrap();
+        let key = signing_key();
+
+        let p_a = post_params_with_meta(
+            &key, "cv:multi", "p", b"a", 3_001,
+            Some(json!({"cv_key": "alice"})),
+        );
+        let p_b = post_params_with_meta(
+            &key, "cv:multi", "p", b"b", 3_002,
+            Some(json!({"cv_key": "bob"})),
+        );
+        let _ = handle_channel_post_with(&bus, json!(1), &p_a).await;
+        let _ = handle_channel_post_with(&bus, json!(2), &p_b).await;
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(3),
+            &json!({"topic": "cv:multi", "cursor": 0, "include_current_value": true}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let cvs = v["current_values"].as_array().expect("current_values present");
+        assert_eq!(cvs.len(), 2);
+        let keys: std::collections::HashSet<String> = cvs
+            .iter()
+            .map(|e| e["cv_key"].as_str().unwrap().to_string())
+            .collect();
+        assert!(keys.contains("alice"));
+        assert!(keys.contains("bob"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_include_current_value_returns_latest_after_update() {
+        // T-2104 — last-write-wins. Two posts with cv_key=alice; the
+        // second wins and the cv entry points at offset 1 (the second).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cv:latest", Retention::Forever).unwrap();
+        let key = signing_key();
+
+        let p1 = post_params_with_meta(
+            &key, "cv:latest", "p", b"v1", 4_001,
+            Some(json!({"cv_key": "alice"})),
+        );
+        let p2 = post_params_with_meta(
+            &key, "cv:latest", "p", b"v2", 4_002,
+            Some(json!({"cv_key": "alice"})),
+        );
+        let post1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p1).await);
+        let post2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p2).await);
+        let off1 = post1["offset"].as_u64().unwrap();
+        let off2 = post2["offset"].as_u64().unwrap();
+        assert!(off2 > off1);
+
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(3),
+            &json!({"topic": "cv:latest", "cursor": 0, "include_current_value": true}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        let cvs = v["current_values"].as_array().expect("current_values present");
+        assert_eq!(cvs.len(), 1, "single distinct cv_key → single entry");
+        assert_eq!(cvs[0]["cv_key"].as_str(), Some("alice"));
+        assert_eq!(cvs[0]["offset"].as_u64(), Some(off2), "latest offset wins");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(cvs[0]["msg"]["payload_b64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(&bytes, b"v2", "payload reflects the latest post");
     }
 }
