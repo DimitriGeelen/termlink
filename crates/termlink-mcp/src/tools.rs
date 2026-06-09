@@ -238,6 +238,33 @@ fn fleet_history_rfc3339_to_unix(ts: &str) -> i64 {
     days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
 }
 
+// T-2071: predicate identifying whether a hub needs operator attention.
+// Used by `termlink_fleet_governor_status` (only_pressured=true) to filter
+// the per-hub array down to the actionable subset. Mirror of the CLI
+// `governor_hub_is_pressured` in remote.rs. Pure helper — no IO, no state.
+//
+// A hub is pressured if ANY of:
+//   - the probe failed (RPC timeout / connection error) → unreachable
+//   - `connections_active >= connections_max` → at capacity right now
+//   - `capacity_hits_total > 0` → has refused connections in its lifetime
+//   - `rate_hits_total > 0`     → has refused RPCs in its lifetime
+//
+// The `r` arg is the per-hub probe outcome: Ok(governor_value) on success,
+// Err(error_string) on RPC failure / timeout / older-hub-missing-field.
+pub(crate) fn mcp_governor_hub_is_pressured(
+    r: &Result<serde_json::Value, String>,
+) -> bool {
+    let v = match r {
+        Ok(v) => v,
+        Err(_) => return true, // unreachable counts as pressured
+    };
+    let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+    let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+    let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    cap_hits > 0 || rate_hits > 0 || active >= max
+}
+
 // T-2069: per-hub aggregate over governor.log entries within window.
 // Matches CLI `GovernorHubAgg` (remote.rs) field-for-field.
 #[derive(Default, Debug)]
@@ -9425,6 +9452,14 @@ pub struct FleetGovernorStatusParams {
     /// Timeout per hub in seconds (default: 8). Each hub is bounded
     /// independently so a wedged hub cannot hang the fleet view.
     pub timeout: Option<u64>,
+    /// T-2071: when true, filter `hubs[]` down to the subset needing
+    /// operator attention (unreachable, at capacity, or any
+    /// capacity_hits / rate_hits in the lifetime). Default false. The
+    /// `summary` block still carries the full fleet totals AND gains
+    /// `shown` + `only_pressured` fields so the caller sees both
+    /// "N/M pressured" and the raw counts at once. Mirror of the CLI
+    /// `--only-pressured` flag (T-2070).
+    pub only_pressured: Option<bool>,
 }
 
 // T-1661: Fleet verify params (TLS pin drift check)
@@ -14701,6 +14736,8 @@ impl TermLinkTools {
                     "total_dedupe_hits_total":     0,
                     "hubs_at_capacity":            0,
                     "hubs_rate_limited":           0,
+                    "shown":                       0,
+                    "only_pressured":              p.only_pressured.unwrap_or(false),
                 },
                 "message": "No hubs configured in ~/.termlink/hubs.toml",
             }))
@@ -14709,16 +14746,15 @@ impl TermLinkTools {
 
         let timeout_secs = p.timeout.unwrap_or(8);
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
+        let only_pressured = p.only_pressured.unwrap_or(false);
 
-        let mut hubs_json: Vec<serde_json::Value> = Vec::with_capacity(profiles.len());
-        let mut reachable: usize = 0;
-        let mut sum_connections_active: i64 = 0;
-        let mut sum_capacity_hits: i64 = 0;
-        let mut sum_rate_hits: i64 = 0;
-        let mut sum_dedupe_entries: i64 = 0;
-        let mut sum_dedupe_hits: i64 = 0;
-        let mut hubs_at_capacity: usize = 0;
-        let mut hubs_rate_limited: usize = 0;
+        // T-2071: collect per-hub outcomes first so the predicate can filter
+        // both the rendered hubs[] AND the per-hub counters consistently.
+        // Counters (totals + hubs_at_capacity / hubs_rate_limited) are
+        // computed from the full set regardless of filter — the operator/
+        // agent always sees "N/M pressured" against the original totals.
+        let mut probe_results: Vec<(String, std::result::Result<serde_json::Value, String>)> =
+            Vec::with_capacity(profiles.len());
 
         for (name, address, secret_file, secret_hex) in &profiles {
             let probe = async {
@@ -14751,44 +14787,60 @@ impl TermLinkTools {
                 }
             };
 
-            match tokio::time::timeout(timeout_dur, probe).await {
-                Ok(Ok(v)) => {
-                    reachable += 1;
-                    let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
-                    let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
-                    let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
-                    let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
-                    let ded_entries = v.get("dedupe_entries_active").and_then(|x| x.as_i64()).unwrap_or(0);
-                    let ded_hits = v.get("dedupe_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+            let result: std::result::Result<serde_json::Value, String> =
+                match tokio::time::timeout(timeout_dur, probe).await {
+                    Ok(Ok(v)) => Ok(v),
+                    Ok(Err(e)) => Err(e.to_string()),
+                    Err(_) => Err(format!("timed out after {}s", timeout_secs)),
+                };
+            probe_results.push((name.clone(), result));
+        }
 
-                    sum_connections_active += active;
-                    sum_capacity_hits += cap_hits;
-                    sum_rate_hits += rate_hits;
-                    sum_dedupe_entries += ded_entries;
-                    sum_dedupe_hits += ded_hits;
-                    if active >= max { hubs_at_capacity += 1; }
-                    if rate_hits > 0 { hubs_rate_limited += 1; }
+        // Counters from the FULL set — never filter-narrowed.
+        let mut reachable: usize = 0;
+        let mut sum_connections_active: i64 = 0;
+        let mut sum_capacity_hits: i64 = 0;
+        let mut sum_rate_hits: i64 = 0;
+        let mut sum_dedupe_entries: i64 = 0;
+        let mut sum_dedupe_hits: i64 = 0;
+        let mut hubs_at_capacity: usize = 0;
+        let mut hubs_rate_limited: usize = 0;
+        for (_, r) in &probe_results {
+            if let Ok(v) = r {
+                reachable += 1;
+                let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+                let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                let ded_entries = v.get("dedupe_entries_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                let ded_hits = v.get("dedupe_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                sum_connections_active += active;
+                sum_capacity_hits += cap_hits;
+                sum_rate_hits += rate_hits;
+                sum_dedupe_entries += ded_entries;
+                sum_dedupe_hits += ded_hits;
+                if active >= max { hubs_at_capacity += 1; }
+                if rate_hits > 0 { hubs_rate_limited += 1; }
+            }
+        }
 
-                    hubs_json.push(serde_json::json!({
-                        "hub": name,
-                        "ok": true,
-                        "governor": v,
-                    }));
-                }
-                Ok(Err(e)) => {
-                    hubs_json.push(serde_json::json!({
-                        "hub": name,
-                        "ok": false,
-                        "error": e.to_string(),
-                    }));
-                }
-                Err(_) => {
-                    hubs_json.push(serde_json::json!({
-                        "hub": name,
-                        "ok": false,
-                        "error": format!("timed out after {}s", timeout_secs),
-                    }));
-                }
+        // hubs[] respects the filter.
+        let mut hubs_json: Vec<serde_json::Value> = Vec::with_capacity(probe_results.len());
+        for (name, r) in &probe_results {
+            if only_pressured && !mcp_governor_hub_is_pressured(r) {
+                continue;
+            }
+            match r {
+                Ok(v) => hubs_json.push(serde_json::json!({
+                    "hub": name,
+                    "ok": true,
+                    "governor": v,
+                })),
+                Err(e) => hubs_json.push(serde_json::json!({
+                    "hub": name,
+                    "ok": false,
+                    "error": e,
+                })),
             }
         }
 
@@ -14805,6 +14857,8 @@ impl TermLinkTools {
                 "total_dedupe_hits_total":     sum_dedupe_hits,
                 "hubs_at_capacity":            hubs_at_capacity,
                 "hubs_rate_limited":           hubs_rate_limited,
+                "shown":                       hubs_json.len(),
+                "only_pressured":              only_pressured,
             }
         }))
         .unwrap_or_else(json_err)
@@ -41489,6 +41543,48 @@ YW\tJ
         assert_eq!(ring.cap_hits, 7);
         assert_eq!(ring.rate_hits, 11);
         assert_eq!(ring.dedupe_hits, 0);
+    }
+
+    // T-2071: mcp_governor_hub_is_pressured — pure predicate for
+    // `termlink_fleet_governor_status` (only_pressured=true). Mirror of the
+    // CLI tests in remote.rs but typed for the MCP Result<Value, String>
+    // shape.
+
+    #[test]
+    fn mcp_governor_hub_is_pressured_returns_true_when_cap_hits_nonzero() {
+        let ok: std::result::Result<serde_json::Value, String> =
+            Ok(serde_json::json!({
+                "connections_active": 3, "connections_max": 256,
+                "capacity_hits_total": 5, "rate_hits_total": 0,
+            }));
+        assert!(mcp_governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn mcp_governor_hub_is_pressured_returns_true_when_at_capacity() {
+        let ok: std::result::Result<serde_json::Value, String> =
+            Ok(serde_json::json!({
+                "connections_active": 256, "connections_max": 256,
+                "capacity_hits_total": 0, "rate_hits_total": 0,
+            }));
+        assert!(mcp_governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn mcp_governor_hub_is_pressured_returns_true_when_unreachable() {
+        let err: std::result::Result<serde_json::Value, String> =
+            Err("timed out after 8s".to_string());
+        assert!(mcp_governor_hub_is_pressured(&err));
+    }
+
+    #[test]
+    fn mcp_governor_hub_is_pressured_returns_false_for_clean_hub() {
+        let ok: std::result::Result<serde_json::Value, String> =
+            Ok(serde_json::json!({
+                "connections_active": 3, "connections_max": 256,
+                "capacity_hits_total": 0, "rate_hits_total": 0,
+            }));
+        assert!(!mcp_governor_hub_is_pressured(&ok));
     }
 
     #[test]
