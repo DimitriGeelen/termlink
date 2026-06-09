@@ -1866,7 +1866,10 @@ pub(crate) async fn cmd_channel_dm(
             // conversation view the agent typically wants).
             cmd_channel_subscribe(
                 &topic, 0, true, false, 100, false, None, None, true, false, true, true,
-                None, None, None, false, None, None, false, hub, json_output,
+                None, None, None, false, None, None, false,
+                false, // T-2105: include_current_value (default off — this is the
+                       // dm-resume path; the cv_index snapshot is opt-in only)
+                hub, json_output,
                 false, false, // T-2047: from_latest, then_live (default off)
             )
             .await
@@ -7924,6 +7927,12 @@ pub(crate) async fn cmd_channel_subscribe(
     tail: Option<usize>,
     senders_filter: Option<&str>,
     show_forwards: bool,
+    // T-2105: broadcast-with-replay snapshot. When true, the FIRST hub call
+    // requests `include_current_value=true` and the response's `current_values`
+    // array (per-cv_key latest envelope, populated by hub-side cv_index per
+    // T-2103/T-2104) is rendered BEFORE the regular `messages` stream. Snapshot
+    // is one-shot — subsequent paginated fetches don't re-request.
+    include_current_value: bool,
     hub: Option<&str>,
     json_output: bool,
     // T-2047: broadcast-with-replay flags. from_latest=true overrides
@@ -8013,6 +8022,10 @@ pub(crate) async fn cmd_channel_subscribe(
     // batches so a parent that arrived in batch N can be hidden when its
     // redaction arrives in batch N+1.
     let mut redacted: std::collections::HashSet<u64> = Default::default();
+    // T-2105: one-shot snapshot — request cv_index only on the first hub call.
+    // Set false after the first response is rendered so paginated fetches
+    // don't re-ship the same snapshot.
+    let mut request_cv_snapshot = include_current_value;
     loop {
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
         if let Some(cid) = conversation_id
@@ -8027,11 +8040,37 @@ pub(crate) async fn cmd_channel_subscribe(
             // (consistent with conversation_id filter shape — both are strings).
             obj.insert("in_reply_to".to_string(), json!(off.to_string()));
         }
+        if request_cv_snapshot
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("include_current_value".to_string(), json!(true));
+        }
         let resp = rpc_call_authed(&sock, method::CHANNEL_SUBSCRIBE, params)
             .await
             .context("Hub rpc_call failed")?;
         let result = client::unwrap_result(resp)
             .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        // T-2105: render cv_index snapshot BEFORE the messages stream.
+        // Snapshot is one-shot — clear the flag so paginated calls don't re-fetch.
+        if request_cv_snapshot {
+            let cv_array = result["current_values"].as_array().cloned().unwrap_or_default();
+            if json_output {
+                // JSON-lines header: one line carrying the entire snapshot.
+                // Distinguishable from regular envelopes by the "current_values" key.
+                println!("{}", json!({"current_values": cv_array}));
+            } else {
+                for cv in &cv_array {
+                    let cv_key = cv.get("cv_key").and_then(|v| v.as_str()).unwrap_or("?");
+                    let off = cv.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let m = cv.get("msg").cloned().unwrap_or(json!({}));
+                    let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+                    let msg_type = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("?");
+                    let payload = decode_payload_lossy(&m);
+                    println!("[cv:{cv_key}@{off}] {sender} {msg_type}: {payload}");
+                }
+            }
+            request_cv_snapshot = false;
+        }
         let msgs = result["messages"].as_array().cloned().unwrap_or_default();
         // T-1330: ALWAYS collect redaction targets up-front so the reaction
         // aggregator (and other passes) can skip envelopes whose redaction

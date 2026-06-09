@@ -2527,6 +2527,17 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         show_forwards: bool,
 
+        /// Broadcast-with-replay: request the hub's cv-indexed current values
+        /// (T-2027 / T-2089 / T-2104) as a one-shot snapshot BEFORE the
+        /// regular `messages` stream. The hub maintains per-topic
+        /// `(cv_key -> latest_offset)` over posts carrying `metadata.cv_key`
+        /// (substrate primitive 9). Late-joiners get O(K) "current value
+        /// per cv_key" delivery instead of replaying the whole log.
+        /// Snapshot is sent on the FIRST request only; subsequent paginated
+        /// fetches do not re-request. T-2105.
+        #[arg(long)]
+        include_current_value: bool,
+
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,

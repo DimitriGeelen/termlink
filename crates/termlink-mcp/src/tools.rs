@@ -8018,6 +8018,14 @@ pub struct ChannelSubscribeParams {
     /// one-shot — equivalent to CLI `--from-latest --once`; streaming
     /// (`--then-live`) is not exposed because the MCP caller loops externally.
     pub from_latest: Option<bool>,
+    /// T-2105 broadcast-with-replay (substrate primitive 9): when true, the
+    /// hub's response includes a `current_values: [{cv_key, offset, msg}, ...]`
+    /// array carrying the latest envelope per `metadata.cv_key` recorded by
+    /// the hub-side cv_index (T-2103/T-2104). Late-joiners get O(K) "current
+    /// value per cv_key" delivery without replaying the whole log. Default
+    /// false — preserves backward compatibility. Mirror of CLI flag
+    /// `--include-current-value`.
+    pub include_current_value: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -28325,11 +28333,19 @@ impl TermLinkTools {
         } else {
             (p.cursor.unwrap_or(0), p.limit.unwrap_or(100))
         };
-        let params = serde_json::json!({
+        let mut params = serde_json::json!({
             "topic": p.topic,
             "cursor": cursor,
             "limit": limit,
         });
+        // T-2105: broadcast-with-replay snapshot — pass through to hub when
+        // the caller opted in. The hub-side cv_index (T-2103/T-2104) populates
+        // `current_values` in the response only when this flag is true.
+        if p.include_current_value.unwrap_or(false)
+            && let Some(obj) = params.as_object_mut()
+        {
+            obj.insert("include_current_value".to_string(), serde_json::json!(true));
+        }
         match termlink_session::client::rpc_call(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
