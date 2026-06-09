@@ -24,7 +24,9 @@ Read-only, no auth, no state mutation — pure discovery.
 | `/peers --all` | Include STALE + OFFLINE entries |
 | `/peers --filter-role claude-code` | Only show peers with `metadata.role == claude-code` |
 | `/peers --filter-listen-topic agent-chat-arc` | Only show peers subscribed to a specific topic |
-| `/peers --json` | Machine-readable envelope (passes through to wrapper) |
+| `/peers --filter-capability rust` | Only show peers advertising `rust` capability (T-2091; exact csv-token match — "deploy" does NOT match "auto-deploy") |
+| `/peers --with-capabilities` | Text mode: add CAPABILITIES column (T-2091; off by default to preserve row width) |
+| `/peers --json` | Machine-readable envelope (passes through to wrapper); always includes `.capabilities` per listener (T-2091) |
 | `/peers --hubs-file PATH` | Custom hubs.toml |
 | `/peers --limit N` | Envelopes scanned per hub (default 200, max 1000) |
 
@@ -70,6 +72,8 @@ Examples:
 | `/peers --all` | `bash scripts/agent-listeners-fleet.sh --include-offline` |
 | `/peers --json` | `bash scripts/agent-listeners-fleet.sh --json` |
 | `/peers --filter-role claude-code` | passthrough |
+| `/peers --filter-capability rust` | passthrough (T-2091) |
+| `/peers --with-capabilities` | passthrough (T-2091) |
 | `/peers --all --json` | `bash scripts/agent-listeners-fleet.sh --include-offline --json` |
 
 ## Step 3: Run the wrapper
@@ -152,9 +156,18 @@ envelope).
 
 - T-1837 (`scripts/agent-listeners-fleet.sh` — the underlying multi-hub merge)
 - T-1839 (`termlink_agent_listeners_fleet` — MCP wrapper of the same script)
-- T-1841 (`/be-reachable` — the SELF-advertise counterpart)
+- T-1841 (`/be-reachable` — the SELF-advertise counterpart;
+  pass `--capabilities` here to advertise what you can do, so peers running
+  `/peers --filter-capability X` can find you)
 - T-1431 (`/agent-handoff` — the verb /peers feeds into)
 - T-1857 (`/broadcast-chat` — the fan-to-all alternative when no one's LIVE)
 - T-1851 (`/recent-chat` — read-side context before write)
+- T-2091 (the capabilities surface on the read side — JSON always carries
+  `.capabilities`, text opts in via `--with-capabilities`, filter via
+  `--filter-capability CAP`)
+- T-2078 (`termlink agent find-idle [--capability C]` — sibling find-idle
+  verb that filters idle workers; pair: use `/peers --filter-capability`
+  to see "who can do X and is around (idle or busy)", `find-idle` for
+  "who can do X and is idle right now")
 - PL-187 (verb-stack pattern rung 6: ephemeral session skills)
 - G-060 (channel topics are hub-local — why the fleet-merge in T-1837 is necessary)

@@ -13,6 +13,10 @@ should be reachable across reboots.
 **Invocation:**
 - `/be-reachable` — start with auto-derived defaults
 - `/be-reachable start [--agent-id NAME] [...]` — start with overrides
+- `/be-reachable start --capabilities "cap1,cap2"` — advertise capabilities so
+  peers running `/peers --filter-capability X` (T-2091) or `termlink agent
+  find-idle --capability X` (T-2078) can find you. csv-token form, no
+  whitespace required inside the quotes.
 - `/be-reachable status` — report current state
 - `/be-reachable stop` — terminate the background heartbeat
 
