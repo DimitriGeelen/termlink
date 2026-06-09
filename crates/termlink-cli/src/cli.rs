@@ -5911,6 +5911,18 @@ pub(crate) enum AgentAction {
         /// be unparseable). Mirror of T-2041 `claims-summary --watch`.
         #[arg(long, value_name = "SECS", conflicts_with = "json")]
         watch: Option<u64>,
+
+        /// T-2079 (substrate primitive #2 observability arc Slice 2,
+        /// mirror of T-2072 claims `--notify`): operator-pluggable shell
+        /// command fired fire-and-forget on per-agent idle-state change
+        /// events (`new` / `removed`). Skipped on baseline tick. Hanging
+        /// scripts do NOT block the loop; command-not-found does NOT kill
+        /// the watch. Per-event env vars: `TERMLINK_IDLE_AGENT_ID`,
+        /// `TERMLINK_IDLE_CHANGE_KIND`, `TERMLINK_IDLE_TS`, `TERMLINK_IDLE_ROLE`,
+        /// `TERMLINK_IDLE_CAPABILITIES`, `TERMLINK_IDLE_LAST_HEARTBEAT_MS`.
+        /// Requires `--watch` (events only exist across ticks).
+        #[arg(long, value_name = "CMD", requires = "watch")]
+        notify: Option<String>,
     },
 }
 

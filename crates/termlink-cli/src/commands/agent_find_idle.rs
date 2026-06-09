@@ -150,12 +150,76 @@ fn render_idle_table(snap: &std::collections::BTreeMap<String, IdleSnapshot>, no
     }
 }
 
+/// T-2079: compute the per-event env vec for a given idle change event.
+/// Extracted so unit tests can verify the env-var contract without
+/// spawning subprocesses. Mirror of T-2072's `snapshot_env_triplet`.
+///
+/// Returns `Vec<(name, value)>` in stable order so tests can assert
+/// positionally. All values are stringified; absent fields render as
+/// `"-"` (role) or `""` (capabilities) — matching the `--watch` table
+/// rendering's "no value" convention.
+pub(crate) fn fire_idle_notify_env(
+    ev: &IdleChangeEvent,
+    now_secs: u64,
+) -> Vec<(&'static str, String)> {
+    let kind = match ev.kind {
+        IdleChangeKind::New => "new",
+        IdleChangeKind::Removed => "removed",
+    };
+    let role = ev.snap.role.clone().unwrap_or_else(|| "-".to_string());
+    let caps = ev.snap.capabilities.join(",");
+    vec![
+        ("TERMLINK_IDLE_AGENT_ID", ev.agent_id.clone()),
+        ("TERMLINK_IDLE_CHANGE_KIND", kind.to_string()),
+        ("TERMLINK_IDLE_TS", crate::manifest::secs_to_rfc3339(now_secs)),
+        ("TERMLINK_IDLE_ROLE", role),
+        ("TERMLINK_IDLE_CAPABILITIES", caps),
+        (
+            "TERMLINK_IDLE_LAST_HEARTBEAT_MS",
+            ev.snap.last_heartbeat_ms.to_string(),
+        ),
+    ]
+}
+
+/// T-2079: spawn the operator-provided notify command for one event,
+/// fire-and-forget. Mirror of T-2072's `fire_claim_notify`. Drops the
+/// child handle immediately — we don't wait, we don't reap, we don't
+/// care if it succeeds. Hanging scripts cannot wedge the watch loop;
+/// command-not-found returns an error that we log to stderr but do not
+/// propagate.
+fn fire_idle_notify(cmd: &str, ev: &IdleChangeEvent, now_secs: u64) {
+    let env = fire_idle_notify_env(ev, now_secs);
+    let mut command = tokio::process::Command::new("sh");
+    command.arg("-c").arg(cmd);
+    for (k, v) in env {
+        command.env(k, v);
+    }
+    // stdin from /dev/null so the child can't hold a TTY open + accidentally
+    // steal input from the watch user.
+    command.stdin(std::process::Stdio::null());
+    // Detach: kill_on_drop=false so the child outlives us — operator's
+    // pager/Slack-post takes as long as it takes.
+    command.kill_on_drop(false);
+    match command.spawn() {
+        Ok(child) => {
+            // Drop the handle: fire-and-forget. The OS will reap the
+            // child when it exits (we don't await).
+            drop(child);
+        }
+        Err(e) => {
+            // command-not-found / fork failure / etc — log but continue.
+            eprintln!("# notify spawn failed: {e}");
+        }
+    }
+}
+
 pub(crate) async fn cmd_agent_find_idle(
     role: Option<&str>,
     capabilities: &[String],
     limit: Option<u32>,
     json_output: bool,
     watch: Option<u64>,
+    notify: Option<&str>,
 ) -> Result<()> {
     let sock_path = termlink_hub::server::hub_socket_path();
     if !sock_path.exists() {
@@ -237,17 +301,19 @@ pub(crate) async fn cmd_agent_find_idle(
                     current_state = None;
                 }
             }
-            // T-2078: Slice 2 hook anchor — diff against prior_state.
-            // No --notify / --log wired yet; the events are computed for
-            // future use. Only diff when BOTH prior_state and
+            // T-2078 + T-2079: diff against prior_state and dispatch
+            // --notify per event. Only diff when BOTH prior_state and
             // current_state are Some (skip baseline + skip fetch-fail
-            // ticks).
+            // ticks — otherwise we'd synthesize spurious `removed`
+            // events for every agent on a transient fetch failure).
             if let (Some(prev), Some(curr)) = (prior_state.as_ref(), current_state.as_ref()) {
-                let _events = diff_idle_sets(prev, curr);
-                // Slice 2 (--notify) and Slice 3 (--log) will iterate
-                // _events here. Kept silent for now so Slice 1 ships
-                // without changing the visible UX beyond the watch
-                // re-render.
+                let events = diff_idle_sets(prev, curr);
+                for ev in &events {
+                    if let Some(cmd) = notify {
+                        fire_idle_notify(cmd, ev, now_secs);
+                    }
+                    // Slice 3 (--log) will append here too.
+                }
             }
             if current_state.is_some() {
                 prior_state = current_state;
@@ -362,6 +428,59 @@ mod tests {
         let rm_count = events.iter().filter(|e| e.kind == IdleChangeKind::Removed).count();
         assert_eq!(new_count, 1);
         assert_eq!(rm_count, 1);
+    }
+
+    // ---- T-2079 --notify env-vec helper tests ---------------------------
+
+    #[test]
+    fn find_idle_notify_env_for_new_event() {
+        let ev = IdleChangeEvent {
+            agent_id: "claude-alpha".to_string(),
+            kind: IdleChangeKind::New,
+            snap: snap(1_700_000_000_000, Some("claude-code"), &["rust", "docs"]),
+        };
+        // 1_700_000_000 unix = 2023-11-14T22:13:20Z; we just check the
+        // shape + kind, not the exact timestamp string (manifest renderer
+        // is tested elsewhere).
+        let env = fire_idle_notify_env(&ev, 1_700_000_000);
+        let by_key: std::collections::HashMap<&str, String> =
+            env.iter().map(|(k, v)| (*k, v.clone())).collect();
+        assert_eq!(by_key["TERMLINK_IDLE_AGENT_ID"], "claude-alpha");
+        assert_eq!(by_key["TERMLINK_IDLE_CHANGE_KIND"], "new");
+        assert_eq!(by_key["TERMLINK_IDLE_ROLE"], "claude-code");
+        assert_eq!(by_key["TERMLINK_IDLE_CAPABILITIES"], "rust,docs");
+        assert_eq!(
+            by_key["TERMLINK_IDLE_LAST_HEARTBEAT_MS"],
+            "1700000000000"
+        );
+        // RFC3339 should be present and look like one (Z suffix).
+        assert!(
+            by_key["TERMLINK_IDLE_TS"].ends_with('Z'),
+            "TS should be RFC3339 UTC: {}",
+            by_key["TERMLINK_IDLE_TS"]
+        );
+    }
+
+    #[test]
+    fn find_idle_notify_env_for_removed_event() {
+        // Removed event with no role / no capabilities → "-" / "".
+        let ev = IdleChangeEvent {
+            agent_id: "beta".to_string(),
+            kind: IdleChangeKind::Removed,
+            snap: snap(1_000, None, &[]),
+        };
+        let env = fire_idle_notify_env(&ev, 1_700_000_000);
+        let by_key: std::collections::HashMap<&str, String> =
+            env.iter().map(|(k, v)| (*k, v.clone())).collect();
+        assert_eq!(by_key["TERMLINK_IDLE_CHANGE_KIND"], "removed");
+        assert_eq!(
+            by_key["TERMLINK_IDLE_ROLE"], "-",
+            "missing role renders as '-'"
+        );
+        assert_eq!(
+            by_key["TERMLINK_IDLE_CAPABILITIES"], "",
+            "empty caps render as empty string"
+        );
     }
 
     #[test]
