@@ -60,6 +60,16 @@ Optional:
   --topic TOPIC        Heartbeat topic (default: agent-presence)
   --interval N         Heartbeat period in seconds (default: 30; min: 5)
   --hub addr           Target hub (default: local)
+  --no-cv-key          Opt OUT of broadcast-with-replay tagging (T-2107).
+                       Default behavior: every heartbeat carries
+                       metadata.cv_key=<agent_id> so the hub's cv_index
+                       (substrate primitive 9, T-2027/T-2103) records the
+                       latest heartbeat offset per agent. Late-joiners can
+                       then call channel.subscribe agent-presence
+                       --include-current-value or channel cv-keys
+                       agent-presence to get the agent roster in O(N_agents)
+                       instead of O(N_heartbeats). Use --no-cv-key only when
+                       deliberately opting out for testing/migration.
   --once               Post exactly one heartbeat and exit 0.
   --json               On --once, emit the channel-post JSON envelope on stdout.
                        On loop mode, emit one JSON line per heartbeat.
@@ -91,6 +101,11 @@ json=0
 # Free-form; convention emerges by use. Reads $TERMLINK_CAPABILITIES env
 # as default so /be-reachable can pass through without arg threading.
 capabilities="${TERMLINK_CAPABILITIES:-}"
+# T-2107: broadcast-with-replay (substrate primitive 9). Default ON —
+# every heartbeat carries metadata.cv_key=$agent_id so the hub's cv_index
+# (T-2103) records the latest heartbeat offset per agent. Discovery is
+# O(N_agents) instead of O(N_heartbeats). --no-cv-key opts out.
+no_cv_key=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -102,6 +117,7 @@ while [ $# -gt 0 ]; do
         --interval)      interval="${2:-}"; shift 2 ;;
         --hub)           hub="${2:-}"; shift 2 ;;
         --capabilities)  capabilities="${2:-}"; shift 2 ;;
+        --no-cv-key)     no_cv_key=1; shift ;;
         --once)          once=1; shift ;;
         --json)          json=1; shift ;;
         -h|--help)       usage; exit 0 ;;
@@ -149,6 +165,12 @@ post_one() {
     # T-2045: declare capabilities only when provided. Hub's find_idle
     # treats absent metadata.capabilities as the empty set (backward-compat).
     [ -n "$capabilities" ] && post_args+=(--metadata "capabilities=$capabilities")
+    # T-2107: broadcast-with-replay tagging. cv_key=$agent_id by default
+    # so the hub's cv_index records (agent-presence, $agent_id) -> latest
+    # offset. Late-joiners read it via channel.cv_keys or channel.subscribe
+    # --include-current-value for O(N_agents) discovery (vs walking the
+    # full heartbeat log). --no-cv-key opts out for tests/migration.
+    [ "$no_cv_key" -eq 0 ] && post_args+=(--metadata "cv_key=$agent_id")
     post_args+=(--json)
     "$TERMLINK" "${post_args[@]}" 2>&1
 }
