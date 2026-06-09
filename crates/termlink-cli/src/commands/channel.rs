@@ -9621,6 +9621,332 @@ fn append_claim_log_line(
     }
 }
 
+/// T-2074: default log path for `channel claims-summary --watch --log` and
+/// `channel claims-history`. Resolves `~/.termlink/claims.log`. Falls back
+/// to `./.termlink/claims.log` when `$HOME` is unset (rare; CI / docker
+/// minimal images) so the helper never panics — the caller is still free
+/// to override via `--log <PATH>`.
+pub(crate) fn claim_log_path() -> std::path::PathBuf {
+    match std::env::var_os("HOME") {
+        Some(home) => std::path::PathBuf::from(home).join(".termlink").join("claims.log"),
+        None => std::path::PathBuf::from(".termlink").join("claims.log"),
+    }
+}
+
+/// T-2074: per-topic aggregate counters for `claims-history`. Counts each
+/// change-event kind independently so the operator can see whether a topic
+/// is flapping (high `transitions`), churning (high `new`/`removed`), or
+/// merely transitioned once.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ClaimsHistoryAgg {
+    pub transitions: u64,
+    pub new_events: u64,
+    pub removed_events: u64,
+}
+
+/// T-2074: pure helper — parse NDJSON log text into `(entries,
+/// malformed_count)`. Each non-empty line that fails JSON parse OR lacks
+/// required fields is skipped and counted; the rest are returned in source
+/// order. Time-window filter (`cutoff_secs`) and topic-name filter applied
+/// during the walk.
+///
+/// `cutoff_secs` is "skip any entry whose ts is older than this Unix
+/// epoch seconds". Caller computes `now - since_days * 86400`. Topic
+/// filter `None` means "all topics".
+///
+/// Mirror of T-2068 `parse_governor_log` — same signature shape, same
+/// `(entries, malformed_count)` return so the test patterns transfer.
+pub(crate) fn parse_claims_log(
+    text: &str,
+    cutoff_secs: i64,
+    topic_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries = Vec::new();
+    let mut malformed = 0usize;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        // Required field check: ts + topic + kind. Lines missing any are
+        // malformed by definition of T-2073's schema.
+        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let topic = match v.get("topic").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if v.get("kind").and_then(|k| k.as_str()).is_none() {
+            malformed += 1;
+            continue;
+        }
+        // Topic filter.
+        if let Some(want) = topic_filter {
+            if topic != want {
+                continue;
+            }
+        }
+        // Time window. RFC3339 → epoch seconds via the same manual parser
+        // used by `cmd_fleet_history` / `parse_governor_log` — stdlib-only
+        // by deliberate convention across this crate (see `remote.rs`
+        // rfc3339_to_unix_secs). 0 on parse failure → entry classified
+        // as "older than cutoff" and skipped silently (not malformed).
+        let entry_secs = rfc3339_to_unix_secs_local(ts_str);
+        if entry_secs < cutoff_secs {
+            continue;
+        }
+        entries.push(v);
+    }
+    (entries, malformed)
+}
+
+/// T-2074: local copy of the stdlib RFC3339→epoch parser used elsewhere
+/// in the crate. Kept module-private; T-2068's mirror in remote.rs is
+/// private too, and duplicating ~30 lines is cheaper than introducing a
+/// cross-module dependency just for this. Returns 0 on any parse error
+/// (caller treats 0 as "very old").
+fn rfc3339_to_unix_secs_local(ts: &str) -> i64 {
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        parse_u(0, 4),
+        parse_u(5, 2),
+        parse_u(8, 2),
+        parse_u(11, 2),
+        parse_u(14, 2),
+        parse_u(17, 2),
+    ) else {
+        return 0;
+    };
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 {
+        y_shift / 400
+    } else {
+        (y_shift - 399) / 400
+    };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
+/// T-2074: pure helper — aggregate parsed entries into per-topic counters.
+/// `BTreeMap` keeps the iteration order stable for the human-format
+/// footer (alphabetical topics → reproducible test assertions).
+///
+/// Mirror of T-2068 `aggregate_governor_entries`. Different counter
+/// shape (transitions/new/removed instead of cap/rate/dedupe) but
+/// identical aggregation pattern.
+pub(crate) fn aggregate_claims_entries(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, ClaimsHistoryAgg> {
+    let mut out: std::collections::BTreeMap<String, ClaimsHistoryAgg> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        let topic = match e.get("topic").and_then(|t| t.as_str()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let kind = match e.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let agg = out.entry(topic).or_default();
+        match kind {
+            "transition" => agg.transitions += 1,
+            "new" => agg.new_events += 1,
+            "removed" => agg.removed_events += 1,
+            _ => {}
+        }
+    }
+    out
+}
+
+/// T-2074: render one parsed entry as a single human-readable line.
+/// Format chosen so the eye can scan a 50-line dump and pick out the
+/// kind/topic columns. Mirror of T-2068's `render_governor_history_line`.
+fn render_claim_history_line(e: &serde_json::Value) -> String {
+    let ts = e.get("ts").and_then(|t| t.as_str()).unwrap_or("-");
+    let topic = e.get("topic").and_then(|t| t.as_str()).unwrap_or("-");
+    let kind = e.get("kind").and_then(|t| t.as_str()).unwrap_or("-");
+    let old_stuck = match e.get("old_stuck") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::Bool(b)) => b.to_string(),
+        _ => "-".to_string(),
+    };
+    let new_stuck = match e.get("new_stuck") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::Bool(b)) => b.to_string(),
+        _ => "-".to_string(),
+    };
+    let active = match e.get("active_count") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::Number(n)) => n.to_string(),
+        _ => "-".to_string(),
+    };
+    let expired = match e.get("expired_count") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::Number(n)) => n.to_string(),
+        _ => "-".to_string(),
+    };
+    let age = match e.get("oldest_age_ms") {
+        Some(v) if v.is_null() => "-".to_string(),
+        Some(serde_json::Value::Number(n)) => format!("{}ms", n),
+        _ => "-".to_string(),
+    };
+    format!(
+        "{}  {}  {}  stuck={}→{}  active={} expired={} oldest_age={}",
+        ts, topic, kind, old_stuck, new_stuck, active, expired, age
+    )
+}
+
+/// T-2074: the `channel claims-history` command implementation.
+/// Read-only: walks the log file, applies filters, renders. Never auths
+/// or talks to a hub. Missing log file → operator hint pointing back at
+/// the writer (claims-summary --watch --log).
+pub(crate) async fn cmd_channel_claims_history(
+    since_days: u32,
+    topic: Option<&str>,
+    log_override: Option<&std::path::Path>,
+    json_out: bool,
+) -> Result<()> {
+    let since_days = since_days.clamp(1, 365);
+    let path: std::path::PathBuf = log_override
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(claim_log_path);
+    let path_str = path.display().to_string();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if json_out {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": true,
+                        "entries": [],
+                        "summary": {
+                            "total": 0,
+                            "per_topic": {},
+                            "since_days": since_days,
+                            "topic_filter": topic,
+                            "malformed_lines_skipped": 0,
+                            "log_path": path_str,
+                            "note": "log file does not exist yet",
+                        }
+                    })
+                );
+                return Ok(());
+            }
+            println!(
+                "(no log file at {} — write events first with `channel claims-summary --watch --log {}`)",
+                path_str, path_str
+            );
+            return Ok(());
+        }
+        Err(e) => anyhow::bail!("claims-history: read {:?} failed: {e}", path),
+    };
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+    let (entries, malformed) = parse_claims_log(&text, cutoff_secs, topic);
+    let agg = aggregate_claims_entries(&entries);
+    if json_out {
+        let per_topic: serde_json::Map<String, serde_json::Value> = agg
+            .iter()
+            .map(|(t, a)| {
+                (
+                    t.clone(),
+                    json!({
+                        "transitions": a.transitions,
+                        "new": a.new_events,
+                        "removed": a.removed_events,
+                    }),
+                )
+            })
+            .collect();
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "entries": entries,
+                "summary": {
+                    "total": entries.len(),
+                    "per_topic": per_topic,
+                    "since_days": since_days,
+                    "topic_filter": topic,
+                    "malformed_lines_skipped": malformed,
+                    "log_path": path_str,
+                }
+            })
+        );
+        return Ok(());
+    }
+    // Human render.
+    if entries.is_empty() {
+        let topic_clause = topic.map(|t| format!(" topic={:?}", t)).unwrap_or_default();
+        println!(
+            "(no entries in last {} day(s){} — log: {})",
+            since_days, topic_clause, path_str
+        );
+        if malformed > 0 {
+            println!("({} malformed line(s) skipped)", malformed);
+        }
+        return Ok(());
+    }
+    for e in &entries {
+        println!("{}", render_claim_history_line(e));
+    }
+    println!();
+    println!(
+        "Aggregate (since {} day(s), {} entries{}):",
+        since_days,
+        entries.len(),
+        if malformed > 0 {
+            format!(", {} malformed lines skipped", malformed)
+        } else {
+            String::new()
+        }
+    );
+    for (topic_name, a) in &agg {
+        println!(
+            "  {}  {} transition(s)  {} new  {} removed",
+            topic_name, a.transitions, a.new_events, a.removed_events
+        );
+    }
+    println!("(log: {})", path_str);
+    Ok(())
+}
+
 /// T-2072: collect a fleet-wide snapshot for the watch loop's diff path.
 /// Returns the same per-topic snapshot map the diff helper consumes. Returns
 /// an error if `channel.list` itself fails — per-topic fetch errors are
@@ -10012,6 +10338,89 @@ mod tests {
         assert!(v["oldest_age_ms"].is_null());
         assert_eq!(v["old_stuck"], false);
         assert_eq!(v["new_stuck"], true);
+    }
+
+    // ---- T-2074 claims-history pure-helper tests -----------------------
+
+    fn synth_log_line(ts: &str, topic: &str, kind: &str) -> String {
+        json!({
+            "ts": ts,
+            "topic": topic,
+            "kind": kind,
+            "hub": "unix:/tmp/h",
+            "old_stuck": false,
+            "new_stuck": true,
+            "active_count": 1,
+            "expired_count": 0,
+            "oldest_age_ms": 70_000,
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn claims_history_parse_skips_malformed_and_counts() {
+        let text = format!(
+            "{}\n{}\nnot-json garbage\n{}\n\n",
+            synth_log_line("2026-06-09T10:00:00Z", "a", "transition"),
+            synth_log_line("2026-06-09T10:00:05Z", "b", "new"),
+            synth_log_line("2026-06-09T10:00:10Z", "a", "removed"),
+        );
+        // Cutoff far in the past — all valid entries pass the time filter.
+        let (entries, malformed) = parse_claims_log(&text, 0, None);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(malformed, 1, "garbage line should be counted");
+    }
+
+    #[test]
+    fn claims_history_parse_applies_cutoff() {
+        let text = format!(
+            "{}\n{}\n",
+            synth_log_line("2026-01-01T00:00:00Z", "old", "transition"),
+            synth_log_line("2026-06-09T10:00:00Z", "new", "transition"),
+        );
+        // Cutoff = 2026-06-01T00:00:00Z (matching the field-by-field
+        // parser, this means anything before that epoch second is dropped).
+        let cutoff = rfc3339_to_unix_secs_local("2026-06-01T00:00:00Z");
+        let (entries, _) = parse_claims_log(&text, cutoff, None);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["topic"], "new");
+    }
+
+    #[test]
+    fn claims_history_parse_applies_topic_filter() {
+        let text = format!(
+            "{}\n{}\n{}\n",
+            synth_log_line("2026-06-09T10:00:00Z", "wanted", "transition"),
+            synth_log_line("2026-06-09T10:00:05Z", "other", "transition"),
+            synth_log_line("2026-06-09T10:00:10Z", "wanted", "new"),
+        );
+        let (entries, _) = parse_claims_log(&text, 0, Some("wanted"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(e["topic"], "wanted");
+        }
+    }
+
+    #[test]
+    fn claims_history_aggregate_counts_kinds() {
+        let text = format!(
+            "{}\n{}\n{}\n{}\n{}\n",
+            synth_log_line("2026-06-09T10:00:00Z", "a", "transition"),
+            synth_log_line("2026-06-09T10:00:05Z", "a", "transition"),
+            synth_log_line("2026-06-09T10:00:10Z", "a", "new"),
+            synth_log_line("2026-06-09T10:00:15Z", "b", "removed"),
+            synth_log_line("2026-06-09T10:00:20Z", "b", "transition"),
+        );
+        let (entries, _) = parse_claims_log(&text, 0, None);
+        let agg = aggregate_claims_entries(&entries);
+        let a = agg.get("a").expect("topic a present");
+        let b = agg.get("b").expect("topic b present");
+        assert_eq!(a.transitions, 2);
+        assert_eq!(a.new_events, 1);
+        assert_eq!(a.removed_events, 0);
+        assert_eq!(b.transitions, 1);
+        assert_eq!(b.new_events, 0);
+        assert_eq!(b.removed_events, 1);
     }
 
     #[test]

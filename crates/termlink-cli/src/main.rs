@@ -1625,6 +1625,15 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
+            ChannelAction::ClaimsHistory { since, topic, log, json } => {
+                commands::channel::cmd_channel_claims_history(
+                    since,
+                    topic.as_deref(),
+                    log.as_deref(),
+                    json,
+                )
+                .await
+            }
         },
         Command::Doctor { json, fix, strict, runtime_dir } => {
             if let Some(ref dir) = runtime_dir {

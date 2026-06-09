@@ -3357,6 +3357,29 @@ pub(crate) enum ChannelAction {
         #[arg(long, requires = "watch")]
         log: Option<std::path::PathBuf>,
     },
+
+    /// T-2074 (claim primitive observability arc — mirror of T-2068
+    /// `fleet governor-history`): read-only retrospective verb that
+    /// walks `~/.termlink/claims.log` (the audit trail written by
+    /// `claims-summary --watch --log <PATH>`), filters by window +
+    /// topic, renders one human-format line per matching entry, and
+    /// prints a per-topic aggregate footer. Answers "has this topic
+    /// been stuck repeatedly?" without needing the watch terminal
+    /// still attached. Pure read; no auth; no network.
+    ClaimsHistory {
+        /// Time window from now in days. Clamped to 1..=365. Default 7.
+        #[arg(long, default_value_t = 7)]
+        since: u32,
+        /// Filter to this exact topic name. Optional.
+        #[arg(long)]
+        topic: Option<String>,
+        /// Override the log file location. Default `~/.termlink/claims.log`.
+        #[arg(long)]
+        log: Option<std::path::PathBuf>,
+        /// Output as JSON envelope instead of human text.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Poll sub-actions (T-1355).
