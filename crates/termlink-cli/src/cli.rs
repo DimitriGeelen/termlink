@@ -2633,8 +2633,20 @@ pub(crate) enum ChannelAction {
         queue_path: Option<String>,
 
         /// Output as JSON
-        #[arg(long)]
+        #[arg(long, conflicts_with = "watch")]
         json: bool,
+
+        /// T-2083 (substrate primitive #5 RESILIENCE observability arc
+        /// Slice 1): continuously re-read the queue + re-render every N
+        /// seconds. Clamped to [1, 300] — sub-1s pointlessly hammers
+        /// SQLite for a state that changes at flush-task cadence (~5s).
+        /// Incompatible with `--json` (cleared-screen render would be
+        /// unparseable). Mirror of T-2078 `agent find-idle --watch` /
+        /// T-2041 `channel claims-summary --watch`. Emits per-event lines
+        /// on `drained ↔ pending` transitions; baseline tick prints
+        /// only the table.
+        #[arg(long, value_name = "SECS", conflicts_with = "json")]
+        watch: Option<u64>,
     },
     /// Quotable text snippet for citing a channel message in tasks/docs
     /// (T-1363). Walks the topic, finds the target offset, renders it with

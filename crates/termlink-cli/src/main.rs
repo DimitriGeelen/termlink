@@ -1528,8 +1528,16 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::QueueStatus { queue_path, json } => {
-                commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
+            ChannelAction::QueueStatus { queue_path, json, watch } => {
+                if let Some(secs) = watch {
+                    commands::channel::cmd_channel_queue_status_watch(
+                        queue_path.as_deref(),
+                        secs,
+                    )
+                    .await
+                } else {
+                    commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
+                }
             }
             ChannelAction::Claim {
                 topic,

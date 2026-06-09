@@ -8441,6 +8441,189 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
     Ok(())
 }
 
+// ───────────────────────────────────────────────────────────────────
+// T-2083: queue-status --watch — substrate primitive #5 RESILIENCE
+// observability arc Slice 1. Mirror of T-2078 (find-idle --watch) and
+// T-2041 (claims-summary --watch).
+// ───────────────────────────────────────────────────────────────────
+
+/// T-2083: a single observation of the offline-queue state. Captured
+/// per tick so the diff helper can detect drained↔pending transitions.
+/// Pending count is binary at the event layer: 0 == drained, >0 ==
+/// pending. The `oldest_ts_unix_ms` lets the renderer show oldest-age
+/// without re-reading the row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct QueueSnapshot {
+    pub pending: u64,
+    pub oldest_ts_unix_ms: Option<i64>,
+}
+
+/// T-2083: kind of queue-state change. Binary like find-idle's
+/// New/Removed — pending/drained is a state flip, not a continuous
+/// transition with intermediate states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum QueueChangeKind {
+    /// Queue went from non-empty to empty (catchup complete).
+    Drained,
+    /// Queue went from empty to non-empty (hub blip / disconnect /
+    /// new offline work).
+    Pending,
+}
+
+/// T-2083: one event emitted by `diff_queue_states` per state flip.
+/// Carries the before/after pending counts so a future `--notify`
+/// hook (Slice 2) can pass them as env vars.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct QueueChangeEvent {
+    pub kind: QueueChangeKind,
+    pub old_pending: u64,
+    pub new_pending: u64,
+    pub oldest_age_ms: Option<i64>,
+}
+
+/// T-2083: pure helper — compute the event(s) for a tick. Returns:
+/// - empty vec when `prev` is None (baseline tick; first observation)
+/// - empty vec when `prev.pending` and `curr.pending` are both 0
+///   (still drained, no change)
+/// - empty vec when `prev.pending > 0 && curr.pending > 0` (still
+///   pending; depth-change-within-pending is NOT a state flip)
+/// - one `Pending` event on `0 → >0` (drained → pending)
+/// - one `Drained` event on `>0 → 0` (pending → drained)
+///
+/// `now_ms` is passed in (not read via SystemTime::now) so tests are
+/// deterministic. Caller computes oldest_age_ms as
+/// `now_ms - curr.oldest_ts_unix_ms`.
+pub(crate) fn diff_queue_states(
+    prev: &Option<QueueSnapshot>,
+    curr: &QueueSnapshot,
+    now_ms: i64,
+) -> Vec<QueueChangeEvent> {
+    let Some(p) = prev else {
+        return Vec::new();
+    };
+    let oldest_age_ms = curr
+        .oldest_ts_unix_ms
+        .map(|ts| now_ms.saturating_sub(ts));
+    match (p.pending, curr.pending) {
+        (0, n) if n > 0 => vec![QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: n,
+            oldest_age_ms,
+        }],
+        (n, 0) if n > 0 => vec![QueueChangeEvent {
+            kind: QueueChangeKind::Drained,
+            old_pending: n,
+            new_pending: 0,
+            oldest_age_ms: None,
+        }],
+        _ => Vec::new(),
+    }
+}
+
+/// T-2083: pure helper — read one snapshot from the SQLite queue.
+/// Returns `QueueSnapshot { pending: 0, oldest_ts_unix_ms: None }`
+/// when the queue file doesn't exist (same convention as
+/// `cmd_channel_queue_status` non-watch path). Errors on open/read
+/// failure for a present file — caller decides whether to fatal or
+/// log+continue.
+pub(crate) fn read_queue_snapshot(path: &std::path::Path) -> Result<QueueSnapshot> {
+    use termlink_session::offline_queue::OfflineQueue;
+    if !path.exists() {
+        return Ok(QueueSnapshot {
+            pending: 0,
+            oldest_ts_unix_ms: None,
+        });
+    }
+    let queue = OfflineQueue::open(path)
+        .with_context(|| format!("Failed to open offline queue at {}", path.display()))?;
+    let pending = queue.size().context("Failed to read queue size")?;
+    let oldest_ts_unix_ms = queue
+        .peek_oldest()
+        .context("Failed to peek queue head")?
+        .map(|(_id, post)| post.ts_unix_ms);
+    Ok(QueueSnapshot {
+        pending,
+        oldest_ts_unix_ms,
+    })
+}
+
+/// T-2083: render one human-readable line per change event. Format
+/// chosen to be scannable in a steady stream.
+fn render_queue_event_line(ev: &QueueChangeEvent) -> String {
+    let kind = match ev.kind {
+        QueueChangeKind::Drained => "drained",
+        QueueChangeKind::Pending => "pending",
+    };
+    let age = ev
+        .oldest_age_ms
+        .map(|ms| format!("{}ms", ms))
+        .unwrap_or_else(|| "-".to_string());
+    format!(
+        "  ▶ {}  pending={}→{}  oldest_age={}",
+        kind, ev.old_pending, ev.new_pending, age
+    )
+}
+
+/// T-2083: the `channel queue-status --watch <secs>` command. Loops
+/// every `interval` (clamped [1, 300]), clears the screen, re-reads
+/// the SQLite snapshot, and renders the table + any state-flip
+/// event lines. SIGINT exits cleanly. Errors during a tick print a
+/// one-line stderr warning and the loop continues — the watch must
+/// NEVER crash because one SQLite read failed.
+pub(crate) async fn cmd_channel_queue_status_watch(
+    queue_path: Option<&str>,
+    interval: u64,
+) -> Result<()> {
+    use termlink_session::offline_queue::default_queue_path;
+
+    let interval = interval.clamp(1, 300);
+    let path = match queue_path {
+        Some(p) => PathBuf::from(p),
+        None => default_queue_path(),
+    };
+
+    let mut prev: Option<QueueSnapshot> = None;
+    loop {
+        // Clear screen + home cursor (ANSI). Matches the convention used
+        // by claims-summary --watch and find-idle --watch.
+        print!("\x1b[2J\x1b[H");
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        match read_queue_snapshot(&path) {
+            Ok(curr) => {
+                let oldest_age_display = curr
+                    .oldest_ts_unix_ms
+                    .map(|ts| format!("{}ms", now_ms.saturating_sub(ts)))
+                    .unwrap_or_else(|| "-".to_string());
+                println!(
+                    "queue={}  pending={}  oldest_age={}  (watch interval={}s)",
+                    path.display(),
+                    curr.pending,
+                    oldest_age_display,
+                    interval
+                );
+                let events = diff_queue_states(&prev, &curr, now_ms);
+                for ev in &events {
+                    println!("{}", render_queue_event_line(ev));
+                }
+                if events.is_empty() && prev.is_some() {
+                    println!("  (no change since last tick)");
+                }
+                prev = Some(curr);
+            }
+            Err(e) => {
+                eprintln!("# queue-status watch: read error: {e} (will retry)");
+            }
+        }
+        use std::io::Write;
+        let _ = std::io::stdout().flush();
+        tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+    }
+}
+
 pub(crate) async fn cmd_channel_list(
     prefix: Option<&str>,
     stats: bool,
@@ -16398,5 +16581,78 @@ mod tests {
         ];
         let stats = summarize_chat_arc_stats(&msgs, now, 3_600_000);
         assert_eq!(stats.total, 1, "only in-window post counts");
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // T-2083: queue_status_watch — substrate primitive #5 obs arc Slice 1.
+    // Test the pure helper `diff_queue_states` directly. IO path is not
+    // tested here (would need a fake SQLite); covered in Slice 2's live
+    // smoke once --notify ships.
+    // ───────────────────────────────────────────────────────────────────
+
+    fn qsnap(pending: u64, oldest_ts_unix_ms: Option<i64>) -> QueueSnapshot {
+        QueueSnapshot {
+            pending,
+            oldest_ts_unix_ms,
+        }
+    }
+
+    #[test]
+    fn queue_status_watch_baseline_tick_emits_no_event() {
+        // No prev observation ⇒ first tick. Even if curr has pending,
+        // we don't emit "Pending" because it's not a TRANSITION yet.
+        let curr = qsnap(5, Some(1_700_000_000_000));
+        let events = diff_queue_states(&None, &curr, 1_700_000_001_000);
+        assert!(events.is_empty(), "baseline must emit no event");
+    }
+
+    #[test]
+    fn queue_status_watch_drained_to_pending_emits_pending() {
+        let prev = Some(qsnap(0, None));
+        let curr = qsnap(3, Some(1_700_000_000_000));
+        let events = diff_queue_states(&prev, &curr, 1_700_000_001_500);
+        assert_eq!(events.len(), 1);
+        let ev = &events[0];
+        assert_eq!(ev.kind, QueueChangeKind::Pending);
+        assert_eq!(ev.old_pending, 0);
+        assert_eq!(ev.new_pending, 3);
+        assert_eq!(
+            ev.oldest_age_ms,
+            Some(1_500),
+            "now_ms - oldest_ts == 1500ms"
+        );
+    }
+
+    #[test]
+    fn queue_status_watch_pending_to_drained_emits_drained() {
+        let prev = Some(qsnap(7, Some(1_700_000_000_000)));
+        let curr = qsnap(0, None);
+        let events = diff_queue_states(&prev, &curr, 1_700_000_005_000);
+        assert_eq!(events.len(), 1);
+        let ev = &events[0];
+        assert_eq!(ev.kind, QueueChangeKind::Drained);
+        assert_eq!(ev.old_pending, 7);
+        assert_eq!(ev.new_pending, 0);
+        // Drained → oldest_age_ms is None (queue has no head to age).
+        assert!(ev.oldest_age_ms.is_none());
+    }
+
+    #[test]
+    fn queue_status_watch_pending_to_pending_no_event() {
+        // Depth changed while still pending. NOT a state flip. The watch
+        // still re-renders the header each tick (we'd see pending=5→9)
+        // but the EVENT stream stays quiet because no transition happened.
+        let prev = Some(qsnap(5, Some(1_700_000_000_000)));
+        let curr = qsnap(9, Some(1_700_000_000_500));
+        let events = diff_queue_states(&prev, &curr, 1_700_000_010_000);
+        assert!(events.is_empty(), "pending→pending must emit no event");
+    }
+
+    #[test]
+    fn queue_status_watch_drained_to_drained_no_event() {
+        let prev = Some(qsnap(0, None));
+        let curr = qsnap(0, None);
+        let events = diff_queue_states(&prev, &curr, 1_700_000_010_000);
+        assert!(events.is_empty(), "drained→drained must emit no event");
     }
 }
