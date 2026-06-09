@@ -812,6 +812,18 @@ pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
         g("dedupe_hits_total"),
         g("dedupe_ttl_ms"),
     );
+    // T-2110: cv_index telemetry — substrate primitive #9 health surfaced
+    // alongside dedupe so operators see broadcast-with-replay saturation
+    // (overflow_total > 0 means a topic has hit its per-topic cap and new
+    // cv_keys are being silently un-indexed).
+    let _ = writeln!(
+        out,
+        "  cv_index: {} entries across {} topic(s) (overflow_total={}, cap_per_topic={})",
+        g("cv_index_entries_active"),
+        g("cv_index_topics_active"),
+        g("cv_index_overflow_total"),
+        g("cv_index_cap_per_topic"),
+    );
     out
 }
 
@@ -1596,6 +1608,7 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     // T-2060 / T-2028 Track C: pin the human-mode `Governor:` section.
+    // T-2110: extended to cover the new cv_index telemetry line.
     #[test]
     fn render_governor_section_formats_known_value() {
         let v = serde_json::json!({
@@ -1608,28 +1621,37 @@ mod tests {
             "dedupe_entries_active": 12,
             "dedupe_hits_total": 4,
             "dedupe_ttl_ms": 300000,
+            // T-2110: cv_index telemetry.
+            "cv_index_entries_active": 5,
+            "cv_index_topics_active": 2,
+            "cv_index_overflow_total": 0,
+            "cv_index_cap_per_topic": 1000,
         });
         let s = render_governor_section(&v);
         assert!(s.starts_with("Governor:\n"));
         assert!(s.contains("Connections: 3/256 (capacity_hits_total=0)"));
         assert!(s.contains("Rate buckets: 5 active (rate_hits_total=0, max_rate_per_sec=1000)"));
         assert!(s.contains("Dedupe: 12 entries (hits_total=4, ttl_ms=300000)"));
+        assert!(s.contains("cv_index: 5 entries across 2 topic(s) (overflow_total=0, cap_per_topic=1000)"));
     }
 
     // T-2060: missing fields render as "n/a" rather than panic — the
     // renderer must remain best-effort against an older hub. Smoke-confirmed
     // on the live .107 hub which is pre-T-2049 (no dedupe_* fields).
+    // T-2110: extended to cover the new cv_index line (also "n/a" against
+    // a hub that pre-dates the field).
     #[test]
     fn render_governor_section_tolerates_missing_fields() {
         let v = serde_json::json!({
             "connections_active": 1,
             "connections_max": 256
-            // capacity_hits_total + rate_* + dedupe_* all absent
+            // capacity_hits_total + rate_* + dedupe_* + cv_index_* all absent
         });
         let s = render_governor_section(&v);
         assert!(s.contains("Connections: 1/256 (capacity_hits_total=n/a)"));
         assert!(s.contains("Rate buckets: n/a active"));
         assert!(s.contains("Dedupe: n/a entries (hits_total=n/a, ttl_ms=n/a)"));
+        assert!(s.contains("cv_index: n/a entries across n/a topic(s) (overflow_total=n/a, cap_per_topic=n/a)"));
     }
 
     fn tmpdir(label: &str) -> std::path::PathBuf {

@@ -111,16 +111,31 @@ pub fn current_values(topic: &str) -> Vec<(String, u64)> {
 }
 
 /// Total entries across all topics (sum of inner-map sizes). Surfaced
-/// via `hub.governor_status` in slice 2 for memory observability.
+/// via `hub.governor_status` (T-2110) for memory observability.
 pub fn entries_active() -> u64 {
     cv_index().entries_active()
 }
 
+/// Distinct topics carrying at least one cv entry. Surfaced via
+/// `hub.governor_status` (T-2110) for memory observability — alongside
+/// `entries_active` answers "is one topic dominating?" without a
+/// per-topic walk.
+pub fn topics_active() -> u64 {
+    cv_index().topics_active()
+}
+
 /// Monotonic counter of cap-overflow refusals across all topics. Surfaced
-/// via `hub.governor_status` in slice 2 to alert operators that some
+/// via `hub.governor_status` (T-2110) to alert operators that some
 /// topic has saturated its 1000-key cap (likely poster misuse).
 pub fn overflow_total() -> u64 {
     cv_index().overflow_total()
+}
+
+/// Configured per-topic cap. Surfaced via `hub.governor_status` (T-2110)
+/// so operators see both the live count + the cap denominator without
+/// reading `TERMLINK_CV_INDEX_CAP_PER_TOPIC` from the hub's env.
+pub fn cap_per_topic() -> usize {
+    cv_index().cap_per_topic()
 }
 
 fn parse_env_usize(name: &str, default: usize) -> usize {

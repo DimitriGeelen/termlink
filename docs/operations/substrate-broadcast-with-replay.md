@@ -204,9 +204,21 @@ Both are MCP-callable from agent contexts; the latter is the cheap
 - **#5 RESILIENCE** (offline queue, T-2018 / T-2051) — durable FIFO
   for blip absorption. cv-tagged posts get the same queue+replay path;
   T-2049 dedupe ensures cv_index doesn't double-record on replay.
-- **#10 BACKPRESSURE** (`hub.governor_status`, T-2048) — surfaces
-  cv-related counters could be added in a future expansion (currently
-  exposes only dedupe/cap/rate-limit counters).
+- **#10 BACKPRESSURE** (`hub.governor_status`, T-2048) — **T-2110 closure:**
+  the response now carries four cv-related counters alongside the existing
+  connection/rate/dedupe telemetry: `cv_index_entries_active`,
+  `cv_index_topics_active`, `cv_index_overflow_total`,
+  `cv_index_cap_per_topic`. Operators can now monitor substrate primitive
+  #9 health from the standard hub-health view — a non-zero
+  `cv_index_overflow_total` means some topic has saturated its per-topic
+  cap and new cv-tagged posts are being silently un-indexed (the
+  prime symptom of a producer mis-emitting cv_key, e.g. using a timestamp
+  instead of a stable id). Surfaced in `termlink hub status --governor`,
+  `termlink fleet governor-status` (per-hub + rollup), and the
+  `termlink_hub_governor_status` / `termlink_fleet_governor_status` MCP
+  tools. The `--only-pressured` predicate intentionally does NOT yet fire
+  on `cv_index_overflow_total > 0` — that needs an operator-tuned
+  pressure threshold and is deferred.
 
 ## References
 

@@ -823,7 +823,11 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 ///   "max_rate_per_sec": u32,
 ///   "dedupe_entries_active": u64,
 ///   "dedupe_hits_total": u64,
-///   "dedupe_ttl_ms": i64
+///   "dedupe_ttl_ms": i64,
+///   "cv_index_entries_active": u64,
+///   "cv_index_topics_active": u64,
+///   "cv_index_overflow_total": u64,
+///   "cv_index_cap_per_topic": u64
 /// }
 /// ```
 ///
@@ -834,7 +838,11 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 /// see how many client_msg_id duplicates the hub has absorbed (a
 /// non-zero `dedupe_hits_total` is the smoking gun for "hub blip
 /// caused a spoke retry — and we caught it before subscribers saw
-/// the double-apply").
+/// the double-apply"). T-2110 adds the four `cv_index_*` fields so
+/// operators can monitor substrate primitive #9 health — a non-zero
+/// `cv_index_overflow_total` means some topic has saturated its
+/// per-topic cap and new cv-tagged posts are being silently
+/// un-indexed (likely poster mis-emitting cv_key).
 fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
@@ -851,6 +859,10 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "dedupe_entries_active": dedupe.entries_active(),
             "dedupe_hits_total": dedupe.hits_total(),
             "dedupe_ttl_ms": dedupe.ttl_ms(),
+            "cv_index_entries_active": crate::cv_index::entries_active(),
+            "cv_index_topics_active": crate::cv_index::topics_active(),
+            "cv_index_overflow_total": crate::cv_index::overflow_total(),
+            "cv_index_cap_per_topic": crate::cv_index::cap_per_topic() as u64,
         }),
     )
     .into()
@@ -3523,5 +3535,60 @@ mod tests {
             }
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // T-2110: hub.governor_status exposes the substrate primitive #9
+    // (cv_index) counters alongside the existing T-2048 connection/rate
+    // and T-2049 dedupe counters. Pure additive — verify all 13 expected
+    // fields are present.
+    #[tokio::test]
+    async fn governor_status_exposes_cv_index_counters() {
+        let resp = handle_hub_governor_status(json!("gs-cv"));
+        let RpcResponse::Success(r) = resp else {
+            panic!("expected success, got {resp:?}");
+        };
+        // T-2048 fields (6).
+        for field in [
+            "connections_active",
+            "connections_max",
+            "capacity_hits_total",
+            "rate_buckets_active",
+            "rate_hits_total",
+            "max_rate_per_sec",
+        ] {
+            assert!(
+                r.result.get(field).is_some(),
+                "expected T-2048 field {field} in hub.governor_status response"
+            );
+        }
+        // T-2049 dedupe fields (3).
+        for field in ["dedupe_entries_active", "dedupe_hits_total", "dedupe_ttl_ms"] {
+            assert!(
+                r.result.get(field).is_some(),
+                "expected T-2049 field {field} in hub.governor_status response"
+            );
+        }
+        // T-2110 cv_index fields (4).
+        for field in [
+            "cv_index_entries_active",
+            "cv_index_topics_active",
+            "cv_index_overflow_total",
+            "cv_index_cap_per_topic",
+        ] {
+            assert!(
+                r.result.get(field).is_some(),
+                "expected T-2110 field {field} in hub.governor_status response"
+            );
+            // All cv_index fields must be u64-representable.
+            assert!(
+                r.result[field].as_u64().is_some(),
+                "expected T-2110 field {field} to be u64"
+            );
+        }
+        // cap_per_topic must be > 0 (clamped to >=1 in CvIndex::new).
+        assert!(
+            r.result["cv_index_cap_per_topic"].as_u64().unwrap() >= 1,
+            "cv_index_cap_per_topic must be >= 1 (CvIndex::new clamps to min 1)"
+        );
     }
 }

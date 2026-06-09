@@ -15174,6 +15174,11 @@ impl TermLinkTools {
         let mut sum_rate_hits: i64 = 0;
         let mut sum_dedupe_entries: i64 = 0;
         let mut sum_dedupe_hits: i64 = 0;
+        // T-2110: cv_index fleet aggregation (substrate primitives 9 + 10
+        // cross-reference). Pure additive — does NOT affect the pressured
+        // predicate yet (that needs an operator-tuned threshold).
+        let mut sum_cv_index_entries: i64 = 0;
+        let mut sum_cv_index_overflow: i64 = 0;
         let mut hubs_at_capacity: usize = 0;
         let mut hubs_rate_limited: usize = 0;
         for (_, r) in &probe_results {
@@ -15185,11 +15190,15 @@ impl TermLinkTools {
                 let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
                 let ded_entries = v.get("dedupe_entries_active").and_then(|x| x.as_i64()).unwrap_or(0);
                 let ded_hits = v.get("dedupe_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+                let cv_entries = v.get("cv_index_entries_active").and_then(|x| x.as_i64()).unwrap_or(0);
+                let cv_overflow = v.get("cv_index_overflow_total").and_then(|x| x.as_i64()).unwrap_or(0);
                 sum_connections_active += active;
                 sum_capacity_hits += cap_hits;
                 sum_rate_hits += rate_hits;
                 sum_dedupe_entries += ded_entries;
                 sum_dedupe_hits += ded_hits;
+                sum_cv_index_entries += cv_entries;
+                sum_cv_index_overflow += cv_overflow;
                 if active >= max { hubs_at_capacity += 1; }
                 if rate_hits > 0 { hubs_rate_limited += 1; }
             }
@@ -15226,6 +15235,8 @@ impl TermLinkTools {
                 "total_rate_hits_total":       sum_rate_hits,
                 "total_dedupe_entries_active": sum_dedupe_entries,
                 "total_dedupe_hits_total":     sum_dedupe_hits,
+                "total_cv_index_entries_active": sum_cv_index_entries,
+                "total_cv_index_overflow_total": sum_cv_index_overflow,
                 "hubs_at_capacity":            hubs_at_capacity,
                 "hubs_rate_limited":           hubs_rate_limited,
                 "shown":                       hubs_json.len(),

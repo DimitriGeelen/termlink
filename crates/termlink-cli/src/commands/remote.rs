@@ -2593,6 +2593,15 @@ pub(crate) fn render_fleet_governor_section(
                     g("dedupe_hits_total"),
                     g("dedupe_ttl_ms"),
                 );
+                // T-2110: cv_index telemetry — substrate primitive #9 health.
+                let _ = writeln!(
+                    out,
+                    "    cv_index: {} entries across {} topic(s) (overflow_total={}, cap_per_topic={})",
+                    g("cv_index_entries_active"),
+                    g("cv_index_topics_active"),
+                    g("cv_index_overflow_total"),
+                    g("cv_index_cap_per_topic"),
+                );
             }
             Err(e) => {
                 let _ = writeln!(out, "  {}  ✗ {}", name, e);
@@ -2648,6 +2657,19 @@ pub(crate) fn render_fleet_governor_section(
         out,
         "  Total dedupe_hits_total:       {}",
         sum_i64("dedupe_hits_total")
+    );
+    // T-2110: cv_index fleet rollup — entries/overflow surfaced alongside
+    // existing dedupe rollup so multi-hub operators see saturation pressure
+    // at a glance.
+    let _ = writeln!(
+        out,
+        "  Total cv_index_entries_active: {}",
+        sum_i64("cv_index_entries_active")
+    );
+    let _ = writeln!(
+        out,
+        "  Total cv_index_overflow_total: {}",
+        sum_i64("cv_index_overflow_total")
     );
     let _ = writeln!(out, "  Hubs at capacity:              {}", at_capacity);
     let _ = writeln!(out, "  Hubs hitting rate limits:      {}", rate_limited);
