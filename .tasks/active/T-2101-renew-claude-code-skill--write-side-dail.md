@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T19:43:11Z
-last_update: 2026-06-09T19:43:11Z
+last_update: 2026-06-09T19:45:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,14 +60,14 @@ Closes substrate primitive #1 lifecycle surface at the skill tier end-to-end.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.claude/commands/renew.md` exists with 6-step skill structure
-- [ ] Skill wraps `termlink channel renew --claim-id ... --claimer ... [--additional-ttl-ms N]`
-- [ ] Skill auto-resolves `--claimer` via T-1857 chain (env → be-reachable.state → refuse)
-- [ ] Skill exposes operator-friendly `--by-ms <ms>` alias for `--additional-ttl-ms` (the underlying name is awkward; the skill UX uses `--by-ms`)
-- [ ] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, CLAIM_LAPSED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
-- [ ] CLAIM_LAPSED hint suggests re-claiming the offset (not re-renewing, which would fail again)
-- [ ] CLAUDE.md Quick Reference table includes a `/renew` row paired with `/claim` + `/release`
-- [ ] Cross-links: T-2018 (ADR), T-2030 (substrate impl), T-2097 (`/claim`), T-2098 (`/release`), T-1857 (resolver), T-2100 + PL-206 (--help authority)
+- [x] `.claude/commands/renew.md` exists with 6-step skill structure
+- [x] Skill wraps `termlink channel renew --claim-id ... --claimer ... [--additional-ttl-ms N]`
+- [x] Skill auto-resolves `--claimer` via T-1857 chain (env → be-reachable.state → refuse)
+- [x] Skill exposes operator-friendly `--by-ms <ms>` alias for `--additional-ttl-ms` (the underlying name is awkward; the skill UX uses `--by-ms`)
+- [x] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, CLAIM_LAPSED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
+- [x] CLAIM_LAPSED hint suggests re-claiming the offset (not re-renewing, which would fail again)
+- [x] CLAUDE.md Quick Reference table includes a `/renew` row paired with `/claim` + `/release`
+- [x] Cross-links: T-2018 (ADR), T-2030 (substrate impl), T-2097 (`/claim`), T-2098 (`/release`), T-1857 (resolver), T-2100 + PL-206 (--help authority)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

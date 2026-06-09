@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T20:04:55Z
-last_update: 2026-06-09T20:04:55Z
+last_update: 2026-06-09T20:07:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,12 +53,12 @@ and before "Worker pattern (Rust)" (line 322) so the doc reads RPC → CLI → S
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New section "Operator skill tier (slash commands)" added to substrate-claim-primitive.md between "Quick CLI tour" and "Worker pattern (Rust)"
-- [ ] Section documents all five skills: `/claims` (T-2093), `/claim` (T-2097), `/renew` (T-2101), `/release` (T-2098), `/claim-transfer` (T-2099)
-- [ ] Section includes canonical orchestrator chain example
-- [ ] Section includes long-work renewal pattern example
-- [ ] Section maps substrate error taxonomy to skill-UX recovery ladders
-- [ ] Section references T-2100 fix-up + PL-206 learning (skill-CLI mismatch → always author from `--help`)
+- [x] New section "Operator skill tier (slash commands)" added to substrate-claim-primitive.md between "Quick CLI tour" and "Worker pattern (Rust)"
+- [x] Section documents all five skills: `/claims` (T-2093), `/claim` (T-2097), `/renew` (T-2101), `/release` (T-2098), `/claim-transfer` (T-2099)
+- [x] Section includes canonical orchestrator chain example
+- [x] Section includes long-work renewal pattern example
+- [x] Section maps substrate error taxonomy to skill-UX recovery ladders
+- [x] Section references T-2100 fix-up + PL-206 learning (skill-CLI mismatch → always author from `--help`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

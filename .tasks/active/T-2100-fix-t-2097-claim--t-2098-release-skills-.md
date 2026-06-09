@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T19:36:04Z
-last_update: 2026-06-09T19:36:04Z
+last_update: 2026-06-09T19:40:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,16 +65,16 @@ wrapper. The CLAUDE.md row is a summary, not the source of truth for invocation.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.claude/commands/claim.md` rewritten with correct flags: `<TOPIC> <OFFSET>` positional, `--claimer`, `--ttl-ms`
-- [ ] `.claude/commands/claim.md` removes `unit-id` auto-mint pattern (no such concept in substrate)
-- [ ] `.claude/commands/claim.md` updates Common patterns + Related cross-refs to reflect offset-based model
-- [ ] `.claude/commands/release.md` rewritten with correct flags: `--claim-id <id> --claimer <id>` + optional `--ack`
-- [ ] `.claude/commands/release.md` adds `--ack` (default) and `--retry` (negates --ack) semantics with clear "did I finish the work?" framing
-- [ ] CLAUDE.md `/claim` row corrected: flags, offset model, claimer terminology
-- [ ] CLAUDE.md `/release` row corrected: --claimer flag + --ack semantics
-- [ ] CLAUDE.md `/release` row documents the retry-vs-completion distinction (critical substrate semantic)
-- [ ] Skill files retain all six standard sections (pre-flight / parse-args / run / render / refusal taxonomy / related)
-- [ ] All refs to `T-2032` shipped-verb origin task preserved (the substrate impl is correct; my docs were wrong)
+- [x] `.claude/commands/claim.md` rewritten with correct flags: `<TOPIC> <OFFSET>` positional, `--claimer`, `--ttl-ms`
+- [x] `.claude/commands/claim.md` removes `unit-id` auto-mint pattern (no such concept in substrate)
+- [x] `.claude/commands/claim.md` updates Common patterns + Related cross-refs to reflect offset-based model
+- [x] `.claude/commands/release.md` rewritten with correct flags: `--claim-id <id> --claimer <id>` + optional `--ack`
+- [x] `.claude/commands/release.md` adds `--ack` (default) and `--retry` (negates --ack) semantics with clear "did I finish the work?" framing
+- [x] CLAUDE.md `/claim` row corrected: flags, offset model, claimer terminology
+- [x] CLAUDE.md `/release` row corrected: --claimer flag + --ack semantics
+- [x] CLAUDE.md `/release` row documents the retry-vs-completion distinction (critical substrate semantic)
+- [x] Skill files retain all six standard sections (pre-flight / parse-args / run / render / refusal taxonomy / related)
+- [x] All refs to `T-2032` shipped-verb origin task preserved (the substrate impl is correct; my docs were wrong)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -111,7 +111,7 @@ wrapper. The CLAUDE.md row is a summary, not the source of truth for invocation.
 
 grep -q -- "--claimer" .claude/commands/claim.md
 grep -q "OFFSET" .claude/commands/claim.md
-grep -qv "unit-id" .claude/commands/claim.md || ! grep -q "auto-mint" .claude/commands/claim.md
+grep -qE "offset IS the unit|offset-based" .claude/commands/claim.md
 grep -q -- "--ttl-ms" .claude/commands/claim.md
 grep -q -- "--claimer" .claude/commands/release.md
 grep -q -- "--ack" .claude/commands/release.md

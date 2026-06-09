@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T19:29:43Z
-last_update: 2026-06-09T19:29:43Z
+last_update: 2026-06-09T19:32:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,15 +59,15 @@ chain: `/find-idle --capability X` → `/claim <topic> <T-XXX>` → `/claim-tran
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.claude/commands/claim-transfer.md` exists with 6-step skill structure
-- [ ] Skill wraps `termlink channel claim-transfer --claim-id ... --to-owner ... --by ...`
-- [ ] Positional args: `<claim-id> <to-owner>` — operator no longer types two `--flag VALUE` pairs
-- [ ] Skill auto-resolves `--by` identity via T-1857 chain (env → be-reachable.state → refuse)
-- [ ] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
-- [ ] Skill refuses (does not invent an owner) when `--by` cannot be resolved
-- [ ] Skill calls out distinction from `claim-force-release` (Tier-0, last resort)
-- [ ] CLAUDE.md Quick Reference table includes a `/claim-transfer` row paired with `/claim` + `/release`
-- [ ] Cross-links: T-2018 (ADR), T-2046 (substrate impl), T-2097 (`/claim`), T-2098 (`/release`), T-2093 (`/claims`), T-1857 (resolver), T-2092 (`/find-idle` — pre-claim verb in the orchestrator chain)
+- [x] `.claude/commands/claim-transfer.md` exists with 6-step skill structure
+- [x] Skill wraps `termlink channel claim-transfer --claim-id ... --to-owner ... --by ...`
+- [x] Positional args: `<claim-id> <to-owner>` — operator no longer types two `--flag VALUE` pairs
+- [x] Skill auto-resolves `--by` identity via T-1857 chain (env → be-reachable.state → refuse)
+- [x] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
+- [x] Skill refuses (does not invent an owner) when `--by` cannot be resolved
+- [x] Skill calls out distinction from `claim-force-release` (Tier-0, last resort)
+- [x] CLAUDE.md Quick Reference table includes a `/claim-transfer` row paired with `/claim` + `/release`
+- [x] Cross-links: T-2018 (ADR), T-2046 (substrate impl), T-2097 (`/claim`), T-2098 (`/release`), T-2093 (`/claims`), T-1857 (resolver), T-2092 (`/find-idle` — pre-claim verb in the orchestrator chain)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

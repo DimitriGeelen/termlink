@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T19:25:07Z
-last_update: 2026-06-09T19:25:07Z
+last_update: 2026-06-09T19:27:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,13 +53,13 @@ which is its own daily-verb candidate — T-2099).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.claude/commands/release.md` exists with 6-step skill structure (pre-flight, parse-args, run, render, refusal taxonomy, related)
-- [ ] Skill wraps `termlink channel release <claim-id>` (substrate #1 release RPC)
-- [ ] Skill auto-resolves `--by` identity via T-1857 chain (env → be-reachable.state → refuse)
-- [ ] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
-- [ ] Skill refuses (does not invent an owner) when `--by` cannot be resolved
-- [ ] CLAUDE.md Quick Reference table includes a `/release` row paired with `/claim` (T-2097)
-- [ ] Cross-links: T-2018 (ADR), T-2019/T-2042 (substrate impl), T-2093 (`/claims` sibling), T-2097 (`/claim` sibling), T-1857 (resolver chain)
+- [x] `.claude/commands/release.md` exists with 6-step skill structure (pre-flight, parse-args, run, render, refusal taxonomy, related)
+- [x] Skill wraps `termlink channel release <claim-id>` (substrate #1 release RPC)
+- [x] Skill auto-resolves `--by` identity via T-1857 chain (env → be-reachable.state → refuse)
+- [x] Skill surfaces refusal taxonomy: CLAIM_NOT_FOUND, CLAIM_NOT_OWNED, AUTH_FAIL, RATE_LIMITED with actionable next-step hints
+- [x] Skill refuses (does not invent an owner) when `--by` cannot be resolved
+- [x] CLAUDE.md Quick Reference table includes a `/release` row paired with `/claim` (T-2097)
+- [x] Cross-links: T-2018 (ADR), T-2019/T-2042 (substrate impl), T-2093 (`/claims` sibling), T-2097 (`/claim` sibling), T-1857 (resolver chain)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
