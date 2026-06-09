@@ -1,0 +1,245 @@
+---
+id: T-2100
+name: "Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics"
+description: >
+  Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics
+
+status: started-work
+workflow_type: build
+owner: agent
+horizon: now
+tags: []
+components: []
+related_tasks: []
+# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
+#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
+#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+created: 2026-06-09T19:36:04Z
+last_update: 2026-06-09T19:36:04Z
+date_finished: null
+# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+# ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
+# bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
+#                                 # Sovereignty boundary — only set after human or agent confirmation.
+#                                 # Shape: {D1: <int 0-5>, D2: <int 0-5>, D3: <int 0-5>, D4: <int 0-5>, [<free-driver-id>: <int>]...}
+# bvp_scores_proposed:            # estimator-proposed scores (T-1922 worker). Persists when ≥2 delta
+#                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
+# cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
+#                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+---
+
+# T-2100: Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics
+
+## Context
+
+Skill-CLI mismatch in two recently-shipped substrate skills. Discovered immediately
+after T-2099 ship via `--help` verification before declaring closure:
+
+**T-2097 `/claim` skill (`.claude/commands/claim.md`):**
+- Documents positional `<topic> [<unit-id>]` — wrong. Actual CLI: `<TOPIC> <OFFSET>`
+  (both positional, both required). Substrate claim model is offset-based, not
+  unit-id-based. There is no `unit-id` concept to auto-mint.
+- Documents `--owner <id>` — wrong. Actual flag: `--claimer <CLAIMER>`.
+- Documents `--ttl-secs N` — wrong. Actual flag: `--ttl-ms <ms>`.
+
+**T-2098 `/release` skill (`.claude/commands/release.md`):**
+- Documents `--by <id>` — wrong. Actual flag: `--claimer <CLAIMER>`.
+- Missing `--ack` semantic entirely. The substrate uses `--ack` to advance the
+  claimer's persisted cursor past the offset (work completed). WITHOUT `--ack`,
+  the slot reopens for next worker with no cursor advance (work returned for retry).
+  This is the difference between "done" and "retry-please" — substrate correctness.
+
+Root cause: I authored both skills from memory of the CLAUDE.md row descriptions
+without running each verb's `--help` to verify flag names. T-2099 `/claim-transfer`
+happened to be correct by coincidence — its CLAUDE.md row in CLAUDE.md table
+contained correct flag names (`--claim-id C --to-owner W --by B`). T-2097/T-2098
+rows contained shorthand that I extrapolated into wrong flag names.
+
+Blast radius: zero (no field usage yet — skills shipped same session). Fix forward.
+
+**Learning candidate:** Always run `<verb> --help` before documenting flags in a
+wrapper. The CLAUDE.md row is a summary, not the source of truth for invocation.
+
+## Acceptance Criteria
+
+### Agent
+- [ ] `.claude/commands/claim.md` rewritten with correct flags: `<TOPIC> <OFFSET>` positional, `--claimer`, `--ttl-ms`
+- [ ] `.claude/commands/claim.md` removes `unit-id` auto-mint pattern (no such concept in substrate)
+- [ ] `.claude/commands/claim.md` updates Common patterns + Related cross-refs to reflect offset-based model
+- [ ] `.claude/commands/release.md` rewritten with correct flags: `--claim-id <id> --claimer <id>` + optional `--ack`
+- [ ] `.claude/commands/release.md` adds `--ack` (default) and `--retry` (negates --ack) semantics with clear "did I finish the work?" framing
+- [ ] CLAUDE.md `/claim` row corrected: flags, offset model, claimer terminology
+- [ ] CLAUDE.md `/release` row corrected: --claimer flag + --ack semantics
+- [ ] CLAUDE.md `/release` row documents the retry-vs-completion distinction (critical substrate semantic)
+- [ ] Skill files retain all six standard sections (pre-flight / parse-args / run / render / refusal taxonomy / related)
+- [ ] All refs to `T-2032` shipped-verb origin task preserved (the substrate impl is correct; my docs were wrong)
+
+### Human
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
+     Remove this section if all criteria are agent-verifiable.
+     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+
+     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
+     If your Expected clause is grep-able / file-exists / structural (a deterministic
+     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     verification genuinely needs human taste (tone, feel, layout rhythm).
+     See CLAUDE.md §AC Classification Guidance for the conversion rule.
+
+     [REVIEW] example (genuine human judgment):
+       - [ ] [REVIEW] Dashboard renders correctly
+         **Steps:**
+         1. Open https://example.com/dashboard in browser
+         2. Verify all panels load within 2 seconds
+         3. Check browser console for errors
+         **Expected:** All panels visible, no console errors
+         **If not:** Screenshot the broken panel and note the console error
+
+     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
+       - [ ] [REVIEWER] Block message names both bypass mechanisms
+         **Steps:**
+         1. Run `bin/fw reviewer T-XXX`
+         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
+         **If not:** Inspect hook block-message string and add missing mechanism
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
+-->
+
+## Verification
+
+grep -q -- "--claimer" .claude/commands/claim.md
+grep -q "OFFSET" .claude/commands/claim.md
+grep -qv "unit-id" .claude/commands/claim.md || ! grep -q "auto-mint" .claude/commands/claim.md
+grep -q -- "--ttl-ms" .claude/commands/claim.md
+grep -q -- "--claimer" .claude/commands/release.md
+grep -q -- "--ack" .claude/commands/release.md
+grep -q "completed.*retry\|retry.*completed" .claude/commands/release.md
+grep -q -- "--claimer" CLAUDE.md
+grep -q -- "--ack" CLAUDE.md
+
+## RCA
+
+**Symptom:** Two recently-shipped skills (T-2097 `/claim`, T-2098 `/release`)
+reference CLI flags that don't exist (`--owner`, `--by`, `--ttl-secs`) and one
+documents a positional argument (`unit-id`) that has no substrate concept. An
+operator typing `/claim foo bar` would hit `unrecognized argument: bar` because
+the CLI expects `<TOPIC> <OFFSET>` (a number), not `<topic> <unit-id>` (a string).
+`/release <claim-id>` would hit "missing required `--claimer`".
+
+**Root cause:** Skills authored from memory of CLAUDE.md table row descriptions,
+not from `<verb> --help` output. The Quick Reference table contains lossy
+shorthand (e.g. `[--owner <id>]` in T-2097's row) that I extrapolated as the
+actual flag name. T-2099 (`/claim-transfer`) was unaffected because its row
+showed the complete invocation (`--claim-id C --to-owner W --by B`).
+
+**Why structurally allowed:** No gate validates skill contents against actual
+CLI surface. Existing verification commands (`grep -q "termlink channel claim"`)
+confirm the skill REFERENCES the verb but not that the documented arguments
+MATCH the verb. The G-020 build-task gate verifies preconditions for editing
+source files, not the substantive correctness of those edits.
+
+**Prevention:** Process improvement — workflow rule: "When authoring a skill
+that wraps a CLI verb, run `<verb> --help` and paste the Usage line into the
+skill's Step 2 (parse-args) as a comment. The grep verification then ensures
+the Usage line stays consistent with the real CLI." This is a Level-C
+escalation (improve tooling) rather than a Level-D (change ways of working) —
+the rule is concrete and grep-checkable. Candidate learning entry to register
+after T-2100 lands.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
+#
+# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
+# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
+# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
+# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+#
+# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
+# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
+# while the upstream is still writing — verification then "fails" even though
+# the pattern was present. Safe pattern: capture first, grep the capture:
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
+# Or:
+#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
+# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
+#
+# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
+# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
+# the capture step closed off — the middle stage is what `grep -q` slams its
+# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
+# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
+#
+# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
+# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
+# Verification block. Otherwise the canonical hash diverges and `fw doctor`
+# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
+# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
+# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+## RCA
+
+<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+     Non-bug-class tasks may leave this section empty or remove it.
+
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+
+     The completion gate (T-1550, G-019) blocks --status work-completed when
+     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+-->
+
+## Evolution
+
+<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
+     understanding evolved during build — what was learned that wasn't known at
+     filing, what in the original plan no longer fits, what triggered pivots
+     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
+     before --status work-completed.
+
+     Origin: T-1717 grill Q4 — "the understanding of what we need and want
+     evolves with the process of materialisation." Structural counter to §ACD:
+     spec-vs-build divergence is logged as soon as it happens, not lost as
+     folklore.
+
+     Format (one entry per slice boundary or significant insight):
+       ### YYYY-MM-DD — [topic]
+       - **What changed:** [what we learned that we didn't know at filing]
+       - **Plan impact:** [what in the plan no longer fits]
+       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+
+     The completion gate (T-1718) blocks --status work-completed when this
+     section exists but is empty/template-only. Use --skip-evolution to bypass
+     (logged Tier-2). Non-arc tasks may leave this empty.
+-->
+
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+## Decision
+
+<!-- Filled at completion of inception tasks via:
+     fw inception decide T-XXX go|no-go|defer --rationale "..."
+
+     For non-inception tasks this section is ignored. Kept in template
+     so `fw inception decide` (lib/inception.sh) finds the anchor heading
+     without auto-creating; T-1832 added auto-create as fallback for
+     legacy tasks lacking this section. -->
+
+## Updates
+
+### 2026-06-09T19:36:04Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-2100-fix-t-2097-claim--t-2098-release-skills-.md
+- **Context:** Initial task creation
