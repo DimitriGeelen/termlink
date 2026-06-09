@@ -4,16 +4,16 @@ name: "value-drivers v4: F-EVIDENCE + F-CONTAINMENT + F-FEDERATION activation"
 description: >
   Inception: value-drivers v4: F-EVIDENCE + F-CONTAINMENT + F-FEDERATION activation
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-06-08T12:18:48Z
-last_update: 2026-06-08T12:18:48Z
-date_finished: null
+last_update: 2026-06-09T11:23:12Z
+date_finished: 2026-06-09T11:23:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -124,15 +124,15 @@ Time-box: this task itself is the artifact (no separate spike). Decision via Wat
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -194,9 +194,37 @@ BVP v3 has 3 open free-driver slots (cap 5, 2 active F-RECALL+F-ORCH). Current A
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+BVP v3 has 3 open free-driver slots (cap 5, 2 active F-RECALL+F-ORCH). Current AEF work is producing structurally under-rewarded value in three orthogonal axes: (1) verifiability/falsifiability of claims (AC reform, fresh re-smoke pattern, T-1731 Human-AC enforcement — distinct from D2 mistake-rate), (2) blast-radius bounding (G-058 19-day silent failure, T-2052 pre-commit blob-size gate, Tier-0 system, secret rotation auto-heal — distinct from D1 strengthens-from-stress), and (3) cross-hub state coherence in TermLink specifically (G-060 chat-arc federation gap, DM federation lag, MCP parity work — distinct from F-ORCH routable-surface expansion). All three pass the CLAUDE.md activation bar ('new meaning, not louder D1-D4'). Activating all three uses the 3 open slots cleanly; F-LEGIBILITY observability is carved pending arc-002 verdict. Recommendation: GO on v4 with the three drivers activated and the carve documented; weights proposed F-EVIDENCE=5, F-CONTAINMENT=4, F-FEDERATION=5. Operator decides via Watchtower per §ACD on policy/value-drivers.yaml.
+
+Evidence:
+
+**Date**: 2026-06-09T11:23:12Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-08T12:20:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-06-09T11:23:12Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+BVP v3 has 3 open free-driver slots (cap 5, 2 active F-RECALL+F-ORCH). Current AEF work is producing structurally under-rewarded value in three orthogonal axes: (1) verifiability/falsifiability of claims (AC reform, fresh re-smoke pattern, T-1731 Human-AC enforcement — distinct from D2 mistake-rate), (2) blast-radius bounding (G-058 19-day silent failure, T-2052 pre-commit blob-size gate, Tier-0 system, secret rotation auto-heal — distinct from D1 strengthens-from-stress), and (3) cross-hub state coherence in TermLink specifically (G-060 chat-arc federation gap, DM federation lag, MCP parity work — distinct from F-ORCH routable-surface expansion). All three pass the CLAUDE.md activation bar ('new meaning, not louder D1-D4'). Activating all three uses the 3 open slots cleanly; F-LEGIBILITY observability is carved pending arc-002 verdict. Recommendation: GO on v4 with the three drivers activated and the carve documented; weights proposed F-EVIDENCE=5, F-CONTAINMENT=4, F-FEDERATION=5. Operator decides via Watchtower per §ACD on policy/value-drivers.yaml.
+
+Evidence:
+
+### 2026-06-09T11:23:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
