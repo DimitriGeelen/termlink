@@ -2508,6 +2508,29 @@ pub(crate) async fn cmd_fleet_status(
 /// connect-refused, RPC error).
 type FleetGovernorResult = std::result::Result<serde_json::Value, String>;
 
+/// T-2070 (T-2028 §6 #10): predicate identifying whether a hub needs
+/// operator attention. Used by `fleet governor-status --only-pressured` to
+/// filter the fleet view down to the actionable subset. A hub is pressured
+/// if ANY of:
+///   - probe failed (RPC timeout / connection error) → unreachable
+///   - `connections_active >= connections_max` → at capacity right now
+///   - `capacity_hits_total > 0` → has refused connections in its lifetime
+///   - `rate_hits_total > 0`     → has refused RPCs in its lifetime
+///
+/// Pure helper — no IO, no state mutation. Unit-testable from the result
+/// envelope alone.
+pub(crate) fn governor_hub_is_pressured(result: &FleetGovernorResult) -> bool {
+    let v = match result {
+        Ok(v) => v,
+        Err(_) => return true, // unreachable counts as pressured
+    };
+    let active = v.get("connections_active").and_then(|x| x.as_i64()).unwrap_or(0);
+    let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
+    let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    cap_hits > 0 || rate_hits > 0 || active >= max
+}
+
 /// T-2062 / T-2028 Track D: pure-helper that turns the per-hub probe results
 /// into the operator-facing block. Pure so a unit test can pin the format
 /// without spinning up hubs.
@@ -2638,6 +2661,7 @@ pub(crate) fn render_fleet_governor_section(
 pub(crate) async fn cmd_fleet_governor_status(
     json_output: bool,
     timeout_secs: u64,
+    only_pressured: bool,
 ) -> Result<()> {
     use serde_json::json;
     use termlink_protocol::jsonrpc::RpcResponse;
@@ -2679,9 +2703,23 @@ pub(crate) async fn cmd_fleet_governor_status(
         results.push(((*name).clone(), result));
     }
 
+    // T-2070: pressured filter is applied at the presentation layer. The
+    // fleet-wide totals in `summary` are still computed from the FULL set
+    // so the operator sees both "this is what the fleet looks like" and
+    // "this is the subset that needs attention" at a glance.
+    let shown: Vec<(String, FleetGovernorResult)> = if only_pressured {
+        results
+            .iter()
+            .filter(|(_, r)| governor_hub_is_pressured(r))
+            .cloned()
+            .collect()
+    } else {
+        results.clone()
+    };
+
     if json_output {
         let mut hubs_json: Vec<serde_json::Value> = Vec::new();
-        for (name, r) in &results {
+        for (name, r) in &shown {
             match r {
                 Ok(v) => hubs_json.push(json!({
                     "hub": name,
@@ -2736,11 +2774,29 @@ pub(crate) async fn cmd_fleet_governor_status(
                 "total_dedupe_hits_total":     sum_i64("dedupe_hits_total"),
                 "hubs_at_capacity":            at_capacity,
                 "hubs_rate_limited":           rate_limited,
+                "shown":                       shown.len(),
+                "only_pressured":              only_pressured,
             }
         });
         println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else if only_pressured && shown.is_empty() {
+        // Healthy-fleet path: emit a one-line summary instead of an empty
+        // block, so the operator gets affirmative confirmation rather than
+        // wondering if their command silently failed.
+        println!(
+            "All hubs healthy (0/{} pressured).",
+            results.len()
+        );
     } else {
-        print!("{}", render_fleet_governor_section(&results));
+        if only_pressured {
+            println!(
+                "Showing {}/{} pressured hub(s) (use without --only-pressured for full view):",
+                shown.len(),
+                results.len()
+            );
+            println!();
+        }
+        print!("{}", render_fleet_governor_section(&shown));
     }
 
     Ok(())
@@ -8375,6 +8431,65 @@ mod tests {
         assert!(line.contains("conn=-→3"), "conn null-old: {line}");
         assert!(line.contains("cap=-→0(+-)"), "cap null-delta: {line}");
         assert!(line.contains("dedupe=n/a→n/a(+n/a)"), "dedupe n/a: {line}");
+    }
+
+    // T-2070 (T-2028 §6 #10): governor_hub_is_pressured — pure predicate
+    // for `fleet governor-status --only-pressured`. Covers the five cases
+    // listed in the AC (the four pressure axes plus the clean baseline).
+
+    #[test]
+    fn governor_hub_is_pressured_returns_true_when_capacity_hits_nonzero() {
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+            "capacity_hits_total": 1, "rate_hits_total": 0,
+        }));
+        assert!(governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_returns_true_when_rate_hits_nonzero() {
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+            "capacity_hits_total": 0, "rate_hits_total": 1,
+        }));
+        assert!(governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_returns_true_when_at_capacity() {
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            // active == max — no headroom even if no historical refusals
+            "connections_active": 256, "connections_max": 256,
+            "capacity_hits_total": 0, "rate_hits_total": 0,
+        }));
+        assert!(governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_returns_true_when_unreachable() {
+        let err: FleetGovernorResult = Err("timed out after 8s".to_string());
+        // Unreachable always counts as pressured — operator wants to see it.
+        assert!(governor_hub_is_pressured(&err));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_returns_false_for_clean_hub() {
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+            "capacity_hits_total": 0, "rate_hits_total": 0,
+        }));
+        assert!(!governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_missing_fields_default_to_clean() {
+        // Pre-T-2049 hub: no capacity_hits / rate_hits fields at all.
+        // Default to "not pressured" — better to under-report than fire a
+        // false positive against a healthy older hub.
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+        }));
+        assert!(!governor_hub_is_pressured(&ok));
     }
 
     #[test]

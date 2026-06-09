@@ -659,11 +659,11 @@ async fn main() -> Result<()> {
             FleetAction::Doctor { json, timeout, legacy_usage, legacy_window_days, topic_durability, include_pin_check, diff, save_snapshot, exit_code_on_verdict, trend, trend_keep, top_callers, watch, notify, auto_heal, dry_run } => {
                 commands::remote::cmd_fleet_doctor(json, timeout, legacy_usage, legacy_window_days, topic_durability, include_pin_check, diff, save_snapshot, exit_code_on_verdict, trend, trend_keep, top_callers, watch, notify, auto_heal, dry_run).await
             }
-            FleetAction::GovernorStatus { json, timeout, watch, notify, log } => {
+            FleetAction::GovernorStatus { json, timeout, watch, notify, log, only_pressured } => {
                 if let Some(secs) = watch {
                     commands::remote::cmd_fleet_governor_status_watch(secs, timeout, notify, log).await
                 } else {
-                    commands::remote::cmd_fleet_governor_status(json, timeout).await
+                    commands::remote::cmd_fleet_governor_status(json, timeout, only_pressured).await
                 }
             }
             FleetAction::Reauth { profile, bootstrap_from, all_drifted, json } => {

@@ -3637,6 +3637,18 @@ pub(crate) enum FleetAction {
         #[arg(long, default_value = "8")]
         timeout: u64,
 
+        /// T-2070 (T-2028 §6 #10): filter output to hubs that need operator
+        /// attention. A hub is "pressured" if ANY of the following hold:
+        ///   - unreachable (RPC timeout / error)
+        ///   - at capacity (connections_active ≥ connections_max)
+        ///   - has refused any connections (capacity_hits_total > 0)
+        ///   - has refused any RPCs (rate_hits_total > 0)
+        /// Mirror of `fleet verify --exit-on-drift-only` (T-1661). Incompatible
+        /// with `--watch` (the watch loop emits per-hub change events, so the
+        /// filter would silently drop transitions that move OUT of pressure).
+        #[arg(long = "only-pressured", conflicts_with = "watch")]
+        only_pressured: bool,
+
         /// T-2064 (T-2028 §6 #10 Track E): re-poll the fleet every N seconds
         /// and emit per-hub state changes (capacity_hits / rate_hits /
         /// dedupe_hits deltas, reachable transitions). N clamped to [5, 3600].
