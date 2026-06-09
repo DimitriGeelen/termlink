@@ -3356,6 +3356,16 @@ pub(crate) enum ChannelAction {
         /// and .new_stuck==true)' ~/.termlink/claims.log`.
         #[arg(long, requires = "watch")]
         log: Option<std::path::PathBuf>,
+        /// T-2076 (claim primitive observability arc — mirror of T-2070
+        /// governor `--only-pressured`): drop non-stuck topics from the
+        /// output. "Stuck" = `expired_count > 0` OR
+        /// `oldest_active_age_ms > 60_000` (same heuristic as
+        /// `[POTENTIALLY STUCK]` annotation). Pure presentation-level
+        /// filter — the summary footer keeps fleet-wide totals. Healthy
+        /// fleet path: `All topics healthy (0/N stuck)`. Requires
+        /// `--all` (single-topic mode has nothing to filter).
+        #[arg(long, requires = "all")]
+        only_stuck: bool,
     },
 
     /// T-2074 (claim primitive observability arc — mirror of T-2068

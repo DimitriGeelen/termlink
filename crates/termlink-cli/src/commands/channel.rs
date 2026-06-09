@@ -9183,6 +9183,7 @@ pub(crate) async fn cmd_channel_claims_summary(
     all: bool,
     notify: Option<&str>,
     log: Option<&std::path::Path>,
+    only_stuck: bool,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
 
@@ -9241,7 +9242,7 @@ pub(crate) async fn cmd_channel_claims_summary(
                 );
                 match collect_claims_summary_fleet_snapshot(&addr).await {
                     Ok(snap) => {
-                        render_claims_summary_fleet_text_from_snapshot(&snap);
+                        render_claims_summary_fleet_text_from_snapshot(&snap, only_stuck);
                         current_state = Some(snap);
                     }
                     Err(e) => {
@@ -9300,9 +9301,9 @@ pub(crate) async fn cmd_channel_claims_summary(
     if all {
         // T-2042: one-shot fleet sweep.
         if json_output {
-            return render_claims_summary_fleet_json(&addr).await;
+            return render_claims_summary_fleet_json(&addr, only_stuck).await;
         }
-        return render_claims_summary_fleet_text(&addr).await;
+        return render_claims_summary_fleet_text(&addr, only_stuck).await;
     }
 
     // Single-topic one-shot path (T-2039 original Slice 6 shape).
@@ -9971,65 +9972,147 @@ async fn collect_claims_summary_fleet_snapshot(
 /// T-2072: text renderer that consumes the same snapshot map the diff
 /// helper produces. Used inside the watch loop so the rendering and
 /// diffing read the same data structure (no double-fetch).
+/// T-2076: pure helper for `--only-stuck` filter — computes which topics
+/// would be rendered and the affirmative-line flag. Tested directly
+/// (printers stay as printers).
+///
+/// Returns `(rendered_topics, total, stuck_count, healthy_affirmative)`:
+/// - `rendered_topics`: ordered list of (topic_name, stuck_flag) actually
+///   shown to the operator
+/// - `total`: total topics in snapshot (regardless of filter)
+/// - `stuck_count`: how many topics are stuck (regardless of filter)
+/// - `healthy_affirmative`: true when `only_stuck && stuck_count == 0`
+///   (caller prints "All topics healthy" and skips per-topic rows)
+pub(crate) fn claims_fleet_render_plan(
+    snap: &std::collections::BTreeMap<String, ClaimSnapshot>,
+    only_stuck: bool,
+) -> (Vec<(String, bool)>, usize, u64, bool) {
+    let total = snap.len();
+    let stuck_count: u64 = snap.values().filter(|s| s.stuck).count() as u64;
+    let healthy_affirmative = only_stuck && stuck_count == 0 && total > 0;
+    let mut rendered = Vec::with_capacity(total);
+    if !healthy_affirmative {
+        for (topic, s) in snap {
+            if only_stuck && !s.stuck {
+                continue;
+            }
+            rendered.push((topic.clone(), s.stuck));
+        }
+    }
+    (rendered, total, stuck_count, healthy_affirmative)
+}
+
 fn render_claims_summary_fleet_text_from_snapshot(
     snap: &std::collections::BTreeMap<String, ClaimSnapshot>,
+    only_stuck: bool,
 ) {
     if snap.is_empty() {
         println!("(no topics on hub)");
         return;
     }
-    let mut stuck_count: u64 = 0;
-    for (topic, s) in snap {
-        if s.stuck {
-            stuck_count += 1;
+    let (rendered, total, stuck_count, healthy_affirmative) =
+        claims_fleet_render_plan(snap, only_stuck);
+    if healthy_affirmative {
+        // T-2076 mirror of T-2070 "All hubs healthy" governor pattern.
+        println!("All topics healthy (0/{} stuck)", total);
+        return;
+    }
+    for (topic, stuck) in &rendered {
+        // Re-look up the snapshot to read counters. Cheap — total is the
+        // hub-topic count, not a remote round-trip.
+        if let Some(s) = snap.get(topic) {
+            let age_str = s
+                .oldest_active_age_ms
+                .map(|a| format!("{}ms", a))
+                .unwrap_or_else(|| "-".to_string());
+            let annotation = if *stuck { "  [POTENTIALLY STUCK]" } else { "" };
+            println!(
+                "  {}  active={} expired={} oldest_age={}{}",
+                topic, s.active_count, s.expired_count, age_str, annotation
+            );
         }
-        let age_str = s
-            .oldest_active_age_ms
-            .map(|a| format!("{}ms", a))
-            .unwrap_or_else(|| "-".to_string());
-        let annotation = if s.stuck { "  [POTENTIALLY STUCK]" } else { "" };
+    }
+    if only_stuck {
         println!(
-            "  {}  active={} expired={} oldest_age={}{}",
-            topic, s.active_count, s.expired_count, age_str, annotation
+            "({} topic(s), {} with potentially stuck claims, {} shown)",
+            total,
+            stuck_count,
+            rendered.len()
+        );
+    } else {
+        println!(
+            "({} topic(s), {} with potentially stuck claims)",
+            total, stuck_count
         );
     }
-    println!(
-        "({} topic(s), {} with potentially stuck claims)",
-        snap.len(),
-        stuck_count
-    );
 }
 
 /// T-2042: fleet-wide claims-summary text renderer. Queries channel.list,
 /// per-topic calls channel.claims_summary, prints one line per topic with
 /// stuck annotation and a footer count. Per-topic errors are non-fatal —
 /// printed inline so the sweep keeps going.
-async fn render_claims_summary_fleet_text(addr: &TransportAddr) -> Result<()> {
+async fn render_claims_summary_fleet_text(addr: &TransportAddr, only_stuck: bool) -> Result<()> {
     let topics = fetch_topic_names(addr).await?;
     if topics.is_empty() {
         println!("(no topics on hub)");
         return Ok(());
     }
+    // T-2076: collect all summaries first so we can render the affirmative
+    // "All topics healthy" line BEFORE printing any per-topic rows, AND keep
+    // the fleet-wide footer truthful when --only-stuck filters out rows.
+    let mut results: Vec<(String, Option<termlink_session::claim_client::ClaimsAggregate>, Option<String>)> =
+        Vec::with_capacity(topics.len());
     let mut stuck_count: u64 = 0;
     for t in &topics {
         match termlink_session::claim_client::channel_claims_summary(addr, t).await {
             Ok(summary) => {
-                let stuck = is_potentially_stuck(&summary);
-                if stuck {
+                if is_potentially_stuck(&summary) {
                     stuck_count += 1;
                 }
-                render_claims_summary_text_with_annotation(&summary, stuck);
+                results.push((t.clone(), Some(summary), None));
             }
             Err(e) => {
-                println!("topic {:?}: fetch error: {e}", t);
+                results.push((t.clone(), None, Some(format!("{e}"))));
             }
         }
     }
-    println!(
-        "({} topic(s), {} with potentially stuck claims)",
-        topics.len(),
-        stuck_count
-    );
+    let total = topics.len();
+    if only_stuck && stuck_count == 0 {
+        println!("All topics healthy (0/{} stuck)", total);
+        return Ok(());
+    }
+    let mut shown: u64 = 0;
+    for (t, summary, err) in &results {
+        match (summary, err) {
+            (Some(s), _) => {
+                let stuck = is_potentially_stuck(s);
+                if only_stuck && !stuck {
+                    continue;
+                }
+                shown += 1;
+                render_claims_summary_text_with_annotation(s, stuck);
+            }
+            (_, Some(e)) => {
+                // Fetch errors always shown — operator needs to see them
+                // regardless of --only-stuck filter (a failed fetch could
+                // hide a stuck topic).
+                shown += 1;
+                println!("topic {:?}: fetch error: {e}", t);
+            }
+            _ => {}
+        }
+    }
+    if only_stuck {
+        println!(
+            "({} topic(s), {} with potentially stuck claims, {} shown)",
+            total, stuck_count, shown
+        );
+    } else {
+        println!(
+            "({} topic(s), {} with potentially stuck claims)",
+            total, stuck_count
+        );
+    }
     Ok(())
 }
 
@@ -10037,7 +10120,7 @@ async fn render_claims_summary_fleet_text(addr: &TransportAddr) -> Result<()> {
 /// single-topic JSON envelope but wrapped in
 /// `{ok, topic_count, stuck_count, topics: [...]}`. Per-topic fetch errors
 /// appear in the array as `{topic, ok: false, error: "..."}` entries.
-async fn render_claims_summary_fleet_json(addr: &TransportAddr) -> Result<()> {
+async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool) -> Result<()> {
     let topics = fetch_topic_names(addr).await?;
     let mut entries: Vec<serde_json::Value> = Vec::with_capacity(topics.len());
     let mut stuck_count: u64 = 0;
@@ -10047,6 +10130,13 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr) -> Result<()> {
                 let stuck = is_potentially_stuck(&summary);
                 if stuck {
                     stuck_count += 1;
+                }
+                // T-2076: --only-stuck filters out non-stuck successful rows
+                // BUT keeps the stuck_count truthful (counted above before
+                // the filter). Fetch errors always retained — they could
+                // mask a stuck topic.
+                if only_stuck && !stuck {
+                    continue;
                 }
                 entries.push(json!({
                     "ok": true,
@@ -10068,12 +10158,15 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr) -> Result<()> {
             }
         }
     }
+    let shown = entries.len();
     println!(
         "{}",
         json!({
             "ok": true,
             "topic_count": topics.len(),
             "stuck_count": stuck_count,
+            "shown": shown,
+            "only_stuck": only_stuck,
             "topics": entries,
         })
     );
@@ -10456,6 +10549,67 @@ mod tests {
         ] {
             assert!(v.get(field).is_some(), "missing required field: {field}");
         }
+    }
+
+    // ---- T-2076 claims-summary --only-stuck filter tests ---------------
+
+    #[test]
+    fn claims_summary_only_stuck_filters_non_stuck() {
+        // 3 topics, 1 stuck, only_stuck=true → 1 rendered row + truthful totals.
+        let s = map(&[
+            ("work-queue", snap(true, 1, 1, Some(70_000))),
+            ("agent-arc", snap(false, 0, 0, None)),
+            ("notify-box", snap(false, 3, 0, Some(5_000))),
+        ]);
+        let (rendered, total, stuck_count, healthy) = claims_fleet_render_plan(&s, true);
+        assert_eq!(total, 3, "footer count keeps fleet-wide truth");
+        assert_eq!(stuck_count, 1, "footer count keeps fleet-wide truth");
+        assert_eq!(rendered.len(), 1, "only stuck topic rendered");
+        assert_eq!(rendered[0].0, "work-queue");
+        assert_eq!(rendered[0].1, true);
+        assert!(!healthy, "healthy_affirmative is false when ≥1 stuck");
+    }
+
+    #[test]
+    fn claims_summary_only_stuck_healthy_affirmative() {
+        // All topics healthy + only_stuck=true → no rows + affirmative flag.
+        let s = map(&[
+            ("a", snap(false, 0, 0, None)),
+            ("b", snap(false, 2, 0, Some(5_000))),
+        ]);
+        let (rendered, total, stuck_count, healthy) = claims_fleet_render_plan(&s, true);
+        assert_eq!(total, 2);
+        assert_eq!(stuck_count, 0);
+        assert!(rendered.is_empty(), "no per-topic rows on healthy fleet");
+        assert!(healthy, "healthy_affirmative fires when 0/N stuck under filter");
+    }
+
+    #[test]
+    fn claims_summary_only_stuck_off_renders_all() {
+        // only_stuck=false → behaves like pre-T-2076: all topics rendered.
+        let s = map(&[
+            ("a", snap(true, 1, 1, Some(70_000))),
+            ("b", snap(false, 0, 0, None)),
+        ]);
+        let (rendered, total, stuck_count, healthy) = claims_fleet_render_plan(&s, false);
+        assert_eq!(total, 2);
+        assert_eq!(stuck_count, 1);
+        assert_eq!(rendered.len(), 2, "all topics rendered when filter is off");
+        assert!(!healthy, "healthy_affirmative never fires with filter off");
+    }
+
+    #[test]
+    fn claims_summary_only_stuck_empty_map_no_affirmative() {
+        // Empty hub + only_stuck=true: healthy_affirmative is false (no
+        // topics to be healthy ABOUT). The caller's empty-hub branch
+        // ("(no topics on hub)") handles this distinctly from the
+        // healthy-fleet affirmative.
+        let s = map(&[]);
+        let (rendered, total, stuck_count, healthy) = claims_fleet_render_plan(&s, true);
+        assert_eq!(total, 0);
+        assert_eq!(stuck_count, 0);
+        assert!(rendered.is_empty());
+        assert!(!healthy, "empty hub is not an affirmative-healthy state");
     }
 
     // ---- T-1795 fetch_topic_msgs tail-anchoring tests -------------------

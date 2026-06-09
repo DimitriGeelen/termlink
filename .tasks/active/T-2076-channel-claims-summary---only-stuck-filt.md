@@ -4,7 +4,7 @@ name: "channel claims-summary --only-stuck filter (operator-actionable subset, T
 description: >
   channel claims-summary --only-stuck filter (operator-actionable subset, T-2070 mirror)
 
-status: issues
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T08:58:27Z
-last_update: 2026-06-09T08:58:27Z
+last_update: 2026-06-09T09:02:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -32,7 +32,18 @@ date_finished: null
 
 # T-2076: channel claims-summary --only-stuck filter (operator-actionable subset, T-2070 mirror)
 
-## Status note (2026-06-09)
+## Status note (2026-06-09 — recovered)
+
+**RESOLVED.** Slice 16 of the substrate-claim observability arc completed
+in the recovery session. All 11 ACs ticked, `cargo check` clean, 4/4
+`claims_summary_only_stuck` tests pass. Channel.rs got the `only_stuck`
+9th param plus the filter+counter-separation pattern in all three render
+paths (snapshot, fleet text, fleet JSON), via a new pure helper
+`claims_fleet_render_plan` that the unit tests exercise directly.
+
+---
+
+### Original park note (2026-06-09 — pre-recovery, kept for traceability)
 
 **Build is broken on `main` — this task was started but did not complete
 before budget exhaustion.** The partial state landed on disk:
@@ -94,17 +105,17 @@ which topic).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `cli.rs` ClaimsSummary variant gains `only_stuck: bool` with `requires("all")` (single-topic mode has nothing to filter)
-- [ ] `main.rs` dispatch passes `only_stuck` to `cmd_channel_claims_summary`
-- [ ] `cmd_channel_claims_summary` --all path filters non-stuck topics from per-topic rows when `only_stuck=true`
-- [ ] Summary footer keeps fleet-wide totals (`{topic_count, stuck_count}`) — filter is presentation-only, totals are truthful
-- [ ] JSON envelope gains `shown` (number of topics in `topics[]`) and `only_stuck` (the flag value) fields
-- [ ] Healthy fleet path (every topic non-stuck under `--only-stuck`) prints `All topics healthy (0/N stuck)` — affirmative
-- [ ] At least 1 pure predicate test confirming the stuck classification mirrors `is_potentially_stuck`
-- [ ] `cargo check -p termlink` builds clean
-- [ ] `cargo test --bin termlink claims_summary_only_stuck` passes
-- [ ] CLAUDE.md CLAIM-OBSERVABILITY row extended with the `--only-stuck` form
-- [ ] Mutex check: `--only-stuck` without `--all` is rejected by clap with a clear error
+- [x] `cli.rs` ClaimsSummary variant gains `only_stuck: bool` with `requires("all")` (single-topic mode has nothing to filter)
+- [x] `main.rs` dispatch passes `only_stuck` to `cmd_channel_claims_summary`
+- [x] `cmd_channel_claims_summary` --all path filters non-stuck topics from per-topic rows when `only_stuck=true`
+- [x] Summary footer keeps fleet-wide totals (`{topic_count, stuck_count}`) — filter is presentation-only, totals are truthful
+- [x] JSON envelope gains `shown` (number of topics in `topics[]`) and `only_stuck` (the flag value) fields
+- [x] Healthy fleet path (every topic non-stuck under `--only-stuck`) prints `All topics healthy (0/N stuck)` — affirmative
+- [x] At least 1 pure predicate test confirming the stuck classification mirrors `is_potentially_stuck`
+- [x] `cargo check -p termlink` builds clean
+- [x] `cargo test --bin termlink claims_summary_only_stuck` passes
+- [x] CLAUDE.md CLAIM-OBSERVABILITY row extended with the `--only-stuck` form
+- [x] Mutex check: `--only-stuck` without `--all` is rejected by clap with a clear error
 
 ### Human
 <!-- All ACs above are agent-verifiable; no human review needed. -->
