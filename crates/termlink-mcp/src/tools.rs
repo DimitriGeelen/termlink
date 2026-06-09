@@ -238,6 +238,79 @@ fn fleet_history_rfc3339_to_unix(ts: &str) -> i64 {
     days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
 }
 
+// T-2069: per-hub aggregate over governor.log entries within window.
+// Matches CLI `GovernorHubAgg` (remote.rs) field-for-field.
+#[derive(Default, Debug)]
+pub(crate) struct GovernorHubAggMcp {
+    pub events: u32,
+    pub cap_hits: i64,
+    pub rate_hits: i64,
+    pub dedupe_hits: i64,
+}
+
+/// T-2069: parse governor.log NDJSON entries, filter by `cutoff_secs` and
+/// optional `hub_filter`. Returns `(entries, malformed_lines_skipped)`.
+/// Pure helper — testable without writing a real log file.
+pub(crate) fn parse_governor_log(
+    text: &str,
+    cutoff_secs: i64,
+    hub_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed: usize = 0;
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = entry.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        if let Some(want) = hub_filter {
+            let got = entry.get("hub").and_then(|v| v.as_str()).unwrap_or("");
+            if got != want {
+                continue;
+            }
+        }
+        entries.push(entry);
+    }
+    (entries, malformed)
+}
+
+/// T-2069: per-hub aggregator. Sums the Track G delta fields so callers can
+/// answer "has this hub been backpressured in the window?" without
+/// re-walking the entries list.
+pub(crate) fn aggregate_governor_entries(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, GovernorHubAggMcp> {
+    let mut per_hub: std::collections::BTreeMap<String, GovernorHubAggMcp> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        let h = e
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let agg = per_hub.entry(h).or_default();
+        agg.events += 1;
+        agg.cap_hits += e.get("cap_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        agg.rate_hits += e.get("rate_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        agg.dedupe_hits += e
+            .get("dedupe_hits_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+    }
+    per_hub
+}
+
 fn json_err(msg: impl std::fmt::Display) -> String {
     serde_json::to_string_pretty(&serde_json::json!({"ok": false, "error": msg.to_string()}))
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
@@ -309,6 +382,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_fleet_history", "Retrospective rotation/heal history from ~/.termlink/rotation.log + heal.log. Filter by --hub, --since-days, --include-heals"),
             ("termlink_fleet_status", "Per-profile connectivity status across the fleet"),
             ("termlink_fleet_governor_status", "T-2063/T-2028 Track D — fleet-wide aggregation of hub.governor_status (per-hub backpressure + rollup totals + hubs_at_capacity / hubs_rate_limited counts)"),
+            ("termlink_fleet_governor_history", "T-2069/T-2068/T-2028 §6 #10 closure — retrospective read of ~/.termlink/governor.log NDJSON (Track G audit trail). Per-hub aggregate of cap_hits/rate_hits/dedupe_hits deltas within --since-days window"),
             ("termlink_fleet_bootstrap_check", "Validate declared bootstrap_from channels return parseable 64-hex secrets BEFORE auto-heal fires (preflight)"),
             ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
             ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
@@ -9385,6 +9459,21 @@ pub struct FleetHistoryParams {
     pub analyze: Option<bool>,
 }
 
+// T-2069: Fleet governor-history params (MCP parity for T-2068).
+// Read-only file scan of ~/.termlink/governor.log (or `log_path` override
+// matching the watch loop's destination). Symmetric to FleetHistoryParams
+// but pointed at the Track G audit trail instead of rotation.log.
+#[derive(Deserialize, JsonSchema)]
+pub struct FleetGovernorHistoryParams {
+    /// Look-back window in days (default: 7, clamped 1..=365).
+    pub since_days: Option<u32>,
+    /// Filter to a single hub profile name (None = all hubs).
+    pub hub: Option<String>,
+    /// Override log path (default: `$HOME/.termlink/governor.log`).
+    /// Use when the watch loop was run with a custom `--log` destination.
+    pub log_path: Option<String>,
+}
+
 // T-1689: Fleet bootstrap-check params (MCP parity for T-1688).
 // Exactly one of `profile`/`all` must be set; both/neither rejected with a
 // structured error from the tool body.
@@ -15694,6 +15783,97 @@ impl TermLinkTools {
             "ok": true,
             "entries": entries,
             "summary": summary,
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    // === Fleet governor-history (T-2069: MCP parity for T-2068) ===
+
+    #[tool(
+        name = "termlink_fleet_governor_history",
+        description = "T-2069 / T-2068 / T-2028 §6 #10 closure: retrospective read of the governor.log NDJSON audit trail produced by `fleet governor-status --watch --log <path>` (Track G). Walks `~/.termlink/governor.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `hub` name, and returns `{ok, entries[], summary{total, per_hub:{<hub>:{events, cap_hits_total, rate_hits_total, dedupe_hits_total}}, since_days, hub_filter, malformed_lines_skipped, log_path}}`. Per-hub aggregates sum the Track G `cap_hits_delta` / `rate_hits_delta` / `dedupe_hits_delta` fields so a caller can answer 'has this hub been refused / rate-limited / had retries absorbed in the window?' in one call. Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_fleet_history` (T-1687) but pointed at the substrate-governor audit trail. CLI parity: `termlink fleet governor-history`. See `docs/operations/substrate-governor.md`."
+    )]
+    async fn termlink_fleet_governor_history(
+        &self,
+        Parameters(p): Parameters<FleetGovernorHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+
+        let log_path: std::path::PathBuf = match p.log_path.as_deref() {
+            Some(s) => std::path::PathBuf::from(s),
+            None => {
+                let Some(home) = std::env::var("HOME").ok() else {
+                    return json_err(
+                        "HOME env var not set; cannot resolve governor.log default path",
+                    );
+                };
+                std::path::PathBuf::from(home)
+                    .join(".termlink")
+                    .join("governor.log")
+            }
+        };
+
+        if !log_path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "per_hub": {},
+                    "since_days": since_days,
+                    "hub_filter": p.hub,
+                    "log_path": log_path.display().to_string(),
+                },
+                "hint": "no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let text = match std::fs::read_to_string(&log_path) {
+            Ok(t) => t,
+            Err(e) => return json_err(format!("cannot read {}: {e}", log_path.display())),
+        };
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let (entries, malformed) =
+            parse_governor_log(&text, cutoff, p.hub.as_deref());
+
+        let per_hub = aggregate_governor_entries(&entries);
+
+        let per_hub_json: serde_json::Map<String, serde_json::Value> = per_hub
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    serde_json::json!({
+                        "events": v.events,
+                        "cap_hits_total": v.cap_hits,
+                        "rate_hits_total": v.rate_hits,
+                        "dedupe_hits_total": v.dedupe_hits,
+                    }),
+                )
+            })
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": {
+                "total": entries.len(),
+                "per_hub": per_hub_json,
+                "since_days": since_days,
+                "hub_filter": p.hub,
+                "malformed_lines_skipped": malformed,
+                "log_path": log_path.display().to_string(),
+            }
         }))
         .unwrap_or_else(json_err)
     }
@@ -41266,6 +41446,73 @@ YW\tJ
         let s = aggregate_bus_state_summary(&hub_results);
         assert_eq!(s["verdict"], "UNCERTAIN");
         assert_eq!(s["hubs_unsupported"].as_array().unwrap().len(), 1);
+    }
+
+    // T-2069: parse_governor_log + aggregate_governor_entries — pure helpers
+    // for the MCP termlink_fleet_governor_history surface. Mirror the CLI
+    // T-2068 `render_governor_history_line` tests but exercise the parse +
+    // aggregate axis instead (which is what the MCP envelope ships).
+
+    #[test]
+    fn fleet_governor_history_parse_skips_malformed_and_aggregates_deltas() {
+        // Three good NDJSON lines (2 for `local-test`, 1 for `ring20-management`)
+        // bracketing two malformed lines — exercise both filter axes and
+        // the malformed counter at once.
+        let now_ish_ts = "2099-01-01T00:00:00Z"; // far future ⇒ inside any window
+        let text = format!(
+            "this is not json\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"local-test\",\"kind\":\"transition\",\"cap_hits_delta\":1,\"rate_hits_delta\":2,\"dedupe_hits_delta\":null}}\n\
+             this is also not json\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"local-test\",\"kind\":\"transition\",\"cap_hits_delta\":3,\"rate_hits_delta\":0,\"dedupe_hits_delta\":4}}\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"ring20-management\",\"kind\":\"new\",\"cap_hits_delta\":7,\"rate_hits_delta\":11,\"dedupe_hits_delta\":null}}\n",
+            ts = now_ish_ts
+        );
+
+        // cutoff=0 → keep everything; hub_filter=None → both hubs.
+        let (entries, malformed) = parse_governor_log(&text, 0, None);
+        assert_eq!(entries.len(), 3, "3 parseable rows");
+        assert_eq!(malformed, 2, "2 garbage rows counted");
+
+        let per_hub = aggregate_governor_entries(&entries);
+        assert_eq!(per_hub.len(), 2);
+
+        // local-test: 2 events, cap=1+3=4, rate=2+0=2, dedupe=0+4=4 (null treated as 0)
+        let local = per_hub.get("local-test").unwrap();
+        assert_eq!(local.events, 2);
+        assert_eq!(local.cap_hits, 4);
+        assert_eq!(local.rate_hits, 2);
+        assert_eq!(local.dedupe_hits, 4);
+
+        // ring20-management: 1 event, cap=7, rate=11, dedupe=0 (null)
+        let ring = per_hub.get("ring20-management").unwrap();
+        assert_eq!(ring.events, 1);
+        assert_eq!(ring.cap_hits, 7);
+        assert_eq!(ring.rate_hits, 11);
+        assert_eq!(ring.dedupe_hits, 0);
+    }
+
+    #[test]
+    fn fleet_governor_history_parse_respects_hub_filter_and_cutoff() {
+        // Two rows: one inside window for `keep`, one outside window for `drop`,
+        // one inside window for `also-drop` (filtered by hub).
+        let in_window_ts = "2099-01-01T00:00:00Z";
+        let out_of_window_ts = "1990-01-01T00:00:00Z"; // before any sane cutoff
+        let text = format!(
+            "{{\"ts\":\"{in_ts}\",\"hub\":\"keep\",\"kind\":\"transition\",\"cap_hits_delta\":1}}\n\
+             {{\"ts\":\"{out_ts}\",\"hub\":\"keep\",\"kind\":\"transition\",\"cap_hits_delta\":99}}\n\
+             {{\"ts\":\"{in_ts}\",\"hub\":\"also-drop\",\"kind\":\"transition\",\"cap_hits_delta\":42}}\n",
+            in_ts = in_window_ts,
+            out_ts = out_of_window_ts,
+        );
+
+        // cutoff = 1_000_000_000 (≈2001-09-09) drops the 1990 row;
+        // hub_filter=Some("keep") drops the also-drop row.
+        let (entries, malformed) =
+            parse_governor_log(&text, 1_000_000_000, Some("keep"));
+        assert_eq!(malformed, 0);
+        assert_eq!(entries.len(), 1, "only 1 row inside window for hub `keep`");
+        assert_eq!(entries[0]["hub"], "keep");
+        assert_eq!(entries[0]["cap_hits_delta"], 1);
     }
 
     #[test]
