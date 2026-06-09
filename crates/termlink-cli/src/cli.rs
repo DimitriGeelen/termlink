@@ -5923,6 +5923,19 @@ pub(crate) enum AgentAction {
         /// Requires `--watch` (events only exist across ticks).
         #[arg(long, value_name = "CMD", requires = "watch")]
         notify: Option<String>,
+
+        /// T-2080 (substrate primitive #2 observability arc Slice 3,
+        /// mirror of T-2073 claims `--log`): append-only NDJSON audit
+        /// trail of idle-state change events. One flat jq-friendly line
+        /// per event with `{ts, agent_id, kind, role, capabilities,
+        /// last_heartbeat_ms}`. Parent dir auto-created. Disk-full /
+        /// permission errors print one-line stderr warning + continue
+        /// (watch never crashes). Symmetric with `--notify` — when both
+        /// flags are set, each event lands in both surfaces.
+        /// Forensic retrospective: `jq -c 'select(.agent_id=="claude-alpha")'
+        /// ~/.termlink/find-idle.log`. Requires `--watch`.
+        #[arg(long, value_name = "PATH", requires = "watch")]
+        log: Option<std::path::PathBuf>,
     },
 }
 

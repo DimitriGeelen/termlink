@@ -213,6 +213,72 @@ fn fire_idle_notify(cmd: &str, ev: &IdleChangeEvent, now_secs: u64) {
     }
 }
 
+/// T-2080: render one NDJSON line for an idle change event. Pure
+/// function — caller is responsible for the IO. Mirror of T-2073's
+/// `render_claim_log_line`. Schema is flat (no nested objects) so a
+/// jq pipeline can grep on any field with a single `select(.x==y)`.
+pub(crate) fn render_idle_log_line(ev: &IdleChangeEvent, now_secs: u64) -> String {
+    let kind = match ev.kind {
+        IdleChangeKind::New => "new",
+        IdleChangeKind::Removed => "removed",
+    };
+    let ts = crate::manifest::secs_to_rfc3339(now_secs);
+    // serde_json::to_string emits a single-line JSON object — no internal
+    // newlines, no pretty-printing. Caller appends '\n' to delimit lines
+    // in the NDJSON file.
+    let obj = serde_json::json!({
+        "ts": ts,
+        "agent_id": ev.agent_id,
+        "kind": kind,
+        "role": ev.snap.role,
+        "capabilities": ev.snap.capabilities,
+        "last_heartbeat_ms": ev.snap.last_heartbeat_ms,
+    });
+    serde_json::to_string(&obj).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// T-2080: best-effort append of one log line. Mirror of T-2073's
+/// `append_claim_log_line`. Parent directory auto-created; permission
+/// or disk-full errors print a one-line stderr warning and return so
+/// the watch loop continues. The watch must NEVER crash because the
+/// audit trail can't be written — that would silently kill observability.
+fn append_idle_log_line(path: &std::path::Path, ev: &IdleChangeEvent, now_secs: u64) {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!(
+                    "# find-idle log: failed to create parent dir {}: {e}",
+                    parent.display()
+                );
+                return;
+            }
+        }
+    }
+    let mut line = render_idle_log_line(ev, now_secs);
+    line.push('\n');
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(mut f) => {
+            use std::io::Write;
+            if let Err(e) = f.write_all(line.as_bytes()) {
+                eprintln!(
+                    "# find-idle log: write failed for {}: {e}",
+                    path.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "# find-idle log: open failed for {}: {e}",
+                path.display()
+            );
+        }
+    }
+}
+
 pub(crate) async fn cmd_agent_find_idle(
     role: Option<&str>,
     capabilities: &[String],
@@ -220,6 +286,7 @@ pub(crate) async fn cmd_agent_find_idle(
     json_output: bool,
     watch: Option<u64>,
     notify: Option<&str>,
+    log: Option<&std::path::Path>,
 ) -> Result<()> {
     let sock_path = termlink_hub::server::hub_socket_path();
     if !sock_path.exists() {
@@ -312,7 +379,9 @@ pub(crate) async fn cmd_agent_find_idle(
                     if let Some(cmd) = notify {
                         fire_idle_notify(cmd, ev, now_secs);
                     }
-                    // Slice 3 (--log) will append here too.
+                    if let Some(path) = log {
+                        append_idle_log_line(path, ev, now_secs);
+                    }
                 }
             }
             if current_state.is_some() {
@@ -481,6 +550,52 @@ mod tests {
             by_key["TERMLINK_IDLE_CAPABILITIES"], "",
             "empty caps render as empty string"
         );
+    }
+
+    // ---- T-2080 --log NDJSON line tests -------------------------------
+
+    #[test]
+    fn find_idle_log_line_is_single_line_jq_friendly() {
+        // No internal newlines — `jq -c 'select(...)' file` MUST be able
+        // to parse one line at a time.
+        let ev = IdleChangeEvent {
+            agent_id: "claude-alpha".to_string(),
+            kind: IdleChangeKind::New,
+            snap: snap(1_700_000_000_000, Some("claude-code"), &["rust", "docs"]),
+        };
+        let line = render_idle_log_line(&ev, 1_700_000_000);
+        assert!(!line.contains('\n'), "line must not contain newline");
+        // Round-trip: must parse as valid JSON.
+        let v: serde_json::Value = serde_json::from_str(&line)
+            .expect("rendered line must be valid JSON");
+        assert_eq!(v["agent_id"], "claude-alpha");
+        assert_eq!(v["kind"], "new");
+        assert_eq!(v["role"], "claude-code");
+        assert_eq!(v["last_heartbeat_ms"], 1_700_000_000_000_i64);
+        let caps = v["capabilities"].as_array().expect("caps is array");
+        assert_eq!(caps.len(), 2);
+        assert_eq!(caps[0], "rust");
+        assert_eq!(caps[1], "docs");
+        assert!(v["ts"].as_str().unwrap().ends_with('Z'));
+    }
+
+    #[test]
+    fn find_idle_log_line_serializes_kind_for_removed() {
+        // The kind field MUST distinguish new/removed so jq can filter.
+        let ev = IdleChangeEvent {
+            agent_id: "beta".to_string(),
+            kind: IdleChangeKind::Removed,
+            snap: snap(1_000, None, &[]),
+        };
+        let line = render_idle_log_line(&ev, 1_700_000_000);
+        let v: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(v["kind"], "removed");
+        // Absent role serializes as null (NOT "-"); the "-" rendering is
+        // for terminal display, NDJSON keeps it null so jq filters work
+        // (`select(.role==null)`).
+        assert!(v["role"].is_null(), "missing role must be JSON null, got {}", v["role"]);
+        let caps = v["capabilities"].as_array().expect("caps is array");
+        assert!(caps.is_empty(), "empty capabilities renders as []");
     }
 
     #[test]
