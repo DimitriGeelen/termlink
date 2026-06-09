@@ -8334,12 +8334,48 @@ pub struct ChannelClaimsSummaryParams {
     pub topic: String,
 }
 
-/// T-2043 (arc-parallel-substrate Slice 10) — empty params struct for
+/// T-2043 (arc-parallel-substrate Slice 10) — params struct for
 /// `termlink_channel_claims_summary_all`. Fleet-wide sweep takes no
 /// topic argument: the tool queries `channel.list` and walks every
 /// topic the hub knows about.
+///
+/// T-2077 (mirror of T-2071 / T-2076): gained `only_stuck` filter so
+/// agents investigating fleet health get the same "show me what needs
+/// attention" affordance the CLI got. Pure presentation-level filter;
+/// the envelope's `stuck_count` and `topic_count` keep fleet-wide truth
+/// (computed before the filter applies). Fetch errors (`ok:false`) are
+/// always retained regardless of the flag — they could mask a stuck topic.
 #[derive(Deserialize, JsonSchema)]
-pub struct ChannelClaimsSummaryAllParams {}
+pub struct ChannelClaimsSummaryAllParams {
+    /// T-2077: when true, drop non-stuck `ok:true` entries from the
+    /// returned `topics[]`. The envelope's `stuck_count` still reflects
+    /// the full fleet (counted before the filter), and `shown` reports
+    /// how many entries actually came back. Default false / unset
+    /// preserves the exact T-2043 envelope shape.
+    pub only_stuck: Option<bool>,
+}
+
+/// T-2077: pure decision predicate for the `only_stuck` filter. Returns
+/// true iff the entry should be included in the response array. Fetch
+/// errors (`ok:false` entries) are ALWAYS included — they could be hiding
+/// a stuck topic, so dropping them silently would be a footgun. Extracted
+/// for direct unit testing without spinning up the hub.
+pub(crate) fn claims_summary_all_entry_passes_filter(
+    entry: &serde_json::Value,
+    only_stuck: bool,
+) -> bool {
+    if !only_stuck {
+        return true;
+    }
+    // Fetch errors always retained (operator/agent must see them).
+    if entry.get("ok").and_then(|v| v.as_bool()) == Some(false) {
+        return true;
+    }
+    entry
+        .get("potentially_stuck")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ChannelReactParams {
@@ -20677,12 +20713,15 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary_all",
-        description = "Fleet-wide claim-state sweep — MCP parity for `termlink channel claims-summary --all` CLI verb (T-2042, arc-parallel-substrate Slice 9; T-2043 is the MCP wrapping = Slice 10). The cold-start investigator verb: when you don't yet know which topic has the stuck worker, this returns one row per topic on the hub with the same Slice 6 aggregate shape PLUS a `potentially_stuck: bool` annotation. Heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000` (60s, conservative — picked above the runbook's 30s default TTL so a healthy near-TTL worker doesn't trip the flag). Returns `{ok, topic_count, stuck_count, topics: [{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}, ...]}`. Per-topic fetch errors during the sweep are non-fatal — captured as `{ok: false, topic, error}` entries, sweep continues. Use this first to identify which topic is misbehaving, then drill in with `termlink_channel_claims` for the per-claim breakdown. No state mutation; safe for cron + investigator agents."
+        description = "Fleet-wide claim-state sweep — MCP parity for `termlink channel claims-summary --all` CLI verb (T-2042, arc-parallel-substrate Slice 9; T-2043 is the MCP wrapping = Slice 10). The cold-start investigator verb: when you don't yet know which topic has the stuck worker, this returns one row per topic on the hub with the same Slice 6 aggregate shape PLUS a `potentially_stuck: bool` annotation. Heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000` (60s, conservative — picked above the runbook's 30s default TTL so a healthy near-TTL worker doesn't trip the flag). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics: [{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}, ...]}`. Per-topic fetch errors during the sweep are non-fatal — captured as `{ok: false, topic, error}` entries, sweep continues. Use this first to identify which topic is misbehaving, then drill in with `termlink_channel_claims` for the per-claim breakdown. T-2077 added the `only_stuck` param (default false): when true, drop non-stuck `ok:true` entries from `topics[]` (fetch errors always retained); the envelope's `stuck_count` keeps fleet-wide truth, and `shown` reports how many entries actually came back. Mirror of T-2076's CLI `--only-stuck` and T-2071's `termlink_fleet_governor_status` `only_pressured`. Agent's 'show me what needs attention' affordance for fleets with many topics. No state mutation; safe for cron + investigator agents."
     )]
     async fn termlink_channel_claims_summary_all(
         &self,
-        Parameters(_p): Parameters<ChannelClaimsSummaryAllParams>,
+        Parameters(p): Parameters<ChannelClaimsSummaryAllParams>,
     ) -> String {
+        // T-2077: agent-facing operator filter. Default false preserves
+        // exact T-2043 envelope semantics for older callers.
+        let only_stuck = p.only_stuck.unwrap_or(false);
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
             return json_err("Hub is not running (no socket found)");
@@ -20764,11 +20803,23 @@ impl TermLinkTools {
             }
         }
 
+        // T-2077: apply only_stuck filter AFTER stuck_count is finalized,
+        // so the fleet-wide total remains truthful. Fetch errors are
+        // retained — see `claims_summary_all_entry_passes_filter` for
+        // rationale.
+        let filtered: Vec<serde_json::Value> = entries
+            .into_iter()
+            .filter(|e| claims_summary_all_entry_passes_filter(e, only_stuck))
+            .collect();
+        let shown = filtered.len();
+
         let envelope = serde_json::json!({
             "ok": true,
             "topic_count": topic_names.len(),
             "stuck_count": stuck_count,
-            "topics": entries,
+            "shown": shown,
+            "only_stuck": only_stuck,
+            "topics": filtered,
         });
         serde_json::to_string_pretty(&envelope).unwrap_or_else(json_err)
     }
@@ -41857,6 +41908,51 @@ YW\tJ
         let (entries, malformed) = parse_claims_log(text, 0, None);
         assert_eq!(entries.len(), 0);
         assert_eq!(malformed, 3);
+    }
+
+    // ---- T-2077 claims_summary_all only_stuck predicate tests --------
+
+    #[test]
+    fn claims_summary_all_only_stuck_off_passes_everything() {
+        let stuck = serde_json::json!({"ok": true, "topic": "a", "potentially_stuck": true});
+        let healthy = serde_json::json!({"ok": true, "topic": "b", "potentially_stuck": false});
+        let err = serde_json::json!({"ok": false, "topic": "c", "error": "boom"});
+        assert!(claims_summary_all_entry_passes_filter(&stuck, false));
+        assert!(claims_summary_all_entry_passes_filter(&healthy, false));
+        assert!(claims_summary_all_entry_passes_filter(&err, false));
+    }
+
+    #[test]
+    fn claims_summary_all_only_stuck_on_drops_healthy_keeps_stuck() {
+        let stuck = serde_json::json!({"ok": true, "topic": "a", "potentially_stuck": true});
+        let healthy = serde_json::json!({"ok": true, "topic": "b", "potentially_stuck": false});
+        assert!(claims_summary_all_entry_passes_filter(&stuck, true));
+        assert!(
+            !claims_summary_all_entry_passes_filter(&healthy, true),
+            "healthy ok:true rows must be dropped under only_stuck"
+        );
+    }
+
+    #[test]
+    fn claims_summary_all_only_stuck_on_always_retains_fetch_errors() {
+        // Critical invariant: fetch errors could be HIDING a stuck topic,
+        // so the filter MUST NOT drop them. Operator/agent must see the
+        // error.
+        let err = serde_json::json!({"ok": false, "topic": "c", "error": "rpc timeout"});
+        assert!(
+            claims_summary_all_entry_passes_filter(&err, true),
+            "fetch errors must be retained regardless of only_stuck"
+        );
+    }
+
+    #[test]
+    fn claims_summary_all_only_stuck_missing_field_treated_as_not_stuck() {
+        // Defensive: if `potentially_stuck` field is missing on an ok:true
+        // row, treat as not-stuck (consistent with the .unwrap_or(false)
+        // path). Better to drop a malformed entry than to spuriously include
+        // it as "stuck" and noise up the agent's view.
+        let weird = serde_json::json!({"ok": true, "topic": "d"});
+        assert!(!claims_summary_all_entry_passes_filter(&weird, true));
     }
 
     #[test]
