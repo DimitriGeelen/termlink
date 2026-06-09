@@ -3706,6 +3706,41 @@ pub(crate) enum FleetAction {
         log: Option<std::path::PathBuf>,
     },
 
+    /// T-2068 (T-2028 §6 #10 closure): retrospective view of governor.log NDJSON.
+    ///
+    /// Reads `~/.termlink/governor.log` (or `--log PATH` override) — the
+    /// NDJSON audit trail captured by `fleet governor-status --watch --log`
+    /// (T-2066 Track G). Each line is one per-hub state change. Useful for
+    /// retrospective backpressure diagnosis: "has this hub been refusing
+    /// connections lately?" / "how many rate-limit hits across the fleet
+    /// this week?" — without keeping a watch terminal open continuously.
+    ///
+    /// Mirror of `fleet history` (T-1671) but for governor state instead of
+    /// rotation events.
+    ///
+    /// Empty/missing log → prints a hint pointing at `fleet governor-status
+    /// --watch --log <path>` to start capturing.
+    ///
+    /// Read-only: no auth, no network, no log mutation.
+    GovernorHistory {
+        /// Window in days (default 7, clamped 1..=365). Older entries skipped.
+        #[arg(long, default_value = "7")]
+        since: u32,
+
+        /// Restrict output to one hub profile name.
+        #[arg(long, value_name = "NAME")]
+        hub: Option<String>,
+
+        /// Override log path (default: `~/.termlink/governor.log`). Use when
+        /// the watch loop was run with a custom `--log` destination.
+        #[arg(long, value_name = "PATH")]
+        log: Option<std::path::PathBuf>,
+
+        /// Emit NDJSON (one matching entry per line) plus a summary footer.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Heal a hub's cached secret. Without `--bootstrap-from` this prints the
     /// copy-pasteable incantation (Tier-1, T-1054). With `--bootstrap-from
     /// <SOURCE>` it actually performs the heal (Tier-2, T-1055, R2 compliance).

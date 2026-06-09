@@ -259,9 +259,65 @@ jq -c 'select(.dedupe_hits_delta>0) | {ts, hub, dedupe_hits_delta}' \
   break the surveillance loop.
 - **Parent dir auto-created.** `~/.termlink/governor.log` works on a fresh
   install without `mkdir -p`.
-- **Future read-side.** A `fleet governor-history` retrospective verb
-  (analog to T-1671's `fleet history`) is captured but deferred — for
-  now operators `jq` the file directly.
+- **Native read-side: `fleet governor-history` (T-2068).** See the next
+  recipe — it walks `~/.termlink/governor.log` (or a `--log PATH`
+  override matching the watch loop), filters by window + hub, renders
+  per-event lines + per-hub aggregate footers. Closes the §6 #10
+  substrate-governor arc end-to-end.
+
+### Recipe — `fleet governor-history` (Track G read-side)
+
+The retrospective companion to `--watch --log`. Reads the NDJSON
+audit trail without keeping a watch terminal open. Mirror of
+`fleet history` (T-1671) but pointed at `governor.log` instead of
+`rotation.log`.
+
+```sh
+# Default: last 7 days, every hub, human format.
+termlink fleet governor-history
+
+# Last 24 hours, only ring20-management.
+termlink fleet governor-history --since 1 --hub ring20-management
+
+# 30 days, JSON for dashboards / pipelines.
+termlink fleet governor-history --since 30 --json
+
+# Custom log path (watch-loop was run with a non-default --log).
+termlink fleet governor-history --log /var/log/termlink/governor.log
+```
+
+Human output is one anchored line per matching entry plus a
+per-hub aggregate footer:
+
+```
+2026-06-08T23:34:02Z  local-test               transition  conn=3→4 cap=0→0(+0) rate=0→0(+0) dedupe=n/a→n/a(+n/a)
+2026-06-08T23:51:11Z  ring20-management        transition  conn=251→256(...) cap=0→4(+4) rate=12→18(+6) dedupe=n/a→n/a(+n/a)
+
+Summary: 2 event(s) in last 7 day(s):
+  local-test                 1 event(s)  cap_hits=+0 rate_hits=+0 dedupe_hits=+0
+  ring20-management          1 event(s)  cap_hits=+4 rate_hits=+6 dedupe_hits=+0
+```
+
+The aggregate footer is the high-signal output: `cap_hits=+4` on a
+hub answers "was this hub turning anyone away in this window?" at
+a glance.
+
+`--json` mode emits one NDJSON line per matching entry followed by
+a single summary object:
+
+```json
+{"ts":"2026-06-08T23:34:02Z","hub":"local-test","kind":"transition","old_conn_active":3,"new_conn_active":4,"old_cap_hits":0,"new_cap_hits":0,"cap_hits_delta":0,"old_rate_hits":0,"new_rate_hits":0,"rate_hits_delta":0,"old_dedupe_hits":null,"new_dedupe_hits":null,"dedupe_hits_delta":null}
+{"total":1,"per_hub":{"local-test":{"events":1,"cap_hits_total":0,"rate_hits_total":0,"dedupe_hits_total":0}},"since_days":7,"hub_filter":null,"malformed_lines_skipped":0,"log_path":"/root/.termlink/governor.log"}
+```
+
+Empty/missing log prints a hint pointing back at the watch verb so
+the operator knows how to start capturing. Malformed lines are
+skipped with stderr warnings (first 3 surfaced) and tallied in
+`malformed_lines_skipped`. Out-of-range `--since` (must be 1..=365)
+errors with a useful message rather than silently clamping.
+
+Read-only by contract: no auth, no network, no log mutation. Safe
+for cron / dashboards / CI.
 
 The fleet view returns `{ok, total, reachable, hubs[], summary}` —
 the `summary` rollup includes `total_*` sums plus `hubs_at_capacity`

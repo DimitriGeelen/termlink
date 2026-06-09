@@ -3673,6 +3673,246 @@ pub(crate) fn cmd_fleet_history(
     Ok(())
 }
 
+/// T-2068 (T-2028 §6 #10 closure): default log path for governor.log.
+/// Mirror of `rotation_log_path` / `heal_log_path` — same `$HOME/.termlink/`
+/// convention, separate file name.
+fn governor_log_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    Some(std::path::PathBuf::from(home).join(".termlink").join("governor.log"))
+}
+
+/// T-2068: per-hub aggregate over governor.log entries within window.
+#[derive(Default, Debug)]
+pub(crate) struct GovernorHubAgg {
+    pub events: u32,
+    pub cap_hits: i64,
+    pub rate_hits: i64,
+    pub dedupe_hits: i64,
+}
+
+/// T-2068: pure render helper for one governor.log entry. Pulled out of
+/// the IO path so it can be unit-tested without writing a real log file.
+/// Format mirrors the watch-loop's per-cycle change line but is anchored on
+/// the entry's timestamp instead of "now":
+///   `<ts>  <hub>  <kind>  conn=A→B cap=X→Y(+d) rate=X→Y(+d) dedupe=X→Y(+d)`
+/// Missing/null dedupe sides render as `n/a` (matches Track G schema where
+/// the dedupe sub-tree is `null` on hubs older than T-2049).
+pub(crate) fn render_governor_history_line(e: &serde_json::Value) -> String {
+    let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("?");
+    let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?");
+    let kind = e.get("kind").and_then(|v| v.as_str()).unwrap_or("?");
+
+    let null_v = serde_json::Value::Null;
+    let i = |k: &str| -> String {
+        e.get(k)
+            .unwrap_or(&null_v)
+            .as_i64()
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "-".into())
+    };
+    let i_or_na = |k: &str| -> String {
+        let v = e.get(k).unwrap_or(&null_v);
+        if v.is_null() {
+            "n/a".into()
+        } else {
+            v.as_i64().map(|n| n.to_string()).unwrap_or_else(|| "?".into())
+        }
+    };
+
+    format!(
+        "{}  {:24} {:11} conn={}→{} cap={}→{}(+{}) rate={}→{}(+{}) dedupe={}→{}(+{})",
+        ts,
+        h,
+        kind,
+        i("old_conn_active"),
+        i("new_conn_active"),
+        i("old_cap_hits"),
+        i("new_cap_hits"),
+        i("cap_hits_delta"),
+        i("old_rate_hits"),
+        i("new_rate_hits"),
+        i("rate_hits_delta"),
+        i_or_na("old_dedupe_hits"),
+        i_or_na("new_dedupe_hits"),
+        i_or_na("dedupe_hits_delta"),
+    )
+}
+
+/// T-2068 (T-2028 §6 #10 closure): retrospective read of governor.log NDJSON.
+/// Mirror of T-1671 `cmd_fleet_history` (rotation.log) but pointed at the
+/// Track G audit trail. Read-only; no auth; no log mutation.
+pub(crate) fn cmd_fleet_governor_history(
+    since_days: u32,
+    hub: Option<&str>,
+    log_override: Option<&std::path::Path>,
+    json_out: bool,
+) -> Result<()> {
+    if !(1..=365).contains(&since_days) {
+        anyhow::bail!("--since: must be 1..=365 days (got {})", since_days);
+    }
+    let path: std::path::PathBuf = match log_override {
+        Some(p) => p.to_path_buf(),
+        None => {
+            let Some(p) = governor_log_path() else {
+                anyhow::bail!(
+                    "fleet governor-history: cannot resolve $HOME/.termlink/governor.log"
+                );
+            };
+            p
+        }
+    };
+    let stored_path = path.clone();
+
+    if !path.exists() {
+        if json_out {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "ok": true,
+                    "entries": [],
+                    "summary": {
+                        "total": 0,
+                        "per_hub": {},
+                        "since_days": since_days,
+                        "hub_filter": hub,
+                        "log_path": path.display().to_string(),
+                    },
+                    "hint": "no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing"
+                })
+            );
+        } else {
+            println!(
+                "no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing\n  (log path: {})",
+                path.display()
+            );
+        }
+        return Ok(());
+    }
+
+    let text = std::fs::read_to_string(&path).with_context(|| {
+        format!("fleet governor-history: cannot read {}", path.display())
+    })?;
+
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed_lines: usize = 0;
+    for (lineno, raw) in text.lines().enumerate() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed_lines += 1;
+                if malformed_lines <= 3 {
+                    eprintln!(
+                        "fleet governor-history: skipping malformed line {} in {}",
+                        lineno + 1,
+                        path.display()
+                    );
+                }
+                continue;
+            }
+        };
+        let ts_str = entry.get("ts").and_then(|v| v.as_str()).unwrap_or("");
+        let ts_secs = rfc3339_to_unix_secs(ts_str);
+        if ts_secs < cutoff_secs {
+            continue;
+        }
+        if let Some(want) = hub {
+            let got = entry.get("hub").and_then(|v| v.as_str()).unwrap_or("");
+            if got != want {
+                continue;
+            }
+        }
+        entries.push(entry);
+    }
+
+    let mut per_hub: std::collections::BTreeMap<String, GovernorHubAgg> =
+        std::collections::BTreeMap::new();
+    for e in &entries {
+        let h = e
+            .get("hub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let agg = per_hub.entry(h).or_default();
+        agg.events += 1;
+        agg.cap_hits += e.get("cap_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        agg.rate_hits += e.get("rate_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        agg.dedupe_hits += e
+            .get("dedupe_hits_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+    }
+
+    if json_out {
+        for e in &entries {
+            println!("{}", e);
+        }
+        let per_hub_json: serde_json::Map<String, serde_json::Value> = per_hub
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    serde_json::json!({
+                        "events": v.events,
+                        "cap_hits_total": v.cap_hits,
+                        "rate_hits_total": v.rate_hits,
+                        "dedupe_hits_total": v.dedupe_hits,
+                    }),
+                )
+            })
+            .collect();
+        let summary = serde_json::json!({
+            "total": entries.len(),
+            "per_hub": per_hub_json,
+            "since_days": since_days,
+            "hub_filter": hub,
+            "malformed_lines_skipped": malformed_lines,
+            "log_path": stored_path.display().to_string(),
+        });
+        println!("{}", summary);
+    } else if entries.is_empty() {
+        println!(
+            "no governor events in the last {} day(s){}\n  (log path: {})",
+            since_days,
+            hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default(),
+            stored_path.display()
+        );
+    } else {
+        for e in &entries {
+            println!("{}", render_governor_history_line(e));
+        }
+        println!();
+        println!(
+            "Summary: {} event(s) in last {} day(s){}:",
+            entries.len(),
+            since_days,
+            hub.map(|h| format!(" for hub `{}`", h)).unwrap_or_default()
+        );
+        for (h, agg) in &per_hub {
+            println!(
+                "  {:24} {:>3} event(s)  cap_hits=+{} rate_hits=+{} dedupe_hits=+{}",
+                h, agg.events, agg.cap_hits, agg.rate_hits, agg.dedupe_hits
+            );
+        }
+        if malformed_lines > 0 {
+            println!(
+                "  ({} malformed line(s) skipped — see stderr)",
+                malformed_lines
+            );
+        }
+    }
+    Ok(())
+}
+
 /// T-1690: per-hub flap classification produced by `analyze_pl021`.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum HubFlapVerdict {
@@ -8069,6 +8309,72 @@ mod tests {
         // Delta null (cannot compute)
         assert_eq!(entry2["rate_hits_delta"], Value::Null);
         assert_eq!(entry2["dedupe_hits_delta"], Value::Null);
+    }
+
+    // T-2068 (T-2028 §6 #10 closure): render_governor_history_line — pure
+    // helper for one governor.log entry. Asserts both the modern (T-2049+)
+    // fully-populated entry shape AND the pre-T-2049 dedupe-null shape.
+
+    #[test]
+    fn render_governor_history_line_renders_full_entry() {
+        // Modern (T-2049+) entry — dedupe sub-tree populated.
+        let entry = serde_json::json!({
+            "ts": "2026-06-08T23:34:02Z",
+            "hub": "local-test",
+            "kind": "transition",
+            "old_reach": "ok",
+            "new_reach": "ok",
+            "old_conn_active": 3,
+            "new_conn_active": 4,
+            "old_cap_hits": 0,
+            "new_cap_hits": 1,
+            "cap_hits_delta": 1,
+            "old_rate_hits": 5,
+            "new_rate_hits": 7,
+            "rate_hits_delta": 2,
+            "old_dedupe_hits": 10,
+            "new_dedupe_hits": 12,
+            "dedupe_hits_delta": 2,
+        });
+        let line = render_governor_history_line(&entry);
+        // Anchor on stable substrings rather than full string match — the
+        // column width is presentation-level and shouldn't tie the test up.
+        assert!(line.starts_with("2026-06-08T23:34:02Z"), "ts prefix: {line}");
+        assert!(line.contains("local-test"), "hub: {line}");
+        assert!(line.contains("transition"), "kind: {line}");
+        assert!(line.contains("conn=3→4"), "conn delta: {line}");
+        assert!(line.contains("cap=0→1(+1)"), "cap delta: {line}");
+        assert!(line.contains("rate=5→7(+2)"), "rate delta: {line}");
+        assert!(line.contains("dedupe=10→12(+2)"), "dedupe delta: {line}");
+    }
+
+    #[test]
+    fn render_governor_history_line_renders_dedupe_na_when_null() {
+        // Pre-T-2049 hub — dedupe sub-tree is null on both sides.
+        let entry = serde_json::json!({
+            "ts": "2026-06-08T22:00:00Z",
+            "hub": "legacy-hub",
+            "kind": "new",
+            "old_reach": serde_json::Value::Null,
+            "new_reach": "ok",
+            "old_conn_active": serde_json::Value::Null,
+            "new_conn_active": 3,
+            "old_cap_hits": serde_json::Value::Null,
+            "new_cap_hits": 0,
+            "cap_hits_delta": serde_json::Value::Null,
+            "old_rate_hits": serde_json::Value::Null,
+            "new_rate_hits": 0,
+            "rate_hits_delta": serde_json::Value::Null,
+            "old_dedupe_hits": serde_json::Value::Null,
+            "new_dedupe_hits": serde_json::Value::Null,
+            "dedupe_hits_delta": serde_json::Value::Null,
+        });
+        let line = render_governor_history_line(&entry);
+        assert!(line.contains("legacy-hub"), "hub: {line}");
+        // Numeric-null sides render as "-"; dedupe-null sides render as "n/a"
+        assert!(line.contains("conn=-→3"), "conn null-old: {line}");
+        assert!(line.contains("cap=-→0(+-)"), "cap null-delta: {line}");
+        assert!(line.contains("dedupe=n/a→n/a(+n/a)"), "dedupe n/a: {line}");
     }
 
     #[test]

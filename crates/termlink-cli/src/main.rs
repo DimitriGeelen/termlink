@@ -684,6 +684,14 @@ async fn main() -> Result<()> {
             FleetAction::History { since, hub, json, include_heals, analyze } => {
                 commands::remote::cmd_fleet_history(since, hub.as_deref(), json, include_heals, analyze)
             }
+            FleetAction::GovernorHistory { since, hub, log, json } => {
+                commands::remote::cmd_fleet_governor_history(
+                    since,
+                    hub.as_deref(),
+                    log.as_deref(),
+                    json,
+                )
+            }
             FleetAction::BootstrapCheck { profile, all, json } => {
                 commands::remote::cmd_fleet_bootstrap_check(profile.as_deref(), all, json)
             }
