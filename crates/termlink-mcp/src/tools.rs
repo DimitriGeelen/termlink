@@ -440,6 +440,101 @@ pub(crate) fn aggregate_claims_entries(
     per_topic
 }
 
+// T-2082: per-agent aggregate counter for find-idle-history MCP. Mirror of
+// `ClaimsTopicAggMcp` but for idle state (binary — no transition kind).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FindIdleAgentAggMcp {
+    pub new_events: u64,
+    pub removed_events: u64,
+}
+
+// T-2082: pure helper — parse find-idle.log NDJSON into (entries, malformed).
+// Mirror of T-2075's `parse_claims_log`: same signature shape, same skip
+// + count semantics, same RFC3339→epoch parser (reused via
+// fleet_history_rfc3339_to_unix), same cutoff filter.
+//
+// `agent_id_filter == None` means "all agents". Lines missing required fields
+// (`ts`, `agent_id`, `kind`) are counted malformed and skipped — never
+// returned as half-parsed entries.
+pub(crate) fn parse_find_idle_log_mcp(
+    text: &str,
+    cutoff_secs: i64,
+    agent_id_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed: usize = 0;
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match entry.get("ts").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let agent_id = match entry.get("agent_id").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if entry.get("kind").and_then(|k| k.as_str()).is_none() {
+            malformed += 1;
+            continue;
+        }
+        if let Some(want) = agent_id_filter {
+            if agent_id != want {
+                continue;
+            }
+        }
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        entries.push(entry);
+    }
+    (entries, malformed)
+}
+
+// T-2082: pure helper — aggregate per-agent kind counts.
+// Mirror of `aggregate_claims_entries`. Idle is binary, so we count
+// new + removed only (no transition kind — see T-2078 design note).
+// BTreeMap keeps insertion order stable for reproducible test assertions.
+pub(crate) fn aggregate_find_idle_entries_mcp(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, FindIdleAgentAggMcp> {
+    let mut per_agent: std::collections::BTreeMap<String, FindIdleAgentAggMcp> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        let id = e
+            .get("agent_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string();
+        let kind = match e.get("kind").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        let agg = per_agent.entry(id).or_default();
+        match kind {
+            "new" => agg.new_events += 1,
+            "removed" => agg.removed_events += 1,
+            _ => {}
+        }
+    }
+    per_agent
+}
+
 /// T-1941: full help registry — extracted so the phantom-entry guard test
 /// (`help_registry_has_no_phantom_entries`) can introspect it without standing
 /// up the MCP server. `termlink_help` consumes the same fn.
@@ -541,6 +636,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
             ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
             ("termlink_agent_find_idle", "T-2045: hub-derived idle-agent roster (LIVE presence ∖ active claimers). Orchestrator's 'who can I dispatch to?' primitive — pair with termlink_channel_claim for assignment."),
+            ("termlink_agent_find_idle_history", "T-2082/T-2081: retrospective read of ~/.termlink/find-idle.log NDJSON audit trail. Per-agent aggregate of new/removed event counts within --since-days window. Answers 'is this worker flapping?' / 'when did claude-alpha go busy?'"),
             ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
             ("termlink_channel_reply", "Reply to a specific post on a topic"),
             ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
@@ -9653,6 +9749,20 @@ pub struct ChannelClaimsHistoryParams {
     /// Filter to a single topic name (exact match; None = all topics).
     pub topic: Option<String>,
     /// Override log path (default: `$HOME/.termlink/claims.log`).
+    /// Use when the watch loop was run with a custom `--log` destination.
+    pub log_path: Option<String>,
+}
+
+// T-2082: Agent find-idle-history params (MCP parity for T-2081 CLI verb).
+// Mirror of ChannelClaimsHistoryParams shape pointed at the find-idle
+// audit trail (`~/.termlink/find-idle.log`) instead of claims.log.
+#[derive(Deserialize, JsonSchema)]
+pub struct AgentFindIdleHistoryParams {
+    /// Look-back window in days (default: 7, clamped 1..=365).
+    pub since_days: Option<u32>,
+    /// Filter to a single agent_id (exact match; None = all agents).
+    pub agent_id: Option<String>,
+    /// Override log path (default: `$HOME/.termlink/find-idle.log`).
     /// Use when the watch loop was run with a custom `--log` destination.
     pub log_path: Option<String>,
 }
@@ -28137,6 +28247,93 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_agent_find_idle_history",
+        description = "T-2082 / T-2081 — retrospective read of the find-idle.log NDJSON audit trail produced by `agent find-idle --watch --log <path>`. Walks `~/.termlink/find-idle.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `agent_id` exact-match, and returns `{ok, entries[], summary{total, per_agent:{<agent_id>:{new_events, removed_events}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}`. Per-agent aggregates count each change-event kind independently so a caller can answer 'has this worker been flapping (high new+removed)?' / 'merely transitioned once?' in one call. Idle is binary (no `transition` kind — re-heartbeat is not a state change). Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no find-idle history yet — run `agent find-idle --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_channel_claims_history` (T-2075) but pointed at the substrate find-idle (DISPATCH) observability audit trail. CLI parity: `termlink agent find-idle-history`."
+    )]
+    async fn termlink_agent_find_idle_history(
+        &self,
+        Parameters(p): Parameters<AgentFindIdleHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+
+        let log_path: std::path::PathBuf = match p.log_path.as_deref() {
+            Some(s) => std::path::PathBuf::from(s),
+            None => {
+                let Some(home) = std::env::var("HOME").ok() else {
+                    return json_err(
+                        "HOME env var not set; cannot resolve find-idle.log default path",
+                    );
+                };
+                std::path::PathBuf::from(home)
+                    .join(".termlink")
+                    .join("find-idle.log")
+            }
+        };
+
+        if !log_path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "per_agent": {},
+                    "since_days": since_days,
+                    "agent_id_filter": p.agent_id,
+                    "log_path": log_path.display().to_string(),
+                },
+                "hint": "no find-idle history yet — run `agent find-idle --watch --log <path>` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let text = match std::fs::read_to_string(&log_path) {
+            Ok(t) => t,
+            Err(e) => return json_err(format!("cannot read {}: {e}", log_path.display())),
+        };
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let (entries, malformed) =
+            parse_find_idle_log_mcp(&text, cutoff, p.agent_id.as_deref());
+
+        let per_agent = aggregate_find_idle_entries_mcp(&entries);
+
+        let per_agent_json: serde_json::Map<String, serde_json::Value> = per_agent
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    serde_json::json!({
+                        "new_events": v.new_events,
+                        "removed_events": v.removed_events,
+                    }),
+                )
+            })
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": {
+                "total": entries.len(),
+                "per_agent": per_agent_json,
+                "since_days": since_days,
+                "agent_id_filter": p.agent_id,
+                "malformed_lines_skipped": malformed,
+                "log_path": log_path.display().to_string(),
+            }
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_agent_find_idle",
         description = "T-2045 (T-2020 GO): hub-derived idle-agent roster. Returns agents on the local hub that are LIVE on `agent-presence` AND are not currently holding any active claim. Orchestrator's `who can I dispatch to?` primitive — pair with `termlink_channel_claim` for the next-step assign verb. Pure read — no state mutation, no auth. Params: `{role?, capabilities? (subset match), limit?}` → `{ok, idle: [{agent_id, last_heartbeat_ms, role, capabilities}, ...]}`."
     )]
@@ -41908,6 +42105,84 @@ YW\tJ
         let (entries, malformed) = parse_claims_log(text, 0, None);
         assert_eq!(entries.len(), 0);
         assert_eq!(malformed, 3);
+    }
+
+    // ---- T-2082 find-idle-history MCP tests (mirror of T-2075 above) ----
+    // Idle is binary — count `new` + `removed` only (no `transition`).
+
+    #[test]
+    fn mcp_find_idle_history_parse_skips_malformed_and_aggregates_kinds() {
+        let in_window_ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "garbage line one\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"alpha\",\"kind\":\"new\",\"role\":\"claude-code\",\"capabilities\":[\"rust\"],\"last_heartbeat_ms\":1000}}\n\
+             this is not json\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"alpha\",\"kind\":\"removed\",\"role\":\"claude-code\",\"capabilities\":[\"rust\"],\"last_heartbeat_ms\":2000}}\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"alpha\",\"kind\":\"new\",\"role\":\"claude-code\",\"capabilities\":[\"rust\"],\"last_heartbeat_ms\":3000}}\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"beta\",\"kind\":\"new\",\"role\":null,\"capabilities\":[],\"last_heartbeat_ms\":4000}}\n",
+            ts = in_window_ts
+        );
+        let (entries, malformed) = parse_find_idle_log_mcp(&text, 0, None);
+        assert_eq!(entries.len(), 4, "4 parseable rows");
+        assert_eq!(malformed, 2, "2 garbage rows counted");
+        let agg = aggregate_find_idle_entries_mcp(&entries);
+        assert_eq!(agg.len(), 2);
+        let alpha = agg.get("alpha").unwrap();
+        assert_eq!(alpha.new_events, 2, "alpha flipped busy→idle twice");
+        assert_eq!(alpha.removed_events, 1);
+        let beta = agg.get("beta").unwrap();
+        assert_eq!(beta.new_events, 1);
+        assert_eq!(beta.removed_events, 0);
+    }
+
+    #[test]
+    fn mcp_find_idle_history_parse_applies_agent_id_filter() {
+        let ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"agent_id\":\"wanted\",\"kind\":\"new\"}}\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"other\",\"kind\":\"new\"}}\n\
+             {{\"ts\":\"{ts}\",\"agent_id\":\"wanted\",\"kind\":\"removed\"}}\n",
+            ts = ts
+        );
+        let (entries, _) = parse_find_idle_log_mcp(&text, 0, Some("wanted"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(e["agent_id"], "wanted");
+        }
+    }
+
+    #[test]
+    fn mcp_find_idle_history_parse_applies_cutoff() {
+        let text = "{\"ts\":\"1990-01-01T00:00:00Z\",\"agent_id\":\"old\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"new\",\"kind\":\"new\"}\n";
+        // cutoff = 1_000_000_000 (≈2001-09-09) drops the 1990 row.
+        let (entries, malformed) = parse_find_idle_log_mcp(text, 1_000_000_000, None);
+        assert_eq!(malformed, 0);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["agent_id"], "new");
+    }
+
+    #[test]
+    fn mcp_find_idle_history_parse_missing_ts_or_agent_id_or_kind_is_malformed() {
+        let text = "{\"agent_id\":\"x\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"x\"}\n";
+        let (entries, malformed) = parse_find_idle_log_mcp(text, 0, None);
+        assert_eq!(entries.len(), 0);
+        assert_eq!(malformed, 3);
+    }
+
+    #[test]
+    fn mcp_find_idle_history_aggregate_drops_unknown_kinds() {
+        // Forward-compatible: future kind values must NOT crash; they're
+        // silently dropped from per-agent counters.
+        let text = "{\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"surprise_future_kind\"}\n";
+        let (entries, _) = parse_find_idle_log_mcp(text, 0, None);
+        let agg = aggregate_find_idle_entries_mcp(&entries);
+        let a = agg.get("a").unwrap();
+        assert_eq!(a.new_events, 1);
+        assert_eq!(a.removed_events, 0);
     }
 
     // ---- T-2077 claims_summary_all only_stuck predicate tests --------
