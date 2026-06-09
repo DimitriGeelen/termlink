@@ -8770,6 +8770,296 @@ pub(crate) async fn cmd_channel_queue_status_watch(
     }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// T-2086: queue-history — substrate primitive #5 obs arc Slice 4
+// Mirror of T-2074 (claims-history) / T-2081 (find-idle-history).
+// Retrospective verb walks ~/.termlink/queue.log (populated by T-2085
+// `queue-status --watch --log`), filters by window + kind, renders
+// one-line-per-entry + per-kind aggregate footer.
+// ───────────────────────────────────────────────────────────────────
+
+/// T-2086: default log path for the queue audit trail. Mirror of T-2081's
+/// `find_idle_log_path`. Falls back to `./.termlink/queue.log` when
+/// `$HOME` is unset (rare; CI / docker minimal images) so the helper
+/// never panics — the caller is still free to override via `--log <PATH>`.
+pub(crate) fn queue_log_path() -> std::path::PathBuf {
+    match std::env::var_os("HOME") {
+        Some(home) => std::path::PathBuf::from(home)
+            .join(".termlink")
+            .join("queue.log"),
+        None => std::path::PathBuf::from(".termlink").join("queue.log"),
+    }
+}
+
+/// T-2086: aggregate counters for queue-history. Queue state is binary
+/// (`pending`/`drained` — see T-2083 design note), so there's no
+/// `transitions` field, just per-kind event counts. Mirror of T-2081's
+/// `FindIdleHistoryAgg`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct QueueHistoryAgg {
+    pub pending_events: u64,
+    pub drained_events: u64,
+}
+
+/// T-2086: pure helper — parse NDJSON log text into `(entries,
+/// malformed_count)`. Each non-empty line that fails JSON parse OR lacks
+/// required fields (`ts`, `kind`) is skipped and counted; the rest are
+/// returned in source order. Time-window filter (`cutoff_secs`) and
+/// kind exact-match filter applied during the walk. Mirror of T-2081's
+/// `parse_find_idle_log` (sans agent_id requirement — queue is per-host
+/// so there's no equivalent identifier).
+///
+/// `cutoff_secs` is "skip any entry whose ts is older than this Unix
+/// epoch seconds". Caller computes `now - since_days * 86400`. Kind
+/// filter `None` means "all kinds".
+pub(crate) fn parse_queue_log(
+    text: &str,
+    cutoff_secs: i64,
+    kind_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries = Vec::new();
+    let mut malformed = 0usize;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let kind = match v.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if let Some(want) = kind_filter {
+            if kind != want {
+                continue;
+            }
+        }
+        let entry_secs = rfc3339_to_unix_secs_queue(ts_str);
+        if entry_secs < cutoff_secs {
+            continue;
+        }
+        entries.push(v);
+    }
+    (entries, malformed)
+}
+
+/// T-2086: stdlib-only RFC3339→epoch parser. Duplicated from T-2081's
+/// `rfc3339_to_unix_secs_local` per T-2069 convention (pure helpers
+/// duplicated per crate, ~30 lines is cheaper than introducing a
+/// cross-module dependency). Returns 0 on any parse error (caller
+/// treats 0 as "very old").
+fn rfc3339_to_unix_secs_queue(ts: &str) -> i64 {
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        parse_u(0, 4),
+        parse_u(5, 2),
+        parse_u(8, 2),
+        parse_u(11, 2),
+        parse_u(14, 2),
+        parse_u(17, 2),
+    ) else {
+        return 0;
+    };
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 {
+        y_shift / 400
+    } else {
+        (y_shift - 399) / 400
+    };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
+/// T-2086: pure helper — aggregate parsed entries into per-kind
+/// counters. Mirror of T-2081's `aggregate_find_idle_entries` (single
+/// QueueHistoryAgg instead of per-agent map — queue is per-host).
+pub(crate) fn aggregate_queue_entries(entries: &[serde_json::Value]) -> QueueHistoryAgg {
+    let mut out = QueueHistoryAgg::default();
+    for e in entries {
+        let kind = match e.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        match kind {
+            "pending" => out.pending_events += 1,
+            "drained" => out.drained_events += 1,
+            _ => {}
+        }
+    }
+    out
+}
+
+/// T-2086: render one parsed entry as a single human-readable line.
+/// Format chosen so the eye can scan a 50-line dump and pick out the
+/// kind column. Mirror of T-2081's `render_find_idle_history_line`.
+fn render_queue_history_line(e: &serde_json::Value) -> String {
+    let ts = e.get("ts").and_then(|t| t.as_str()).unwrap_or("-");
+    let kind = e.get("kind").and_then(|t| t.as_str()).unwrap_or("-");
+    let old_pending = e
+        .get("old_pending")
+        .and_then(|n| n.as_u64())
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "-".to_string());
+    let new_pending = e
+        .get("new_pending")
+        .and_then(|n| n.as_u64())
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "-".to_string());
+    let oldest_age = match e.get("oldest_age_ms") {
+        Some(serde_json::Value::Number(n)) => format!("{}ms", n),
+        Some(serde_json::Value::Null) | None => "n/a".to_string(),
+        _ => "-".to_string(),
+    };
+    let qp = e
+        .get("queue_path")
+        .and_then(|t| t.as_str())
+        .unwrap_or("-");
+    format!(
+        "{}  {}  pending={}→{}  oldest_age={}  queue={}",
+        ts, kind, old_pending, new_pending, oldest_age, qp
+    )
+}
+
+/// T-2086: the `channel queue-history` command implementation.
+/// Read-only: walks the log file, applies filters, renders. Never auths
+/// or talks to a hub. Missing log file → operator hint pointing back at
+/// the writer (`queue-status --watch --log`). Mirror of T-2081's
+/// `cmd_agent_find_idle_history`.
+pub(crate) fn cmd_channel_queue_history(
+    since_days: u32,
+    kind_filter: Option<&str>,
+    log_override: Option<&std::path::Path>,
+    json_out: bool,
+) -> Result<()> {
+    let since_days = since_days.clamp(1, 365);
+    let path: std::path::PathBuf = log_override
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(queue_log_path);
+    let path_str = path.display().to_string();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if json_out {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": true,
+                        "entries": [],
+                        "summary": {
+                            "total": 0,
+                            "pending_events": 0,
+                            "drained_events": 0,
+                            "since_days": since_days,
+                            "kind_filter": kind_filter,
+                            "malformed_lines_skipped": 0,
+                            "log_path": path_str,
+                            "note": "log file does not exist yet",
+                        }
+                    })
+                );
+                return Ok(());
+            }
+            println!(
+                "(no log file at {} — write events first with `channel queue-status --watch --log {}`)",
+                path_str, path_str
+            );
+            return Ok(());
+        }
+        Err(e) => anyhow::bail!("queue-history: read {:?} failed: {e}", path),
+    };
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+    let (entries, malformed) = parse_queue_log(&text, cutoff_secs, kind_filter);
+    let agg = aggregate_queue_entries(&entries);
+    if json_out {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "entries": entries,
+                "summary": {
+                    "total": entries.len(),
+                    "pending_events": agg.pending_events,
+                    "drained_events": agg.drained_events,
+                    "since_days": since_days,
+                    "kind_filter": kind_filter,
+                    "malformed_lines_skipped": malformed,
+                    "log_path": path_str,
+                }
+            })
+        );
+        return Ok(());
+    }
+    if entries.is_empty() {
+        let kind_clause = kind_filter
+            .map(|t| format!(" kind={:?}", t))
+            .unwrap_or_default();
+        println!(
+            "(no entries in last {} day(s){} — log: {})",
+            since_days, kind_clause, path_str
+        );
+        if malformed > 0 {
+            println!("({} malformed line(s) skipped)", malformed);
+        }
+        return Ok(());
+    }
+    for e in &entries {
+        println!("{}", render_queue_history_line(e));
+    }
+    println!();
+    println!(
+        "Aggregate (since {} day(s), {} entries{}):",
+        since_days,
+        entries.len(),
+        if malformed > 0 {
+            format!(", {} malformed lines skipped", malformed)
+        } else {
+            String::new()
+        }
+    );
+    println!(
+        "  pending={}  drained={}",
+        agg.pending_events, agg.drained_events
+    );
+    println!("(log: {})", path_str);
+    Ok(())
+}
+
 pub(crate) async fn cmd_channel_list(
     prefix: Option<&str>,
     stats: bool,
@@ -16971,6 +17261,114 @@ mod tests {
         assert_eq!(v["new_pending"], 2);
         // Cleanup.
         let _ = std::fs::remove_dir_all(&tmp_root);
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // T-2086: queue_history — substrate primitive #5 obs arc Slice 4.
+    // Pure-helper tests for the retrospective verb. Mirror of T-2081's
+    // find-idle-history tests (sans agent_id filter; queue uses kind filter).
+    // ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn queue_history_parse_skips_malformed_and_counts() {
+        // Three lines: one valid pending, one malformed JSON, one
+        // missing-`kind` (counts as malformed too).
+        let text = "\
+{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}
+not json at all
+{\"ts\":\"2026-06-09T10:00:01Z\",\"old_pending\":3,\"new_pending\":0}
+{\"ts\":\"2026-06-09T10:00:02Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}
+";
+        let (entries, malformed) = parse_queue_log(text, 0, None);
+        assert_eq!(entries.len(), 2, "two parseable entries");
+        assert_eq!(malformed, 2, "one bad JSON + one missing kind");
+        assert_eq!(entries[0]["kind"], "pending");
+        assert_eq!(entries[1]["kind"], "drained");
+    }
+
+    #[test]
+    fn queue_history_parse_applies_kind_filter() {
+        let text = "\
+{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:01Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:02Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":1,\"oldest_age_ms\":10,\"queue_path\":\"/tmp/q.sqlite\"}
+";
+        let (entries, _malformed) = parse_queue_log(text, 0, Some("pending"));
+        assert_eq!(entries.len(), 2, "kind=pending filter keeps two entries");
+        for e in &entries {
+            assert_eq!(e["kind"], "pending");
+        }
+        let (drained, _) = parse_queue_log(text, 0, Some("drained"));
+        assert_eq!(drained.len(), 1);
+        let (none, _) = parse_queue_log(text, 0, Some("transition"));
+        assert!(none.is_empty(), "no matches for nonexistent kind");
+    }
+
+    #[test]
+    fn queue_history_parse_applies_cutoff() {
+        let text = "\
+{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T11:00:00Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}
+";
+        // Cutoff = 2026-06-09T10:30:00Z (Unix secs).
+        // The 10:00:00 entry is older → dropped. 11:00:00 entry is newer → kept.
+        let cutoff = rfc3339_to_unix_secs_queue("2026-06-09T10:30:00Z");
+        let (entries, _) = parse_queue_log(text, cutoff, None);
+        assert_eq!(entries.len(), 1, "only the post-cutoff entry survives");
+        assert_eq!(entries[0]["kind"], "drained");
+    }
+
+    #[test]
+    fn queue_history_aggregate_counts_per_kind() {
+        let text = "\
+{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:01Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:02Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":1,\"oldest_age_ms\":10,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:03Z\",\"kind\":\"pending\",\"old_pending\":1,\"new_pending\":7,\"oldest_age_ms\":100,\"queue_path\":\"/tmp/q.sqlite\"}
+";
+        let (entries, _) = parse_queue_log(text, 0, None);
+        let agg = aggregate_queue_entries(&entries);
+        assert_eq!(agg.pending_events, 3);
+        assert_eq!(agg.drained_events, 1);
+    }
+
+    #[test]
+    fn queue_history_aggregate_drops_unknown_kinds() {
+        // A line with kind="weird" parses (it has ts + kind) but the
+        // aggregator MUST drop it — protects against schema drift in
+        // future writers without corrupting the per-kind totals.
+        let text = "\
+{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}
+{\"ts\":\"2026-06-09T10:00:01Z\",\"kind\":\"weird\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}
+";
+        let (entries, _) = parse_queue_log(text, 0, None);
+        assert_eq!(entries.len(), 2, "both lines parse");
+        let agg = aggregate_queue_entries(&entries);
+        assert_eq!(agg.pending_events, 1);
+        assert_eq!(agg.drained_events, 0);
+    }
+
+    #[test]
+    fn queue_history_render_line_human_format() {
+        let entry: serde_json::Value = serde_json::from_str(
+            "{\"ts\":\"2026-06-09T10:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":1500,\"queue_path\":\"/tmp/q.sqlite\"}"
+        ).expect("parseable");
+        let line = render_queue_history_line(&entry);
+        assert!(line.contains("2026-06-09T10:00:00Z"));
+        assert!(line.contains("pending"));
+        assert!(line.contains("pending=0→3"));
+        assert!(line.contains("oldest_age=1500ms"));
+        assert!(line.contains("queue=/tmp/q.sqlite"));
+    }
+
+    #[test]
+    fn queue_history_render_line_handles_null_oldest_age() {
+        let entry: serde_json::Value = serde_json::from_str(
+            "{\"ts\":\"2026-06-09T10:00:01Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}"
+        ).expect("parseable");
+        let line = render_queue_history_line(&entry);
+        assert!(line.contains("drained"));
+        assert!(line.contains("oldest_age=n/a"), "null → n/a in render");
     }
 
     #[test]

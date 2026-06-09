@@ -1541,6 +1541,14 @@ async fn main() -> Result<()> {
                     commands::channel::cmd_channel_queue_status(queue_path.as_deref(), json)
                 }
             }
+            ChannelAction::QueueHistory { since, kind, log, json } => {
+                commands::channel::cmd_channel_queue_history(
+                    since,
+                    kind.as_deref(),
+                    log.as_deref(),
+                    json,
+                )
+            }
             ChannelAction::Claim {
                 topic,
                 offset,

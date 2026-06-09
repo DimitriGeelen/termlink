@@ -2678,6 +2678,29 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "PATH", requires = "watch")]
         log: Option<String>,
     },
+    /// T-2086 (substrate primitive #5 obs arc Slice 4, mirror of T-2074
+    /// `claims-history` / T-2081 `find-idle-history`): retrospective
+    /// CLI verb that walks the queue audit log (default
+    /// `~/.termlink/queue.log`, populated by
+    /// `queue-status --watch --log`), filters by window + kind, renders
+    /// one human-format line per matching entry + per-kind aggregate
+    /// footer. Answers "has the queue been backing up?" /
+    /// "is the host losing connectivity?" without keeping the watch
+    /// terminal attached. Pure read; no auth; no network.
+    QueueHistory {
+        /// Time window from now in days. Clamped to 1..=365. Default 7.
+        #[arg(long, default_value_t = 7)]
+        since: u32,
+        /// Filter to a specific event kind. Optional.
+        #[arg(long, value_name = "KIND")]
+        kind: Option<String>,
+        /// Override the log file location. Default `~/.termlink/queue.log`.
+        #[arg(long)]
+        log: Option<std::path::PathBuf>,
+        /// Output as JSON envelope instead of human text.
+        #[arg(long)]
+        json: bool,
+    },
     /// Quotable text snippet for citing a channel message in tasks/docs
     /// (T-1363). Walks the topic, finds the target offset, renders it with
     /// N envelopes of context above and below. Skips meta envelopes so the
