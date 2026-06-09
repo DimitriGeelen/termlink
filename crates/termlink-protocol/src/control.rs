@@ -223,6 +223,23 @@ pub mod method {
     /// `channel.claims`. Old hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_CLAIMS_SUMMARY: &str = "channel.claims_summary";
 
+    /// T-2106 — operator inspection of the hub-side cv_index for `topic`
+    /// (arc-parallel-substrate primitive #9, broadcast-with-replay).
+    /// Returns the per-cv_key latest-offset mapping recorded by the hub on
+    /// every post carrying `metadata.cv_key` (T-2103). Read-only — no
+    /// auth side-effects, no state mutation. The companion to
+    /// `channel.subscribe include_current_value=true` (T-2104): subscribe
+    /// fetches the cv-indexed ENVELOPES for replay; `channel.cv_keys`
+    /// returns just the KEYS + offsets for diagnosis (who's advertising
+    /// on this topic? are stale keys still pinned?).
+    /// Params: `{ topic }` → `{ ok, topic, count, entries: [{cv_key, offset}, ...] }`.
+    /// Entries are sorted by `cv_key` for stable rendering. Empty cv_index
+    /// returns `count: 0, entries: []` (NOT an error — a healthy topic
+    /// with no cv-tagged posts is a valid state).
+    /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013) — same shape as
+    /// `channel.claims_summary`. Old hubs return `MethodNotFound` (-32601).
+    pub const CHANNEL_CV_KEYS: &str = "channel.cv_keys";
+
     /// T-1329 — server-side aggregation of latest `m.receipt` envelope per sender.
     /// Walks the topic on the hub, keeps only `msg_type=receipt`, picks the latest
     /// (by ts; ties broken by higher up_to), returns a sorted-by-sender list.

@@ -8035,6 +8035,12 @@ pub struct ChannelListParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+pub struct ChannelCvKeysParams {
+    /// Topic name to inspect.
+    pub topic: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentFindIdleParams {
     /// Restrict to agents whose `metadata.role` equals this value (e.g.
     /// `"claude-code"`). Default: any role.
@@ -28356,6 +28362,34 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.subscribe error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_cv_keys",
+        description = "T-2106 — operator inspection of the hub-side cv_index for a topic (substrate primitive #9, broadcast-with-replay). Read-only — returns the per-cv_key latest-offset mapping recorded by the hub on every post carrying `metadata.cv_key` (T-2103). Companion to `termlink_channel_subscribe` with `include_current_value=true` (T-2105): subscribe fetches the cv-indexed envelopes for replay; cv_keys returns just the KEYS + offsets for diagnosis ('who's currently advertising on this topic?', 'are stale keys still pinned?'). Returns `{ok, topic, count, entries: [{cv_key, offset}, ...]}` sorted by cv_key. Empty cv_index is NOT an error — `count: 0, entries: []` is a valid healthy state for a topic with no cv-tagged posts. Missing topic → CHANNEL_TOPIC_UNKNOWN (-32013)."
+    )]
+    async fn termlink_channel_cv_keys(
+        &self,
+        Parameters(p): Parameters<ChannelCvKeysParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let params = serde_json::json!({"topic": p.topic});
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_CV_KEYS,
+            params,
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.cv_keys error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }

@@ -9162,6 +9162,42 @@ pub(crate) async fn cmd_channel_list(
     Ok(())
 }
 
+/// T-2106 — `channel cv-keys <TOPIC>` operator inspection of the hub-side
+/// cv_index. Read-only — returns the per-cv_key latest-offset mapping for
+/// the substrate broadcast-with-replay primitive (T-2103/T-2104/T-2105).
+/// Empty cv_index is not an error — the human-mode rendering emits a
+/// "no cv_keys recorded" hint instead of silent zero.
+pub(crate) async fn cmd_channel_cv_keys(
+    topic: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
+    let params = json!({"topic": topic});
+    let resp = rpc_call_authed(&sock, method::CHANNEL_CV_KEYS, params)
+        .await
+        .context("Hub rpc_call failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.cv_keys: {e}"))?;
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+    let count = result["count"].as_u64().unwrap_or(0);
+    let entries = result["entries"].as_array().cloned().unwrap_or_default();
+    if count == 0 {
+        println!("no cv_keys recorded on topic {topic:?}");
+        return Ok(());
+    }
+    println!("topic={topic} count={count}");
+    for e in &entries {
+        let cv_key = e["cv_key"].as_str().unwrap_or("?");
+        let off = e["offset"].as_u64().unwrap_or(0);
+        println!("  {cv_key} -> @{off}");
+    }
+    Ok(())
+}
+
 /// T-2047: pure decision helper for `--from-latest` mode. Given the topic's
 /// current latest offset (or None for empty topic) and the then_live flag,
 /// returns the (cursor, limit, follow) override the caller should use.

@@ -1450,6 +1450,63 @@ pub(crate) async fn handle_channel_claims_summary_with(
     }
 }
 
+/// T-2106 — `channel.cv_keys`: operator inspection of the per-topic cv_index
+/// (substrate primitive #9). Read-only. Returns `[{cv_key, offset}, ...]`
+/// sorted by cv_key. Empty cv_index → `count: 0, entries: []` (NOT an
+/// error; healthy topic with no cv-tagged posts is a valid state).
+/// Missing topic → CHANNEL_TOPIC_UNKNOWN (mirror of claims_summary).
+pub async fn handle_channel_cv_keys(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_cv_keys_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_cv_keys_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    // Topic existence check via list_topics — operator verb, not hot path.
+    // We could call bus.topic_record_count() and match on UnknownTopic, but
+    // list_topics has the simplest contract.
+    let topics = match bus.list_topics() {
+        Ok(t) => t,
+        Err(e) => {
+            return ErrorResponse::internal_error(id, &format!("channel.cv_keys: {e}")).into();
+        }
+    };
+    if !topics.iter().any(|t| t == topic) {
+        return ErrorResponse::new(
+            id,
+            error_code::CHANNEL_TOPIC_UNKNOWN,
+            &format!("channel.cv_keys: topic {topic:?} not found"),
+        )
+        .into();
+    }
+    let mut entries = crate::cv_index::current_values(topic);
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    let entries_json: Vec<Value> = entries
+        .iter()
+        .map(|(cv_key, offset)| json!({"cv_key": cv_key, "offset": offset}))
+        .collect();
+    Response::success(
+        id,
+        json!({
+            "ok": true,
+            "topic": topic,
+            "count": entries_json.len(),
+            "entries": entries_json,
+        }),
+    )
+    .into()
+}
+
 /// T-2045 (T-2020 GO) — `agent.find_idle`: derived idle-agent roster.
 /// Server-side join of `agent-presence` (LIVE) ∖ active claims (any topic).
 /// Params: `{ role?: string, capabilities?: [string], limit?: u32 }` →
@@ -2971,5 +3028,85 @@ mod tests {
             .decode(cvs[0]["msg"]["payload_b64"].as_str().unwrap())
             .unwrap();
         assert_eq!(&bytes, b"v2", "payload reflects the latest post");
+    }
+
+    // ── T-2106 — channel.cv_keys handler tests ──
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cv_keys_empty_topic_returns_zero_entries() {
+        // T-2106 — healthy topic with no cv-tagged posts → count: 0, entries: [].
+        // Not an error. Per ADR §6 #9 — empty cv_index is valid steady state.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cvk:empty", Retention::Forever).unwrap();
+        let resp = handle_channel_cv_keys_with(
+            &bus, json!(1), &json!({"topic": "cvk:empty"}),
+        ).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"].as_bool(), Some(true));
+        assert_eq!(v["topic"].as_str(), Some("cvk:empty"));
+        assert_eq!(v["count"].as_u64(), Some(0));
+        assert!(v["entries"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cv_keys_one_key_after_post() {
+        // T-2106 — cv-tagged post populates cv_index → cv_keys returns it.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cvk:one", Retention::Forever).unwrap();
+        let key = signing_key();
+        let p = post_params_with_meta(
+            &key, "cvk:one", "presence", b"x", 1_000,
+            Some(json!({"cv_key": "agent-charlie"})),
+        );
+        let post = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let off = post["offset"].as_u64().unwrap();
+        let resp = handle_channel_cv_keys_with(
+            &bus, json!(2), &json!({"topic": "cvk:one"}),
+        ).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["count"].as_u64(), Some(1));
+        let entries = v["entries"].as_array().unwrap();
+        assert_eq!(entries[0]["cv_key"].as_str(), Some("agent-charlie"));
+        assert_eq!(entries[0]["offset"].as_u64(), Some(off));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cv_keys_multi_returns_sorted() {
+        // T-2106 — multiple distinct cv_keys → entries sorted by cv_key
+        // (ASCII order; predictable rendering).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("cvk:sort", Retention::Forever).unwrap();
+        let key = signing_key();
+        for (i, ck) in ["zebra", "alpha", "mango"].iter().enumerate() {
+            let p = post_params_with_meta(
+                &key, "cvk:sort", "n", b"x", 4_000 + i as i64,
+                Some(json!({"cv_key": *ck})),
+            );
+            let _ = handle_channel_post_with(&bus, json!(i as u64), &p).await;
+        }
+        let resp = handle_channel_cv_keys_with(
+            &bus, json!(99), &json!({"topic": "cvk:sort"}),
+        ).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["count"].as_u64(), Some(3));
+        let entries = v["entries"].as_array().unwrap();
+        let keys: Vec<&str> = entries.iter().map(|e| e["cv_key"].as_str().unwrap()).collect();
+        assert_eq!(keys, vec!["alpha", "mango", "zebra"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cv_keys_unknown_topic_returns_error() {
+        // T-2106 — missing topic → CHANNEL_TOPIC_UNKNOWN (-32013).
+        // Mirror of claims_summary error shape.
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_cv_keys_with(
+            &bus, json!(1), &json!({"topic": "cvk:does-not-exist"}),
+        ).await;
+        match resp {
+            RpcResponse::Error(e) => {
+                assert_eq!(e.error.code, error_code::CHANNEL_TOPIC_UNKNOWN);
+            }
+            _ => panic!("expected CHANNEL_TOPIC_UNKNOWN error response"),
+        }
     }
 }

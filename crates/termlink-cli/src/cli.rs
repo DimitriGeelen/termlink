@@ -2546,6 +2546,26 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Inspect the hub-side cv_index for a topic (broadcast-with-replay,
+    /// substrate primitive 9, T-2106). Read-only — returns the per-cv_key
+    /// latest-offset mapping recorded by the hub on every post carrying
+    /// `metadata.cv_key`. The companion to `channel subscribe
+    /// --include-current-value` (T-2105): subscribe fetches the cv-indexed
+    /// envelopes for replay; `channel cv-keys` returns just the KEYS +
+    /// offsets for diagnosis ("who's currently advertising on this topic?",
+    /// "are stale keys still pinned?"). Empty cv_index is not an error.
+    CvKeys {
+        /// Topic name
+        topic: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// List existing topics (optional prefix filter)
     List {
         /// Filter by topic prefix
