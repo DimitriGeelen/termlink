@@ -162,3 +162,12 @@ Per the T-2020 inception (§5.4 "What's NOT in this primitive"):
   is presence + claims anti-join on top of it).
 - T-2020 — inception docs/reports/T-2020-idle-busy-registry-inception.md.
 - T-2018 — arc-parallel-substrate ADR; the umbrella for the substrate.
+- T-2091 — `/peers` capabilities surface. Read-side complement: same
+  `metadata.capabilities` field is now visible in the presence rail
+  (`/peers` / `scripts/agent-listeners.sh`), with an exact-token
+  `--filter-capability CAP` selector. Use when you want "who can do X
+  AND is currently reachable" without filtering for idleness.
+  `find_idle` answers "idle workers with cap X"; `/peers
+  --filter-capability X` answers "any listener with cap X (idle or
+  busy)". Pair: filter `/peers` first to see the addressable surface,
+  then claim with `channel.claim` for exclusive assignment.

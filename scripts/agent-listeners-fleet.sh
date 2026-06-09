@@ -24,6 +24,10 @@
 #   --filter-role R            Only show listeners with metadata.role == R
 #   --filter-listen-topic T    Only show listeners whose listen_topics include T
 #   --filter-agent-id ID       Only show listener with metadata.agent_id == ID
+#   --filter-capability CAP    Only show listeners advertising capability CAP
+#                              (exact csv-token match; T-2091)
+#   --with-capabilities        Text mode: add CAPABILITIES column to output
+#                              (JSON always includes the field; T-2091)
 #   --hubs-file PATH           Override default ~/.termlink/hubs.toml
 #   --json                     Emit JSON envelope instead of fixed-width table
 #   -h, --help                 Print this help and exit 0.
@@ -58,6 +62,8 @@ include_offline=0
 filter_role=""
 filter_listen_topic=""
 filter_agent_id=""
+filter_capability=""
+with_capabilities=0
 
 die() {
     if [ "$FORMAT" = json ]; then
@@ -78,6 +84,8 @@ while [ $# -gt 0 ]; do
         --filter-role)         filter_role="${2:-}"; shift 2 ;;
         --filter-listen-topic) filter_listen_topic="${2:-}"; shift 2 ;;
         --filter-agent-id)     filter_agent_id="${2:-}"; shift 2 ;;
+        --filter-capability)   filter_capability="${2:-}"; shift 2 ;;
+        --with-capabilities)   with_capabilities=1; shift ;;
         --hubs-file)           HUBS_FILE="${2:-}"; shift 2 ;;
         --json)                FORMAT=json; shift ;;
         -h|--help)             usage; exit 0 ;;
@@ -166,6 +174,10 @@ build_args() {
     [ -n "$filter_role" ]         && { printf -- '--filter-role\n%s\n' "$filter_role"; }
     [ -n "$filter_listen_topic" ] && { printf -- '--filter-listen-topic\n%s\n' "$filter_listen_topic"; }
     [ -n "$filter_agent_id" ]     && { printf -- '--filter-agent-id\n%s\n' "$filter_agent_id"; }
+    # T-2091: forward the capabilities filter to each single-hub call so
+    # filtering happens before the fleet merge — keeps per-hub round-trip
+    # payloads small when the operator only wants one capability class.
+    [ -n "$filter_capability" ]   && { printf -- '--filter-capability\n%s\n' "$filter_capability"; }
     printf -- '--json\n'
 }
 
@@ -280,17 +292,34 @@ else
         printf '%s\n' "$hubs_failed_json" | jq -r '.[] | "  - \(.name) (\(.address)): \(.error)"'
     fi
     if [ "$n_total" -gt 0 ]; then
-        printf '\n%-24s %-10s %-8s %-7s %-22s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "HUB" "LISTEN_TOPICS"
-        printf '%s\n' "$merged" | jq -r '.[] | [
-            (.agent_id // "?"),
-            (.role // ""),
-            (.status // "?"),
-            ((.age_secs // 0) | tostring),
-            (.hub // ""),
-            (.listen_topics // "")
-        ] | @tsv' | while IFS=$'\t' read -r aid role status age hub topics; do
-            printf '%-24s %-10s %-8s %-7s %-22s %s\n' "$aid" "$role" "$status" "$age" "$hub" "$topics"
-        done
+        if [ "$with_capabilities" -eq 1 ]; then
+            # T-2091: extended fleet text mode includes CAPABILITIES column.
+            # Off by default to preserve the legacy row layout.
+            printf '\n%-24s %-10s %-8s %-7s %-22s %-32s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "HUB" "LISTEN_TOPICS" "CAPABILITIES"
+            printf '%s\n' "$merged" | jq -r '.[] | [
+                (.agent_id // "?"),
+                (.role // ""),
+                (.status // "?"),
+                ((.age_secs // 0) | tostring),
+                (.hub // ""),
+                (.listen_topics // ""),
+                (.capabilities // "")
+            ] | @tsv' | while IFS=$'\t' read -r aid role status age hub topics caps; do
+                printf '%-24s %-10s %-8s %-7s %-22s %-32s %s\n' "$aid" "$role" "$status" "$age" "$hub" "$topics" "$caps"
+            done
+        else
+            printf '\n%-24s %-10s %-8s %-7s %-22s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "HUB" "LISTEN_TOPICS"
+            printf '%s\n' "$merged" | jq -r '.[] | [
+                (.agent_id // "?"),
+                (.role // ""),
+                (.status // "?"),
+                ((.age_secs // 0) | tostring),
+                (.hub // ""),
+                (.listen_topics // "")
+            ] | @tsv' | while IFS=$'\t' read -r aid role status age hub topics; do
+                printf '%-24s %-10s %-8s %-7s %-22s %s\n' "$aid" "$role" "$status" "$age" "$hub" "$topics"
+            done
+        fi
     fi
 fi
 

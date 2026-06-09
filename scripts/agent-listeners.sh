@@ -45,6 +45,10 @@ Options:
   --filter-role R            Only show listeners with metadata.role == R
   --filter-listen-topic T    Only show listeners whose listen_topics include T
   --filter-agent-id ID       Only show listener with metadata.agent_id == ID
+  --filter-capability CAP    Only show listeners advertising capability CAP
+                             (exact csv-token match, T-2091).
+  --with-capabilities        Text mode: add CAPABILITIES column to output
+                             (JSON always includes the field; T-2091).
   --json                     Emit JSON envelope instead of fixed-width table
   --cache-ttl SECS           Cache result for SECS seconds at
                              ${TERMLINK_CACHE_DIR:-~/.termlink/cache}/agent-listeners/.
@@ -80,7 +84,9 @@ include_offline=0
 filter_role=""
 filter_listen_topic=""
 filter_agent_id=""
+filter_capability=""
 json=0
+with_capabilities=0
 cache_ttl=30
 
 while [ $# -gt 0 ]; do
@@ -92,7 +98,9 @@ while [ $# -gt 0 ]; do
         --filter-role)           filter_role="${2:-}"; shift 2 ;;
         --filter-listen-topic)   filter_listen_topic="${2:-}"; shift 2 ;;
         --filter-agent-id)       filter_agent_id="${2:-}"; shift 2 ;;
+        --filter-capability)     filter_capability="${2:-}"; shift 2 ;;
         --json)                  json=1; shift ;;
+        --with-capabilities)     with_capabilities=1; shift ;;
         --cache-ttl)             cache_ttl="${2:-}"; shift 2 ;;
         --no-cache)              cache_ttl=0; shift ;;
         -h|--help)               usage; exit 0 ;;
@@ -125,7 +133,7 @@ if [ "$cache_ttl" -gt 0 ]; then
     # Cache key includes filters but NOT --json — the cached rollup is
     # always JSON; --json just controls the OUTPUT rendering. This lets
     # a `--json` and a non-`--json` caller share a single cache entry.
-    cache_key_input="topic=$topic|hub=${hub:-LOCAL}|limit=$limit|include_offline=$include_offline|filter_role=$filter_role|filter_listen_topic=$filter_listen_topic|filter_agent_id=$filter_agent_id"
+    cache_key_input="topic=$topic|hub=${hub:-LOCAL}|limit=$limit|include_offline=$include_offline|filter_role=$filter_role|filter_listen_topic=$filter_listen_topic|filter_agent_id=$filter_agent_id|filter_capability=$filter_capability"
     cache_key="$(printf '%s' "$cache_key_input" | sha256sum | awk '{print $1}')"
     cache_file="$cache_root/$cache_key.json"
     if [ -f "$cache_file" ]; then
@@ -220,6 +228,7 @@ rollup="$(printf '%s' "$raw" | jq -s \
     --arg filter_role "$filter_role" \
     --arg filter_listen_topic "$filter_listen_topic" \
     --arg filter_agent_id "$filter_agent_id" \
+    --arg filter_capability "$filter_capability" \
     --argjson include_offline "$include_offline" \
     --arg topic "$topic" \
     --arg hub "${hub:-local}" \
@@ -245,7 +254,14 @@ rollup="$(printf '%s' "$raw" | jq -s \
             listen_topics: (.metadata.listen_topics // ""),
             host: (.metadata.host // ""),
             interval_secs: $intv,
-            pty_session: (.metadata.pty_session // null)
+            pty_session: (.metadata.pty_session // null),
+            # T-2091: surface heartbeat capabilities (T-2045/T-2078 emit). Empty
+            # string when listener has not advertised any. Always included in
+            # JSON output for backward-compat — text mode shows only with
+            # --with-capabilities. Filter via --filter-capability uses exact
+            # csv-token equality (no substring match — so "deploy" does not
+            # match "auto-deploy").
+            capabilities: (.metadata.capabilities // "")
           }
       )
     | map(select(
@@ -253,6 +269,8 @@ rollup="$(printf '%s' "$raw" | jq -s \
         and ($filter_agent_id == "" or .agent_id == $filter_agent_id)
         and ($filter_listen_topic == "" or
              (.listen_topics | split(",") | map(. | gsub("^\\s+|\\s+$";"")) | index($filter_listen_topic) != null))
+        and ($filter_capability == "" or
+             (.capabilities | split(",") | map(. | gsub("^\\s+|\\s+$";"")) | index($filter_capability) != null))
         and ($include_offline == 1 or .status != "OFFLINE")
       ))
     | sort_by(.last_seen_ts) | reverse
@@ -294,6 +312,13 @@ else
     echo "agent-presence (topic=$topic hub=${hub:-local}): total=$total live=$live stale=$stale offline=$offline"
     if [ "$total" = "0" ]; then
         echo "  (no listeners matched current filters)"
+    elif [ "$with_capabilities" -eq 1 ]; then
+        # T-2091: extended text mode includes CAPABILITIES column. Off by
+        # default to keep the legacy row width — opt in when you need to
+        # see who advertises which capability without leaving the rail.
+        printf '%-32s %-12s %-8s %-7s %-32s %-24s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST" "CAPABILITIES"
+        printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host, .capabilities] | @tsv' \
+            | awk -F'\t' '{printf "%-32s %-12s %-8s %-7s %-32s %-24s %s\n", $1, $2, $3, $4, $5, $6, $7}'
     else
         printf '%-32s %-12s %-8s %-7s %-32s %s\n' "AGENT_ID" "ROLE" "STATUS" "AGE_S" "LISTEN_TOPICS" "HOST"
         printf '%s' "$rollup" | jq -r '.listeners[] | [.agent_id, .role, .status, (.age_secs|tostring), .listen_topics, .host] | @tsv' \
