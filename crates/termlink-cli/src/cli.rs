@@ -2663,6 +2663,20 @@ pub(crate) enum ChannelAction {
         /// then page Slack.
         #[arg(long, value_name = "CMD", requires = "watch")]
         notify: Option<String>,
+
+        /// T-2085 (substrate primitive #5 obs arc Slice 3, mirror of
+        /// T-2080 find-idle `--log`): append-only NDJSON audit trail.
+        /// One flat jq-friendly line per `drained↔pending` event:
+        /// `{ts, kind, old_pending, new_pending, oldest_age_ms, queue_path}`.
+        /// Parent directory auto-created; disk-full / permission errors
+        /// print one-line stderr warning and the watch continues
+        /// (never crash on a log write). Symmetric with `--notify` —
+        /// when both flags are set, each event lands in both surfaces
+        /// from the same per-tick event source. Requires `--watch`
+        /// (events only exist across ticks). Forensic retrospective:
+        /// `jq -c 'select(.kind=="pending")' ~/.termlink/queue.log`.
+        #[arg(long, value_name = "PATH", requires = "watch")]
+        log: Option<String>,
     },
     /// Quotable text snippet for citing a channel message in tasks/docs
     /// (T-1363). Walks the topic, finds the target offset, renders it with

@@ -8618,6 +8618,82 @@ fn fire_queue_notify(cmd: &str, ev: &QueueChangeEvent, queue_path: &std::path::P
     }
 }
 
+/// T-2085: pure helper — render one NDJSON line for a queue change
+/// event. Schema is flat (no nested objects) so a jq pipeline can
+/// `select(.kind=="pending")` or `select(.queue_path=="...")` without
+/// nested path expressions. Mirror of T-2080's `render_idle_log_line`.
+///
+/// `queue_path` is passed in (not read from globals) so this stays a
+/// pure function — caller knows the active queue file. `oldest_age_ms`
+/// serializes as JSON `null` when None (Option<i64> via serde_json::json!).
+pub(crate) fn render_queue_log_line(
+    ev: &QueueChangeEvent,
+    now_secs: u64,
+    queue_path: &std::path::Path,
+) -> String {
+    let kind = match ev.kind {
+        QueueChangeKind::Drained => "drained",
+        QueueChangeKind::Pending => "pending",
+    };
+    let ts = crate::manifest::secs_to_rfc3339(now_secs);
+    let obj = serde_json::json!({
+        "ts": ts,
+        "kind": kind,
+        "old_pending": ev.old_pending,
+        "new_pending": ev.new_pending,
+        "oldest_age_ms": ev.oldest_age_ms,
+        "queue_path": queue_path.display().to_string(),
+    });
+    serde_json::to_string(&obj).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// T-2085: best-effort append of one log line. Mirror of T-2080's
+/// `append_idle_log_line`. Parent directory auto-created; permission
+/// or disk-full errors print a one-line stderr warning and return so
+/// the watch loop continues. The watch must NEVER crash because the
+/// audit trail can't be written — that would silently kill observability.
+fn append_queue_log_line(
+    path: &std::path::Path,
+    ev: &QueueChangeEvent,
+    now_secs: u64,
+    queue_path: &std::path::Path,
+) {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!(
+                    "# queue log: failed to create parent dir {}: {e}",
+                    parent.display()
+                );
+                return;
+            }
+        }
+    }
+    let mut line = render_queue_log_line(ev, now_secs, queue_path);
+    line.push('\n');
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(mut f) => {
+            use std::io::Write;
+            if let Err(e) = f.write_all(line.as_bytes()) {
+                eprintln!(
+                    "# queue log: write failed for {}: {e}",
+                    path.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "# queue log: open failed for {}: {e}",
+                path.display()
+            );
+        }
+    }
+}
+
 /// T-2083: the `channel queue-status --watch <secs>` command. Loops
 /// every `interval` (clamped [1, 300]), clears the screen, re-reads
 /// the SQLite snapshot, and renders the table + any state-flip
@@ -8629,10 +8705,16 @@ fn fire_queue_notify(cmd: &str, ev: &QueueChangeEvent, queue_path: &std::path::P
 /// operator's shell command fire-and-forget per event. Baseline tick
 /// emits no events (diff returns empty on `prev=None`) so no notify
 /// fires on the first tick.
+///
+/// T-2085: when `log` is `Some`, each change event also appends one
+/// NDJSON line to the audit trail. Symmetric with `--notify` — both
+/// flags fire from the same per-tick event list. Baseline tick writes
+/// nothing.
 pub(crate) async fn cmd_channel_queue_status_watch(
     queue_path: Option<&str>,
     interval: u64,
     notify: Option<&str>,
+    log: Option<&std::path::Path>,
 ) -> Result<()> {
     use termlink_session::offline_queue::default_queue_path;
 
@@ -8668,6 +8750,9 @@ pub(crate) async fn cmd_channel_queue_status_watch(
                     println!("{}", render_queue_event_line(ev));
                     if let Some(cmd) = notify {
                         fire_queue_notify(cmd, ev, &path, now_secs);
+                    }
+                    if let Some(log_path) = log {
+                        append_queue_log_line(log_path, ev, now_secs, &path);
                     }
                 }
                 if events.is_empty() && prev.is_some() {
@@ -16782,5 +16867,144 @@ mod tests {
         let path = std::path::PathBuf::from("/tmp/q.sqlite");
         let env = fire_queue_notify_env(&ev, &path, 1_700_000_000);
         assert_eq!(env.len(), 6, "schema is exactly 6 env vars");
+    }
+
+    // ───────────────────────────────────────────────────────────────────
+    // T-2085: queue_log — substrate primitive #5 obs arc Slice 3.
+    // Pure-helper tests for the NDJSON audit trail. Mirror of T-2080's
+    // find-idle log tests. Append-path uses a tempfile.
+    // ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn queue_log_pending_event_renders_valid_ndjson() {
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 3,
+            oldest_age_ms: Some(1500),
+        };
+        let qp = std::path::PathBuf::from("/tmp/outbound.sqlite");
+        let line = render_queue_log_line(&ev, 1_700_000_000, &qp);
+        // Must be parseable JSON and a single line (no embedded newlines).
+        assert!(!line.contains('\n'), "NDJSON line must not contain a newline");
+        let v: serde_json::Value = serde_json::from_str(&line).expect("parseable JSON");
+        assert_eq!(v["kind"], "pending");
+        assert_eq!(v["old_pending"], 0);
+        assert_eq!(v["new_pending"], 3);
+        assert_eq!(v["oldest_age_ms"], 1500);
+        assert_eq!(v["queue_path"], "/tmp/outbound.sqlite");
+        let ts = v["ts"].as_str().expect("ts is a string");
+        assert!(ts.ends_with('Z'), "RFC3339 ts must end in Z, got {ts}");
+        assert_eq!(ts.len(), 20, "RFC3339 ts has fixed length");
+    }
+
+    #[test]
+    fn queue_log_drained_event_serializes_null_oldest_age() {
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Drained,
+            old_pending: 7,
+            new_pending: 0,
+            oldest_age_ms: None,
+        };
+        let qp = std::path::PathBuf::from("/tmp/q.sqlite");
+        let line = render_queue_log_line(&ev, 1_700_000_000, &qp);
+        let v: serde_json::Value = serde_json::from_str(&line).expect("parseable JSON");
+        assert_eq!(v["kind"], "drained");
+        // None → JSON null, NOT the string "n/a" (that's the --notify
+        // env-var convention; NDJSON uses real null for jq filtering).
+        assert!(
+            v["oldest_age_ms"].is_null(),
+            "drained event must serialize oldest_age_ms as JSON null"
+        );
+    }
+
+    #[test]
+    fn queue_log_render_has_six_fields() {
+        // Schema stability: the NDJSON schema is EXACTLY 6 fields. Future
+        // additions must come with a deliberate schema bump.
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 1,
+            oldest_age_ms: Some(0),
+        };
+        let qp = std::path::PathBuf::from("/tmp/q.sqlite");
+        let line = render_queue_log_line(&ev, 1_700_000_000, &qp);
+        let v: serde_json::Value = serde_json::from_str(&line).expect("parseable JSON");
+        let obj = v.as_object().expect("object");
+        assert_eq!(obj.len(), 6, "schema is exactly 6 NDJSON fields");
+        for key in ["ts", "kind", "old_pending", "new_pending", "oldest_age_ms", "queue_path"] {
+            assert!(obj.contains_key(key), "missing key: {key}");
+        }
+    }
+
+    #[test]
+    fn queue_log_append_creates_parent_dir_and_writes_parseable_line() {
+        // T-2085 append-path test: parent directory must be auto-created,
+        // and the file must contain a single parseable NDJSON line after
+        // one append. Use a temp dir we control fully.
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp_root = std::env::temp_dir().join(format!("termlink-t2085-{unique}"));
+        let log_path = tmp_root.join("nested").join("queue.log");
+        let queue_path = std::path::PathBuf::from("/tmp/test-outbound.sqlite");
+        let ev = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 2,
+            oldest_age_ms: Some(100),
+        };
+        // Pre-condition: parent does not exist.
+        assert!(!log_path.parent().unwrap().exists());
+        append_queue_log_line(&log_path, &ev, 1_700_000_000, &queue_path);
+        // Post-condition: parent + file exist.
+        assert!(log_path.exists(), "log file must be created");
+        let content = std::fs::read_to_string(&log_path).expect("readable");
+        // Exactly one line + trailing newline → one trailing '\n'.
+        assert!(content.ends_with('\n'), "NDJSON line must be newline-terminated");
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 1, "exactly one log line after one append");
+        let v: serde_json::Value = serde_json::from_str(lines[0]).expect("parseable JSON");
+        assert_eq!(v["kind"], "pending");
+        assert_eq!(v["new_pending"], 2);
+        // Cleanup.
+        let _ = std::fs::remove_dir_all(&tmp_root);
+    }
+
+    #[test]
+    fn queue_log_append_appends_multiple_lines() {
+        // Two appends → two parseable lines. Confirms `OpenOptions::append`
+        // semantics (we don't accidentally truncate).
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp_root = std::env::temp_dir().join(format!("termlink-t2085-multi-{unique}"));
+        let log_path = tmp_root.join("queue.log");
+        let queue_path = std::path::PathBuf::from("/tmp/q.sqlite");
+        let ev1 = QueueChangeEvent {
+            kind: QueueChangeKind::Pending,
+            old_pending: 0,
+            new_pending: 5,
+            oldest_age_ms: Some(50),
+        };
+        let ev2 = QueueChangeEvent {
+            kind: QueueChangeKind::Drained,
+            old_pending: 5,
+            new_pending: 0,
+            oldest_age_ms: None,
+        };
+        append_queue_log_line(&log_path, &ev1, 1_700_000_000, &queue_path);
+        append_queue_log_line(&log_path, &ev2, 1_700_000_005, &queue_path);
+        let content = std::fs::read_to_string(&log_path).expect("readable");
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 2, "two appends produce two lines");
+        let v1: serde_json::Value = serde_json::from_str(lines[0]).expect("parseable JSON");
+        let v2: serde_json::Value = serde_json::from_str(lines[1]).expect("parseable JSON");
+        assert_eq!(v1["kind"], "pending");
+        assert_eq!(v2["kind"], "drained");
+        let _ = std::fs::remove_dir_all(&tmp_root);
     }
 }
