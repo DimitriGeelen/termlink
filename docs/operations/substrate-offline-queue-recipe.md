@@ -102,6 +102,136 @@ sqlite3 ~/.termlink/outbound.sqlite 'SELECT COUNT(*) FROM pending_posts;'
 
 If the count is not falling, see the failure-modes section below.
 
+## Observability arc (T-2083..T-2087)
+
+The queue itself just absorbs blips. The observability arc is how an
+operator (or an orchestrating agent) actually *notices* a blip, gets
+paged about it, and answers "how often has this happened?" after the
+fact — without keeping a shell window pinned to `sqlite3 ~/.termlink/outbound.sqlite`.
+
+| Surface | Verb | Use case |
+|---|---|---|
+| Watch | `channel queue-status --watch <secs>` | Live monitor: clears screen + re-renders depth every N secs, prints one-line event on `drained↔pending` flips |
+| Notify | `... --watch <secs> --notify <CMD>` | Page/Slack: operator-pluggable shell command fires fire-and-forget per state-flip event |
+| Log | `... --watch <secs> --log <PATH>` | Forensic trail: append-only NDJSON audit. Schema `{ts, kind, old_pending, new_pending, oldest_age_ms, queue_path}` |
+| History (CLI) | `channel queue-history [--since DAYS] [--kind …]` | Retrospective: walk the log offline, answer "has the queue been backing up?" |
+| History (MCP) | `termlink_channel_queue_history` | Agent-callable parity — same envelope, same filters, no shell-out |
+
+Queue state is binary (no `transition` kind — see T-2083 design note),
+so events fire on the `0↔N+` flip only. Depth changes within
+still-pending are not events.
+
+The arc is symmetric with substrate primitive #2 DISPATCH (find-idle
+T-2078..T-2082): same shape, same operator UX, just pointed at
+queue.log instead of find-idle.log.
+
+### Live monitor (watch)
+
+```
+termlink channel queue-status --watch 5
+```
+
+Clears the screen and re-renders every 5 seconds:
+
+```
+queue=/root/.termlink/outbound.sqlite  pending=0  oldest_age=-  (watch interval=5s)
+  ▶ pending  pending=0→3  oldest_age=120ms
+```
+
+The `▶` line appears only on the tick where the queue flipped from
+drained to pending (or vice versa). SIGINT (Ctrl-C) exits cleanly.
+
+### Page-on-blip (watch + notify)
+
+```sh
+# /usr/local/bin/page-on-queue-pending.sh
+#!/bin/sh
+[ "$TERMLINK_QUEUE_CHANGE_KIND" = "pending" ] || exit 0
+curl -sX POST "$SLACK_WEBHOOK" \
+  -d "{\"text\":\":boom: queue ${TERMLINK_QUEUE_PATH} backed up to ${TERMLINK_QUEUE_NEW_PENDING} pending (age ${TERMLINK_QUEUE_OLDEST_AGE_MS})\"}"
+
+# Then run the watch with --notify:
+termlink channel queue-status --watch 5 \
+  --notify /usr/local/bin/page-on-queue-pending.sh
+```
+
+Per-event env vars (always set, schema is exactly 6 vars):
+
+| Var | Value |
+|---|---|
+| `TERMLINK_QUEUE_CHANGE_KIND` | `drained` or `pending` |
+| `TERMLINK_QUEUE_TS` | RFC3339 detection time |
+| `TERMLINK_QUEUE_OLD_PENDING` | numeric, prior depth |
+| `TERMLINK_QUEUE_NEW_PENDING` | numeric, current depth |
+| `TERMLINK_QUEUE_OLDEST_AGE_MS` | numeric or `n/a` when drained |
+| `TERMLINK_QUEUE_PATH` | absolute path to the sqlite file |
+
+Hanging scripts do NOT block the loop; command-not-found does NOT
+kill the watch. Baseline tick fires no events.
+
+### Forensic trail (watch + log)
+
+```
+termlink channel queue-status --watch 5 --log ~/.termlink/queue.log
+```
+
+Appends one NDJSON line per state-flip event to the log file. Parent
+directory auto-created; disk-full / permission errors print one-line
+stderr warning and the watch continues (never crashes on a log write).
+
+NDJSON schema (exactly 6 fields — schema stability locked by unit
+test):
+
+```json
+{"ts":"2026-06-09T13:00:00Z","kind":"pending","old_pending":0,"new_pending":3,"oldest_age_ms":500,"queue_path":"/root/.termlink/outbound.sqlite"}
+{"ts":"2026-06-09T13:00:10Z","kind":"drained","old_pending":3,"new_pending":0,"oldest_age_ms":null,"queue_path":"/root/.termlink/outbound.sqlite"}
+```
+
+`oldest_age_ms` serializes as JSON `null` on `drained` events
+(NOT the string `"n/a"` — that convention is `--notify` env-var only).
+
+Ad-hoc grep for backpressure incidents:
+
+```sh
+jq -c 'select(.kind=="pending")' ~/.termlink/queue.log
+```
+
+`--notify` and `--log` are symmetric — set both flags and each event
+lands in both surfaces from the same per-tick event source.
+
+### Retrospective (queue-history)
+
+After the watch has been running for a while (or you suspect prior
+blips), answer "has this host been losing connectivity?" without
+keeping the watch terminal attached:
+
+```
+termlink channel queue-history --since 7 --kind pending
+```
+
+Renders one human-format line per matching entry plus a per-kind
+aggregate footer (`pending=N  drained=M`). Default 7-day window,
+clamped 1..=365. Pure read; no auth; no network.
+
+JSON envelope shape (for scripting):
+
+```
+termlink channel queue-history --since 7 --json
+```
+
+Returns `{ok, entries[], summary{total, pending_events, drained_events, since_days, kind_filter, malformed_lines_skipped, log_path}}`.
+
+Agent-callable MCP parity:
+
+```
+termlink_channel_queue_history(since_days=7, kind="pending")
+```
+
+Same params, same envelope shape — exactly what
+`channel queue-history --since 7 --kind pending --json` returns,
+modulo the optional `hint` field when the log file doesn't exist yet.
+Pure read; no auth; no network; no log mutation.
+
 ## Failure modes & how to spot them
 
 ### Hub down — queue accumulates
@@ -189,6 +319,8 @@ add ±25% jitter; see the T-2050 audit for rationale.
 | `dedupe_hits_total` | `hub.governor_status` JSON-RPC | How many spoke retries the hub absorbed. Rising = real outages. |
 | `dedupe_entries_active` | same | Current cache occupancy. Capacity ceiling is `TERMLINK_DEDUPE_CAPACITY` (default 10_000). |
 | `outbound.sqlite` row count | sqlite3 query | Live queue depth on the spoke. |
+| `pending`/`drained` events | `channel queue-status --watch --log ~/.termlink/queue.log` | NDJSON audit trail of state-flips. `jq` retrospective answers "how often has this happened?" — see Observability arc above. |
+| `pending_events` / `drained_events` totals | `channel queue-history --json` / `termlink_channel_queue_history` MCP | Aggregated counts over a time window; agent-callable. |
 
 ## What this does NOT do
 
@@ -212,5 +344,11 @@ add ±25% jitter; see the T-2050 audit for rationale.
 - T-2049 — `client_msg_id` idempotency that makes replays safe
 - T-2050 — backoff audit (this primitive's flush parameters)
 - T-2055 — jitter wire-in (T-2050 audit follow-up)
+- T-2083 — observability arc Slice 1: `queue-status --watch` live monitor
+- T-2084 — observability arc Slice 2: `--notify` event hook (page-on-blip)
+- T-2085 — observability arc Slice 3: `--log` NDJSON audit trail
+- T-2086 — observability arc Slice 4: `queue-history` retrospective CLI verb
+- T-2087 — observability arc Slice 5: `termlink_channel_queue_history` MCP parity (arc closure)
 - `docs/operations/substrate-post-idempotency.md` — dedupe details
 - `docs/reports/T-2023-client-reconnect-queue-inception.md` — inception
+- Sibling arcs with the same shape: substrate primitive #2 DISPATCH (find-idle, T-2078..T-2082), substrate primitive #1 CLAIM (claims-summary, T-2042..T-2077), substrate primitive #10 BACKPRESSURE (governor, T-2048..T-2071)
