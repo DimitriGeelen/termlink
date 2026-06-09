@@ -570,12 +570,13 @@ async fn main() -> Result<()> {
                 print_agent_help();
                 Ok(())
             }
-            AgentAction::FindIdle { role, capabilities, limit, json } => {
+            AgentAction::FindIdle { role, capabilities, limit, json, watch } => {
                 commands::agent_find_idle::cmd_agent_find_idle(
                     role.as_deref(),
                     &capabilities,
                     limit,
                     json,
+                    watch,
                 )
                 .await
             }

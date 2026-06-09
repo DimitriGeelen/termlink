@@ -5900,8 +5900,17 @@ pub(crate) enum AgentAction {
         limit: Option<u32>,
 
         /// Output as JSON (default: human-readable one-line-per-agent table).
-        #[arg(long)]
+        #[arg(long, conflicts_with = "watch")]
         json: bool,
+
+        /// T-2078 (substrate primitive #2 observability arc Slice 1):
+        /// continuously re-render the idle roster every N seconds.
+        /// Clamped to [5, 3600] — sub-5s polling pointlessly hammers the
+        /// hub for a roster that updates at heartbeat cadence (~30s).
+        /// Incompatible with `--json` (NDJSON-on-cleared-screen would
+        /// be unparseable). Mirror of T-2041 `claims-summary --watch`.
+        #[arg(long, value_name = "SECS", conflicts_with = "json")]
+        watch: Option<u64>,
     },
 }
 
