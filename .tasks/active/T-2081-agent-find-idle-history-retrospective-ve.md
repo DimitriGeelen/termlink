@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T11:24:11Z
-last_update: 2026-06-09T11:24:11Z
+last_update: 2026-06-09T11:30:37Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -106,9 +106,9 @@ This closes the read-side observability for substrate primitive #2.
 
 ## Verification
 
-cargo build -p termlink-cli 2>&1 | tail -3 | grep -qE 'Compiling|Finished|warning' && echo build-ok
-cargo test -p termlink-cli --lib agent_find_idle::tests::find_idle_history -- --nocapture 2>&1 | tail -5 | grep -qE 'test result: ok' && echo tests-ok
-./target/debug/termlink agent find-idle-history --since 7 --json 2>&1 | head -1 | grep -qE '"ok": true|"ok":true' && echo cli-json-ok
+out=$(cargo build -p termlink 2>&1 | tail -3); echo "$out" | grep -qE 'Compiling|Finished|warning'
+out=$(cargo test -p termlink --bin termlink commands::agent_find_idle::tests::find_idle_history -- --nocapture 2>&1 | tail -5); echo "$out" | grep -qE 'test result: ok'
+out=$(./target/debug/termlink agent find-idle-history --since 7 --json 2>&1); echo "$out" | grep -qE '"ok": true|"ok":true'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
