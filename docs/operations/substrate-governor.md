@@ -193,6 +193,76 @@ reach transitions, gate on `$TERMLINK_GOV_NEW_REACH = "fail"` instead.
 The script's environment is documented inline in the `--help` text and on the
 CLAUDE.md BACKPRESSURE row.
 
+### Recipe — `--log` audit trail (Track G)
+
+The `--log <PATH>` flag appends one NDJSON line per transition / new /
+removed event during `--watch`. Mirror of T-1671's `~/.termlink/rotation.log`
+pattern, applied to governor telemetry. Use when "I need a forensic trail
+of capacity events" matters but the operator can't keep a watch terminal
+open continuously.
+
+```sh
+# Just the log — no paging, no terminal output stays around.
+termlink fleet governor-status --watch 30 --log ~/.termlink/governor.log
+
+# Composed: paging via --notify AND forensic trail via --log in one command.
+# One-liner form: termlink fleet governor-status --watch 30 --log ~/.termlink/governor.log --notify /usr/local/bin/page-on-cap.sh
+termlink fleet governor-status --watch 30 \
+  --log    ~/.termlink/governor.log \
+  --notify /usr/local/bin/page-on-cap.sh
+```
+
+NDJSON schema (one event per line, flat for jq-friendliness):
+
+```json
+{
+  "ts": "2026-06-08T22:58:02Z",
+  "hub": "workstation-107-public",
+  "kind": "transition",
+  "old_reach": "ok", "new_reach": "ok",
+  "old_conn_active": 3, "new_conn_active": 4,
+  "old_cap_hits": 0, "new_cap_hits": 0, "cap_hits_delta": 0,
+  "old_rate_hits": 0, "new_rate_hits": 0, "rate_hits_delta": 0,
+  "old_dedupe_hits": null, "new_dedupe_hits": null, "dedupe_hits_delta": null
+}
+```
+
+Counters are numeric (jq filters work directly), `kind` is
+`"transition" | "new" | "removed"`, and missing-side fields render as JSON
+`null` (NOT omitted — so jq filters never error on missing keys). Reach
+serializes as `"ok" | "fail" | null`.
+
+#### Common forensic queries
+
+```sh
+# When did hub X last refuse connections this week?
+jq -c 'select(.hub=="ring20-management" and .cap_hits_delta>0) | {ts, cap_hits_delta}' \
+  ~/.termlink/governor.log
+
+# All rate-limit incidents in the last 24h.
+since="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+jq -c --arg s "$since" 'select(.ts>$s and .rate_hits_delta>0) | {ts, hub, rate_hits_delta}' \
+  ~/.termlink/governor.log
+
+# Dedupe absorption — spoke retries landing more than expected (steady-state suspicious).
+jq -c 'select(.dedupe_hits_delta>0) | {ts, hub, dedupe_hits_delta}' \
+  ~/.termlink/governor.log
+```
+
+#### Operational notes
+
+- **Append-only.** The watch loop never truncates. Manage size via `logrotate`
+  or manual archival — same pattern as `rotation.log` (T-1671).
+- **Best-effort writes.** Disk-full / permission-denied errors emit one
+  stderr line per failed append but never crash the watch. The next
+  successful cycle resumes appending — so a brief log-disk problem doesn't
+  break the surveillance loop.
+- **Parent dir auto-created.** `~/.termlink/governor.log` works on a fresh
+  install without `mkdir -p`.
+- **Future read-side.** A `fleet governor-history` retrospective verb
+  (analog to T-1671's `fleet history`) is captured but deferred — for
+  now operators `jq` the file directly.
+
 The fleet view returns `{ok, total, reachable, hubs[], summary}` —
 the `summary` rollup includes `total_*` sums plus `hubs_at_capacity`
 and `hubs_rate_limited` counts. Per-hub failures (timeout / RPC error
