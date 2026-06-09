@@ -319,6 +319,164 @@ multi-tenant scenario this asymmetry would need addressing alongside
 T-2024; tracked separately under G-064. For ring20 homelab /
 single-operator-per-hub usage this is the deliberate trade.
 
+## Operator skill tier (slash commands)
+
+For operators driving the substrate from a Claude Code session, the
+substrate #1 lifecycle is fully covered by five daily verbs. Each one
+collapses the underlying CLI invocation (positional + flag + flag) to
+the minimum keystrokes an operator needs to recall, with auto-resolved
+identity from `/be-reachable` state.
+
+| Verb | Skill task | Substrate role | One-line invocation |
+|------|-----------|----------------|---------------------|
+| `/claims [<topic>\|--all] [--only-stuck] [--json]` | T-2093 | READ | What's claimed right now? |
+| `/claim <topic> <offset> [--ttl-ms N]` | T-2097 (T-2100-fixed) | ACQUIRE | Reserve this offset |
+| `/renew <claim-id> [--by-ms N]` | T-2101 | EXTEND | Give me more time |
+| `/release <claim-id> [--retry]` | T-2098 (T-2100-fixed) | COMPLETE/RETRY | Free it (done by default, `--retry` returns for next worker) |
+| `/claim-transfer <claim-id> <to-owner>` | T-2099 | HANDOFF | Atomically hand to another worker |
+
+All five auto-resolve `--claimer` / `--by` identity via T-1857 sender-resolution chain
+(env → `~/.termlink/be-reachable.state` → refuse). Operators establish identity once
+per session with `/be-reachable`, then the skills inherit it.
+
+### Standard lifecycle (the >90% case)
+
+```
+/be-reachable                          # one-time session setup
+/claims work-queue                     # peek to find unclaimed offsets
+/claim work-queue 42                   # acquire offset 42
+... do the work ...
+/release <claim-id>                    # default --ack: cursor advances
+```
+
+The `<claim-id>` is in `/claim`'s success output. The operator never types
+`--claimer` or `--ack`; the skills handle both defaults correctly.
+
+### Long-work pattern (renewal mid-task)
+
+Claims default to a 30-second lease. For longer work, renew before lapse:
+
+```
+/claim work-queue 42                   # 30s default lease
+... 20 seconds in, work isn't done ...
+/renew <claim-id>                      # +30s default (buys breathing room)
+... or for known long work: ...
+/renew <claim-id> --by-ms 300000       # +5 minutes
+... finish ...
+/release <claim-id>
+```
+
+`--by-ms` is the operator-friendly skill alias for the CLI's awkward
+`--additional-ttl-ms`. The skill translates internally; the operator never
+sees the awkward form.
+
+### Orchestrator-to-worker chain (atomic handoff)
+
+The canonical "I'm an orchestrator assigning work to a worker" pattern:
+
+```
+/find-idle --capability rust           # who's free? Returns claude-worker-3
+/claim work-queue 42                   # orchestrator reserves; returns claim-id abc123
+/claim-transfer abc123 claude-worker-3 # atomic handoff — worker now owns it
+                                        # worker then calls /release when done
+```
+
+The atomic handoff is the substrate primitive #3 (T-2046) guarantee: the lease
+moves from orchestrator to worker INSIDE the hub with zero gap. Compared with
+release-then-claim, this eliminates the race window where a third party could
+steal the unit.
+
+### Retry pattern (work returned for next worker)
+
+When YOU couldn't finish but believe ANOTHER worker can:
+
+```
+/claim deploy-queue 17                 # acquire
+... ran into a missing dependency YOU lack but other workers may have ...
+/release <claim-id> --retry            # release WITHOUT --ack
+                                        # cursor stays; next worker gets offset 17
+```
+
+The asymmetric default (ack-by-default, retry-by-opt-in) matches the >90% case
+"I'm done". `--retry` is the deliberate "I couldn't, but maybe you can" signal.
+
+### Error-class recovery ladder (mapped to skill UX)
+
+The substrate error taxonomy maps to specific skill-tier recovery patterns:
+
+| Error code | Skill output | Operator next action |
+|------------|--------------|----------------------|
+| `CLAIM_ALREADY_HELD` (-32015) | `/claim` refuses | `/claims <topic>` to see who; pick a different offset OR wait for natural release |
+| `CLAIM_NOT_OWNED` (-32017) | `/release`/`/renew`/`/claim-transfer` refuse | `/claims <topic>` to see actual holder; `/claim-transfer` from holder OR Tier-0 `claim-force-release` |
+| `CLAIM_LAPSED` | `/renew` refuses | Slot has reopened — re-claim with `/claim <topic> <offset>` (gets new claim_id). Next time, renew SOONER (well before `claimed_until`) |
+| `CLAIM_NOT_FOUND` (-32018) | `/release` / `/renew` refuse | `/claims <topic>` + `termlink channel claims-history --since 1` (T-2074) to audit |
+| `AUTH_FAIL` (-32001) | Any skill refuses | `termlink fleet doctor` + `termlink fleet reauth --bootstrap-from auto` |
+| `RATE_LIMITED` (-32008) | Any skill refuses | `/governor --only-pressured` + wait `retry_after_ms` |
+| `HUB_AT_CAPACITY` (-32019) | `/claim` refuses | `/governor` + wait |
+
+The skills emit operator-actionable hints, not raw `Err(-32017): ...` lines. That's
+the friction-reduction layer's job.
+
+### Operator-side tier 0 escape hatch
+
+When cooperative handoff fails because the current holder is unresponsive (stale
+heartbeat, dead session):
+
+```
+/claim-transfer <id> claude-worker     # refused: CLAIM_NOT_OWNED (held by claude-stale)
+termlink channel claim-force-release <id>   # Tier-0 override; logs the override
+/claim <topic> <offset>                # re-acquire under your identity
+/claim-transfer <new-id> claude-worker # now hand off cleanly
+```
+
+The two-step (force-release THEN re-claim) is intentional — it forces operator
+acknowledgement that ownership was overridden. The skill tier never bypasses this.
+
+### Discovering claim-ids
+
+Operators frequently need to look up their own `claim_id` (e.g. when scripting
+release after work completion). The skill tier composes:
+
+```
+/claims <topic>                        # human-readable per-row claim_id
+/claims --all --json | jq '.topics[] | select(.summary.active_count>0) | .topic'
+                                        # programmatic
+```
+
+For retrospective ("did I already release that?"), the CLI offers
+`termlink channel claims-history --since 1` (T-2074) — same audit log the
+skills annotate when surfacing error hints.
+
+### How to author new substrate-adjacent skills (PL-206)
+
+When wrapping a new CLI verb in a skill, ALWAYS author from the verb's
+`--help` output, NOT from CLAUDE.md row shorthand. T-2097 / T-2098 shipped
+with wrong flag names (`--owner`, `--by`, `--ttl-secs`) because they were
+drafted from CLAUDE.md row summaries; T-2100 fix-up corrected them to
+`--claimer`, `--ack`, `--ttl-ms` after running `--help` on each verb. The
+mismatch also missed the substrate-correctness `--ack` semantic entirely
+(without ack: work returned for retry; with ack: cursor advances past
+offset). The learning is captured as PL-206 — the CLAUDE.md row is a
+summary, not the source of truth for invocation.
+
+T-2101 `/renew` applied PL-206 from inception: every flag, every error
+class, every example was authored against `termlink channel renew --help`
+output before any user-facing surface was written.
+
+### Per-skill cross-links
+
+| Skill | Implementation | Common patterns |
+|-------|----------------|-----------------|
+| `/claims` | `.claude/commands/claims.md` | Daily peek before claiming; `--only-stuck` for fleet triage |
+| `/claim` | `.claude/commands/claim.md` | After `channel subscribe` to find offsets; pair with `/renew` for long work |
+| `/renew` | `.claude/commands/renew.md` | Defensive renewal at 80% lease burn; explicit extension for known-long work |
+| `/release` | `.claude/commands/release.md` | Default ack=done; `--retry` for "couldn't finish, next worker can" |
+| `/claim-transfer` | `.claude/commands/claim-transfer.md` | Orchestrator-to-worker chain; alternative to release-then-re-claim |
+
+For per-verb deep dives (loud refusal taxonomies, full invocation forms, edge
+cases), read the skill file directly. The cards above are pointers, not
+duplicates.
+
 ## Worker pattern (Rust)
 
 The `termlink-session` crate exports `LeasedClaim`, which wraps a claim
