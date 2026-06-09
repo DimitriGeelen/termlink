@@ -3330,6 +3330,20 @@ pub(crate) enum ChannelAction {
         /// positional (exactly one is required).
         #[arg(long)]
         all: bool,
+        /// T-2072 (claim primitive observability arc — mirror of T-2065
+        /// governor `--notify`): on per-topic stuck-state transitions (or
+        /// `new`/`removed` topics under `--all`), fire this shell command
+        /// fire-and-forget with env vars set. Requires `--watch`. Per-event
+        /// env: `TERMLINK_CLAIM_TOPIC`, `TERMLINK_CLAIM_CHANGE_KIND`
+        /// (`transition`/`new`/`removed`), `TERMLINK_CLAIM_TS`,
+        /// `TERMLINK_CLAIM_HUB`, `TERMLINK_CLAIM_OLD_STUCK` /
+        /// `TERMLINK_CLAIM_NEW_STUCK` (`true`/`false`/`n/a`),
+        /// `TERMLINK_CLAIM_ACTIVE_COUNT`, `TERMLINK_CLAIM_EXPIRED_COUNT`,
+        /// `TERMLINK_CLAIM_OLDEST_AGE_MS` (or `n/a`). Baseline tick fires no
+        /// events. Hanging scripts do NOT block the loop;
+        /// command-not-found does NOT kill the watch.
+        #[arg(long, requires = "watch")]
+        notify: Option<String>,
     },
 }
 

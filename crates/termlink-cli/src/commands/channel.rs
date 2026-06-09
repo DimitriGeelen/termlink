@@ -9181,6 +9181,7 @@ pub(crate) async fn cmd_channel_claims_summary(
     json_output: bool,
     watch: Option<u64>,
     all: bool,
+    notify: Option<&str>,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
 
@@ -9214,6 +9215,10 @@ pub(crate) async fn cmd_channel_claims_summary(
         // — sub-5s polling is overkill for stuck-worker detection (lease TTLs
         // are typically 5..=300s) and pointlessly hammers the hub.
         let interval = interval_raw.clamp(5, 3600);
+        // T-2072: per-tick prior-state, used to compute change events for
+        // --notify. None on the first tick (= baseline; no events fire).
+        let mut prior_state: Option<std::collections::BTreeMap<String, ClaimSnapshot>> = None;
+        let hub_addr_str = format!("{:?}", &addr);
         loop {
             // ANSI: clear screen + cursor home (same as agent presence --watch).
             print!("\x1b[2J\x1b[H");
@@ -9222,14 +9227,26 @@ pub(crate) async fn cmd_channel_claims_summary(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let now_str = crate::manifest::secs_to_rfc3339(now_secs);
+            // T-2072: collect current snapshot for diff. None if fetch fails
+            // (then we preserve prior_state so the next successful tick can
+            // diff against the last known good state, not against an empty
+            // map that would spuriously fire `removed` events for every topic).
+            let current_state: Option<std::collections::BTreeMap<String, ClaimSnapshot>>;
             if all {
                 // T-2042: fleet-wide watch dashboard.
                 println!(
                     "# channel claims-summary --all --watch | interval={}s | {}",
                     interval, now_str
                 );
-                if let Err(e) = render_claims_summary_fleet_text(&addr).await {
-                    println!("# fleet fetch error (will retry on next tick): {e}");
+                match collect_claims_summary_fleet_snapshot(&addr).await {
+                    Ok(snap) => {
+                        render_claims_summary_fleet_text_from_snapshot(&snap);
+                        current_state = Some(snap);
+                    }
+                    Err(e) => {
+                        println!("# fleet fetch error (will retry on next tick): {e}");
+                        current_state = None;
+                    }
                 }
             } else {
                 let t = topic.expect("topic guaranteed Some by validation above");
@@ -9238,12 +9255,35 @@ pub(crate) async fn cmd_channel_claims_summary(
                     t, interval, now_str
                 );
                 match termlink_session::claim_client::channel_claims_summary(&addr, t).await {
-                    Ok(summary) => render_claims_summary_text(&summary),
+                    Ok(summary) => {
+                        render_claims_summary_text(&summary);
+                        let snap = ClaimSnapshot::from_summary(&summary);
+                        let mut map = std::collections::BTreeMap::new();
+                        map.insert(t.to_string(), snap);
+                        current_state = Some(map);
+                    }
                     Err(e) => {
                         // Non-fatal: a transient hub blip shouldn't kill the dashboard.
                         println!("# fetch error (will retry on next tick): {e}");
+                        current_state = None;
                     }
                 }
+            }
+            // T-2072: fire --notify hook on per-topic change events. Only
+            // fire if BOTH prior_state and current_state are Some — first
+            // tick = baseline (no events), and a fetch-failure tick is
+            // skipped so we don't synthesize spurious `removed` events.
+            if let (Some(cmd), Some(prev), Some(curr)) =
+                (notify, prior_state.as_ref(), current_state.as_ref())
+            {
+                let events = diff_claim_states(prev, curr);
+                for ev in events {
+                    fire_claim_notify(cmd, &ev, &hub_addr_str, now_secs);
+                }
+            }
+            // Update prior_state only when the fetch succeeded — see note above.
+            if current_state.is_some() {
+                prior_state = current_state;
             }
             tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
         }
@@ -9291,6 +9331,230 @@ pub(crate) async fn cmd_channel_claims_summary(
 fn is_potentially_stuck(summary: &termlink_session::claim_client::ClaimsAggregate) -> bool {
     summary.expired_count > 0
         || summary.oldest_active_age_ms.map(|a| a > 60_000).unwrap_or(false)
+}
+
+/// T-2072: per-topic stuck-state snapshot kept across watch ticks for the
+/// `--notify` diff. Carries the bare minimum the change-event renderer needs:
+/// the stuck classification plus the three counter values that go into env
+/// vars. Cheap to clone (all primitives).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ClaimSnapshot {
+    pub stuck: bool,
+    pub active_count: u64,
+    pub expired_count: u64,
+    pub oldest_active_age_ms: Option<i64>,
+}
+
+impl ClaimSnapshot {
+    fn from_summary(s: &termlink_session::claim_client::ClaimsAggregate) -> Self {
+        Self {
+            stuck: is_potentially_stuck(s),
+            active_count: s.active_count,
+            expired_count: s.expired_count,
+            oldest_active_age_ms: s.oldest_active_age_ms,
+        }
+    }
+}
+
+/// T-2072: change-event kinds that `--notify` fires for. `New` is fired the
+/// first time a topic appears in the snapshot (relative to prior_state), even
+/// if not stuck — operator gates on `TERMLINK_CLAIM_NEW_STUCK` in the script.
+/// `Removed` fires when a previously-seen topic disappears. `Transition` fires
+/// when a still-present topic's stuck classification flips either direction.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ClaimChangeKind {
+    Transition,
+    New,
+    Removed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ClaimChangeEvent {
+    pub topic: String,
+    pub kind: ClaimChangeKind,
+    pub old: Option<ClaimSnapshot>,
+    pub new: Option<ClaimSnapshot>,
+}
+
+/// T-2072: pure diff function — input is the BEFORE and AFTER snapshot maps,
+/// output is an ordered list of change events. Extracted as a pure helper
+/// (no IO, no env, no subprocess) so unit tests can exercise the logic
+/// without spawning the watch loop or any shell commands.
+///
+/// Event ordering: stable by topic name (BTreeMap iter order) and within a
+/// topic only one of (transition | new | removed) fires. A topic present in
+/// both maps with identical stuck state emits no event.
+pub(crate) fn diff_claim_states(
+    prev: &std::collections::BTreeMap<String, ClaimSnapshot>,
+    curr: &std::collections::BTreeMap<String, ClaimSnapshot>,
+) -> Vec<ClaimChangeEvent> {
+    let mut events = Vec::new();
+    // Removed topics: in prev, not in curr.
+    for (topic, old_snap) in prev {
+        if !curr.contains_key(topic) {
+            events.push(ClaimChangeEvent {
+                topic: topic.clone(),
+                kind: ClaimChangeKind::Removed,
+                old: Some(old_snap.clone()),
+                new: None,
+            });
+        }
+    }
+    // New + transition topics: walk curr.
+    for (topic, new_snap) in curr {
+        match prev.get(topic) {
+            None => events.push(ClaimChangeEvent {
+                topic: topic.clone(),
+                kind: ClaimChangeKind::New,
+                old: None,
+                new: Some(new_snap.clone()),
+            }),
+            Some(old_snap) => {
+                if old_snap.stuck != new_snap.stuck {
+                    events.push(ClaimChangeEvent {
+                        topic: topic.clone(),
+                        kind: ClaimChangeKind::Transition,
+                        old: Some(old_snap.clone()),
+                        new: Some(new_snap.clone()),
+                    });
+                }
+            }
+        }
+    }
+    events
+}
+
+/// T-2072: fire the operator's `--notify` command fire-and-forget with env
+/// vars populated. Uses `sh -c <cmd>` so the operator can pass a pipeline /
+/// inline script; equivalent to T-2065 governor's `--notify` semantics.
+///
+/// Fire-and-forget guarantees:
+///   - We do NOT await the child (`spawn()` then drop the handle). A hanging
+///     script cannot block the watch loop.
+///   - We do NOT propagate spawn errors. Command-not-found prints a one-line
+///     warning to stderr but the watch continues. This mirrors T-2065 and is
+///     deliberate — `--notify` is a side-channel; the primary view (the
+///     screen render) is what the operator relies on.
+fn fire_claim_notify(cmd: &str, event: &ClaimChangeEvent, hub_addr: &str, ts_secs: u64) {
+    let ts_str = crate::manifest::secs_to_rfc3339(ts_secs);
+    let kind_str = match event.kind {
+        ClaimChangeKind::Transition => "transition",
+        ClaimChangeKind::New => "new",
+        ClaimChangeKind::Removed => "removed",
+    };
+    let (old_stuck, old_active, old_expired, old_age) = snapshot_env_triplet(event.old.as_ref());
+    let (new_stuck, new_active, new_expired, new_age) = snapshot_env_triplet(event.new.as_ref());
+    let mut child = tokio::process::Command::new("sh");
+    child
+        .arg("-c")
+        .arg(cmd)
+        .env("TERMLINK_CLAIM_TOPIC", &event.topic)
+        .env("TERMLINK_CLAIM_CHANGE_KIND", kind_str)
+        .env("TERMLINK_CLAIM_TS", &ts_str)
+        .env("TERMLINK_CLAIM_HUB", hub_addr)
+        .env("TERMLINK_CLAIM_OLD_STUCK", old_stuck)
+        .env("TERMLINK_CLAIM_NEW_STUCK", new_stuck)
+        // Counter envs reflect CURRENT state (post-event) when available,
+        // falling back to OLD state for `removed` events.
+        .env(
+            "TERMLINK_CLAIM_ACTIVE_COUNT",
+            if event.new.is_some() { new_active } else { old_active },
+        )
+        .env(
+            "TERMLINK_CLAIM_EXPIRED_COUNT",
+            if event.new.is_some() { new_expired } else { old_expired },
+        )
+        .env(
+            "TERMLINK_CLAIM_OLDEST_AGE_MS",
+            if event.new.is_some() { new_age } else { old_age },
+        )
+        // Detach: don't let the child inherit stdin from the watch session.
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(false);
+    match child.spawn() {
+        Ok(_handle) => {
+            // Drop the handle deliberately — fire-and-forget.
+        }
+        Err(e) => {
+            eprintln!(
+                "# notify spawn failed (continuing watch): topic={:?} kind={} err={}",
+                event.topic, kind_str, e
+            );
+        }
+    }
+}
+
+/// T-2072: helper — render an Option<ClaimSnapshot> as the four env-var
+/// strings (stuck, active, expired, oldest_age). `None` snapshots render as
+/// `"n/a"` so scripts can `[ "$VAR" = "n/a" ]` instead of unsetting the var.
+fn snapshot_env_triplet(snap: Option<&ClaimSnapshot>) -> (String, String, String, String) {
+    match snap {
+        None => (
+            "n/a".to_string(),
+            "n/a".to_string(),
+            "n/a".to_string(),
+            "n/a".to_string(),
+        ),
+        Some(s) => (
+            if s.stuck { "true".to_string() } else { "false".to_string() },
+            s.active_count.to_string(),
+            s.expired_count.to_string(),
+            s.oldest_active_age_ms.map(|a| a.to_string()).unwrap_or_else(|| "n/a".to_string()),
+        ),
+    }
+}
+
+/// T-2072: collect a fleet-wide snapshot for the watch loop's diff path.
+/// Returns the same per-topic snapshot map the diff helper consumes. Returns
+/// an error if `channel.list` itself fails — per-topic fetch errors are
+/// recorded as absent entries so the next tick can correctly synthesize
+/// `removed` events if a topic actually disappeared. This mirrors the
+/// existing renderer's "non-fatal per-topic" stance.
+async fn collect_claims_summary_fleet_snapshot(
+    addr: &TransportAddr,
+) -> Result<std::collections::BTreeMap<String, ClaimSnapshot>> {
+    let topics = fetch_topic_names(addr).await?;
+    let mut out = std::collections::BTreeMap::new();
+    for t in &topics {
+        if let Ok(s) = termlink_session::claim_client::channel_claims_summary(addr, t).await {
+            out.insert(t.clone(), ClaimSnapshot::from_summary(&s));
+        }
+        // Silent skip on per-topic fetch error: the screen render below
+        // surfaces the error inline; we just don't poison the diff map.
+    }
+    Ok(out)
+}
+
+/// T-2072: text renderer that consumes the same snapshot map the diff
+/// helper produces. Used inside the watch loop so the rendering and
+/// diffing read the same data structure (no double-fetch).
+fn render_claims_summary_fleet_text_from_snapshot(
+    snap: &std::collections::BTreeMap<String, ClaimSnapshot>,
+) {
+    if snap.is_empty() {
+        println!("(no topics on hub)");
+        return;
+    }
+    let mut stuck_count: u64 = 0;
+    for (topic, s) in snap {
+        if s.stuck {
+            stuck_count += 1;
+        }
+        let age_str = s
+            .oldest_active_age_ms
+            .map(|a| format!("{}ms", a))
+            .unwrap_or_else(|| "-".to_string());
+        let annotation = if s.stuck { "  [POTENTIALLY STUCK]" } else { "" };
+        println!(
+            "  {}  active={} expired={} oldest_age={}{}",
+            topic, s.active_count, s.expired_count, age_str, annotation
+        );
+    }
+    println!(
+        "({} topic(s), {} with potentially stuck claims)",
+        snap.len(),
+        stuck_count
+    );
 }
 
 /// T-2042: fleet-wide claims-summary text renderer. Queries channel.list,
@@ -9427,6 +9691,132 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2072 claims-summary --notify diff helper tests ---------------
+
+    fn snap(stuck: bool, active: u64, expired: u64, age: Option<i64>) -> ClaimSnapshot {
+        ClaimSnapshot {
+            stuck,
+            active_count: active,
+            expired_count: expired,
+            oldest_active_age_ms: age,
+        }
+    }
+
+    fn map(entries: &[(&str, ClaimSnapshot)]) -> std::collections::BTreeMap<String, ClaimSnapshot> {
+        let mut m = std::collections::BTreeMap::new();
+        for (k, v) in entries {
+            m.insert((*k).to_string(), v.clone());
+        }
+        m
+    }
+
+    #[test]
+    fn claims_summary_notify_baseline_no_events() {
+        // prev empty == baseline (first tick). curr has stuck topics —
+        // diff should NOT fire `new` because there is no prior state to
+        // compare against. The caller (watch loop) gates with `if let
+        // (Some(cmd), Some(prev), Some(curr))`, so this test models the
+        // case where prev EXISTS but is empty (e.g. hub had no topics on
+        // first tick, then a topic appeared). That IS a `new` event —
+        // which is the correct semantics. So we test the watch's actual
+        // baseline path: prev == None means no diff is computed at all.
+        // For the prev=empty-map case (post-baseline empty hub), `new`
+        // events ARE expected when topics appear:
+        let prev = map(&[]);
+        let curr = map(&[("work-queue", snap(true, 1, 0, Some(50_000)))]);
+        let events = diff_claim_states(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, ClaimChangeKind::New);
+        assert_eq!(events[0].topic, "work-queue");
+    }
+
+    #[test]
+    fn claims_summary_notify_stuck_transition_fires() {
+        // Same topic, healthy → stuck (expired_count crossed 0 → >0).
+        let prev = map(&[("work-queue", snap(false, 1, 0, Some(5_000)))]);
+        let curr = map(&[("work-queue", snap(true, 1, 1, Some(70_000)))]);
+        let events = diff_claim_states(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, ClaimChangeKind::Transition);
+        assert_eq!(events[0].topic, "work-queue");
+        assert_eq!(events[0].old.as_ref().unwrap().stuck, false);
+        assert_eq!(events[0].new.as_ref().unwrap().stuck, true);
+    }
+
+    #[test]
+    fn claims_summary_notify_unstuck_transition_fires() {
+        // Reverse direction — recovered topic also fires (operator may
+        // want a "stuck is cleared" notification, e.g. clear the page).
+        let prev = map(&[("work-queue", snap(true, 1, 1, Some(70_000)))]);
+        let curr = map(&[("work-queue", snap(false, 1, 0, Some(5_000)))]);
+        let events = diff_claim_states(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, ClaimChangeKind::Transition);
+        assert_eq!(events[0].old.as_ref().unwrap().stuck, true);
+        assert_eq!(events[0].new.as_ref().unwrap().stuck, false);
+    }
+
+    #[test]
+    fn claims_summary_notify_new_topic_fires_new() {
+        let prev = map(&[("a", snap(false, 0, 0, None))]);
+        let curr = map(&[
+            ("a", snap(false, 0, 0, None)),
+            ("b", snap(true, 1, 0, Some(80_000))),
+        ]);
+        let events = diff_claim_states(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, ClaimChangeKind::New);
+        assert_eq!(events[0].topic, "b");
+        assert!(events[0].old.is_none());
+        assert!(events[0].new.is_some());
+    }
+
+    #[test]
+    fn claims_summary_notify_removed_topic_fires_removed() {
+        let prev = map(&[
+            ("a", snap(false, 0, 0, None)),
+            ("b", snap(true, 1, 0, Some(80_000))),
+        ]);
+        let curr = map(&[("a", snap(false, 0, 0, None))]);
+        let events = diff_claim_states(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, ClaimChangeKind::Removed);
+        assert_eq!(events[0].topic, "b");
+        assert!(events[0].old.is_some());
+        assert!(events[0].new.is_none());
+    }
+
+    #[test]
+    fn claims_summary_notify_no_change_no_events() {
+        // Identical state on both ticks — silent tick.
+        let prev = map(&[
+            ("a", snap(false, 0, 0, None)),
+            ("b", snap(true, 1, 0, Some(80_000))),
+        ]);
+        let curr = prev.clone();
+        let events = diff_claim_states(&prev, &curr);
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn claims_summary_notify_env_triplet_renders_n_a_for_none() {
+        let (stuck, active, expired, age) = snapshot_env_triplet(None);
+        assert_eq!(stuck, "n/a");
+        assert_eq!(active, "n/a");
+        assert_eq!(expired, "n/a");
+        assert_eq!(age, "n/a");
+    }
+
+    #[test]
+    fn claims_summary_notify_env_triplet_renders_values_for_some() {
+        let s = snap(true, 7, 2, Some(123_456));
+        let (stuck, active, expired, age) = snapshot_env_triplet(Some(&s));
+        assert_eq!(stuck, "true");
+        assert_eq!(active, "7");
+        assert_eq!(expired, "2");
+        assert_eq!(age, "123456");
+    }
 
     // ---- T-1795 fetch_topic_msgs tail-anchoring tests -------------------
 
