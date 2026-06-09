@@ -4,16 +4,16 @@ name: "Broadcast-with-replay / current-value key — substrate primitive 9"
 description: >
   Inception: Broadcast-with-replay / current-value key — substrate primitive 9
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-09T14:25:32Z
-last_update: 2026-06-09T14:28:53Z
-date_finished: null
+last_update: 2026-06-09T14:51:17Z
+date_finished: 2026-06-09T14:51:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -99,15 +99,15 @@ No code spike needed — the design is analytically bounded by existing claim-in
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -176,7 +176,26 @@ Research artifact at `docs/reports/T-2089-broadcast-with-replay-inception.md` an
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (Design A — tagged-post cv_index)
+
+Rationale:
+
+Research artifact at `docs/reports/T-2089-broadcast-with-replay-inception.md` analyzed four design alternatives (A: tagged-post cv_index, B: last-N tail replay, C: snapshot+subscribe recipe, D: KV sidecar) and recommends Design A. The design is bounded by an existing in-codebase pattern (claim-index, T-2019), backward compatible, restart-safe, and directly unlocks the operator pain point on `agent-presence` (`/peers` becomes O(N_agents) instead of O(N_heartbeats)). Build decomposes into 5 independently shippable slices (T-2090..T-2094) mirroring the proven T-2078..T-2087 substrate observability arc pattern. All five IW questions have been answered (see Open Questions section). Filing GO.
+
+Evidence:
+
+- ADR §6 #9 explicit primitive requirement: `docs/architecture/parallel-execution-substrate.md:267-268`
+- Existing claim-index pattern (proof of storage shape): `crates/termlink-hub/src/channel.rs:923` (`channel.claim`)
+- Existing channel.subscribe wire (extension point): `crates/termlink-hub/src/channel.rs:594`
+- Existing snapshot walk-cost pattern this addresses: `crates/termlink-cli/src/commands/channel.rs:6644` (`cmd_channel_snapshot`)
+- Agent-presence high-rate context (target use case): `crates/termlink-hub/src/channel.rs:327` + T-1991/G-058 retention cap
+- Build slice plan: docs/reports/T-2089-broadcast-with-replay-inception.md §4 (5 tasks T-2090..T-2094)
+
+Evidence:
+
+**Date**: 2026-06-09T14:51:17Z
 
 ## Updates
 
@@ -185,3 +204,27 @@ Research artifact at `docs/reports/T-2089-broadcast-with-replay-inception.md` an
 
 ### 2026-06-09T14:28:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-09T14:51:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (Design A — tagged-post cv_index)
+
+Rationale:
+
+Research artifact at `docs/reports/T-2089-broadcast-with-replay-inception.md` analyzed four design alternatives (A: tagged-post cv_index, B: last-N tail replay, C: snapshot+subscribe recipe, D: KV sidecar) and recommends Design A. The design is bounded by an existing in-codebase pattern (claim-index, T-2019), backward compatible, restart-safe, and directly unlocks the operator pain point on `agent-presence` (`/peers` becomes O(N_agents) instead of O(N_heartbeats)). Build decomposes into 5 independently shippable slices (T-2090..T-2094) mirroring the proven T-2078..T-2087 substrate observability arc pattern. All five IW questions have been answered (see Open Questions section). Filing GO.
+
+Evidence:
+
+- ADR §6 #9 explicit primitive requirement: `docs/architecture/parallel-execution-substrate.md:267-268`
+- Existing claim-index pattern (proof of storage shape): `crates/termlink-hub/src/channel.rs:923` (`channel.claim`)
+- Existing channel.subscribe wire (extension point): `crates/termlink-hub/src/channel.rs:594`
+- Existing snapshot walk-cost pattern this addresses: `crates/termlink-cli/src/commands/channel.rs:6644` (`cmd_channel_snapshot`)
+- Agent-presence high-rate context (target use case): `crates/termlink-hub/src/channel.rs:327` + T-1991/G-058 retention cap
+- Build slice plan: docs/reports/T-2089-broadcast-with-replay-inception.md §4 (5 tasks T-2090..T-2094)
+
+Evidence:
+
+### 2026-06-09T14:51:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
