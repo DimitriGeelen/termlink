@@ -9182,6 +9182,7 @@ pub(crate) async fn cmd_channel_claims_summary(
     watch: Option<u64>,
     all: bool,
     notify: Option<&str>,
+    log: Option<&std::path::Path>,
 ) -> Result<()> {
     let addr = hub_socket(hub)?;
 
@@ -9269,16 +9270,23 @@ pub(crate) async fn cmd_channel_claims_summary(
                     }
                 }
             }
-            // T-2072: fire --notify hook on per-topic change events. Only
-            // fire if BOTH prior_state and current_state are Some — first
-            // tick = baseline (no events), and a fetch-failure tick is
-            // skipped so we don't synthesize spurious `removed` events.
-            if let (Some(cmd), Some(prev), Some(curr)) =
-                (notify, prior_state.as_ref(), current_state.as_ref())
+            // T-2072 + T-2073: compute per-tick change events once, then
+            // dispatch both `--notify` and `--log` from the same source so
+            // the two surfaces are always seen identical. Only emit if BOTH
+            // prior_state and current_state are Some — first tick = baseline
+            // (no events), and a fetch-failure tick is skipped so we don't
+            // synthesize spurious `removed` events.
+            if let (Some(prev), Some(curr)) =
+                (prior_state.as_ref(), current_state.as_ref())
             {
                 let events = diff_claim_states(prev, curr);
-                for ev in events {
-                    fire_claim_notify(cmd, &ev, &hub_addr_str, now_secs);
+                for ev in &events {
+                    if let Some(cmd) = notify {
+                        fire_claim_notify(cmd, ev, &hub_addr_str, now_secs);
+                    }
+                    if let Some(path) = log {
+                        append_claim_log_line(path, ev, &hub_addr_str, now_secs);
+                    }
                 }
             }
             // Update prior_state only when the fetch succeeded — see note above.
@@ -9501,6 +9509,115 @@ fn snapshot_env_triplet(snap: Option<&ClaimSnapshot>) -> (String, String, String
             s.expired_count.to_string(),
             s.oldest_active_age_ms.map(|a| a.to_string()).unwrap_or_else(|| "n/a".to_string()),
         ),
+    }
+}
+
+/// T-2073: render one NDJSON line for a change event. Pure helper — no IO,
+/// no env lookup. Field order is fixed to keep `jq` selectors stable across
+/// versions: `ts`, `topic`, `kind`, `hub`, `old_stuck`, `new_stuck`,
+/// `active_count`, `expired_count`, `oldest_age_ms`. Stuck/counter values
+/// from the snapshot the event lacks (e.g. `old_stuck` for a `new` event
+/// where there was no prior snapshot) render as JSON `null` so jq predicates
+/// like `.old_stuck == null` cleanly select the `new` kind.
+///
+/// Mirror of T-2066's `render_governor_log_line`. Symmetric schema so an
+/// operator running both watch loops can use the same jq idioms across
+/// both `~/.termlink/governor.log` and `~/.termlink/claims.log`.
+pub(crate) fn render_claim_log_line(
+    event: &ClaimChangeEvent,
+    hub: &str,
+    ts_secs: u64,
+) -> String {
+    let kind_str = match event.kind {
+        ClaimChangeKind::Transition => "transition",
+        ClaimChangeKind::New => "new",
+        ClaimChangeKind::Removed => "removed",
+    };
+    let ts_str = crate::manifest::secs_to_rfc3339(ts_secs);
+    let (old_stuck, _, _, _) = snapshot_env_triplet(event.old.as_ref());
+    let (new_stuck, _, _, _) = snapshot_env_triplet(event.new.as_ref());
+    // Counters reflect CURRENT state (post-event) when available, else fall
+    // back to OLD state for `removed` events. JSON null when neither side
+    // has a snapshot (impossible by construction of ClaimChangeEvent, but
+    // we cover it defensively to keep the schema total).
+    let counter_source = event.new.as_ref().or(event.old.as_ref());
+    let active = counter_source
+        .map(|s| serde_json::Value::from(s.active_count))
+        .unwrap_or(serde_json::Value::Null);
+    let expired = counter_source
+        .map(|s| serde_json::Value::from(s.expired_count))
+        .unwrap_or(serde_json::Value::Null);
+    let oldest_age_ms = counter_source
+        .and_then(|s| s.oldest_active_age_ms)
+        .map(serde_json::Value::from)
+        .unwrap_or(serde_json::Value::Null);
+    let line = json!({
+        "ts": ts_str,
+        "topic": event.topic,
+        "kind": kind_str,
+        "hub": hub,
+        "old_stuck": stuck_str_to_json(&old_stuck),
+        "new_stuck": stuck_str_to_json(&new_stuck),
+        "active_count": active,
+        "expired_count": expired,
+        "oldest_age_ms": oldest_age_ms,
+    });
+    line.to_string()
+}
+
+/// T-2073: helper — map the `"true"/"false"/"n/a"` strings produced by
+/// `snapshot_env_triplet` back to typed JSON values for the log line so jq
+/// selectors compare against `true`/`false`/`null` rather than strings.
+fn stuck_str_to_json(s: &str) -> serde_json::Value {
+    match s {
+        "true" => serde_json::Value::Bool(true),
+        "false" => serde_json::Value::Bool(false),
+        _ => serde_json::Value::Null,
+    }
+}
+
+/// T-2073: append one NDJSON line to the operator-supplied log path.
+/// Best-effort: parent dir auto-created; on write failure (disk full,
+/// permission denied, ENOSPC) print a one-line stderr warning and return
+/// without panicking. The watch loop continues — losing audit lines is
+/// strictly less bad than losing the real-time monitor.
+///
+/// Mirror of T-2066's `append_governor_log_line`. Same best-effort stance.
+fn append_claim_log_line(
+    path: &std::path::Path,
+    event: &ClaimChangeEvent,
+    hub: &str,
+    ts_secs: u64,
+) {
+    if let Some(parent) = path.parent() {
+        // Empty parent path () means "current dir" — skip create_dir_all for
+        // an empty path to avoid a noisy stderr warning on `--log foo.log`.
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!(
+                    "# claim log: cannot create parent dir {:?} (continuing): {e}",
+                    parent
+                );
+                return;
+            }
+        }
+    }
+    let line = render_claim_log_line(event, hub, ts_secs);
+    let line_with_newline = format!("{}\n", line);
+    let open_res = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path);
+    match open_res {
+        Err(e) => {
+            eprintln!("# claim log: open {:?} failed (continuing): {e}", path);
+        }
+        Ok(mut f) => {
+            use std::io::Write;
+            if let Err(e) = f.write_all(line_with_newline.as_bytes()) {
+                eprintln!("# claim log: write {:?} failed (continuing): {e}", path);
+            }
+        }
     }
 }
 
@@ -9816,6 +9933,120 @@ mod tests {
         assert_eq!(active, "7");
         assert_eq!(expired, "2");
         assert_eq!(age, "123456");
+    }
+
+    // ---- T-2073 claims-summary --log NDJSON renderer tests --------------
+
+    fn parse_log_line(line: &str) -> serde_json::Value {
+        serde_json::from_str(line).expect("log line must be valid JSON")
+    }
+
+    #[test]
+    fn claims_summary_log_transition_renders_both_stuck_states() {
+        let ev = ClaimChangeEvent {
+            topic: "work-queue".to_string(),
+            kind: ClaimChangeKind::Transition,
+            old: Some(snap(false, 1, 0, Some(5_000))),
+            new: Some(snap(true, 1, 1, Some(70_000))),
+        };
+        let line = render_claim_log_line(&ev, "unix:/tmp/hub.sock", 1_700_000_000);
+        let v = parse_log_line(&line);
+        assert_eq!(v["topic"], "work-queue");
+        assert_eq!(v["kind"], "transition");
+        assert_eq!(v["hub"], "unix:/tmp/hub.sock");
+        assert_eq!(v["old_stuck"], false);
+        assert_eq!(v["new_stuck"], true);
+        assert_eq!(v["active_count"], 1);
+        assert_eq!(v["expired_count"], 1);
+        assert_eq!(v["oldest_age_ms"], 70_000);
+        assert!(v["ts"].as_str().is_some());
+    }
+
+    #[test]
+    fn claims_summary_log_new_renders_old_stuck_null() {
+        let ev = ClaimChangeEvent {
+            topic: "fresh-topic".to_string(),
+            kind: ClaimChangeKind::New,
+            old: None,
+            new: Some(snap(true, 1, 0, Some(80_000))),
+        };
+        let line = render_claim_log_line(&ev, "tcp:1.2.3.4:9100", 1_700_000_001);
+        let v = parse_log_line(&line);
+        assert_eq!(v["kind"], "new");
+        assert!(v["old_stuck"].is_null());
+        assert_eq!(v["new_stuck"], true);
+        // Counters reflect post-event state.
+        assert_eq!(v["active_count"], 1);
+        assert_eq!(v["expired_count"], 0);
+    }
+
+    #[test]
+    fn claims_summary_log_removed_renders_new_stuck_null() {
+        let ev = ClaimChangeEvent {
+            topic: "gone".to_string(),
+            kind: ClaimChangeKind::Removed,
+            old: Some(snap(true, 2, 1, Some(90_000))),
+            new: None,
+        };
+        let line = render_claim_log_line(&ev, "unix:/tmp/h", 1_700_000_002);
+        let v = parse_log_line(&line);
+        assert_eq!(v["kind"], "removed");
+        assert_eq!(v["old_stuck"], true);
+        assert!(v["new_stuck"].is_null());
+        // Counters fall back to old when new is absent.
+        assert_eq!(v["active_count"], 2);
+        assert_eq!(v["expired_count"], 1);
+        assert_eq!(v["oldest_age_ms"], 90_000);
+    }
+
+    #[test]
+    fn claims_summary_log_renders_null_age_for_none() {
+        let ev = ClaimChangeEvent {
+            topic: "no-age".to_string(),
+            kind: ClaimChangeKind::Transition,
+            old: Some(snap(false, 0, 0, None)),
+            new: Some(snap(true, 0, 1, None)),
+        };
+        let line = render_claim_log_line(&ev, "unix:/tmp/h", 1_700_000_003);
+        let v = parse_log_line(&line);
+        assert!(v["oldest_age_ms"].is_null());
+        assert_eq!(v["old_stuck"], false);
+        assert_eq!(v["new_stuck"], true);
+    }
+
+    #[test]
+    fn claims_summary_log_line_is_round_trip_jq_friendly() {
+        // The line MUST be a single NDJSON-style line (no internal
+        // newlines) so `jq -c 'select(...)' file` works correctly. This
+        // test catches accidental indented serializations or stray
+        // newlines from future refactors.
+        let ev = ClaimChangeEvent {
+            topic: "round-trip".to_string(),
+            kind: ClaimChangeKind::Transition,
+            old: Some(snap(false, 5, 0, Some(1_000))),
+            new: Some(snap(true, 5, 2, Some(99_999))),
+        };
+        let line = render_claim_log_line(&ev, "unix:/tmp/h", 1_700_000_004);
+        // Single-line invariant.
+        assert!(!line.contains('\n'), "line must not contain newline");
+        // Round-trip parseability.
+        let v: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+        // Spot-check required field set so a future drop of an established
+        // field fails this test rather than silently regressing operator
+        // jq selectors.
+        for field in [
+            "ts",
+            "topic",
+            "kind",
+            "hub",
+            "old_stuck",
+            "new_stuck",
+            "active_count",
+            "expired_count",
+            "oldest_age_ms",
+        ] {
+            assert!(v.get(field).is_some(), "missing required field: {field}");
+        }
     }
 
     // ---- T-1795 fetch_topic_msgs tail-anchoring tests -------------------

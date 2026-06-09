@@ -1613,7 +1613,7 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::ClaimsSummary { topic, hub, json, watch, all, notify } => {
+            ChannelAction::ClaimsSummary { topic, hub, json, watch, all, notify, log } => {
                 commands::channel::cmd_channel_claims_summary(
                     topic.as_deref(),
                     hub.as_deref(),
@@ -1621,6 +1621,7 @@ async fn main() -> Result<()> {
                     watch,
                     all,
                     notify.as_deref(),
+                    log.as_deref(),
                 )
                 .await
             }

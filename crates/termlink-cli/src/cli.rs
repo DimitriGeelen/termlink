@@ -3344,6 +3344,18 @@ pub(crate) enum ChannelAction {
         /// command-not-found does NOT kill the watch.
         #[arg(long, requires = "watch")]
         notify: Option<String>,
+        /// T-2073 (claim primitive observability arc — mirror of T-2066
+        /// governor `--log`): append-only NDJSON audit trail. One flat
+        /// jq-friendly line per per-topic change event with fields
+        /// `{ts, topic, kind, hub, old_stuck, new_stuck, active_count,
+        /// expired_count, oldest_age_ms}`. Requires `--watch`. Parent
+        /// directory auto-created. Disk-full / permission errors print a
+        /// one-line stderr warning and the watch continues. Symmetric
+        /// with `--notify` — both fire on the same event taxonomy.
+        /// Forensic retrospective: `jq -c 'select(.topic=="work-queue" \
+        /// and .new_stuck==true)' ~/.termlink/claims.log`.
+        #[arg(long, requires = "watch")]
+        log: Option<std::path::PathBuf>,
     },
 }
 
