@@ -535,6 +535,87 @@ pub(crate) fn aggregate_find_idle_entries_mcp(
     per_agent
 }
 
+// T-2087: aggregate counter for queue-history MCP. Mirror of
+// FindIdleAgentAggMcp but for queue events (binary kind: pending vs
+// drained). Single counter — queue is per-host, no per-key map.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct QueueHistoryAggMcp {
+    pub pending_events: u64,
+    pub drained_events: u64,
+}
+
+// T-2087: pure helper — parse queue.log NDJSON into (entries, malformed).
+// Mirror of T-2082's `parse_find_idle_log_mcp` (sans agent_id requirement
+// — queue is per-host so there's no per-entity identifier). Lines
+// missing required fields (`ts`, `kind`) counted malformed + skipped.
+// `kind_filter == None` means "all kinds".
+pub(crate) fn parse_queue_log_mcp(
+    text: &str,
+    cutoff_secs: i64,
+    kind_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed: usize = 0;
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match entry.get("ts").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let kind = match entry.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if let Some(want) = kind_filter {
+            if kind != want {
+                continue;
+            }
+        }
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        entries.push(entry);
+    }
+    (entries, malformed)
+}
+
+// T-2087: pure helper — aggregate per-kind event counts. Mirror of
+// `aggregate_find_idle_entries_mcp` but single QueueHistoryAggMcp
+// instead of per-agent map (queue is per-host).
+pub(crate) fn aggregate_queue_entries_mcp(
+    entries: &[serde_json::Value],
+) -> QueueHistoryAggMcp {
+    let mut out = QueueHistoryAggMcp::default();
+    for e in entries {
+        let kind = match e.get("kind").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => continue,
+        };
+        match kind {
+            "pending" => out.pending_events += 1,
+            "drained" => out.drained_events += 1,
+            _ => {}
+        }
+    }
+    out
+}
+
 /// T-1941: full help registry — extracted so the phantom-entry guard test
 /// (`help_registry_has_no_phantom_entries`) can introspect it without standing
 /// up the MCP server. `termlink_help` consumes the same fn.
@@ -637,6 +718,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
             ("termlink_agent_find_idle", "T-2045: hub-derived idle-agent roster (LIVE presence ∖ active claimers). Orchestrator's 'who can I dispatch to?' primitive — pair with termlink_channel_claim for assignment."),
             ("termlink_agent_find_idle_history", "T-2082/T-2081: retrospective read of ~/.termlink/find-idle.log NDJSON audit trail. Per-agent aggregate of new/removed event counts within --since-days window. Answers 'is this worker flapping?' / 'when did claude-alpha go busy?'"),
+            ("termlink_channel_queue_history", "T-2087/T-2086: retrospective read of ~/.termlink/queue.log NDJSON audit trail. Per-kind aggregate of pending/drained event counts within --since-days window. Answers 'has this host been losing connectivity?' / 'how often does the queue back up?'. Closes substrate primitive #5 RESILIENCE obs arc."),
             ("termlink_channel_post", "Post a message to a topic (raw envelope, agent_post wraps this)"),
             ("termlink_channel_reply", "Reply to a specific post on a topic"),
             ("termlink_channel_subscribe", "Tail/subscribe to a topic (since-offset or live)"),
@@ -9763,6 +9845,23 @@ pub struct AgentFindIdleHistoryParams {
     /// Filter to a single agent_id (exact match; None = all agents).
     pub agent_id: Option<String>,
     /// Override log path (default: `$HOME/.termlink/find-idle.log`).
+    /// Use when the watch loop was run with a custom `--log` destination.
+    pub log_path: Option<String>,
+}
+
+// T-2087: Channel queue-history params (MCP parity for T-2086 CLI verb).
+// Mirror of AgentFindIdleHistoryParams shape pointed at the queue audit
+// trail (`~/.termlink/queue.log`) — substrate primitive #5 RESILIENCE.
+// Closure slice of the substrate primitive #5 obs arc.
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelQueueHistoryParams {
+    /// Look-back window in days (default: 7, clamped 1..=365).
+    pub since_days: Option<u32>,
+    /// Filter to a specific event kind (`pending` or `drained`).
+    /// None = all kinds. Queue state is binary (no `transition` kind —
+    /// see T-2083 design note).
+    pub kind: Option<String>,
+    /// Override log path (default: `$HOME/.termlink/queue.log`).
     /// Use when the watch loop was run with a custom `--log` destination.
     pub log_path: Option<String>,
 }
@@ -28334,6 +28433,82 @@ impl TermLinkTools {
     }
 
     #[tool(
+        name = "termlink_channel_queue_history",
+        description = "T-2087 / T-2086 — retrospective read of the queue.log NDJSON audit trail produced by `channel queue-status --watch --log <path>`. Walks `~/.termlink/queue.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `kind` exact-match (`pending`/`drained`), and returns `{ok, entries[], summary{total, pending_events, drained_events, since_days, kind_filter, malformed_lines_skipped, log_path}}`. Closes the substrate primitive #5 RESILIENCE observability arc end-to-end. Queue state is binary (no `transition` kind — see T-2083 design note), so the summary tracks per-kind event totals only — no per-key aggregate (queue is per-host, single instance). Empty/missing log returns `{ok:true, entries:[], summary:…, hint:'no queue history yet — run `channel queue-status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_agent_find_idle_history` (T-2082) but pointed at the substrate offline-queue (RESILIENCE) audit trail. CLI parity: `termlink channel queue-history`."
+    )]
+    async fn termlink_channel_queue_history(
+        &self,
+        Parameters(p): Parameters<ChannelQueueHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+
+        let log_path: std::path::PathBuf = match p.log_path.as_deref() {
+            Some(s) => std::path::PathBuf::from(s),
+            None => {
+                let Some(home) = std::env::var("HOME").ok() else {
+                    return json_err(
+                        "HOME env var not set; cannot resolve queue.log default path",
+                    );
+                };
+                std::path::PathBuf::from(home)
+                    .join(".termlink")
+                    .join("queue.log")
+            }
+        };
+
+        if !log_path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "pending_events": 0,
+                    "drained_events": 0,
+                    "since_days": since_days,
+                    "kind_filter": p.kind,
+                    "log_path": log_path.display().to_string(),
+                },
+                "hint": "no queue history yet — run `channel queue-status --watch --log <path>` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let text = match std::fs::read_to_string(&log_path) {
+            Ok(t) => t,
+            Err(e) => return json_err(format!("cannot read {}: {e}", log_path.display())),
+        };
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let (entries, malformed) =
+            parse_queue_log_mcp(&text, cutoff, p.kind.as_deref());
+
+        let agg = aggregate_queue_entries_mcp(&entries);
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": {
+                "total": entries.len(),
+                "pending_events": agg.pending_events,
+                "drained_events": agg.drained_events,
+                "since_days": since_days,
+                "kind_filter": p.kind,
+                "malformed_lines_skipped": malformed,
+                "log_path": log_path.display().to_string(),
+            }
+        }))
+        .unwrap_or_else(json_err)
+    }
+
+    #[tool(
         name = "termlink_agent_find_idle",
         description = "T-2045 (T-2020 GO): hub-derived idle-agent roster. Returns agents on the local hub that are LIVE on `agent-presence` AND are not currently holding any active claim. Orchestrator's `who can I dispatch to?` primitive — pair with `termlink_channel_claim` for the next-step assign verb. Pure read — no state mutation, no auth. Params: `{role?, capabilities? (subset match), limit?}` → `{ok, idle: [{agent_id, last_heartbeat_ms, role, capabilities}, ...]}`."
     )]
@@ -42183,6 +42358,80 @@ YW\tJ
         let a = agg.get("a").unwrap();
         assert_eq!(a.new_events, 1);
         assert_eq!(a.removed_events, 0);
+    }
+
+    // ---- T-2087 queue-history MCP tests (mirror of T-2082 above) ----
+    // Queue state is binary (pending/drained) — see T-2083. No per-key
+    // map; aggregate is a single QueueHistoryAggMcp counter pair.
+
+    #[test]
+    fn mcp_queue_history_parse_skips_malformed_and_counts() {
+        let ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "garbage line one\n\
+             {{\"ts\":\"{ts}\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3,\"oldest_age_ms\":500,\"queue_path\":\"/tmp/q.sqlite\"}}\n\
+             not json at all\n\
+             {{\"ts\":\"{ts}\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0,\"oldest_age_ms\":null,\"queue_path\":\"/tmp/q.sqlite\"}}\n\
+             {{\"ts\":\"{ts}\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":1,\"oldest_age_ms\":10,\"queue_path\":\"/tmp/q.sqlite\"}}\n",
+            ts = ts
+        );
+        let (entries, malformed) = parse_queue_log_mcp(&text, 0, None);
+        assert_eq!(entries.len(), 3, "3 parseable rows");
+        assert_eq!(malformed, 2, "2 garbage rows counted");
+        let agg = aggregate_queue_entries_mcp(&entries);
+        assert_eq!(agg.pending_events, 2);
+        assert_eq!(agg.drained_events, 1);
+    }
+
+    #[test]
+    fn mcp_queue_history_parse_applies_kind_filter() {
+        let ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}}\n\
+             {{\"ts\":\"{ts}\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0}}\n\
+             {{\"ts\":\"{ts}\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":1}}\n",
+            ts = ts
+        );
+        let (entries, _) = parse_queue_log_mcp(&text, 0, Some("pending"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(e["kind"], "pending");
+        }
+        let (drained, _) = parse_queue_log_mcp(&text, 0, Some("drained"));
+        assert_eq!(drained.len(), 1);
+    }
+
+    #[test]
+    fn mcp_queue_history_parse_applies_cutoff() {
+        let text = "{\"ts\":\"1990-01-01T00:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0}\n";
+        let (entries, malformed) = parse_queue_log_mcp(text, 1_000_000_000, None);
+        assert_eq!(malformed, 0);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["kind"], "drained");
+    }
+
+    #[test]
+    fn mcp_queue_history_parse_missing_ts_or_kind_is_malformed() {
+        let text = "{\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"old_pending\":0,\"new_pending\":3}\n";
+        let (entries, malformed) = parse_queue_log_mcp(text, 0, None);
+        assert_eq!(entries.len(), 0);
+        assert_eq!(malformed, 2);
+    }
+
+    #[test]
+    fn mcp_queue_history_aggregate_drops_unknown_kinds() {
+        // Forward-compatible: future kind values must NOT crash; they're
+        // silently dropped from per-kind counters.
+        let text = "{\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"surprise_future_kind\",\"old_pending\":0,\"new_pending\":0}\n\
+             {\"ts\":\"2099-01-01T00:00:00Z\",\"kind\":\"drained\",\"old_pending\":3,\"new_pending\":0}\n";
+        let (entries, _) = parse_queue_log_mcp(text, 0, None);
+        assert_eq!(entries.len(), 3, "all 3 parse");
+        let agg = aggregate_queue_entries_mcp(&entries);
+        assert_eq!(agg.pending_events, 1);
+        assert_eq!(agg.drained_events, 1);
     }
 
     // ---- T-2077 claims_summary_all only_stuck predicate tests --------
