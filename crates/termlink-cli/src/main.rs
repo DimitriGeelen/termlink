@@ -722,9 +722,9 @@ async fn main() -> Result<()> {
             ),
         },
         Command::Substrate { action } => match action {
-            SubstrateAction::Status { json, only_pressured, timeout, watch } => {
+            SubstrateAction::Status { json, only_pressured, timeout, watch, notify } => {
                 if let Some(secs) = watch {
-                    commands::substrate::cmd_substrate_status_watch(secs, timeout).await
+                    commands::substrate::cmd_substrate_status_watch(secs, timeout, notify).await
                 } else {
                     commands::substrate::cmd_substrate_status(json, only_pressured, timeout).await
                 }

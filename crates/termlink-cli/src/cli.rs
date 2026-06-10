@@ -6559,6 +6559,32 @@ pub(crate) enum SubstrateAction {
         /// Pattern parity with `fleet governor-status --watch` (T-2064).
         #[arg(long, value_name = "SECONDS")]
         watch: Option<u64>,
+
+        /// T-2113 (T-2111 arc Slice 3): operator-pluggable shell command
+        /// invoked fire-and-forget on every per-cycle rollup-field change
+        /// event during `--watch`. Skipped on the baseline cycle (no prior
+        /// state to diff). Requires `--watch`. Pattern parity with
+        /// `fleet governor-status --watch --notify` (T-2065).
+        ///
+        /// Per-event environment passed to the command:
+        ///   TERMLINK_SUBSTRATE_CHANGE_FIELD   rollup field that changed
+        ///                                     (e.g. "dispatch_idle_count",
+        ///                                     "backpressure_pressured_hubs")
+        ///   TERMLINK_SUBSTRATE_CHANGE_OLD     prior value (stringified)
+        ///   TERMLINK_SUBSTRATE_CHANGE_NEW     current value (stringified)
+        ///   TERMLINK_SUBSTRATE_TS             RFC3339 detection time
+        ///
+        /// Operator wires a script that gates on field + delta:
+        ///   #!/bin/sh
+        ///   [ "$TERMLINK_SUBSTRATE_CHANGE_FIELD" = "backpressure_pressured_hubs" ] || exit 0
+        ///   [ "$TERMLINK_SUBSTRATE_CHANGE_NEW" -gt "$TERMLINK_SUBSTRATE_CHANGE_OLD" ] || exit 0
+        ///   curl -X POST https://hooks.slack.com/...
+        ///
+        /// Hanging scripts do NOT block the loop (fire-and-forget). Spawn
+        /// failures (command-not-found) print one stderr line; the watch
+        /// continues.
+        #[arg(long, value_name = "CMD", requires = "watch")]
+        notify: Option<String>,
     },
 }
 

@@ -852,16 +852,79 @@ pub(crate) fn render_substrate_baseline(ts: &str, rollup: &SubstrateRollup) -> S
     out
 }
 
+/// T-2113: pure helper — build the env-var set passed to a `--notify`
+/// subprocess for one rollup-field change event. Returned as a `Vec` so
+/// the test can assert exact key/value pairs. Mirror of T-2079's
+/// `fire_idle_notify_env` / T-2065's `fire_governor_notify_env`.
+///
+/// Schema (always 4 entries):
+///   TERMLINK_SUBSTRATE_CHANGE_FIELD  → field that changed
+///   TERMLINK_SUBSTRATE_CHANGE_OLD    → prior value (stringified)
+///   TERMLINK_SUBSTRATE_CHANGE_NEW    → current value (stringified)
+///   TERMLINK_SUBSTRATE_TS            → RFC3339 detection time
+pub(crate) fn build_notify_env(
+    field: &str,
+    old: &str,
+    new: &str,
+    ts: &str,
+) -> Vec<(&'static str, String)> {
+    vec![
+        ("TERMLINK_SUBSTRATE_CHANGE_FIELD", field.to_string()),
+        ("TERMLINK_SUBSTRATE_CHANGE_OLD", old.to_string()),
+        ("TERMLINK_SUBSTRATE_CHANGE_NEW", new.to_string()),
+        ("TERMLINK_SUBSTRATE_TS", ts.to_string()),
+    ]
+}
+
+/// T-2113: fire-and-forget spawn of the operator's notify command for one
+/// rollup-field change event. Hanging scripts do NOT block the watch loop
+/// (we drop the child handle immediately). Spawn failures (command-not-found,
+/// permission denied) print one stderr line; the watch continues.
+fn fire_notify(cmd: &str, field: &str, old: &str, new: &str, ts: &str) {
+    let env = build_notify_env(field, old, new, ts);
+    // Run via `sh -c` so the operator can pass a full command string like
+    // `/usr/local/bin/page-on-pressure.sh` OR `curl -X POST ...`. Mirror of
+    // T-2079's `fire_idle_notify`.
+    let mut spawn = tokio::process::Command::new("sh");
+    spawn.arg("-c").arg(cmd);
+    for (k, v) in &env {
+        spawn.env(k, v);
+    }
+    // Detach stdio so a chatty script doesn't fight our terminal.
+    spawn.stdin(std::process::Stdio::null());
+    spawn.stdout(std::process::Stdio::null());
+    spawn.stderr(std::process::Stdio::null());
+    match spawn.spawn() {
+        Ok(_child) => {
+            // Drop the handle immediately — fire-and-forget. tokio will
+            // reap the zombie when it exits.
+        }
+        Err(e) => {
+            eprintln!(
+                "{} substrate-watch: --notify spawn failed (field={field}): {e}",
+                now_rfc3339()
+            );
+        }
+    }
+}
+
 /// T-2112: `termlink substrate status --watch <secs>` handler. Subprocesses
 /// `termlink substrate status --json` per cycle, parses the envelope, diffs
 /// against the prior cycle's rollup, emits one change-line per field or a
 /// single `(no changes)` marker. SIGINT exits cleanly.
 ///
+/// T-2113: optional `notify` command fires fire-and-forget per per-cycle
+/// rollup-field change event. Skipped on the baseline cycle.
+///
 /// Mirror of `cmd_fleet_governor_status_watch` (T-2064) — same subprocess
 /// pattern + same SIGINT handling. The rollup model is simpler (no per-hub
 /// state tuples) because substrate-status is the cross-primitive summary
 /// view.
-pub(crate) async fn cmd_substrate_status_watch(secs: u64, timeout_secs: u64) -> Result<()> {
+pub(crate) async fn cmd_substrate_status_watch(
+    secs: u64,
+    timeout_secs: u64,
+    notify: Option<String>,
+) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!(
             "--watch: interval must be 5..=3600 seconds (got {})",
@@ -954,6 +1017,10 @@ pub(crate) async fn cmd_substrate_status_watch(secs: u64, timeout_secs: u64) -> 
                 } else {
                     for (label, old, new) in &events {
                         println!("{}  {}: {}→{}", ts, label, old, new);
+                        // T-2113: fire-and-forget --notify per event.
+                        if let Some(cmd) = notify.as_deref() {
+                            fire_notify(cmd, label, old, new, &ts);
+                        }
                     }
                 }
             }
@@ -1331,6 +1398,52 @@ mod tests {
         assert_eq!(events[0].0, "dispatch_idle_count");
         assert_eq!(events[0].1, "2");
         assert_eq!(events[0].2, "3");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // T-2113: --notify env-var helper
+    // ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn build_notify_env_exposes_four_pair_schema() {
+        // T-2113 AC: env-var builder returns exactly the four documented
+        // keys with the operator's values stringified.
+        let env = build_notify_env(
+            "dispatch_idle_count",
+            "0",
+            "3",
+            "2026-06-10T08:00:00Z",
+        );
+        assert_eq!(env.len(), 4);
+        let keys: Vec<&str> = env.iter().map(|(k, _)| *k).collect();
+        assert!(keys.contains(&"TERMLINK_SUBSTRATE_CHANGE_FIELD"));
+        assert!(keys.contains(&"TERMLINK_SUBSTRATE_CHANGE_OLD"));
+        assert!(keys.contains(&"TERMLINK_SUBSTRATE_CHANGE_NEW"));
+        assert!(keys.contains(&"TERMLINK_SUBSTRATE_TS"));
+        // Spot-check values:
+        let lookup = |k: &str| -> Option<&str> {
+            env.iter()
+                .find(|(key, _)| *key == k)
+                .map(|(_, v)| v.as_str())
+        };
+        assert_eq!(lookup("TERMLINK_SUBSTRATE_CHANGE_FIELD"), Some("dispatch_idle_count"));
+        assert_eq!(lookup("TERMLINK_SUBSTRATE_CHANGE_OLD"), Some("0"));
+        assert_eq!(lookup("TERMLINK_SUBSTRATE_CHANGE_NEW"), Some("3"));
+        assert_eq!(lookup("TERMLINK_SUBSTRATE_TS"), Some("2026-06-10T08:00:00Z"));
+    }
+
+    #[test]
+    fn build_notify_env_preserves_bool_stringification() {
+        // T-2113: when a section_ok flag transitions (bool→bool), the env
+        // var carries the lowercased "true"/"false" matching the rollup
+        // diff helper's `to_string()` output. Schema-stability lock.
+        let env = build_notify_env("backpressure_ok", "true", "false", "ts");
+        let v = env
+            .iter()
+            .find(|(k, _)| *k == "TERMLINK_SUBSTRATE_CHANGE_NEW")
+            .map(|(_, v)| v.as_str())
+            .unwrap();
+        assert_eq!(v, "false");
     }
 
     #[test]
