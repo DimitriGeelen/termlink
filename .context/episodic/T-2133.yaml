@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2133: PL-206 layer c: doc fenced-bash CLI-syntax lint
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T17:19:43Z
+# ============================================================================
+
+task_id: T-2133
+task_name: "PL-206 layer c: doc fenced-bash CLI-syntax lint"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T17:08:02Z
+completed: 2026-06-10T17:19:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T19:19:32+02:00
+last_commit: 2026-06-10T19:19:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PL-206 layer (c) — fenced-bash CLI verb lint + 12 doc fixes
+
+# Key outcomes
+outcomes:
+  - '`scripts/lint-doc-fenced-bash.sh` exists, is executable, exits 0 with `--help`'
+  - 'Lint extracts `termlink <verb>` and `termlink <verb> <subverb>` invocations from fenced ```bash blocks only (not prose, not other code-fence languages)'
+  - 'Lint builds the valid-verb tree from `termlink --help` + per-verb `termlink <verb> --help` (cache to skip re-running)'
+  - 'Lint reports unknown verbs with `file:line` per finding'
+  - 'Lint exits 0 when no drift found, 1 when drift found, 2 on arg error'
+  - 'Lint supports `--json` mode emitting `{ok, total_hits, findings: [{file, line, verb, raw}], reference: "PL-206"}`'
+  - 'Lint sweeps the same target paths as layer (b): `docs/operations/*.md` + `.claude/commands/*.md` + `CLAUDE.md`'
+  - 'Lint reports CLEAN on current tree after any necessary doc fixes are landed'
+  - 'If lint catches drift in current tree, that drift is fixed inline as part of this task (mirror of T-2132''s self-validation)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'PL-206 layer (c) — fenced-bash CLI verb lint + 12 doc fixes'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/operations/agent-presence-retention-reset.md'
+  - 'docs/operations/channel-topic-semantics.md'
+  - 'docs/operations/injectable-listener-spawn-recipe.md'
+  - 'docs/operations/substrate-governor.md'
+  - 'docs/operations/substrate-offline-queue-recipe.md'
+  - 'docs/operations/substrate-post-idempotency.md'
+  - 'docs/operations/topic-lint.md'
+  - 'scripts/lint-doc-fenced-bash.sh'
+  - '.tasks/active/T-2133-pl-206-layer-c-doc-fenced-bash-cli-synta.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T19:19:32"
+    action: "T-2133: PL-206 layer (c) — fenced-bash CLI verb lint + 12 doc fixes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-2018, substrate, pl-206, prevention]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 10
+  lines_added: 453
+  lines_removed: 20
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2133-pl-206-layer-c-doc-fenced-bash-cli-synta.md
+generated_by: context-agent-hybrid

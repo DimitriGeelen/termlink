@@ -4,10 +4,10 @@ name: "PL-206 layer c: doc fenced-bash CLI-syntax lint"
 description: >
   PL-206 layer c: doc fenced-bash CLI-syntax lint
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-2018, substrate, pl-206, prevention]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T17:08:02Z
-last_update: 2026-06-10T17:08:02Z
-date_finished: null
+last_update: 2026-06-10T17:19:38Z
+date_finished: 2026-06-10T17:19:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -209,3 +209,6 @@ out=$(bash scripts/lint-doc-cli-references.sh 2>&1); echo "$out" | grep -qE 'Sta
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2133-pl-206-layer-c-doc-fenced-bash-cli-synta.md
 - **Context:** Initial task creation
+
+### 2026-06-10T17:19:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

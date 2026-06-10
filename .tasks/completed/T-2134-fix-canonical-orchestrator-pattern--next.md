@@ -4,10 +4,10 @@ name: "Fix canonical orchestrator pattern — next_free_offset is fictional"
 description: >
   Fix canonical orchestrator pattern — next_free_offset is fictional
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-2018, substrate, pl-206, docs-fix]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T17:22:46Z
-last_update: 2026-06-10T17:22:46Z
-date_finished: null
+last_update: 2026-06-10T17:26:30Z
+date_finished: 2026-06-10T17:26:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -141,19 +141,46 @@ out=$(bash scripts/lint-doc-cli-references.sh 2>&1); echo "$out" | grep -qE 'Sta
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The canonical orchestrator pattern in the master
+substrate AEF integration recipe referenced
+`claims-summary.next_free_offset` — a JSON field that doesn't exist
+in the response envelope. Every AEF integration developer copy-pasting
+the orchestrator pattern would get a script that silently does nothing:
+`next_offset` evaluates to `null`, the `if [ "$next_offset" = "null" ]`
+branch always fires, the loop sleeps forever. No work is dispatched.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The doc was written aspirationally — the author reached
+for a hub-derived "next free offset" surface that would have been
+convenient but was never built. The actual `ClaimsSummary` (verified at
+`crates/termlink-bus/src/claim.rs:104`) exposes aggregate counters
+(`active_count`, `expired_count`, `oldest_active_age_ms`, etc.) but no
+specific-offset hint. Computing "next free offset" generically requires
+either client-side bookkeeping (watermark + state file) or a stream-based
+approach (`channel subscribe --resume`). The doc reached past the
+shipped substrate's actual surface.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** PL-206 layer-c lint (T-2133) validates
+CLI VERB existence in fenced bash but not JSON FIELD references. The
+`next_free_offset` reference is in a jq expression (`jq -r '.next_free_offset'`)
+that the lint sees only as "jq" — it has no awareness of which fields
+the upstream `termlink ... --json` envelope actually contains.
+
+**Prevention:** Three layers, only one applicable today:
+- **(applicable now)** Stream-based pattern (`channel subscribe
+  --resume`) avoids the "compute next free" trap entirely — the
+  substrate's own primitive gives "what's new" for free, so the
+  orchestrator never has to derive it. The rewrite makes this the
+  canonical pattern, removing the temptation to invent more derived
+  fields.
+- **(future layer-c2 lint, deferred)** Extend the doc-CLI lint to also
+  validate JSON field references against the actual response struct.
+  For `termlink <verb> --json | jq '.<field>'`, run a small jq query
+  against a known-good envelope and assert the field exists. Would
+  catch this class structurally.
+- **(future doc-smoke harness, T-2133 follow-up)** Layer (c2) of the
+  PL-206 arc: actually execute fenced bash blocks against a throwaway
+  hub. Would have caught this instantly — the pattern would have
+  never dispatched work in the harness.
 
 ## Evolution
 
@@ -206,3 +233,6 @@ out=$(bash scripts/lint-doc-cli-references.sh 2>&1); echo "$out" | grep -qE 'Sta
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2134-fix-canonical-orchestrator-pattern--next.md
 - **Context:** Initial task creation
+
+### 2026-06-10T17:26:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
