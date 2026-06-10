@@ -1,5 +1,10 @@
 # Substrate Orchestrator Recipe — AEF Integration Walkthrough
 
+> **New to the substrate?** Read
+> [`substrate-getting-started.md`](substrate-getting-started.md) (T-2149)
+> first — it's a five-minute on-ramp that gets you through one claim
+> lifecycle end-to-end before you tackle this longer walkthrough.
+>
 > **For:** Developers building the AEF (Agentic Engineering Framework) layer
 > on top of the TermLink substrate. You want to coordinate N parallel
 > workers on a shared host without machine-state conflicts, and you need to
