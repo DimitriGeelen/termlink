@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-06-10T19:07:55Z
+last_update: 2026-06-10T19:12:59Z
 date_finished: null
 ---
 
@@ -869,3 +869,27 @@ framework checkout (pulls f87f8e97 → no fallback → channel.post failure
 becomes a no-op). Wait 7d, then re-verify `cut_ready: true`. T-1415
 remains the deferred source-cleanup task — it's structurally unblocked
 and waiting on Tier-2 authorization regardless of this last-mile cleanup.
+
+### 2026-06-10T19:20Z — path B executed: DM sent to ring20-management-agent asking for fw upgrade [agent under operator authorization]
+
+User authorized path B. `/be-reachable start` established sender identity
+`root-claude-dimitrimintdev` on .107. DM delivered via `termlink agent
+contact --target-fp 9219671e28054458 --thread T-1166` to the canonical
+`dm:<.107-fp>:9219671e28054458` topic — offset 44, ts 1781119429542.
+The .122 host fp `9219671e28054458` is the shared host-key for the
+ring20-management container (reference_shared_host_identity.md memory).
+Both .122 co-resident agents (ring20-management-agent + skills-manager-agent)
+will see the DM; message explicitly addresses ring20-management-agent
+and asks for `fw upgrade` on the .122 AEF framework checkout.
+
+**Expected timeline.** ring20-management-agent picks up the DM (poll
+cadence varies); runs `fw upgrade`; bridge stops emitting; 7d clean bake
+follows. If they take ~24-48h to act, the 7d window may already have
+naturally cleared (rolls past 2026-06-06T12:49Z at 2026-06-13T12:49Z),
+but the durable fix prevents the next stochastic blip from re-arming
+the clock.
+
+**Next checkpoint.** Re-run `fw metrics api-usage --cut-ready --json`
+in ~24h to see if any new `event.broadcast` lines from .122 landed. If
+zero new lines for 7d post-DM-action: cut_ready=true and T-1415
+unblocked.
