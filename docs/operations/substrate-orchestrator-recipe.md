@@ -125,6 +125,28 @@ doc for each.
 The orchestrator's job is: *for each unit of work on the queue, hand
 it to exactly one idle worker, atomically, with no race window*.
 
+**Ready-to-adapt script (T-2148).** `scripts/substrate-orchestrator-
+loop.sh` ships a vetted one-orchestrator harness that wires the
+canonical dispatch lifecycle for you: subscribe-stream(work-topic)
+→ find-idle(capability) backoff → claim → claim-transfer to worker
+→ fire-and-forget DM. If `claim-transfer` fails mid-step (worker became
+busy), the orchestrator releases the orphaned claim so the slot
+reopens — no leak. SIGTERM/SIGINT releases any in-flight claim and
+exits 130. Pair with `scripts/substrate-worker-loop.sh` (T-2146) on
+the receive side. Sample dispatch run:
+
+```bash
+scripts/substrate-orchestrator-loop.sh --work-topic aef:deploy \
+    --capability deploy \
+    --ttl-ms 60000 --idle-poll-ms 5000
+```
+
+The two scripts together implement the full work-stealing pattern
+end-to-end. Both are intentionally adaptable — read the script source
+for the full inline contract. The hand-rolled loop below shows the
+same wiring without the harness for cases where the dispatch logic
+is also yours.
+
 Five-step canonical loop, in shell form (the AEF integration will
 typically use the MCP variants of the same verbs):
 
