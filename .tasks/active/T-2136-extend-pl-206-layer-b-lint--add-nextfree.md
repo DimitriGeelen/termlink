@@ -4,7 +4,7 @@ name: "Extend PL-206 layer-b lint — add next_free_offset + .result envelope pa
 description: >
   Extend PL-206 layer-b lint — add next_free_offset + .result envelope patterns
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T17:31:17Z
-last_update: 2026-06-10T17:33:21Z
+last_update: 2026-06-10T18:22:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -61,12 +61,12 @@ shape.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/lint-doc-cli-references.sh` includes a pattern for `next_free_offset` (any context)
-- [ ] `scripts/lint-doc-cli-references.sh` includes a pattern for `.result.capacity_hits_total` / `.result | {dedupe_` (CLI-envelope confusion)
-- [ ] Lint reports CLEAN on current tree (proves no regression hiding)
-- [ ] `--json` mode includes the new patterns in the `patterns[]` array with `fixed_in` references
-- [ ] Lint `--help` mentions the new pattern count
-- [ ] Self-validation: if I revert either T-2134 or T-2135 fix mentally and re-run, lint flags it (verify by introducing the bad pattern in a test file then reverting)
+- [x] `scripts/lint-doc-cli-references.sh` includes a pattern for `next_free_offset` (any context)
+- [x] `scripts/lint-doc-cli-references.sh` includes a pattern for `.result.capacity_hits_total` / `.result | {dedupe_` (CLI-envelope confusion)
+- [x] Lint reports CLEAN on current tree (proves no regression hiding)
+- [x] `--json` mode includes the new patterns in the `patterns[]` array with `fixed_in` references
+- [x] Lint `--help` mentions the new pattern count
+- [x] Self-validation: if I revert either T-2134 or T-2135 fix mentally and re-run, lint flags it (verify by introducing the bad pattern in a test file then reverting)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -208,3 +208,6 @@ out=$(TERMLINK_BIN=target/debug/termlink bash scripts/lint-doc-fenced-bash.sh 2>
 
 ### 2026-06-10T17:33:21Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
+
+### 2026-06-10T18:22:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

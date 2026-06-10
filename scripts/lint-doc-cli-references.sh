@@ -20,6 +20,15 @@
 #   3. `substrate primitive #11` — SUBSTRATE-PULSE is a composition,
 #      not a §6 manifest primitive. T-2026 reserves #11 for typed
 #      agent-launch. Fixed in: T-2127 (line 546), T-2129 (line 571).
+#   4. `next_free_offset` — fictional ClaimsSummary field. Real struct
+#      has active_count/expired_count/oldest_active_age_ms/next_active_expiry_ms.
+#      Used in a broken "canonical orchestrator pattern" that polled a
+#      non-existent offset. Fixed in: T-2134 (orchestrator-recipe.md).
+#   5. `.result.X` for CLI verb output — raw JSON-RPC over Unix-socket
+#      wraps response in `.result`, but the CLI verb (`hub status --governor
+#      --json`) wraps in `.governor`. Mixing the envelopes silently breaks
+#      every jq selector downstream. Fixed in: T-2135 (substrate-governor.md
+#      + substrate-offline-queue-recipe.md + substrate-post-idempotency.md).
 #
 # Usage:
 #   bash scripts/lint-doc-cli-references.sh              # scan and report
@@ -41,10 +50,12 @@ Scans these paths for known drift patterns:
   .claude/commands/*.md
   CLAUDE.md
 
-Drift patterns (PL-206):
-  1. claimed_by as field name (correct: claimer)         — fixed T-2129/30/31
-  2. agent dms --watch (incompatible with --json)        — fixed T-2129
-  3. substrate primitive #11 (SUBSTRATE-PULSE not in §6) — fixed T-2127/29
+Drift patterns (PL-206) — 5 known patterns:
+  1. claimed_by as field name (correct: claimer)              — fixed T-2129/30/31
+  2. agent dms --watch (incompatible with --json)             — fixed T-2129
+  3. substrate primitive #11 (SUBSTRATE-PULSE not in §6)      — fixed T-2127/29
+  4. next_free_offset (fictional ClaimsSummary field)         — fixed T-2134
+  5. .result.{capacity_hits,rate_hits,dedupe_} envelope mix   — fixed T-2135
 
 Flags:
   --help    Show this help and exit 0
@@ -101,11 +112,29 @@ hits_agent_dms_watch=$(grep -nE 'agent dms --watch' "${paths[@]}" 2>/dev/null ||
 # this catches any reintroduction.
 hits_primitive_11=$(grep -nE 'substrate primitive #11' "${paths[@]}" 2>/dev/null || true)
 
+# Pattern 4: `next_free_offset` — fictional ClaimsSummary field used in
+# a broken "canonical orchestrator pattern" (T-2134). Real ClaimsSummary
+# struct has active_count/expired_count/oldest_active_age_ms/
+# next_active_expiry_ms — see crates/termlink-bus/src/claim.rs. Catch any
+# reintroduction in either jq selector, prose, or shell-variable name.
+hits_next_free_offset=$(grep -nE 'next_free_offset' "${paths[@]}" 2>/dev/null || true)
+
+# Pattern 5: `.result.X` envelope confusion for CLI verbs (T-2135). The
+# raw JSON-RPC `hub.governor_status` wraps under `.result`, but the CLI
+# verb `hub status --governor --json` wraps under `.governor`. Operators
+# copy-paste a working raw-RPC selector into a CLI pipeline and every
+# downstream jq read returns `null`. Scope tightly to the three known
+# governor counter fields so the lint doesn't false-positive on
+# legitimate `.result.X` in raw-RPC docs (which still wrap with `.result`).
+hits_result_envelope=$(grep -nE '\.result\.(capacity_hits_total|rate_hits_total|dedupe_(hits_total|entries_active|ttl_ms))|\.result \| \{(capacity_hits_total|rate_hits_total|dedupe_)' "${paths[@]}" 2>/dev/null || true)
+
 # Count hits per pattern.
 n1=$([ -z "$hits_claimed_by" ] && echo 0 || echo "$hits_claimed_by" | wc -l)
 n2=$([ -z "$hits_agent_dms_watch" ] && echo 0 || echo "$hits_agent_dms_watch" | wc -l)
 n3=$([ -z "$hits_primitive_11" ] && echo 0 || echo "$hits_primitive_11" | wc -l)
-total=$((n1 + n2 + n3))
+n4=$([ -z "$hits_next_free_offset" ] && echo 0 || echo "$hits_next_free_offset" | wc -l)
+n5=$([ -z "$hits_result_envelope" ] && echo 0 || echo "$hits_result_envelope" | wc -l)
+total=$((n1 + n2 + n3 + n4 + n5))
 
 if [[ "$JSON" -eq 1 ]]; then
   # Emit JSON envelope. Keep it simple; no jq dependency.
@@ -113,7 +142,9 @@ if [[ "$JSON" -eq 1 ]]; then
   printf '{"ok":%s,"total_hits":%d,"patterns":[' "$([ "$total" -eq 0 ] && echo true || echo false)" "$total"
   printf '{"id":"claimed_by_as_field","hits":%d,"fixed_in":["T-2129","T-2130","T-2131"],"raw":"%s"},' "$n1" "$(esc "$hits_claimed_by")"
   printf '{"id":"agent_dms_watch","hits":%d,"fixed_in":["T-2129"],"raw":"%s"},' "$n2" "$(esc "$hits_agent_dms_watch")"
-  printf '{"id":"substrate_primitive_11","hits":%d,"fixed_in":["T-2127","T-2129"],"raw":"%s"}' "$n3" "$(esc "$hits_primitive_11")"
+  printf '{"id":"substrate_primitive_11","hits":%d,"fixed_in":["T-2127","T-2129"],"raw":"%s"},' "$n3" "$(esc "$hits_primitive_11")"
+  printf '{"id":"next_free_offset","hits":%d,"fixed_in":["T-2134"],"raw":"%s"},' "$n4" "$(esc "$hits_next_free_offset")"
+  printf '{"id":"result_envelope_confusion","hits":%d,"fixed_in":["T-2135"],"raw":"%s"}' "$n5" "$(esc "$hits_result_envelope")"
   printf '],"reference":"PL-206"}\n'
   [[ "$total" -eq 0 ]] && exit 0 || exit 1
 fi
@@ -129,7 +160,7 @@ if [[ "$total" -eq 0 ]]; then
   exit 0
 fi
 
-echo "  Status: DRIFT FOUND ($total hit(s) across $(( (n1>0)+(n2>0)+(n3>0) )) pattern(s))"
+echo "  Status: DRIFT FOUND ($total hit(s) across $(( (n1>0)+(n2>0)+(n3>0)+(n4>0)+(n5>0) )) pattern(s))"
 echo
 if [[ "$n1" -gt 0 ]]; then
   echo "  Pattern 1 — claimed_by as field name (correct: claimer); fixed precedent: T-2129/30/31"
@@ -144,6 +175,16 @@ fi
 if [[ "$n3" -gt 0 ]]; then
   echo "  Pattern 3 — substrate primitive #11 (SUBSTRATE-PULSE is a composition); fixed precedent: T-2127/29"
   echo "$hits_primitive_11" | sed 's/^/    /'
+  echo
+fi
+if [[ "$n4" -gt 0 ]]; then
+  echo "  Pattern 4 — next_free_offset (fictional ClaimsSummary field, see crates/termlink-bus/src/claim.rs); fixed precedent: T-2134"
+  echo "$hits_next_free_offset" | sed 's/^/    /'
+  echo
+fi
+if [[ "$n5" -gt 0 ]]; then
+  echo "  Pattern 5 — .result.X envelope used for CLI verb output (CLI wraps under .governor, raw RPC wraps under .result); fixed precedent: T-2135"
+  echo "$hits_result_envelope" | sed 's/^/    /'
   echo
 fi
 echo "  Fix: replace with the correct form, then re-run this script to confirm clean."
