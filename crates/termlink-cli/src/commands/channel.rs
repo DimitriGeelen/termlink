@@ -1738,6 +1738,25 @@ pub(crate) async fn fetch_fleet_presence_via_chat_arc(
     ))
 }
 
+/// T-2126: topic-name patterns demonstrated to grow without bound under
+/// real fleet load. Duplicated verbatim from
+/// `crates/termlink-hub/src/channel.rs::is_high_rate_pattern` (T-2058)
+/// per the T-2069 convention: tiny pure helpers are duplicated, not
+/// cross-crate-shared. Keep the two definitions in lockstep.
+///
+/// When `ensure_topic` auto-creates a topic on the operator's behalf
+/// (CLI `channel dm` or `channel post --ensure-topic`), match against
+/// this predicate to pick `Messages(1000)` instead of `Forever`. The
+/// hub still emits its T-2058 loud-warn if a Forever-retention pattern
+/// slips through (e.g. from a script that calls `channel.create`
+/// directly) — this is defence-in-depth for the operator-default path.
+pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
+    matches!(name, "agent-presence" | "agent-chat-arc")
+        || name.starts_with("agent-listeners-")
+        || name.starts_with("agent-conv-")
+        || name.starts_with("dm:")
+}
+
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
@@ -1746,11 +1765,24 @@ pub(crate) async fn fetch_fleet_presence_via_chat_arc(
 /// created by this call, `false` when it already existed. Hubs that
 /// predate T-1429.5 omit the `created` field; in that case we
 /// conservatively return `false` so clients don't double-describe.
+///
+/// T-2126: retention picked from `is_high_rate_pattern` (T-2058 mirror).
+/// High-rate topics get `Messages(1000)`; everything else stays
+/// `Forever`. The dominant call site (`cmd_channel_dm`) creates `dm:*`
+/// topics which always match the predicate — every DM auto-create
+/// previously landed `Forever` and accumulated indefinitely. See
+/// `docs/operations/substrate-orchestrator-recipe.md` § "Recommended
+/// retention settings" (T-2125) for the per-pattern rationale.
 async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
+    let retention = if is_high_rate_pattern(name) {
+        json!({"kind": "messages", "value": 1000})
+    } else {
+        json!({"kind": "forever"})
+    };
     let resp = rpc_call_authed(
         sock,
         method::CHANNEL_CREATE,
-        json!({"name": name, "retention": {"kind": "forever"}}),
+        json!({"name": name, "retention": retention}),
     )
     .await
     .context("Hub rpc_call (channel.create) failed")?;
@@ -17479,5 +17511,40 @@ not json at all
         assert_eq!(v1["kind"], "pending");
         assert_eq!(v2["kind"], "drained");
         let _ = std::fs::remove_dir_all(&tmp_root);
+    }
+
+    // ---- T-2126 is_high_rate_pattern tests --------------------------------
+    //
+    // Mirror of the hub-side tests (`crates/termlink-hub/src/channel.rs` mod
+    // tests). Duplicated here per T-2069 convention so the CLI-side
+    // predicate can't silently drift from the hub-side one. If either set
+    // of patterns changes, BOTH crates' definitions + tests must update.
+
+    #[test]
+    fn is_high_rate_pattern_matches_known_patterns() {
+        // Exact names
+        assert!(is_high_rate_pattern("agent-presence"));
+        assert!(is_high_rate_pattern("agent-chat-arc"));
+        // Prefix patterns
+        assert!(is_high_rate_pattern("agent-listeners-host1"));
+        assert!(is_high_rate_pattern("agent-listeners-"));
+        assert!(is_high_rate_pattern("agent-conv-thread-42"));
+        assert!(is_high_rate_pattern("agent-conv-"));
+        // DM topics are the dominant load-bearing case via cmd_channel_dm
+        assert!(is_high_rate_pattern("dm:alice:bob"));
+        assert!(is_high_rate_pattern("dm:"));
+    }
+
+    #[test]
+    fn is_high_rate_pattern_rejects_unrelated_topics() {
+        // Plain operator-named topics stay on Forever retention — the
+        // predicate is intentionally tight, NOT broad `agent-*`.
+        assert!(!is_high_rate_pattern("agent-other"));
+        assert!(!is_high_rate_pattern("agent-listener-typo")); // no trailing 's-'
+        assert!(!is_high_rate_pattern("agent-conv")); // no trailing '-'
+        assert!(!is_high_rate_pattern("smoke:dm:x")); // dm: not at start
+        assert!(!is_high_rate_pattern("work-queue"));
+        assert!(!is_high_rate_pattern("framework-pickup"));
+        assert!(!is_high_rate_pattern(""));
     }
 }
