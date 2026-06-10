@@ -108,9 +108,17 @@ RESILIENCE (substrate #5 — is my queue draining?):
   ... (one-line summary; appended state hint: steady / draining / blipped)
 
 BACKPRESSURE (substrate #10 — any hub pressured?):
-  <hub>  conn=A/B  cap_hits=N  rate_hits=M  dedupe_hits=K
+  <hub>  conn=A/B  cap_hits=N  rate_hits=M  dedupe_hits=K  cv_overflow=V
   ... (per pressured hub; "All N hubs healthy (0/N pressured)" if zero)
 ```
+
+The BACKPRESSURE row's `cv_overflow=V` segment (T-2110/T-2118/T-2119)
+surfaces broadcast-with-replay (substrate #9) pressure: a non-zero
+value means a producer is mis-emitting `cv_key` (e.g. timestamp
+instead of stable id) and silently saturating the per-topic cv_index
+cap. The cv-overflow predicate fires `--only-pressured` (T-2118) so
+this skill's filtered view catches it. Pre-T-2110 hubs render as
+`cv_overflow=n/a` (NOT `0`).
 
 Read each section from the corresponding sub-envelope:
 
@@ -179,6 +187,12 @@ If BACKPRESSURE shows pressured hubs:
 ```
 Tip: hub backpressure detected. /governor for per-hub details.
 Continuous monitor: termlink fleet governor-status --watch 30
+
+If cv_overflow > 0 (T-2118 fires --only-pressured on this):
+a producer is mis-emitting cv_key. Run `termlink channel cv-keys <topic>`
+to identify the saturating topic, then fix the producer. See
+docs/operations/substrate-governor.md § page-on-cv-overflow.sh recipe
+for an automated --notify hook (T-2119).
 ```
 
 If CLAIM shows stuck topics:
@@ -233,6 +247,11 @@ Two keystrokes → full operational picture across both domains.
 - T-2093 / `/claims` — CLAIM read sub-verb.
 - T-2094 / `/queue-status` — RESILIENCE read sub-verb.
 - T-2095 / `/governor` — BACKPRESSURE read sub-verb.
+- T-2110 — cv_index telemetry surfaced via the BACKPRESSURE rollup
+  (closes substrate §6 #9↔#10 cross-reference at the counter level).
+- T-2118 — `--only-pressured` predicate fires on `cv_index_overflow_total > 0`
+  so this skill's filtered view catches producer-side `cv_key` bugs.
+- T-2119 — cv_overflow deltas in watch / notify / log / history surfaces.
 - T-1860 / `/pulse` — the conversation-arc analog (peers + recent-chat
   parallel composition). Same design pattern.
 - PL-187 — verb-stack pattern rung 6 (ephemeral session integrators).

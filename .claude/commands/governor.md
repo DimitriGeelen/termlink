@@ -33,18 +33,20 @@ slash-commands.
 | `/governor --json` | Machine-readable envelope (passthrough to verb) |
 | `/governor --only-pressured --json` | Filtered envelope (T-2071 MCP-parity shape) |
 
-**What the verb reports** (per T-2048 + T-2049 schema):
+**What the verb reports** (per T-2048 + T-2049 + T-2110 schema):
 
 - `connections_active` / `connections_max` — TCP connection budget
 - `capacity_hits_total` — count of `HUB_AT_CAPACITY` (-32019) refusals
 - `rate_buckets_active` / `rate_hits_total` / `max_rate_per_sec` — per-sender rate limiter
 - `dedupe_entries_active` / `dedupe_hits_total` / `dedupe_ttl_ms` — post-idempotency absorption (T-2049)
+- `cv_index_entries_active` / `cv_index_topics_active` / `cv_index_overflow_total` / `cv_index_cap_per_topic` — broadcast-with-replay (substrate #9) telemetry (T-2110). Pre-T-2110 hubs render as `n/a` (NOT `0`) — distinguish "no field" from "0 events".
 
 **Operational reading:**
 
 - `capacity_hits_total > 0` → a connection was refused. Investigate `TERMLINK_MAX_CONNECTIONS` (default 256).
 - `rate_hits_total > 0` → an RPC was refused. Investigate `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000).
 - `dedupe_hits_total > 0` → spoke retries were absorbed before double-applying — this is **good**, exactly-once is working.
+- `cv_overflow > 0` → **smoking-gun for producer mis-emitting `cv_key`** (e.g. timestamp instead of stable id) saturating the per-topic cap. Binary signal — ANY non-zero value is operator-actionable. Run `termlink channel cv-keys <topic>` to identify which topic. Fires `--only-pressured` (T-2118) and surfaces as per-event delta in `--watch --notify --log` (T-2119).
 - All zeros + hubs reachable → steady-state healthy.
 
 ## Step 1: Pre-flight
@@ -191,6 +193,16 @@ Skip this section in `--json` mode (machine output stays pure).
 termlink fleet governor-status --watch 30 --notify /usr/local/bin/page-on-cap.sh --log ~/.termlink/governor.log
 ```
 
+**Page on cv_index overflow (catches producer mis-emitting cv_key, T-2119):**
+
+```
+termlink fleet governor-status --watch 30 --notify /usr/local/bin/page-on-cv-overflow.sh --log ~/.termlink/governor.log
+```
+
+The notify script gates on `[ "$TERMLINK_GOV_CV_OVERFLOW_DELTA" -gt 0 ]` then
+pages — see `docs/operations/substrate-governor.md` § "Recipe — `--notify`
+script template" for the full body.
+
 The watch/notify/log forms are T-2064 / T-2065 / T-2066; the
 retrospective read is T-2068's `fleet governor-history` verb.
 
@@ -208,6 +220,9 @@ retrospective read is T-2068's `fleet governor-history` verb.
 - T-2069 — `termlink_fleet_governor_history` MCP parity.
 - T-2070 — `--only-pressured` presentation-level filter.
 - T-2071 — MCP-parity for the only-pressured filter.
+- T-2110 — cv_index telemetry (entries/topics/overflow/cap) surfaced via this envelope. Closes substrate §6 #9↔#10 cross-reference.
+- T-2118 — `--only-pressured` predicate fires on `cv_index_overflow_total > 0`.
+- T-2119 — watch/notify/log/history carry cv_overflow deltas end-to-end. `page-on-cv-overflow.sh` recipe in `docs/operations/substrate-governor.md`.
 - T-2092 / `/find-idle` — sibling daily-verb skill (substrate #2 read).
 - T-2093 / `/claims` — sibling daily-verb skill (substrate #1 read).
 - T-2094 / `/queue-status` — sibling daily-verb skill (substrate #5 read).

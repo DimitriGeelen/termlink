@@ -83,7 +83,14 @@ callers). Returns:
   "capacity_hits_total": 0,
   "rate_buckets_active": 5,
   "rate_hits_total": 0,
-  "max_rate_per_sec": 1000
+  "max_rate_per_sec": 1000,
+  "dedupe_entries_active": 0,
+  "dedupe_hits_total": 0,
+  "dedupe_ttl_ms": 300000,
+  "cv_index_entries_active": 0,
+  "cv_index_topics_active": 0,
+  "cv_index_overflow_total": 0,
+  "cv_index_cap_per_topic": 1000
 }
 ```
 
@@ -128,6 +135,36 @@ T-2049 added three post-idempotency fields (present on any hub running
 
 See `docs/operations/substrate-post-idempotency.md` for the full
 exactly-once delivery model these fields surface.
+
+T-2110 added four cv_index telemetry fields surfacing the
+broadcast-with-replay primitive (substrate #9) pressure surface (older
+hubs omit them — CLI/MCP renderers fall back to `n/a`):
+
+- `cv_index_entries_active`: total `(topic, cv_key)` entries live in the
+  hub's per-topic cv_index map across every topic. Bounded by
+  `cv_index_topics_active × cv_index_cap_per_topic`. Read-side accessed
+  by `channel cv-keys` / `channel.subscribe --include-current-value`.
+- `cv_index_topics_active`: number of distinct topics that carry at
+  least one cv_index entry. Steady-state under normal traffic; a
+  steady climb signals new producers wiring `metadata.cv_key=...`.
+- `cv_index_overflow_total`: monotonic counter; every time a
+  `channel.post` carrying `metadata.cv_key` exceeded the per-topic cap
+  and the cv_key annotation was dropped (post stayed atomic), this
+  increments. **Binary signal — ANY non-zero value is operator-actionable.
+  Almost always means a producer is mis-emitting `cv_key`** (e.g. timestamp
+  instead of stable id) and silently exhausting the cap. T-2118 wires
+  this into the `--only-pressured` predicate so the cv-key bug surfaces
+  alongside cap_hits / rate_hits in fleet rollups; T-2119 wires it into
+  the watch/notify/log/history surfaces so operators get paged on each
+  new overflow event.
+- `cv_index_cap_per_topic`: per-topic entry cap at hub-start; matches
+  `TERMLINK_CV_INDEX_CAP_PER_TOPIC` (default 1000). Bumping requires a
+  hub restart. Cap-overflow drops the cv_key annotation but keeps the
+  post — substrate-correctness is preserved, only discovery cost
+  degrades to the O(N_events) walk.
+
+See `docs/operations/substrate-broadcast-with-replay.md` for the
+producer/consumer wiring; this surface is the read-side health signal.
 
 ### Recipe — operator probe
 
@@ -190,6 +227,29 @@ Same pattern works for `RATE_HITS_DELTA` (runaway poller fired the rate-limit)
 or `DEDUPE_HITS_DELTA` (spoke retries are landing more than expected). For
 reach transitions, gate on `$TERMLINK_GOV_NEW_REACH = "fail"` instead.
 
+For cv_index overflow (T-2119) — a producer is mis-emitting `cv_key` and
+the per-topic cap saturated — gate on `CV_OVERFLOW_DELTA` and page the
+producer team:
+
+```sh
+#!/bin/sh
+# /usr/local/bin/page-on-cv-overflow.sh — page producer-team when cv_index
+# saturates (almost always means a producer is mis-emitting cv_key —
+# e.g. timestamp instead of stable id).
+[ -n "$TERMLINK_GOV_CV_OVERFLOW_DELTA" ] && [ "$TERMLINK_GOV_CV_OVERFLOW_DELTA" -gt 0 ] || exit 0
+pd-send-event --routing-key="$PD_PRODUCER_KEY" \
+  --summary="Hub $TERMLINK_GOV_HUB cv_index overflow +$TERMLINK_GOV_CV_OVERFLOW_DELTA (producer mis-emitting cv_key — investigate)" \
+  --severity=warning \
+  --custom-detail "ts=$TERMLINK_GOV_TS" \
+  --custom-detail "cv_overflow=$TERMLINK_GOV_OLD_CV_OVERFLOW → $TERMLINK_GOV_NEW_CV_OVERFLOW" \
+  --custom-detail "diagnostic=termlink channel cv-keys <topic> to inspect which producer is saturating the cap"
+```
+
+cv_overflow is binary — no threshold tuning, any non-zero delta is an
+operator-actionable producer bug. T-2110 emits the counter, T-2118
+wires it into `--only-pressured`, T-2119 surfaces per-event deltas in
+`--notify` / `--log` / `fleet governor-history`.
+
 The script's environment is documented inline in the `--help` text and on the
 CLAUDE.md BACKPRESSURE row.
 
@@ -223,7 +283,8 @@ NDJSON schema (one event per line, flat for jq-friendliness):
   "old_conn_active": 3, "new_conn_active": 4,
   "old_cap_hits": 0, "new_cap_hits": 0, "cap_hits_delta": 0,
   "old_rate_hits": 0, "new_rate_hits": 0, "rate_hits_delta": 0,
-  "old_dedupe_hits": null, "new_dedupe_hits": null, "dedupe_hits_delta": null
+  "old_dedupe_hits": null, "new_dedupe_hits": null, "dedupe_hits_delta": null,
+  "old_cv_overflow": 0, "new_cv_overflow": 0, "cv_overflow_delta": 0
 }
 ```
 
@@ -246,6 +307,12 @@ jq -c --arg s "$since" 'select(.ts>$s and .rate_hits_delta>0) | {ts, hub, rate_h
 
 # Dedupe absorption — spoke retries landing more than expected (steady-state suspicious).
 jq -c 'select(.dedupe_hits_delta>0) | {ts, hub, dedupe_hits_delta}' \
+  ~/.termlink/governor.log
+
+# cv_index overflow (T-2119) — a producer mis-emitted cv_key and saturated the
+# per-topic cap. ANY non-zero delta is operator-actionable (no threshold tuning).
+# Pair with `termlink channel cv-keys <topic>` to identify the saturating topic.
+jq -c 'select(.cv_overflow_delta>0) | {ts, hub, cv_overflow_delta}' \
   ~/.termlink/governor.log
 ```
 
@@ -290,12 +357,12 @@ Human output is one anchored line per matching entry plus a
 per-hub aggregate footer:
 
 ```
-2026-06-08T23:34:02Z  local-test               transition  conn=3→4 cap=0→0(+0) rate=0→0(+0) dedupe=n/a→n/a(+n/a)
-2026-06-08T23:51:11Z  ring20-management        transition  conn=251→256(...) cap=0→4(+4) rate=12→18(+6) dedupe=n/a→n/a(+n/a)
+2026-06-08T23:34:02Z  local-test               transition  conn=3→4 cap=0→0(+0) rate=0→0(+0) dedupe=n/a→n/a(+n/a) cv_overflow=0→0(+0)
+2026-06-08T23:51:11Z  ring20-management        transition  conn=251→256(...) cap=0→4(+4) rate=12→18(+6) dedupe=n/a→n/a(+n/a) cv_overflow=0→3(+3)
 
 Summary: 2 event(s) in last 7 day(s):
-  local-test                 1 event(s)  cap_hits=+0 rate_hits=+0 dedupe_hits=+0
-  ring20-management          1 event(s)  cap_hits=+4 rate_hits=+6 dedupe_hits=+0
+  local-test                 1 event(s)  cap_hits=+0 rate_hits=+0 dedupe_hits=+0 cv_overflow=+0
+  ring20-management          1 event(s)  cap_hits=+4 rate_hits=+6 dedupe_hits=+0 cv_overflow=+3
 ```
 
 The aggregate footer is the high-signal output: `cap_hits=+4` on a
@@ -306,8 +373,8 @@ a glance.
 a single summary object:
 
 ```json
-{"ts":"2026-06-08T23:34:02Z","hub":"local-test","kind":"transition","old_conn_active":3,"new_conn_active":4,"old_cap_hits":0,"new_cap_hits":0,"cap_hits_delta":0,"old_rate_hits":0,"new_rate_hits":0,"rate_hits_delta":0,"old_dedupe_hits":null,"new_dedupe_hits":null,"dedupe_hits_delta":null}
-{"total":1,"per_hub":{"local-test":{"events":1,"cap_hits_total":0,"rate_hits_total":0,"dedupe_hits_total":0}},"since_days":7,"hub_filter":null,"malformed_lines_skipped":0,"log_path":"/root/.termlink/governor.log"}
+{"ts":"2026-06-08T23:34:02Z","hub":"local-test","kind":"transition","old_conn_active":3,"new_conn_active":4,"old_cap_hits":0,"new_cap_hits":0,"cap_hits_delta":0,"old_rate_hits":0,"new_rate_hits":0,"rate_hits_delta":0,"old_dedupe_hits":null,"new_dedupe_hits":null,"dedupe_hits_delta":null,"old_cv_overflow":0,"new_cv_overflow":0,"cv_overflow_delta":0}
+{"total":1,"per_hub":{"local-test":{"events":1,"cap_hits_total":0,"rate_hits_total":0,"dedupe_hits_total":0,"cv_overflow_hits_total":0}},"since_days":7,"hub_filter":null,"malformed_lines_skipped":0,"log_path":"/root/.termlink/governor.log"}
 ```
 
 Empty/missing log prints a hint pointing back at the watch verb so
@@ -383,6 +450,7 @@ still exhaust file descriptors before refusing anything).
 | Hub OOMs under burst | Unbounded connection accumulation | `capacity_hits_total > 0` (operator alerts before OOM) |
 | One stuck poller (`while true; do termlink_inbox_status; done`) wedges every other agent | Per-RPC unfairness | `rate_hits_total > 0` for that sender; other senders unaffected |
 | Cross-fleet identity confusion ("which agent is hammering us?") | No per-sender visibility | `rate_buckets_active` + log lines tagged by sender |
+| Late-joiner replay slows to O(N_events) walk despite producer setting `cv_key` | Producer mis-emitting `cv_key` (e.g. timestamp instead of stable id) saturates per-topic cv_index cap; cv_key annotations silently drop | `cv_index_overflow_total > 0` (T-2110); fires `--only-pressured` (T-2118); per-event delta in `--watch --notify --log` + `fleet governor-history` (T-2119) |
 
 T-1991 was the original "found in production not predicted" — `hub.governor_status` is what would have surfaced it pre-wedge.
 
@@ -415,3 +483,13 @@ T-1991 was the original "found in production not predicted" — `hub.governor_st
 - `governor::evict_idle` — wire-up reserved for the bucket-eviction
   housekeeping follow-up (not in T-2048's scope; bounded by sender
   diversity in practice).
+- T-2110 — cv_index telemetry (entries / topics / overflow / cap)
+  surfaced via this same `hub.governor_status` envelope. Closes the §6
+  #9↔#10 cross-reference at the counter level.
+- T-2118 — `--only-pressured` predicate fires on `cv_index_overflow_total > 0`
+  (CLI + MCP). Producer bug surfaces alongside cap_hits / rate_hits in
+  fleet rollups.
+- T-2119 — watch / notify / log / history surfaces carry cv_overflow
+  deltas end-to-end. `page-on-cv-overflow.sh` recipe above.
+- `docs/operations/substrate-broadcast-with-replay.md` — substrate #9
+  producer/consumer wiring (the surface cv_index telemetry monitors).
