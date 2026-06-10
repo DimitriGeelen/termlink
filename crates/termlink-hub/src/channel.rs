@@ -332,6 +332,19 @@ pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
         || name.starts_with("dm:")
 }
 
+/// T-2145: topic-name patterns where the topic name IS the key and only
+/// the freshest envelope matters (single-value durable state). For these,
+/// `Retention::Latest` (T-2142) is the right answer — old envelopes are
+/// pure history noise. Combining `state:*` with `Retention::Forever` is
+/// the same silent-growth vector as the high-rate case, just slower; the
+/// hub emits a warn log on create so the operator-default path is loud.
+/// Sibling of `is_high_rate_pattern` — the two predicates partition the
+/// "warn on operator-default Retention::Forever" space (disjoint by
+/// prefix, no overlap).
+pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
+    name.starts_with("state:")
+}
+
 pub(crate) async fn handle_channel_create_with(
     bus: &Bus,
     id: Value,
@@ -353,6 +366,16 @@ pub(crate) async fn handle_channel_create_with(
             topic = %name,
             retention = "forever",
             "channel.create on high-rate topic with Retention::Forever — consider Messages(N) (e.g. Messages(200) for agent-presence) to prevent silent topic growth (T-1991 / G-058)"
+        );
+    }
+    // T-2145: sibling warn for the single-value-state pattern (`state:*`)
+    // where Retention::Latest (T-2142) is the right answer. Same loud-but-
+    // not-refuse policy as the high-rate case.
+    if matches!(retention, Retention::Forever) && is_single_value_state_pattern(name) {
+        tracing::warn!(
+            topic = %name,
+            retention = "forever",
+            "channel.create on single-value-state topic with Retention::Forever — consider Retention::Latest (T-2142) so old envelopes don't accumulate"
         );
     }
     match bus.create_topic(name, retention) {
@@ -1677,6 +1700,50 @@ mod tests {
         assert!(!is_high_rate_pattern("agent-my-custom-topic"));
         // Empty name doesn't match (handled separately in caller).
         assert!(!is_high_rate_pattern(""));
+    }
+
+    // T-2145: single-value-state-pattern matcher exhaustiveness.
+    #[test]
+    fn is_single_value_state_pattern_matches_state_prefix() {
+        assert!(is_single_value_state_pattern("state:deploy-mode"));
+        assert!(is_single_value_state_pattern("state:current-leader"));
+        assert!(is_single_value_state_pattern("state:active-version"));
+        // Empty suffix is still a match — caller decides whether to reject.
+        assert!(is_single_value_state_pattern("state:"));
+    }
+
+    #[test]
+    fn is_single_value_state_pattern_rejects_non_state() {
+        // High-rate patterns must NOT trip the state warn (and vice versa).
+        assert!(!is_single_value_state_pattern("agent-presence"));
+        assert!(!is_single_value_state_pattern("agent-chat-arc"));
+        assert!(!is_single_value_state_pattern("dm:abc:def"));
+        // Substring "state" elsewhere doesn't match — prefix-only.
+        assert!(!is_single_value_state_pattern("smoke:state:x"));
+        assert!(!is_single_value_state_pattern("statebook"));
+        // Empty name doesn't match.
+        assert!(!is_single_value_state_pattern(""));
+    }
+
+    #[test]
+    fn high_rate_and_state_predicates_are_disjoint() {
+        // The two predicates must never both match the same name — they
+        // emit different "consider X instead of Forever" warnings and
+        // overlap would double-log.
+        for name in [
+            "agent-presence",
+            "agent-chat-arc",
+            "agent-listeners-host1",
+            "agent-conv-thread-42",
+            "dm:alice:bob",
+            "state:deploy-mode",
+            "state:current-leader",
+        ] {
+            assert!(
+                !(is_high_rate_pattern(name) && is_single_value_state_pattern(name)),
+                "predicate overlap on {name}"
+            );
+        }
     }
 
     fn tmp_bus() -> (TempDir, Bus) {

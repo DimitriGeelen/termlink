@@ -516,6 +516,17 @@ trims the previous one on the next sweep. Pairs naturally with the
 broadcast-with-replay primitive — `--retention latest` topics never
 need cv_key annotations because the topic name IS the key.
 
+**Auto-pick (T-2145).** When the CLI's `ensure_topic` (used by
+`channel post --ensure-topic` and any auto-create path) creates a
+topic whose name starts with `state:`, it auto-picks `Retention::Latest`
+— operators don't need to remember the `--retention latest` flag for
+single-value-state topics. Sibling of T-2126 (which auto-picks
+`Messages(1000)` for high-rate `agent-*` / `dm:*` patterns). The hub
+emits a defence-in-depth warn if a `state:*` topic is created with
+`Retention::Forever` via a direct `channel.create` call that bypasses
+the CLI auto-pick path. The two predicates (high-rate, single-value-state)
+are disjoint by prefix — no double-warn.
+
 ### Reading current retention
 
 ```bash

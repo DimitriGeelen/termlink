@@ -1762,6 +1762,22 @@ pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
         || name.starts_with("dm:")
 }
 
+/// T-2145: topic-name patterns where the topic name IS the key (single-value
+/// durable state — `state:deploy-mode`, `state:current-leader`,
+/// `state:active-version`). `Retention::Latest` (T-2142) is the right answer
+/// because old envelopes are pure history noise. Duplicated verbatim from
+/// `crates/termlink-hub/src/channel.rs::is_single_value_state_pattern` per
+/// the T-2069 convention — keep the two definitions in lockstep.
+///
+/// Sibling of `is_high_rate_pattern` — the two predicates partition the
+/// "warn on operator-default Retention::Forever" space (disjoint by prefix,
+/// no overlap). `ensure_topic` picks `Latest` for these; the hub still
+/// emits a defence-in-depth warn if `Forever` slips through a direct
+/// `channel.create` script path.
+pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
+    name.starts_with("state:")
+}
+
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
@@ -1778,8 +1794,18 @@ pub(crate) fn is_high_rate_pattern(name: &str) -> bool {
 /// previously landed `Forever` and accumulated indefinitely. See
 /// `docs/operations/substrate-orchestrator-recipe.md` § "Recommended
 /// retention settings" (T-2125) for the per-pattern rationale.
+///
+/// T-2145: also picks `Retention::Latest` (T-2142) for `state:*`
+/// patterns where the topic name IS the key and only the freshest
+/// envelope matters. Disjoint from the high-rate path — `state:*`
+/// can never trip `is_high_rate_pattern`, so the order of the two
+/// branches doesn't matter for correctness, but `state:*` is checked
+/// first because the warn is more actionable (Latest is more
+/// specific than Messages(N)).
 async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
-    let retention = if is_high_rate_pattern(name) {
+    let retention = if is_single_value_state_pattern(name) {
+        json!({"kind": "latest"})
+    } else if is_high_rate_pattern(name) {
         json!({"kind": "messages", "value": 1000})
     } else {
         json!({"kind": "forever"})
@@ -17551,5 +17577,54 @@ not json at all
         assert!(!is_high_rate_pattern("work-queue"));
         assert!(!is_high_rate_pattern("framework-pickup"));
         assert!(!is_high_rate_pattern(""));
+    }
+
+    // ---- T-2145 is_single_value_state_pattern tests ----------------------
+    //
+    // Mirror of the hub-side tests in `crates/termlink-hub/src/channel.rs`
+    // mod tests. Same T-2069 duplicated-not-shared convention as
+    // is_high_rate_pattern above.
+
+    #[test]
+    fn is_single_value_state_pattern_matches_state_prefix() {
+        assert!(is_single_value_state_pattern("state:deploy-mode"));
+        assert!(is_single_value_state_pattern("state:current-leader"));
+        assert!(is_single_value_state_pattern("state:active-version"));
+        // Empty suffix is still a match — caller decides whether to reject.
+        assert!(is_single_value_state_pattern("state:"));
+    }
+
+    #[test]
+    fn is_single_value_state_pattern_rejects_non_state() {
+        // High-rate patterns must NOT trip the state warn (and vice versa).
+        assert!(!is_single_value_state_pattern("agent-presence"));
+        assert!(!is_single_value_state_pattern("agent-chat-arc"));
+        assert!(!is_single_value_state_pattern("dm:abc:def"));
+        // Substring "state" elsewhere doesn't match — prefix-only.
+        assert!(!is_single_value_state_pattern("smoke:state:x"));
+        assert!(!is_single_value_state_pattern("statebook"));
+        // Empty name doesn't match.
+        assert!(!is_single_value_state_pattern(""));
+    }
+
+    #[test]
+    fn high_rate_and_state_predicates_are_disjoint_cli() {
+        // The two predicates must never both match the same name — they
+        // emit different "consider X" warnings and overlap would
+        // double-log. Mirror of the hub-side disjoint test.
+        for name in [
+            "agent-presence",
+            "agent-chat-arc",
+            "agent-listeners-host1",
+            "agent-conv-thread-42",
+            "dm:alice:bob",
+            "state:deploy-mode",
+            "state:current-leader",
+        ] {
+            assert!(
+                !(is_high_rate_pattern(name) && is_single_value_state_pattern(name)),
+                "predicate overlap on {name}"
+            );
+        }
     }
 }
