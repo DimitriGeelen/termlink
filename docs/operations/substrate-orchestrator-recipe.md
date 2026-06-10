@@ -452,7 +452,31 @@ with an explicit retention rather than `--ensure-topic`.
 | **Work topics** (e.g. `aef:work-deploy`) | `Messages(10000)` | Posts represent units of work. Workers consume via claims; old completed work needs to stick around long enough to be replayed if needed. Tune per fleet throughput. |
 | **Audit topics** (e.g. `audit:*`, `routing:lint`) | `Messages(1000)` to `Days(30)` | Pick `Days(N)` for compliance windows, `Messages(N)` for capacity bounds. The hub's `routing:lint` topic ships at `Messages(1000)` by default. |
 | **Channel-1 / framework / pickup** | `Forever` | These are durable audit logs of bounded growth (one envelope per task event, not per-second). `Forever` is correct here. |
+| **Single-value-per-topic broadcast** (e.g. `state:<key>`, `config:<key>`, presence summaries) | `Latest` | New in T-2142. Keeps exactly one envelope — the most recent. Right answer when the topic's name IS the key and only the freshest value matters. Durable counterpart to cv_index (T-2103) for the "last-write-wins on this topic" pattern. Use when subscribers only ever ask "what's the current value?" and never walk history. |
 | **One-off / debug** | `Messages(100)` | Anything operator-created interactively for debugging. Cap small. |
+
+### When to pick `Latest`
+
+`Retention::Latest` (T-2142) is the durable-storage counterpart to the
+in-memory cv_index (T-2103, substrate #9). They solve the *same problem*
+at different layers:
+
+- **cv_index** — fast O(K) current-value-per-`metadata.cv_key` lookups
+  via `channel.subscribe --include-current-value` or `channel.cv_keys`.
+  In-memory, per-hub, cleared on restart, repopulated within one
+  heartbeat cycle. Use when a single topic carries values for *many*
+  keys (e.g. `agent-presence` — one entry per agent_id).
+- **`Retention::Latest`** — durable storage that always keeps exactly
+  one envelope. Use when the topic *itself* names the key — e.g.
+  `state:deploy-mode` or `config:rate-limit-per-sec`. The subscriber
+  doesn't pick a cv_key; the topic name IS the key. Restart-safe by
+  construction (the SQLite log keeps the single envelope across hub
+  restart, unlike cv_index).
+
+Use both together when you want `agent-presence`-style "many keys on
+one topic" semantics with restart-safe durable state: pair `cv_key`
+metadata on posts with `Retention::Messages(N)` (NOT `Latest` — the
+log must hold one envelope *per key*, not just one envelope total).
 
 ### Concrete examples
 
@@ -477,6 +501,20 @@ Create an audit topic with a time-based policy:
 termlink channel create --name audit:claim-events \
   --retention days --retention-value 30
 ```
+
+Create a single-value state topic — only the latest envelope is kept,
+restart-safe (T-2142):
+
+```bash
+termlink channel create --name state:deploy-mode \
+  --retention latest
+```
+
+Subscribers see the current value with `channel.subscribe` from offset 0
+and get exactly one envelope back. Posting a new value automatically
+trims the previous one on the next sweep. Pairs naturally with the
+broadcast-with-replay primitive — `--retention latest` topics never
+need cv_key annotations because the topic name IS the key.
 
 ### Reading current retention
 
