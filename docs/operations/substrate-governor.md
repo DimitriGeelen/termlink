@@ -324,6 +324,40 @@ operator-actionable producer bug. T-2110 emits the counter, T-2118
 wires it into `--only-pressured`, T-2119 surfaces per-event deltas in
 `--notify` / `--log` / `fleet governor-history`.
 
+For the rate-bucket eviction loop (T-2140) — the T-2137 GC sweep that
+keeps `rate_buckets_active` bounded as senders churn — gate on
+`TERMLINK_GOV_EVICTED_DELTA`. **Unlike cap/rate/cv_overflow which are
+pressure signals, `evicted` is a HEALTH signal:** non-zero is the
+desired steady state (the GC loop is doing its job, keeping memory
+bounded). Page on a *sudden surge* (sender churn, DDoS, or a regex
+bug producing synthetic senders), not on the absolute value and not
+on zero:
+
+```sh
+# /usr/local/bin/page-on-eviction-surge.sh — alert when the bucket-GC loop
+# is evicting WAY more than steady state (suggests sender churn / DDoS).
+#!/bin/sh
+[ -n "$TERMLINK_GOV_EVICTED_DELTA" ] || exit 0   # pre-T-2139 hub — counter not exposed
+[ "$TERMLINK_GOV_EVICTED_DELTA" -gt 100 ] || exit 0   # 100/cycle = surge
+pagerctl alert \
+  --summary="Hub $TERMLINK_GOV_HUB rate-bucket eviction surge +$TERMLINK_GOV_EVICTED_DELTA (sender churn?)" \
+  --severity=warning \
+  --custom-detail "ts=$TERMLINK_GOV_TS" \
+  --custom-detail "evicted=$TERMLINK_GOV_OLD_EVICTED → $TERMLINK_GOV_NEW_EVICTED" \
+  --custom-detail "diagnostic=watch sender distribution; check for regex bug producing fake senders"
+```
+
+Pre-T-2139 hubs return an empty `TERMLINK_GOV_EVICTED_DELTA` (the
+counter didn't exist before T-2139 exposed it via the snapshot RPC).
+The `[ -n "$..." ]` guard ensures the script silently no-ops on older
+hubs instead of erroring. Once the fleet is fully on T-2139+, drop
+the `-n` guard.
+
+T-2137 wires the eviction loop into hub startup, T-2139 exposes the
+counter, T-2140 surfaces per-event deltas in `--notify` / `--log` /
+`fleet governor-history`. The counter is intentionally NOT in
+`--only-pressured` — the loop firing is healthy, not pressure.
+
 The script's environment is documented inline in the `--help` text and on the
 CLAUDE.md BACKPRESSURE row.
 
@@ -358,7 +392,8 @@ NDJSON schema (one event per line, flat for jq-friendliness):
   "old_cap_hits": 0, "new_cap_hits": 0, "cap_hits_delta": 0,
   "old_rate_hits": 0, "new_rate_hits": 0, "rate_hits_delta": 0,
   "old_dedupe_hits": null, "new_dedupe_hits": null, "dedupe_hits_delta": null,
-  "old_cv_overflow": 0, "new_cv_overflow": 0, "cv_overflow_delta": 0
+  "old_cv_overflow": 0, "new_cv_overflow": 0, "cv_overflow_delta": 0,
+  "old_evicted": 0, "new_evicted": 15, "evicted_delta": 15
 }
 ```
 
@@ -388,6 +423,17 @@ jq -c 'select(.dedupe_hits_delta>0) | {ts, hub, dedupe_hits_delta}' \
 # Pair with `termlink channel cv-keys <topic>` to identify the saturating topic.
 jq -c 'select(.cv_overflow_delta>0) | {ts, hub, cv_overflow_delta}' \
   ~/.termlink/governor.log
+
+# Rate-bucket eviction surges (T-2140) — the GC loop firing way more than
+# steady state. evicted is a HEALTH signal (non-zero is healthy), but a
+# *surge* above the steady-state baseline points at sender churn / DDoS /
+# regex bug producing synthetic senders. Tune the threshold per-fleet.
+jq -c 'select(.evicted_delta>100) | {ts, hub, evicted_delta}' \
+  ~/.termlink/governor.log
+
+# What's the steady-state evicted rate this week? (gives you a baseline
+# to set the page-on-surge threshold.)
+jq -s 'map(.evicted_delta // 0) | add / length' ~/.termlink/governor.log
 ```
 
 #### Operational notes
@@ -431,12 +477,12 @@ Human output is one anchored line per matching entry plus a
 per-hub aggregate footer:
 
 ```
-2026-06-08T23:34:02Z  local-test               transition  conn=3→4 cap=0→0(+0) rate=0→0(+0) dedupe=n/a→n/a(+n/a) cv_overflow=0→0(+0)
-2026-06-08T23:51:11Z  ring20-management        transition  conn=251→256(...) cap=0→4(+4) rate=12→18(+6) dedupe=n/a→n/a(+n/a) cv_overflow=0→3(+3)
+2026-06-08T23:34:02Z  local-test               transition  conn=3→4 cap=0→0(+0) rate=0→0(+0) dedupe=n/a→n/a(+n/a) cv_overflow=0→0(+0) evicted=0→15(+15)
+2026-06-08T23:51:11Z  ring20-management        transition  conn=251→256(...) cap=0→4(+4) rate=12→18(+6) dedupe=n/a→n/a(+n/a) cv_overflow=0→3(+3) evicted=200→42(+42)
 
 Summary: 2 event(s) in last 7 day(s):
-  local-test                 1 event(s)  cap_hits=+0 rate_hits=+0 dedupe_hits=+0 cv_overflow=+0
-  ring20-management          1 event(s)  cap_hits=+4 rate_hits=+6 dedupe_hits=+0 cv_overflow=+3
+  local-test                 1 event(s)  cap_hits=+0 rate_hits=+0 dedupe_hits=+0 cv_overflow=+0 evicted=+15
+  ring20-management          1 event(s)  cap_hits=+4 rate_hits=+6 dedupe_hits=+0 cv_overflow=+3 evicted=+42
 ```
 
 The aggregate footer is the high-signal output: `cap_hits=+4` on a
@@ -447,8 +493,8 @@ a glance.
 a single summary object:
 
 ```json
-{"ts":"2026-06-08T23:34:02Z","hub":"local-test","kind":"transition","old_conn_active":3,"new_conn_active":4,"old_cap_hits":0,"new_cap_hits":0,"cap_hits_delta":0,"old_rate_hits":0,"new_rate_hits":0,"rate_hits_delta":0,"old_dedupe_hits":null,"new_dedupe_hits":null,"dedupe_hits_delta":null,"old_cv_overflow":0,"new_cv_overflow":0,"cv_overflow_delta":0}
-{"total":1,"per_hub":{"local-test":{"events":1,"cap_hits_total":0,"rate_hits_total":0,"dedupe_hits_total":0,"cv_overflow_hits_total":0}},"since_days":7,"hub_filter":null,"malformed_lines_skipped":0,"log_path":"/root/.termlink/governor.log"}
+{"ts":"2026-06-08T23:34:02Z","hub":"local-test","kind":"transition","old_conn_active":3,"new_conn_active":4,"old_cap_hits":0,"new_cap_hits":0,"cap_hits_delta":0,"old_rate_hits":0,"new_rate_hits":0,"rate_hits_delta":0,"old_dedupe_hits":null,"new_dedupe_hits":null,"dedupe_hits_delta":null,"old_cv_overflow":0,"new_cv_overflow":0,"cv_overflow_delta":0,"old_evicted":0,"new_evicted":15,"evicted_delta":15}
+{"total":1,"per_hub":{"local-test":{"events":1,"cap_hits_total":0,"rate_hits_total":0,"dedupe_hits_total":0,"cv_overflow_hits_total":0,"evicted_total":15}},"since_days":7,"hub_filter":null,"malformed_lines_skipped":0,"log_path":"/root/.termlink/governor.log"}
 ```
 
 Empty/missing log prints a hint pointing back at the watch verb so

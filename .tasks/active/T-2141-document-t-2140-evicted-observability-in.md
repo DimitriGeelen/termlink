@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T19:46:00Z
-last_update: 2026-06-10T19:46:00Z
+last_update: 2026-06-10T19:48:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,10 +54,10 @@ Mirror of T-2120's role for cv_overflow.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `docs/operations/substrate-governor.md` includes a `--notify` recipe for `EVICTED_DELTA` paging with the HEALTH-not-pressure semantic explicit.
-- [ ] NDJSON schema example updated to include `old_evicted` / `new_evicted` / `evicted_delta` fields.
-- [ ] At least one jq forensic query example for `evicted_delta > N` to identify GC surges.
-- [ ] Cross-reference to T-2137 (loop wire) + T-2139 (counter) + T-2140 (this arc) in the new section.
+- [x] `docs/operations/substrate-governor.md` includes a `--notify` recipe for `EVICTED_DELTA` paging with the HEALTH-not-pressure semantic explicit.
+- [x] NDJSON schema example updated to include `old_evicted` / `new_evicted` / `evicted_delta` fields.
+- [x] At least one jq forensic query example for `evicted_delta > N` to identify GC surges.
+- [x] Cross-reference to T-2137 (loop wire) + T-2139 (counter) + T-2140 (this arc) in the new section.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
