@@ -12,7 +12,7 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-06-08T10:50:21Z
+last_update: 2026-06-10T19:07:55Z
 date_finished: null
 ---
 
@@ -806,3 +806,66 @@ Full trend snapshot (taken 2026-05-31T12:10Z):
 - Update `.context/project/concerns.yaml` G-061 from `watching` → `resolved` (this Update establishes the evidence; the register edit is the human's sovereignty action).
 
 Agent recommendation: GO on the cut. Evidence is solid (7d clean + 9d distance from last emission + T-1814 source fix landed both vendored AND upstream).
+
+### 2026-06-10T19:15Z — cut_ready REGRESSED to false: .122 fired event.broadcast 2026-06-04 / 06 [agent]
+
+**Fresh state:** `fw metrics api-usage --cut-ready --json` → `{cut_ready: false, legacy_attributable: 2, window_days: 7}`.
+
+**Root cause (re-confirmed):** the lone emitter is .122 (ring20-management).
+The 2 in-window calls are:
+
+| ts | when | source |
+|---|---|---|
+| 1780696247121 | 2026-06-05T18:30Z | `192.168.10.122` event.broadcast |
+| 1780750186281 | 2026-06-06T12:49Z | `192.168.10.122` event.broadcast |
+
+Last call was **4 days ago** (2026-06-06). If .122 stays quiet, the older
+call rolls out of the 7d window on **2026-06-12 18:30Z** (~47h) and the
+younger on **2026-06-13 12:49Z** (~65h). `cut_ready` re-flips to true at
+that point — *unless .122 fires again first*.
+
+**Why this regressed.** Per the 2026-05-26 + 2026-05-30 entries:
+ring20-management-agent took path A (T-1438 binary swap → 0.9.2127) but
+did NOT take path B (`fw upgrade` on the framework checkout). The hub
+binary has the `legacy_primitives_disabled` cut so it CAN'T emit legacy
+itself, but the **framework checkout on .122** still carries the
+pre-T-1814 `lib/pickup-channel-bridge.sh` that falls back to
+`event.broadcast` when `channel.post` fails. So whenever a pickup is
+emitted on .122 AND `channel.post` fails for any reason (topic missing,
+hub transient, auth blip), the bridge re-fires `event.broadcast`.
+
+**Verified on .107 local checkout:** `lib/pickup-channel-bridge.sh:95-101`
+is the T-1814 fix — the legacy fallback is REMOVED, `channel.post` failure
+degrades to a logged no-op. .107's framework is correct. The fix exists
+upstream (origin/master f87f8e97). The bug is .122-specific: its
+vendored framework checkout has not pulled the fix.
+
+**Audit log snapshot over the full 60d window:** 212 `event.broadcast`
+lines total — 197 from "(unknown)" (pre-T-1409 backlog, ages out
+naturally), 15 attributable to .122 (the bridge fallback firings). Cadence
+~1 fire every 3 days over the window. The structural risk is the bridge
+keeps firing until .122's framework gets T-1814.
+
+**Two paths forward:**
+
+A) **Wait and hope** — if .122 stays quiet ~65h, cut_ready naturally
+   re-flips on 2026-06-13 12:49Z. Risk: any single pickup-with-channel.post-blip
+   on .122 in the interim resets the clock. Cost: 0.
+
+B) **Durable fix — DM ring20-management-agent asking for `fw upgrade`** on
+   .122 to pull the T-1814 bridge fix into its framework checkout. This
+   permanently kills the fallback emission. Cost: 1 DM, matches the
+   2026-05-26 precedent. Cost is small but it's a cross-host write to
+   a remote operator session, so operator authorization preferred.
+
+**Agent recommendation:** path B. Path A buys you a clean window for
+maybe 2-3 days before the next stochastic blip resets it. We've burned
+~16 days of bake clock to this same emitter over the last 6 weeks. The
+fix is upstream, vendored, verified — it just needs to land on .122.
+
+**Operator action surface (if approving path B):** the DM message body
+should ask ring20-management-agent to run `fw upgrade` on the .122 AEF
+framework checkout (pulls f87f8e97 → no fallback → channel.post failure
+becomes a no-op). Wait 7d, then re-verify `cut_ready: true`. T-1415
+remains the deferred source-cleanup task — it's structurally unblocked
+and waiting on Tier-2 authorization regardless of this last-mile cleanup.
