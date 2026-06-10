@@ -204,7 +204,7 @@ Both are MCP-callable from agent contexts; the latter is the cheap
 - **#1 CLAIM** (`channel.claim`, T-2019 / T-2042) — exclusive ownership
   of `(topic, offset)`. Independent from cv_index.
 - **#2 DISPATCH** (`agent.find_idle`, T-2020 / T-2045) — derived idle
-  roster: `LIVE(agent-presence) ∖ DISTINCT(claimed_by)`. **Consumes** the
+  roster: `LIVE(agent-presence) ∖ DISTINCT(claimer)`. **Consumes** the
   same `agent-presence` topic that #9 indexes. **T-2109 closure:**
   `handle_agent_find_idle` now reads `cv_index().current_values("agent-presence")`
   and, when non-empty, drives discovery through `Bus::find_idle_agents_from_hint`
