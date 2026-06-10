@@ -274,6 +274,9 @@ pub(crate) fn mcp_governor_hub_is_pressured(
 // Matches CLI `GovernorHubAgg` (remote.rs) field-for-field.
 // T-2119: cv_overflow_hits added — sums cv_overflow_delta entries to
 // quantify cv_index pressure (producer mis-emitting cv_key) over window.
+// T-2140: evicted_total added — sums evicted_delta entries to quantify
+// the T-2137 rate-bucket GC loop activity (HEALTH signal, not pressure;
+// non-zero is the desired steady state for memory bounding).
 #[derive(Default, Debug)]
 pub(crate) struct GovernorHubAggMcp {
     pub events: u32,
@@ -281,6 +284,7 @@ pub(crate) struct GovernorHubAggMcp {
     pub rate_hits: i64,
     pub dedupe_hits: i64,
     pub cv_overflow_hits: i64,
+    pub evicted_total: i64,
 }
 
 /// T-2069: parse governor.log NDJSON entries, filter by `cutoff_secs` and
@@ -346,6 +350,13 @@ pub(crate) fn aggregate_governor_entries(
         // (backward compat, same convention as dedupe_hits_delta vs pre-T-2049).
         agg.cv_overflow_hits += e
             .get("cv_overflow_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        // T-2140: pre-T-2140 log entries lack the field; missing → 0 contribution.
+        // Healthy state under T-2137 wired loop is evicted_total > 0 over a
+        // populated window; zero suggests pre-T-2137 hub or zero sender churn.
+        agg.evicted_total += e
+            .get("evicted_delta")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
     }
@@ -16420,6 +16431,9 @@ impl TermLinkTools {
                         // T-2119: cv_index_overflow audit total over window —
                         // mirror of CLI per_hub envelope shape.
                         "cv_overflow_hits_total": v.cv_overflow_hits,
+                        // T-2140: rate-bucket eviction audit total over window
+                        // (T-2137 GC loop activity). Mirror of CLI per_hub shape.
+                        "evicted_total": v.evicted_total,
                     }),
                 )
             })
@@ -42537,6 +42551,34 @@ YW\tJ
         assert_eq!(hub_legacy.events, 1);
         assert_eq!(hub_legacy.cv_overflow_hits, 0);
         assert_eq!(hub_legacy.cap_hits, 1);
+    }
+
+    // T-2140: aggregate evicted_delta entries. Pre-T-2140 entries lack
+    // the field and contribute 0; modern entries contribute the value.
+    // Closes the §6 #10 eviction observability arc end-to-end at the MCP
+    // tier (mirror of T-2119's MCP cv_overflow test).
+    #[test]
+    fn fleet_governor_history_aggregates_evicted_delta() {
+        let ts = "2099-01-02T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"hub\":\"hub-ev\",\"kind\":\"transition\",\"cap_hits_delta\":0,\"rate_hits_delta\":0,\"dedupe_hits_delta\":0,\"cv_overflow_delta\":0,\"evicted_delta\":15}}\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"hub-ev\",\"kind\":\"transition\",\"cap_hits_delta\":0,\"rate_hits_delta\":0,\"dedupe_hits_delta\":0,\"cv_overflow_delta\":0,\"evicted_delta\":42}}\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"hub-pre2140\",\"kind\":\"transition\",\"cap_hits_delta\":2,\"rate_hits_delta\":0,\"dedupe_hits_delta\":0,\"cv_overflow_delta\":0}}\n",
+            ts = ts
+        );
+        let (entries, malformed) = parse_governor_log(&text, 0, None);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(malformed, 0);
+
+        let per_hub = aggregate_governor_entries(&entries);
+        let hub_ev = per_hub.get("hub-ev").unwrap();
+        assert_eq!(hub_ev.events, 2);
+        assert_eq!(hub_ev.evicted_total, 57, "15 + 42 = 57");
+        // Pre-T-2140 entry (no evicted_delta field) contributes 0.
+        let hub_pre = per_hub.get("hub-pre2140").unwrap();
+        assert_eq!(hub_pre.events, 1);
+        assert_eq!(hub_pre.evicted_total, 0);
+        assert_eq!(hub_pre.cap_hits, 2);
     }
 
     // T-2071: mcp_governor_hub_is_pressured — pure predicate for

@@ -2834,13 +2834,16 @@ pub(crate) async fn cmd_fleet_governor_status(
 
 /// T-2064 (T-2028 §6 #10 Track E): per-hub governor state observed each cycle.
 /// `(reachable, connections_active, connections_max, capacity_hits_total,
-/// rate_hits_total, dedupe_hits_total, cv_index_overflow_total)`. The last
-/// two fields are `Option<i64>` because they were added in T-2049 (dedupe)
-/// and T-2110 (cv_overflow); the renderer formats `None` sides as "n/a"
-/// rather than masking them as 0 (older hub or runtime upgrade mid-watch).
-/// T-2119 added the cv_overflow field to close the §6 #10 observability
-/// loop initiated by T-2118 (predicate axis).
-type WatchGovernorState = (bool, i64, i64, i64, i64, Option<i64>, Option<i64>);
+/// rate_hits_total, dedupe_hits_total, cv_index_overflow_total,
+/// rate_buckets_evicted_total)`. The last three fields are `Option<i64>`
+/// because they were added in T-2049 (dedupe), T-2110 (cv_overflow),
+/// and T-2139 (evicted); the renderer formats `None` sides as "n/a" rather
+/// than masking them as 0 (older hub or runtime upgrade mid-watch).
+/// T-2119 added the cv_overflow field. T-2140 added the evicted field to
+/// close the §6 #10 eviction-loop observability initiated by T-2137 (wire)
+/// and T-2139 (counter exposure) — operators can now page on / audit
+/// `rate_buckets_evicted_total` deltas.
+type WatchGovernorState = (bool, i64, i64, i64, i64, Option<i64>, Option<i64>, Option<i64>);
 
 /// T-2064: pure helper that formats one change line for a hub whose governor
 /// state moved between cycles. Extracted for unit-testability — the loop body
@@ -2885,6 +2888,22 @@ pub(crate) fn render_governor_watch_change_line(
         }
         _ => "n/a".to_string(),
     };
+    // T-2140: evicted follows the same Option<i64>+n/a convention. Pre-T-2139
+    // hubs (no rate_buckets_evicted_total field) render as "n/a" so operators
+    // can distinguish "old binary, can't tell" from "0 evictions". The counter
+    // going up is HEALTHY (loop bounding memory) — operators page on rate of
+    // change, not on absolute value.
+    let evicted_str = match (prev.7, new.7) {
+        (Some(p), Some(n)) => {
+            let delta = n.saturating_sub(p).max(0);
+            if delta > 0 {
+                format!("{}→{}(+{})", p, n, delta)
+            } else {
+                format!("{}→{}", p, n)
+            }
+        }
+        _ => "n/a".to_string(),
+    };
     let cap_delta = new.3.saturating_sub(prev.3).max(0);
     let rate_delta = new.4.saturating_sub(prev.4).max(0);
     let cap_str = if cap_delta > 0 {
@@ -2899,8 +2918,8 @@ pub(crate) fn render_governor_watch_change_line(
     };
 
     let mut line = format!(
-        "{}   {} conn={}/{}→{}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
-        ts, name, prev.1, prev.2, new.1, new.2, cap_str, rate_str, dedupe_str, cv_overflow_str,
+        "{}   {} conn={}/{}→{}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={} evicted={}",
+        ts, name, prev.1, prev.2, new.1, new.2, cap_str, rate_str, dedupe_str, cv_overflow_str, evicted_str,
     );
     if !prev.0 && new.0 {
         line.push_str(&format!("\n{}   {} REACHABLE again", ts, name));
@@ -2957,6 +2976,16 @@ pub(crate) fn build_governor_notify_env(
             None => String::new(),
         }
     };
+    // T-2140: evicted follows the same convention. Pre-T-2139 hubs (no
+    // rate_buckets_evicted_total field) produce empty string. Common page
+    // gate: `[ "$TERMLINK_GOV_EVICTED_DELTA" -gt 100 ] || exit 0` then
+    // alert (sudden surge in evictions = sender churn, worth attention).
+    let evicted_str = |s: Option<&WatchGovernorState>| -> String {
+        match s {
+            Some(st) => st.7.map(|n| n.to_string()).unwrap_or_default(),
+            None => String::new(),
+        }
+    };
     let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> String {
         match (old_v, new_v) {
             (Some(o), Some(n)) => (n - o).max(0).to_string(),
@@ -2967,6 +2996,7 @@ pub(crate) fn build_governor_notify_env(
     let rate_delta = counter_delta(prev.map(|s| s.4), new.map(|s| s.4));
     let dedupe_delta = counter_delta(prev.and_then(|s| s.5), new.and_then(|s| s.5));
     let cv_overflow_delta = counter_delta(prev.and_then(|s| s.6), new.and_then(|s| s.6));
+    let evicted_delta = counter_delta(prev.and_then(|s| s.7), new.and_then(|s| s.7));
 
     vec![
         ("TERMLINK_GOV_HUB".into(), hub.into()),
@@ -2988,6 +3018,9 @@ pub(crate) fn build_governor_notify_env(
         ("TERMLINK_GOV_OLD_CV_OVERFLOW".into(), cv_overflow_str(prev)),
         ("TERMLINK_GOV_NEW_CV_OVERFLOW".into(), cv_overflow_str(new)),
         ("TERMLINK_GOV_CV_OVERFLOW_DELTA".into(), cv_overflow_delta),
+        ("TERMLINK_GOV_OLD_EVICTED".into(), evicted_str(prev)),
+        ("TERMLINK_GOV_NEW_EVICTED".into(), evicted_str(new)),
+        ("TERMLINK_GOV_EVICTED_DELTA".into(), evicted_delta),
     ]
 }
 
@@ -3072,6 +3105,15 @@ pub(crate) fn build_governor_log_entry(
             .map(|n| serde_json::json!(n))
             .unwrap_or(serde_json::Value::Null)
     };
+    // T-2140: evicted follows the same Option<i64>+null-missing convention.
+    // Pre-T-2139 hubs (no rate_buckets_evicted_total) → null entry, NOT 0,
+    // so jq filters distinguish "no field" from "0 evictions" — same rule
+    // as cv_overflow / dedupe.
+    let evicted_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.and_then(|st| st.7)
+            .map(|n| serde_json::json!(n))
+            .unwrap_or(serde_json::Value::Null)
+    };
     let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> serde_json::Value {
         match (old_v, new_v) {
             (Some(o), Some(n)) => serde_json::json!((n - o).max(0)),
@@ -3104,6 +3146,12 @@ pub(crate) fn build_governor_log_entry(
         "cv_overflow_delta": counter_delta(
             prev.and_then(|s| s.6),
             new.and_then(|s| s.6),
+        ),
+        "old_evicted": evicted_v(prev),
+        "new_evicted": evicted_v(new),
+        "evicted_delta": counter_delta(
+            prev.and_then(|s| s.7),
+            new.and_then(|s| s.7),
         ),
     })
 }
@@ -3252,9 +3300,16 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                 let cv_overflow = gov
                     .and_then(|g| g.get("cv_index_overflow_total"))
                     .and_then(|x| x.as_i64());
+                // T-2140: rate_buckets_evicted_total (added T-2139); Option
+                // for pre-T-2139 hub backward compat. The counter monotonically
+                // accumulates eviction sweeps from the spawn_rate_evict_loop
+                // task (T-2137). Operators page on rate of change.
+                let evicted = gov
+                    .and_then(|g| g.get("rate_buckets_evicted_total"))
+                    .and_then(|x| x.as_i64());
                 current.insert(
                     name,
-                    (ok, conn_active, conn_max, cap_hits, rate_hits, dedupe_hits, cv_overflow),
+                    (ok, conn_active, conn_max, cap_hits, rate_hits, dedupe_hits, cv_overflow, evicted),
                 );
             }
         }
@@ -3271,8 +3326,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                     .6
                     .map(|n| n.to_string())
                     .unwrap_or_else(|| "n/a".into());
+                let evicted_str = st
+                    .7
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "n/a".into());
                 println!(
-                    "{}   {} reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
+                    "{}   {} reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={} evicted={}",
                     ts,
                     name,
                     if st.0 { "ok" } else { "fail" },
@@ -3281,7 +3340,8 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                     st.3,
                     st.4,
                     dedupe_str,
-                    cv_overflow_str
+                    cv_overflow_str,
+                    evicted_str
                 );
             }
         } else {
@@ -3316,8 +3376,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             .6
                             .map(|n| n.to_string())
                             .unwrap_or_else(|| "n/a".into());
+                        let evicted_str = new_state
+                            .7
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "n/a".into());
                         println!(
-                            "{}   {} NEW reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
+                            "{}   {} NEW reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={} evicted={}",
                             ts,
                             name,
                             if new_state.0 { "ok" } else { "fail" },
@@ -3326,7 +3390,8 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             new_state.3,
                             new_state.4,
                             dedupe_str,
-                            cv_overflow_str
+                            cv_overflow_str,
+                            evicted_str
                         );
                         if let Some(cmd) = notify.as_deref() {
                             fire_governor_notify(
@@ -3831,6 +3896,11 @@ fn governor_log_path() -> Option<std::path::PathBuf> {
 /// the audit window. Pre-T-2119 log entries lack `cv_overflow_delta` and
 /// contribute 0 to the sum (backward compat — same as how pre-T-2049 entries
 /// contribute 0 to `dedupe_hits`).
+/// T-2140 added `evicted_total`: sums `evicted_delta` over the window so the
+/// operator can quantify "how active was the rate-bucket GC?". Pre-T-2140
+/// log entries lack the field and contribute 0 (same backward-compat rule).
+/// Unlike cap/rate/cv_overflow (pressure signals), `evicted_total` is a
+/// HEALTH signal — non-zero is the desired steady state (loop bounding mem).
 #[derive(Default, Debug)]
 pub(crate) struct GovernorHubAgg {
     pub events: u32,
@@ -3838,6 +3908,7 @@ pub(crate) struct GovernorHubAgg {
     pub rate_hits: i64,
     pub dedupe_hits: i64,
     pub cv_overflow_hits: i64,
+    pub evicted_total: i64,
 }
 
 /// T-2068: pure render helper for one governor.log entry. Pulled out of
@@ -3870,7 +3941,7 @@ pub(crate) fn render_governor_history_line(e: &serde_json::Value) -> String {
     };
 
     format!(
-        "{}  {:24} {:11} conn={}→{} cap={}→{}(+{}) rate={}→{}(+{}) dedupe={}→{}(+{}) cv_overflow={}→{}(+{})",
+        "{}  {:24} {:11} conn={}→{} cap={}→{}(+{}) rate={}→{}(+{}) dedupe={}→{}(+{}) cv_overflow={}→{}(+{}) evicted={}→{}(+{})",
         ts,
         h,
         kind,
@@ -3892,6 +3963,13 @@ pub(crate) fn render_governor_history_line(e: &serde_json::Value) -> String {
         i_or_na("old_cv_overflow"),
         i_or_na("new_cv_overflow"),
         i_or_na("cv_overflow_delta"),
+        // T-2140: evicted sub-tree follows the same convention. Pre-T-2140
+        // log entries (no evicted fields) and pre-T-2139 hubs (null evicted)
+        // both render as "n/a" — distinguishable from "0" evictions which
+        // means "loop ran but found nothing to evict this cycle".
+        i_or_na("old_evicted"),
+        i_or_na("new_evicted"),
+        i_or_na("evicted_delta"),
     )
 }
 
@@ -4013,6 +4091,14 @@ pub(crate) fn cmd_fleet_governor_history(
             .get("cv_overflow_delta")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
+        // T-2140: same backward-compat rule for evicted_delta. Pre-T-2140
+        // entries contribute 0 to the sum. Healthy state under T-2137 wired
+        // loop is evicted_total > 0 monotonically; zero across a populated
+        // window suggests the loop is not running (pre-T-2137 hub binary).
+        agg.evicted_total += e
+            .get("evicted_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
     }
 
     if json_out {
@@ -4031,6 +4117,9 @@ pub(crate) fn cmd_fleet_governor_history(
                         "dedupe_hits_total": v.dedupe_hits,
                         // T-2119: cv_index_overflow audit total over window.
                         "cv_overflow_hits_total": v.cv_overflow_hits,
+                        // T-2140: rate-bucket eviction audit total over window.
+                        // Non-zero = T-2137 GC loop is bounding mem (healthy).
+                        "evicted_total": v.evicted_total,
                     }),
                 )
             })
@@ -4064,8 +4153,8 @@ pub(crate) fn cmd_fleet_governor_history(
         );
         for (h, agg) in &per_hub {
             println!(
-                "  {:24} {:>3} event(s)  cap_hits=+{} rate_hits=+{} dedupe_hits=+{} cv_overflow=+{}",
-                h, agg.events, agg.cap_hits, agg.rate_hits, agg.dedupe_hits, agg.cv_overflow_hits
+                "  {:24} {:>3} event(s)  cap_hits=+{} rate_hits=+{} dedupe_hits=+{} cv_overflow=+{} evicted=+{}",
+                h, agg.events, agg.cap_hits, agg.rate_hits, agg.dedupe_hits, agg.cv_overflow_hits, agg.evicted_total
             );
         }
         if malformed_lines > 0 {
@@ -8292,8 +8381,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_cap_hits_delta() {
         // Hub stayed reachable; cap_hits jumped 0 → 5 (5 connections refused).
-        let prev: WatchGovernorState = (true, 200, 256, 0, 0, Some(10), None);
-        let new: WatchGovernorState = (true, 256, 256, 5, 0, Some(10), None);
+        let prev: WatchGovernorState = (true, 200, 256, 0, 0, Some(10), None, None);
+        let new: WatchGovernorState = (true, 256, 256, 5, 0, Some(10), None, None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:00:00Z", "hub-a", &prev, &new);
         assert!(
@@ -8314,8 +8403,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_rate_hits_delta() {
         // Rate-limit fired 3 times between cycles; cap unchanged.
-        let prev: WatchGovernorState = (true, 12, 256, 0, 100, Some(0), None);
-        let new: WatchGovernorState = (true, 14, 256, 0, 103, Some(0), None);
+        let prev: WatchGovernorState = (true, 12, 256, 0, 100, Some(0), None, None);
+        let new: WatchGovernorState = (true, 14, 256, 0, 103, Some(0), None, None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:00:30Z", "hub-b", &prev, &new);
         assert!(
@@ -8339,8 +8428,8 @@ mod tests {
 
     #[test]
     fn build_governor_notify_env_computes_cap_hits_delta() {
-        let prev: WatchGovernorState = (true, 200, 256, 10, 5, Some(0), None);
-        let new: WatchGovernorState = (true, 256, 256, 17, 5, Some(0), None);
+        let prev: WatchGovernorState = (true, 200, 256, 10, 5, Some(0), None, None);
+        let new: WatchGovernorState = (true, 256, 256, 17, 5, Some(0), None, None);
         let env = build_governor_notify_env(
             "hub-a", "transition", "2026-06-08T22:30:00Z",
             Some(&prev), Some(&new),
@@ -8370,8 +8459,8 @@ mod tests {
         // Hub upgraded mid-watch from pre-T-2049 (no dedupe field) to T-2049+.
         // The transition gives Some/None mix — the env must use "" for the
         // missing side and "" for the delta (can't compute delta from missing).
-        let prev: WatchGovernorState = (true, 50, 256, 0, 0, None, None);
-        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(42), None);
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, None, None, None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(42), None, None);
         let env = build_governor_notify_env(
             "hub-upgraded", "transition", "2026-06-08T22:35:00Z",
             Some(&prev), Some(&new),
@@ -8412,8 +8501,8 @@ mod tests {
 
     #[test]
     fn build_governor_log_entry_computes_deltas_and_string_reach() {
-        let prev: WatchGovernorState = (true, 10, 256, 100, 50, Some(7), None);
-        let new: WatchGovernorState = (true, 11, 256, 117, 50, Some(7), None);
+        let prev: WatchGovernorState = (true, 10, 256, 100, 50, Some(7), None, None);
+        let new: WatchGovernorState = (true, 11, 256, 117, 50, Some(7), None, None);
         let entry = build_governor_log_entry(
             "hub-a", "transition", "2026-06-08T23:00:00Z",
             Some(&prev), Some(&new),
@@ -8439,7 +8528,7 @@ mod tests {
     fn build_governor_log_entry_serializes_null_for_missing_sides() {
         use serde_json::Value;
         // "new" event: prev=None ⇒ all old_* fields are JSON null (not omitted).
-        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None, None);
         let entry = build_governor_log_entry(
             "fresh-hub", "new", "2026-06-08T23:01:00Z",
             None, Some(&new),
@@ -8459,7 +8548,7 @@ mod tests {
         assert_eq!(entry["dedupe_hits_delta"], Value::Null);
 
         // "removed" event: new=None ⇒ all new_* fields are null
-        let prev: WatchGovernorState = (true, 5, 256, 3, 0, Some(2), None);
+        let prev: WatchGovernorState = (true, 5, 256, 3, 0, Some(2), None, None);
         let entry2 = build_governor_log_entry(
             "gone-hub", "removed", "2026-06-08T23:02:00Z",
             Some(&prev), None,
@@ -8522,8 +8611,8 @@ mod tests {
     fn watch_governor_renders_cv_overflow_delta() {
         // Producer started mis-emitting cv_key — cv_overflow_total jumped 0→7
         // between cycles. Operator must see this loudly on the change line.
-        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0));
-        let new: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(7));
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0), None);
+        let new: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(7), None);
         let line =
             render_governor_watch_change_line("2026-06-10T09:45:00Z", "hub-cv", &prev, &new);
         assert!(
@@ -8537,8 +8626,8 @@ mod tests {
     fn watch_governor_renders_cv_overflow_na_when_field_absent() {
         // Pre-T-2110 hub: no cv_index_overflow_total field at all. Both sides
         // are None ⇒ "n/a" sentinel (not "0→0" which would lie about state).
-        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None);
-        let new: WatchGovernorState = (true, 32, 256, 1, 0, Some(0), None);
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None, None);
+        let new: WatchGovernorState = (true, 32, 256, 1, 0, Some(0), None, None);
         let line =
             render_governor_watch_change_line("2026-06-10T09:46:00Z", "hub-legacy", &prev, &new);
         assert!(
@@ -8551,8 +8640,8 @@ mod tests {
     #[test]
     fn build_governor_notify_env_computes_cv_overflow_delta() {
         // Producer mis-emit caught between cycles — overflow jumped 0→4.
-        let prev: WatchGovernorState = (true, 20, 256, 0, 0, Some(5), Some(0));
-        let new: WatchGovernorState = (true, 21, 256, 0, 0, Some(5), Some(4));
+        let prev: WatchGovernorState = (true, 20, 256, 0, 0, Some(5), Some(0), None);
+        let new: WatchGovernorState = (true, 21, 256, 0, 0, Some(5), Some(4), None);
         let env = build_governor_notify_env(
             "hub-producer", "transition", "2026-06-10T09:47:00Z",
             Some(&prev), Some(&new),
@@ -8575,8 +8664,8 @@ mod tests {
     fn build_governor_notify_env_handles_cv_overflow_none_to_some() {
         // Hub upgraded mid-watch from pre-T-2110 (no cv_overflow field) to
         // T-2110+. Some/None mix → delta empty string (script gate on -z).
-        let prev: WatchGovernorState = (true, 50, 256, 0, 0, Some(0), None);
-        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(0), Some(3));
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, Some(0), None, None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(0), Some(3), None);
         let env = build_governor_notify_env(
             "hub-upgraded", "transition", "2026-06-10T09:48:00Z",
             Some(&prev), Some(&new),
@@ -8599,8 +8688,8 @@ mod tests {
     #[test]
     fn build_governor_log_entry_serializes_cv_overflow_fields() {
         // Modern entry — cv_overflow present on both sides, numeric delta.
-        let prev: WatchGovernorState = (true, 10, 256, 0, 0, Some(0), Some(2));
-        let new: WatchGovernorState = (true, 11, 256, 0, 0, Some(0), Some(9));
+        let prev: WatchGovernorState = (true, 10, 256, 0, 0, Some(0), Some(2), None);
+        let new: WatchGovernorState = (true, 11, 256, 0, 0, Some(0), Some(9), None);
         let entry = build_governor_log_entry(
             "hub-a", "transition", "2026-06-10T09:49:00Z",
             Some(&prev), Some(&new),
@@ -8615,8 +8704,8 @@ mod tests {
         use serde_json::Value;
         // Pre-T-2110 hub: cv_overflow None on both sides ⇒ JSON null (NOT 0)
         // so jq filters distinguish "no field" from "0 hits this window".
-        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None);
-        let new: WatchGovernorState = (true, 31, 256, 0, 0, Some(0), None);
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None, None);
+        let new: WatchGovernorState = (true, 31, 256, 0, 0, Some(0), None, None);
         let entry = build_governor_log_entry(
             "hub-legacy", "transition", "2026-06-10T09:50:00Z",
             Some(&prev), Some(&new),
@@ -8714,6 +8803,209 @@ mod tests {
         assert!(line.contains("dedupe=n/a→n/a(+n/a)"), "dedupe n/a: {line}");
     }
 
+    // T-2140 (T-2018 §6 #10 — T-2139 follow-up): close the
+    // rate_buckets_evicted_total observability arc end-to-end through
+    // watch render / notify env / log entry / aggregate. Mirror of the
+    // T-2119 cv_overflow tests; same backward-compat rule (Option<i64>
+    // sentinel for pre-T-2139 hubs).
+
+    #[test]
+    fn watch_governor_renders_evicted_delta() {
+        // Hub on a T-2139+ binary: evicted_total ticking up as the
+        // T-2137 GC loop reaps idle rate buckets. Operator pages on the
+        // delta, not the absolute (counter monotonically grows).
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0), Some(100));
+        let new: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0), Some(143));
+        let line =
+            render_governor_watch_change_line("2026-06-10T19:45:00Z", "hub-ev", &prev, &new);
+        assert!(
+            line.contains("evicted=100→143(+43)"),
+            "expected evicted segment with +43, got: {line}"
+        );
+    }
+
+    #[test]
+    fn watch_governor_renders_evicted_na_when_field_absent() {
+        // Pre-T-2139 hub: evicted None on both sides → segment renders
+        // as "n/a", distinguishable from "0→0" (T-2139+ at zero).
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0), None);
+        let new: WatchGovernorState = (true, 32, 256, 1, 0, Some(0), Some(0), None);
+        let line =
+            render_governor_watch_change_line("2026-06-10T19:46:00Z", "hub-pre2139", &prev, &new);
+        assert!(
+            line.contains("evicted=n/a"),
+            "expected evicted=n/a sentinel for pre-T-2139 hub, got: {line}"
+        );
+    }
+
+    #[test]
+    fn build_governor_notify_env_computes_evicted_delta() {
+        let prev: WatchGovernorState = (true, 20, 256, 0, 0, Some(5), Some(0), Some(50));
+        let new: WatchGovernorState = (true, 21, 256, 0, 0, Some(5), Some(0), Some(73));
+        let env = build_governor_notify_env(
+            "hub-ev", "transition", "2026-06-10T19:47:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_OLD_EVICTED"), "50");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_EVICTED"), "73");
+        assert_eq!(lookup("TERMLINK_GOV_EVICTED_DELTA"), "23");
+    }
+
+    #[test]
+    fn build_governor_notify_env_handles_evicted_none_to_some() {
+        // Hub upgraded mid-watch from pre-T-2139 to T-2139+. Operator
+        // shell scripts gate on `[ -z "$VAR" ]` for missing-side, not "0".
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, Some(0), Some(0), None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(0), Some(0), Some(7));
+        let env = build_governor_notify_env(
+            "hub-up", "transition", "2026-06-10T19:48:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_OLD_EVICTED"), "");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_EVICTED"), "7");
+        assert_eq!(
+            lookup("TERMLINK_GOV_EVICTED_DELTA"),
+            "",
+            "delta empty when either side missing — script: `[ -z \"$VAR\" ]`"
+        );
+    }
+
+    #[test]
+    fn build_governor_log_entry_serializes_evicted_fields() {
+        let prev: WatchGovernorState = (true, 10, 256, 0, 0, Some(0), Some(0), Some(20));
+        let new: WatchGovernorState = (true, 11, 256, 0, 0, Some(0), Some(0), Some(35));
+        let entry = build_governor_log_entry(
+            "hub-ev", "transition", "2026-06-10T19:49:00Z",
+            Some(&prev), Some(&new),
+        );
+        assert_eq!(entry["old_evicted"], 20);
+        assert_eq!(entry["new_evicted"], 35);
+        assert_eq!(entry["evicted_delta"], 15);
+    }
+
+    #[test]
+    fn build_governor_log_entry_evicted_null_for_pre_t2139() {
+        use serde_json::Value;
+        // Pre-T-2139 hub: evicted None on both sides → JSON null (NOT 0)
+        // so jq filters distinguish "no field" from "0 evictions" — same
+        // convention as cv_overflow vs pre-T-2110.
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0), None);
+        let new: WatchGovernorState = (true, 31, 256, 0, 0, Some(0), Some(0), None);
+        let entry = build_governor_log_entry(
+            "hub-pre2139", "transition", "2026-06-10T19:50:00Z",
+            Some(&prev), Some(&new),
+        );
+        assert_eq!(entry["old_evicted"], Value::Null);
+        assert_eq!(entry["new_evicted"], Value::Null);
+        assert_eq!(entry["evicted_delta"], Value::Null);
+        // Other fields still work.
+        assert_eq!(entry["cap_hits_delta"], 0);
+    }
+
+    #[test]
+    fn aggregate_governor_entries_sums_evicted_delta() {
+        // Three entries with evicted_delta values 12, 8, 0.
+        // Aggregate should report evicted_total=20. Pre-T-2140 entry
+        // missing the field contributes 0 to the sum.
+        let entries: Vec<serde_json::Value> = vec![
+            serde_json::json!({"hub":"hub-ev","evicted_delta": 12}),
+            serde_json::json!({"hub":"hub-ev","evicted_delta": 8}),
+            serde_json::json!({"hub":"hub-ev","evicted_delta": 0}),
+            // Pre-T-2140: no evicted_delta field
+            serde_json::json!({"hub":"hub-ev","cap_hits_delta": 4}),
+        ];
+        let mut per_hub: std::collections::BTreeMap<String, GovernorHubAgg> =
+            std::collections::BTreeMap::new();
+        for e in &entries {
+            let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            let agg = per_hub.entry(h).or_default();
+            agg.events += 1;
+            agg.cap_hits += e.get("cap_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+            agg.evicted_total += e.get("evicted_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        }
+        let agg = per_hub.get("hub-ev").expect("hub-ev aggregate present");
+        assert_eq!(agg.events, 4);
+        assert_eq!(agg.evicted_total, 20, "12+8+0+0(missing)=20");
+        assert_eq!(agg.cap_hits, 4, "pre-T-2140 entry contributes cap_hits=4");
+    }
+
+    #[test]
+    fn render_governor_history_line_renders_evicted_full_entry() {
+        let entry = serde_json::json!({
+            "ts": "2026-06-10T19:51:00Z",
+            "hub": "hub-ev",
+            "kind": "transition",
+            "old_reach": "ok",
+            "new_reach": "ok",
+            "old_conn_active": 5,
+            "new_conn_active": 5,
+            "old_cap_hits": 0,
+            "new_cap_hits": 0,
+            "cap_hits_delta": 0,
+            "old_rate_hits": 0,
+            "new_rate_hits": 0,
+            "rate_hits_delta": 0,
+            "old_dedupe_hits": 0,
+            "new_dedupe_hits": 0,
+            "dedupe_hits_delta": 0,
+            "old_cv_overflow": 0,
+            "new_cv_overflow": 0,
+            "cv_overflow_delta": 0,
+            "old_evicted": 10,
+            "new_evicted": 27,
+            "evicted_delta": 17,
+        });
+        let line = render_governor_history_line(&entry);
+        assert!(
+            line.contains("evicted=10→27(+17)"),
+            "expected evicted segment with delta, got: {line}"
+        );
+    }
+
+    #[test]
+    fn render_governor_history_line_renders_evicted_na_when_null() {
+        // Pre-T-2140 log entry: evicted sub-tree null → "n/a" segment.
+        let entry = serde_json::json!({
+            "ts": "2026-06-10T19:52:00Z",
+            "hub": "legacy",
+            "kind": "transition",
+            "old_reach": "ok",
+            "new_reach": "ok",
+            "old_conn_active": 1,
+            "new_conn_active": 1,
+            "old_cap_hits": 0,
+            "new_cap_hits": 0,
+            "cap_hits_delta": 0,
+            "old_rate_hits": 0,
+            "new_rate_hits": 0,
+            "rate_hits_delta": 0,
+            "old_dedupe_hits": serde_json::Value::Null,
+            "new_dedupe_hits": serde_json::Value::Null,
+            "dedupe_hits_delta": serde_json::Value::Null,
+            "old_cv_overflow": serde_json::Value::Null,
+            "new_cv_overflow": serde_json::Value::Null,
+            "cv_overflow_delta": serde_json::Value::Null,
+            // T-2140: no evicted_* fields at all (pre-T-2140 log)
+        });
+        let line = render_governor_history_line(&entry);
+        assert!(
+            line.contains("evicted=n/a→n/a(+n/a)"),
+            "expected evicted=n/a sentinel triple for pre-T-2140 entry, got: {line}"
+        );
+    }
+
     // T-2070 (T-2028 §6 #10): governor_hub_is_pressured — pure predicate
     // for `fleet governor-status --only-pressured`. Covers the five cases
     // listed in the AC (the four pressure axes plus the clean baseline).
@@ -8800,8 +9092,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_reachable_transition() {
         // Hub went from reachable to UNREACHABLE — operator must see this loudly.
-        let prev: WatchGovernorState = (true, 100, 256, 0, 0, Some(0), None);
-        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
+        let prev: WatchGovernorState = (true, 100, 256, 0, 0, Some(0), None, None);
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None, None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:01:00Z", "hub-c", &prev, &new);
         assert!(
@@ -8821,8 +9113,8 @@ mod tests {
         );
 
         // Inverse direction: recovery emits "REACHABLE again".
-        let prev2: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
-        let new2: WatchGovernorState = (true, 5, 256, 0, 0, Some(0), None);
+        let prev2: WatchGovernorState = (false, 0, -1, 0, 0, None, None, None);
+        let new2: WatchGovernorState = (true, 5, 256, 0, 0, Some(0), None, None);
         let line2 =
             render_governor_watch_change_line("2026-06-08T22:01:30Z", "hub-c", &prev2, &new2);
         assert!(
