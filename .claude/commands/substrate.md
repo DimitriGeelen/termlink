@@ -240,6 +240,14 @@ Two keystrokes → full operational picture across both domains.
 
 ## Related
 
+- **CLI surface (T-2111..T-2117) — when /substrate isn't enough.** This
+  skill composes four sub-skills inside claude-code. For cron jobs, shell
+  pipelines, MCP-only agents, or non-claude terminals, the CLI verb
+  `termlink substrate status` (+ `--watch`/`--notify`/`--log`) and its
+  retrospective sibling `termlink substrate history` provide the same
+  cross-primitive rollup at the binary tier. MCP parity:
+  `termlink_substrate_status` / `termlink_substrate_history`. Full
+  walkthrough: [`docs/operations/substrate-status.md`](../../docs/operations/substrate-status.md) (T-2127).
 - T-2018 — arc-parallel-substrate ADR; this skill composes the
   read-side of the four most-relevant primitives at the daily-digest
   tier.
