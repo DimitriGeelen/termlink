@@ -411,7 +411,7 @@ done
 wait
 
 # Check the counter.
-termlink hub status --governor --json | jq .result.capacity_hits_total
+termlink hub status --governor --json | jq .governor.capacity_hits_total
 ```
 
 ## Why per-sender, not per-topic or per-RPC

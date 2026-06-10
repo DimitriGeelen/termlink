@@ -86,7 +86,7 @@ termlink channel post smoke:drain --payload "manual drain" \
 ```sh
 # Counter rises by exactly the number of retried-but-already-applied rows.
 termlink hub status --governor --json \
-  | jq '.result | {dedupe_hits_total, dedupe_entries_active}'
+  | jq '.governor | {dedupe_hits_total, dedupe_entries_active}'
 ```
 
 ### After a hub bounce, watch the flush

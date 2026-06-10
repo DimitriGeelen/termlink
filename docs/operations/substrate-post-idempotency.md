@@ -83,8 +83,9 @@ no auth) gains three sibling fields:
 ### Probe recipes
 
 ```sh
-# CLI (Unix-socket, no auth setup) — same envelope shape (T-2060)
-termlink hub status --governor --json
+# CLI (Unix-socket, no auth setup; T-2060) — note: wraps fields under
+# `.governor` (vs the raw RPC's `.result`), so jq selectors differ.
+termlink hub status --governor --json | jq .governor
 
 # MCP parity
 termlink_hub_governor_status
