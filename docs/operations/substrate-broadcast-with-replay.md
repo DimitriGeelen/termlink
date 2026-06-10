@@ -43,6 +43,17 @@ For a 5-agent fleet running 24h with 30s heartbeats: **14,400 → 5**
 termlink channel cv-keys agent-presence
 ```
 
+**Skill wrapper (T-2121, recommended for interactive use):**
+
+```
+/cv-keys agent-presence
+```
+
+The `/cv-keys` skill (`.claude/commands/cv-keys.md`) wraps the CLI
+verb with operator-friendly loud-empty rendering, a producer-wiring
+diagnostic ladder when the cv_index is empty, and a cross-reference
+to the `/governor` cv_overflow investigation chain.
+
 Output (per agent):
 
 ```
@@ -216,9 +227,23 @@ Both are MCP-callable from agent contexts; the latter is the cheap
   instead of a stable id). Surfaced in `termlink hub status --governor`,
   `termlink fleet governor-status` (per-hub + rollup), and the
   `termlink_hub_governor_status` / `termlink_fleet_governor_status` MCP
-  tools. The `--only-pressured` predicate intentionally does NOT yet fire
-  on `cv_index_overflow_total > 0` — that needs an operator-tuned
-  pressure threshold and is deferred.
+  tools. **T-2118 closure:** the `--only-pressured` predicate (both CLI
+  and MCP) now fires on `cv_index_overflow_total > 0`. Overflow is
+  binary — ANY non-zero value is operator-actionable (producer bug, fix
+  the cv_key emission to a stable id), so no operator-tuned threshold
+  is needed. Pre-T-2110 hubs missing the field default to "not pressured"
+  for backward compatibility. **T-2119 closure:** the watch/notify/log/history
+  surfaces all carry `cv_overflow` deltas end-to-end — operators get
+  paged the second a producer starts misbehaving via the
+  `page-on-cv-overflow.sh` recipe in
+  [`substrate-governor.md`](substrate-governor.md). `fleet governor-history`
+  (CLI + MCP) reports cv_overflow per-hub aggregates over a window.
+  **T-2120 / T-2121 closure:** operator-facing docs across
+  `substrate-governor.md` + the `/governor` + `/substrate` skills mention
+  cv_overflow; the `/cv-keys` skill (T-2121) wraps `termlink channel
+  cv-keys` as the diagnostic follow-up — when `/governor` flags
+  overflow, `/cv-keys <suspect-topic>` answers "which keys are on the
+  saturating topic?" without an MCP round-trip.
 
 ## References
 
