@@ -339,6 +339,7 @@ add ±25% jitter; see the T-2050 audit for rationale.
 
 ## Related
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — shows where the offline queue fits in the AEF-layer's end-to-end work-stealing pattern (worker `channel.post` during hub blip → queued → flushed → safe via dedupe on replay).
 - T-2018 ADR §6 #5 — substrate primitive
 - T-1439 — the original offline-queue implementation
 - T-2049 — `client_msg_id` idempotency that makes replays safe

@@ -200,6 +200,7 @@ Both are MCP-callable from agent contexts; the latter is the cheap
 
 ## Related primitives
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — composes cv_index (#9) with the other shipped primitives. Read when you want the end-to-end view of how late-joiner state fits the work-stealing pattern.
 - **#1 CLAIM** (`channel.claim`, T-2019 / T-2042) — exclusive ownership
   of `(topic, offset)`. Independent from cv_index.
 - **#2 DISPATCH** (`agent.find_idle`, T-2020 / T-2045) — derived idle

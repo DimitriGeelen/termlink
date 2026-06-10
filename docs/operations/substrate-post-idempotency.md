@@ -169,6 +169,7 @@ itself an outage event. Not in T-2049's scope.
 
 ## Related
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — explains how dedupe sits in the end-to-end work-stealing flow (every write-side verb passes `--client-msg-id`; replays during hub blips are safe).
 - T-2023 inception report — the framing this resolves
 - T-2018 ADR §6 #5 — the substrate primitive
 - T-2048 — the governor LRU that this sits alongside (shares the

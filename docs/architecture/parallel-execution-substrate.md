@@ -317,7 +317,10 @@ that contract without ongoing back-and-forth as long as it holds: claim/exclusiv
 delivery (1), idle/busy registry (2), pull/assign verb (3), reconnect/outbound queue (5),
 symmetric auth (6), persistent presence (7), typed git surface (8). The point of the
 contract is to *minimize* coordination: once the interface is agreed, both sides run in
-parallel against it.
+parallel against it. The consumer-facing walkthrough — *how* an AEF integration composes
+the shipped primitives into the canonical work-stealing pattern — is
+[`docs/operations/substrate-orchestrator-recipe.md`](../operations/substrate-orchestrator-recipe.md)
+(T-2124).
 
 **Soft dependencies — co-discovered, consulted, not pre-contracted.** These cannot be
 contracted because nobody yet knows the answer, so forcing a contract would be wrong:

@@ -689,6 +689,7 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 
 ## References
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — end-to-end walkthrough composing this primitive with find-idle (#2), claim-transfer (#3), the outbound queue (#5), cv_index (#9), and governor (#10) into the canonical work-stealing pattern. Read when you want the AEF-layer "how do I actually use the substrate" answer rather than this primitive's lifecycle details.
 - **ADR:** `docs/architecture/parallel-execution-substrate.md` §4.2 (lease-with-renewal + lazy expiry) + §6 manifest first primitive.
 - **Inception:** T-2019 (GO decision).
 - **Slice 1 (T-2029):** claims table + `channel.claim` / `channel.release` RPCs.

@@ -152,6 +152,7 @@ Per the T-2020 inception (§5.4 "What's NOT in this primitive"):
 
 ## Related primitives + tasks
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — composes `find_idle` with claim, claim-transfer, renew, release into the canonical work-stealing orchestrator + worker patterns. Read when you want the end-to-end "how do I dispatch work to these idle agents" answer.
 - T-2019 — `channel.claim` / `renew` / `release` (the exclusive-delivery
   ledger that `find_idle` anti-joins against).
 - T-2046 — `channel.transfer_claim` (next foundation primitive; lets an

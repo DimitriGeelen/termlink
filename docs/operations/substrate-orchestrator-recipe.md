@@ -1,0 +1,476 @@
+# Substrate Orchestrator Recipe — AEF Integration Walkthrough
+
+> **For:** Developers building the AEF (Agentic Engineering Framework) layer
+> on top of the TermLink substrate. You want to coordinate N parallel
+> workers on a shared host without machine-state conflicts, and you need to
+> know *exactly* which substrate verbs make that work and how they compose.
+>
+> **Pairs with:** [`docs/architecture/parallel-execution-substrate.md`](../architecture/parallel-execution-substrate.md)
+> (T-2018 ADR — the *why*) and the per-primitive operations docs below
+> (the *what*). This doc is the *how*: the end-to-end pattern that
+> combines every substrate primitive into a working orchestrator.
+
+## Scope
+
+TermLink ships eleven substrate primitives. This doc walks through the
+*canonical work-stealing pattern* using the seven shipped ones, in the
+exact order an AEF integration developer will reach for them:
+
+| # | Primitive | Verb | Per-primitive doc |
+|---|---|---|---|
+| 2 | DISPATCH | `agent.find_idle` | [agent-find-idle.md](agent-find-idle.md) |
+| 1 | CLAIM | `channel.claim` / `.renew` / `.release` | [substrate-claim-primitive.md](substrate-claim-primitive.md) |
+| 3 | ASSIGN | `channel.claim_transfer` | [substrate-claim-primitive.md § "Hand a unit to a specific worker"](substrate-claim-primitive.md) |
+| 5 | RESILIENCE | offline queue + `channel.post` dedupe | [substrate-offline-queue-recipe.md](substrate-offline-queue-recipe.md), [substrate-post-idempotency.md](substrate-post-idempotency.md) |
+| 9 | BROADCAST-WITH-REPLAY | `metadata.cv_key` + `channel.cv_keys` | [substrate-broadcast-with-replay.md](substrate-broadcast-with-replay.md) |
+| 10 | BACKPRESSURE | `hub.governor_status` | [substrate-governor.md](substrate-governor.md) |
+| 11 | OBSERVABILITY | `substrate.status` / `.history` | (this doc + the ADR) |
+
+Out of scope (deferred per ADR §6): #4 filesystem-write observation
+(T-2022 DEFER), #6 symmetric auth (T-2024 DEFER), #7 hub-persistent
+presence (T-2025 NO-GO — derived from durable heartbeats), #8 typed
+agent-launch (T-2026/T-2090 DEFER).
+
+## Mental model
+
+```
+              ┌─────────────────────────────────────────┐
+              │            Orchestrator (1)             │
+              │  - discovers idle workers (find-idle)   │
+              │  - reserves work (claim)                │
+              │  - hands off atomically (claim-transfer)│
+              │  - watches health (governor / queue)    │
+              └────────────┬────────────────────────────┘
+                           │ (substrate RPCs over TCP/HMAC)
+              ┌────────────┴────────────────────────────┐
+              │              TermLink hub               │
+              │  - exclusive-delivery claims table      │
+              │  - durable channel log + cv_index       │
+              │  - per-process connection cap           │
+              │  - per-sender rate limit + dedupe       │
+              └────────────┬────────────────────────────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+   ┌────▼────┐        ┌────▼────┐        ┌────▼────┐
+   │worker-1 │        │worker-2 │        │worker-N │
+   │heartbeat│        │heartbeat│        │heartbeat│
+   │renew on │        │renew on │        │renew on │
+   │long work│        │long work│        │long work│
+   │release  │        │release  │        │release  │
+   └─────────┘        └─────────┘        └─────────┘
+```
+
+Three actors, one shared substrate. The orchestrator and workers
+never speak directly to each other — every interaction is mediated by
+the hub. This is the [strict star](../architecture/parallel-execution-substrate.md)
+invariant; honour it and the failure modes stay bounded.
+
+**Three durable surfaces on the hub** carry every substrate signal:
+
+1. **`agent-presence` topic** — workers heartbeat into this topic every
+   ~30s with `metadata.cv_key=$agent_id` (substrate primitive #9 tagging).
+   `find_idle` derives "LIVE workers minus those holding any claim".
+2. **Work topic (operator-named, e.g. `work-queue`)** — posts represent
+   "units of work to do". Claims are reserved on (topic, offset) pairs.
+3. **Hub governor counters** — non-persisted: connection cap, rate-limit,
+   dedupe, cv_index telemetry. Surfaced via `hub.governor_status`.
+
+## The contract — which RPCs the AEF layer depends on
+
+These are the substrate-side commitments. If your AEF integration uses
+only these verbs, you stay inside the contract and the boundary is
+clean (per ADR §9: *"contract the hard dependencies up front, then
+build quiet"*).
+
+### Read surface (Observe scope — no auth side-effects)
+
+| RPC | What it answers | CLI | MCP |
+|---|---|---|---|
+| `agent.find_idle` | Which workers are LIVE and not holding any claim? | `termlink agent find-idle` | `termlink_agent_find_idle` |
+| `channel.claims` | What's currently claimed on this topic? | `termlink channel claims` | `termlink_channel_claims` |
+| `channel.claims_summary` | How busy / how stuck is this topic, in one O(1) call? | `termlink channel claims-summary` | `termlink_channel_claims_summary` |
+| `channel.cv_keys` | Who's currently advertising on this topic (one entry per cv_key)? | `termlink channel cv-keys` | `termlink_channel_cv_keys` |
+| `channel.queue_status` | Is my local outbound queue draining? | `termlink channel queue-status` | `termlink_channel_queue_status` |
+| `hub.governor_status` | Is the hub at-capacity / rate-limiting / dedupe-absorbing? | `termlink fleet governor-status` | `termlink_fleet_governor_status` |
+| `substrate.status` | All four substrate-read primitives in one envelope | `termlink substrate status` | `termlink_substrate_status` |
+| `substrate.history` | Retrospective audit-trail walk | `termlink substrate history` | `termlink_substrate_history` |
+
+### Write surface (Modify / Send scope — auth side-effects)
+
+| RPC | What it does | CLI | MCP |
+|---|---|---|---|
+| `channel.post` | Post a unit of work (or a worker heartbeat) | `termlink channel post` | `termlink_channel_post` |
+| `channel.claim` | Reserve (topic, offset) exclusively for the claimer | `termlink channel claim` | `termlink_channel_claim` |
+| `channel.renew` | Extend a held claim's lease | `termlink channel renew` | `termlink_channel_renew` |
+| `channel.release` | Release a claim — ack=true advances cursor, ack=false reopens | `termlink channel release` | `termlink_channel_release` |
+| `channel.claim_transfer` | Atomic ownership transfer of an existing claim | `termlink channel claim-transfer` | `termlink_channel_claim_transfer` |
+
+All write-side verbs are subject to the `(sender_id, client_msg_id)`
+short-TTL LRU dedupe (substrate primitive #5 / T-2049) so a retried
+post or claim during a hub blip does not double-apply.
+
+### Daily slash skills (operator UX layer)
+
+Mirror of the read surface above for interactive operator use. These
+are user-facing skills wrapping the underlying CLI verbs:
+
+`/find-idle`, `/claims`, `/queue-status`, `/governor`, `/cv-keys`,
+`/substrate` (digest of all four read-side primitives), `/claim`,
+`/release`, `/claim-transfer`, `/renew`. See the relevant per-primitive
+doc for each.
+
+## Canonical orchestrator pattern
+
+The orchestrator's job is: *for each unit of work on the queue, hand
+it to exactly one idle worker, atomically, with no race window*.
+
+Five-step canonical loop, in shell form (the AEF integration will
+typically use the MCP variants of the same verbs):
+
+```bash
+#!/usr/bin/env bash
+# Canonical work-stealing orchestrator
+set -euo pipefail
+
+TOPIC="work-queue"
+ORCHESTRATOR_ID="$(jq -r .agent_id ~/.termlink/be-reachable.state)"
+
+while :; do
+  # Step 1 — find an idle worker with the right capability
+  worker="$(termlink agent find-idle --capability deploy --json | jq -r '.idle[0].agent_id // empty')"
+  if [ -z "$worker" ]; then
+    sleep 5; continue                     # nobody free, back off
+  fi
+
+  # Step 2 — pick the next unclaimed offset on the work topic
+  next_offset="$(termlink channel claims-summary "$TOPIC" --json | jq -r '.next_free_offset')"
+  if [ "$next_offset" = "null" ]; then
+    sleep 5; continue                     # no work waiting, back off
+  fi
+
+  # Step 3 — orchestrator claims the offset first
+  claim_id="$(termlink channel claim "$TOPIC" "$next_offset" \
+    --claimer "$ORCHESTRATOR_ID" --ttl-ms 60000 --json \
+    | jq -r '.claim_id')"
+  [ -n "$claim_id" ] || continue          # raced — try next iteration
+
+  # Step 4 — atomically transfer ownership to the worker
+  #          (no release-then-reclaim race window — T-2046)
+  termlink channel claim-transfer \
+    --claim-id "$claim_id" \
+    --to-owner "$worker" \
+    --by "$ORCHESTRATOR_ID" \
+    --reason "orchestrator dispatch" >/dev/null
+
+  # Step 5 — notify the worker via a doorbell DM so it picks up
+  termlink agent contact "$worker" \
+    --payload "claim=$claim_id topic=$TOPIC offset=$next_offset"
+done
+```
+
+Why this pattern is correct:
+
+- **Step 1 + 2 are read-only.** A race between two orchestrators
+  reading the same `find_idle` + `next_offset` is benign — Step 3's
+  claim attempt is the serialization point.
+- **Step 3 fails loudly on race.** If another orchestrator claimed
+  this offset first, `channel.claim` returns `CLAIM_CONFLICT` (-32015)
+  and you re-loop. No silent double-assignment.
+- **Step 4 is atomic by hub guarantee.** `claim_transfer` moves
+  ownership inside the hub with zero gap — there is no moment where
+  the slot is "free" between orchestrator and worker. This is the
+  T-2046 contract; eliminates the race window that release-then-reclaim
+  would expose.
+- **Step 5 is fire-and-forget.** If the doorbell fails, the worker
+  still discovers the claim via its `agent.dms` poll. The hub's
+  durable claims table is the source of truth, not the doorbell.
+
+## Canonical worker pattern
+
+The worker's job is: *honour assigned work atomically; release with
+ack on completion, ack=false on retryable failure, let `Drop` handle
+crashes*.
+
+```bash
+#!/usr/bin/env bash
+# Canonical work-stealing worker
+set -euo pipefail
+
+WORKER_ID="$(jq -r .agent_id ~/.termlink/be-reachable.state)"
+RENEW_INTERVAL_S=20                       # claim TTL is 30s by default
+
+# Step 1 — heartbeat into agent-presence so find_idle can see us
+bash scripts/be-reachable.sh start --capabilities deploy &
+
+while :; do
+  # Step 2 — listen for assigned-claim DMs from the orchestrator
+  dm_payload="$(termlink agent dms --watch --limit 1 \
+    | jq -r '.payload // empty')"
+  [ -n "$dm_payload" ] || continue
+
+  # Step 3 — extract claim_id, topic, offset
+  claim_id="$(echo "$dm_payload" | grep -oP 'claim=\K\S+')"
+  topic="$(echo "$dm_payload" | grep -oP 'topic=\K\S+')"
+  offset="$(echo "$dm_payload" | grep -oP 'offset=\K\S+')"
+
+  # Step 4 — verify we own the claim (defensive — orchestrator already transferred)
+  current_owner="$(termlink channel claims "$topic" --json \
+    | jq -r ".claims[] | select(.claim_id==\"$claim_id\") | .claimed_by")"
+  if [ "$current_owner" != "$WORKER_ID" ]; then
+    continue                              # transfer failed or stale DM
+  fi
+
+  # Step 5 — do the work; renew lease in background while busy
+  (
+    while :; do
+      sleep "$RENEW_INTERVAL_S"
+      termlink channel renew --claim-id "$claim_id" \
+        --claimer "$WORKER_ID" --by-ms 30000 >/dev/null 2>&1 || break
+    done
+  ) &
+  RENEW_PID=$!
+
+  if do_unit_of_work "$topic" "$offset"; then
+    # Step 6a — happy path: release with ack=true (cursor advances)
+    kill "$RENEW_PID" 2>/dev/null || true
+    termlink channel release --claim-id "$claim_id" \
+      --claimer "$WORKER_ID" --ack
+  else
+    # Step 6b — retryable failure: release ack=false (slot reopens)
+    kill "$RENEW_PID" 2>/dev/null || true
+    termlink channel release --claim-id "$claim_id" \
+      --claimer "$WORKER_ID"               # no --ack: ack=false (default for /release --retry)
+  fi
+done
+```
+
+Why this pattern is correct:
+
+- **Step 1 advertises liveness.** Without `be-reachable.sh`, the worker
+  is invisible to `find_idle`. The `--capabilities` tag is what lets
+  the orchestrator pick the right worker for the unit.
+- **Step 4 is defence-in-depth.** Orchestrator transfer succeeded
+  before sending the DM (Step 5 of orchestrator), so this check is
+  expected to pass. It catches the rare case where the DM arrived but
+  the transfer rolled back, or the DM is from a previous lapsed claim.
+- **Step 5 (background renewal) is mandatory for long work.** Default
+  claim TTL is 30s. Without renewal, a worker doing 5min of work loses
+  the slot at 30s and another worker reopens it. The renew loop
+  refreshes at 20s (`RENEW_INTERVAL_S`), well before lapse.
+- **Step 6a vs 6b is the cursor pivot.** `--ack` advances the persisted
+  cursor past this offset — the unit is done. Omitting `--ack` (or
+  passing `--retry` to the `/release` skill) reopens the slot to the
+  next worker.
+- **Crash handling is implicit.** If the worker process dies between
+  Step 5 and Step 6, the renew loop dies with it. The hub will
+  lazy-evict the lapsed claim on the next claim attempt and the slot
+  reopens. No explicit "tombstone" required.
+
+## Failure modes and recovery
+
+| Symptom | Diagnosis | Recovery |
+|---|---|---|
+| `CLAIM_CONFLICT` (-32015) on Step 3 of orchestrator | Another orchestrator claimed first | Re-loop; try next offset |
+| `CLAIM_NOT_OWNED` (-32017) on `claim_transfer` | `by` argument doesn't match current holder | Re-read `channel.claims`; orchestrator's claim may have lapsed before transfer fired |
+| `CLAIM_NOT_FOUND` (-32016) on `renew` | Claim already released or lapsed | Worker must re-acquire; renewal cadence too slow |
+| `CLAIM_LAPSED` on `renew` | Lease expired before renewal — substrate-correctness footgun | Re-claim under new claim_id. Tune renewal cadence < 50% of TTL |
+| `RATE_LIMITED` (-32008) | Worker is posting too fast | Back off; check `/governor` for `rate_hits_total` growth |
+| `HUB_AT_CAPACITY` (-32019) | Hub's connection pool exhausted | Back off; check `/governor` for `capacity_hits_total` growth |
+| Worker's `channel.post` queued instead of delivered | Hub blip; outbound queue is buffering (#5 RESILIENCE) | Wait — the flush task drains every 5s once hub returns. Check `/queue-status` |
+| `cv_overflow > 0` on `governor.status` | A producer is mis-emitting `cv_key` (e.g. timestamp instead of stable id) saturating per-topic cap | Run `/cv-keys <suspect-topic>` to identify; fix the producer |
+| `find_idle` returns empty but operator sees LIVE workers | All workers hold at least one active claim | Wait, or expand worker pool |
+| Worker DM never arrives after `claim_transfer` succeeds | Doorbell delivery is best-effort; persistent `dm:*` topic carries the canonical message | Worker's `agent.dms` poll catches it on next iteration |
+| Orchestrator restarts mid-flight | Outstanding orchestrator-held claims lapse after TTL; in-flight transfers to workers persist | Restart cleanly; no orchestrator-side state to restore (claims are hub-side) |
+| Hub restart | Claims table durable (SQLite); cv_index in-memory only (re-populates within one heartbeat cycle); outbound queues durable | All clients reconnect; lease times survive; cv_index converges within ~30s |
+
+## Observability hooks
+
+The substrate ships seven read-only diagnostic verbs operators can use
+to monitor a running orchestrator + workers system. The `/substrate`
+digest skill composes the four most-relevant ones into a single
+cold-start snapshot.
+
+| Question | Verb | Surface |
+|---|---|---|
+| "Who's free to take work?" | `/find-idle` | Skill / CLI / MCP |
+| "What's claimed right now?" | `/claims --all` | Skill / CLI / MCP |
+| "Is anything stuck?" | `/claims --all --only-stuck` | Skill / CLI / MCP |
+| "Is my queue draining?" | `/queue-status` | Skill / CLI / MCP |
+| "Any hub backpressure?" | `/governor --only-pressured` | Skill / CLI / MCP |
+| "Which cv_keys advertise on this topic?" | `/cv-keys <topic>` | Skill / CLI / MCP |
+| "All four read surfaces at once" | `/substrate` | Skill / CLI / MCP |
+
+Continuous monitoring uses the CLI-tier `--watch` + `--notify` + `--log`
+forms (deliberately not surfaced as skills — long-running loops sit
+awkwardly inside slash commands). Forensic retrospective uses the
+`*-history` verbs reading the NDJSON audit logs.
+
+End-to-end real-time-alerting recipe (operator wires once, leaves
+running):
+
+```bash
+# Continuous monitor with paging + audit trail on every substrate event
+termlink substrate status --watch 30 \
+  --notify /usr/local/bin/page-on-substrate-event.sh \
+  --log ~/.termlink/substrate.log
+```
+
+The notify script receives one event per per-section transition
+(dispatch zero-to-nonzero, queue drained-to-pending, governor counter
+increments, etc.) and decides per-event whether to page. Event schema:
+see [`substrate-governor.md` § "page-on-cv-overflow.sh recipe"](substrate-governor.md)
+for the template; substrate-status follows the same shape.
+
+## Cross-hub limits — G-060
+
+**TermLink hubs maintain independent substrate state.** Claims on
+hub A and claims on hub B are unrelated rows. cv_index, governor
+counters, claims tables, dedupe LRUs — all per-hub.
+
+This means:
+
+- **One orchestrator per hub.** Two orchestrators on different hubs
+  cannot coordinate via the substrate alone. They will both happily
+  hand the same logical work unit to different workers on their
+  respective hubs.
+- **Workers belong to one hub.** A worker holding a claim on hub A
+  cannot satisfy a claim attempt for the same offset on hub B.
+- **find_idle is per-hub.** `/find-idle` returns only the local hub's
+  idle workers by ADR §6 #2 design (hub-derived state, no federation).
+
+For fleet-wide work distribution, the AEF layer must implement
+its own cross-hub federation (sharding by work-key hash → hub, leader
+election per hub, etc.). The substrate provides the building blocks
+within one hub; the cross-hub policy is the AEF layer's responsibility.
+
+See [`channel-topic-semantics.md`](channel-topic-semantics.md) for the
+full G-060 discussion and why this is the right architectural cut.
+
+## AEF integration checklist
+
+When wiring an AEF integration against this substrate:
+
+- [ ] **Pick a work topic name** and document it in the AEF spec.
+      Conventionally `aef:work-<purpose>` so it's namespaced (e.g.
+      `aef:work-deploy`, `aef:work-test`).
+- [ ] **Workers self-advertise** by running `be-reachable.sh start
+      --capabilities <comma-csv>` at startup. The capability tags are
+      what the orchestrator filters on in `find_idle`.
+- [ ] **Orchestrator runs as exactly one process per hub.** Use a
+      coarse external lock (cron-anchored, systemd unit, leader-election
+      via `claim` on a sentinel topic) to prevent multi-orchestrator
+      racing.
+- [ ] **Choose claim TTL deliberately.** Default 30s is good for
+      sub-minute work. For 10min units, set TTL=120s and renew at 60s.
+      Don't push TTL to the hub max (1h) — long TTLs mask crashed workers.
+- [ ] **Always wire `--ack` on `release` for completed work.** Forgetting
+      the flag silently treats every release as retry, and the orchestrator
+      will re-dispatch already-completed units to the next worker.
+- [ ] **Run `/substrate` as a cold-start health check** at the top of
+      every AEF orchestrator session. Confirms substrate is healthy
+      before any work is dispatched.
+- [ ] **Monitor `governor.cv_overflow_total`.** Non-zero means a
+      producer (probably an AEF worker) is mis-emitting `cv_key`.
+      Wire `page-on-cv-overflow.sh` to catch it the moment a misconfig
+      ships.
+- [ ] **Persist orchestrator identity** in `~/.termlink/be-reachable.state`
+      so `--by` arguments resolve consistently across restarts. Without
+      this, every restart appears as a different identity and existing
+      orchestrator-held claims become unreleasable.
+- [ ] **Honour the substrate dedupe contract.** Pass `--client-msg-id`
+      on `channel.post` for any post that might be retried (T-2049).
+      The CLI mints a random 128-bit id by default; this is correct.
+- [ ] **Audit logs live in `~/.termlink/`.** rotation.log, heal.log,
+      governor.log, claims.log, queue.log, find-idle.log, substrate.log
+      are append-only NDJSON. Operators rotate them with logrotate;
+      AEF integrations should not touch them (they're operator-facing).
+
+## Worked example
+
+A minimal "two workers process a 5-unit queue" walkthrough on a
+single hub.
+
+```bash
+# Setup — start the hub and post 5 units of work
+termlink hub start &
+sleep 2
+for i in 0 1 2 3 4; do
+  termlink channel post work-queue --payload "unit-$i"
+done
+
+# Start two workers in different terminals
+# Terminal A:
+bash scripts/be-reachable.sh start --agent-id worker-alpha --capabilities deploy
+# (then run the worker loop above with WORKER_ID=worker-alpha)
+
+# Terminal B:
+bash scripts/be-reachable.sh start --agent-id worker-beta --capabilities deploy
+# (then run the worker loop above with WORKER_ID=worker-beta)
+
+# Start the orchestrator in a third terminal:
+bash scripts/be-reachable.sh start --agent-id orchestrator-0 --capabilities orchestrate
+# (then run the orchestrator loop above with ORCHESTRATOR_ID=orchestrator-0)
+
+# Watch substrate progress from a fourth terminal:
+termlink substrate status --watch 5 --log ~/.termlink/substrate.log
+```
+
+Expected behaviour:
+
+1. `find_idle` returns `[worker-alpha, worker-beta]` initially.
+2. Orchestrator claims offset 0, transfers to (say) worker-alpha.
+3. `find_idle` immediately drops worker-alpha (it now holds a claim).
+4. Orchestrator claims offset 1, transfers to worker-beta.
+5. Both workers process in parallel; `claims-summary` shows
+   `active=2, expired=0`.
+6. As workers `release --ack`, the orchestrator picks up offsets 2-4
+   and assigns to whichever worker frees up first.
+7. After unit-4 releases, `claims-summary` shows `active=0`,
+   `find_idle` shows both workers idle again.
+8. `substrate.history --since 1` shows the full transition timeline.
+
+## Related primitives — per-primitive docs
+
+The recipe above stitches together every shipped substrate primitive.
+For full details on each:
+
+- **#1 CLAIM** — [`substrate-claim-primitive.md`](substrate-claim-primitive.md)
+  + lifecycle, cap-overflow, cooperative vs Tier-0 release
+- **#2 DISPATCH** — [`agent-find-idle.md`](agent-find-idle.md)
+  + role/capability filters, presence wiring
+- **#3 ASSIGN** — [`substrate-claim-primitive.md` § Claim-transfer](substrate-claim-primitive.md)
+  + atomicity guarantee, distinction from force-release
+- **#5 RESILIENCE** — [`substrate-offline-queue-recipe.md`](substrate-offline-queue-recipe.md)
+  + the durable FIFO for blip absorption
+- **#5 idempotency** — [`substrate-post-idempotency.md`](substrate-post-idempotency.md)
+  + the exactly-once contract via dedupe LRU
+- **#9 BROADCAST-WITH-REPLAY** — [`substrate-broadcast-with-replay.md`](substrate-broadcast-with-replay.md)
+  + cv_index, late-joiner snapshots, producer wiring
+- **#10 BACKPRESSURE** — [`substrate-governor.md`](substrate-governor.md)
+  + connection cap + rate limit + dedupe + cv_overflow observability
+- **G-060 cross-hub** — [`channel-topic-semantics.md`](channel-topic-semantics.md)
+  + why hubs don't federate state; how to compose
+
+## Related ADR sections
+
+- [§6 Required primitives (the build manifest)](../architecture/parallel-execution-substrate.md)
+  — the primitives this recipe assumes are built
+- [§9 Collaboration seam](../architecture/parallel-execution-substrate.md)
+  — the contract between substrate and AEF layer; this recipe is the
+  consumer-facing half
+- [§10 Invariants](../architecture/parallel-execution-substrate.md)
+  — what must not be violated (strict star, append-log durability,
+  producer ≠ judge at the seam)
+
+## References
+
+- T-2018 — arc-parallel-substrate ADR (`docs/architecture/parallel-execution-substrate.md`)
+- T-2019/T-2042/T-2046 — claim primitive build chain
+- T-2020/T-2045 — find-idle primitive build chain
+- T-2051 — outbound queue (substrate primitive #5 RESILIENCE)
+- T-2049 — post idempotency / dedupe
+- T-2103..T-2107 — broadcast-with-replay (substrate primitive #9) build
+- T-2048..T-2119 — backpressure (substrate primitive #10) build chain
+- T-2111..T-2117 — substrate status (substrate primitive #11) build chain
+- T-2124 — this doc (master integration recipe)

@@ -474,6 +474,7 @@ T-1991 was the original "found in production not predicted" — `hub.governor_st
 
 ## Related
 
+- **Master integration recipe (T-2124):** [`substrate-orchestrator-recipe.md`](substrate-orchestrator-recipe.md) — shows where governor counters fit in the end-to-end work-stealing pattern, plus the failure-mode table mapping `cap_hits / rate_hits / cv_overflow` to operator action.
 - T-2018 ADR §6 #10 — the framing this resolves
 - T-2028 inception — PARTIAL-GO recommendation that fanned this out
 - T-1991 — agent-presence bloat in production (precedent for "found
