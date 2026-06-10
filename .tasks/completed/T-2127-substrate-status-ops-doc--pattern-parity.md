@@ -4,10 +4,10 @@ name: "substrate-status ops doc — pattern parity with other primitives (T-2018
 description: >
   substrate-status ops doc — pattern parity with other primitives (T-2018 §6 #11 doc closure)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive-11, docs]
 components: [docs/operations]
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T15:35:24Z
-last_update: 2026-06-10T15:35:24Z
-date_finished: null
+last_update: 2026-06-10T15:38:30Z
+date_finished: 2026-06-10T15:38:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -206,3 +206,6 @@ grep -q "substrate-status.md" docs/operations/substrate-orchestrator-recipe.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2127-substrate-status-ops-doc--pattern-parity.md
 - **Context:** Initial task creation
+
+### 2026-06-10T15:38:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
