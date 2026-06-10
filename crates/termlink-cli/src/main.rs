@@ -722,8 +722,12 @@ async fn main() -> Result<()> {
             ),
         },
         Command::Substrate { action } => match action {
-            SubstrateAction::Status { json, only_pressured, timeout } => {
-                commands::substrate::cmd_substrate_status(json, only_pressured, timeout).await
+            SubstrateAction::Status { json, only_pressured, timeout, watch } => {
+                if let Some(secs) = watch {
+                    commands::substrate::cmd_substrate_status_watch(secs, timeout).await
+                } else {
+                    commands::substrate::cmd_substrate_status(json, only_pressured, timeout).await
+                }
             }
         },
         Command::Net { action } => match action {

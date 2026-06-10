@@ -6514,8 +6514,9 @@ pub(crate) enum SubstrateAction {
         /// Emit a merged JSON envelope `{ok, ts, dispatch, claim, resilience,
         /// backpressure}` with each sub-section a passthrough of its
         /// underlying verb's `--json` shape. Failed sub-sections carry
-        /// `ok:false` with an `error` field.
-        #[arg(long)]
+        /// `ok:false` with an `error` field. Incompatible with `--watch`
+        /// (streaming text only).
+        #[arg(long, conflicts_with = "watch")]
         json: bool,
 
         /// Filter CLAIM section to topics with potentially stuck claims and
@@ -6525,7 +6526,10 @@ pub(crate) enum SubstrateAction {
         ///
         /// Mirror of the underlying sub-verb flags
         /// (`claims-summary --only-stuck`, `governor-status --only-pressured`).
-        #[arg(long = "only-pressured")]
+        /// Incompatible with `--watch` (the filter would silently drop
+        /// "moved out of pressure" transitions — same reasoning as T-2070
+        /// for governor watch).
+        #[arg(long = "only-pressured", conflicts_with = "watch")]
         only_pressured: bool,
 
         /// RPC timeout in seconds (default: 8). Applied per-hub for
@@ -6533,6 +6537,28 @@ pub(crate) enum SubstrateAction {
         /// RESILIENCE is a local SQLite read so the timeout doesn't apply.
         #[arg(long, default_value = "8")]
         timeout: u64,
+
+        /// T-2112 (T-2111 arc Slice 2 — T-2018 §6 observability roll-up):
+        /// re-poll the substrate every N seconds (5..=3600 clamped) and
+        /// emit per-cycle rollup change events. Cycle 1 prints a baseline;
+        /// subsequent cycles print only changed rollup fields plus a
+        /// silent-cycle marker. SIGINT exits cleanly.
+        ///
+        /// Substrate rollup tracked per tick:
+        ///   - DISPATCH      — idle agent count
+        ///   - CLAIM         — topic count + stuck count
+        ///   - RESILIENCE    — pending queue depth
+        ///   - BACKPRESSURE  — total hubs + pressured hubs
+        ///
+        /// This is the substrate-health ROLLUP monitor. For per-entity diffs
+        /// (which specific agent went busy, which topic is stuck) use the
+        /// underlying verb's own `--watch`: `agent find-idle --watch`,
+        /// `channel claims-summary --all --watch`, `channel queue-status
+        /// --watch`, `fleet governor-status --watch`.
+        ///
+        /// Pattern parity with `fleet governor-status --watch` (T-2064).
+        #[arg(long, value_name = "SECONDS")]
+        watch: Option<u64>,
     },
 }
 

@@ -606,6 +606,374 @@ pub(crate) fn render_substrate_text(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// T-2112 (T-2111 arc Slice 2): --watch continuous monitor
+// ────────────────────────────────────────────────────────────────────────────
+
+/// T-2112: per-tick high-level rollup of substrate health. Designed to be
+/// CHEAP TO DIFF — operators wanting per-entity drilldown use the underlying
+/// verb's own `--watch` loop. This struct tracks "are the counts changing?"
+/// not "which specific entity changed".
+///
+/// Per-section `_ok` flags surface transitions to/from sub-read failure as
+/// distinct events rather than masking them by reading 0 out of an error
+/// envelope (which would otherwise look identical to a healthy zero state).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub(crate) struct SubstrateRollup {
+    pub dispatch_idle_count: u64,
+    pub dispatch_ok: bool,
+    pub claim_topic_count: u64,
+    pub claim_stuck_count: u64,
+    pub claim_ok: bool,
+    pub resilience_pending: u64,
+    pub resilience_ok: bool,
+    pub backpressure_total_hubs: u64,
+    pub backpressure_pressured_hubs: u64,
+    pub backpressure_ok: bool,
+}
+
+/// T-2112: pure helper — parse the `substrate status --json` envelope into a
+/// SubstrateRollup. Tolerates missing fields (defaults to 0 / false) so a
+/// schema drift between binary versions doesn't crash the watch loop.
+pub(crate) fn parse_substrate_rollup(json: &Value) -> SubstrateRollup {
+    let dispatch_ok = json
+        .get("dispatch")
+        .and_then(|s| s.get("ok"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let dispatch_idle_count = json
+        .get("dispatch")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("idle"))
+        .and_then(|x| x.as_array())
+        .map(|a| a.len() as u64)
+        .unwrap_or(0);
+
+    let claim_ok = json
+        .get("claim")
+        .and_then(|s| s.get("ok"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let claim_topic_count = json
+        .get("claim")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("topic_count"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let claim_stuck_count = json
+        .get("claim")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("stuck_count"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+
+    let resilience_ok = json
+        .get("resilience")
+        .and_then(|s| s.get("ok"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let resilience_pending = json
+        .get("resilience")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("pending"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+
+    let backpressure_ok = json
+        .get("backpressure")
+        .and_then(|s| s.get("ok"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let backpressure_total_hubs = json
+        .get("backpressure")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("total"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    // Pressured-hub count = total - reachable + (rate_limited OR at_capacity).
+    // Use the same predicate as `fleet governor-status --only-pressured`
+    // (T-2070): unreachable OR at_capacity OR rate_hits_total > 0.
+    let backpressure_pressured_hubs = json
+        .get("backpressure")
+        .and_then(|s| s.get("data"))
+        .and_then(|d| d.get("hubs"))
+        .and_then(|x| x.as_array())
+        .map(|hubs| {
+            hubs.iter()
+                .filter(|h| {
+                    if !h.get("ok").and_then(|x| x.as_bool()).unwrap_or(false) {
+                        // Unreachable.
+                        return true;
+                    }
+                    let gov = h.get("governor");
+                    let active = gov
+                        .and_then(|g| g.get("connections_active"))
+                        .and_then(|x| x.as_i64())
+                        .unwrap_or(0);
+                    let max = gov
+                        .and_then(|g| g.get("connections_max"))
+                        .and_then(|x| x.as_i64())
+                        .unwrap_or(i64::MAX);
+                    let cap_hits = gov
+                        .and_then(|g| g.get("capacity_hits_total"))
+                        .and_then(|x| x.as_i64())
+                        .unwrap_or(0);
+                    let rate_hits = gov
+                        .and_then(|g| g.get("rate_hits_total"))
+                        .and_then(|x| x.as_i64())
+                        .unwrap_or(0);
+                    active >= max || cap_hits > 0 || rate_hits > 0
+                })
+                .count() as u64
+        })
+        .unwrap_or(0);
+
+    SubstrateRollup {
+        dispatch_idle_count,
+        dispatch_ok,
+        claim_topic_count,
+        claim_stuck_count,
+        claim_ok,
+        resilience_pending,
+        resilience_ok,
+        backpressure_total_hubs,
+        backpressure_pressured_hubs,
+        backpressure_ok,
+    }
+}
+
+/// T-2112: one event per field that changed between two rollups. Returned
+/// as `(field_label, old_str, new_str)` tuples — the renderer formats them
+/// as `<ts>  <label>: <old>→<new>`. Pure helper, easy to test.
+pub(crate) fn diff_substrate_rollup(
+    prev: &SubstrateRollup,
+    curr: &SubstrateRollup,
+) -> Vec<(String, String, String)> {
+    let mut events = Vec::new();
+    if prev.dispatch_ok != curr.dispatch_ok {
+        events.push((
+            "dispatch_ok".into(),
+            prev.dispatch_ok.to_string(),
+            curr.dispatch_ok.to_string(),
+        ));
+    }
+    if prev.dispatch_idle_count != curr.dispatch_idle_count {
+        events.push((
+            "dispatch_idle_count".into(),
+            prev.dispatch_idle_count.to_string(),
+            curr.dispatch_idle_count.to_string(),
+        ));
+    }
+    if prev.claim_ok != curr.claim_ok {
+        events.push((
+            "claim_ok".into(),
+            prev.claim_ok.to_string(),
+            curr.claim_ok.to_string(),
+        ));
+    }
+    if prev.claim_topic_count != curr.claim_topic_count {
+        events.push((
+            "claim_topic_count".into(),
+            prev.claim_topic_count.to_string(),
+            curr.claim_topic_count.to_string(),
+        ));
+    }
+    if prev.claim_stuck_count != curr.claim_stuck_count {
+        events.push((
+            "claim_stuck_count".into(),
+            prev.claim_stuck_count.to_string(),
+            curr.claim_stuck_count.to_string(),
+        ));
+    }
+    if prev.resilience_ok != curr.resilience_ok {
+        events.push((
+            "resilience_ok".into(),
+            prev.resilience_ok.to_string(),
+            curr.resilience_ok.to_string(),
+        ));
+    }
+    if prev.resilience_pending != curr.resilience_pending {
+        events.push((
+            "resilience_pending".into(),
+            prev.resilience_pending.to_string(),
+            curr.resilience_pending.to_string(),
+        ));
+    }
+    if prev.backpressure_ok != curr.backpressure_ok {
+        events.push((
+            "backpressure_ok".into(),
+            prev.backpressure_ok.to_string(),
+            curr.backpressure_ok.to_string(),
+        ));
+    }
+    if prev.backpressure_total_hubs != curr.backpressure_total_hubs {
+        events.push((
+            "backpressure_total_hubs".into(),
+            prev.backpressure_total_hubs.to_string(),
+            curr.backpressure_total_hubs.to_string(),
+        ));
+    }
+    if prev.backpressure_pressured_hubs != curr.backpressure_pressured_hubs {
+        events.push((
+            "backpressure_pressured_hubs".into(),
+            prev.backpressure_pressured_hubs.to_string(),
+            curr.backpressure_pressured_hubs.to_string(),
+        ));
+    }
+    events
+}
+
+/// T-2112: pure renderer for the cycle-1 baseline line set. Returns the
+/// full multi-line block (one line per rollup field) so it stays testable.
+pub(crate) fn render_substrate_baseline(ts: &str, rollup: &SubstrateRollup) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "{} baseline: substrate rollup\n",
+        ts
+    ));
+    out.push_str(&format!(
+        "{}   dispatch:     ok={} idle_count={}\n",
+        ts, rollup.dispatch_ok, rollup.dispatch_idle_count
+    ));
+    out.push_str(&format!(
+        "{}   claim:        ok={} topic_count={} stuck_count={}\n",
+        ts, rollup.claim_ok, rollup.claim_topic_count, rollup.claim_stuck_count
+    ));
+    out.push_str(&format!(
+        "{}   resilience:   ok={} pending={}\n",
+        ts, rollup.resilience_ok, rollup.resilience_pending
+    ));
+    out.push_str(&format!(
+        "{}   backpressure: ok={} total={} pressured={}\n",
+        ts,
+        rollup.backpressure_ok,
+        rollup.backpressure_total_hubs,
+        rollup.backpressure_pressured_hubs
+    ));
+    out
+}
+
+/// T-2112: `termlink substrate status --watch <secs>` handler. Subprocesses
+/// `termlink substrate status --json` per cycle, parses the envelope, diffs
+/// against the prior cycle's rollup, emits one change-line per field or a
+/// single `(no changes)` marker. SIGINT exits cleanly.
+///
+/// Mirror of `cmd_fleet_governor_status_watch` (T-2064) — same subprocess
+/// pattern + same SIGINT handling. The rollup model is simpler (no per-hub
+/// state tuples) because substrate-status is the cross-primitive summary
+/// view.
+pub(crate) async fn cmd_substrate_status_watch(secs: u64, timeout_secs: u64) -> Result<()> {
+    if !(5..=3600).contains(&secs) {
+        anyhow::bail!(
+            "--watch: interval must be 5..=3600 seconds (got {})",
+            secs
+        );
+    }
+    let exe = std::env::current_exe()
+        .map_err(|e| anyhow::anyhow!("--watch: cannot determine self path for subprocess re-spawn: {e}"))?;
+    let args: Vec<String> = vec![
+        "substrate".into(),
+        "status".into(),
+        "--json".into(),
+        "--timeout".into(),
+        timeout_secs.to_string(),
+    ];
+
+    let mut prior: Option<SubstrateRollup> = None;
+    let mut cycle: u32 = 0;
+
+    eprintln!(
+        "{} substrate-watch: polling every {}s; ctrl-c to stop",
+        now_rfc3339(),
+        secs,
+    );
+
+    loop {
+        let one_cycle = tokio::process::Command::new(&exe).args(&args).output();
+        let output = tokio::select! {
+            r = one_cycle => match r {
+                Ok(o) => o,
+                Err(e) => {
+                    eprintln!(
+                        "{} substrate-watch: subprocess spawn failed: {e}",
+                        now_rfc3339()
+                    );
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(secs)) => continue,
+                        _ = tokio::signal::ctrl_c() => {
+                            println!(
+                                "{} substrate-watch stopped (sigint, completed {} cycle(s))",
+                                now_rfc3339(), cycle
+                            );
+                            return Ok(());
+                        }
+                    }
+                }
+            },
+            _ = tokio::signal::ctrl_c() => {
+                println!(
+                    "{} substrate-watch stopped (sigint, completed {} cycle(s))",
+                    now_rfc3339(), cycle
+                );
+                return Ok(());
+            }
+        };
+
+        let ts = now_rfc3339();
+        let json_doc: Value = match serde_json::from_slice(&output.stdout) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!(
+                    "{} substrate-watch: failed to parse subprocess JSON ({}): exit={:?}",
+                    ts, e, output.status.code()
+                );
+                tokio::select! {
+                    _ = tokio::time::sleep(Duration::from_secs(secs)) => continue,
+                    _ = tokio::signal::ctrl_c() => {
+                        println!(
+                            "{} substrate-watch stopped (sigint, completed {} cycle(s))",
+                            now_rfc3339(), cycle
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+        };
+
+        let current = parse_substrate_rollup(&json_doc);
+        cycle += 1;
+
+        match &prior {
+            None => {
+                // Cycle 1: print full rollup baseline.
+                print!("{}", render_substrate_baseline(&ts, &current));
+            }
+            Some(prev) => {
+                let events = diff_substrate_rollup(prev, &current);
+                if events.is_empty() {
+                    println!("{}  (no changes)", ts);
+                } else {
+                    for (label, old, new) in &events {
+                        println!("{}  {}: {}→{}", ts, label, old, new);
+                    }
+                }
+            }
+        }
+        prior = Some(current);
+
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(secs)) => {},
+            _ = tokio::signal::ctrl_c() => {
+                println!(
+                    "{} substrate-watch stopped (sigint, completed {} cycle(s))",
+                    now_rfc3339(), cycle
+                );
+                return Ok(());
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -824,6 +1192,172 @@ mod tests {
         let claim_ok = section_json(&ok_claim_clean());
         assert_eq!(claim_ok.get("ok").and_then(|x| x.as_bool()), Some(true));
         assert!(claim_ok.get("data").is_some());
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // T-2112: --watch parse + diff helpers
+    // ────────────────────────────────────────────────────────────────
+
+    fn full_envelope() -> Value {
+        json!({
+            "ok": true,
+            "ts": "2026-06-10T08:00:00Z",
+            "only_pressured": false,
+            "dispatch":     section_json(&ok_dispatch_with_idle()),
+            "claim":        section_json(&ok_claim_with_stuck()),
+            "resilience":   section_json(&ok_resilience_pending()),
+            "backpressure": section_json(&ok_backpressure_healthy()),
+        })
+    }
+
+    #[test]
+    fn parse_substrate_rollup_extracts_each_field() {
+        // T-2112 AC: parser extracts each rollup field from a synthetic
+        // envelope.
+        let env = full_envelope();
+        let rollup = parse_substrate_rollup(&env);
+        assert_eq!(rollup.dispatch_idle_count, 1, "1 idle agent from ok_dispatch_with_idle");
+        assert!(rollup.dispatch_ok);
+        assert_eq!(rollup.claim_topic_count, 2);
+        assert_eq!(rollup.claim_stuck_count, 1);
+        assert!(rollup.claim_ok);
+        assert_eq!(rollup.resilience_pending, 7);
+        assert!(rollup.resilience_ok);
+        assert_eq!(rollup.backpressure_total_hubs, 2);
+        // Pressured: 0 (both healthy fixture hubs: conn_active=1/0, no cap/rate hits)
+        assert_eq!(rollup.backpressure_pressured_hubs, 0);
+        assert!(rollup.backpressure_ok);
+    }
+
+    #[test]
+    fn parse_substrate_rollup_tolerates_missing_fields() {
+        // T-2112: schema-drift defense — missing fields default to 0/false,
+        // not panic, so the watch loop survives binary-version skew.
+        let empty = json!({});
+        let rollup = parse_substrate_rollup(&empty);
+        assert_eq!(rollup, SubstrateRollup::default());
+    }
+
+    #[test]
+    fn parse_substrate_rollup_counts_pressured_hubs_via_predicate() {
+        // T-2112: pressured-hub count uses the T-2070 predicate
+        // (unreachable OR at-capacity OR cap_hits>0 OR rate_hits>0).
+        let env = json!({
+            "backpressure": {"ok": true, "data": {
+                "total": 4, "reachable": 3,
+                "hubs": [
+                    // Healthy.
+                    {"hub": "h1", "ok": true, "governor": {
+                        "connections_active": 1, "connections_max": 256,
+                        "capacity_hits_total": 0, "rate_hits_total": 0}},
+                    // Unreachable.
+                    {"hub": "h2", "ok": false, "error": "timeout"},
+                    // Rate-limited.
+                    {"hub": "h3", "ok": true, "governor": {
+                        "connections_active": 1, "connections_max": 256,
+                        "capacity_hits_total": 0, "rate_hits_total": 7}},
+                    // At capacity.
+                    {"hub": "h4", "ok": true, "governor": {
+                        "connections_active": 256, "connections_max": 256,
+                        "capacity_hits_total": 0, "rate_hits_total": 0}},
+                ]
+            }}
+        });
+        let rollup = parse_substrate_rollup(&env);
+        assert_eq!(rollup.backpressure_total_hubs, 4);
+        assert_eq!(rollup.backpressure_pressured_hubs, 3, "h2 (unreachable) + h3 (rate-limited) + h4 (at capacity)");
+    }
+
+    #[test]
+    fn diff_substrate_rollup_identical_returns_empty() {
+        // T-2112 AC: diff returns no events on identical inputs.
+        let r = SubstrateRollup {
+            dispatch_idle_count: 2,
+            dispatch_ok: true,
+            claim_topic_count: 5,
+            claim_stuck_count: 0,
+            claim_ok: true,
+            resilience_pending: 0,
+            resilience_ok: true,
+            backpressure_total_hubs: 3,
+            backpressure_pressured_hubs: 0,
+            backpressure_ok: true,
+        };
+        assert!(diff_substrate_rollup(&r, &r).is_empty());
+    }
+
+    #[test]
+    fn diff_substrate_rollup_surfaces_each_field_change() {
+        // T-2112 AC: each field change produces one distinct event.
+        let prev = SubstrateRollup::default();
+        let curr = SubstrateRollup {
+            dispatch_idle_count: 3,
+            dispatch_ok: true,
+            claim_topic_count: 10,
+            claim_stuck_count: 2,
+            claim_ok: true,
+            resilience_pending: 5,
+            resilience_ok: true,
+            backpressure_total_hubs: 1,
+            backpressure_pressured_hubs: 1,
+            backpressure_ok: true,
+        };
+        let events = diff_substrate_rollup(&prev, &curr);
+        // 10 fields → 10 events (all changed from default to populated).
+        assert_eq!(events.len(), 10, "expected 10 distinct change events, got: {events:?}");
+        // Spot-check a couple of canonical shapes.
+        let labels: Vec<&str> = events.iter().map(|(l, _, _)| l.as_str()).collect();
+        assert!(labels.contains(&"dispatch_idle_count"));
+        assert!(labels.contains(&"claim_stuck_count"));
+        assert!(labels.contains(&"resilience_pending"));
+        assert!(labels.contains(&"backpressure_pressured_hubs"));
+    }
+
+    #[test]
+    fn diff_substrate_rollup_partial_change_isolates_event() {
+        // T-2112: a single-field change produces exactly one event (so the
+        // watch loop emits one line per cycle when only one thing moved).
+        let prev = SubstrateRollup {
+            dispatch_idle_count: 2,
+            dispatch_ok: true,
+            ..SubstrateRollup::default()
+        };
+        let curr = SubstrateRollup {
+            dispatch_idle_count: 3,
+            ..prev.clone()
+        };
+        let events = diff_substrate_rollup(&prev, &curr);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].0, "dispatch_idle_count");
+        assert_eq!(events[0].1, "2");
+        assert_eq!(events[0].2, "3");
+    }
+
+    #[test]
+    fn render_substrate_baseline_includes_all_sections() {
+        // T-2112: baseline prints one labeled line per substrate section so
+        // the operator sees the starting position for the watch loop.
+        let r = SubstrateRollup {
+            dispatch_idle_count: 1,
+            dispatch_ok: true,
+            claim_topic_count: 5,
+            claim_stuck_count: 0,
+            claim_ok: true,
+            resilience_pending: 0,
+            resilience_ok: true,
+            backpressure_total_hubs: 2,
+            backpressure_pressured_hubs: 0,
+            backpressure_ok: true,
+        };
+        let out = render_substrate_baseline("2026-06-10T08:00:00Z", &r);
+        assert!(out.contains("dispatch:"));
+        assert!(out.contains("claim:"));
+        assert!(out.contains("resilience:"));
+        assert!(out.contains("backpressure:"));
+        assert!(out.contains("idle_count=1"));
+        assert!(out.contains("topic_count=5"));
+        assert!(out.contains("pending=0"));
+        assert!(out.contains("pressured=0"));
     }
 
     #[test]
