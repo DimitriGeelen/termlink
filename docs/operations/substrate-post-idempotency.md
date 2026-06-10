@@ -83,8 +83,8 @@ no auth) gains three sibling fields:
 ### Probe recipes
 
 ```sh
-# CLI (Unix-socket, no auth setup)
-termlink remote call local hub.governor_status
+# CLI (Unix-socket, no auth setup) — same envelope shape (T-2060)
+termlink hub status --governor --json
 
 # MCP parity
 termlink_hub_governor_status

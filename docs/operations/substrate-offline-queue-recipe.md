@@ -85,7 +85,7 @@ termlink channel post smoke:drain --payload "manual drain" \
 
 ```sh
 # Counter rises by exactly the number of retried-but-already-applied rows.
-termlink remote call local hub.governor_status \
+termlink hub status --governor --json \
   | jq '.result | {dedupe_hits_total, dedupe_entries_active}'
 ```
 

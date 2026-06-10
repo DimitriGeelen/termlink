@@ -69,7 +69,7 @@ kill -HUP $(cat $TERMLINK_RUNTIME_DIR/hub.pid)
 Subscribers can pull from `routing:lint` via the channel surface, e.g.:
 
 ```sh
-termlink event subscribe --topic routing:lint --timeout-ms 5000
+termlink event watch --topic routing:lint --timeout 5 --hub
 ```
 
 Payload shape:

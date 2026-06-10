@@ -172,8 +172,8 @@ The hub.governor_status envelope is reachable through four parallel
 routes — pick the one that fits the caller:
 
 ```sh
-# 1. Raw RPC (local socket; no auth setup)
-termlink remote call local hub.governor_status
+# 1. Local hub status with governor counters inline (T-2060; same envelope)
+termlink hub status --governor --json
 
 # 2. Single-hub CLI inline with lifecycle (T-2060, Track C)
 termlink hub status --governor
@@ -406,12 +406,12 @@ TERMLINK_RATE_LIMIT_PER_SEC=10 \
 # Hammer with 20 concurrent listeners — 16 should get
 # HUB_AT_CAPACITY (-32019).
 for i in $(seq 1 20); do
-  termlink listen &
+  termlink agent listen &
 done
 wait
 
 # Check the counter.
-termlink remote call local hub.governor_status | jq .result.capacity_hits_total
+termlink hub status --governor --json | jq .result.capacity_hits_total
 ```
 
 ## Why per-sender, not per-topic or per-RPC

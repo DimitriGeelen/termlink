@@ -95,7 +95,7 @@ Confirm the session is registered and accepts a doorbell:
 termlink list | grep agent-listener
 
 # 2. A test inject lands (the listener should run /check-arc and find nothing):
-termlink inject agent-listener "/check-arc" --enter
+termlink pty inject agent-listener "/check-arc" --enter
 ```
 
 If `termlink list` shows the session `ready` and the inject returns without
@@ -105,13 +105,14 @@ error, the listener is wakeable. A real ring from a peer is just
 ## Teardown
 
 ```bash
-# Graceful: tell the claude session to exit, then deregister.
-termlink inject agent-listener "/exit" --enter
-termlink deregister agent-listener
+# Graceful: tell the claude session to exit; registration clears when it dies.
+termlink pty inject agent-listener "/exit" --enter
+# Reap the now-stale registration entry (or wait for natural expiry).
+termlink clean
 ```
 
 If the PTY is wedged, `termlink list` to find the PID and stop it, then
-`termlink deregister agent-listener` to clear the registration.
+`termlink clean` to reap the stale registration entry.
 
 ## Related
 

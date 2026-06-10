@@ -66,8 +66,10 @@ fi
 echo "trimming records with offset < $BEFORE (keeping ~$KEEP most recent)"
 
 # Run it via the hub's RPC. Affects ALL subscribers.
-termlink remote call local channel.trim \
-  --params "{\"topic\": \"$TOPIC\", \"before_offset\": $BEFORE}"
+# (No operator CLI verb for channel.trim — use the local socket directly.)
+SOCK=$(termlink hub status --json | jq -r .socket)
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"channel.trim","params":{"topic":"'"$TOPIC"'","before_offset":'"$BEFORE"'}}' \
+  | socat - "UNIX-CONNECT:$SOCK"
 ```
 
 Topic remains on `Forever`, so it will re-grow. Re-run periodically OR
@@ -110,8 +112,11 @@ sqlite3 "$DB" \
 CURRENT=$(termlink channel list --json \
   | jq -r ".topics[] | select(.name==\"$TOPIC\") | .count")
 BEFORE=$((CURRENT - KEEP))
-[ "$BEFORE" -lt 1 ] || termlink remote call local channel.trim \
-  --params "{\"topic\": \"$TOPIC\", \"before_offset\": $BEFORE}"
+if [ "$BEFORE" -ge 1 ]; then
+  SOCK=$(termlink hub status --json | jq -r .socket)
+  printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"channel.trim","params":{"topic":"'"$TOPIC"'","before_offset":'"$BEFORE"'}}' \
+    | socat - "UNIX-CONNECT:$SOCK"
+fi
 ```
 
 From this point, the topic auto-respects `Messages(N)`. Future heartbeats

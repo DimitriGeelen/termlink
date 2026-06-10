@@ -45,8 +45,8 @@ termlink channel post <topic> "<message>" --hub <addr>
 # MCP form — agent-callable equivalent
 termlink_channel_post topic=<topic> body="<message>" hub=<addr>
 
-# Remote-RPC form — useful when targeting a hub via a peer session
-termlink remote call <peer> channel.post --topic <topic> --body "<message>"
+# Hub-target form — same as the CLI form above with an explicit --hub
+termlink channel post <topic> "<message>" --hub <peer>
 ```
 
 To make a topic visible on N hubs, you must post N times explicitly. If two
