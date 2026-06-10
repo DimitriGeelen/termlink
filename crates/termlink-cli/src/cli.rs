@@ -6606,6 +6606,46 @@ pub(crate) enum SubstrateAction {
         #[arg(long, value_name = "PATH", requires = "watch")]
         log: Option<std::path::PathBuf>,
     },
+
+    /// T-2115 (T-2111 arc Slice 5 — T-2018 §6 observability roll-up):
+    /// retrospective read of the substrate rollup-change audit log
+    /// written by `substrate status --watch --log <PATH>` (T-2114).
+    /// Answers "when did substrate health flip?" without keeping the
+    /// watch terminal still attached.
+    ///
+    /// Pattern parity with:
+    ///   - `fleet governor-history`     (T-2068, reads governor.log)
+    ///   - `agent find-idle-history`    (T-2081, reads find-idle.log)
+    ///   - `channel claims-history`     (T-2074, reads claims.log)
+    ///   - `channel queue-history`      (T-2086, reads queue.log)
+    ///
+    /// Read-only: no auth, no network, no log mutation.
+    History {
+        /// How far back to walk. Default 7 days. Clamped 1..=365.
+        #[arg(long = "since", value_name = "DAYS", default_value = "7")]
+        since_days: u32,
+
+        /// Filter entries by exact `field` column match (e.g.
+        /// `claim_topic_count`, `backpressure_pressured_hubs`). When
+        /// omitted, all fields are returned.
+        #[arg(long = "field", value_name = "NAME")]
+        field: Option<String>,
+
+        /// Override the audit log path. Default is
+        /// `~/.termlink/substrate.log` (the path T-2114 wrote to). When
+        /// the file is absent, prints a hint pointing back at the
+        /// writer (JSON mode returns an empty entries envelope with
+        /// `note: log file does not exist yet`).
+        #[arg(long = "log", value_name = "PATH")]
+        log: Option<std::path::PathBuf>,
+
+        /// Emit a `{ok, entries, summary{...}}` envelope instead of
+        /// human-format rows. Summary carries `total`, `per_field`
+        /// (counts grouped by `field`), `since_days`, `field_filter`,
+        /// `malformed_lines_skipped`, and `log_path`.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[cfg(test)]

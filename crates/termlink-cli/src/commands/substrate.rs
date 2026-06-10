@@ -38,6 +38,7 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 use termlink_protocol::control::method;
@@ -1113,6 +1114,274 @@ pub(crate) async fn cmd_substrate_status_watch(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// T-2115 (Slice 5): substrate history — retrospective read of the
+// audit log written by T-2114's `--watch --log <PATH>`.
+//
+// Mirror of T-2086 `channel queue-history` / T-2081 `agent find-idle-history`
+// / T-2068 `fleet governor-history` / T-2074 `channel claims-history` —
+// same shape: walk the NDJSON log, filter by `--since` cutoff + `--field`
+// exact-match, render one human line per entry + per-field aggregate
+// footer; `--json` returns the same shape as an envelope.
+//
+// Read-only: no auth, no network, no log mutation.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// T-2115: default audit log path for substrate-status. Sibling of
+/// T-2114's writer default. `~/.termlink/substrate.log` lives next to
+/// `rotation.log` / `heal.log` / `governor.log` / `find-idle.log` /
+/// `claims.log` / `queue.log` so an operator has one well-known dir for
+/// all observability NDJSON.
+pub(crate) fn default_substrate_log_path() -> PathBuf {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"));
+    home.join(".termlink").join("substrate.log")
+}
+
+/// T-2115: stdlib-only RFC3339→epoch parser. Duplicated per T-2069
+/// convention (pure helpers duplicated per crate). Returns 0 on any
+/// parse error (caller treats 0 as "very old" → falls below cutoff).
+fn rfc3339_to_unix_secs_substrate(ts: &str) -> i64 {
+    if ts.len() < 20 || !ts.ends_with('Z') {
+        return 0;
+    }
+    let bytes = ts.as_bytes();
+    let parse_u = |start: usize, len: usize| -> Option<u32> {
+        std::str::from_utf8(&bytes[start..start + len])
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        parse_u(0, 4),
+        parse_u(5, 2),
+        parse_u(8, 2),
+        parse_u(11, 2),
+        parse_u(14, 2),
+        parse_u(17, 2),
+    ) else {
+        return 0;
+    };
+    let y = y as i64;
+    let mo = mo as i64;
+    let d = d as i64;
+    let y_shift = if mo <= 2 { y - 1 } else { y };
+    let era = if y_shift >= 0 {
+        y_shift / 400
+    } else {
+        (y_shift - 399) / 400
+    };
+    let yoe = y_shift - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+}
+
+/// T-2115: pure helper — parse the NDJSON log into `(entries,
+/// malformed_count)`. Skips:
+///   - empty lines (not malformed)
+///   - non-JSON / missing `ts` / missing `field` (counted as malformed)
+///   - entries older than `cutoff_secs` (not malformed; just outside
+///     the requested window)
+///   - entries whose `field` ≠ `field_filter` when set (not malformed)
+///
+/// Mirror of T-2086 `parse_queue_log`.
+pub(crate) fn parse_substrate_log(
+    text: &str,
+    cutoff_secs: i64,
+    field_filter: Option<&str>,
+) -> (Vec<Value>, usize) {
+    let mut entries = Vec::new();
+    let mut malformed = 0usize;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let field = match v.get("field").and_then(|f| f.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if let Some(want) = field_filter {
+            if field != want {
+                continue;
+            }
+        }
+        let entry_secs = rfc3339_to_unix_secs_substrate(ts_str);
+        if entry_secs < cutoff_secs {
+            continue;
+        }
+        entries.push(v);
+    }
+    (entries, malformed)
+}
+
+/// T-2115: pure helper — aggregate parsed entries into per-field
+/// event counts. BTreeMap so the JSON envelope keys render in stable
+/// alphabetical order (deterministic for golden-output tests).
+///
+/// Mirror of T-2086 `aggregate_queue_entries` (single-axis per-kind
+/// counter) but using a multi-key map because substrate has 10
+/// rollup fields (vs queue's 2 kinds).
+pub(crate) fn aggregate_substrate_entries(entries: &[Value]) -> BTreeMap<String, u64> {
+    let mut out: BTreeMap<String, u64> = BTreeMap::new();
+    for e in entries {
+        if let Some(f) = e.get("field").and_then(|v| v.as_str()) {
+            *out.entry(f.to_string()).or_insert(0) += 1;
+        }
+    }
+    out
+}
+
+/// T-2115: render one parsed entry as a single human-readable line.
+/// Format chosen so the eye can scan a 50-line dump and pick out the
+/// `field` column at a glance.
+///
+/// Mirror of T-2086 `render_queue_history_line` shape: `<ts>  <field>
+/// <old>→<new>`. Missing fields fall back to `-`.
+pub(crate) fn render_substrate_history_line(e: &Value) -> String {
+    let ts = e.get("ts").and_then(|v| v.as_str()).unwrap_or("-");
+    let field = e.get("field").and_then(|v| v.as_str()).unwrap_or("-");
+    let old = e.get("old").and_then(|v| v.as_str()).unwrap_or("-");
+    let new = e.get("new").and_then(|v| v.as_str()).unwrap_or("-");
+    format!("{}  {}  {}→{}", ts, field, old, new)
+}
+
+/// T-2115: `termlink substrate history` handler. Read-only: walks the
+/// log file, applies filters, renders. Never auths or talks to a hub.
+/// Missing log file → operator hint pointing back at the writer
+/// (`substrate status --watch --log`).
+///
+/// Mirror of T-2086 `cmd_channel_queue_history`.
+pub(crate) fn cmd_substrate_history(
+    since_days: u32,
+    field_filter: Option<&str>,
+    log_override: Option<&std::path::Path>,
+    json_out: bool,
+) -> Result<()> {
+    let since_days = since_days.clamp(1, 365);
+    let path: PathBuf = log_override
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(default_substrate_log_path);
+    let path_str = path.display().to_string();
+
+    let text = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if json_out {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": true,
+                        "entries": [],
+                        "summary": {
+                            "total": 0,
+                            "per_field": {},
+                            "since_days": since_days,
+                            "field_filter": field_filter,
+                            "malformed_lines_skipped": 0,
+                            "log_path": path_str,
+                            "note": "log file does not exist yet",
+                        }
+                    })
+                );
+                return Ok(());
+            }
+            println!(
+                "(no log file at {} — write events first with `substrate status --watch --log {}`)",
+                path_str, path_str
+            );
+            return Ok(());
+        }
+        Err(e) => anyhow::bail!("substrate-history: read {:?} failed: {e}", path),
+    };
+
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let cutoff_secs = now_secs - (since_days as i64) * 86_400;
+    let (entries, malformed) = parse_substrate_log(&text, cutoff_secs, field_filter);
+    let agg = aggregate_substrate_entries(&entries);
+
+    if json_out {
+        let per_field: serde_json::Map<String, Value> = agg
+            .iter()
+            .map(|(k, v)| (k.clone(), json!({"count": v})))
+            .collect();
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "entries": entries,
+                "summary": {
+                    "total": entries.len(),
+                    "per_field": per_field,
+                    "since_days": since_days,
+                    "field_filter": field_filter,
+                    "malformed_lines_skipped": malformed,
+                    "log_path": path_str,
+                }
+            })
+        );
+        return Ok(());
+    }
+
+    if entries.is_empty() {
+        let field_clause = field_filter
+            .map(|t| format!(" field={:?}", t))
+            .unwrap_or_default();
+        println!(
+            "(no entries in last {} day(s){} — log: {})",
+            since_days, field_clause, path_str
+        );
+        if malformed > 0 {
+            println!("({} malformed line(s) skipped)", malformed);
+        }
+        return Ok(());
+    }
+
+    for e in &entries {
+        println!("{}", render_substrate_history_line(e));
+    }
+    println!();
+    println!(
+        "Aggregate (since {} day(s), {} entries{}):",
+        since_days,
+        entries.len(),
+        if malformed > 0 {
+            format!(", {} malformed lines skipped", malformed)
+        } else {
+            String::new()
+        }
+    );
+    for (field, count) in &agg {
+        println!("  {}  {}", field, count);
+    }
+    println!("(log: {})", path_str);
+    Ok(())
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1614,6 +1883,83 @@ mod tests {
 
         // Cleanup.
         let _ = std::fs::remove_dir_all(format!("/tmp/T-2114/sub-{pid}"));
+    }
+
+    #[test]
+    fn parse_substrate_log_skips_malformed_and_filters() {
+        // T-2115: parse_substrate_log should skip malformed lines
+        // (counting them), filter by field exact-match, and respect ts
+        // cutoff. Mirror of T-2086 `parse_queue_log_skips_malformed`.
+        // Use ts = 2026-06-10T08:13:36Z (epoch = 1781079216) as our anchor
+        // — cutoff=0 lets all entries pass.
+        let text = "\
+{\"ts\":\"2026-06-10T08:00:00Z\",\"field\":\"claim_topic_count\",\"old\":\"1\",\"new\":\"2\"}
+not json at all
+{\"ts\":\"2026-06-10T08:01:00Z\",\"field\":\"dispatch_idle_count\",\"old\":\"0\",\"new\":\"1\"}
+{\"field\":\"missing_ts\",\"old\":\"x\",\"new\":\"y\"}
+{\"ts\":\"2026-06-10T08:02:00Z\",\"old\":\"x\",\"new\":\"y\"}
+
+{\"ts\":\"2026-06-10T08:03:00Z\",\"field\":\"claim_topic_count\",\"old\":\"2\",\"new\":\"3\"}
+";
+        // No filter, cutoff=0 → 3 valid entries, 3 malformed (non-json,
+        // missing ts, missing field). The empty line does not count.
+        let (entries, malformed) = parse_substrate_log(text, 0, None);
+        assert_eq!(entries.len(), 3, "all 3 well-formed entries returned");
+        assert_eq!(malformed, 3, "3 malformed lines counted (non-json + missing-ts + missing-field)");
+
+        // Field filter: only claim_topic_count → 2 entries
+        let (entries, _) = parse_substrate_log(text, 0, Some("claim_topic_count"));
+        assert_eq!(entries.len(), 2, "filter by field=claim_topic_count returns 2");
+        for e in &entries {
+            assert_eq!(e.get("field").and_then(|v| v.as_str()), Some("claim_topic_count"));
+        }
+
+        // Cutoff far in the future → 0 entries (all below cutoff)
+        let future_cutoff = 9_999_999_999i64;
+        let (entries, _) = parse_substrate_log(text, future_cutoff, None);
+        assert_eq!(entries.len(), 0, "all entries fall below future cutoff");
+    }
+
+    #[test]
+    fn aggregate_substrate_entries_groups_by_field() {
+        // T-2115: aggregate_substrate_entries rolls events up into
+        // per-field counts. BTreeMap insertion order is alphabetical
+        // (stable for golden assertions).
+        let entries = vec![
+            json!({"ts":"2026-06-10T08:00:00Z","field":"claim_topic_count","old":"1","new":"2"}),
+            json!({"ts":"2026-06-10T08:01:00Z","field":"dispatch_idle_count","old":"0","new":"1"}),
+            json!({"ts":"2026-06-10T08:02:00Z","field":"claim_topic_count","old":"2","new":"3"}),
+            // Entry missing `field` is skipped silently (parse layer
+            // would have rejected it as malformed; this is a defensive
+            // belt-and-suspenders).
+            json!({"ts":"2026-06-10T08:03:00Z","old":"x","new":"y"}),
+        ];
+        let agg = aggregate_substrate_entries(&entries);
+        assert_eq!(agg.len(), 2, "two distinct fields counted");
+        assert_eq!(agg.get("claim_topic_count").copied(), Some(2));
+        assert_eq!(agg.get("dispatch_idle_count").copied(), Some(1));
+    }
+
+    #[test]
+    fn render_substrate_history_line_shape() {
+        // T-2115: render one human-format row.
+        let e = json!({
+            "ts": "2026-06-10T08:13:36Z",
+            "field": "claim_topic_count",
+            "old": "1338",
+            "new": "1339"
+        });
+        let line = render_substrate_history_line(&e);
+        // Stable golden shape: <ts>  <field>  <old>→<new>
+        assert_eq!(
+            line,
+            "2026-06-10T08:13:36Z  claim_topic_count  1338→1339",
+            "history line shape locked"
+        );
+        // Missing fields render as `-` (defensive for partial entries).
+        let degraded = json!({"ts": "2026-06-10T08:13:36Z"});
+        let line = render_substrate_history_line(&degraded);
+        assert_eq!(line, "2026-06-10T08:13:36Z  -  -→-");
     }
 
     #[test]

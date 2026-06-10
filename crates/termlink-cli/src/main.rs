@@ -729,6 +729,14 @@ async fn main() -> Result<()> {
                     commands::substrate::cmd_substrate_status(json, only_pressured, timeout).await
                 }
             }
+            SubstrateAction::History { since_days, field, log, json } => {
+                commands::substrate::cmd_substrate_history(
+                    since_days,
+                    field.as_deref(),
+                    log.as_deref(),
+                    json,
+                )
+            }
         },
         Command::Net { action } => match action {
             NetAction::Test { profile, json, timeout } => {
