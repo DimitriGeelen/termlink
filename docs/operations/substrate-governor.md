@@ -107,7 +107,8 @@ Field semantics:
   failure mode" signal — operators alert on it.
 - `rate_buckets_active`: number of distinct senders currently tracked
   in the rate map. Bounded by sender diversity; idle buckets evict via
-  `RateGovernor::evict_idle` (wire-up reserved for a follow-up).
+  `RateGovernor::evict_idle` (T-2137 wired this into hub startup —
+  see "Reading rate_buckets_active" below).
 - `rate_hits_total`: monotonic counter; every time
   `RateGovernor::try_acquire` refused, this increments. Pair with
   `capacity_hits_total` for "is the substrate under stress?".
@@ -165,6 +166,70 @@ hubs omit them — CLI/MCP renderers fall back to `n/a`):
 
 See `docs/operations/substrate-broadcast-with-replay.md` for the
 producer/consumer wiring; this surface is the read-side health signal.
+
+### Reading rate_buckets_active (T-2138)
+
+The natural question after seeing a `rate_buckets_active` value is
+"is this number normal?". Answer:
+
+- **Post-T-2137 (eviction wired):** bounded by `sender rate × eviction
+  interval`. For a steady-state fleet with K distinct senders heartbeating
+  every 30 s and the default 60 s eviction interval / 5 min idle
+  threshold, expect roughly `K` buckets (one per active sender) plus a
+  trailing tail of senders idle <5 min. A 5-agent fleet should sit at
+  5–10. A 30-agent fleet should sit at 30–50.
+
+- **Anomalously high.** Either:
+  - **Burst event in the last eviction interval.** Many distinct
+    sender_ids hit the hub briefly (e.g. a fan-out test, a probe
+    storm). The count will fall on the next eviction sweep. Wait one
+    `TERMLINK_RATE_EVICT_INTERVAL_SEC` cycle (default 60 s) and re-probe.
+  - **Eviction not running (pre-T-2137 binary).** The hub binary
+    pre-dates T-2137 and the bucket HashMap grows unbounded. Field
+    diagnosis: `rate_buckets_active` keeps climbing across multiple
+    minutes without falling. Pre-T-2137 production observation:
+    `258_236` against a 5-agent fleet (~31 MB held). Fix: upgrade the
+    hub binary — `scripts/fleet-deploy-binary.sh`.
+
+- **Anomalously low (zero, with active workers).** The rate governor
+  hasn't seen any RPC yet. Either the hub just started, or all callers
+  are bypassing the rate path. Not actionable unless paired with
+  zero `rate_hits_total` across a working day.
+
+Tune the eviction loop via `TERMLINK_RATE_EVICT_INTERVAL_SEC` (clamped
+5..=3600 s) and `TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS` (clamped
+1000..=3_600_000 ms) at hub start. Defaults: 60 s / 300_000 ms (5 min).
+
+### Version-skew diagnosis (T-2138)
+
+When `fleet governor-status` returns `-32001 / Missing 'target' in
+params` for a hub, that hub is running a **pre-T-2048 binary** —
+older than the `hub.governor_status` RPC. The older hub's
+unknown-method dispatch routes through `event.emit_to`, which fails
+on the missing `target` param and returns `-32001` instead of the
+correct `-32601 / Method not found`.
+
+Symptom (real fleet output):
+
+```
+ring20-dashboard         RPC error -32001: Missing 'target' in params
+ring20-management        RPC error -32001: Missing 'target' in params
+```
+
+This is NOT a config bug, NOT a target-param problem, NOT a routing
+issue. It's strictly "that hub needs a binary upgrade." Fix:
+
+```sh
+# Deploy current binary to the lagging hub (probe first per PL-100):
+bash scripts/fleet-deploy-binary.sh --probe --target ring20-management
+bash scripts/fleet-deploy-binary.sh --target ring20-management
+# Hub will restart; existing client TOFU pins are preserved (T-985).
+```
+
+After upgrade, re-probe — `fleet governor-status` should now return
+the full counter block for the upgraded hub. If it doesn't, the
+binary swap may have failed silently (check `fw fleet doctor` for
+auth-mismatch).
 
 ### Recipe — operator probe
 

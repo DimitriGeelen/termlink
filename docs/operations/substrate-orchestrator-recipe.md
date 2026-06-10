@@ -314,6 +314,8 @@ Why this pattern is correct:
 | Worker DM never arrives after `claim_transfer` succeeds | Doorbell delivery is best-effort; persistent `dm:*` topic carries the canonical message | Worker's `agent.dms` poll catches it on next iteration |
 | Orchestrator restarts mid-flight | Outstanding orchestrator-held claims lapse after TTL; in-flight transfers to workers persist | Restart cleanly; no orchestrator-side state to restore (claims are hub-side) |
 | Hub restart | Claims table durable (SQLite); cv_index in-memory only (re-populates within one heartbeat cycle); outbound queues durable | All clients reconnect; lease times survive; cv_index converges within ~30s |
+| `fleet governor-status` returns `-32001 / Missing 'target' in params` for a hub | That hub runs a pre-T-2048 binary (older than `hub.governor_status`); its unknown-method dispatch misroutes to `event.emit_to` | Upgrade the hub binary via `scripts/fleet-deploy-binary.sh --probe --target <hub>`; see `substrate-governor.md` § "Version-skew diagnosis" (T-2138) |
+| `rate_buckets_active` grows monotonically without bound | Hub runs a pre-T-2137 binary; rate-bucket eviction never wired into startup; HashMap accumulates one entry per distinct sender_id ever seen | Upgrade the hub binary; see `substrate-governor.md` § "Reading rate_buckets_active" (T-2138). Until upgrade, hub memory grows ~120 bytes per distinct sender |
 
 ## Observability hooks
 
