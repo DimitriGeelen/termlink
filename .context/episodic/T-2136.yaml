@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2136: Extend PL-206 layer-b lint — add next_free_offset + .result envelope patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T18:24:23Z
+# ============================================================================
+
+task_id: T-2136
+task_name: "Extend PL-206 layer-b lint — add next_free_offset + .result envelope patterns"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T17:31:17Z
+completed: 2026-06-10T18:24:19Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-06-10T19:33:31+02:00
+last_commit: 2026-06-10T20:24:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file task (captured) — extend layer-b lint, deferred to next session. extend PL-206 layer-b lint — add next_free_offset + .result-envelope patterns
+
+# Key outcomes
+outcomes:
+  - '`scripts/lint-doc-cli-references.sh` includes a pattern for `next_free_offset` (any context)'
+  - '`scripts/lint-doc-cli-references.sh` includes a pattern for `.result.capacity_hits_total` / `.result | {dedupe_` (CLI-envelope confusion)'
+  - 'Lint reports CLEAN on current tree (proves no regression hiding)'
+  - '`--json` mode includes the new patterns in the `patterns[]` array with `fixed_in` references'
+  - 'Lint `--help` mentions the new pattern count'
+  - 'Self-validation: if I revert either T-2134 or T-2135 fix mentally and re-run, lint flags it (verify by introducing the bad pattern in a test file then reverting)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/lint-doc-cli-references.sh'
+  - '.tasks/active/T-2136-extend-pl-206-layer-b-lint--add-nextfree.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T19:33:31"
+    action: "T-2136: file task (captured) — extend layer-b lint, deferred to next session"
+  - time: "2026-06-10T20:24:13"
+    action: "T-2136: extend PL-206 layer-b lint — add next_free_offset + .result-envelope patterns"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 53 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-2018, substrate, pl-206, prevention]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 53
+  commits: 2
+  files_changed: 2
+  lines_added: 269
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2136-extend-pl-206-layer-b-lint--add-nextfree.md
+generated_by: context-agent-hybrid
