@@ -208,6 +208,25 @@ The worker's job is: *honour assigned work atomically; release with
 ack on completion, ack=false on retryable failure, let `Drop` handle
 crashes*.
 
+**Ready-to-adapt script (T-2146).** `scripts/substrate-worker-loop.sh`
+ships a vetted one-unit worker harness that wires the canonical
+lifecycle for you: claim → background auto-renew → run a user-supplied
+worker command → release (`--ack` on cmd exit 0, no `--ack` on non-zero
+or signal). SIGTERM/SIGINT during work releases-without-ack and exits
+130 so no claim leaks. Pass the topic, offset, and worker command:
+
+```bash
+scripts/substrate-worker-loop.sh --topic work-queue --offset 42 \
+    --cmd 'python3 /opt/myapp/process.py 42' \
+    --ttl-ms 60000 --renew-every-ms 20000
+```
+
+The worker sees `TERMLINK_CLAIM_ID`, `TERMLINK_CLAIM_TOPIC`,
+`TERMLINK_CLAIM_OFFSET`, `TERMLINK_CLAIMER` in its env. Read the
+script source for the full inline contract — it's the "hello world"
+for substrate users. The hand-rolled loop below shows the same wiring
+with a DM-inbox poll for cases where the dispatch step is also yours.
+
 ```bash
 #!/usr/bin/env bash
 # Canonical work-stealing worker
