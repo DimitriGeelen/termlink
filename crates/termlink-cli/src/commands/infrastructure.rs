@@ -798,11 +798,15 @@ pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
         g("connections_max"),
         g("capacity_hits_total"),
     );
+    // T-2139: surface `rate_buckets_evicted_total` so operators see the
+    // T-2137 eviction loop firing. Stuck at n/a or 0 with growing
+    // rate_buckets_active = pre-T-2137 binary (loop never wired).
     let _ = writeln!(
         out,
-        "  Rate buckets: {} active (rate_hits_total={}, max_rate_per_sec={})",
+        "  Rate buckets: {} active (rate_hits_total={}, evicted_total={}, max_rate_per_sec={})",
         g("rate_buckets_active"),
         g("rate_hits_total"),
+        g("rate_buckets_evicted_total"),
         g("max_rate_per_sec"),
     );
     let _ = writeln!(
@@ -1616,6 +1620,7 @@ mod tests {
             "connections_max": 256,
             "capacity_hits_total": 0,
             "rate_buckets_active": 5,
+            "rate_buckets_evicted_total": 42,  // T-2139
             "rate_hits_total": 0,
             "max_rate_per_sec": 1000,
             "dedupe_entries_active": 12,
@@ -1630,7 +1635,8 @@ mod tests {
         let s = render_governor_section(&v);
         assert!(s.starts_with("Governor:\n"));
         assert!(s.contains("Connections: 3/256 (capacity_hits_total=0)"));
-        assert!(s.contains("Rate buckets: 5 active (rate_hits_total=0, max_rate_per_sec=1000)"));
+        // T-2139: rate-buckets line now carries evicted_total alongside the existing counters.
+        assert!(s.contains("Rate buckets: 5 active (rate_hits_total=0, evicted_total=42, max_rate_per_sec=1000)"));
         assert!(s.contains("Dedupe: 12 entries (hits_total=4, ttl_ms=300000)"));
         assert!(s.contains("cv_index: 5 entries across 2 topic(s) (overflow_total=0, cap_per_topic=1000)"));
     }

@@ -109,6 +109,15 @@ Field semantics:
   in the rate map. Bounded by sender diversity; idle buckets evict via
   `RateGovernor::evict_idle` (T-2137 wired this into hub startup —
   see "Reading rate_buckets_active" below).
+- `rate_buckets_evicted_total` *(T-2139)*: monotonic count of buckets
+  dropped by the eviction loop since hub start. **The smoking-gun
+  signal that the T-2137 eviction loop is actually firing.** Zero on
+  fresh hub (no buckets to evict yet) or on a hub running a pre-T-2137
+  binary (loop never wired); non-zero and rising means eviction is
+  running and keeping `rate_buckets_active` bounded. Pair with
+  `rate_buckets_active` for the full retention picture: a stuck-at-zero
+  counter alongside a growing `rate_buckets_active` is the explicit
+  pre-T-2137 binary signal — upgrade the hub.
 - `rate_hits_total`: monotonic counter; every time
   `RateGovernor::try_acquire` refused, this increments. Pair with
   `capacity_hits_total` for "is the substrate under stress?".

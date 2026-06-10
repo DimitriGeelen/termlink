@@ -203,6 +203,12 @@ pub struct RateGovernor {
     rate_per_sec: u32,
     buckets: Mutex<HashMap<String, RateBucket>>,
     rate_hits_total: AtomicU64,
+    /// T-2139: total buckets dropped by `evict_idle` across this hub's
+    /// lifetime. Counts BUCKETS dropped (not eviction-loop iterations) so
+    /// the value reflects work done. Operators read this through
+    /// `hub.governor_status` to confirm the T-2137 eviction loop is
+    /// actually firing.
+    evictions_total: AtomicU64,
 }
 
 impl RateGovernor {
@@ -211,6 +217,7 @@ impl RateGovernor {
             rate_per_sec,
             buckets: Mutex::new(HashMap::new()),
             rate_hits_total: AtomicU64::new(0),
+            evictions_total: AtomicU64::new(0),
         }
     }
 
@@ -270,11 +277,25 @@ impl RateGovernor {
     /// [`spawn_rate_evict_loop`] at startup) to keep memory bounded; the
     /// slow tail of senders is the dominant cost. Returns the number of
     /// buckets dropped so the caller can log / surface the count.
+    /// T-2139: also increments `evictions_total` so the count is
+    /// observable through `hub.governor_status`.
     pub fn evict_idle(&self, now_ms: i64, idle_threshold_ms: i64) -> usize {
         let mut buckets = self.buckets.lock().expect("rate buckets mutex poisoned");
         let before = buckets.len();
         buckets.retain(|_, b| now_ms - b.last_refill_ms < idle_threshold_ms);
-        before - buckets.len()
+        let dropped = before - buckets.len();
+        if dropped > 0 {
+            self.evictions_total
+                .fetch_add(dropped as u64, Ordering::Relaxed);
+        }
+        dropped
+    }
+
+    /// T-2139: monotonic count of rate-bucket evictions since hub start.
+    /// Mirrors [`rate_hits_total`] — surfaced through `hub.governor_status`
+    /// so operators can confirm the T-2137 eviction loop is firing.
+    pub fn evictions_total(&self) -> u64 {
+        self.evictions_total.load(Ordering::Relaxed)
     }
 }
 
@@ -515,6 +536,42 @@ mod tests {
             "ephemeral last_refill at t0, now-30s threshold should evict"
         );
         assert_eq!(dropped, 1, "evict_idle should report 1 bucket dropped");
+    }
+
+    /// T-2139: `evictions_total` reflects the per-bucket eviction count
+    /// across multiple sweeps — the monotonic counter exposed through
+    /// `hub.governor_status` so operators see the T-2137 loop firing.
+    #[test]
+    fn rate_governor_evictions_total_accumulates() {
+        let g = RateGovernor::new(10);
+        assert_eq!(g.evictions_total(), 0, "fresh governor starts at zero");
+
+        let t0 = 1_000_000;
+        g.try_acquire("a", t0).unwrap();
+        g.try_acquire("b", t0).unwrap();
+        g.try_acquire("c", t0).unwrap();
+        assert_eq!(g.buckets_active(), 3);
+
+        // Evict the 3 buckets — all idle past threshold.
+        let dropped = g.evict_idle(t0 + 60_000, 30_000);
+        assert_eq!(dropped, 3);
+        assert_eq!(g.evictions_total(), 3, "first sweep records 3 evictions");
+
+        // Second sweep with no buckets — counter unchanged.
+        let dropped = g.evict_idle(t0 + 90_000, 30_000);
+        assert_eq!(dropped, 0);
+        assert_eq!(g.evictions_total(), 3, "no-op sweep leaves counter alone");
+
+        // Add 2 more, sweep, counter accumulates.
+        g.try_acquire("d", t0 + 90_000).unwrap();
+        g.try_acquire("e", t0 + 90_000).unwrap();
+        let dropped = g.evict_idle(t0 + 200_000, 30_000);
+        assert_eq!(dropped, 2);
+        assert_eq!(
+            g.evictions_total(),
+            5,
+            "monotonic counter must be additive across sweeps"
+        );
     }
 
     /// T-2137: env-knob clamps (T-2018 §6 #10 retention/compaction).

@@ -2583,11 +2583,15 @@ pub(crate) fn render_fleet_governor_section(
                     g("connections_max"),
                     g("capacity_hits_total"),
                 );
+                // T-2139: surface rate_buckets_evicted_total alongside
+                // rate_buckets_active so operators see the T-2137
+                // eviction loop firing across the fleet.
                 let _ = writeln!(
                     out,
-                    "    Rate buckets: {} active (rate_hits_total={}, max_rate_per_sec={})",
+                    "    Rate buckets: {} active (rate_hits_total={}, evicted_total={}, max_rate_per_sec={})",
                     g("rate_buckets_active"),
                     g("rate_hits_total"),
+                    g("rate_buckets_evicted_total"),
                     g("max_rate_per_sec"),
                 );
                 let _ = writeln!(

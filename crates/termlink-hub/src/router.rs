@@ -819,6 +819,7 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 ///   "connections_max": u32,
 ///   "capacity_hits_total": u64,
 ///   "rate_buckets_active": usize,
+///   "rate_buckets_evicted_total": u64,
 ///   "rate_hits_total": u64,
 ///   "max_rate_per_sec": u32,
 ///   "dedupe_entries_active": u64,
@@ -842,7 +843,11 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 /// operators can monitor substrate primitive #9 health — a non-zero
 /// `cv_index_overflow_total` means some topic has saturated its
 /// per-topic cap and new cv-tagged posts are being silently
-/// un-indexed (likely poster mis-emitting cv_key).
+/// un-indexed (likely poster mis-emitting cv_key). T-2139 adds
+/// `rate_buckets_evicted_total` so operators can confirm the T-2137
+/// rate-bucket eviction loop is firing (non-zero = active eviction;
+/// stuck at zero with growing `rate_buckets_active` = unwired loop or
+/// pre-T-2137 binary).
 fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
@@ -854,6 +859,7 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "connections_max": conn.max(),
             "capacity_hits_total": conn.capacity_hits_total(),
             "rate_buckets_active": rate.buckets_active(),
+            "rate_buckets_evicted_total": rate.evictions_total(),
             "rate_hits_total": rate.rate_hits_total(),
             "max_rate_per_sec": rate.rate_per_sec(),
             "dedupe_entries_active": dedupe.entries_active(),
@@ -3547,18 +3553,19 @@ mod tests {
         let RpcResponse::Success(r) = resp else {
             panic!("expected success, got {resp:?}");
         };
-        // T-2048 fields (6).
+        // T-2048 fields (6) + T-2139 rate_buckets_evicted_total (1) = 7.
         for field in [
             "connections_active",
             "connections_max",
             "capacity_hits_total",
             "rate_buckets_active",
+            "rate_buckets_evicted_total",
             "rate_hits_total",
             "max_rate_per_sec",
         ] {
             assert!(
                 r.result.get(field).is_some(),
-                "expected T-2048 field {field} in hub.governor_status response"
+                "expected T-2048/T-2139 field {field} in hub.governor_status response"
             );
         }
         // T-2049 dedupe fields (3).
