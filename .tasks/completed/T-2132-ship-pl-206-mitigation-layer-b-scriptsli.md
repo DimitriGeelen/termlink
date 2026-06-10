@@ -4,10 +4,10 @@ name: "ship PL-206 mitigation layer (b): scripts/lint-doc-cli-references.sh — 
 description: >
   ship PL-206 mitigation layer (b): scripts/lint-doc-cli-references.sh — catch doc-CLI drift before commit
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, doc, lint, prevention]
 components: []
 related_tasks: [T-2129, T-2130, T-2131]
@@ -16,8 +16,8 @@ related_tasks: [T-2129, T-2130, T-2131]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T16:36:12Z
-last_update: 2026-06-10T16:36:12Z
-date_finished: null
+last_update: 2026-06-10T16:38:59Z
+date_finished: 2026-06-10T16:38:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -210,3 +210,6 @@ out=$(bash scripts/lint-doc-cli-references.sh 2>&1); echo "$out" | grep -qE "cle
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2132-ship-pl-206-mitigation-layer-b-scriptsli.md
 - **Context:** Initial task creation
+
+### 2026-06-10T16:38:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
