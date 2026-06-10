@@ -46,7 +46,7 @@ slash-commands.
 - `capacity_hits_total > 0` → a connection was refused. Investigate `TERMLINK_MAX_CONNECTIONS` (default 256).
 - `rate_hits_total > 0` → an RPC was refused. Investigate `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000).
 - `dedupe_hits_total > 0` → spoke retries were absorbed before double-applying — this is **good**, exactly-once is working.
-- `cv_overflow > 0` → **smoking-gun for producer mis-emitting `cv_key`** (e.g. timestamp instead of stable id) saturating the per-topic cap. Binary signal — ANY non-zero value is operator-actionable. Run `termlink channel cv-keys <topic>` to identify which topic. Fires `--only-pressured` (T-2118) and surfaces as per-event delta in `--watch --notify --log` (T-2119).
+- `cv_overflow > 0` → **smoking-gun for producer mis-emitting `cv_key`** (e.g. timestamp instead of stable id) saturating the per-topic cap. Binary signal — ANY non-zero value is operator-actionable. Run `/cv-keys <topic>` (T-2121, skill-tier) to identify which keys are on the saturating topic — or use the underlying CLI `termlink channel cv-keys <topic>` if you prefer to compose with `jq`. Fires `--only-pressured` (T-2118) and surfaces as per-event delta in `--watch --notify --log` (T-2119).
 - All zeros + hubs reachable → steady-state healthy.
 
 ## Step 1: Pre-flight
@@ -223,6 +223,7 @@ retrospective read is T-2068's `fleet governor-history` verb.
 - T-2110 — cv_index telemetry (entries/topics/overflow/cap) surfaced via this envelope. Closes substrate §6 #9↔#10 cross-reference.
 - T-2118 — `--only-pressured` predicate fires on `cv_index_overflow_total > 0`.
 - T-2119 — watch/notify/log/history carry cv_overflow deltas end-to-end. `page-on-cv-overflow.sh` recipe in `docs/operations/substrate-governor.md`.
+- T-2121 / `/cv-keys` — diagnostic follow-up skill. When this skill flags `cv_overflow > 0`, `/cv-keys <topic>` is the next step.
 - T-2092 / `/find-idle` — sibling daily-verb skill (substrate #2 read).
 - T-2093 / `/claims` — sibling daily-verb skill (substrate #1 read).
 - T-2094 / `/queue-status` — sibling daily-verb skill (substrate #5 read).

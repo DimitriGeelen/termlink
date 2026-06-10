@@ -189,7 +189,7 @@ Tip: hub backpressure detected. /governor for per-hub details.
 Continuous monitor: termlink fleet governor-status --watch 30
 
 If cv_overflow > 0 (T-2118 fires --only-pressured on this):
-a producer is mis-emitting cv_key. Run `termlink channel cv-keys <topic>`
+a producer is mis-emitting cv_key. Run `/cv-keys <topic>` (T-2121 skill)
 to identify the saturating topic, then fix the producer. See
 docs/operations/substrate-governor.md § page-on-cv-overflow.sh recipe
 for an automated --notify hook (T-2119).
@@ -252,6 +252,9 @@ Two keystrokes → full operational picture across both domains.
 - T-2118 — `--only-pressured` predicate fires on `cv_index_overflow_total > 0`
   so this skill's filtered view catches producer-side `cv_key` bugs.
 - T-2119 — cv_overflow deltas in watch / notify / log / history surfaces.
+- T-2121 / `/cv-keys` — diagnostic follow-up skill. When this digest
+  flags `cv_overflow > 0` in BACKPRESSURE, run `/cv-keys <topic>` to
+  identify which keys are saturating the topic.
 - T-1860 / `/pulse` — the conversation-arc analog (peers + recent-chat
   parallel composition). Same design pattern.
 - PL-187 — verb-stack pattern rung 6 (ephemeral session integrators).
