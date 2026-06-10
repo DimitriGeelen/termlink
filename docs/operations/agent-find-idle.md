@@ -20,13 +20,13 @@ new persistence layer.
 The derivation:
 
 ```
-idle_agents = LIVE(agent-presence) \ DISTINCT(claims.claimed_by)
+idle_agents = LIVE(agent-presence) \ DISTINCT(claims.claimer)
 ```
 
 - `LIVE(agent-presence)` = agents whose latest heartbeat on the
   `agent-presence` topic is newer than `live_window_ms` (60 s by default,
   i.e. 2× the canonical 30 s heartbeat interval).
-- `DISTINCT(claims.claimed_by)` = every agent that currently holds at least
+- `DISTINCT(claims.claimer)` = every agent that currently holds at least
   one active claim (`claimed_until > now`).
 - Set difference — an agent that's heart-beating but not claiming anything
   is "idle and findable."
