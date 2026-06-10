@@ -16,7 +16,7 @@ related_tasks: [T-2018, T-2019, T-2020, T-2045, T-2046, T-2051, T-2103, T-2106, 
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T11:24:47Z
-last_update: 2026-06-10T11:24:47Z
+last_update: 2026-06-10T11:31:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -167,6 +167,18 @@ grep -q "substrate-orchestrator-recipe" CLAUDE.md
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-06-10 — scope decision: master recipe lives in docs/operations, not as a new skill
+
+- **What changed:** Initial survey found substrate primitives #1, #2, #3, #5, #9, #10, #11 all built and individually documented, but the AEF-layer integration walkthrough was fragmented across `substrate-claim-primitive.md § "Hand a unit to a specific worker"` (one half) and `agent-find-idle.md § "minimum viable orchestrator loop"` (the other half). Neither was the *composed* end-to-end recipe. The natural consumer (AEF developer writing the work-stealing orchestrator on top of TermLink) needed one doc, not two fragments.
+- **Plan impact:** Rejected the alternative of building an auto-renew daemon (the `/renew` skill explicitly defers this and the rationale is sound: substrate biases toward operator-wires-watch-loops-themselves, mirror of the watch/notify/log/history defer-to-CLI-tier pattern across /governor, /find-idle, /claims, /queue-status). Rejected building `Retention::Latest` (T-2028 Track A GO'd it at ~30 LOC but the spec is ambiguous — "keep most recent envelope only" reads as `Messages(1)` redundant; could also mean "per cv_key" which would be a genuine new primitive — neither interpretation safe without inception clarification).
+- **Triggered:** Scope: write `docs/operations/substrate-orchestrator-recipe.md` (~400 lines), cross-reference from every per-primitive ops doc + ADR §9 + CLAUDE.md. No new code, no new skill. P-011 verification gates verify all 14 cross-references resolve.
+
+### 2026-06-10 — arc-closure recognition: T-2018 §9 "collaboration seam" was the unnamed gap
+
+- **What changed:** Re-reading ADR §9, the "Hard dependencies — contracted up front, then worked independently" paragraph names the contract for each primitive but doesn't describe the *composed surface* an AEF consumer wires. The §9 collaboration-seam doc was implicit; this task makes it explicit. The doc is intentionally positioned as the consumer-facing half of the ADR §9 contract (substrate ships the primitives; AEF reads this doc to compose them).
+- **Plan impact:** Added a sentence to ADR §9 explicitly pointing at the new master recipe, so future ADR readers don't repeat the "I have N per-primitive docs but no integration view" search.
+- **Triggered:** No new task. Pattern established: when a substrate primitive arc closes, the consumer-facing integration view (not the per-primitive doc) is what closes the §9 seam. Future arc closures should refresh this master doc rather than spawn yet another per-primitive ops doc.
 
 ## Decisions
 
