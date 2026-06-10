@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T19:33:43Z
-last_update: 2026-06-10T19:33:43Z
+last_update: 2026-06-10T19:43:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,17 +59,17 @@ semantics; T-2118's predicate gate is intentionally not extended.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `WatchGovernorState` extended from 7-tuple to 8-tuple with `Option<i64>` at position 7 for `evicted_total` (pre-T-2139 hubs serialize as None).
-- [ ] Watch loop reads `rate_buckets_evicted_total` from `hub.governor_status` response and constructs the 8-tuple state.
-- [ ] `render_governor_watch_change_line` adds `evicted=A→B(+delta)` segment to the change-line output (or `n/a` when missing on either side, matching cv_overflow convention).
-- [ ] `build_governor_notify_env` emits `TERMLINK_GOV_OLD_EVICTED`, `TERMLINK_GOV_NEW_EVICTED`, `TERMLINK_GOV_EVICTED_DELTA` env vars (empty when either side missing).
-- [ ] `build_governor_log_entry` writes `old_evicted`, `new_evicted`, `evicted_delta` fields to the NDJSON line (JSON null when missing, matching cv_overflow convention).
-- [ ] `render_governor_history_line` shows the evicted segment.
-- [ ] `GovernorHubAgg` (CLI) gains `evicted_total: i64` field; aggregator sums `evicted_delta` over window; CLI history footer displays `evicted=+N` column; CLI `--json` envelope `per_hub` ships `evicted_total`.
-- [ ] `GovernorHubAggMcp` (MCP) gains matching `evicted_total: i64` field; MCP aggregator sums `evicted_delta`; MCP `per_hub` envelope ships `evicted_total`.
-- [ ] Unit tests added (CLI): `watch_governor_renders_evicted_delta`, `build_governor_notify_env_computes_evicted_delta`, `aggregate_governor_entries_sums_evicted_delta` — mirror of T-2119's cv_overflow tests.
-- [ ] Unit tests added (MCP): `fleet_governor_history_aggregates_evicted_delta` — mirror of MCP cv_overflow test.
-- [ ] `cargo test -p termlink --bin termlink governor` + `cargo test -p termlink-mcp --lib governor` pass.
+- [x] `WatchGovernorState` extended from 7-tuple to 8-tuple with `Option<i64>` at position 7 for `evicted_total` (pre-T-2139 hubs serialize as None).
+- [x] Watch loop reads `rate_buckets_evicted_total` from `hub.governor_status` response and constructs the 8-tuple state.
+- [x] `render_governor_watch_change_line` adds `evicted=A→B(+delta)` segment to the change-line output (or `n/a` when missing on either side, matching cv_overflow convention).
+- [x] `build_governor_notify_env` emits `TERMLINK_GOV_OLD_EVICTED`, `TERMLINK_GOV_NEW_EVICTED`, `TERMLINK_GOV_EVICTED_DELTA` env vars (empty when either side missing).
+- [x] `build_governor_log_entry` writes `old_evicted`, `new_evicted`, `evicted_delta` fields to the NDJSON line (JSON null when missing, matching cv_overflow convention).
+- [x] `render_governor_history_line` shows the evicted segment.
+- [x] `GovernorHubAgg` (CLI) gains `evicted_total: i64` field; aggregator sums `evicted_delta` over window; CLI history footer displays `evicted=+N` column; CLI `--json` envelope `per_hub` ships `evicted_total`.
+- [x] `GovernorHubAggMcp` (MCP) gains matching `evicted_total: i64` field; MCP aggregator sums `evicted_delta`; MCP `per_hub` envelope ships `evicted_total`.
+- [x] Unit tests added (CLI): `watch_governor_renders_evicted_delta`, `build_governor_notify_env_computes_evicted_delta`, `aggregate_governor_entries_sums_evicted_delta` — mirror of T-2119's cv_overflow tests.
+- [x] Unit tests added (MCP): `fleet_governor_history_aggregates_evicted_delta` — mirror of MCP cv_overflow test.
+- [x] `cargo test -p termlink --bin termlink governor` + `cargo test -p termlink-mcp --lib governor` pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
