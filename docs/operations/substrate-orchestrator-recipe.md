@@ -128,6 +128,13 @@ it to exactly one idle worker, atomically, with no race window*.
 Five-step canonical loop, in shell form (the AEF integration will
 typically use the MCP variants of the same verbs):
 
+The canonical loop is **stream-based**: subscribe to the work topic,
+and as each envelope arrives, claim it and hand it to an idle worker.
+`channel subscribe --resume` advances a persisted cursor so the
+orchestrator processes each envelope exactly once across restarts —
+the substrate gives us the "what's new" view for free, so the
+orchestrator never has to derive a "next free offset" itself.
+
 ```bash
 #!/usr/bin/env bash
 # Canonical work-stealing orchestrator
@@ -136,26 +143,28 @@ set -euo pipefail
 TOPIC="work-queue"
 ORCHESTRATOR_ID="$(jq -r .agent_id ~/.termlink/be-reachable.state)"
 
-while :; do
-  # Step 1 — find an idle worker with the right capability
-  worker="$(termlink agent find-idle --capability deploy --json | jq -r '.idle[0].agent_id // empty')"
-  if [ -z "$worker" ]; then
-    sleep 5; continue                     # nobody free, back off
-  fi
+# Stream every envelope on the work topic as it arrives. `--resume`
+# advances a persisted cursor so restarts pick up where we left off.
+termlink channel subscribe "$TOPIC" --resume --json | while read -r envelope; do
+  offset="$(echo "$envelope" | jq -r '.offset')"
 
-  # Step 2 — pick the next unclaimed offset on the work topic
-  next_offset="$(termlink channel claims-summary "$TOPIC" --json | jq -r '.next_free_offset')"
-  if [ "$next_offset" = "null" ]; then
-    sleep 5; continue                     # no work waiting, back off
-  fi
+  # Step 1 — wait for an idle worker with the right capability
+  worker=""
+  while [ -z "$worker" ]; do
+    worker="$(termlink agent find-idle --capability deploy --json \
+      | jq -r '.idle[0].agent_id // empty')"
+    [ -z "$worker" ] && sleep 5             # nobody free, back off
+  done
 
-  # Step 3 — orchestrator claims the offset first
-  claim_id="$(termlink channel claim "$TOPIC" "$next_offset" \
-    --claimer "$ORCHESTRATOR_ID" --ttl-ms 60000 --json \
-    | jq -r '.claim_id')"
-  [ -n "$claim_id" ] || continue          # raced — try next iteration
+  # Step 2 — orchestrator claims this offset first.
+  # CLAIM_CONFLICT (-32015) means another orchestrator beat us OR
+  # this offset was already completed in a prior run. Either way: skip.
+  claim_id="$(termlink channel claim "$TOPIC" "$offset" \
+    --claimer "$ORCHESTRATOR_ID" --ttl-ms 60000 --json 2>/dev/null \
+    | jq -r '.claim_id // empty')"
+  [ -n "$claim_id" ] || continue            # already-claimed or completed
 
-  # Step 4 — atomically transfer ownership to the worker
+  # Step 3 — atomically transfer ownership to the worker
   #          (no release-then-reclaim race window — T-2046)
   termlink channel claim-transfer \
     --claim-id "$claim_id" \
@@ -163,27 +172,34 @@ while :; do
     --by "$ORCHESTRATOR_ID" \
     --reason "orchestrator dispatch" >/dev/null
 
-  # Step 5 — notify the worker via a doorbell DM so it picks up
+  # Step 4 — notify the worker via a doorbell DM so it picks up
   termlink agent contact "$worker" \
-    --payload "claim=$claim_id topic=$TOPIC offset=$next_offset"
+    --payload "claim=$claim_id topic=$TOPIC offset=$offset"
 done
 ```
 
 Why this pattern is correct:
 
-- **Step 1 + 2 are read-only.** A race between two orchestrators
-  reading the same `find_idle` + `next_offset` is benign — Step 3's
-  claim attempt is the serialization point.
-- **Step 3 fails loudly on race.** If another orchestrator claimed
-  this offset first, `channel.claim` returns `CLAIM_CONFLICT` (-32015)
-  and you re-loop. No silent double-assignment.
-- **Step 4 is atomic by hub guarantee.** `claim_transfer` moves
+- **Subscribe-based loop avoids "what's been done" bookkeeping.**
+  `channel subscribe --resume` is the substrate's canonical
+  "process each envelope once" primitive. We never need to compute
+  a derived "next free offset" because the stream IS the offset
+  sequence in order. Restarting the orchestrator resumes from the
+  persisted cursor.
+- **Step 1 is read-only.** A race between two orchestrators picking
+  the same idle worker is benign — Step 2's claim attempt is the
+  serialization point.
+- **Step 2 fails loudly on conflict.** If another orchestrator
+  already claimed this offset (or it was completed in a prior run
+  via `release --ack`), `channel.claim` returns `CLAIM_CONFLICT`
+  (-32015) and we skip. No silent double-assignment.
+- **Step 3 is atomic by hub guarantee.** `claim_transfer` moves
   ownership inside the hub with zero gap — there is no moment where
   the slot is "free" between orchestrator and worker. This is the
   T-2046 contract; eliminates the race window that release-then-reclaim
   would expose.
-- **Step 5 is fire-and-forget.** If the doorbell fails, the worker
-  still discovers the claim via its `agent.dms` poll. The hub's
+- **Step 4 is fire-and-forget.** If the doorbell fails, the worker
+  still discovers the claim via its `agent.inbox` poll. The hub's
   durable claims table is the source of truth, not the doorbell.
 
 ## Canonical worker pattern
