@@ -908,6 +908,69 @@ fn fire_notify(cmd: &str, field: &str, old: &str, new: &str, ts: &str) {
     }
 }
 
+/// T-2114: pure helper — render one NDJSON line for a substrate rollup
+/// change event. Schema is flat (4 fields, no nested objects) so a jq
+/// pipeline can `select(.field=="dispatch_idle_count")` or
+/// `select(.new=="3")` without nested path expressions. Mirror of
+/// T-2085's `render_queue_log_line` and T-2080's `render_idle_log_line`.
+///
+/// `old` and `new` are stringified at the caller (matching `--notify`
+/// env-var semantics — operators reading the log shouldn't have to
+/// special-case JSON-numeric vs JSON-string per-field).
+pub(crate) fn render_log_line(field: &str, old: &str, new: &str, ts: &str) -> String {
+    let obj = serde_json::json!({
+        "ts": ts,
+        "field": field,
+        "old": old,
+        "new": new,
+    });
+    serde_json::to_string(&obj).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// T-2114: best-effort append of one log line. Mirror of T-2085's
+/// `append_queue_log_line` and T-2080's `append_idle_log_line`. Parent
+/// directory auto-created; permission or disk-full errors print a
+/// one-line stderr warning and return so the watch loop continues. The
+/// watch MUST NEVER crash because the audit trail can't be written —
+/// that would silently kill observability for the operator who already
+/// has a failing host.
+fn append_log_line(path: &std::path::Path, field: &str, old: &str, new: &str, ts: &str) {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!(
+                    "# substrate log: failed to create parent dir {}: {e}",
+                    parent.display()
+                );
+                return;
+            }
+        }
+    }
+    let mut line = render_log_line(field, old, new, ts);
+    line.push('\n');
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(mut f) => {
+            use std::io::Write;
+            if let Err(e) = f.write_all(line.as_bytes()) {
+                eprintln!(
+                    "# substrate log: write failed for {}: {e}",
+                    path.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "# substrate log: open failed for {}: {e}",
+                path.display()
+            );
+        }
+    }
+}
+
 /// T-2112: `termlink substrate status --watch <secs>` handler. Subprocesses
 /// `termlink substrate status --json` per cycle, parses the envelope, diffs
 /// against the prior cycle's rollup, emits one change-line per field or a
@@ -915,6 +978,10 @@ fn fire_notify(cmd: &str, field: &str, old: &str, new: &str, ts: &str) {
 ///
 /// T-2113: optional `notify` command fires fire-and-forget per per-cycle
 /// rollup-field change event. Skipped on the baseline cycle.
+///
+/// T-2114: optional `log` path appends one NDJSON line per per-cycle
+/// rollup-field change event. Symmetric with `notify` — both fire from
+/// the same per-tick event source. Baseline cycle skipped.
 ///
 /// Mirror of `cmd_fleet_governor_status_watch` (T-2064) — same subprocess
 /// pattern + same SIGINT handling. The rollup model is simpler (no per-hub
@@ -924,6 +991,7 @@ pub(crate) async fn cmd_substrate_status_watch(
     secs: u64,
     timeout_secs: u64,
     notify: Option<String>,
+    log: Option<std::path::PathBuf>,
 ) -> Result<()> {
     if !(5..=3600).contains(&secs) {
         anyhow::bail!(
@@ -1020,6 +1088,10 @@ pub(crate) async fn cmd_substrate_status_watch(
                         // T-2113: fire-and-forget --notify per event.
                         if let Some(cmd) = notify.as_deref() {
                             fire_notify(cmd, label, old, new, &ts);
+                        }
+                        // T-2114: append --log NDJSON line per event.
+                        if let Some(path) = log.as_deref() {
+                            append_log_line(path, label, old, new, &ts);
                         }
                     }
                 }
@@ -1471,6 +1543,77 @@ mod tests {
         assert!(out.contains("topic_count=5"));
         assert!(out.contains("pending=0"));
         assert!(out.contains("pressured=0"));
+    }
+
+    #[test]
+    fn render_log_line_shape_and_fields() {
+        // T-2114: pure helper emits one flat NDJSON line with exactly 4
+        // fields (ts, field, old, new) and parses cleanly as JSON.
+        let line = render_log_line(
+            "claim_topic_count",
+            "1336",
+            "1337",
+            "2026-06-10T08:30:00Z",
+        );
+        // Must be valid JSON.
+        let parsed: Value = serde_json::from_str(&line).expect("renders valid JSON");
+        let obj = parsed.as_object().expect("renders a JSON object");
+        // Cardinality lock — schema-stability against silent additions.
+        assert_eq!(obj.len(), 4, "log line MUST have exactly 4 fields");
+        assert_eq!(obj.get("ts").and_then(|v| v.as_str()), Some("2026-06-10T08:30:00Z"));
+        assert_eq!(obj.get("field").and_then(|v| v.as_str()), Some("claim_topic_count"));
+        assert_eq!(obj.get("old").and_then(|v| v.as_str()), Some("1336"));
+        assert_eq!(obj.get("new").and_then(|v| v.as_str()), Some("1337"));
+        // No trailing newline at the render layer — append_log_line owns
+        // the newline so multi-append correctness is testable in isolation.
+        assert!(!line.ends_with('\n'), "render_log_line must NOT emit trailing newline");
+    }
+
+    #[test]
+    fn append_log_line_auto_creates_parent_dir() {
+        // T-2114: append_log_line auto-creates missing parent directories
+        // so the operator can pass `~/.termlink/substrate.log` even if the
+        // parent has never existed. Mirror of T-2085's
+        // `append_queue_log_line_creates_parent_dir`.
+        let pid = std::process::id();
+        let dir = std::path::PathBuf::from(format!("/tmp/T-2114/sub-{pid}/dir"));
+        let path = dir.join("file.log");
+        // Make sure the test starts from a clean slate.
+        let _ = std::fs::remove_dir_all(format!("/tmp/T-2114/sub-{pid}"));
+        assert!(!dir.exists(), "parent dir must not exist pre-condition");
+
+        append_log_line(
+            &path,
+            "dispatch_idle_count",
+            "0",
+            "1",
+            "2026-06-10T08:30:00Z",
+        );
+
+        assert!(dir.exists(), "parent dir created by append");
+        assert!(path.exists(), "log file created by append");
+
+        let contents = std::fs::read_to_string(&path).expect("read log file");
+        // One line, terminated.
+        let lines: Vec<&str> = contents.lines().collect();
+        assert_eq!(lines.len(), 1, "exactly one log line written");
+        let parsed: Value = serde_json::from_str(lines[0]).expect("line parses as JSON");
+        assert_eq!(parsed.get("field").and_then(|v| v.as_str()), Some("dispatch_idle_count"));
+        assert_eq!(parsed.get("old").and_then(|v| v.as_str()), Some("0"));
+        assert_eq!(parsed.get("new").and_then(|v| v.as_str()), Some("1"));
+        // Subsequent appends accumulate (best-effort writes don't truncate).
+        append_log_line(
+            &path,
+            "dispatch_idle_count",
+            "1",
+            "2",
+            "2026-06-10T08:30:30Z",
+        );
+        let contents = std::fs::read_to_string(&path).expect("re-read log file");
+        assert_eq!(contents.lines().count(), 2, "appends accumulate");
+
+        // Cleanup.
+        let _ = std::fs::remove_dir_all(format!("/tmp/T-2114/sub-{pid}"));
     }
 
     #[test]

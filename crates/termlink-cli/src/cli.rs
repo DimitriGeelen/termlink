@@ -6585,6 +6585,26 @@ pub(crate) enum SubstrateAction {
         /// continues.
         #[arg(long, value_name = "CMD", requires = "watch")]
         notify: Option<String>,
+
+        /// T-2114 (T-2111 arc Slice 4): append-only NDJSON audit trail of
+        /// per-cycle rollup-field change events during `--watch`. One line
+        /// per event: `{ts, field, old, new}`. Baseline cycle skipped
+        /// (matches `--notify` semantics). Requires `--watch`. Pattern
+        /// parity with `fleet governor-status --watch --log` (T-2066) and
+        /// `channel queue-status --watch --log` (T-2085).
+        ///
+        /// Best-effort writes: parent directory auto-created; disk-full or
+        /// permission errors print a one-line stderr warning, watch never
+        /// crashes. Symmetric with `--notify` — when both are set, each
+        /// event lands in both surfaces from the same per-tick event source.
+        ///
+        /// Forensic retrospective via jq without keeping a watch terminal:
+        ///   jq -c 'select(.field=="backpressure_pressured_hubs")' ~/.termlink/substrate.log
+        ///
+        /// Slice 5 will add `substrate history` to read this file with
+        /// per-field aggregate footers — same write surface, different read.
+        #[arg(long, value_name = "PATH", requires = "watch")]
+        log: Option<std::path::PathBuf>,
     },
 }
 

@@ -1,8 +1,8 @@
 ---
-id: T-2111
-name: "substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)"
+id: T-2114
+name: "substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)"
 description: >
-  substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
+  substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T07:10:18Z
-last_update: 2026-06-10T07:22:54Z
+created: 2026-06-10T08:08:17Z
+last_update: 2026-06-10T08:08:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,86 +30,70 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2111: substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
+# T-2114: substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)
 
 ## Context
 
-T-2018 §6 build list is now substantially complete: all GO-decided primitives
-(#1 CLAIM, #2 DISPATCH, #3 PULL/ASSIGN, #5 RESILIENCE, #9 BROADCAST-WITH-REPLAY,
-#10 BACKPRESSURE) ship with daily-verb CLIs, observability arcs, MCP parity,
-and cross-references (T-2109 #2↔#9, T-2110 #9↔#10). The `/substrate` skill
-(T-2096) composes the four substrate-read daily verbs at the slash-command tier.
+Slice 4 of T-2111 substrate-status observability roll-up arc under T-2018 §6.
+T-2113 closed the `--notify` event-hook layer (operator-pluggable shell
+command fired fire-and-forget per rollup-field change). This slice adds
+the `--log <PATH>` audit-trail companion — append-only NDJSON one line
+per change event so an operator can answer "when did substrate health
+flip?" retrospectively without keeping the watch terminal attached.
 
-What's missing: a **CLI-tier** parity for `/substrate`. Today an operator at a
-non-claude terminal — or an agent invoked via MCP, or a cron job, or a shell
-pipeline — has no single command to answer "is my substrate healthy right
-now?". They must run four separate verbs and visually correlate.
+Pattern parity:
+- T-2080 `agent find-idle --watch --log` / T-2081 retrospective verb
+- T-2066 `fleet governor-status --watch --log` / T-2068 retrospective
+- T-2073 `channel claims-summary --watch --log` / T-2074 retrospective
+- T-2085 `channel queue-status --watch --log` / T-2086 retrospective
 
-This task ships **Slice 1**: `termlink substrate status [--json]
-[--only-pressured] [--timeout SECS]` — a one-shot CLI verb that runs the four
-substrate-read primitives in parallel and renders a unified four-section view
-(or a merged JSON envelope). Pattern parity with `fleet doctor` /
-`fleet governor-status`. Read-only, no auth side-effects, no state mutation.
+Pure delta on top of T-2112 + T-2113:
+- New clap flag `--log <PATH>` on SubstrateAction::Status (requires watch).
+- New pure helper `render_log_line(field, old, new, ts) -> String` emitting
+  one flat NDJSON line: `{ts, field, old, new}`.
+- New best-effort `append_log_line(path, field, old, new, ts)` — parent
+  dir auto-created; disk-full / permission errors print one-line stderr
+  warning, watch never crashes.
+- Wired into the per-event fire path next to `fire_notify` so each event
+  lands in both surfaces when both flags are set.
 
-Composes:
-- `agent find-idle` (substrate #2 DISPATCH, T-2020/T-2045) → "who's free?"
-- `channel claims-summary --all` (substrate #1 CLAIM, T-2042) → "any stuck claims?"
-- `channel queue-status` (substrate #5 RESILIENCE, T-2051) → "queue draining?"
-- `fleet governor-status` (substrate #10 BACKPRESSURE, T-2048) → "any hub pressured?"
+Symmetric write-once + read-many: this slice ships the write side; the
+retrospective `substrate history` verb is deferred to Slice 5 (next).
 
-Parallel by construction: total latency = max of four reads, not sum-of-four.
-Graceful degradation: a failed sub-verb renders as a stderr line + `ok:false`
-in JSON, not a hard stop. `--only-pressured` filters the claim+backpressure
-sections (mirror of the sub-verb flag) — dispatch+resilience pass through.
-
-This Slice 1 establishes the namespace; subsequent slices (deferred — not in
-this task) would add `--watch`, `--notify`, `--log`, `substrate history`, and
-MCP parity, following the established arc pattern (T-2078..T-2087, T-2064..T-2069).
-
-Cross-references — T-2018 §6 build manifest, `/substrate` skill
-(`.claude/commands/substrate.md`, T-2096), pattern parity with
-`cmd_fleet_governor_status` (`crates/termlink-cli/src/commands/remote.rs:2683`).
+Design constraints (from T-2080/T-2085 priors):
+- `--log` requires `--watch` (events only exist across ticks).
+- Cardinality lock at 4 fields per line — jq-friendly, no nested objects.
+- Best-effort writes — observability outage MUST NOT kill the watch loop.
+- Symmetric with `--notify` — both can be set; same per-tick event source.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] New `Substrate { action }` top-level subcommand added to `Command` enum
-      in `crates/termlink-cli/src/cli.rs` with `SubstrateAction::Status` variant
-      accepting `--json`, `--only-pressured`, `--timeout SECS` flags.
-- [x] Dispatch in `main.rs` routes `Substrate { action: Status }` to
-      `cmd_substrate_status` (new function in `commands::remote` or new
-      `commands::substrate` module).
-- [x] `cmd_substrate_status` composes the four substrate reads in parallel
-      via `tokio::join!` (or equivalent), so total latency ≈ max-of-four
-      not sum-of-four.
-- [x] Human-format output renders four labeled sections (DISPATCH / CLAIM /
-      RESILIENCE / BACKPRESSURE), each with an affirmative-on-zero render
-      (e.g. "no idle agents", "All N topics healthy (0/N stuck)") — never a
-      silent empty section.
-- [x] `--json` envelope shape: `{ok, ts, dispatch, claim, resilience,
-      backpressure}` with each sub-section a passthrough of the underlying
-      verb's `--json` shape. A failed sub-verb's section carries `ok: false`
-      with an `error` field; the top-level `ok` is `false` iff any sub-verb
-      failed.
-- [x] `--only-pressured` filters the CLAIM section to `summary.only_stuck=true`
-      topics and the BACKPRESSURE section to pressured hubs; DISPATCH and
-      RESILIENCE pass through as-is (their `--only-*` analogs don't apply).
-- [x] Graceful degradation: a sub-verb panic / timeout / nonzero exit
-      renders as `(<section> unavailable: <one-line err>)` in human mode +
-      `ok:false` in JSON. The other three sections still render.
-- [x] At least 3 unit tests covering: (a) all-healthy zero state renders
-      affirmative section footers; (b) JSON envelope shape with all four
-      sub-sections present; (c) partial-failure path — one sub-verb
-      returning `ok:false` still allows the other three to render and the
-      top-level `ok` reflects the failure.
-- [x] Live smoke against local hub: `termlink substrate status` returns
-      exit 0 with four sections, `--json` parses, `--only-pressured` works.
-      Append timestamped evidence to Updates.
-
-## Verification
-cargo check -p termlink 2>&1 | tail -5
-cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
-./target/debug/termlink substrate status --help 2>&1 | grep -q "substrate"
+- [x] `--log <PATH>` flag added to `SubstrateAction::Status` clap variant
+      with `requires = "watch"` constraint; `cargo check -p termlink` passes.
+- [x] Pure helper `render_log_line(field, old, new, ts)` emits exactly
+      one NDJSON line with 4 fields: `ts`, `field`, `old`, `new`. Unit
+      test asserts the field set + JSON-parseability.
+- [x] `append_log_line` auto-creates the parent directory when missing;
+      unit test writes to `/tmp/T-2114/sub/dir/file.log` and asserts the
+      directory chain was created + the file exists with the rendered line.
+- [x] `append_log_line` is best-effort: opens with `O_APPEND | O_CREAT`;
+      disk-full / permission errors print one-line stderr warning and
+      return cleanly (watch never crashes).
+- [x] Wired into `cmd_substrate_status_watch` next to `fire_notify` —
+      every per-cycle rollup-field change event appends one log line.
+      Baseline cycle skipped (matches T-2113 notify semantics).
+- [x] `cargo test -p termlink --bin termlink substrate` passes (≥17 tests
+      after Slice 4 adds 2 new).
+- [x] CLI `--log` rejected without `--watch` (clap `requires` enforces);
+      reject prints the clap usage hint.
+- [x] Full regression: `cargo test -p termlink --bin termlink` passes
+      (≥909 tests as of Slice 3 baseline).
+- [x] Live smoke against local hub: run `substrate status --watch 5
+      --log /tmp/T-2114-smoke.log` for ~2 cycles, induce a `claim_topic_count`
+      change via `channel create T-2114-smoke-<ts> --retention "days:1"`,
+      assert the log file ends up with at least one valid NDJSON line
+      whose `field == "claim_topic_count"`. Append timestamped Updates evidence.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,6 +127,10 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 -->
 
 ## Verification
+
+cargo check -p termlink 2>&1 | tail -5
+cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
+./target/debug/termlink substrate status --help 2>&1 | grep -q "\-\-log"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -238,42 +226,44 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 
 ## Updates
 
-### 2026-06-10T07:10:18Z — task-created [task-create-agent]
+### 2026-06-10T08:08:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2111-substrate-status-unified-one-shot-cli-ve.md
+- **Output:** /opt/termlink/.tasks/active/T-2114-substrate-status---watch---log-path-ndjs.md
 - **Context:** Initial task creation
 
-### 2026-06-10T07:25:00Z — Slice 1 implemented + smoked end-to-end
-- **Code shipped:**
-  - `crates/termlink-cli/src/commands/substrate.rs` (NEW, ~580 lines + 6 unit tests)
-  - `crates/termlink-cli/src/commands/mod.rs` — registered substrate module
-  - `crates/termlink-cli/src/cli.rs` — added `Substrate { action }` top-level
-    subcommand + `SubstrateAction::Status` enum with `--json`, `--only-pressured`,
-    `--timeout` flags
-  - `crates/termlink-cli/src/main.rs` — dispatch routes to `cmd_substrate_status`
-- **Tests:** 6/6 substrate unit tests pass (renderer + JSON shape + partial-failure
-  + is_potentially_stuck predicate). Full CLI regression 902/902 pass — no
-  regression introduced.
-- **Live smoke evidence (against local hub on 192.168.10.107):**
-  - `termlink substrate status` — exit 0; four sections render; CLAIM walks
-    1334 topics on local hub (busy test fixture); RESILIENCE shows
-    `pending=0 (steady-state)`; BACKPRESSURE walks 5 hubs from hubs.toml
-  - `termlink substrate status --only-pressured` — collapses CLAIM to
-    `All topics healthy (0/1334 stuck)` (affirmative); BACKPRESSURE shows
-    5 hubs (3 unreachable on legacy-protocol hubs, 2 with non-zero
-    rate_hits) — all 5 are "pressured" so all 5 render under the filter
-  - `termlink substrate status --only-pressured --json` — emits envelope
-    `{ok:true, ts:"2026-06-10T07:21:10Z", only_pressured:true, dispatch:{ok,data},
-    claim:{ok,data}, resilience:{ok,data}, backpressure:{ok,data}}` — every
-    sub-section has `{ok, data}` per the AC contract
-- **Validation against design contract:**
-  - Parallel-by-construction: ✓ four sub-reads dispatched via `tokio::join!`,
-    total latency ≈ max-of-four (DISPATCH is fastest at single RPC; CLAIM is
-    slowest due to per-topic fan-out)
-  - Graceful degradation: ✓ unit tests + live smoke prove a failed
-    sub-read shows `(SECTION unavailable: ...)` while the other three
-    render. Local hub down kills DISPATCH+CLAIM only — RESILIENCE +
-    BACKPRESSURE continue (verified by code path, not yet by failure smoke)
-  - Read-only: ✓ no auth side-effects, no log writes, no state mutation —
-    each sub-fetch is either a hub RPC (idempotent read) or a local
-    SQLite open
+### 2026-06-10T08:14:00Z — slice 4 shipped end-to-end
+- **Action:** Implemented `substrate status --watch --log <PATH>` audit
+  trail. cli.rs: added `--log <PATH>` flag with `requires = "watch"`
+  constraint. main.rs: threaded `log` param into watch dispatch.
+  substrate.rs: added pure `render_log_line` + best-effort
+  `append_log_line` helpers + wired into the per-event fire path next to
+  `fire_notify` (line ~1024).
+- **Verification:**
+  - `cargo check -p termlink` — PASS (15.35s)
+  - `cargo test -p termlink --bin termlink substrate` — 17/17 PASS
+    (2 new: `render_log_line_shape_and_fields`,
+    `append_log_line_auto_creates_parent_dir`)
+  - `cargo test -p termlink --bin termlink` — 913/913 PASS (was 909
+    baseline pre-Slice 4)
+  - `./target/debug/termlink substrate status --log /tmp/foo.log` —
+    exits 2 with clap "required arguments were not provided: --watch"
+    (clap `requires` constraint enforced)
+  - Live smoke against local hub (`./target/debug/termlink substrate
+    status --watch 5 --log /tmp/T-2114-smoke.log`):
+    - Baseline cycle printed all 4 sections (no log write)
+    - 6 ticks elapsed; 2 silent cycles before induced change, 4 after
+    - Induced `claim_topic_count: 1338→1339` via
+      `channel create T-2114-smoke-1781079213 --retention "days:1"`
+    - Real-state transition fired: stdout =
+      `2026-06-10T08:13:36Z  claim_topic_count: 1338→1339`
+    - Log file `/tmp/T-2114-smoke.log` contains exactly 1 NDJSON line:
+      `{"field":"claim_topic_count","new":"1339","old":"1338","ts":"2026-06-10T08:13:36Z"}`
+    - 4-field cardinality lock holds; stringified numerics (matches
+      `--notify` env-var convention); RFC3339 ts
+    - SIGINT clean exit: `substrate-watch stopped (sigint, completed 7
+      cycle(s))`
+- **Outcome:** Slice 4 closes the write side of the audit trail. Slice 5
+  (`substrate history` retrospective read verb, mirror of T-2081 / T-2068
+  / T-2086) is the natural next slice — same write surface, retrospective
+  read aggregator.
+- **Context:** T-2018 §6 observability roll-up arc — T-2111 Slice 4.
