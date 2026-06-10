@@ -2304,9 +2304,14 @@ fn cli_version_text() {
         "Should contain 'termlink': {}",
         stdout
     );
-    // Version string should match pattern: 0.9.XXX
+    // Version string should match pattern: 0.MAJOR.MINOR
+    // T-2147: enumerate known major.minor families. If you're past 0.12,
+    // extend the disjunction or replace with a regex match on `r"0\.\d+\."`.
     assert!(
-        stdout.contains("0.9.") || stdout.contains("0.10."),
+        stdout.contains("0.9.")
+            || stdout.contains("0.10.")
+            || stdout.contains("0.11.")
+            || stdout.contains("0.12."),
         "Should contain version number: {}",
         stdout
     );
@@ -3512,8 +3517,16 @@ fn cli_fleet_reauth_valid_profile() {
 #[test]
 fn cli_inbox_status_json_no_hub() {
     // T-1096: inbox status --json without a hub should fail with clear error.
+    // T-2147: two fixes layered:
+    //   (a) TERMLINK_NO_DEPRECATION_WARN=1 suppresses the T-1426 stderr
+    //       deprecation print so it doesn't leak into the test signal.
+    //   (b) Since T-1916 the --json hub-down path emits its error envelope
+    //       to STDOUT (json_error_exit) rather than stderr — the original
+    //       assertion was checking the wrong stream. We now check stdout
+    //       for the JSON error message and exit code is non-zero.
     let dir = TestDir::new("inbox-status-json");
     let output = termlink_cmd(&dir.path)
+        .env("TERMLINK_NO_DEPRECATION_WARN", "1")
         .args(["inbox", "status", "--json"])
         .output()
         .expect("Failed to run inbox status --json");
@@ -3522,19 +3535,22 @@ fn cli_inbox_status_json_no_hub() {
         !output.status.success(),
         "inbox status should fail without hub"
     );
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("Hub is not running") || stderr.contains("not running"),
-        "should report hub not running: {}",
-        stderr
+        stdout.contains("Hub is not running") || stdout.contains("not running"),
+        "should report hub not running: stdout={} stderr={}",
+        stdout,
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 
 #[test]
 fn cli_inbox_clear_json_no_hub() {
     // T-1096: inbox clear --all --json without a hub should fail with clear error.
+    // T-2147: see cli_inbox_status_json_no_hub for the suppression + stdout-vs-stderr rationale.
     let dir = TestDir::new("inbox-clear-json");
     let output = termlink_cmd(&dir.path)
+        .env("TERMLINK_NO_DEPRECATION_WARN", "1")
         .args(["inbox", "clear", "--all", "--json"])
         .output()
         .expect("Failed to run inbox clear --all --json");
@@ -3543,11 +3559,12 @@ fn cli_inbox_clear_json_no_hub() {
         !output.status.success(),
         "inbox clear should fail without hub"
     );
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("Hub is not running") || stderr.contains("not running"),
-        "should report hub not running: {}",
-        stderr
+        stdout.contains("Hub is not running") || stdout.contains("not running"),
+        "should report hub not running: stdout={} stderr={}",
+        stdout,
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 
