@@ -2830,10 +2830,13 @@ pub(crate) async fn cmd_fleet_governor_status(
 
 /// T-2064 (T-2028 §6 #10 Track E): per-hub governor state observed each cycle.
 /// `(reachable, connections_active, connections_max, capacity_hits_total,
-/// rate_hits_total, dedupe_hits_total)`. dedupe_hits is `Option<i64>` because
-/// older hubs predating T-2049 omit the field; the renderer formats those as
-/// "n/a" rather than masking them as 0.
-type WatchGovernorState = (bool, i64, i64, i64, i64, Option<i64>);
+/// rate_hits_total, dedupe_hits_total, cv_index_overflow_total)`. The last
+/// two fields are `Option<i64>` because they were added in T-2049 (dedupe)
+/// and T-2110 (cv_overflow); the renderer formats `None` sides as "n/a"
+/// rather than masking them as 0 (older hub or runtime upgrade mid-watch).
+/// T-2119 added the cv_overflow field to close the §6 #10 observability
+/// loop initiated by T-2118 (predicate axis).
+type WatchGovernorState = (bool, i64, i64, i64, i64, Option<i64>, Option<i64>);
 
 /// T-2064: pure helper that formats one change line for a hub whose governor
 /// state moved between cycles. Extracted for unit-testability — the loop body
@@ -2865,6 +2868,19 @@ pub(crate) fn render_governor_watch_change_line(
         }
         _ => "n/a".to_string(),
     };
+    // T-2119: cv_overflow follows the dedupe pattern — Option<i64> for pre-T-2110
+    // backward compat, n/a sentinel when either side lacks the field.
+    let cv_overflow_str = match (prev.6, new.6) {
+        (Some(p), Some(n)) => {
+            let delta = n.saturating_sub(p).max(0);
+            if delta > 0 {
+                format!("{}→{}(+{})", p, n, delta)
+            } else {
+                format!("{}→{}", p, n)
+            }
+        }
+        _ => "n/a".to_string(),
+    };
     let cap_delta = new.3.saturating_sub(prev.3).max(0);
     let rate_delta = new.4.saturating_sub(prev.4).max(0);
     let cap_str = if cap_delta > 0 {
@@ -2879,8 +2895,8 @@ pub(crate) fn render_governor_watch_change_line(
     };
 
     let mut line = format!(
-        "{}   {} conn={}/{}→{}/{} cap_hits={} rate_hits={} dedupe_hits={}",
-        ts, name, prev.1, prev.2, new.1, new.2, cap_str, rate_str, dedupe_str,
+        "{}   {} conn={}/{}→{}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
+        ts, name, prev.1, prev.2, new.1, new.2, cap_str, rate_str, dedupe_str, cv_overflow_str,
     );
     if !prev.0 && new.0 {
         line.push_str(&format!("\n{}   {} REACHABLE again", ts, name));
@@ -2928,6 +2944,15 @@ pub(crate) fn build_governor_notify_env(
             None => String::new(),
         }
     };
+    // T-2119: cv_overflow follows the same Option<i64>+missing-side-empty
+    // convention as dedupe_hits. Pre-T-2110 hubs (no cv_index_overflow_total
+    // field) produce empty string; shell scripts gate on `[ -z "$VAR" ]`.
+    let cv_overflow_str = |s: Option<&WatchGovernorState>| -> String {
+        match s {
+            Some(st) => st.6.map(|n| n.to_string()).unwrap_or_default(),
+            None => String::new(),
+        }
+    };
     let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> String {
         match (old_v, new_v) {
             (Some(o), Some(n)) => (n - o).max(0).to_string(),
@@ -2937,6 +2962,7 @@ pub(crate) fn build_governor_notify_env(
     let cap_delta = counter_delta(prev.map(|s| s.3), new.map(|s| s.3));
     let rate_delta = counter_delta(prev.map(|s| s.4), new.map(|s| s.4));
     let dedupe_delta = counter_delta(prev.and_then(|s| s.5), new.and_then(|s| s.5));
+    let cv_overflow_delta = counter_delta(prev.and_then(|s| s.6), new.and_then(|s| s.6));
 
     vec![
         ("TERMLINK_GOV_HUB".into(), hub.into()),
@@ -2955,6 +2981,9 @@ pub(crate) fn build_governor_notify_env(
         ("TERMLINK_GOV_OLD_DEDUPE_HITS".into(), dedupe_str(prev)),
         ("TERMLINK_GOV_NEW_DEDUPE_HITS".into(), dedupe_str(new)),
         ("TERMLINK_GOV_DEDUPE_HITS_DELTA".into(), dedupe_delta),
+        ("TERMLINK_GOV_OLD_CV_OVERFLOW".into(), cv_overflow_str(prev)),
+        ("TERMLINK_GOV_NEW_CV_OVERFLOW".into(), cv_overflow_str(new)),
+        ("TERMLINK_GOV_CV_OVERFLOW_DELTA".into(), cv_overflow_delta),
     ]
 }
 
@@ -3031,6 +3060,14 @@ pub(crate) fn build_governor_log_entry(
             .map(|n| serde_json::json!(n))
             .unwrap_or(serde_json::Value::Null)
     };
+    // T-2119: cv_overflow follows the dedupe pattern — Option<i64> for
+    // pre-T-2110 hub backward compat. Missing side → JSON null (not omitted),
+    // so jq filters like `.cv_overflow_delta > 0` work without `// 0` coalesce.
+    let cv_overflow_v = |s: Option<&WatchGovernorState>| -> serde_json::Value {
+        s.and_then(|st| st.6)
+            .map(|n| serde_json::json!(n))
+            .unwrap_or(serde_json::Value::Null)
+    };
     let counter_delta = |old_v: Option<i64>, new_v: Option<i64>| -> serde_json::Value {
         match (old_v, new_v) {
             (Some(o), Some(n)) => serde_json::json!((n - o).max(0)),
@@ -3057,6 +3094,12 @@ pub(crate) fn build_governor_log_entry(
         "dedupe_hits_delta": counter_delta(
             prev.and_then(|s| s.5),
             new.and_then(|s| s.5),
+        ),
+        "old_cv_overflow": cv_overflow_v(prev),
+        "new_cv_overflow": cv_overflow_v(new),
+        "cv_overflow_delta": counter_delta(
+            prev.and_then(|s| s.6),
+            new.and_then(|s| s.6),
         ),
     })
 }
@@ -3200,9 +3243,14 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                 let dedupe_hits = gov
                     .and_then(|g| g.get("dedupe_hits_total"))
                     .and_then(|x| x.as_i64());
+                // T-2119: cv_index_overflow_total (added T-2110); Option for
+                // pre-T-2110 hub backward compat.
+                let cv_overflow = gov
+                    .and_then(|g| g.get("cv_index_overflow_total"))
+                    .and_then(|x| x.as_i64());
                 current.insert(
                     name,
-                    (ok, conn_active, conn_max, cap_hits, rate_hits, dedupe_hits),
+                    (ok, conn_active, conn_max, cap_hits, rate_hits, dedupe_hits, cv_overflow),
                 );
             }
         }
@@ -3215,8 +3263,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                     .5
                     .map(|n| n.to_string())
                     .unwrap_or_else(|| "n/a".into());
+                let cv_overflow_str = st
+                    .6
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "n/a".into());
                 println!(
-                    "{}   {} reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={}",
+                    "{}   {} reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
                     ts,
                     name,
                     if st.0 { "ok" } else { "fail" },
@@ -3224,7 +3276,8 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                     st.2,
                     st.3,
                     st.4,
-                    dedupe_str
+                    dedupe_str,
+                    cv_overflow_str
                 );
             }
         } else {
@@ -3255,8 +3308,12 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             .5
                             .map(|n| n.to_string())
                             .unwrap_or_else(|| "n/a".into());
+                        let cv_overflow_str = new_state
+                            .6
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "n/a".into());
                         println!(
-                            "{}   {} NEW reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={}",
+                            "{}   {} NEW reach={} conn={}/{} cap_hits={} rate_hits={} dedupe_hits={} cv_overflow={}",
                             ts,
                             name,
                             if new_state.0 { "ok" } else { "fail" },
@@ -3264,7 +3321,8 @@ pub(crate) async fn cmd_fleet_governor_status_watch(
                             new_state.2,
                             new_state.3,
                             new_state.4,
-                            dedupe_str
+                            dedupe_str,
+                            cv_overflow_str
                         );
                         if let Some(cmd) = notify.as_deref() {
                             fire_governor_notify(
@@ -3764,12 +3822,18 @@ fn governor_log_path() -> Option<std::path::PathBuf> {
 }
 
 /// T-2068: per-hub aggregate over governor.log entries within window.
+/// T-2119 added `cv_overflow_hits` to close the §6 #9↔#10 observability loop:
+/// counts cv_index overflow transitions (producer mis-emitting cv_key) over
+/// the audit window. Pre-T-2119 log entries lack `cv_overflow_delta` and
+/// contribute 0 to the sum (backward compat — same as how pre-T-2049 entries
+/// contribute 0 to `dedupe_hits`).
 #[derive(Default, Debug)]
 pub(crate) struct GovernorHubAgg {
     pub events: u32,
     pub cap_hits: i64,
     pub rate_hits: i64,
     pub dedupe_hits: i64,
+    pub cv_overflow_hits: i64,
 }
 
 /// T-2068: pure render helper for one governor.log entry. Pulled out of
@@ -3802,7 +3866,7 @@ pub(crate) fn render_governor_history_line(e: &serde_json::Value) -> String {
     };
 
     format!(
-        "{}  {:24} {:11} conn={}→{} cap={}→{}(+{}) rate={}→{}(+{}) dedupe={}→{}(+{})",
+        "{}  {:24} {:11} conn={}→{} cap={}→{}(+{}) rate={}→{}(+{}) dedupe={}→{}(+{}) cv_overflow={}→{}(+{})",
         ts,
         h,
         kind,
@@ -3817,6 +3881,13 @@ pub(crate) fn render_governor_history_line(e: &serde_json::Value) -> String {
         i_or_na("old_dedupe_hits"),
         i_or_na("new_dedupe_hits"),
         i_or_na("dedupe_hits_delta"),
+        // T-2119: cv_overflow sub-tree mirrors dedupe — null on either side
+        // renders as "n/a" so pre-T-2119 log entries (no cv_overflow fields)
+        // and pre-T-2110 hubs (null cv_overflow) both render distinguishably
+        // from "0".
+        i_or_na("old_cv_overflow"),
+        i_or_na("new_cv_overflow"),
+        i_or_na("cv_overflow_delta"),
     )
 }
 
@@ -3932,6 +4003,12 @@ pub(crate) fn cmd_fleet_governor_history(
             .get("dedupe_hits_delta")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
+        // T-2119: pre-T-2119 log entries lack the field; missing → 0 contribution
+        // (backward compat, same convention as dedupe_hits_delta vs pre-T-2049).
+        agg.cv_overflow_hits += e
+            .get("cv_overflow_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
     }
 
     if json_out {
@@ -3948,6 +4025,8 @@ pub(crate) fn cmd_fleet_governor_history(
                         "cap_hits_total": v.cap_hits,
                         "rate_hits_total": v.rate_hits,
                         "dedupe_hits_total": v.dedupe_hits,
+                        // T-2119: cv_index_overflow audit total over window.
+                        "cv_overflow_hits_total": v.cv_overflow_hits,
                     }),
                 )
             })
@@ -3981,8 +4060,8 @@ pub(crate) fn cmd_fleet_governor_history(
         );
         for (h, agg) in &per_hub {
             println!(
-                "  {:24} {:>3} event(s)  cap_hits=+{} rate_hits=+{} dedupe_hits=+{}",
-                h, agg.events, agg.cap_hits, agg.rate_hits, agg.dedupe_hits
+                "  {:24} {:>3} event(s)  cap_hits=+{} rate_hits=+{} dedupe_hits=+{} cv_overflow=+{}",
+                h, agg.events, agg.cap_hits, agg.rate_hits, agg.dedupe_hits, agg.cv_overflow_hits
             );
         }
         if malformed_lines > 0 {
@@ -8209,8 +8288,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_cap_hits_delta() {
         // Hub stayed reachable; cap_hits jumped 0 → 5 (5 connections refused).
-        let prev: WatchGovernorState = (true, 200, 256, 0, 0, Some(10));
-        let new: WatchGovernorState = (true, 256, 256, 5, 0, Some(10));
+        let prev: WatchGovernorState = (true, 200, 256, 0, 0, Some(10), None);
+        let new: WatchGovernorState = (true, 256, 256, 5, 0, Some(10), None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:00:00Z", "hub-a", &prev, &new);
         assert!(
@@ -8231,8 +8310,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_rate_hits_delta() {
         // Rate-limit fired 3 times between cycles; cap unchanged.
-        let prev: WatchGovernorState = (true, 12, 256, 0, 100, Some(0));
-        let new: WatchGovernorState = (true, 14, 256, 0, 103, Some(0));
+        let prev: WatchGovernorState = (true, 12, 256, 0, 100, Some(0), None);
+        let new: WatchGovernorState = (true, 14, 256, 0, 103, Some(0), None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:00:30Z", "hub-b", &prev, &new);
         assert!(
@@ -8256,8 +8335,8 @@ mod tests {
 
     #[test]
     fn build_governor_notify_env_computes_cap_hits_delta() {
-        let prev: WatchGovernorState = (true, 200, 256, 10, 5, Some(0));
-        let new: WatchGovernorState = (true, 256, 256, 17, 5, Some(0));
+        let prev: WatchGovernorState = (true, 200, 256, 10, 5, Some(0), None);
+        let new: WatchGovernorState = (true, 256, 256, 17, 5, Some(0), None);
         let env = build_governor_notify_env(
             "hub-a", "transition", "2026-06-08T22:30:00Z",
             Some(&prev), Some(&new),
@@ -8287,8 +8366,8 @@ mod tests {
         // Hub upgraded mid-watch from pre-T-2049 (no dedupe field) to T-2049+.
         // The transition gives Some/None mix — the env must use "" for the
         // missing side and "" for the delta (can't compute delta from missing).
-        let prev: WatchGovernorState = (true, 50, 256, 0, 0, None);
-        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(42));
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, None, None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(42), None);
         let env = build_governor_notify_env(
             "hub-upgraded", "transition", "2026-06-08T22:35:00Z",
             Some(&prev), Some(&new),
@@ -8329,8 +8408,8 @@ mod tests {
 
     #[test]
     fn build_governor_log_entry_computes_deltas_and_string_reach() {
-        let prev: WatchGovernorState = (true, 10, 256, 100, 50, Some(7));
-        let new: WatchGovernorState = (true, 11, 256, 117, 50, Some(7));
+        let prev: WatchGovernorState = (true, 10, 256, 100, 50, Some(7), None);
+        let new: WatchGovernorState = (true, 11, 256, 117, 50, Some(7), None);
         let entry = build_governor_log_entry(
             "hub-a", "transition", "2026-06-08T23:00:00Z",
             Some(&prev), Some(&new),
@@ -8356,7 +8435,7 @@ mod tests {
     fn build_governor_log_entry_serializes_null_for_missing_sides() {
         use serde_json::Value;
         // "new" event: prev=None ⇒ all old_* fields are JSON null (not omitted).
-        let new: WatchGovernorState = (false, 0, -1, 0, 0, None);
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
         let entry = build_governor_log_entry(
             "fresh-hub", "new", "2026-06-08T23:01:00Z",
             None, Some(&new),
@@ -8376,7 +8455,7 @@ mod tests {
         assert_eq!(entry["dedupe_hits_delta"], Value::Null);
 
         // "removed" event: new=None ⇒ all new_* fields are null
-        let prev: WatchGovernorState = (true, 5, 256, 3, 0, Some(2));
+        let prev: WatchGovernorState = (true, 5, 256, 3, 0, Some(2), None);
         let entry2 = build_governor_log_entry(
             "gone-hub", "removed", "2026-06-08T23:02:00Z",
             Some(&prev), None,
@@ -8428,6 +8507,178 @@ mod tests {
         assert!(line.contains("cap=0→1(+1)"), "cap delta: {line}");
         assert!(line.contains("rate=5→7(+2)"), "rate delta: {line}");
         assert!(line.contains("dedupe=10→12(+2)"), "dedupe delta: {line}");
+    }
+
+    // T-2119: cv_overflow observability axis — predicate side (cv_overflow>0
+    // fires --only-pressured) was T-2118; this side wires the watch-loop
+    // transition events (render/notify/log/history) so an operator can be
+    // paged the moment a producer first mis-emits cv_key.
+
+    #[test]
+    fn watch_governor_renders_cv_overflow_delta() {
+        // Producer started mis-emitting cv_key — cv_overflow_total jumped 0→7
+        // between cycles. Operator must see this loudly on the change line.
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(0));
+        let new: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), Some(7));
+        let line =
+            render_governor_watch_change_line("2026-06-10T09:45:00Z", "hub-cv", &prev, &new);
+        assert!(
+            line.contains("cv_overflow=0→7(+7)"),
+            "expected cv_overflow delta with +7, got: {line}"
+        );
+        assert!(line.contains("cap_hits=0→0"), "cap unchanged: {line}");
+    }
+
+    #[test]
+    fn watch_governor_renders_cv_overflow_na_when_field_absent() {
+        // Pre-T-2110 hub: no cv_index_overflow_total field at all. Both sides
+        // are None ⇒ "n/a" sentinel (not "0→0" which would lie about state).
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None);
+        let new: WatchGovernorState = (true, 32, 256, 1, 0, Some(0), None);
+        let line =
+            render_governor_watch_change_line("2026-06-10T09:46:00Z", "hub-legacy", &prev, &new);
+        assert!(
+            line.contains("cv_overflow=n/a"),
+            "expected n/a for pre-T-2110 hub, got: {line}"
+        );
+        assert!(line.contains("cap_hits=0→1(+1)"), "cap delta still rendered: {line}");
+    }
+
+    #[test]
+    fn build_governor_notify_env_computes_cv_overflow_delta() {
+        // Producer mis-emit caught between cycles — overflow jumped 0→4.
+        let prev: WatchGovernorState = (true, 20, 256, 0, 0, Some(5), Some(0));
+        let new: WatchGovernorState = (true, 21, 256, 0, 0, Some(5), Some(4));
+        let env = build_governor_notify_env(
+            "hub-producer", "transition", "2026-06-10T09:47:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_OLD_CV_OVERFLOW"), "0");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_CV_OVERFLOW"), "4");
+        assert_eq!(lookup("TERMLINK_GOV_CV_OVERFLOW_DELTA"), "4");
+        // Schema-stable across other counters.
+        assert_eq!(lookup("TERMLINK_GOV_CAP_HITS_DELTA"), "0");
+        assert_eq!(lookup("TERMLINK_GOV_DEDUPE_HITS_DELTA"), "0");
+    }
+
+    #[test]
+    fn build_governor_notify_env_handles_cv_overflow_none_to_some() {
+        // Hub upgraded mid-watch from pre-T-2110 (no cv_overflow field) to
+        // T-2110+. Some/None mix → delta empty string (script gate on -z).
+        let prev: WatchGovernorState = (true, 50, 256, 0, 0, Some(0), None);
+        let new: WatchGovernorState = (true, 51, 256, 0, 0, Some(0), Some(3));
+        let env = build_governor_notify_env(
+            "hub-upgraded", "transition", "2026-06-10T09:48:00Z",
+            Some(&prev), Some(&new),
+        );
+        let lookup = |k: &str| -> String {
+            env.iter()
+                .find(|(key, _)| key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing env key {k}"))
+        };
+        assert_eq!(lookup("TERMLINK_GOV_OLD_CV_OVERFLOW"), "");
+        assert_eq!(lookup("TERMLINK_GOV_NEW_CV_OVERFLOW"), "3");
+        assert_eq!(
+            lookup("TERMLINK_GOV_CV_OVERFLOW_DELTA"),
+            "",
+            "delta must be empty when either side is missing"
+        );
+    }
+
+    #[test]
+    fn build_governor_log_entry_serializes_cv_overflow_fields() {
+        // Modern entry — cv_overflow present on both sides, numeric delta.
+        let prev: WatchGovernorState = (true, 10, 256, 0, 0, Some(0), Some(2));
+        let new: WatchGovernorState = (true, 11, 256, 0, 0, Some(0), Some(9));
+        let entry = build_governor_log_entry(
+            "hub-a", "transition", "2026-06-10T09:49:00Z",
+            Some(&prev), Some(&new),
+        );
+        assert_eq!(entry["old_cv_overflow"], 2);
+        assert_eq!(entry["new_cv_overflow"], 9);
+        assert_eq!(entry["cv_overflow_delta"], 7);
+    }
+
+    #[test]
+    fn build_governor_log_entry_cv_overflow_null_for_pre_t2110() {
+        use serde_json::Value;
+        // Pre-T-2110 hub: cv_overflow None on both sides ⇒ JSON null (NOT 0)
+        // so jq filters distinguish "no field" from "0 hits this window".
+        let prev: WatchGovernorState = (true, 30, 256, 0, 0, Some(0), None);
+        let new: WatchGovernorState = (true, 31, 256, 0, 0, Some(0), None);
+        let entry = build_governor_log_entry(
+            "hub-legacy", "transition", "2026-06-10T09:50:00Z",
+            Some(&prev), Some(&new),
+        );
+        assert_eq!(entry["old_cv_overflow"], Value::Null);
+        assert_eq!(entry["new_cv_overflow"], Value::Null);
+        assert_eq!(entry["cv_overflow_delta"], Value::Null);
+        // Other counters still produce real numbers.
+        assert_eq!(entry["cap_hits_delta"], 0);
+    }
+
+    #[test]
+    fn aggregate_governor_entries_sums_cv_overflow_delta() {
+        // Three entries for hub-a with cv_overflow_delta values 3, 5, 0.
+        // Aggregate should report cv_overflow_hits=8. Pre-T-2119 entry
+        // missing the field contributes 0.
+        let entries: Vec<serde_json::Value> = vec![
+            serde_json::json!({"hub":"hub-a","cv_overflow_delta": 3}),
+            serde_json::json!({"hub":"hub-a","cv_overflow_delta": 5}),
+            serde_json::json!({"hub":"hub-a","cv_overflow_delta": 0}),
+            // Pre-T-2119: no cv_overflow_delta field
+            serde_json::json!({"hub":"hub-a","cap_hits_delta": 2}),
+        ];
+        let mut per_hub: std::collections::BTreeMap<String, GovernorHubAgg> =
+            std::collections::BTreeMap::new();
+        for e in &entries {
+            let h = e.get("hub").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            let agg = per_hub.entry(h).or_default();
+            agg.events += 1;
+            agg.cap_hits += e.get("cap_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+            agg.cv_overflow_hits += e.get("cv_overflow_delta").and_then(|v| v.as_i64()).unwrap_or(0);
+        }
+        let agg = per_hub.get("hub-a").expect("hub-a aggregate present");
+        assert_eq!(agg.events, 4);
+        assert_eq!(agg.cv_overflow_hits, 8, "3+5+0+0(missing)=8");
+        assert_eq!(agg.cap_hits, 2, "pre-T-2119 entry contributes cap_hits=2");
+    }
+
+    #[test]
+    fn render_governor_history_line_renders_cv_overflow_full_entry() {
+        let entry = serde_json::json!({
+            "ts": "2026-06-10T09:51:00Z",
+            "hub": "hub-cv",
+            "kind": "transition",
+            "old_reach": "ok",
+            "new_reach": "ok",
+            "old_conn_active": 5,
+            "new_conn_active": 5,
+            "old_cap_hits": 0,
+            "new_cap_hits": 0,
+            "cap_hits_delta": 0,
+            "old_rate_hits": 0,
+            "new_rate_hits": 0,
+            "rate_hits_delta": 0,
+            "old_dedupe_hits": 0,
+            "new_dedupe_hits": 0,
+            "dedupe_hits_delta": 0,
+            "old_cv_overflow": 2,
+            "new_cv_overflow": 11,
+            "cv_overflow_delta": 9,
+        });
+        let line = render_governor_history_line(&entry);
+        assert!(
+            line.contains("cv_overflow=2→11(+9)"),
+            "expected cv_overflow segment with delta, got: {line}"
+        );
     }
 
     #[test]
@@ -8545,8 +8796,8 @@ mod tests {
     #[test]
     fn watch_governor_renders_reachable_transition() {
         // Hub went from reachable to UNREACHABLE — operator must see this loudly.
-        let prev: WatchGovernorState = (true, 100, 256, 0, 0, Some(0));
-        let new: WatchGovernorState = (false, 0, -1, 0, 0, None);
+        let prev: WatchGovernorState = (true, 100, 256, 0, 0, Some(0), None);
+        let new: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
         let line =
             render_governor_watch_change_line("2026-06-08T22:01:00Z", "hub-c", &prev, &new);
         assert!(
@@ -8566,8 +8817,8 @@ mod tests {
         );
 
         // Inverse direction: recovery emits "REACHABLE again".
-        let prev2: WatchGovernorState = (false, 0, -1, 0, 0, None);
-        let new2: WatchGovernorState = (true, 5, 256, 0, 0, Some(0));
+        let prev2: WatchGovernorState = (false, 0, -1, 0, 0, None, None);
+        let new2: WatchGovernorState = (true, 5, 256, 0, 0, Some(0), None);
         let line2 =
             render_governor_watch_change_line("2026-06-08T22:01:30Z", "hub-c", &prev2, &new2);
         assert!(

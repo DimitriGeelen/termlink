@@ -272,12 +272,15 @@ pub(crate) fn mcp_governor_hub_is_pressured(
 
 // T-2069: per-hub aggregate over governor.log entries within window.
 // Matches CLI `GovernorHubAgg` (remote.rs) field-for-field.
+// T-2119: cv_overflow_hits added — sums cv_overflow_delta entries to
+// quantify cv_index pressure (producer mis-emitting cv_key) over window.
 #[derive(Default, Debug)]
 pub(crate) struct GovernorHubAggMcp {
     pub events: u32,
     pub cap_hits: i64,
     pub rate_hits: i64,
     pub dedupe_hits: i64,
+    pub cv_overflow_hits: i64,
 }
 
 /// T-2069: parse governor.log NDJSON entries, filter by `cutoff_secs` and
@@ -337,6 +340,12 @@ pub(crate) fn aggregate_governor_entries(
         agg.rate_hits += e.get("rate_hits_delta").and_then(|v| v.as_i64()).unwrap_or(0);
         agg.dedupe_hits += e
             .get("dedupe_hits_delta")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        // T-2119: pre-T-2119 log entries lack the field; missing → 0 contribution
+        // (backward compat, same convention as dedupe_hits_delta vs pre-T-2049).
+        agg.cv_overflow_hits += e
+            .get("cv_overflow_delta")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
     }
@@ -16408,6 +16417,9 @@ impl TermLinkTools {
                         "cap_hits_total": v.cap_hits,
                         "rate_hits_total": v.rate_hits,
                         "dedupe_hits_total": v.dedupe_hits,
+                        // T-2119: cv_index_overflow audit total over window —
+                        // mirror of CLI per_hub envelope shape.
+                        "cv_overflow_hits_total": v.cv_overflow_hits,
                     }),
                 )
             })
@@ -42495,6 +42507,36 @@ YW\tJ
         assert_eq!(ring.cap_hits, 7);
         assert_eq!(ring.rate_hits, 11);
         assert_eq!(ring.dedupe_hits, 0);
+        // T-2119: pre-T-2119 entries lacked cv_overflow_delta — aggregate
+        // contributes 0 (backward compat).
+        assert_eq!(local.cv_overflow_hits, 0);
+        assert_eq!(ring.cv_overflow_hits, 0);
+    }
+
+    // T-2119: aggregate cv_overflow_delta entries. Pre-T-2119 entries lack
+    // the field and contribute 0; modern entries contribute the value.
+    #[test]
+    fn fleet_governor_history_aggregates_cv_overflow_delta() {
+        let ts = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"hub\":\"hub-cv\",\"kind\":\"transition\",\"cap_hits_delta\":0,\"rate_hits_delta\":0,\"dedupe_hits_delta\":0,\"cv_overflow_delta\":3}}\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"hub-cv\",\"kind\":\"transition\",\"cap_hits_delta\":0,\"rate_hits_delta\":0,\"dedupe_hits_delta\":0,\"cv_overflow_delta\":11}}\n\
+             {{\"ts\":\"{ts}\",\"hub\":\"hub-legacy\",\"kind\":\"transition\",\"cap_hits_delta\":1,\"rate_hits_delta\":0,\"dedupe_hits_delta\":null}}\n",
+            ts = ts
+        );
+        let (entries, malformed) = parse_governor_log(&text, 0, None);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(malformed, 0);
+
+        let per_hub = aggregate_governor_entries(&entries);
+        let hub_cv = per_hub.get("hub-cv").unwrap();
+        assert_eq!(hub_cv.events, 2);
+        assert_eq!(hub_cv.cv_overflow_hits, 14, "3 + 11 = 14");
+        // Pre-T-2119 entry (no cv_overflow_delta field) contributes 0.
+        let hub_legacy = per_hub.get("hub-legacy").unwrap();
+        assert_eq!(hub_legacy.events, 1);
+        assert_eq!(hub_legacy.cv_overflow_hits, 0);
+        assert_eq!(hub_legacy.cap_hits, 1);
     }
 
     // T-2071: mcp_governor_hub_is_pressured — pure predicate for
