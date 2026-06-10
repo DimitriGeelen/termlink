@@ -1,4 +1,8 @@
-# Substrate primitive #11 — SUBSTRATE-PULSE (cross-primitive rollup)
+# Substrate observability composition — SUBSTRATE-PULSE (cross-primitive rollup)
+
+(SUBSTRATE-PULSE is the operator-facing name for the composition; it is
+not an ADR §6 manifest primitive on its own — it composes #1, #2, #5,
+and #10 into one situational view.)
 
 T-2111..T-2117 close the SUBSTRATE-PULSE observability arc end-to-end: a
 single CLI verb (`termlink substrate status`) + MCP companion that
@@ -318,7 +322,7 @@ if not status["ok"] or any(not s["ok"] for s in (
   - [`substrate-offline-queue-recipe.md`](substrate-offline-queue-recipe.md) (#5 — RESILIENCE; the queue-status arc mirrors substrate-status)
 - **Slash-command alias:** `/substrate` (T-2096) — same composition
   at the skill tier with operator hints.
-- T-2018 ADR §6 #11 — the substrate primitive
+- T-2018 ADR §6 — the substrate manifest this composes (#1 CLAIM, #2 DISPATCH, #5 RESILIENCE, #10 BACKPRESSURE)
 - T-2111..T-2117 — substrate-status arc build chain (Slice 1
   one-shot CLI → Slice 2 `--watch` → Slice 3 `--notify` → Slice 4
   `--log` → Slice 5 `substrate history` CLI → Slice 6

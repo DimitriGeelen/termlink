@@ -543,7 +543,7 @@ For full details on each:
   + cv_index, late-joiner snapshots, producer wiring
 - **#10 BACKPRESSURE** — [`substrate-governor.md`](substrate-governor.md)
   + connection cap + rate limit + dedupe + cv_overflow observability
-- **#11 SUBSTRATE-PULSE** — [`substrate-status.md`](substrate-status.md)
+- **SUBSTRATE-PULSE** (composition, not §6 primitive) — [`substrate-status.md`](substrate-status.md)
   + cross-primitive rollup (substrate status CLI/MCP + watch + notify + log + history)
 - **G-060 cross-hub** — [`channel-topic-semantics.md`](channel-topic-semantics.md)
   + why hubs don't federate state; how to compose
