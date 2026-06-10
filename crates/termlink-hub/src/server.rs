@@ -246,6 +246,12 @@ pub async fn run_with_tcp(
     // falls back to DEFAULT_MAX_CONNECTIONS / DEFAULT_RATE_LIMIT_PER_SEC.
     crate::governor::init();
 
+    // T-2137: Spawn the periodic rate-bucket eviction loop. Closes the
+    // T-2018 §6 #10 retention/compaction gap — without this, the
+    // per-sender rate-bucket HashMap grew unbounded
+    // (production observation: 258_236 buckets against a 5-agent fleet).
+    crate::governor::spawn_rate_evict_loop();
+
     // T-2049: Install client_msg_id LRU dedupe cache. Reads
     // TERMLINK_DEDUPE_TTL_MS / TERMLINK_DEDUPE_CAPACITY from env, falls
     // back to DEFAULT_DEDUPE_TTL_MS / DEFAULT_DEDUPE_CAPACITY.
@@ -341,6 +347,11 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     // T-2048: Governors (idempotent — no-op if `run_with_tcp` already
     // installed them, e.g. tests that spin up both shapes).
     crate::governor::init();
+    // T-2137: Rate-bucket eviction loop. Each call spawns a fresh task;
+    // in practice this path is only used by simple-API callers (and
+    // tests, which exit before the first eviction tick fires), so the
+    // small duplication risk vs `run_with_tcp` is acceptable.
+    crate::governor::spawn_rate_evict_loop();
     // T-2049: Dedupe cache (idempotent).
     crate::dedupe::init();
 

@@ -37,6 +37,19 @@ pub const DEFAULT_MAX_CONNECTIONS: u32 = 256;
 /// poller hammering 10k/sec) is contained.
 pub const DEFAULT_RATE_LIMIT_PER_SEC: u32 = 1000;
 
+/// T-2137: Default eviction sweep cadence for the per-sender rate-bucket
+/// HashMap. 60s balances "responsive memory release" vs "cheap" — the
+/// eviction walk is O(buckets) under a single mutex.
+pub const DEFAULT_RATE_EVICT_INTERVAL_SEC: u64 = 60;
+
+/// T-2137: Default idle threshold above which a rate-bucket is dropped.
+/// 5 minutes = 5× the longest realistic rate-limit window so a sender
+/// that's just resting between bursts never loses its bucket (and
+/// therefore never resets to a fresh full bucket mid-burst). A sender
+/// idle for 5 min was either fully back to full capacity 4 min ago or
+/// has disconnected — either way the bucket is no longer load-bearing.
+pub const DEFAULT_RATE_EVICT_IDLE_THRESHOLD_MS: i64 = 300_000;
+
 static CONN_GOVERNOR: OnceLock<ConnGovernor> = OnceLock::new();
 static RATE_GOVERNOR: OnceLock<RateGovernor> = OnceLock::new();
 
@@ -253,13 +266,92 @@ impl RateGovernor {
     }
 
     /// Evict buckets idle longer than `idle_threshold_ms`. Called
-    /// periodically by the hub to keep memory bounded; the slow tail
-    /// of senders is the dominant cost.
-    #[allow(dead_code)] // wired in slice 2
-    pub fn evict_idle(&self, now_ms: i64, idle_threshold_ms: i64) {
+    /// periodically by the hub (T-2137: wired via
+    /// [`spawn_rate_evict_loop`] at startup) to keep memory bounded; the
+    /// slow tail of senders is the dominant cost. Returns the number of
+    /// buckets dropped so the caller can log / surface the count.
+    pub fn evict_idle(&self, now_ms: i64, idle_threshold_ms: i64) -> usize {
         let mut buckets = self.buckets.lock().expect("rate buckets mutex poisoned");
+        let before = buckets.len();
         buckets.retain(|_, b| now_ms - b.last_refill_ms < idle_threshold_ms);
+        before - buckets.len()
     }
+}
+
+/// T-2137: Spawn the periodic rate-bucket eviction loop. Idempotent
+/// across multiple calls (each call spawns one loop; in practice this
+/// is only called once per hub instance, from [`init`]). Reads cadence
+/// + threshold from env vars `TERMLINK_RATE_EVICT_INTERVAL_SEC` (clamped
+/// 5..=3600) and `TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS` (clamped
+/// 1000..=3_600_000), falling back to
+/// `DEFAULT_RATE_EVICT_INTERVAL_SEC` / `DEFAULT_RATE_EVICT_IDLE_THRESHOLD_MS`.
+///
+/// Closes T-2018 §6 #10 invariant ("retention/compaction designed in
+/// from the start"). Before this, the per-sender rate-bucket HashMap
+/// grew unbounded — `rate_buckets_active=258_236` was observed in
+/// production against a ~5-agent fleet.
+///
+/// Must be called from within a tokio runtime (typically the hub's
+/// startup path).
+pub fn spawn_rate_evict_loop() {
+    let interval_sec = parse_env_u64_clamped(
+        "TERMLINK_RATE_EVICT_INTERVAL_SEC",
+        DEFAULT_RATE_EVICT_INTERVAL_SEC,
+        5,
+        3600,
+    );
+    let idle_threshold_ms = parse_env_i64_clamped(
+        "TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS",
+        DEFAULT_RATE_EVICT_IDLE_THRESHOLD_MS,
+        1000,
+        3_600_000,
+    );
+    tracing::info!(
+        interval_sec,
+        idle_threshold_ms,
+        "Hub rate-bucket eviction loop spawned (T-2137 — \
+         TERMLINK_RATE_EVICT_INTERVAL_SEC / TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS to override)"
+    );
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(interval_sec));
+        // Skip the immediate first tick — no buckets to evict at startup.
+        ticker.tick().await;
+        loop {
+            ticker.tick().await;
+            let dropped = rate_governor().evict_idle(now_ms(), idle_threshold_ms);
+            if dropped > 0 {
+                tracing::debug!(
+                    dropped,
+                    buckets_remaining = rate_governor().buckets_active(),
+                    "Rate-bucket eviction swept stale entries"
+                );
+            }
+        }
+    });
+}
+
+fn parse_env_u64_clamped(name: &str, default: u64, min: u64, max: u64) -> u64 {
+    let raw = std::env::var(name).ok();
+    let parsed = match raw.as_deref() {
+        Some(v) => v.parse::<u64>().unwrap_or_else(|_| {
+            tracing::warn!(env = name, value = v, default, "Hub governor: env var unparseable as u64, using default");
+            default
+        }),
+        None => default,
+    };
+    parsed.clamp(min, max)
+}
+
+fn parse_env_i64_clamped(name: &str, default: i64, min: i64, max: i64) -> i64 {
+    let raw = std::env::var(name).ok();
+    let parsed = match raw.as_deref() {
+        Some(v) => v.parse::<i64>().unwrap_or_else(|_| {
+            tracing::warn!(env = name, value = v, default, "Hub governor: env var unparseable as i64, using default");
+            default
+        }),
+        None => default,
+    };
+    parsed.clamp(min, max)
 }
 
 #[cfg(test)]
@@ -416,11 +508,63 @@ mod tests {
         let t1 = t0 + 60_000;
         g.try_acquire("active", t1).unwrap();
 
-        g.evict_idle(t1, 30_000);
+        let dropped = g.evict_idle(t1, 30_000);
         assert_eq!(
             g.buckets_active(),
             1,
             "ephemeral last_refill at t0, now-30s threshold should evict"
         );
+        assert_eq!(dropped, 1, "evict_idle should report 1 bucket dropped");
+    }
+
+    /// T-2137: env-knob clamps (T-2018 §6 #10 retention/compaction).
+    /// `spawn_rate_evict_loop` itself is one-line `tokio::spawn(loop)`
+    /// over the already-tested `evict_idle` primitive — there's nothing
+    /// the env-knob clamps don't already cover.
+    #[test]
+    fn rate_evict_env_knobs_clamp_to_bounds() {
+        // Interval: clamp to [5, 3600].
+        unsafe { std::env::set_var("TERMLINK_RATE_EVICT_INTERVAL_SEC", "1"); }
+        assert_eq!(
+            parse_env_u64_clamped("TERMLINK_RATE_EVICT_INTERVAL_SEC", 60, 5, 3600),
+            5,
+            "below-min should clamp UP to 5"
+        );
+        unsafe { std::env::set_var("TERMLINK_RATE_EVICT_INTERVAL_SEC", "999999"); }
+        assert_eq!(
+            parse_env_u64_clamped("TERMLINK_RATE_EVICT_INTERVAL_SEC", 60, 5, 3600),
+            3600,
+            "above-max should clamp DOWN to 3600"
+        );
+        unsafe { std::env::set_var("TERMLINK_RATE_EVICT_INTERVAL_SEC", "120"); }
+        assert_eq!(
+            parse_env_u64_clamped("TERMLINK_RATE_EVICT_INTERVAL_SEC", 60, 5, 3600),
+            120,
+            "in-range should pass through unchanged"
+        );
+        unsafe { std::env::set_var("TERMLINK_RATE_EVICT_INTERVAL_SEC", "garbage"); }
+        assert_eq!(
+            parse_env_u64_clamped("TERMLINK_RATE_EVICT_INTERVAL_SEC", 60, 5, 3600),
+            60,
+            "unparseable should fall back to default"
+        );
+
+        // Threshold: clamp to [1000, 3_600_000].
+        unsafe { std::env::set_var("TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS", "100"); }
+        assert_eq!(
+            parse_env_i64_clamped(
+                "TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS",
+                300_000,
+                1000,
+                3_600_000
+            ),
+            1000,
+            "below-min should clamp UP to 1000ms"
+        );
+
+        unsafe {
+            std::env::remove_var("TERMLINK_RATE_EVICT_INTERVAL_SEC");
+            std::env::remove_var("TERMLINK_RATE_EVICT_IDLE_THRESHOLD_MS");
+        }
     }
 }
