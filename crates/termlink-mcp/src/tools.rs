@@ -687,6 +687,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_fleet_reauth", "Heal a profile's secret_file via --bootstrap-from (file:, ssh:, or auto from declared anchor)"),
             ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
             ("termlink_fleet_adoption_snapshot", "Snapshot fleet-wide adoption state across profiles"),
+            ("termlink_substrate_status", "T-2116 / T-2111 arc Slice 6 (T-2018 §6) — substrate health rollup composed from 4 sub-fetches: DISPATCH (find-idle) + CLAIM (claims-summary) + RESILIENCE (offline queue) + BACKPRESSURE (governor-status). Optional `only_pressured` filter (T-2070 mirror). Subprocess-self pattern (T-1689)"),
         ]),
         ("remote", vec![
             ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
@@ -734,6 +735,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_ack_status", "Current ack state for a sender/topic pair"),
             ("termlink_channel_receipts", "Per-sender receipt watermarks on a topic"),
             ("termlink_channel_topic_stats", "Aggregate stats for a single topic (any topic)"),
+            ("termlink_channel_cv_keys", "T-2106 / T-2027 substrate primitive #9 — list cv_keys advertising on a topic with their offsets (broadcast-with-replay observability)"),
         ]),
         ("channel_threading", vec![
             ("termlink_channel_thread", "Full thread tree from a post"),
@@ -9894,6 +9896,25 @@ pub struct FleetBootstrapCheckParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-2116 (T-2111 arc Slice 6 — T-2018 §6 observability roll-up):
+// Subprocess-self MCP parity for `substrate status` CLI verb (Slice 1).
+// Mirror of FleetBootstrapCheckParams shape — subprocess pattern (own
+// binary, `--json` flag, timeout-bounded `tokio::process::Command`).
+#[derive(Deserialize, JsonSchema)]
+pub struct SubstrateStatusParams {
+    /// Filter CLAIM section to topics with potentially stuck claims and
+    /// BACKPRESSURE section to hubs needing operator attention.
+    /// DISPATCH and RESILIENCE sections pass through unchanged.
+    /// Mirror of T-2070's `--only-pressured` / T-2076's `--only-stuck`
+    /// (filter applied at the aggregation level). Default false.
+    pub only_pressured: Option<bool>,
+    /// Bound the subprocess call (clamped to 1..=120s). Default 12s —
+    /// enough headroom for the CLI's 8s per-sub-read timeout + subprocess
+    /// startup + JSON parse. Tune up for high-latency multi-hub fleets;
+    /// tune down to 4-6s for tight cron loops.
+    pub timeout_secs: Option<u64>,
+}
+
 // T-1821: Fleet secrets-audit params (MCP parity for T-1820).
 // Read-only audit of `~/.termlink/secrets/*.hex` for perms/format/orphan
 // hygiene. Closes G-011 item 4 via agent-callable surveillance.
@@ -16477,6 +16498,78 @@ impl TermLinkTools {
                 // Decorate with `ok` for caller convenience and the exit code
                 // so the agent can distinguish "0 = all good", "1 = anchor
                 // broken", "2 = no anchor declared at all".
+                if let Some(obj) = parsed.as_object_mut() {
+                    obj.entry("ok".to_string())
+                        .or_insert(serde_json::Value::Bool(matches!(exit_code, Some(0))));
+                    obj.insert(
+                        "exit_code".to_string(),
+                        serde_json::json!(exit_code.unwrap_or(-1)),
+                    );
+                }
+                serde_json::to_string_pretty(&parsed).unwrap_or_else(json_err)
+            }
+            Err(parse_err) => json_err(format!(
+                "subprocess returned non-JSON output (exit={:?}): {parse_err}\nstdout: {}\nstderr: {}",
+                exit_code,
+                stdout.chars().take(300).collect::<String>(),
+                stderr.chars().take(300).collect::<String>()
+            )),
+        }
+    }
+
+    // === Substrate status (T-2116 / T-2111 arc Slice 6 — T-2018 §6) ===
+
+    #[tool(
+        name = "termlink_substrate_status",
+        description = "T-2116 / T-2111 arc Slice 6 (T-2018 §6 observability roll-up): MCP parity for `substrate status` one-shot CLI verb. Agent-callable companion that returns the cross-primitive substrate-health rollup composed from 4 substrate-read sub-fetches in parallel. Subprocess-self pattern (mirror of `termlink_fleet_bootstrap_check`, T-1689): spawns own binary with `substrate status --json` under `tokio::time::timeout` + `kill_on_drop(true)` + null stdin. Returns the merged envelope `{ok, ts, only_pressured, dispatch:{ok,data}, claim:{ok,data}, resilience:{ok,data}, backpressure:{ok,data}, exit_code}` — each sub-section either `{ok:true, data}` (passthrough of its underlying verb's `--json` shape) or `{ok:false, error}` (graceful degradation: a failed sub-read does NOT poison the whole call). Sections: DISPATCH (agent.find_idle on local hub — substrate #2), CLAIM (channel.claims_summary per topic on local hub — substrate #1), RESILIENCE (OfflineQueue::open local SQLite — substrate #5), BACKPRESSURE (hub.governor_status per hub from hubs.toml — substrate #10). `only_pressured` (default false, mirror of T-2070 / T-2076): filter CLAIM to potentially-stuck topics and BACKPRESSURE to hubs needing attention. `timeout_secs` (default 12, clamped 1..=120): bounds the subprocess; tune up for high-latency multi-hub fleets. Read-only — no auth side-effects, no state mutation. Sibling slash-command (operator-facing): `/substrate` (T-2096). Sibling Slice 7 (also MCP-tier): `termlink_substrate_history` (retrospective read of T-2114's --watch --log audit trail)."
+    )]
+    async fn termlink_substrate_status(
+        &self,
+        Parameters(p): Parameters<SubstrateStatusParams>,
+    ) -> String {
+        let only_pressured = p.only_pressured.unwrap_or(false);
+        let timeout = p.timeout_secs.unwrap_or(12).clamp(1, 120);
+
+        let exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(e) => return json_err(format!("cannot resolve termlink binary path: {e}")),
+        };
+
+        let mut cmd = tokio::process::Command::new(&exe);
+        cmd.arg("substrate").arg("status").arg("--json");
+        if only_pressured {
+            cmd.arg("--only-pressured");
+        }
+        // T-2116: pass the same timeout downstream so the CLI's per-sub-read
+        // bound matches our subprocess bound. CLI default is 8s — we reserve
+        // ~4s buffer for subprocess startup + JSON parse.
+        let cli_timeout = timeout.saturating_sub(4).max(1);
+        cmd.arg("--timeout").arg(cli_timeout.to_string());
+        cmd.kill_on_drop(true);
+        cmd.stdin(std::process::Stdio::null());
+
+        let fut = cmd.output();
+        let output = match tokio::time::timeout(std::time::Duration::from_secs(timeout), fut).await
+        {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return json_err(format!("subprocess spawn failed: {e}")),
+            Err(_) => {
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "ok": false,
+                    "verdict": "timeout",
+                    "error": format!("timeout after {}s", timeout),
+                    "hint": "raise timeout_secs if the substrate has high-latency hubs; default is 12s",
+                }))
+                .unwrap_or_else(json_err);
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code();
+
+        match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+            Ok(mut parsed) => {
                 if let Some(obj) = parsed.as_object_mut() {
                     obj.entry("ok".to_string())
                         .or_insert(serde_json::Value::Bool(matches!(exit_code, Some(0))));
