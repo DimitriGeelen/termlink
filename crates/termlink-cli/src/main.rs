@@ -721,6 +721,11 @@ async fn main() -> Result<()> {
                 json,
             ),
         },
+        Command::Substrate { action } => match action {
+            SubstrateAction::Status { json, only_pressured, timeout } => {
+                commands::substrate::cmd_substrate_status(json, only_pressured, timeout).await
+            }
+        },
         Command::Net { action } => match action {
             NetAction::Test { profile, json, timeout } => {
                 commands::remote::cmd_net_test(profile.as_deref(), json, timeout).await

@@ -981,6 +981,24 @@ pub(crate) enum Command {
         action: Option<FleetAction>,
     },
 
+    /// T-2111 (T-2018 §6 observability roll-up): unified read of the four
+    /// substrate-read daily verbs in one command. CLI-tier parity for the
+    /// `/substrate` slash-command skill (T-2096).
+    ///
+    /// Composes:
+    ///   - `agent find-idle`          (#2 DISPATCH)
+    ///   - `channel claims-summary`   (#1 CLAIM)
+    ///   - `channel queue-status`     (#5 RESILIENCE)
+    ///   - `fleet governor-status`    (#10 BACKPRESSURE)
+    ///
+    /// Read-only. Parallel by construction (total latency ≈ max-of-four).
+    /// Graceful degradation: a failed sub-read renders as one line, the
+    /// other three sections still render.
+    Substrate {
+        #[command(subcommand)]
+        action: SubstrateAction,
+    },
+
     /// Network connectivity diagnostics (layered per-hub probe)
     Net {
         #[command(subcommand)]
@@ -6466,6 +6484,55 @@ pub(crate) enum KvAction {
     Del {
         /// Key name
         key: String,
+    },
+}
+
+/// T-2111 (T-2018 §6 observability roll-up): subcommands for `termlink
+/// substrate`. Slice 1 ships `Status` only; subsequent slices add `--watch`,
+/// `--notify`, `--log`, `History`, and MCP parity (same arc as
+/// T-2078..T-2087 / T-2064..T-2069). Reserve the namespace now so the
+/// follow-on slices are pure additions.
+#[derive(Subcommand)]
+pub(crate) enum SubstrateAction {
+    /// One-shot unified read: runs the four substrate-read sub-verbs in
+    /// parallel and renders a four-section view (or merged JSON envelope).
+    ///
+    /// Mirrors the `/substrate` slash-command skill (T-2096). Read-only,
+    /// no auth side-effects, no state mutation.
+    ///
+    /// Sections:
+    ///   - DISPATCH      — `agent.find_idle` on local hub (substrate #2)
+    ///   - CLAIM         — `channel.claims_summary` per topic on local hub (#1)
+    ///   - RESILIENCE    — `OfflineQueue::open` local SQLite read (#5)
+    ///   - BACKPRESSURE  — `hub.governor_status` per hub from hubs.toml (#10)
+    ///
+    /// Graceful degradation: a failed sub-read renders as one stderr-style
+    /// line in human mode + `ok:false` in JSON; the other three sections
+    /// still render. Local hub down kills DISPATCH+CLAIM but RESILIENCE
+    /// (local SQLite) and BACKPRESSURE (fleet) still work.
+    Status {
+        /// Emit a merged JSON envelope `{ok, ts, dispatch, claim, resilience,
+        /// backpressure}` with each sub-section a passthrough of its
+        /// underlying verb's `--json` shape. Failed sub-sections carry
+        /// `ok:false` with an `error` field.
+        #[arg(long)]
+        json: bool,
+
+        /// Filter CLAIM section to topics with potentially stuck claims and
+        /// BACKPRESSURE section to hubs needing operator attention.
+        /// DISPATCH and RESILIENCE sections pass through unchanged (their
+        /// `--only-*` analogs don't apply at this aggregation level).
+        ///
+        /// Mirror of the underlying sub-verb flags
+        /// (`claims-summary --only-stuck`, `governor-status --only-pressured`).
+        #[arg(long = "only-pressured")]
+        only_pressured: bool,
+
+        /// RPC timeout in seconds (default: 8). Applied per-hub for
+        /// BACKPRESSURE and as an overall bound for DISPATCH + CLAIM.
+        /// RESILIENCE is a local SQLite read so the timeout doesn't apply.
+        #[arg(long, default_value = "8")]
+        timeout: u64,
     },
 }
 
