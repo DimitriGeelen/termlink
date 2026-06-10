@@ -616,6 +616,76 @@ pub(crate) fn aggregate_queue_entries_mcp(
     out
 }
 
+// T-2117 (T-2111 arc Slice 7 — T-2018 §6 observability roll-up closure):
+// pure helper — parse substrate.log NDJSON into (entries, malformed).
+// Mirror of `parse_queue_log_mcp` but for the 4-field substrate audit
+// schema {ts, field, old, new}. Lines missing `ts` or `field` are
+// counted malformed + skipped. `field_filter == None` means "all
+// fields". Duplicated per T-2069 convention from substrate.rs (pure
+// helpers stay per-crate; ~30 LOC is cheaper than a cross-module dep).
+pub(crate) fn parse_substrate_log_mcp(
+    text: &str,
+    cutoff_secs: i64,
+    field_filter: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    let mut malformed: usize = 0;
+    for raw in text.lines() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let ts_str = match entry.get("ts").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        let field = match entry.get("field").and_then(|v| v.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
+        if let Some(want) = field_filter {
+            if field != want {
+                continue;
+            }
+        }
+        if fleet_history_rfc3339_to_unix(ts_str) < cutoff_secs {
+            continue;
+        }
+        entries.push(entry);
+    }
+    (entries, malformed)
+}
+
+// T-2117: pure helper — aggregate per-field event counts. BTreeMap so
+// JSON envelope keys render alphabetically (deterministic for golden
+// assertions). Mirror of `aggregate_substrate_entries` shape from CLI
+// substrate.rs (duplicated per T-2069 convention).
+pub(crate) fn aggregate_substrate_entries_mcp(
+    entries: &[serde_json::Value],
+) -> std::collections::BTreeMap<String, u64> {
+    let mut out: std::collections::BTreeMap<String, u64> =
+        std::collections::BTreeMap::new();
+    for e in entries {
+        if let Some(f) = e.get("field").and_then(|v| v.as_str()) {
+            *out.entry(f.to_string()).or_insert(0) += 1;
+        }
+    }
+    out
+}
+
 /// T-1941: full help registry — extracted so the phantom-entry guard test
 /// (`help_registry_has_no_phantom_entries`) can introspect it without standing
 /// up the MCP server. `termlink_help` consumes the same fn.
@@ -688,6 +758,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_fleet_secrets_audit", "Audit secret_file declarations across profiles for staleness or cache-drift"),
             ("termlink_fleet_adoption_snapshot", "Snapshot fleet-wide adoption state across profiles"),
             ("termlink_substrate_status", "T-2116 / T-2111 arc Slice 6 (T-2018 §6) — substrate health rollup composed from 4 sub-fetches: DISPATCH (find-idle) + CLAIM (claims-summary) + RESILIENCE (offline queue) + BACKPRESSURE (governor-status). Optional `only_pressured` filter (T-2070 mirror). Subprocess-self pattern (T-1689)"),
+            ("termlink_substrate_history", "T-2117 / T-2111 arc Slice 7 closure (T-2018 §6) — retrospective read of ~/.termlink/substrate.log NDJSON audit trail (T-2114 writer). Per-field aggregate of rollup-change event counts within --since-days window. Closes the substrate-status observability arc end-to-end at CLI + MCP tiers"),
         ]),
         ("remote", vec![
             ("termlink_remote_call", "Generic JSON-RPC call to a remote hub (cross-host)"),
@@ -9915,6 +9986,23 @@ pub struct SubstrateStatusParams {
     pub timeout_secs: Option<u64>,
 }
 
+// T-2117 (T-2111 arc Slice 7 — T-2018 §6 closure): substrate-history
+// MCP params. Mirror of ChannelQueueHistoryParams shape (since_days +
+// filter + log_path override).
+#[derive(Deserialize, JsonSchema)]
+pub struct SubstrateHistoryParams {
+    /// How far back to walk. Default 7. Clamped 1..=365.
+    pub since_days: Option<u32>,
+    /// Filter entries by exact `field` column match (e.g.
+    /// `claim_topic_count`, `backpressure_pressured_hubs`). When omitted,
+    /// all fields are returned.
+    pub field: Option<String>,
+    /// Override the audit log path. Default is `~/.termlink/substrate.log`
+    /// (the path T-2114's writer uses). When absent, returns an empty
+    /// entries envelope with a hint.
+    pub log_path: Option<String>,
+}
+
 // T-1821: Fleet secrets-audit params (MCP parity for T-1820).
 // Read-only audit of `~/.termlink/secrets/*.hex` for perms/format/orphan
 // hygiene. Closes G-011 item 4 via agent-callable surveillance.
@@ -16587,6 +16675,86 @@ impl TermLinkTools {
                 stderr.chars().take(300).collect::<String>()
             )),
         }
+    }
+
+    // === Substrate history (T-2117 / T-2111 arc Slice 7 closure — T-2018 §6) ===
+
+    #[tool(
+        name = "termlink_substrate_history",
+        description = "T-2117 / T-2111 arc Slice 7 (T-2018 §6 closure): MCP parity for the `substrate history` retrospective CLI verb (T-2115). Walks the audit log written by T-2114's `substrate status --watch --log <PATH>`. Answers 'when did substrate health flip?' without keeping the watch terminal still attached — forensic retrospective in a JSON-friendly aggregate. Default log: `~/.termlink/substrate.log`. Params: `since_days` (default 7, clamped 1..=365), `field` (exact-match filter on the `field` column, e.g. `claim_topic_count`), `log_path` (override). Returns `{ok, entries[], summary{total, per_field:{<f>:{count}}, since_days, field_filter, malformed_lines_skipped, log_path}}`. Per-field counts answer 'has this rollup field been churning?'. Empty/missing log returns `{ok:true, entries:[], summary:..., hint:'no substrate history yet — run `substrate status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_channel_queue_history` (T-2087) and `termlink_fleet_governor_history` (T-2069) but pointed at the substrate-status cross-primitive observability audit trail. CLI parity: `termlink substrate history`. After this slice ships the entire substrate-status observability arc is complete at both CLI + MCP tiers — closes T-2018 §6 #11 observability roll-up arc end-to-end."
+    )]
+    async fn termlink_substrate_history(
+        &self,
+        Parameters(p): Parameters<SubstrateHistoryParams>,
+    ) -> String {
+        let since_days = p.since_days.unwrap_or(7);
+        if !(1..=365).contains(&since_days) {
+            return json_err(format!("since_days must be 1..=365 (got {since_days})"));
+        }
+
+        let log_path: std::path::PathBuf = match p.log_path.as_deref() {
+            Some(s) => std::path::PathBuf::from(s),
+            None => {
+                let Some(home) = std::env::var("HOME").ok() else {
+                    return json_err(
+                        "HOME env var not set; cannot resolve substrate.log default path",
+                    );
+                };
+                std::path::PathBuf::from(home)
+                    .join(".termlink")
+                    .join("substrate.log")
+            }
+        };
+
+        if !log_path.exists() {
+            return serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "entries": [],
+                "summary": {
+                    "total": 0,
+                    "per_field": serde_json::Map::<String, serde_json::Value>::new(),
+                    "since_days": since_days,
+                    "field_filter": p.field,
+                    "log_path": log_path.display().to_string(),
+                },
+                "hint": "no substrate history yet — run `substrate status --watch --log <path>` to start capturing",
+            }))
+            .unwrap_or_else(json_err);
+        }
+
+        let text = match std::fs::read_to_string(&log_path) {
+            Ok(t) => t,
+            Err(e) => return json_err(format!("cannot read {}: {e}", log_path.display())),
+        };
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff = now_secs - (since_days as i64) * 86_400;
+
+        let (entries, malformed) =
+            parse_substrate_log_mcp(&text, cutoff, p.field.as_deref());
+
+        let agg = aggregate_substrate_entries_mcp(&entries);
+        let per_field: serde_json::Map<String, serde_json::Value> = agg
+            .iter()
+            .map(|(k, v)| (k.clone(), serde_json::json!({"count": v})))
+            .collect();
+
+        serde_json::to_string_pretty(&serde_json::json!({
+            "ok": true,
+            "entries": entries,
+            "summary": {
+                "total": entries.len(),
+                "per_field": per_field,
+                "since_days": since_days,
+                "field_filter": p.field,
+                "malformed_lines_skipped": malformed,
+                "log_path": log_path.display().to_string(),
+            }
+        }))
+        .unwrap_or_else(json_err)
     }
 
     // === Fleet secrets-audit (T-1821: MCP parity for T-1820) ===
@@ -44631,5 +44799,74 @@ not-json
             "did_you_mean must be absent for empty-needle path, got {:?}",
             v.get("did_you_mean"),
         );
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // T-2117 (T-2111 arc Slice 7 — T-2018 §6 closure):
+    // unit tests for the substrate-history MCP helpers. Mirror of T-2087
+    // queue-history MCP tests (same shape, different schema axis).
+    // ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn substrate_history_parse_skips_malformed_and_filters_by_field() {
+        // T-2117: parse_substrate_log_mcp should skip empty + non-json +
+        // missing-ts + missing-field lines (counting them malformed),
+        // apply field exact-match filter, and respect ts cutoff.
+        let now_ish = "2099-01-01T00:00:00Z";
+        let text = format!(
+            "{{\"ts\":\"{ts}\",\"field\":\"claim_topic_count\",\"old\":\"1\",\"new\":\"2\"}}\n\
+             not json at all\n\
+             {{\"ts\":\"{ts}\",\"field\":\"dispatch_idle_count\",\"old\":\"0\",\"new\":\"1\"}}\n\
+             {{\"field\":\"missing_ts\",\"old\":\"x\",\"new\":\"y\"}}\n\
+             {{\"ts\":\"{ts}\",\"old\":\"missing_field_x\",\"new\":\"missing_field_y\"}}\n\
+             \n\
+             {{\"ts\":\"{ts}\",\"field\":\"claim_topic_count\",\"old\":\"2\",\"new\":\"3\"}}\n",
+            ts = now_ish
+        );
+        let (entries, malformed) = super::parse_substrate_log_mcp(&text, 0, None);
+        assert_eq!(entries.len(), 3, "3 well-formed entries returned");
+        assert_eq!(
+            malformed, 3,
+            "3 malformed lines counted (non-json + missing-ts + missing-field)"
+        );
+
+        // Field filter narrows to 2 claim_topic_count entries.
+        let (entries, _) =
+            super::parse_substrate_log_mcp(&text, 0, Some("claim_topic_count"));
+        assert_eq!(entries.len(), 2);
+        for e in &entries {
+            assert_eq!(
+                e.get("field").and_then(|v| v.as_str()),
+                Some("claim_topic_count")
+            );
+        }
+
+        // Future cutoff: all entries drop out.
+        let (entries, _) =
+            super::parse_substrate_log_mcp(&text, 9_999_999_999i64, None);
+        assert_eq!(entries.len(), 0);
+    }
+
+    #[test]
+    fn substrate_history_aggregate_groups_by_field() {
+        // T-2117: aggregate_substrate_entries_mcp groups by `field` into a
+        // BTreeMap. Insertion order is alphabetical (stable for goldens).
+        let entries = vec![
+            serde_json::json!({"ts":"2099-01-01T00:00:00Z","field":"claim_topic_count","old":"1","new":"2"}),
+            serde_json::json!({"ts":"2099-01-01T00:01:00Z","field":"dispatch_idle_count","old":"0","new":"1"}),
+            serde_json::json!({"ts":"2099-01-01T00:02:00Z","field":"claim_topic_count","old":"2","new":"3"}),
+            // Defensive: entry missing `field` is silently skipped (parse
+            // layer would have rejected it, but aggregator must not panic).
+            serde_json::json!({"ts":"2099-01-01T00:03:00Z","old":"x","new":"y"}),
+        ];
+        let agg = super::aggregate_substrate_entries_mcp(&entries);
+        assert_eq!(agg.len(), 2);
+        assert_eq!(agg.get("claim_topic_count").copied(), Some(2));
+        assert_eq!(agg.get("dispatch_idle_count").copied(), Some(1));
+        // BTreeMap iteration is alphabetical — `claim_*` comes before
+        // `dispatch_*`. Asserting that here locks the contract.
+        let keys: Vec<&String> = agg.keys().collect();
+        assert_eq!(keys[0], "claim_topic_count");
+        assert_eq!(keys[1], "dispatch_idle_count");
     }
 }
