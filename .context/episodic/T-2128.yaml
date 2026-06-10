@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2128: /substrate skill cross-refs to T-2127 ops doc + CLI/MCP surface (T-2018 §6 doc consistency)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T15:47:13Z
+# ============================================================================
+
+task_id: T-2128
+task_name: "/substrate skill cross-refs to T-2127 ops doc + CLI/MCP surface (T-2018 §6 doc consistency)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T15:45:41Z
+completed: 2026-06-10T15:47:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T17:47:10+02:00
+last_commit: 2026-06-10T17:47:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /substrate skill cross-refs T-2127 ops doc + CLI/MCP surface for non-claude contexts
+
+# Key outcomes
+outcomes:
+  - '`/substrate` skill (`.claude/commands/substrate.md`) Related section references `docs/operations/substrate-status.md` (T-2127 ops doc)'
+  - 'Same Related section names the CLI verbs `termlink substrate status` + `termlink substrate history` and MCP tools `termlink_substrate_status` + `termlink_substrate_history` (so an operator reading the skill knows the CLI/MCP path exists)'
+  - 'One-line note about WHEN to use the CLI surface over the skill (non-claude contexts: cron, scripting, MCP-only agents)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/substrate.md'
+  - '.tasks/active/T-2128-substrate-skill-cross-refs-to-t-2127-ops.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T17:47:10"
+    action: "T-2128: /substrate skill cross-refs T-2127 ops doc + CLI/MCP surface for non-claude contexts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, docs, polish]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 194
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2128-substrate-skill-cross-refs-to-t-2127-ops.md
+generated_by: context-agent-hybrid
