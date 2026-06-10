@@ -4,10 +4,10 @@ name: "fix substrate-orchestrator-recipe canonical worker pattern bugs"
 description: >
   fix substrate-orchestrator-recipe canonical worker pattern bugs
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, doc, bug]
 components: []
 related_tasks: [T-2124, T-2127]
@@ -16,8 +16,8 @@ related_tasks: [T-2124, T-2127]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T16:21:39Z
-last_update: 2026-06-10T16:21:39Z
-date_finished: null
+last_update: 2026-06-10T16:25:06Z
+date_finished: 2026-06-10T16:25:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -158,6 +158,14 @@ grep -qE 'channel subscribe.*--json|agent inbox.*--json' docs/operations/substra
 
 ## RCA
 
+**Symptom:** Canonical worker pattern in `substrate-orchestrator-recipe.md` (T-2124) contains three CLI/JSON-shape mismatches: (1) `agent dms --watch --limit 1 | jq` crashes because `--watch` is documented `--json`-incompatible (T-1559) and `--limit` is undefined on `agent dms`; (2) `.claimed_by` jq selector returns `null` because the hub serializes the field as `.claimer` (`crates/termlink-bus/src/claim.rs:22`, `crates/termlink-hub/src/channel.rs:1377`), silently breaking the ownership defence-in-depth; (3) line 571 retained the "substrate primitive #11" framing that T-2127 fix-up only corrected at line 546.
+
+**Root cause:** T-2124 authored the recipe doc against an assumed CLI surface without running the worker pattern code blocks end-to-end. The recipe was written from memory/reading-the-code rather than from a working executable example. There is no doc-test framework that asserts "every code block in `docs/operations/*.md` is real CLI" against the live binary.
+
+**Why structurally allowed:** Markdown code blocks are inert text — they're never compiled, never executed, never type-checked. T-2127 added the substrate-status ops doc (pattern parity with other substrate docs) without auditing the master recipe for the inverse drift. There is no shellcheck-style CI gate on `.md` files, no "every `termlink ...` invocation in docs must match `termlink --help`" lint, and no end-to-end smoke test that runs the canonical worker pattern against a real hub. The first observable failure surfaces at AEF-developer copy-paste time — long after the doc was committed.
+
+**Prevention:** Three layers, ratchet up as needed: (a) **near-term, docs-only** — when authoring a recipe doc, run every CLI invocation against `--help` first (mirror of PL-206 for skill-from-help-only); flag captured here. (b) **mid-term, lint-only** — `scripts/lint-doc-cli-invocations.sh` that greps `docs/operations/*.md` for `termlink ` invocations and checks each verb pair exists in `termlink help`; fast structural check, no execution. (c) **long-term, end-to-end** — a doc-smoke harness that extracts every fenced `bash` block under `## Canonical * pattern` headings and runs it against a throwaway hub. Filed as follow-up considerations, not blocking this fix. Learning to register: "Doc-CLI drift — markdown code blocks are inert; recipes lapse silently as the CLI evolves; lint or doc-test before shipping".
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -173,6 +181,16 @@ grep -qE 'channel subscribe.*--json|agent inbox.*--json' docs/operations/substra
 -->
 
 ## Evolution
+
+### 2026-06-10 — Initial L219 verification too strict
+- **What changed:** First-pass verification was `grep -nE '\.claimed_by' docs/...` expecting zero hits. The actual recipe fix keeps `.claimed_by` in the explanatory comment ("uses `.claimer` ... NOT `.claimed_by`") to document the prior bug; the broad regex caught the comment and FAIL-flagged a correct fix.
+- **Plan impact:** Tightened the verification to scope the regex to executable jq lines (`jq -r ".*select.*claim_id.*claimed_by`) — passes when the broken code is fixed AND lets the explanatory comment survive.
+- **Triggered:** Captured this verification-regex-scoping subtlety inline rather than as a new task; same class as L-387 (SIGPIPE pipefail interaction with verification) but for grep-anchor scoping. Future doc-bug-fix verification should default to anchoring on the executable-position pattern, not the bare token.
+
+### 2026-06-10 — Doc-CLI drift is a class, not a one-off
+- **What changed:** Originally scoped as a single recipe-doc patch. While verifying the L208 fix, realized this is one observable instance of a broader class: markdown code blocks in `docs/operations/*.md` are never executed, so any CLI evolution silently lapses the recipes. Filed the prevention layers in `## RCA` (lint script + doc-smoke harness) as future considerations rather than expanding this task's scope.
+- **Plan impact:** None for this task (scope held to the three observed bugs); seed for a follow-up.
+- **Triggered:** No new task filed yet — surface the class to the next session via the recipe's own commit message rather than expand scope mid-fix.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -223,3 +241,6 @@ grep -qE 'channel subscribe.*--json|agent inbox.*--json' docs/operations/substra
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2129-fix-substrate-orchestrator-recipe-canoni.md
 - **Context:** Initial task creation
+
+### 2026-06-10T16:25:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -2197,3 +2197,10 @@ learnings:
   date: 2026-06-08
   context: Added via context agent (T-2052) + updated post-fix (T-2061)
   application: Any consumer adopting upstream beyond commit 3e94344c5 inherits the structural fix on next `fw upgrade` + `fw git install-hooks`. Pre-fix consumers should chmod +x as the quick recovery.
+- id: PL-206
+  learning: "Markdown code blocks in docs/operations/*.md are inert text — never executed, never type-checked. When the CLI evolves (new flag incompatibilities, JSON field renames), recipe docs lapse silently and the first failure surfaces at user copy-paste time. Mitigations: (1) author docs CLI-invocation-by-CLI-invocation against --help (mirror of the CLAUDE.md skill-from-help authoring rule); (2) lint docs for verbs that don't exist in 'termlink help'; (3) doc-smoke harness that runs fenced bash blocks against a throwaway hub. T-2129 fixed three observable instances in substrate-orchestrator-recipe.md (T-2124)."
+  source: P-001
+  task: T-2129
+  date: 2026-06-10
+  context: Added via context agent
+  application: TBD

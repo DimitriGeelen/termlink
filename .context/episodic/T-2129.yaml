@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2129: fix substrate-orchestrator-recipe canonical worker pattern bugs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T16:25:09Z
+# ============================================================================
+
+task_id: T-2129
+task_name: "fix substrate-orchestrator-recipe canonical worker pattern bugs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T16:21:39Z
+completed: 2026-06-10T16:25:06Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T18:24:14+02:00
+last_commit: 2026-06-10T18:24:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix substrate-orchestrator-recipe canonical worker pattern bugs
+
+# Key outcomes
+outcomes:
+  - 'L208 fix: replace broken `agent dms --watch --limit 1` with a `--json`-compatible poll pattern that surfaces an unread DM payload (e.g. `agent inbox --json` to discover unread `dm:*` topics, then `channel subscribe --json --resume --limit 1` to read the next message)'
+  - 'L219 fix: replace `.claimed_by` with `.claimer` so the ownership defence-in-depth actually compares the correct field'
+  - 'L571 fix: relabel "T-2111..T-2117 — substrate status (substrate primitive #11) build chain" to match the corrected line 546 framing ("composition, not §6 manifest primitive")'
+  - 'No regression to other code-block snippets (L147-L153 orchestrator pattern uses `channel claims-summary` + `channel claim` correctly — leave alone)'
+  - 'Recipe still renders sensibly as a self-contained worker pattern after the L208 rewrite (no dangling references)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix substrate-orchestrator-recipe canonical worker pattern bugs'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - '.tasks/active/T-2129-fix-substrate-orchestrator-recipe-canoni.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T18:24:14"
+    action: "T-2129: fix substrate-orchestrator-recipe canonical worker pattern bugs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, doc, bug]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 246
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2129-fix-substrate-orchestrator-recipe-canoni.md
+generated_by: context-agent-hybrid
