@@ -248,6 +248,10 @@ fn fleet_history_rfc3339_to_unix(ts: &str) -> i64 {
 //   - `connections_active >= connections_max` → at capacity right now
 //   - `capacity_hits_total > 0` → has refused connections in its lifetime
 //   - `rate_hits_total > 0`     → has refused RPCs in its lifetime
+//   - `cv_index_overflow_total > 0` (T-2118) → some topic saturated its
+//     per-topic cv_index cap; new cv-tagged posts are being silently
+//     un-indexed (producer mis-emitting cv_key — e.g. timestamp instead
+//     of stable agent_id, per T-2110). Binary, operator-actionable.
 //
 // The `r` arg is the per-hub probe outcome: Ok(governor_value) on success,
 // Err(error_string) on RPC failure / timeout / older-hub-missing-field.
@@ -262,7 +266,8 @@ pub(crate) fn mcp_governor_hub_is_pressured(
     let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
     let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
     let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
-    cap_hits > 0 || rate_hits > 0 || active >= max
+    let cv_overflow = v.get("cv_index_overflow_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    cap_hits > 0 || rate_hits > 0 || active >= max || cv_overflow > 0
 }
 
 // T-2069: per-hub aggregate over governor.log entries within window.
@@ -42526,6 +42531,32 @@ YW\tJ
 
     #[test]
     fn mcp_governor_hub_is_pressured_returns_false_for_clean_hub() {
+        let ok: std::result::Result<serde_json::Value, String> =
+            Ok(serde_json::json!({
+                "connections_active": 3, "connections_max": 256,
+                "capacity_hits_total": 0, "rate_hits_total": 0,
+            }));
+        assert!(!mcp_governor_hub_is_pressured(&ok));
+    }
+
+    // T-2118 (T-2110 follow-up): cv_index_overflow_total > 0 means a producer
+    // is mis-emitting cv_key and new cv-tagged posts are being silently
+    // un-indexed. Mirror of CLI test in remote.rs.
+    #[test]
+    fn mcp_governor_hub_is_pressured_returns_true_when_cv_index_overflow_nonzero() {
+        let ok: std::result::Result<serde_json::Value, String> =
+            Ok(serde_json::json!({
+                "connections_active": 3, "connections_max": 256,
+                "capacity_hits_total": 0, "rate_hits_total": 0,
+                "cv_index_overflow_total": 1,
+            }));
+        assert!(mcp_governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn mcp_governor_hub_is_pressured_missing_cv_index_overflow_defaults_to_clean() {
+        // Pre-T-2110 hub: no cv_index_overflow_total field. Default to not
+        // pressured so older hubs don't fire false positives.
         let ok: std::result::Result<serde_json::Value, String> =
             Ok(serde_json::json!({
                 "connections_active": 3, "connections_max": 256,

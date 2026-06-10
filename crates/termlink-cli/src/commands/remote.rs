@@ -2528,7 +2528,11 @@ pub(crate) fn governor_hub_is_pressured(result: &FleetGovernorResult) -> bool {
     let max = v.get("connections_max").and_then(|x| x.as_i64()).unwrap_or(i64::MAX);
     let cap_hits = v.get("capacity_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
     let rate_hits = v.get("rate_hits_total").and_then(|x| x.as_i64()).unwrap_or(0);
-    cap_hits > 0 || rate_hits > 0 || active >= max
+    // T-2118 (T-2110 follow-up): cv_index_overflow_total > 0 means a producer is
+    // mis-emitting cv_key (e.g. timestamp instead of stable agent_id) and new
+    // cv-tagged posts are being silently un-indexed. Binary, operator-actionable.
+    let cv_overflow = v.get("cv_index_overflow_total").and_then(|x| x.as_i64()).unwrap_or(0);
+    cap_hits > 0 || rate_hits > 0 || active >= max || cv_overflow > 0
 }
 
 /// T-2062 / T-2028 Track D: pure-helper that turns the per-hub probe results
@@ -8510,6 +8514,30 @@ mod tests {
         // false positive against a healthy older hub.
         let ok: FleetGovernorResult = Ok(serde_json::json!({
             "connections_active": 3, "connections_max": 256,
+        }));
+        assert!(!governor_hub_is_pressured(&ok));
+    }
+
+    // T-2118 (T-2110 follow-up): cv_index_overflow_total > 0 means a producer
+    // is mis-emitting cv_key and new cv-tagged posts are being silently
+    // un-indexed. Binary, operator-actionable — fires the pressured axis.
+    #[test]
+    fn governor_hub_is_pressured_returns_true_when_cv_index_overflow_nonzero() {
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+            "capacity_hits_total": 0, "rate_hits_total": 0,
+            "cv_index_overflow_total": 1,
+        }));
+        assert!(governor_hub_is_pressured(&ok));
+    }
+
+    #[test]
+    fn governor_hub_is_pressured_missing_cv_index_overflow_defaults_to_clean() {
+        // Pre-T-2110 hub: no cv_index_overflow_total field. Default to not
+        // pressured so older hubs don't fire false positives.
+        let ok: FleetGovernorResult = Ok(serde_json::json!({
+            "connections_active": 3, "connections_max": 256,
+            "capacity_hits_total": 0, "rate_hits_total": 0,
         }));
         assert!(!governor_hub_is_pressured(&ok));
     }
