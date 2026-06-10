@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2102: docs/operations/substrate-claim-lifecycle.md — master operator recipe for substrate #1 daily-verb arc (claim/renew/release/transfer)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T20:22:09Z
+# ============================================================================
+
+task_id: T-2102
+task_name: "docs/operations/substrate-claim-lifecycle.md — master operator recipe for substrate #1 daily-verb arc (claim/renew/release/transfer)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T20:04:55Z
+completed: 2026-06-09T20:22:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T22:07:24+02:00
+last_commit: 2026-06-09T22:07:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-claim-primitive.md — operator skill-tier section (substrate #1 lifecycle at slash-command tier)
+
+# Key outcomes
+outcomes:
+  - 'New section "Operator skill tier (slash commands)" added to substrate-claim-primitive.md between "Quick CLI tour" and "Worker pattern (Rust)"'
+  - 'Section documents all five skills: `/claims` (T-2093), `/claim` (T-2097), `/renew` (T-2101), `/release` (T-2098), `/claim-transfer` (T-2099)'
+  - 'Section includes canonical orchestrator chain example'
+  - 'Section includes long-work renewal pattern example'
+  - 'Section maps substrate error taxonomy to skill-UX recovery ladders'
+  - 'Section references T-2100 fix-up + PL-206 learning (skill-CLI mismatch → always author from `--help`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2102-docsoperationssubstrate-claim-lifecyclem.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T22:07:24"
+    action: "T-2102: substrate-claim-primitive.md — operator skill-tier section (substrate #1 lifecycle at slash-command tier)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 6
+  lines_added: 407
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2102-docsoperationssubstrate-claim-lifecyclem.md
+generated_by: context-agent-hybrid

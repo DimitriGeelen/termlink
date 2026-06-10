@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2066: fleet governor-status --watch --log <FILE> — append-only NDJSON transition log (T-2028 §6 #10 Track G, audit-trail axis)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T23:44:33Z
+# ============================================================================
+
+task_id: T-2066
+task_name: "fleet governor-status --watch --log <FILE> — append-only NDJSON transition log (T-2028 §6 #10 Track G, audit-trail axis)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T23:16:33Z
+completed: 2026-06-08T23:34:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T01:34:26+02:00
+last_commit: 2026-06-09T01:34:52+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet governor-status --watch --log <PATH> — append-only NDJSON audit trail (T-2028 §6 #10 Track G). tick all 7 ACs with live smoke + test evidence
+
+# Key outcomes
+outcomes:
+  - '`FleetAction::GovernorStatus` gains a `--log <PATH>` flag, requires `--watch` (clap `requires`). — cli.rs `#[arg(long, value_name = "PATH", requires = "watch")] log: Option<std::path::PathBuf>`.'
+  - 'Pure helper `build_governor_log_entry(hub, kind, ts, prev, new) -> serde_json::Value` emits the flat NDJSON schema with numeric counters + nullable dedupe fields. — remote.rs ~line 2840; verified live: smoke produced `{ts, hub, kind, old_reach, new_reach, old_conn_active, new_conn_active, old_cap_hits, new_cap_hits, cap_hits_delta, old_rate_hits, new_rate_hits, rate_hits_delta, old_dedupe_hits, new_dedupe_hits, dedupe_hits_delta}` with `new_dedupe_hits: null`.'
+  - '`append_governor_log(path, entry)` opens append + create, writes one `{}\n` line per call, parent dir auto-created if missing. — `OpenOptions::new().create(true).append(true)` + `write_all("{}\n".as_bytes())`; parent dir check at top with `create_dir_all`.'
+  - 'Write failures (disk full, permission denied) log to stderr but never crash the watch (best-effort, same shape as T-1671 `append_rotation_log`). — `if let Err(e) = res { eprintln!(...) }`; no `return Err` — function is fn(), not Result.'
+  - 'Watch loop fires the log append on every per-hub transition / new / removed (same gate as `--notify`, NOT on baseline). — three new `if let Some(path) = log.as_deref()` arms parallel to the notify arms; baseline branch unchanged. Live smoke: 1 transition fired during 22s watch ⇒ 1 NDJSON line in `/tmp/gov-test.log`.'
+  - '≥2 unit tests pin: counter delta math in the entry + dedupe-null serialization (None side renders as JSON null, not omitted). — `build_governor_log_entry_computes_deltas_and_string_reach` + `build_governor_log_entry_serializes_null_for_missing_sides`. 831 → 833 bin lib tests.'
+  - 'CLAUDE.md BACKPRESSURE row updated with `--log` example. — row 1170 paragraph extended with T-2066 description + dual recipe (`--watch 30 --log ~/.termlink/governor.log --notify /usr/local/bin/page-on-cap.sh`). jq retrospective example included.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2066-fleet-governor-status---watch---log-file.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T01:34:26"
+    action: "T-2066: fleet governor-status --watch --log <PATH> — append-only NDJSON audit trail (T-2028 §6 #10 Track G)"
+  - time: "2026-06-09T01:34:52"
+    action: "T-2066: tick all 7 ACs with live smoke + test evidence"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18
+  commits: 2
+  files_changed: 5
+  lines_added: 449
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2066-fleet-governor-status---watch---log-file.md
+generated_by: context-agent-hybrid

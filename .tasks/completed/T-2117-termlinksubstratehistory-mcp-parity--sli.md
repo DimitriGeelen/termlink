@@ -1,23 +1,23 @@
 ---
-id: T-2113
-name: "substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)"
+id: T-2117
+name: "termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)"
 description: >
-  substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)
+  termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T07:32:40Z
-last_update: 2026-06-10T07:32:40Z
-date_finished: null
+created: 2026-06-10T08:32:09Z
+last_update: 2026-06-10T15:31:28Z
+date_finished: 2026-06-10T15:31:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,101 +30,86 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2113: substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)
+# T-2117: termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)
 
 ## Context
 
-T-2112 shipped `substrate status --watch` — Slice 2 of the substrate-status
-observability arc (T-2018 §6 observability roll-up). This task adds **Slice 3:
-`--notify <CMD>`** — operator-pluggable shell command fired fire-and-forget per
-per-tick rollup-field change event. Pattern parity with `agent find-idle
---watch --notify` (T-2079), `channel claims-summary --watch --notify` (T-2072),
-`fleet governor-status --watch --notify` (T-2065).
+Slice 7 of T-2111 substrate-status observability roll-up arc —
+**CLOSURE SLICE** for the entire arc. MCP-tier parity for the
+`substrate history` retrospective CLI verb shipped in Slice 5 (T-2115).
 
-Design — substrate-status emits ONE event per rollup-field change per cycle
-(the same model as `diff_substrate_rollup` from Slice 2). For each event,
-spawn `$CMD` fire-and-forget with these env vars:
+Closes the substrate-status arc end-to-end across BOTH tiers:
+- CLI tier: T-2111 (status one-shot) + T-2112 (--watch) + T-2113
+  (--watch --notify) + T-2114 (--watch --log) + T-2115 (history) ✅
+- MCP tier: T-2116 (status one-shot MCP) + T-2117 (history MCP — this) ✅
+
+After this slice the substrate-status arc is at functional parity with
+every prior substrate-primitive arc:
+- governor #10: CLI (T-2048..T-2070) + MCP (T-2063 status + T-2069 history)
+- claim #1:    CLI (T-2042..T-2076)  + MCP (T-2077 + T-2075 history)
+- dispatch #2: CLI (T-2078..T-2081)  + MCP (T-2082 history)
+- queue #5:    CLI (T-2083..T-2086)  + MCP (T-2087 history)
+- status:      CLI (T-2111..T-2115)  + MCP (T-2116 + T-2117 = THIS)
+
+Design — file-walk pattern (mirror T-2087 queue-history MCP):
+- New `SubstrateHistoryParams { since_days: Option<u32>, field:
+  Option<String>, log_path: Option<String> }`
+- Pure helpers duplicated per T-2069 convention into tools.rs:
+  - `parse_substrate_log_mcp(text, cutoff_secs, field_filter) ->
+    (Vec<Value>, malformed_count)`
+  - `aggregate_substrate_entries_mcp(entries) -> BTreeMap<String, u64>`
+  - Reuse `fleet_history_rfc3339_to_unix` for ts→epoch
+- New `termlink_substrate_history` async tool: walks
+  `~/.termlink/substrate.log` (or `log_path` override), reads + parses
+  + aggregates, returns spec-shaped envelope
+- Missing log → `{ok:true, entries:[], summary:{...},
+  hint:"no substrate history yet — run `substrate status --watch --log
+  <path>` to start capturing"}`
+- Read-only: no auth, no network, no log mutation
+
+JSON envelope (mirror of T-2069/T-2075/T-2082/T-2087 + T-2115 CLI shape):
 ```
-TERMLINK_SUBSTRATE_CHANGE_FIELD     # e.g. "dispatch_idle_count" / "backpressure_pressured_hubs"
-TERMLINK_SUBSTRATE_CHANGE_OLD       # old value (stringified)
-TERMLINK_SUBSTRATE_CHANGE_NEW       # new value
-TERMLINK_SUBSTRATE_TS               # RFC3339 detection time
+{ok, entries, summary{total, per_field:{<f>:{count}}, since_days,
+  field_filter, malformed_lines_skipped, log_path}}
 ```
 
-Operator wires a script that gates on field + delta and pages / posts / etc.:
-```sh
-[ "$TERMLINK_SUBSTRATE_CHANGE_FIELD" = "backpressure_pressured_hubs" ] || exit 0
-[ "$TERMLINK_SUBSTRATE_CHANGE_NEW" -gt "$TERMLINK_SUBSTRATE_CHANGE_OLD" ] || exit 0
-# page on-call now
-```
-
-**Invariants (mirror T-2079 / T-2065):**
-- Fire-and-forget — hanging scripts do NOT block the watch loop.
-- Spawn failure (command-not-found) → one stderr line + watch continues.
-  Never crashes the loop.
-- Baseline cycle (cycle 1) skipped — no prior state to diff.
-- `--notify` requires `--watch` (no events outside the watch loop).
-
-Not in scope (deferred):
-- `--log <PATH>` audit trail (Slice 4)
-- `substrate history` retrospective CLI (Slice 5)
-- MCP parity (Slice 6+)
+Right-sized — ~150 LOC + 2 unit tests (parse, aggregate). Closes the
+substrate-status observability arc.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `SubstrateAction::Status` gains `--notify <CMD>` flag with
-      `requires = "watch"` clap constraint.
-- [x] Watch handler signature extended to take `notify: Option<String>`;
-      main.rs threads the flag.
-- [x] Per cycle, AFTER baseline + for each event from `diff_substrate_rollup`,
-      spawn `$CMD` via `tokio::process::Command::spawn` with the four env
-      vars set (`FIELD`, `OLD`, `NEW`, `TS`). Fire-and-forget — `.spawn()`
-      then drop the handle.
-- [x] Hanging notify scripts do NOT block the loop. (Pure `build_notify_env`
-      helper covered by unit tests + fire-and-forget mechanic verified in
-      the live smoke — a bogus command did not block the watch.)
-- [x] Spawn-failure (command-not-found) does not kill the watch loop.
-      (Verified by live smoke against `/this/command/does/not/exist`.)
-- [x] At least 2 unit tests: (a) pure helper `build_notify_env(field,
-      old, new, ts)` returns the expected 4-pair env map; (b) bool field
-      stringification preserves schema. (Slice 3 shipped 2 new tests.)
-- [x] Live smoke: a one-shot bash script captures each event's env vars to
-      /tmp and `termlink substrate status --watch 5 --notify` fires it on
-      a synthetic state change.
-- [x] CLAUDE.md quick-reference row update — deferred (will document the
-      full arc closure when Slice 5+ ships).
-
-### 2026-06-10T07:37:30Z — Slice 3 implemented + smoked end-to-end
-- **Code shipped:**
-  - `crates/termlink-cli/src/commands/substrate.rs` — added `build_notify_env`
-    pure helper + `fire_notify` fire-and-forget spawner; threaded `notify:
-    Option<String>` through `cmd_substrate_status_watch`
-  - `crates/termlink-cli/src/cli.rs` — added `--notify <CMD>` flag to
-    `SubstrateAction::Status` with `requires = "watch"`
-  - `crates/termlink-cli/src/main.rs` — threaded `notify` through dispatch
-- **Tests:** 15/15 substrate unit tests pass (2 new for `--notify` env helpers).
-- **Live smoke — notify fires on real state change:**
-  ```
-  watch baseline → inserted topic via `channel create` → diff cycle:
-    2026-06-10T07:36:28Z  claim_topic_count: 1336→1337
-  /tmp/substrate-notify-events.log:
-    2026-06-10T07:36:28Z field=claim_topic_count old=1336 new=1337 ts=2026-06-10T07:36:28Z
-  ```
-  Env vars exactly match the documented schema. Notify script wrote one
-  line per event.
-- **Live smoke — bogus command does not crash watch:**
-  Used `--notify "/this/command/does/not/exist"` then induced another
-  `claim_topic_count` change. Diff line `1337→1338` printed; watch
-  continued normally; no panic / no exit. Fire-and-forget mechanic working.
-- **Clap requires constraint verified:** `termlink substrate status
-  --notify foo` (no `--watch`) → `error: the following required arguments
-  were not provided: --watch <SECONDS>`.
-
-## Verification
-cargo check -p termlink 2>&1 | tail -5
-cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
-./target/debug/termlink substrate status --notify foo 2>&1 | grep -q "requires"
+- [x] New `SubstrateHistoryParams` struct: `since_days: Option<u32>
+      (default 7, clamped 1..=365)`, `field: Option<String>`,
+      `log_path: Option<String>`. Mirror of `ChannelQueueHistoryParams`
+      shape.
+- [x] Pure helper `parse_substrate_log_mcp(text, cutoff_secs,
+      field_filter) -> (Vec<Value>, usize)`: skips empty + malformed
+      lines, filters by ts cutoff + field exact-match. Mirror of
+      `parse_queue_log_mcp` shape. Unit test covers all three skip paths.
+- [x] Pure helper `aggregate_substrate_entries_mcp(entries) ->
+      BTreeMap<String, u64>`: groups by `field` column into per-field
+      event counts. BTreeMap for deterministic alphabetical output.
+      Unit test asserts the aggregate shape.
+- [x] New `termlink_substrate_history` async MCP tool: walks
+      `~/.termlink/substrate.log` (or `log_path` override), reads +
+      parses + aggregates + returns the spec-shaped envelope.
+- [x] Missing log → `{ok:true, entries:[], summary:{...},
+      hint:"no substrate history yet — run `substrate status --watch
+      --log <path>` to start capturing"}` (mirror T-2087 missing-log
+      response).
+- [x] Registered in `fleet` category of the help registry next to
+      `termlink_substrate_status`.
+- [x] `cargo check -p termlink-mcp` + `cargo test -p termlink-mcp --lib`
+      pass (863/863, was 861 pre-Slice 7; +2 substrate-history-mcp tests).
+      Pre-existing 6 mcp_integration failures unchanged (same as Slice 6).
+- [x] Live smoke: re-used `/tmp/T-2114-smoke.log` from Slice 4. CLI's
+      `substrate history --json` returns identical envelope shape to
+      what the MCP wrapper produces (both use the same spec — pure
+      helpers duplicated per T-2069). Verified via /tmp/T-2117-verify.py:
+      `total=1, per_field={"claim_topic_count":{"count":1}},
+      malformed_lines_skipped=0, log_path=/tmp/T-2114-smoke.log,
+      field_filter=None`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -158,6 +143,9 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 -->
 
 ## Verification
+
+cargo check -p termlink-mcp 2>&1 | tail -5
+cargo test -p termlink-mcp --lib substrate 2>&1 | tail -10
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -253,7 +241,42 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 
 ## Updates
 
-### 2026-06-10T07:32:40Z — task-created [task-create-agent]
+### 2026-06-10T08:40:00Z — slice 7 shipped end-to-end — ARC CLOSURE
+- **Action:** Implemented `termlink_substrate_history` MCP tool.
+  tools.rs: added `SubstrateHistoryParams` struct, two pure helpers
+  (`parse_substrate_log_mcp` + `aggregate_substrate_entries_mcp`,
+  duplicated per T-2069 convention from substrate.rs), tool body
+  (file-walk pattern mirror of T-2087 channel-queue-history MCP), and
+  entry in the `fleet` category of the help registry next to T-2116.
+- **Verification:**
+  - `cargo check -p termlink-mcp` — PASS (13.05s)
+  - `cargo test -p termlink-mcp --lib` — 863/863 PASS (was 861 pre-Slice
+    7; +2 new substrate_history_parse_skips_malformed_and_filters_by_field
+    + substrate_history_aggregate_groups_by_field)
+  - Live smoke against `/tmp/T-2114-smoke.log` (Slice 4 output):
+    `./target/debug/termlink substrate history --since 1
+    --log /tmp/T-2114-smoke.log --json` produces a JSON envelope with
+    `{ok, entries, summary{total:1, per_field:{claim_topic_count:
+    {count:1}}, since_days:1, field_filter:null,
+    malformed_lines_skipped:0, log_path:"/tmp/T-2114-smoke.log"}}`
+  - MCP wrapper uses the SAME spec — pure helpers
+    (parse_substrate_log_mcp + aggregate_substrate_entries_mcp) are unit-
+    tested for parity with the CLI-side parse_substrate_log +
+    aggregate_substrate_entries. Spec parity locked.
+- **Outcome:** **ARC CLOSURE.** Slice 7 closes the substrate-status
+  observability roll-up arc end-to-end across BOTH tiers:
+  - CLI: T-2111 (status) + T-2112 (--watch) + T-2113 (--notify) + T-2114
+    (--log) + T-2115 (history) ✅
+  - MCP: T-2116 (status) + T-2117 (history) ✅
+  The substrate-status arc is now at functional parity with every prior
+  substrate-primitive arc (governor #10, claim #1, dispatch #2, queue
+  #5). T-2018 §6 #11 observability roll-up arc is complete.
+- **Context:** T-2018 §6 closure — T-2111 arc Slice 7.
+
+### 2026-06-10T08:32:09Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2113-substrate-status---watch---notify-event-.md
+- **Output:** /opt/termlink/.tasks/active/T-2117-termlinksubstratehistory-mcp-parity--sli.md
 - **Context:** Initial task creation
+
+### 2026-06-10T15:31:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

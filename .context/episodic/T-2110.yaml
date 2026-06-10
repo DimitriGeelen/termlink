@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2110: hub.governor_status: expose cv_index telemetry (substrate primitives 9 + 10 cross-reference)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T22:48:05Z
+# ============================================================================
+
+task_id: T-2110
+task_name: "hub.governor_status: expose cv_index telemetry (substrate primitives 9 + 10 cross-reference)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T22:36:49Z
+completed: 2026-06-09T22:47:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T00:45:59+02:00
+last_commit: 2026-06-10T00:45:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub.governor_status exposes cv_index telemetry — substrate primitives 9 + 10 cross-reference
+
+# Key outcomes
+outcomes:
+  - 'Module-level wrappers added to `crates/termlink-hub/src/cv_index.rs` for `topics_active()` and `cap_per_topic()` (mirror the existing `entries_active()` / `overflow_total()` wrappers) so `router.rs` can read them without owning a `CvIndex` reference.'
+  - '`handle_hub_governor_status` (crates/termlink-hub/src/router.rs:838) response includes four new fields: `cv_index_entries_active: u64`, `cv_index_topics_active: u64`, `cv_index_overflow_total: u64`, `cv_index_cap_per_topic: u64`. Pure additive — existing fields unchanged.'
+  - '`hub.governor_status` doc-comment updated to list the four new fields.'
+  - 'CLI rendering of `termlink hub status --governor` shows the cv_index counters inline alongside dedupe counters (consistent T-2060 pattern). Pure text render — no new flags.'
+  - 'CLI rendering of `termlink fleet governor-status` (per-hub block + fleet rollup `total_cv_index_entries_active` / `total_cv_index_overflow_total`) includes the cv_index counters.'
+  - 'MCP shape: `termlink_hub_governor_status` returns the four new fields too (pure passthrough — no shape divergence vs the RPC). `termlink_fleet_governor_status` extends the `summary` envelope with `total_cv_index_entries_active` + `total_cv_index_overflow_total` for parity with the CLI fleet rollup.'
+  - 'Hub unit test: `handle_hub_governor_status` returns all 13 expected fields (9 prior + 4 new). One assertion per new field name.'
+  - 'Hub regression: full `cargo test -p termlink-hub` passes (352 tests = 351 prior + 1 new, no regression).'
+  - 'Live sidecar smoke: start a sidecar hub, post a few cv-tagged messages, call `hub.governor_status` and verify `cv_index_entries_active > 0`. Then exceed the cap (override `TERMLINK_CV_INDEX_CAP_PER_TOPIC=2` and post 3 distinct cv_keys), verify `cv_index_overflow_total > 0`. PASS via /tmp/T-2110-smoke.sh + /tmp/T-2110-json-smoke.sh — both text + JSON envelopes show {entries=2, topics=1, overflow=1, cap=2} after over-cap post.'
+  - '`docs/operations/substrate-broadcast-with-replay.md` "Related primitives → #10" updated — note that cv-related counters are now surfaced.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-hub/src/cv_index.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/operations/substrate-broadcast-with-replay.md'
+  - '.tasks/active/T-2110-hubgovernorstatus-expose-cvindex-telemet.md'
+  - '.tasks/completed/T-2109-agentfindidle-cvindex-fast-path--substra.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T00:45:59"
+    action: "T-2110: hub.governor_status exposes cv_index telemetry — substrate primitives 9 + 10 cross-reference"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 9
+  lines_added: 380
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2110-hubgovernorstatus-expose-cvindex-telemet.md
+generated_by: context-agent-hybrid

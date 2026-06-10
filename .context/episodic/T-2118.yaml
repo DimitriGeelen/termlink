@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2118: Surface cv_index_overflow in --only-pressured predicate (T-2110 documented gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T09:37:22Z
+# ============================================================================
+
+task_id: T-2118
+task_name: "Surface cv_index_overflow in --only-pressured predicate (T-2110 documented gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T09:28:12Z
+completed: 2026-06-10T09:37:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T11:36:23+02:00
+last_commit: 2026-06-10T11:36:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface cv_index_overflow in --only-pressured predicate (closes T-2110 deferred gap)
+
+# Key outcomes
+outcomes:
+  - '`governor_hub_is_pressured` (remote.rs:2522) returns `true` when `cv_index_overflow_total > 0` AND all other axes clean'
+  - '`mcp_governor_hub_is_pressured` (tools.rs:254) returns `true` symmetrically when `cv_index_overflow_total > 0` AND all other axes clean'
+  - 'Both predicates'' doc-comments list cv_index_overflow as a pressure axis alongside cap_hits/rate_hits/at-capacity/unreachable'
+  - 'Backward compatibility: predicates still return `false` when `cv_index_overflow_total` field is absent (older hub envelope) AND all other axes clean (mirror of `governor_hub_is_pressured_missing_fields_default_to_clean` test pattern)'
+  - 'One new unit test per side asserts the new axis fires correctly (2 per side: positive + backward-compat — 4 new tests total)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2118-surface-cvindexoverflow-in---only-pressu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T11:36:23"
+    action: "T-2118: surface cv_index_overflow in --only-pressured predicate (closes T-2110 deferred gap)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive-10, cv-index-pressure]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 4
+  lines_added: 254
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2118-surface-cvindexoverflow-in---only-pressu.md
+generated_by: context-agent-hybrid

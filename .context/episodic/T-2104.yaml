@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2104: substrate primitive 9 slice 2 — channel.subscribe include_current_value wire (T-2027/T-2089)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T20:38:20Z
+# ============================================================================
+
+task_id: T-2104
+task_name: "substrate primitive 9 slice 2 — channel.subscribe include_current_value wire (T-2027/T-2089)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T20:32:10Z
+completed: 2026-06-09T20:38:01Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`handle_channel_subscribe_with` accepts optional `include_current_value: bool` param (default false)'
+  - 'When true, response includes `current_values: [{cv_key, offset, msg}, ...]` populated from `cv_index::current_values(topic)`'
+  - 'When false (or absent), response is byte-identical to current behavior (no `current_values` field)'
+  - 'Envelope fetch uses existing `bus.subscribe(topic, offset).next()` (O(1) per cv entry, O(K) total)'
+  - 'Stale cv_index entries (cv_key points at an offset whose envelope no longer exists due to retention) are silently skipped — slice 2 does not lazy-reconcile'
+  - 'Inline unit tests cover: omit param (back-compat), false (no field), true with empty index, true with one key, true with multi-key, key after multi-update returns the latest (6/6 passing)'
+  - '`cargo check -p termlink-hub` passes'
+  - 'No regressions — full hub test suite passes 347/347'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2104-substrate-primitive-9-slice-2--channelsu.md
+generated_by: context-agent-hybrid

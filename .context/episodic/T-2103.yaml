@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2103: substrate primitive 9 slice 1 — hub-side cv_index module + channel.post wiring (T-2027/T-2089 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T20:31:29Z
+# ============================================================================
+
+task_id: T-2103
+task_name: "substrate primitive 9 slice 1 — hub-side cv_index module + channel.post wiring (T-2027/T-2089 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T20:26:48Z
+completed: 2026-06-09T20:31:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T22:31:15+02:00
+last_commit: 2026-06-09T22:31:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate primitive 9 slice 1 — hub-side cv_index module + channel.post wiring
+
+# Key outcomes
+outcomes:
+  - '`crates/termlink-hub/src/cv_index.rs` exists with module-doc explaining T-2027/T-2089 lineage and last-write-wins semantics'
+  - 'Module exposes `pub fn init()` mirroring dedupe.rs pattern (OnceLock-installed global)'
+  - 'Module exposes `pub fn record(topic, cv_key, offset)` — append-or-update with last-write-wins'
+  - 'Module exposes `pub fn current_values(topic) -> Vec<(String, u64)>` for slice 2 to read'
+  - 'Module exposes `pub fn entries_active() -> usize` for governor surface (T-2048 sibling)'
+  - 'Per-topic distinct cv_key cap enforced at 1000 with `TERMLINK_CV_INDEX_CAP_PER_TOPIC` env override'
+  - '`cv_index::init()` called from hub startup (server.rs) alongside `dedupe::init()`'
+  - '`handle_channel_post_with` records cv_key after successful post when metadata.cv_key is present'
+  - 'Inline unit tests cover: empty, single key, key-update last-write-wins, multi-topic isolation, cap-overflow refusal (8/8 passing)'
+  - '`cargo check -p termlink-hub` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/cv_index.rs'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2103-substrate-primitive-9-slice-1--hub-side-.md'
+  - '.tasks/completed/T-2098-release-claude-code-skill--write-side-da.md'
+  - '.tasks/completed/T-2099-claim-transfer-claude-code-skill--write-.md'
+  - '.tasks/completed/T-2100-fix-t-2097-claim--t-2098-release-skills-.md'
+  - '.tasks/completed/T-2101-renew-claude-code-skill--write-side-dail.md'
+  - '.tasks/completed/T-2102-docsoperationssubstrate-claim-lifecyclem.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T22:31:15"
+    action: "T-2103: substrate primitive 9 slice 1 — hub-side cv_index module + channel.post wiring"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 6
+  lines_added: 599
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2103-substrate-primitive-9-slice-1--hub-side-.md
+generated_by: context-agent-hybrid

@@ -4,20 +4,20 @@ name: "Surface cv_index_overflow in --only-pressured predicate (T-2110 documente
 description: >
   Surface cv_index_overflow in --only-pressured predicate (T-2110 documented gap)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, substrate-primitive-10, cv-index-pressure]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T09:28:12Z
-last_update: 2026-06-10T09:28:12Z
-date_finished: null
+last_update: 2026-06-10T09:37:20Z
+date_finished: 2026-06-10T09:37:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -82,10 +82,8 @@ Pattern parity: T-2070 (CLI `--only-pressured`), T-2071 (MCP `only_pressured`), 
 
 ## Verification
 
-cargo test -p termlink --lib governor_hub_is_pressured 2>&1 | tail -20 | grep -q "test result: ok"
-cargo test -p termlink-mcp --lib mcp_governor_hub_is_pressured 2>&1 | tail -20 | grep -q "test result: ok"
-cargo check -p termlink 2>&1 | tail -5 | grep -q "Finished\|warning"
-cargo check -p termlink-mcp 2>&1 | tail -5 | grep -q "Finished\|warning"
+out=$(cargo test -p termlink governor_hub_is_pressured 2>&1); echo "$out" | grep -q "test result: ok. 8 passed"
+out=$(cargo test -p termlink-mcp --lib mcp_governor_hub_is_pressured 2>&1); echo "$out" | grep -q "test result: ok. 6 passed"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -190,3 +188,6 @@ cargo check -p termlink-mcp 2>&1 | tail -5 | grep -q "Finished\|warning"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2118-surface-cvindexoverflow-in---only-pressu.md
 - **Context:** Initial task creation
+
+### 2026-06-10T09:37:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

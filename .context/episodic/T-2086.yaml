@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2086: channel queue-history retrospective CLI — substrate primitive #5 obs arc Slice 4 (T-2074/T-2081 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T13:52:54Z
+# ============================================================================
+
+task_id: T-2086
+task_name: "channel queue-history retrospective CLI — substrate primitive #5 obs arc Slice 4 (T-2074/T-2081 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T13:47:38Z
+completed: 2026-06-09T13:52:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T15:52:07+02:00
+last_commit: 2026-06-09T15:52:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel queue-history retrospective CLI — substrate primitive #5 obs arc Slice 4 (T-2074/T-2081 mirror)
+
+# Key outcomes
+outcomes:
+  - '`ChannelAction::QueueHistory { since, kind, log, json }` Clap variant added next to `QueueStatus`. `--since` default 7, clamped 1..=365. `--kind` optional `pending|drained` filter. `--log` PathBuf override. `--json` toggles envelope.'
+  - 'Pure helper `parse_queue_log(text, cutoff_secs, kind_filter) -> (Vec<Value>, usize)` walks NDJSON lines, skips malformed (returns skip count), applies ts-cutoff + kind filter'
+  - 'Pure helper `aggregate_queue_entries(entries) -> QueueHistoryAgg { pending_events, drained_events }` — binary state, no transition kind'
+  - 'Pure helper `render_queue_history_line(entry) -> String` — human format `<ts>  <kind>  pending=A→B  oldest_age=Cms|n/a  queue=<path>`'
+  - '`queue_log_path()` resolves `~/.termlink/queue.log` with HOME-unset fallback (matches `find_idle_log_path` shape)'
+  - '`cmd_channel_queue_history(since_days, kind_filter, log_override, json_out)` implementation: handles missing log with operator hint, walks log, renders, prints footer with totals + window'
+  - 'Unit tests: (a) parse_queue_log skips malformed lines and counts them, (b) parse_queue_log applies kind filter, (c) parse_queue_log applies cutoff, (d) aggregate_queue_entries counts pending vs drained correctly'
+  - '`cargo build -p termlink` succeeds; `cargo test -p termlink --bin termlink queue_history` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2086-channel-queue-history-retrospective-cli-.md'
+  - '.tasks/completed/T-2085-queue-status---watch---log-path--substra.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T15:52:07"
+    action: "T-2086: channel queue-history retrospective CLI — substrate primitive #5 obs arc Slice 4 (T-2074/T-2081 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 6
+  lines_added: 619
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2086-channel-queue-history-retrospective-cli-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2114: substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T15:30:32Z
+# ============================================================================
+
+task_id: T-2114
+task_name: "substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T08:08:17Z
+completed: 2026-06-10T15:30:30Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-10T10:15:18+02:00
+last_commit: 2026-06-10T10:15:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)
+
+# Key outcomes
+outcomes:
+  - '`--log <PATH>` flag added to `SubstrateAction::Status` clap variant'
+  - 'Pure helper `render_log_line(field, old, new, ts)` emits exactly'
+  - '`append_log_line` auto-creates the parent directory when missing;'
+  - '`append_log_line` is best-effort: opens with `O_APPEND | O_CREAT`;'
+  - 'Wired into `cmd_substrate_status_watch` next to `fire_notify` —'
+  - '`cargo test -p termlink --bin termlink substrate` passes (≥17 tests'
+  - 'CLI `--log` rejected without `--watch` (clap `requires` enforces);'
+  - 'Full regression: `cargo test -p termlink --bin termlink` passes'
+  - 'Live smoke against local hub: run `substrate status --watch 5'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2111-substrate-status-unified-one-shot-cli-ve.md'
+  - '.tasks/active/T-2114-substrate-status---watch---log-path-ndjs.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T10:15:18"
+    action: "T-2114: substrate status --watch --log <PATH> NDJSON audit trail — Slice 4 (T-2111 arc, T-2018 §6)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 442 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 442
+  commits: 1
+  files_changed: 5
+  lines_added: 437
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2114-substrate-status---watch---log-path-ndjs.md
+generated_by: context-agent-hybrid

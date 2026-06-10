@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2123: Update /governor + /substrate cv_overflow hints to point at /cv-keys skill (T-2121) instead of underlying CLI verb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T10:52:44Z
+# ============================================================================
+
+task_id: T-2123
+task_name: "Update /governor + /substrate cv_overflow hints to point at /cv-keys skill (T-2121) instead of underlying CLI verb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T10:51:19Z
+completed: 2026-06-10T10:52:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T12:52:36+02:00
+last_commit: 2026-06-10T12:52:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  point /governor + /substrate cv_overflow hints at /cv-keys skill (T-2121)
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/governor.md` "Operational reading" section''s cv_overflow remediation hint points at `/cv-keys <topic>` skill (T-2121), not just the underlying CLI verb. CLI form retained as a parenthetical fallback for users without skill discoverability.'
+  - '`.claude/commands/substrate.md` Step 5 cv_overflow hint points at `/cv-keys <topic>` skill, not the CLI verb.'
+  - 'Both files reference T-2121 in the Related section so the skill genealogy is clear.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/governor.md'
+  - '.claude/commands/substrate.md'
+  - '.tasks/active/T-2123-update-governor--substrate-cvoverflow-hi.md'
+  - '.tasks/completed/T-2122-update-substrate-broadcast-with-replaymd.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T12:52:36"
+    action: "T-2123: point /governor + /substrate cv_overflow hints at /cv-keys skill (T-2121)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 4
+  lines_added: 187
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2123-update-governor--substrate-cvoverflow-hi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2062: Fleet governor-status — fleet-wide aggregation of hub.governor_status (T-2028 Track D)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T20:07:28Z
+# ============================================================================
+
+task_id: T-2062
+task_name: "Fleet governor-status — fleet-wide aggregation of hub.governor_status (T-2028 Track D)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T19:58:42Z
+completed: 2026-06-08T20:06:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T22:06:37+02:00
+last_commit: 2026-06-08T22:06:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet governor-status — fleet-wide hub.governor_status aggregation (T-2028 Track D)
+
+# Key outcomes
+outcomes:
+  - '`termlink fleet governor-status --help` lists the verb under `termlink fleet --help`. Builds cleanly (`cargo build -p termlink` finishes in 24.67s, no warnings). Help text shows `--json` + `--timeout` flags.'
+  - '`cmd_fleet_governor_status(json, timeout)` shipped in `crates/termlink-cli/src/commands/remote.rs`. Walks every hub in `~/.termlink/hubs.toml`, calls `hub.governor_status` RPC against each, bounded by per-hub `tokio::time::timeout` (default 8s); per-hub failure (timeout / connect-refused / RPC error) is rendered as `✗ <reason>` without short-circuiting the rest of the fleet.'
+  - 'Pure-helper renderer `render_fleet_governor_section(&[(name, result)])` extracted. Three unit tests cover: empty-fleet hint, mixed reach (2 reachable + 1 timeout, with one hub at-capacity to exercise the at-capacity counter), and missing-field tolerance (older hubs render as `n/a`).'
+  - 'Fleet rollup computes and surfaces: `total_connections_active`, `total_capacity_hits_total`, `total_rate_hits_total`, `total_dedupe_entries_active`, `total_dedupe_hits_total`, plus `hubs_at_capacity` and `hubs_rate_limited`. JSON output emits `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary}`.'
+  - 'All termlink-cli tests pass: 826/826 (was 823 pre-T-2062; +3 new render-helper tests). No regressions.'
+  - 'Live smoke against the local hub fleet completes: `target/debug/termlink fleet governor-status` rendered 5/5 hubs (2 reachable on local node, 3 returning `RPC error -32001` from pre-T-2048 hubs that lack the verb — error correctly surfaced per hub, fleet rollup correctly sums only the 2 reachable). `--json` envelope parses cleanly with the full structured summary tail (`{hubs_at_capacity: 0, hubs_rate_limited: 0, total_connections_active: 6, ...}`).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/episodic/T-2061.yaml'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/completed/T-2061-framework-vendor-chmod-x-scanner-libs-at.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T22:06:37"
+    action: "T-2062: fleet governor-status — fleet-wide hub.governor_status aggregation (T-2028 Track D)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 6
+  lines_added: 443
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2062-fleet-governor-status--fleet-wide-aggreg.md
+generated_by: context-agent-hybrid

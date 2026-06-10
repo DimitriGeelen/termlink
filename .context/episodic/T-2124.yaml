@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2124: AEF integration master recipe — substrate orchestrator walkthrough (T-2018 §9 doc closure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T11:32:36Z
+# ============================================================================
+
+task_id: T-2124
+task_name: "AEF integration master recipe — substrate orchestrator walkthrough (T-2018 §9 doc closure)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T11:24:47Z
+completed: 2026-06-10T11:32:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T13:31:26+02:00
+last_commit: 2026-06-10T13:32:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  AEF integration master recipe — substrate orchestrator walkthrough (T-2018 §9 doc closure). add Evolution section per T-1718 gate
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-orchestrator-recipe.md` exists with sections: scope, mental model, the contract (which RPCs), canonical orchestrator pattern (worked example with shell), canonical worker pattern, failure modes & recovery, observability hooks, cross-hub limits (G-060), AEF integration checklist'
+  - 'Doc cross-references each per-primitive ops doc (`substrate-claim-primitive.md`, `substrate-broadcast-with-replay.md`, `substrate-offline-queue-recipe.md`, `substrate-governor.md`, `substrate-post-idempotency.md`, `agent-find-idle.md`)'
+  - 'All per-primitive docs above gain a one-line "see also: substrate-orchestrator-recipe.md" pointer so an operator landing on any sub-doc can navigate to the master'
+  - 'ADR `docs/architecture/parallel-execution-substrate.md` §9 gains a reference to the new master recipe in the "Hard dependencies" paragraph'
+  - 'CLAUDE.md gains one Quick Reference row for the recipe doc next to the existing substrate skill rows'
+  - 'No broken markdown links (grep''able verification: every `[text](path)` in the new doc resolves to an existing file)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/architecture/parallel-execution-substrate.md'
+  - 'docs/operations/agent-find-idle.md'
+  - 'docs/operations/substrate-broadcast-with-replay.md'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - 'docs/operations/substrate-governor.md'
+  - 'docs/operations/substrate-offline-queue-recipe.md'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'docs/operations/substrate-post-idempotency.md'
+  - '.tasks/active/T-2124-aef-integration-master-recipe--substrate.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T13:31:26"
+    action: "T-2124: AEF integration master recipe — substrate orchestrator walkthrough (T-2018 §9 doc closure)"
+  - time: "2026-06-10T13:32:33"
+    action: "T-2124: add Evolution section per T-1718 gate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, docs]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 10
+  lines_added: 697
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2124-aef-integration-master-recipe--substrate.md
+generated_by: context-agent-hybrid

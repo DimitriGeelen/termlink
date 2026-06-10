@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2081: agent find-idle-history retrospective verb (substrate primitive #2 obs arc Slice 4, T-2074 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T11:32:07Z
+# ============================================================================
+
+task_id: T-2081
+task_name: "agent find-idle-history retrospective verb (substrate primitive #2 obs arc Slice 4, T-2074 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T11:24:11Z
+completed: 2026-06-09T11:31:27Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T13:30:37+02:00
+last_commit: 2026-06-09T13:31:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent find-idle-history retrospective verb (substrate primitive #2 obs arc Slice 4). fix verification cargo package name (termlink, not termlink-cli)
+
+# Key outcomes
+outcomes:
+  - '`agent find-idle-history` clap variant added to `AgentAction` enum in cli.rs with `--since`, `--agent-id`, `--log`, `--json` (mirror T-2074 `ClaimsHistory` shape, params renamed for the find-idle domain)'
+  - '`main.rs` dispatches the variant to `commands::agent_find_idle::cmd_agent_find_idle_history`'
+  - '`cmd_agent_find_idle_history` implemented in agent_find_idle.rs with: read log file (default `~/.termlink/find-idle.log`), clamp `since` to 1..=365, apply cutoff filter, apply agent-id exact-match filter, render human or JSON, missing-log emits operator hint pointing at the writer'
+  - 'Pure helpers `parse_find_idle_log` + `aggregate_find_idle_entries` (+ `FindIdleHistoryAgg` struct) extracted — pattern mirror of T-2074''s `parse_claims_log` + `aggregate_claims_entries` + `ClaimsHistoryAgg`'
+  - '`find_idle_log_path()` helper resolves `~/.termlink/find-idle.log` with the same `$HOME`-unset fallback as `claim_log_path` (T-2074)'
+  - 'Per-entry render line + per-agent aggregate footer + JSON envelope shape `{ok, entries, summary{total, per_agent:{<id>:{new, removed}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}` (mirror T-2074 envelope)'
+  - 'At least 4 unit tests: `parse_skips_malformed_and_counts`, `parse_applies_cutoff`, `parse_applies_agent_id_filter`, `aggregate_counts_kinds`'
+  - '`cargo build -p termlink-cli` clean'
+  - '`cargo test -p termlink-cli --lib agent_find_idle::tests::find_idle_history` passes'
+  - 'CLAUDE.md DISPATCH row extended with T-2081 + retrospective recipe'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification cargo package name (termlink, not termlink-cli)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2081-agent-find-idle-history-retrospective-ve.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T13:30:37"
+    action: "T-2081: agent find-idle-history retrospective verb (substrate primitive #2 obs arc Slice 4)"
+  - time: "2026-06-09T13:31:19"
+    action: "T-2081: fix verification cargo package name (termlink, not termlink-cli)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 5
+  lines_added: 643
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2081-agent-find-idle-history-retrospective-ve.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2100: Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T20:21:55Z
+# ============================================================================
+
+task_id: T-2100
+task_name: "Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T19:36:04Z
+completed: 2026-06-09T20:21:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T21:40:28+02:00
+last_commit: 2026-06-09T21:40:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix T-2097/T-2098 skills — correct --claimer flag + offset-based claim model + --ack semantics in /release
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/claim.md` rewritten with correct flags: `<TOPIC> <OFFSET>` positional, `--claimer`, `--ttl-ms`'
+  - '`.claude/commands/claim.md` removes `unit-id` auto-mint pattern (no such concept in substrate)'
+  - '`.claude/commands/claim.md` updates Common patterns + Related cross-refs to reflect offset-based model'
+  - '`.claude/commands/release.md` rewritten with correct flags: `--claim-id <id> --claimer <id>` + optional `--ack`'
+  - '`.claude/commands/release.md` adds `--ack` (default) and `--retry` (negates --ack) semantics with clear "did I finish the work?" framing'
+  - 'CLAUDE.md `/claim` row corrected: flags, offset model, claimer terminology'
+  - 'CLAUDE.md `/release` row corrected: --claimer flag + --ack semantics'
+  - 'CLAUDE.md `/release` row documents the retry-vs-completion distinction (critical substrate semantic)'
+  - 'Skill files retain all six standard sections (pre-flight / parse-args / run / render / refusal taxonomy / related)'
+  - 'All refs to `T-2032` shipped-verb origin task preserved (the substrate impl is correct; my docs were wrong)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix T-2097/T-2098 skills — correct --claimer flag + offset-based claim model + --ack semantics in /release'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/claim.md'
+  - '.claude/commands/release.md'
+  - 'CLAUDE.md'
+  - '.tasks/active/T-2100-fix-t-2097-claim--t-2098-release-skills-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T21:40:28"
+    action: "T-2100: fix T-2097/T-2098 skills — correct --claimer flag + offset-based claim model + --ack semantics in /release"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 45 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 45
+  commits: 1
+  files_changed: 4
+  lines_added: 562
+  lines_removed: 181
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2100-fix-t-2097-claim--t-2098-release-skills-.md
+generated_by: context-agent-hybrid

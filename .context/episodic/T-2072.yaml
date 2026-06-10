@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2072: channel claims-summary --watch --notify event hook (claim primitive observability arc, T-2065 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T08:42:07Z
+# ============================================================================
+
+task_id: T-2072
+task_name: "channel claims-summary --watch --notify event hook (claim primitive observability arc, T-2065 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T08:27:45Z
+completed: 2026-06-09T08:37:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T10:37:38+02:00
+last_commit: 2026-06-09T10:37:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  claim primitive --watch --notify event hook (T-2065 mirror)
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` ClaimsSummary variant gains `notify: Option<String>` with `requires("watch")` (clap rejects `--notify` without `--watch`)'
+  - '`main.rs` dispatch passes `notify` to `cmd_channel_claims_summary`'
+  - '`cmd_channel_claims_summary` watch loop maintains per-topic prior-state, computes per-tick diff, fires `--notify` per change event'
+  - 'First tick is baseline only — no events fired even if topics are already stuck'
+  - 'Pure helper `diff_claim_states(prev: &BTreeMap<String, ClaimSnapshot>, curr: &BTreeMap<String, ClaimSnapshot>) -> Vec<ClaimChangeEvent>` extracted so the diff is unit-testable without spawning subprocesses'
+  - 'Notify subprocess is fire-and-forget — a hanging script does NOT block the loop, and command-not-found does NOT crash the watch'
+  - 'At least 4 unit tests on `diff_claim_states`: (a) baseline → empty, (b) stuck-state transition fires `transition` event, (c) new topic fires `new` event, (d) removed topic fires `removed` event, (e) no-change tick → empty'
+  - '`cargo check -p termlink` builds clean (no new warnings)'
+  - '`cargo test --bin termlink claims_summary_notify` passes (the unit tests)'
+  - 'CLAUDE.md `BACKPRESSURE` row (or equivalent claim-arc entry) acknowledges the new `--notify` form per the operator-discovery convention used for T-2065'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/operations/substrate-claim-primitive.md'
+  - '.tasks/active/T-2072-channel-claims-summary---watch---notify-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T10:37:38"
+    action: "T-2072: claim primitive --watch --notify event hook (T-2065 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 6
+  lines_added: 591
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2072-channel-claims-summary---watch---notify-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2113: substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T15:30:18Z
+# ============================================================================
+
+task_id: T-2113
+task_name: "substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T07:32:40Z
+completed: 2026-06-10T15:30:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T09:37:57+02:00
+last_commit: 2026-06-10T09:37:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate status --watch --notify — Slice 3 (T-2111 arc, T-2018 §6)
+
+# Key outcomes
+outcomes:
+  - '`SubstrateAction::Status` gains `--notify <CMD>` flag with'
+  - 'Watch handler signature extended to take `notify: Option<String>`;'
+  - 'Per cycle, AFTER baseline + for each event from `diff_substrate_rollup`,'
+  - 'Hanging notify scripts do NOT block the loop. (Pure `build_notify_env`'
+  - 'Spawn-failure (command-not-found) does not kill the watch loop.'
+  - 'At least 2 unit tests: (a) pure helper `build_notify_env(field,'
+  - 'Live smoke: a one-shot bash script captures each event''s env vars to'
+  - 'CLAUDE.md quick-reference row update — deferred (will document the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2113-substrate-status---watch---notify-event-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T09:37:57"
+    action: "T-2113: substrate status --watch --notify — Slice 3 (T-2111 arc, T-2018 §6)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 477 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 477
+  commits: 1
+  files_changed: 4
+  lines_added: 401
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2113-substrate-status---watch---notify-event-.md
+generated_by: context-agent-hybrid

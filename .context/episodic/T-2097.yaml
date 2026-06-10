@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2097: /claim claude-code skill — daily verb for substrate #1 channel.claim WRITE-side
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T19:14:20Z
+# ============================================================================
+
+task_id: T-2097
+task_name: "/claim claude-code skill — daily verb for substrate #1 channel.claim WRITE-side"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T19:11:39Z
+completed: 2026-06-09T19:14:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T21:14:12+02:00
+last_commit: 2026-06-09T21:14:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /claim claude-code skill — WRITE-side daily verb for substrate #1
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/claim.md` exists with 6-step skill structure (pre-flight, parse-args, run, surface-refusal, success-render, related)'
+  - 'Skill wraps `termlink channel claim` with passthrough for `<topic>` `<unit-id>` `--owner` `--ttl-secs` `--json`'
+  - 'Auto-mints `unit-id` when not provided (random 16-hex, mirroring T-2049 client-msg-id pattern)'
+  - 'Auto-resolves `--owner` from `~/.termlink/be-reachable.state` agent_id when not specified (mirrors T-1857 `/broadcast-chat` sender resolution)'
+  - 'Loud refusal taxonomy for known error classes: CLAIM_ALREADY_HELD → suggest `/claims <topic>` to see who; AUTH_FAIL → suggest `termlink fleet reauth`; RATE_LIMITED → suggest `/governor`'
+  - 'Skill cross-links T-2018 (ADR), T-2019/T-2042 (substrate #1 impl + read verb), T-2046 (claim-transfer for handoff after claim), T-2093 (/claims sibling), T-1857 (/broadcast-chat sender-resolution pattern reused)'
+  - 'CLAUDE.md Quick Reference table gains a row for `/claim` daily verb'
+  - 'Verification commands pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/claim.md'
+  - 'CLAUDE.md'
+  - '.tasks/active/T-2097-claim-claude-code-skill--daily-verb-for-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T21:14:12"
+    action: "T-2097: /claim claude-code skill — WRITE-side daily verb for substrate #1"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 461
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2097-claim-claude-code-skill--daily-verb-for-.md
+generated_by: context-agent-hybrid

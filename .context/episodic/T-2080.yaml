@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2080: agent find-idle --watch --log NDJSON audit trail (substrate primitive #2 obs arc Slice 3, T-2073 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T10:27:26Z
+# ============================================================================
+
+task_id: T-2080
+task_name: "agent find-idle --watch --log NDJSON audit trail (substrate primitive #2 obs arc Slice 3, T-2073 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T10:17:31Z
+completed: 2026-06-09T10:23:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T12:22:59+02:00
+last_commit: 2026-06-09T12:22:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent find-idle --watch --log — NDJSON audit trail (substrate primitive #2 obs arc Slice 3)
+
+# Key outcomes
+outcomes:
+  - 'CLI `FindIdle` variant gains `log: Option<PathBuf>` with `requires("watch")`'
+  - 'Watch loop appends one NDJSON line per `IdleChangeEvent` (skipped on baseline)'
+  - 'Pure helper `render_idle_log_line(ev, now_secs) -> String` extracted (no IO, testable)'
+  - 'Pure helper `append_idle_log_line` wraps the write — parent dir auto-created; disk-full / permission errors print stderr warning + continue (watch never crashes)'
+  - 'Each line is a single NDJSON-style line (no internal newlines) so `jq -c ''select(...)'' file` works'
+  - 'Schema: `{ts, agent_id, kind, role, capabilities, last_heartbeat_ms}` — flat structure'
+  - 'Symmetric dispatch: `--notify` AND `--log` see the SAME per-tick event list'
+  - 'At least 2 unit tests: line shape (no newline, parseable as JSON) + kind serialization'
+  - '`cargo check -p termlink` builds clean'
+  - '`cargo test --bin termlink find_idle_log` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2080-agent-find-idle---watch---log-ndjson-aud.md'
+  - '.tasks/completed/T-2079-agent-find-idle---watch---notify--event-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T12:22:59"
+    action: "T-2080: agent find-idle --watch --log — NDJSON audit trail (substrate primitive #2 obs arc Slice 3)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 6
+  lines_added: 333
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2080-agent-find-idle---watch---log-ndjson-aud.md
+generated_by: context-agent-hybrid

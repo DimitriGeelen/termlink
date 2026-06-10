@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2073: channel claims-summary --watch --log NDJSON audit trail (claim primitive observability arc, T-2066 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T11:43:30Z
+# ============================================================================
+
+task_id: T-2073
+task_name: "channel claims-summary --watch --log NDJSON audit trail (claim primitive observability arc, T-2066 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T08:42:12Z
+completed: 2026-06-09T11:38:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T10:46:45+02:00
+last_commit: 2026-06-09T10:46:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  claims-summary --watch --log NDJSON audit trail (T-2066 mirror)
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` ClaimsSummary variant gains `log: Option<PathBuf>` with `requires("watch")` (clap rejects `--log` without `--watch`)'
+  - '`main.rs` dispatch passes `log` to `cmd_channel_claims_summary`'
+  - 'Watch loop appends one NDJSON line per change event to the operator-supplied path'
+  - 'Pure helper `render_claim_log_line(event: &ClaimChangeEvent, hub: &str, ts_secs: u64) -> String` extracted so the NDJSON shape is unit-testable'
+  - 'Each line is valid JSON (round-trip parseable to `serde_json::Value`)'
+  - 'Each line carries exactly: `ts`, `topic`, `kind`, `hub`, `old_stuck`, `new_stuck`, `active_count`, `expired_count`, `oldest_age_ms`'
+  - 'Parent directory auto-created if missing (`std::fs::create_dir_all`)'
+  - 'Disk-full / permission errors print one-line stderr warning + continue (do NOT panic; do NOT abort the watch)'
+  - 'Baseline tick writes nothing (same gating as `--notify`)'
+  - 'Symmetric with `--notify`: writing AND firing both happen when both flags are present (one event → both surfaces)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2073-channel-claims-summary---watch---log-ndj.md'
+  - '.tasks/completed/T-2072-channel-claims-summary---watch---notify-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T10:46:45"
+    action: "T-2073: claims-summary --watch --log NDJSON audit trail (T-2066 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 176 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 176
+  commits: 1
+  files_changed: 6
+  lines_added: 428
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2073-channel-claims-summary---watch---log-ndj.md
+generated_by: context-agent-hybrid

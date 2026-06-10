@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2112: substrate status --watch: continuous monitor (T-2111 arc Slice 2 — pattern parity with T-2064)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T15:29:36Z
+# ============================================================================
+
+task_id: T-2112
+task_name: "substrate status --watch: continuous monitor (T-2111 arc Slice 2 — pattern parity with T-2064)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T07:25:24Z
+completed: 2026-06-10T15:29:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T09:32:24+02:00
+last_commit: 2026-06-10T09:32:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate status --watch — Slice 2 (T-2111 arc, T-2018 §6 obs roll-up)
+
+# Key outcomes
+outcomes:
+  - '`SubstrateAction::Status` gains `--watch <SECS>` flag, mutex with'
+  - 'When `--watch` is present, main.rs dispatches to new'
+  - '`cmd_substrate_status_watch` validates SECS clamp 5..=3600; rejects'
+  - 'Each tick subprocesses `termlink substrate status --json` (mirrors'
+  - 'Per-cycle JSON → `SubstrateRollup` struct via pure helper'
+  - 'Cycle 1 (baseline) prints full rollup: idle/topic/stuck/pending/pressured'
+  - 'Cycle N>1 prints one change-line per rollup field change with shape'
+  - 'SIGINT (`ctrl-c`) exits cleanly with a final summary line showing'
+  - 'Sub-verb subprocess failure (JSON unparseable, nonzero exit) prints'
+  - 'At least 3 unit tests: (a) `parse_substrate_rollup` extracts each'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2112-substrate-status---watch-continuous-moni.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T09:32:24"
+    action: "T-2112: substrate status --watch — Slice 2 (T-2111 arc, T-2018 §6 obs roll-up)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 484 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 484
+  commits: 1
+  files_changed: 4
+  lines_added: 837
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2112-substrate-status---watch-continuous-moni.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2094: /queue-status claude-code skill — daily verb for substrate #5 RESILIENCE offline-queue inspect
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T15:43:25Z
+# ============================================================================
+
+task_id: T-2094
+task_name: "/queue-status claude-code skill — daily verb for substrate #5 RESILIENCE offline-queue inspect"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T15:41:11Z
+completed: 2026-06-09T15:43:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T17:43:17+02:00
+last_commit: 2026-06-09T17:43:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /queue-status claude-code skill — daily verb for substrate #5 RESILIENCE
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/queue-status.md` exists with 6-step skill structure (pre-flight, parse-args, run, render, empty-hint, related)'
+  - 'Skill wraps `termlink channel queue-status` with passthrough for `--json` and any verb flags'
+  - 'Empty-result hint surfaces actionable diagnostic ladder (queue drained vs queue pending vs queue path missing)'
+  - 'Skill cross-links T-2018 (ADR), T-2051 (offline-queue impl), T-2049 (dedupe / exactly-once), T-2083..T-2087 (observability arc), T-2092/T-2093 (sibling skills)'
+  - 'CLAUDE.md Quick Reference table gains a row for `/queue-status` daily verb'
+  - 'Pre-flight test passes: `bash -c ''grep -q "queue-status" .claude/commands/queue-status.md && grep -q "Step 1: Pre-flight" .claude/commands/queue-status.md''`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/queue-status.md'
+  - 'CLAUDE.md'
+  - '.tasks/active/T-2094-queue-status-claude-code-skill--daily-ve.md'
+  - '.tasks/completed/T-2093-claims-claude-code-skill--daily-verb-for.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T17:43:17"
+    action: "T-2094: /queue-status claude-code skill — daily verb for substrate #5 RESILIENCE"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 400
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2094-queue-status-claude-code-skill--daily-ve.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "AEF integration master recipe — substrate orchestrator walkthrough (T-2
 description: >
   AEF integration master recipe — substrate orchestrator walkthrough (T-2018 §9 doc closure)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate, docs]
 components: [docs/operations]
 related_tasks: [T-2018, T-2019, T-2020, T-2045, T-2046, T-2051, T-2103, T-2106, T-2111, T-2117]
@@ -16,8 +16,8 @@ related_tasks: [T-2018, T-2019, T-2020, T-2045, T-2046, T-2051, T-2103, T-2106, 
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T11:24:47Z
-last_update: 2026-06-10T11:31:26Z
-date_finished: null
+last_update: 2026-06-10T11:32:33Z
+date_finished: 2026-06-10T11:32:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -207,3 +207,6 @@ grep -q "substrate-orchestrator-recipe" CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2124-aef-integration-master-recipe--substrate.md
 - **Context:** Initial task creation
+
+### 2026-06-10T11:32:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

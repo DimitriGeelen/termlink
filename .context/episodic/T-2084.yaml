@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2084: channel queue-status --watch --notify event hook (substrate primitive #5 obs arc Slice 2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T11:54:52Z
+# ============================================================================
+
+task_id: T-2084
+task_name: "channel queue-status --watch --notify event hook (substrate primitive #5 obs arc Slice 2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T11:51:10Z
+completed: 2026-06-09T11:54:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T13:54:04+02:00
+last_commit: 2026-06-09T13:54:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel queue-status --watch --notify — substrate primitive #5 obs arc Slice 2
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` `ChannelAction::QueueStatus` gains `notify: Option<String>` with `requires = "watch"` (mirror of T-2079)'
+  - '`main.rs` passes `notify` through to `cmd_channel_queue_status_watch`'
+  - '`cmd_channel_queue_status_watch` accepts `notify: Option<&str>`; on each tick, after `diff_queue_states` produces events, fire the notify command per event (fire-and-forget, `tokio::process::Command::spawn`)'
+  - 'Pure helper `fire_queue_notify_env(ev, queue_path, now_secs) -> Vec<(&''static str, String)>` returns env-var vec — testable independently'
+  - 'Hanging scripts do NOT block the loop; spawn failures print one-line stderr + continue'
+  - 'Baseline tick fires no notify (diff helper returns empty when prev=None)'
+  - 'At least 2 unit tests on `fire_queue_notify_env`: pending event has all vars set; drained event has correct kind + `n/a` for oldest_age'
+  - '`cargo build -p termlink` clean'
+  - '`cargo test -p termlink --bin termlink commands::channel::tests::queue_status_notify` passes'
+  - 'CLAUDE.md RESILIENCE row extended with T-2084 + per-event env var schema + recipe'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2084-channel-queue-status---watch---notify-ev.md'
+  - '.tasks/completed/T-2083-channel-queue-status---watch-continuous-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T13:54:04"
+    action: "T-2084: channel queue-status --watch --notify — substrate primitive #5 obs arc Slice 2"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 6
+  lines_added: 348
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2084-channel-queue-status---watch---notify-ev.md
+generated_by: context-agent-hybrid

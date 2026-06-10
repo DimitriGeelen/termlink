@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2076: channel claims-summary --only-stuck filter (operator-actionable subset, T-2070 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T09:37:59Z
+# ============================================================================
+
+task_id: T-2076
+task_name: "channel claims-summary --only-stuck filter (operator-actionable subset, T-2070 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T08:58:27Z
+completed: 2026-06-09T09:33:22Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T11:02:39+02:00
+last_commit: 2026-06-09T11:33:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  park in 'issues' state — partial WIP, recovery steps in task. --only-stuck filter — operator-actionable subset of claims-summary (T-2070 mirror)
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` ClaimsSummary variant gains `only_stuck: bool` with `requires("all")` (single-topic mode has nothing to filter)'
+  - '`main.rs` dispatch passes `only_stuck` to `cmd_channel_claims_summary`'
+  - '`cmd_channel_claims_summary` --all path filters non-stuck topics from per-topic rows when `only_stuck=true`'
+  - 'Summary footer keeps fleet-wide totals (`{topic_count, stuck_count}`) — filter is presentation-only, totals are truthful'
+  - 'JSON envelope gains `shown` (number of topics in `topics[]`) and `only_stuck` (the flag value) fields'
+  - 'Healthy fleet path (every topic non-stuck under `--only-stuck`) prints `All topics healthy (0/N stuck)` — affirmative'
+  - 'At least 1 pure predicate test confirming the stuck classification mirrors `is_potentially_stuck`'
+  - '`cargo check -p termlink` builds clean'
+  - '`cargo test --bin termlink claims_summary_only_stuck` passes'
+  - 'CLAUDE.md CLAIM-OBSERVABILITY row extended with the `--only-stuck` form'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'park in ''issues'' state — partial WIP, recovery steps in task'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2076-channel-claims-summary---only-stuck-filt.md'
+  - '.tasks/completed/T-2075-mcp-parity-for-channel-claims-history-t-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T11:02:39"
+    action: "T-2076: park in 'issues' state — partial WIP, recovery steps in task"
+  - time: "2026-06-09T11:33:16"
+    action: "T-2076: --only-stuck filter — operator-actionable subset of claims-summary (T-2070 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 34 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 34
+  commits: 2
+  files_changed: 6
+  lines_added: 438
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2076-channel-claims-summary---only-stuck-filt.md
+generated_by: context-agent-hybrid

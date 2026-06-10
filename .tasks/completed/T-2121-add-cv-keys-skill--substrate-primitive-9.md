@@ -4,10 +4,10 @@ name: "Add /cv-keys skill — substrate primitive 9 (broadcast-with-replay) disc
 description: >
   Add /cv-keys skill — substrate primitive 9 (broadcast-with-replay) discovery verb, completes /governor cv_overflow investigation arc
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T10:39:36Z
-last_update: 2026-06-10T10:39:36Z
-date_finished: null
+last_update: 2026-06-10T10:43:44Z
+date_finished: 2026-06-10T10:43:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -190,3 +190,6 @@ grep -q "cv-keys" CLAUDE.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2121-add-cv-keys-skill--substrate-primitive-9.md
 - **Context:** Initial task creation
+
+### 2026-06-10T10:43:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2109: agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-reference optimization
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T22:33:54Z
+# ============================================================================
+
+task_id: T-2109
+task_name: "agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-reference optimization"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T22:24:25Z
+completed: 2026-06-09T22:33:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T00:33:23+02:00
+last_commit: 2026-06-10T00:33:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-reference
+
+# Key outcomes
+outcomes:
+  - 'New primitive `Bus::envelope_at(topic, offset) -> Result<Option<Envelope>>` on the bus — returns the single envelope at `offset` or `None` if not present. Unit-tested for present/absent/unknown-topic cases.'
+  - 'Hub-side `handle_agent_find_idle_with` (crates/termlink-hub/src/channel.rs) tries the cv_index fast path when `cv_index().current_values("agent-presence")` returns non-empty; otherwise falls back to `bus.find_idle_agents(...)` (the existing walk).'
+  - 'Fast path applies the same role + capability + LIVE-window + claimer-anti-join filters as the walk path. Sort order (freshest first) + limit semantics preserved.'
+  - 'cv_index path skips entries whose envelope cannot be read (envelope deleted by retention sweep, etc) — falls through to walk for that entry, never panics.'
+  - 'Unit tests in bus crate covering: cv_index populated (fast path hit), cv_index empty (walk fallback equivalent — `find_idle_agents` tests already cover), cv_index-with-stale-offset (envelope swept — `find_idle_from_hint_skips_swept_offsets`), role/capability filters apply correctly on fast path, limit semantics identical. Hub-level integration: cv_index is a process-global singleton so per-test isolation is infeasible — coverage via live sidecar smoke (next AC) instead.'
+  - 'Hub regression test suite: full `cargo test -p termlink-hub` passes (351 tests, no regression on prior count).'
+  - 'Live sidecar smoke: spin a sidecar hub on a non-production port, populate cv_index via two simulated heartbeats with `cv_key=alpha` / `cv_key=beta`, call `agent.find_idle` via the CLI, verify both agents appear in the output. Then post a third heartbeat with `--no-cv-key`, call `agent.find_idle` — verify the third agent does NOT appear via the fast path (documented trade-off). PASS via /tmp/T-2109-smoke.sh.'
+  - '`docs/operations/substrate-broadcast-with-replay.md` "Related primitives" section updated — find_idle now consumes cv_index directly (close the "future optimization candidate" callout).'
+  - 'CLAUDE.md Quick Reference row for `agent find-idle` updated to mention the cv_index fast path (one line).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'docs/operations/substrate-broadcast-with-replay.md'
+  - '.tasks/active/T-2109-agentfindidle-cvindex-fast-path--substra.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T00:33:23"
+    action: "T-2109: agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-reference"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 5
+  lines_added: 643
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2109-agentfindidle-cvindex-fast-path--substra.md
+generated_by: context-agent-hybrid

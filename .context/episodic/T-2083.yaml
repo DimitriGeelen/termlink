@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2083: channel queue-status --watch continuous monitor (substrate primitive #5 RESILIENCE obs arc Slice 1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T11:50:53Z
+# ============================================================================
+
+task_id: T-2083
+task_name: "channel queue-status --watch continuous monitor (substrate primitive #5 RESILIENCE obs arc Slice 1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T11:44:07Z
+completed: 2026-06-09T11:50:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T13:50:09+02:00
+last_commit: 2026-06-09T13:50:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel queue-status --watch — substrate primitive #5 RESILIENCE obs arc Slice 1
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` `ChannelAction::QueueStatus` gains `watch: Option<u64>` with `conflicts_with = "json"` (mirror of T-2078 `FindIdle.watch`)'
+  - '`main.rs` passes `watch` through to `cmd_channel_queue_status`'
+  - '`cmd_channel_queue_status` signature extended; when `watch` is `Some(N)`, enters loop that clamps N to [1, 300], clears screen, re-renders status every N seconds; SIGINT-clean exit'
+  - 'Pure helper `QueueSnapshot { pending: u64, oldest_ts_unix_ms: Option<i64> }` + `read_queue_snapshot(path: &Path) -> Result<QueueSnapshot>` extracted (testable, mocks the SQLite read for tests)'
+  - 'Pure helper `diff_queue_states(prev: &Option<QueueSnapshot>, curr: &QueueSnapshot) -> Vec<QueueChangeEvent>` returns `transition` events on `0↔N+` flips; baseline (no prev) returns empty'
+  - '`QueueChangeEvent { kind: QueueChangeKind, old_pending, new_pending, oldest_age_ms }` + `enum QueueChangeKind { Drained, Pending }` (binary: queue went from pending to drained, or from drained to pending)'
+  - 'Watch loop renders a per-tick header showing `pending=N oldest_age=Mms` and per-event lines below on transitions'
+  - 'At least 4 unit tests on `diff_queue_states`: baseline no-event, drained→pending, pending→drained, pending→pending-no-change-no-event'
+  - '`cargo build -p termlink` clean'
+  - '`cargo test -p termlink --bin termlink commands::channel::tests::queue_status_watch` passes (test module name to be created)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2083-channel-queue-status---watch-continuous-.md'
+  - '.tasks/completed/T-2073-channel-claims-summary---watch---log-ndj.md'
+  - '.tasks/completed/T-2082-agentfindidlehistory-mcp-parity-substrat.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T13:50:09"
+    action: "T-2083: channel queue-status --watch — substrate primitive #5 RESILIENCE obs arc Slice 1"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 6
+  lines_added: 492
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2083-channel-queue-status---watch-continuous-.md
+generated_by: context-agent-hybrid

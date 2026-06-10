@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2064: fleet governor-status --watch — continuous fleet-wide governor monitor (T-2028 §6 #10 Track E)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T22:21:12Z
+# ============================================================================
+
+task_id: T-2064
+task_name: "fleet governor-status --watch — continuous fleet-wide governor monitor (T-2028 §6 #10 Track E)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T21:37:58Z
+completed: 2026-06-08T22:10:50Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T00:10:11+02:00
+last_commit: 2026-06-09T00:10:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet governor-status --watch — continuous fleet-wide governor monitor (T-2028 §6 #10 Track E). tick all 7 ACs + tighten verification block
+
+# Key outcomes
+outcomes:
+  - '`FleetAction::GovernorStatus` gains a `--watch <SECONDS>` flag, clamped [5, 3600], mutex with `--json`. — cli.rs line 3641, `#[arg(long, value_name = "SECONDS")] watch: Option<u64>` + `#[arg(long, conflicts_with = "watch")] json: bool`. Runtime clamp at remote.rs `if !(5..=3600).contains(&secs) { bail }`.'
+  - '`cmd_fleet_governor_status_watch` implements the subprocess-respawn-with-json + diff loop pattern (mirrors `cmd_fleet_doctor_watch` shape). — remote.rs ~line 2820, uses `std::env::current_exe()` + `tokio::process::Command::new(exe).args(["fleet","governor-status","--json","--timeout",N])`.'
+  - 'Baseline cycle (cycle 1) prints one line per hub with reach + conn + cap_hits + rate_hits + dedupe_hits. — verified live: 5 hubs printed at 2026-06-08T22:09:05Z with each hub''s `reach= conn=X/Y cap_hits=N rate_hits=N dedupe_hits=N|n/a`.'
+  - 'Subsequent cycles emit one line per CHANGED hub (transition / new / removed); silent cycles print a single "no changes" footer. — live evidence: cycle 2 emitted `workstation-107-public conn=4/256→3/256 cap_hits=0→0 rate_hits=0→0 dedupe_hits=n/a`; cycle 3 emitted `no changes (cycle 3)`.'
+  - 'SIGINT during sleep OR during subprocess exits cleanly with a "watch stopped" line and exit 0. — both wait points wrap in `tokio::select! { ctrl_c() => print "watch stopped" + return Ok(()) }`. Smoke killed via parent `timeout` (SIGTERM) confirmed clean exit; SIGINT path symmetric (same select arm).'
+  - 'A pure render-helper formats one change line and has ≥3 unit tests covering: cap_hits delta, rate_hits delta, reachable transition. — `render_governor_watch_change_line()` extracted; tests pass: `watch_governor_renders_cap_hits_delta` + `watch_governor_renders_rate_hits_delta` + `watch_governor_renders_reachable_transition`. 826 → 829 bin lib tests.'
+  - 'CLAUDE.md BACKPRESSURE row updated with `--watch` example. — row 1170 now reads "Track B+C+D+E" with T-2064 paragraph describing `--watch <secs>` semantics.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2064-fleet-governor-status---watch--continuou.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T00:10:11"
+    action: "T-2064: fleet governor-status --watch — continuous fleet-wide governor monitor (T-2028 §6 #10 Track E)"
+  - time: "2026-06-09T00:10:45"
+    action: "T-2064: tick all 7 ACs + tighten verification block"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 32 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 32
+  commits: 2
+  files_changed: 5
+  lines_added: 569
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2064-fleet-governor-status---watch--continuou.md
+generated_by: context-agent-hybrid

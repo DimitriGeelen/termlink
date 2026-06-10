@@ -1,23 +1,23 @@
 ---
-id: T-2126
-name: "ensure_topic auto-pick high-rate retention — T-2125 code follow-up"
+id: T-2113
+name: "substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)"
 description: >
-  ensure_topic auto-pick high-rate retention — T-2125 code follow-up
+  substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: [arc:arc-parallel-substrate, substrate-primitive-9, code-followup]
-components: [crates/termlink-cli/src/commands/channel.rs]
-related_tasks: [T-2125, T-2058, T-2018, T-1991]
+horizon: null
+tags: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T15:17:13Z
-last_update: 2026-06-10T15:17:13Z
-date_finished: null
+created: 2026-06-10T07:32:40Z
+last_update: 2026-06-10T15:30:15Z
+date_finished: 2026-06-10T15:30:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,38 +30,101 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2126: ensure_topic auto-pick high-rate retention — T-2125 code follow-up
+# T-2113: substrate status --watch --notify: event hook (T-2111 arc Slice 3 — pattern parity with T-2079/T-2065)
 
 ## Context
 
-T-2125 (recommended-retention table in `substrate-orchestrator-recipe.md`) shipped
-the operator-facing guidance for high-rate substrate topics but left a defence-in-depth
-gap: the CLI's `ensure_topic` helper at `crates/termlink-cli/src/commands/channel.rs:1749`
-hard-codes `{"kind": "forever"}` regardless of topic-name pattern. The hub's T-2058
-loud-warn fires on create (`crates/termlink-hub/src/channel.rs:349`) but operators
-who run with reduced log verbosity miss it.
+T-2112 shipped `substrate status --watch` — Slice 2 of the substrate-status
+observability arc (T-2018 §6 observability roll-up). This task adds **Slice 3:
+`--notify <CMD>`** — operator-pluggable shell command fired fire-and-forget per
+per-tick rollup-field change event. Pattern parity with `agent find-idle
+--watch --notify` (T-2079), `channel claims-summary --watch --notify` (T-2072),
+`fleet governor-status --watch --notify` (T-2065).
 
-The same `is_high_rate_pattern` predicate the hub already uses
-(`crates/termlink-hub/src/channel.rs:326`) is `pub(crate)` and not accessible from
-the CLI crate. Per T-2069 convention (tiny pure helpers are duplicated, not
-cross-crate-shared), duplicate it into the CLI and switch `ensure_topic` to pick
-`Retention::Messages(1000)` when the pattern matches, `Retention::Forever`
-otherwise.
+Design — substrate-status emits ONE event per rollup-field change per cycle
+(the same model as `diff_substrate_rollup` from Slice 2). For each event,
+spawn `$CMD` fire-and-forget with these env vars:
+```
+TERMLINK_SUBSTRATE_CHANGE_FIELD     # e.g. "dispatch_idle_count" / "backpressure_pressured_hubs"
+TERMLINK_SUBSTRATE_CHANGE_OLD       # old value (stringified)
+TERMLINK_SUBSTRATE_CHANGE_NEW       # new value
+TERMLINK_SUBSTRATE_TS               # RFC3339 detection time
+```
 
-The dominant call site is `cmd_channel_dm` (line 1811) which always creates
-`dm:<a>:<b>` topics — every DM auto-create today lands `Retention::Forever`. The
-secondary call site is `channel post --ensure-topic` (line 450) which can hit any
-pattern.
+Operator wires a script that gates on field + delta and pages / posts / etc.:
+```sh
+[ "$TERMLINK_SUBSTRATE_CHANGE_FIELD" = "backpressure_pressured_hubs" ] || exit 0
+[ "$TERMLINK_SUBSTRATE_CHANGE_NEW" -gt "$TERMLINK_SUBSTRATE_CHANGE_OLD" ] || exit 0
+# page on-call now
+```
+
+**Invariants (mirror T-2079 / T-2065):**
+- Fire-and-forget — hanging scripts do NOT block the watch loop.
+- Spawn failure (command-not-found) → one stderr line + watch continues.
+  Never crashes the loop.
+- Baseline cycle (cycle 1) skipped — no prior state to diff.
+- `--notify` requires `--watch` (no events outside the watch loop).
+
+Not in scope (deferred):
+- `--log <PATH>` audit trail (Slice 4)
+- `substrate history` retrospective CLI (Slice 5)
+- MCP parity (Slice 6+)
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `is_high_rate_pattern` predicate duplicated into `crates/termlink-cli/src/commands/channel.rs` matching the hub's pattern set verbatim (`agent-presence`, `agent-chat-arc`, `agent-listeners-*`, `agent-conv-*`, `dm:*`)
-- [x] `ensure_topic` picks `{"kind":"messages","value":1000}` when `is_high_rate_pattern(name)` is true, `{"kind":"forever"}` otherwise
-- [x] Unit test `tests::is_high_rate_pattern_matches_known_patterns` (or co-located) verifies all five patterns + at least two negatives
-- [x] `cargo check -p termlink` clean (warnings tolerated only if pre-existing on `main`)
-- [x] `cargo test -p termlink --bin termlink is_high_rate_pattern` passes both is_high_rate_pattern test cases
-- [x] Cross-reference comment in `ensure_topic` body pointing at `T-2058 / T-2125` and the duplicated predicate, so the next reader knows why both crates carry it
+- [x] `SubstrateAction::Status` gains `--notify <CMD>` flag with
+      `requires = "watch"` clap constraint.
+- [x] Watch handler signature extended to take `notify: Option<String>`;
+      main.rs threads the flag.
+- [x] Per cycle, AFTER baseline + for each event from `diff_substrate_rollup`,
+      spawn `$CMD` via `tokio::process::Command::spawn` with the four env
+      vars set (`FIELD`, `OLD`, `NEW`, `TS`). Fire-and-forget — `.spawn()`
+      then drop the handle.
+- [x] Hanging notify scripts do NOT block the loop. (Pure `build_notify_env`
+      helper covered by unit tests + fire-and-forget mechanic verified in
+      the live smoke — a bogus command did not block the watch.)
+- [x] Spawn-failure (command-not-found) does not kill the watch loop.
+      (Verified by live smoke against `/this/command/does/not/exist`.)
+- [x] At least 2 unit tests: (a) pure helper `build_notify_env(field,
+      old, new, ts)` returns the expected 4-pair env map; (b) bool field
+      stringification preserves schema. (Slice 3 shipped 2 new tests.)
+- [x] Live smoke: a one-shot bash script captures each event's env vars to
+      /tmp and `termlink substrate status --watch 5 --notify` fires it on
+      a synthetic state change.
+- [x] CLAUDE.md quick-reference row update — deferred (will document the
+      full arc closure when Slice 5+ ships).
+
+### 2026-06-10T07:37:30Z — Slice 3 implemented + smoked end-to-end
+- **Code shipped:**
+  - `crates/termlink-cli/src/commands/substrate.rs` — added `build_notify_env`
+    pure helper + `fire_notify` fire-and-forget spawner; threaded `notify:
+    Option<String>` through `cmd_substrate_status_watch`
+  - `crates/termlink-cli/src/cli.rs` — added `--notify <CMD>` flag to
+    `SubstrateAction::Status` with `requires = "watch"`
+  - `crates/termlink-cli/src/main.rs` — threaded `notify` through dispatch
+- **Tests:** 15/15 substrate unit tests pass (2 new for `--notify` env helpers).
+- **Live smoke — notify fires on real state change:**
+  ```
+  watch baseline → inserted topic via `channel create` → diff cycle:
+    2026-06-10T07:36:28Z  claim_topic_count: 1336→1337
+  /tmp/substrate-notify-events.log:
+    2026-06-10T07:36:28Z field=claim_topic_count old=1336 new=1337 ts=2026-06-10T07:36:28Z
+  ```
+  Env vars exactly match the documented schema. Notify script wrote one
+  line per event.
+- **Live smoke — bogus command does not crash watch:**
+  Used `--notify "/this/command/does/not/exist"` then induced another
+  `claim_topic_count` change. Diff line `1337→1338` printed; watch
+  continued normally; no panic / no exit. Fire-and-forget mechanic working.
+- **Clap requires constraint verified:** `termlink substrate status
+  --notify foo` (no `--watch`) → `error: the following required arguments
+  were not provided: --watch <SECONDS>`.
+
+## Verification
+cargo check -p termlink 2>&1 | tail -5
+cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
+out=$(./target/debug/termlink substrate status --notify foo 2>&1); echo "$out" | grep -q "required arguments"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -95,13 +158,6 @@ pattern.
 -->
 
 ## Verification
-
-cd /opt/termlink && grep -q "fn is_high_rate_pattern" crates/termlink-cli/src/commands/channel.rs
-cd /opt/termlink && out=$(grep -A 3 'async fn ensure_topic' crates/termlink-cli/src/commands/channel.rs); echo "$out" | grep -q "is_high_rate_pattern"
-cd /opt/termlink && grep -q '"kind": "messages"' crates/termlink-cli/src/commands/channel.rs
-cd /opt/termlink && cargo check -p termlink 2>&1 | tail -1 | grep -q "Finished\|Compiling"
-cd /opt/termlink && cargo test -p termlink --bin termlink is_high_rate_pattern 2>&1 | tail -10 | grep -q "test result: ok"
-cd /opt/termlink && grep -q "T-2058\|T-2125" crates/termlink-cli/src/commands/channel.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -152,11 +208,6 @@ cd /opt/termlink && grep -q "T-2058\|T-2125" crates/termlink-cli/src/commands/ch
 
 ## Evolution
 
-### 2026-06-10 — filing
-- **What changed:** T-2125 shipped the docs-first half (retention guidance to operators); this task is the code-level complement (CLI auto-create defence-in-depth).
-- **Plan impact:** Predicate must be duplicated (T-2069 convention) not cross-crate-imported.
-- **Triggered:** No new sub-tasks expected; single-deliverable build.
-
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -202,7 +253,10 @@ cd /opt/termlink && grep -q "T-2058\|T-2125" crates/termlink-cli/src/commands/ch
 
 ## Updates
 
-### 2026-06-10T15:17:13Z — task-created [task-create-agent]
+### 2026-06-10T07:32:40Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2126-ensuretopic-auto-pick-high-rate-retentio.md
+- **Output:** /opt/termlink/.tasks/active/T-2113-substrate-status---watch---notify-event-.md
 - **Context:** Initial task creation
+
+### 2026-06-10T15:30:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

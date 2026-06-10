@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2075: MCP parity for channel claims-history (T-2074 agent-callable companion, T-2069 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T09:02:15Z
+# ============================================================================
+
+task_id: T-2075
+task_name: "MCP parity for channel claims-history (T-2074 agent-callable companion, T-2069 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T08:52:23Z
+completed: 2026-06-09T08:58:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T10:57:57+02:00
+last_commit: 2026-06-09T10:57:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_channel_claims_history MCP parity (T-2074 companion)
+
+# Key outcomes
+outcomes:
+  - '`FleetGovernorHistoryParams`-shaped struct (`ChannelClaimsHistoryParams`) added in termlink-mcp/src/tools.rs'
+  - '`termlink_channel_claims_history` tool registered + registry comment updated'
+  - 'Tool implementation walks the log file with the same filter semantics as the CLI'
+  - 'Default log path resolves `$HOME/.termlink/claims.log`; `log_path` param overrides'
+  - 'Missing log → `{ok: true, entries: [], summary: {total: 0, note: "log file does not exist yet", ...}}`'
+  - '`since_days` clamped to 1..=365 at the MCP layer'
+  - '`topic` filter applied at the MCP layer (consistent with CLI)'
+  - 'Pure helpers `parse_claims_log` + `aggregate_claims_entries` duplicated into termlink-mcp/src/tools.rs (NOT shared with CLI — T-2069 convention)'
+  - 'Return shape matches the CLI''s `--json` envelope verbatim'
+  - 'At least 4 unit tests on the MCP-side pure helpers: malformed-line skip + count, cutoff filter, topic filter, kind aggregation'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2075-mcp-parity-for-channel-claims-history-t-.md'
+  - '.tasks/completed/T-2074-channel-claims-history-retrospective-ver.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T10:57:57"
+    action: "T-2075: termlink_channel_claims_history MCP parity (T-2074 companion)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 449
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2075-mcp-parity-for-channel-claims-history-t-.md
+generated_by: context-agent-hybrid

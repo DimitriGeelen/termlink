@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2077: termlink_channel_claims_summary_all only_stuck MCP parity (T-2076 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T09:52:11Z
+# ============================================================================
+
+task_id: T-2077
+task_name: "termlink_channel_claims_summary_all only_stuck MCP parity (T-2076 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T09:40:26Z
+completed: 2026-06-09T09:47:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T11:47:42+02:00
+last_commit: 2026-06-09T11:47:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_channel_claims_summary_all only_stuck — MCP parity for T-2076
+
+# Key outcomes
+outcomes:
+  - '`ChannelClaimsSummaryAllParams` gains `only_stuck: Option<bool>` (default false; backward compatible)'
+  - 'When `only_stuck=true`, non-stuck `ok:true` entries are filtered from `topics[]`'
+  - 'Fetch errors (`ok:false` entries) are NEVER filtered, regardless of `only_stuck`'
+  - 'Envelope `stuck_count` keeps fleet-wide truth (computed from full set, before filter)'
+  - 'Envelope gains `shown` (entries returned) + `only_stuck` (echo of input) fields'
+  - 'Backward compat: when `only_stuck=false` or absent, envelope shape matches T-2043 exactly (plus the two new always-emitted fields, mirror of T-2071)'
+  - 'Tool description (the long string in the `#[tool(...)]` attribute) documents the param'
+  - 'At least 1 unit test exercising the filter via the pure decision predicate'
+  - '`cargo check -p termlink-mcp` builds clean'
+  - '`cargo test -p termlink-mcp claims_summary_all_only_stuck` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2077-termlinkchannelclaimssummaryall-onlystuc.md'
+  - '.tasks/completed/T-2076-channel-claims-summary---only-stuck-filt.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T11:47:42"
+    action: "T-2077: termlink_channel_claims_summary_all only_stuck — MCP parity for T-2076"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 308
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2077-termlinkchannelclaimssummaryall-onlystuc.md
+generated_by: context-agent-hybrid

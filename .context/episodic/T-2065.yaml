@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2065: fleet governor-status --watch --notify <CMD> — operator-pluggable event hook on per-hub governor transitions (T-2028 §6 #10 Track F)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T23:10:00Z
+# ============================================================================
+
+task_id: T-2065
+task_name: "fleet governor-status --watch --notify <CMD> — operator-pluggable event hook on per-hub governor transitions (T-2028 §6 #10 Track F)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T22:31:53Z
+completed: 2026-06-08T22:59:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T00:58:35+02:00
+last_commit: 2026-06-09T00:58:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet governor-status --watch --notify <CMD> — operator-pluggable event hook (T-2028 §6 #10 Track F). tick all 6 ACs with live smoke + test evidence
+
+# Key outcomes
+outcomes:
+  - '`FleetAction::GovernorStatus` gains a `--notify <CMD>` flag, requires `--watch` (clap `requires`). — cli.rs `#[arg(long, value_name = "CMD", requires = "watch")] notify: Option<String>`.'
+  - '`fire_governor_notify()` helper invokes `sh -c <CMD>` fire-and-forget with full env-var payload (15 vars: HUB, KIND, TS + before/after for reach/conn_active/cap_hits/rate_hits/dedupe_hits + delta vars for the three counters). — remote.rs, calls `build_governor_notify_env` to build the dict, threads into `Command::env` per pair, spawn-and-continue.'
+  - 'Watch loop fires the hook on every per-hub change cycle (`transition` | `new` | `removed`) — NOT on baseline cycle (no prior state to diff). — three new `if let Some(cmd) = notify.as_deref()` arms in the change branch; baseline branch unchanged.'
+  - 'Hanging notify scripts do NOT block the watch loop (spawn-and-continue, OS reaps child); spawn failure logs to stderr but watch continues. — `child.spawn()` returns immediately; live smoke confirms 2 events fired during a 14s watch run with the loop continuing through the next cycle.'
+  - 'A pure helper `build_governor_notify_env()` materializes the env-var dict and is unit-tested with ≥2 cases: counter delta math + None→Some dedupe transition. — both pass: `build_governor_notify_env_computes_cap_hits_delta` + `build_governor_notify_env_handles_dedupe_none_to_some`. 829 → 831 bin lib tests.'
+  - 'CLAUDE.md BACKPRESSURE row updated with `--notify` example. — row 1170 paragraph extended with T-2065 description + recipe (`--watch 30 --notify /usr/local/bin/page-on-cap.sh`); env-var dict referenced. docs/operations/substrate-governor.md also gained a `--notify` script-template recipe.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/operations/substrate-governor.md'
+  - '.tasks/active/T-2065-fleet-governor-status---watch---notify-c.md'
+  - '.tasks/completed/T-2064-fleet-governor-status---watch--continuou.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T00:58:35"
+    action: "T-2065: fleet governor-status --watch --notify <CMD> — operator-pluggable event hook (T-2028 §6 #10 Track F)"
+  - time: "2026-06-09T00:58:57"
+    action: "T-2065: tick all 6 ACs with live smoke + test evidence"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 27 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 27
+  commits: 2
+  files_changed: 7
+  lines_added: 475
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2065-fleet-governor-status---watch---notify-c.md
+generated_by: context-agent-hybrid

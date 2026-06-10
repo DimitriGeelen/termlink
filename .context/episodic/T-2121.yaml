@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2121: Add /cv-keys skill — substrate primitive 9 (broadcast-with-replay) discovery verb, completes /governor cv_overflow investigation arc
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T10:43:47Z
+# ============================================================================
+
+task_id: T-2121
+task_name: "Add /cv-keys skill — substrate primitive 9 (broadcast-with-replay) discovery verb, completes /governor cv_overflow investigation arc"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T10:39:36Z
+completed: 2026-06-10T10:43:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T12:43:40+02:00
+last_commit: 2026-06-10T12:43:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /cv-keys skill — substrate primitive 9 (broadcast-with-replay) inspection daily verb
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/cv-keys.md` exists and follows the structural pattern of the other substrate-read daily verbs (`/find-idle` T-2092, `/claims` T-2093, `/queue-status` T-2094, `/governor` T-2095): Invocation table, Step 1 pre-flight, Step 2 parse arguments, Step 3 run the verb, Step 4 render, Step 5 empty-result hint, Rules, Common patterns, Related.'
+  - 'Skill wraps `termlink channel cv-keys <TOPIC> [--hub <addr>] [--json]` (signature from `crates/termlink-cli/src/cli.rs:2575` — PL-206 author-from-source rule).'
+  - 'Skill explicitly positions itself as the **follow-up verb after `/governor` flags `cv_overflow > 0`** — the operator''s "which topic / producer is saturating cv_index?" question.'
+  - 'Empty-result path (`no cv_keys recorded on topic`) is loud per pattern, NOT silent — includes diagnostic hint pointing at producer-wiring guidance (`docs/operations/substrate-broadcast-with-replay.md` + `metadata.cv_key=...` annotation requirement).'
+  - 'Skill is read-only by contract (states explicitly: no auth side-effects, no state mutation, local-hub-only by default).'
+  - 'CLAUDE.md Quick Reference table gets a `/cv-keys` row in the existing skill block (alongside `/governor`, `/find-idle`, etc.) so operators see the verb when scanning the table.'
+  - 'Skill cross-references T-2103 / T-2104 / T-2105 / T-2106 (substrate #9 implementation chain) AND T-2110 / T-2118 / T-2119 / T-2120 (the cv_overflow observability arc this verb diagnoses) in the Related section.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/cv-keys.md'
+  - 'CLAUDE.md'
+  - '.tasks/active/T-2121-add-cv-keys-skill--substrate-primitive-9.md'
+  - '.tasks/completed/T-2120-document-cvindexoverflow-operator-surfac.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T12:43:40"
+    action: "T-2121: /cv-keys skill — substrate primitive 9 (broadcast-with-replay) inspection daily verb"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 445
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2121-add-cv-keys-skill--substrate-primitive-9.md
+generated_by: context-agent-hybrid

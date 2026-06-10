@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2119: Add cv_index_overflow_delta to fleet governor-status watch/notify/log/history (T-2118 observability follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T09:54:22Z
+# ============================================================================
+
+task_id: T-2119
+task_name: "Add cv_index_overflow_delta to fleet governor-status watch/notify/log/history (T-2118 observability follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T09:38:45Z
+completed: 2026-06-10T09:53:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T11:53:40+02:00
+last_commit: 2026-06-10T11:53:40+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cv_overflow observability loop closure (watch/notify/log/history)
+
+# Key outcomes
+outcomes:
+  - '`WatchGovernorState` tuple extended to include `cv_index_overflow_total: Option<i64>` (`None` for pre-T-2110 hub envelopes that lack the field)'
+  - 'Change-line render (`render_governor_watch_change_line`) emits `cv_overflow=A→B(+delta)` segment, mirror of `cap_hits=` / `rate_hits=` / `dedupe_hits=` segments; `n/a` sentinel when either side is `None`'
+  - '`build_governor_notify_env` emits `TERMLINK_GOV_OLD_CV_OVERFLOW` / `TERMLINK_GOV_NEW_CV_OVERFLOW` / `TERMLINK_GOV_CV_OVERFLOW_DELTA` env vars, schema-stable across all event kinds (`transition`/`new`/`removed`), empty string when either side missing (`[ -z "$VAR" ]` gate matches dedupe convention)'
+  - '`build_governor_log_entry` writes `old_cv_overflow` / `new_cv_overflow` / `cv_overflow_delta` JSON fields with the same numeric-or-null convention as `dedupe_hits_delta`'
+  - '`aggregate_governor_entries` (CLI in remote.rs) reads `cv_overflow_delta` and aggregates it as `cv_overflow_hits_total` in the per-hub footer; one new render column in `fleet governor-history` text output'
+  - '`aggregate_governor_entries` (MCP mirror in tools.rs) parity: `GovernorHubAggMcp` adds `cv_overflow_hits` field; `termlink_fleet_governor_history` envelope''s `per_hub` returns `cv_overflow_hits_total`'
+  - 'CLAUDE.md mega-table T-2069 entry updated to include `cv_overflow_hits_total` in the documented `per_hub` shape; T-2118 line extended with the full T-2119 observability-loop closure'
+  - '8 new unit tests (CLI side): cv_overflow render-line positive + n/a sentinel; notify_env positive + None/Some mix; log_entry positive + null serialization; aggregate sums cv_overflow_delta; render_governor_history_line renders cv_overflow segment'
+  - '1 new unit test (MCP side): aggregate sums cv_overflow_delta + pre-T-2119 backward compat'
+  - 'Backward compat: a log line missing `cv_overflow_delta` (pre-T-2119 entry) parses cleanly and contributes 0 to the aggregate (mirror of existing `dedupe_hits_delta` Option<i64> handling pattern at remote.rs:3057-3060)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2119-add-cvindexoverflowdelta-to-fleet-govern.md'
+  - '.tasks/completed/T-2118-surface-cvindexoverflow-in---only-pressu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T11:53:40"
+    action: "T-2119: cv_overflow observability loop closure (watch/notify/log/history)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-parallel-substrate, substrate-primitive-10, cv-index-pressure]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 5
+  lines_added: 522
+  lines_removed: 31
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2119-add-cvindexoverflowdelta-to-fleet-govern.md
+generated_by: context-agent-hybrid

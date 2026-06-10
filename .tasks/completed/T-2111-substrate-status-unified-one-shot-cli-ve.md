@@ -1,23 +1,23 @@
 ---
-id: T-2116
-name: "termlink_substrate_status MCP parity — Slice 6 (T-2111 arc, T-2018 §6)"
+id: T-2111
+name: "substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)"
 description: >
-  termlink_substrate_status MCP parity — Slice 6 (T-2111 arc, T-2018 §6)
+  substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T08:24:10Z
-last_update: 2026-06-10T08:24:10Z
-date_finished: null
+created: 2026-06-10T07:10:18Z
+last_update: 2026-06-10T15:29:08Z
+date_finished: 2026-06-10T15:29:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,78 +30,86 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2116: termlink_substrate_status MCP parity — Slice 6 (T-2111 arc, T-2018 §6)
+# T-2111: substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
 
 ## Context
 
-Slice 6 of T-2111 substrate-status observability roll-up arc — MCP-tier
-parity for the one-shot `substrate status` CLI verb shipped in Slice 1
-(T-2111). Mirror of T-2063 / T-2071 (`termlink_fleet_governor_status`
-MCP). Agent-callable companion so an investigating MCP-attached agent
-can get the substrate health rollup without shelling out.
+T-2018 §6 build list is now substantially complete: all GO-decided primitives
+(#1 CLAIM, #2 DISPATCH, #3 PULL/ASSIGN, #5 RESILIENCE, #9 BROADCAST-WITH-REPLAY,
+#10 BACKPRESSURE) ship with daily-verb CLIs, observability arcs, MCP parity,
+and cross-references (T-2109 #2↔#9, T-2110 #9↔#10). The `/substrate` skill
+(T-2096) composes the four substrate-read daily verbs at the slash-command tier.
 
-Pattern parity:
-- T-2063 `termlink_fleet_governor_status` (MCP for fleet governor-status)
-- T-2077 `termlink_channel_claims_summary_all` with `only_stuck` param
-- T-1689 `termlink_fleet_bootstrap_check` (subprocess-self pattern)
+What's missing: a **CLI-tier** parity for `/substrate`. Today an operator at a
+non-claude terminal — or an agent invoked via MCP, or a cron job, or a shell
+pipeline — has no single command to answer "is my substrate healthy right
+now?". They must run four separate verbs and visually correlate.
 
-Design — subprocess-self pattern (mirror T-1689 bootstrap-check):
-- New `SubstrateStatusParams { only_pressured: Option<bool>, timeout_secs: Option<u64> }`
-- New `termlink_substrate_status` async tool:
-  - Resolves `current_exe()` (own binary)
-  - Spawns `<exe> substrate status --json [--only-pressured]
-    [--timeout <N>]` under `tokio::time::timeout` (default 12s — CLI's
-    8s timeout + 4s buffer for subprocess startup + JSON deserialization)
-  - `kill_on_drop(true)` + null stdin so a wedged sub-RPC can't leak
-  - Decorates parsed envelope with `ok` from exit code
-  - Timeout → `{ok:false, verdict:"timeout", error:"..."}`
-- Register in tool listing
-- Add 2 unit tests for the param shape (only_pressured default + timeout
-  default + envelope decoration)
+This task ships **Slice 1**: `termlink substrate status [--json]
+[--only-pressured] [--timeout SECS]` — a one-shot CLI verb that runs the four
+substrate-read primitives in parallel and renders a unified four-section view
+(or a merged JSON envelope). Pattern parity with `fleet doctor` /
+`fleet governor-status`. Read-only, no auth side-effects, no state mutation.
 
-Subprocess (not direct RPC composition) is chosen because:
-1. CLI substrate-status already composes 4 sub-fetches in parallel via
-   `tokio::join!`; re-implementing in MCP doubles maintenance cost
-2. T-1689 set the precedent for "subprocess CLI from MCP" — established
-   pattern; readers know the shape
-3. Single source of truth for the 4-section JSON envelope
+Composes:
+- `agent find-idle` (substrate #2 DISPATCH, T-2020/T-2045) → "who's free?"
+- `channel claims-summary --all` (substrate #1 CLAIM, T-2042) → "any stuck claims?"
+- `channel queue-status` (substrate #5 RESILIENCE, T-2051) → "queue draining?"
+- `fleet governor-status` (substrate #10 BACKPRESSURE, T-2048) → "any hub pressured?"
 
-Right-sized — ~120 LOC + 1-2 unit tests. Slice 7 (MCP parity for
-`substrate history`) follows with the read-only file-walking pattern.
+Parallel by construction: total latency = max of four reads, not sum-of-four.
+Graceful degradation: a failed sub-verb renders as a stderr line + `ok:false`
+in JSON, not a hard stop. `--only-pressured` filters the claim+backpressure
+sections (mirror of the sub-verb flag) — dispatch+resilience pass through.
+
+This Slice 1 establishes the namespace; subsequent slices (deferred — not in
+this task) would add `--watch`, `--notify`, `--log`, `substrate history`, and
+MCP parity, following the established arc pattern (T-2078..T-2087, T-2064..T-2069).
+
+Cross-references — T-2018 §6 build manifest, `/substrate` skill
+(`.claude/commands/substrate.md`, T-2096), pattern parity with
+`cmd_fleet_governor_status` (`crates/termlink-cli/src/commands/remote.rs:2683`).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] New `SubstrateStatusParams` struct: `only_pressured: Option<bool>
-      (default false)`, `timeout_secs: Option<u64> (default 12, clamped
-      1..=120)`. Mirror of `FleetBootstrapCheckParams` shape.
-- [x] New `termlink_substrate_status` async MCP tool registered in the
-      tool list. Resolves `current_exe()`, subprocesses `<exe> substrate
-      status --json` + flag passthrough, under `tokio::time::timeout`.
-- [x] `kill_on_drop(true)` + null stdin set on the subprocess Command
-      (mirror T-1689 — prevents leaked processes).
-- [x] Timeout returns `{ok:false, verdict:"timeout", error:"timeout
-      after <N>s"}` (mirror T-1689 timeout shape).
-- [x] Subprocess output parsed as JSON; envelope decorated with `ok`
-      (true if exit code 0) + `exit_code`. Non-JSON output surfaces raw
-      stdout/stderr + exit code in the error path.
-- [x] Tool description string declares the T-2018 §6 substrate-status
-      rollup contract + lists the 4 sections (DISPATCH/CLAIM/RESILIENCE/
-      BACKPRESSURE).
-- [x] `cargo check -p termlink-mcp` passes (13.41s).
-- [x] `cargo test -p termlink-mcp --lib` passes (861/861). Pre-existing
-      6 mcp_integration test failures (test_list_sessions_empty et al)
-      are UNRELATED to this slice — confirmed via `git stash` round-trip
-      against the Slice 5 commit (a2a8c04c). Filed as follow-up gap.
-- [x] Live smoke against local hub: built binary, invoked subprocess
-      `./target/debug/termlink substrate status --json --timeout 8`.
-      Validated JSON envelope shape: top-level keys
-      `[backpressure, claim, dispatch, ok, only_pressured, resilience, ts]`,
-      each sub-section's `.ok` field is parseable. Matches MCP wrapper's
-      expected decoration target.
-- [x] Side-fix: registered missing `termlink_channel_cv_keys` (T-2106)
-      in help registry — pre-existing failure that blocks any new tool
-      registration until cleared.
+- [x] New `Substrate { action }` top-level subcommand added to `Command` enum
+      in `crates/termlink-cli/src/cli.rs` with `SubstrateAction::Status` variant
+      accepting `--json`, `--only-pressured`, `--timeout SECS` flags.
+- [x] Dispatch in `main.rs` routes `Substrate { action: Status }` to
+      `cmd_substrate_status` (new function in `commands::remote` or new
+      `commands::substrate` module).
+- [x] `cmd_substrate_status` composes the four substrate reads in parallel
+      via `tokio::join!` (or equivalent), so total latency ≈ max-of-four
+      not sum-of-four.
+- [x] Human-format output renders four labeled sections (DISPATCH / CLAIM /
+      RESILIENCE / BACKPRESSURE), each with an affirmative-on-zero render
+      (e.g. "no idle agents", "All N topics healthy (0/N stuck)") — never a
+      silent empty section.
+- [x] `--json` envelope shape: `{ok, ts, dispatch, claim, resilience,
+      backpressure}` with each sub-section a passthrough of the underlying
+      verb's `--json` shape. A failed sub-verb's section carries `ok: false`
+      with an `error` field; the top-level `ok` is `false` iff any sub-verb
+      failed.
+- [x] `--only-pressured` filters the CLAIM section to `summary.only_stuck=true`
+      topics and the BACKPRESSURE section to pressured hubs; DISPATCH and
+      RESILIENCE pass through as-is (their `--only-*` analogs don't apply).
+- [x] Graceful degradation: a sub-verb panic / timeout / nonzero exit
+      renders as `(<section> unavailable: <one-line err>)` in human mode +
+      `ok:false` in JSON. The other three sections still render.
+- [x] At least 3 unit tests covering: (a) all-healthy zero state renders
+      affirmative section footers; (b) JSON envelope shape with all four
+      sub-sections present; (c) partial-failure path — one sub-verb
+      returning `ok:false` still allows the other three to render and the
+      top-level `ok` reflects the failure.
+- [x] Live smoke against local hub: `termlink substrate status` returns
+      exit 0 with four sections, `--json` parses, `--only-pressured` works.
+      Append timestamped evidence to Updates.
+
+## Verification
+cargo check -p termlink 2>&1 | tail -5
+cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
+./target/debug/termlink substrate status --help 2>&1 | grep -q "substrate"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,9 +143,6 @@ Right-sized — ~120 LOC + 1-2 unit tests. Slice 7 (MCP parity for
 -->
 
 ## Verification
-
-cargo check -p termlink-mcp 2>&1 | tail -5
-cargo test -p termlink-mcp substrate 2>&1 | tail -10
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -233,41 +238,45 @@ cargo test -p termlink-mcp substrate 2>&1 | tail -10
 
 ## Updates
 
-### 2026-06-10T08:30:00Z — slice 6 shipped end-to-end
-- **Action:** Implemented `termlink_substrate_status` MCP tool.
-  tools.rs: added `SubstrateStatusParams` struct (mirror of
-  `FleetBootstrapCheckParams` shape), tool body (subprocess-self pattern
-  mirror of T-1689 `termlink_fleet_bootstrap_check`), and entry in the
-  `fleet` category of the help registry. Side-fix: registered missing
-  `termlink_channel_cv_keys` (T-2106) in `channel_data` category —
-  pre-existing registry gap that blocks any new tool registration.
-- **Verification:**
-  - `cargo check -p termlink-mcp` — PASS (13.41s)
-  - `cargo test -p termlink-mcp --lib` — 861/861 PASS
-  - `cargo test -p termlink-mcp --lib help_registry` — PASS (both
-    `help_registry_covers_all_real_tools` +
-    `help_registry_has_no_phantom_entries`)
-  - 6 pre-existing `mcp_integration` test failures (test_list_sessions_*
-    et al) confirmed UNRELATED via `git stash` round-trip against Slice
-    5 commit a2a8c04c — same 6 fail on stashed state. Pre-existing tech
-    debt, filed as follow-up.
-  - Live smoke (subprocess that MCP wrapper would invoke):
-    `./target/debug/termlink substrate status --json --timeout 8`
-    returns top-level keys `{backpressure, claim, dispatch, ok,
-    only_pressured, resilience, ts}` — exact match for MCP wrapper's
-    `ok`+`exit_code` decoration target.
-- **Outcome:** Slice 6 closes the MCP-tier parity for `substrate status`
-  one-shot. Pattern: subprocess-self with `tokio::time::timeout` +
-  `kill_on_drop(true)` + null stdin. Default subprocess timeout 12s
-  (CLI default 8s + 4s buffer). Slice 7 (MCP parity for `substrate
-  history`) follows — file-walking pattern, mirror of T-2087 (queue-
-  history MCP) / T-2069 (governor-history MCP). After Slice 7 the
-  substrate-status observability arc is complete at both CLI + MCP
-  tiers.
-- **Context:** T-2018 §6 observability roll-up arc — T-2111 Slice 6
-  (MCP-tier parity for one-shot).
-
-### 2026-06-10T08:24:10Z — task-created [task-create-agent]
+### 2026-06-10T07:10:18Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2116-termlinksubstratestatus-mcp-parity--slic.md
+- **Output:** /opt/termlink/.tasks/active/T-2111-substrate-status-unified-one-shot-cli-ve.md
 - **Context:** Initial task creation
+
+### 2026-06-10T07:25:00Z — Slice 1 implemented + smoked end-to-end
+- **Code shipped:**
+  - `crates/termlink-cli/src/commands/substrate.rs` (NEW, ~580 lines + 6 unit tests)
+  - `crates/termlink-cli/src/commands/mod.rs` — registered substrate module
+  - `crates/termlink-cli/src/cli.rs` — added `Substrate { action }` top-level
+    subcommand + `SubstrateAction::Status` enum with `--json`, `--only-pressured`,
+    `--timeout` flags
+  - `crates/termlink-cli/src/main.rs` — dispatch routes to `cmd_substrate_status`
+- **Tests:** 6/6 substrate unit tests pass (renderer + JSON shape + partial-failure
+  + is_potentially_stuck predicate). Full CLI regression 902/902 pass — no
+  regression introduced.
+- **Live smoke evidence (against local hub on 192.168.10.107):**
+  - `termlink substrate status` — exit 0; four sections render; CLAIM walks
+    1334 topics on local hub (busy test fixture); RESILIENCE shows
+    `pending=0 (steady-state)`; BACKPRESSURE walks 5 hubs from hubs.toml
+  - `termlink substrate status --only-pressured` — collapses CLAIM to
+    `All topics healthy (0/1334 stuck)` (affirmative); BACKPRESSURE shows
+    5 hubs (3 unreachable on legacy-protocol hubs, 2 with non-zero
+    rate_hits) — all 5 are "pressured" so all 5 render under the filter
+  - `termlink substrate status --only-pressured --json` — emits envelope
+    `{ok:true, ts:"2026-06-10T07:21:10Z", only_pressured:true, dispatch:{ok,data},
+    claim:{ok,data}, resilience:{ok,data}, backpressure:{ok,data}}` — every
+    sub-section has `{ok, data}` per the AC contract
+- **Validation against design contract:**
+  - Parallel-by-construction: ✓ four sub-reads dispatched via `tokio::join!`,
+    total latency ≈ max-of-four (DISPATCH is fastest at single RPC; CLAIM is
+    slowest due to per-topic fan-out)
+  - Graceful degradation: ✓ unit tests + live smoke prove a failed
+    sub-read shows `(SECTION unavailable: ...)` while the other three
+    render. Local hub down kills DISPATCH+CLAIM only — RESILIENCE +
+    BACKPRESSURE continue (verified by code path, not yet by failure smoke)
+  - Read-only: ✓ no auth side-effects, no log writes, no state mutation —
+    each sub-fetch is either a hub RPC (idempotent read) or a local
+    SQLite open
+
+### 2026-06-10T15:29:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

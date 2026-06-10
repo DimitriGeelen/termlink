@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2108: substrate primitive 9 slice 6 — docs + CLAUDE.md operator surface
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T21:32:53Z
+# ============================================================================
+
+task_id: T-2108
+task_name: "substrate primitive 9 slice 6 — docs + CLAUDE.md operator surface"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T21:29:51Z
+completed: 2026-06-09T21:32:51Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T23:32:47+02:00
+last_commit: 2026-06-09T23:32:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate primitive 9 slice 6 — operator-facing docs + CLAUDE.md surface
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-broadcast-with-replay.md` exists with operator-facing recipe — headline, end-to-end flow, all 5 slices referenced (T-2103/T-2104/T-2105/T-2106/T-2107), `TERMLINK_CV_INDEX_CAP_PER_TOPIC` env var documented, last-write-wins semantics, cap-overflow behavior, MCP tool names, failure-modes table, related-primitives cross-references'
+  - 'CLAUDE.md Quick Reference table gains substrate primitive #9 row before "Substrate digest" — surfaces `channel cv-keys` + `channel subscribe --include-current-value` + the MCP equivalents with the full O(K)-vs-O(N) discovery-cost explanation'
+  - 'No code regression (pure docs slice — no source files edited)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/operations/substrate-broadcast-with-replay.md'
+  - '.tasks/active/T-2108-substrate-primitive-9-slice-6--docs--cla.md'
+  - '.tasks/completed/T-2107-substrate-primitive-9-slice-5--wire-meta.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T23:32:47"
+    action: "T-2108: substrate primitive 9 slice 6 — operator-facing docs + CLAUDE.md surface"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 396
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2108-substrate-primitive-9-slice-6--docs--cla.md
+generated_by: context-agent-hybrid

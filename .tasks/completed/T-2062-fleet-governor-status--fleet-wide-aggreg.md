@@ -1,23 +1,23 @@
 ---
-id: T-2111
-name: "substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)"
+id: T-2062
+name: "Fleet governor-status — fleet-wide aggregation of hub.governor_status (T-2028 Track D)"
 description: >
-  substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
+  Fleet governor-status — fleet-wide aggregation of hub.governor_status (T-2028 Track D)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T07:10:18Z
-last_update: 2026-06-10T07:22:54Z
-date_finished: null
+created: 2026-06-08T19:58:42Z
+last_update: 2026-06-08T20:06:46Z
+date_finished: 2026-06-08T20:06:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,86 +30,33 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2111: substrate status: unified one-shot CLI verb composing 4 read-side substrate primitives (T-2018 §6 observability roll-up)
+# T-2062: Fleet governor-status — fleet-wide aggregation of hub.governor_status (T-2028 Track D)
 
 ## Context
 
-T-2018 §6 build list is now substantially complete: all GO-decided primitives
-(#1 CLAIM, #2 DISPATCH, #3 PULL/ASSIGN, #5 RESILIENCE, #9 BROADCAST-WITH-REPLAY,
-#10 BACKPRESSURE) ship with daily-verb CLIs, observability arcs, MCP parity,
-and cross-references (T-2109 #2↔#9, T-2110 #9↔#10). The `/substrate` skill
-(T-2096) composes the four substrate-read daily verbs at the slash-command tier.
+T-2028 shipped per-hub backpressure observability in three tracks:
+- **A** (T-2057): audit topic retention policies for growth risks
+- **B** (T-2048): `hub.governor_status` RPC + `termlink_hub_governor_status` MCP
+- **C** (T-2060): `termlink hub status --governor` CLI flag (single-hub)
 
-What's missing: a **CLI-tier** parity for `/substrate`. Today an operator at a
-non-claude terminal — or an agent invoked via MCP, or a cron job, or a shell
-pipeline — has no single command to answer "is my substrate healthy right
-now?". They must run four separate verbs and visually correlate.
+Track D (this task) closes the operator-UX gap: a multi-hub operator currently
+has to call `hub status --governor` once per hub, or shell out to MCP per
+hub, to answer "which hub is hitting capacity / rate-limited / accumulating
+dedupe entries?". A fleet-wide command flips that into a single read.
 
-This task ships **Slice 1**: `termlink substrate status [--json]
-[--only-pressured] [--timeout SECS]` — a one-shot CLI verb that runs the four
-substrate-read primitives in parallel and renders a unified four-section view
-(or a merged JSON envelope). Pattern parity with `fleet doctor` /
-`fleet governor-status`. Read-only, no auth side-effects, no state mutation.
-
-Composes:
-- `agent find-idle` (substrate #2 DISPATCH, T-2020/T-2045) → "who's free?"
-- `channel claims-summary --all` (substrate #1 CLAIM, T-2042) → "any stuck claims?"
-- `channel queue-status` (substrate #5 RESILIENCE, T-2051) → "queue draining?"
-- `fleet governor-status` (substrate #10 BACKPRESSURE, T-2048) → "any hub pressured?"
-
-Parallel by construction: total latency = max of four reads, not sum-of-four.
-Graceful degradation: a failed sub-verb renders as a stderr line + `ok:false`
-in JSON, not a hard stop. `--only-pressured` filters the claim+backpressure
-sections (mirror of the sub-verb flag) — dispatch+resilience pass through.
-
-This Slice 1 establishes the namespace; subsequent slices (deferred — not in
-this task) would add `--watch`, `--notify`, `--log`, `substrate history`, and
-MCP parity, following the established arc pattern (T-2078..T-2087, T-2064..T-2069).
-
-Cross-references — T-2018 §6 build manifest, `/substrate` skill
-(`.claude/commands/substrate.md`, T-2096), pattern parity with
-`cmd_fleet_governor_status` (`crates/termlink-cli/src/commands/remote.rs:2683`).
+Pattern matches existing `fleet status` / `fleet doctor` / `fleet verify`:
+walk `~/.termlink/hubs.toml`, probe each hub with bounded timeout, render
+per-hub block + fleet rollup. Read-only (Observe scope), no mutation.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] New `Substrate { action }` top-level subcommand added to `Command` enum
-      in `crates/termlink-cli/src/cli.rs` with `SubstrateAction::Status` variant
-      accepting `--json`, `--only-pressured`, `--timeout SECS` flags.
-- [x] Dispatch in `main.rs` routes `Substrate { action: Status }` to
-      `cmd_substrate_status` (new function in `commands::remote` or new
-      `commands::substrate` module).
-- [x] `cmd_substrate_status` composes the four substrate reads in parallel
-      via `tokio::join!` (or equivalent), so total latency ≈ max-of-four
-      not sum-of-four.
-- [x] Human-format output renders four labeled sections (DISPATCH / CLAIM /
-      RESILIENCE / BACKPRESSURE), each with an affirmative-on-zero render
-      (e.g. "no idle agents", "All N topics healthy (0/N stuck)") — never a
-      silent empty section.
-- [x] `--json` envelope shape: `{ok, ts, dispatch, claim, resilience,
-      backpressure}` with each sub-section a passthrough of the underlying
-      verb's `--json` shape. A failed sub-verb's section carries `ok: false`
-      with an `error` field; the top-level `ok` is `false` iff any sub-verb
-      failed.
-- [x] `--only-pressured` filters the CLAIM section to `summary.only_stuck=true`
-      topics and the BACKPRESSURE section to pressured hubs; DISPATCH and
-      RESILIENCE pass through as-is (their `--only-*` analogs don't apply).
-- [x] Graceful degradation: a sub-verb panic / timeout / nonzero exit
-      renders as `(<section> unavailable: <one-line err>)` in human mode +
-      `ok:false` in JSON. The other three sections still render.
-- [x] At least 3 unit tests covering: (a) all-healthy zero state renders
-      affirmative section footers; (b) JSON envelope shape with all four
-      sub-sections present; (c) partial-failure path — one sub-verb
-      returning `ok:false` still allows the other three to render and the
-      top-level `ok` reflects the failure.
-- [x] Live smoke against local hub: `termlink substrate status` returns
-      exit 0 with four sections, `--json` parses, `--only-pressured` works.
-      Append timestamped evidence to Updates.
-
-## Verification
-cargo check -p termlink 2>&1 | tail -5
-cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
-./target/debug/termlink substrate status --help 2>&1 | grep -q "substrate"
+- [x] `termlink fleet governor-status --help` lists the verb under `termlink fleet --help`. Builds cleanly (`cargo build -p termlink` finishes in 24.67s, no warnings). Help text shows `--json` + `--timeout` flags.
+- [x] `cmd_fleet_governor_status(json, timeout)` shipped in `crates/termlink-cli/src/commands/remote.rs`. Walks every hub in `~/.termlink/hubs.toml`, calls `hub.governor_status` RPC against each, bounded by per-hub `tokio::time::timeout` (default 8s); per-hub failure (timeout / connect-refused / RPC error) is rendered as `✗ <reason>` without short-circuiting the rest of the fleet.
+- [x] Pure-helper renderer `render_fleet_governor_section(&[(name, result)])` extracted. Three unit tests cover: empty-fleet hint, mixed reach (2 reachable + 1 timeout, with one hub at-capacity to exercise the at-capacity counter), and missing-field tolerance (older hubs render as `n/a`).
+- [x] Fleet rollup computes and surfaces: `total_connections_active`, `total_capacity_hits_total`, `total_rate_hits_total`, `total_dedupe_entries_active`, `total_dedupe_hits_total`, plus `hubs_at_capacity` and `hubs_rate_limited`. JSON output emits `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary}`.
+- [x] All termlink-cli tests pass: 826/826 (was 823 pre-T-2062; +3 new render-helper tests). No regressions.
+- [x] Live smoke against the local hub fleet completes: `target/debug/termlink fleet governor-status` rendered 5/5 hubs (2 reachable on local node, 3 returning `RPC error -32001` from pre-T-2048 hubs that lack the verb — error correctly surfaced per hub, fleet rollup correctly sums only the 2 reachable). `--json` envelope parses cleanly with the full structured summary tail (`{hubs_at_capacity: 0, hubs_rate_limited: 0, total_connections_active: 6, ...}`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -175,6 +122,12 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(cargo build -p termlink 2>&1); echo "$out" | tail -5 | grep -q "Finished"
+out=$(cargo test -p termlink --bin termlink render_fleet_governor 2>&1); echo "$out" | grep -qE "test result: ok\."
+grep -q "fn render_fleet_governor_section\|fn cmd_fleet_governor_status" crates/termlink-cli/src/commands/remote.rs
+grep -q "GovernorStatus" crates/termlink-cli/src/cli.rs
+out=$(target/debug/termlink fleet --help 2>&1); echo "$out" | grep -q "governor-status"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -238,42 +191,10 @@ cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
 
 ## Updates
 
-### 2026-06-10T07:10:18Z — task-created [task-create-agent]
+### 2026-06-08T19:58:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2111-substrate-status-unified-one-shot-cli-ve.md
+- **Output:** /opt/termlink/.tasks/active/T-2062-fleet-governor-status--fleet-wide-aggreg.md
 - **Context:** Initial task creation
 
-### 2026-06-10T07:25:00Z — Slice 1 implemented + smoked end-to-end
-- **Code shipped:**
-  - `crates/termlink-cli/src/commands/substrate.rs` (NEW, ~580 lines + 6 unit tests)
-  - `crates/termlink-cli/src/commands/mod.rs` — registered substrate module
-  - `crates/termlink-cli/src/cli.rs` — added `Substrate { action }` top-level
-    subcommand + `SubstrateAction::Status` enum with `--json`, `--only-pressured`,
-    `--timeout` flags
-  - `crates/termlink-cli/src/main.rs` — dispatch routes to `cmd_substrate_status`
-- **Tests:** 6/6 substrate unit tests pass (renderer + JSON shape + partial-failure
-  + is_potentially_stuck predicate). Full CLI regression 902/902 pass — no
-  regression introduced.
-- **Live smoke evidence (against local hub on 192.168.10.107):**
-  - `termlink substrate status` — exit 0; four sections render; CLAIM walks
-    1334 topics on local hub (busy test fixture); RESILIENCE shows
-    `pending=0 (steady-state)`; BACKPRESSURE walks 5 hubs from hubs.toml
-  - `termlink substrate status --only-pressured` — collapses CLAIM to
-    `All topics healthy (0/1334 stuck)` (affirmative); BACKPRESSURE shows
-    5 hubs (3 unreachable on legacy-protocol hubs, 2 with non-zero
-    rate_hits) — all 5 are "pressured" so all 5 render under the filter
-  - `termlink substrate status --only-pressured --json` — emits envelope
-    `{ok:true, ts:"2026-06-10T07:21:10Z", only_pressured:true, dispatch:{ok,data},
-    claim:{ok,data}, resilience:{ok,data}, backpressure:{ok,data}}` — every
-    sub-section has `{ok, data}` per the AC contract
-- **Validation against design contract:**
-  - Parallel-by-construction: ✓ four sub-reads dispatched via `tokio::join!`,
-    total latency ≈ max-of-four (DISPATCH is fastest at single RPC; CLAIM is
-    slowest due to per-topic fan-out)
-  - Graceful degradation: ✓ unit tests + live smoke prove a failed
-    sub-read shows `(SECTION unavailable: ...)` while the other three
-    render. Local hub down kills DISPATCH+CLAIM only — RESILIENCE +
-    BACKPRESSURE continue (verified by code path, not yet by failure smoke)
-  - Read-only: ✓ no auth side-effects, no log writes, no state mutation —
-    each sub-fetch is either a hub RPC (idempotent read) or a local
-    SQLite open
+### 2026-06-08T20:06:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2082: agent_find_idle_history MCP parity (substrate primitive #2 obs arc Slice 5, T-2075 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T11:37:43Z
+# ============================================================================
+
+task_id: T-2082
+task_name: "agent_find_idle_history MCP parity (substrate primitive #2 obs arc Slice 5, T-2075 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T11:32:57Z
+completed: 2026-06-09T11:37:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T13:37:12+02:00
+last_commit: 2026-06-09T13:37:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_find_idle_history MCP parity (substrate primitive #2 obs arc Slice 5, T-2075 mirror)
+
+# Key outcomes
+outcomes:
+  - '`AgentFindIdleHistoryParams` struct added to tools.rs (params: `since_days`, `agent_id`, `log_path` — mirror of `ChannelClaimsHistoryParams`)'
+  - 'Pure helpers `parse_find_idle_log_mcp` + `aggregate_find_idle_entries_mcp` + `FindIdleAgentAggMcp` struct added to tools.rs near T-2075''s claims helpers (duplicate per T-2069 convention)'
+  - '`termlink_agent_find_idle_history` tool method implemented mirroring `termlink_channel_claims_history` shape: HOME-resolved default `~/.termlink/find-idle.log`, missing-log returns `{ok:true, entries:[], summary:{...}, hint:"..."}`, since_days clamp 1..=365 rejects out-of-range'
+  - 'JSON envelope returns `{ok, entries[], summary{total, per_agent:{<id>:{new_events, removed_events}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}`'
+  - '`help_categories()` registry extended with `termlink_agent_find_idle_history` entry under agent category'
+  - 'At least 3 unit tests under `tests` module: `mcp_find_idle_history_parse_skips_malformed_and_aggregates_kinds`, `mcp_find_idle_history_parse_applies_agent_id_filter`, `mcp_find_idle_history_parse_applies_cutoff`'
+  - '`cargo build -p termlink-mcp` clean'
+  - 'Unit tests pass'
+  - 'CLAUDE.md DISPATCH row extended with T-2082 MCP parity note'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2082-agentfindidlehistory-mcp-parity-substrat.md'
+  - '.tasks/completed/T-2081-agent-find-idle-history-retrospective-ve.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T13:37:12"
+    action: "T-2082: termlink_agent_find_idle_history MCP parity (substrate primitive #2 obs arc Slice 5, T-2075 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 473
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2082-agentfindidlehistory-mcp-parity-substrat.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2079: agent find-idle --watch --notify — event hook (substrate primitive #2 obs arc Slice 2, T-2072 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T10:17:16Z
+# ============================================================================
+
+task_id: T-2079
+task_name: "agent find-idle --watch --notify — event hook (substrate primitive #2 obs arc Slice 2, T-2072 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T10:07:37Z
+completed: 2026-06-09T10:13:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T12:12:55+02:00
+last_commit: 2026-06-09T12:12:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent find-idle --watch --notify — event hook (substrate primitive #2 obs arc Slice 2)
+
+# Key outcomes
+outcomes:
+  - 'CLI `FindIdle` variant gains `notify: Option<String>` with `requires("watch")`'
+  - 'Watch loop fires the notify command per `IdleChangeEvent` (skipped on baseline)'
+  - 'Fire-and-forget: `tokio::process::Command::spawn()` + drop handle (hanging script doesn''t wedge the loop)'
+  - 'Per-event env: `TERMLINK_IDLE_AGENT_ID`, `TERMLINK_IDLE_CHANGE_KIND` (`new`/`removed`), `TERMLINK_IDLE_TS` (RFC3339), `TERMLINK_IDLE_ROLE`, `TERMLINK_IDLE_CAPABILITIES` (csv), `TERMLINK_IDLE_LAST_HEARTBEAT_MS`'
+  - 'Pure helper `fire_idle_notify_env` returns the env-var vec for a given event so it can be unit-tested without spawning subprocesses'
+  - 'At least 2 unit tests verifying the env vec for `New` and `Removed` kinds'
+  - '`cargo check -p termlink` builds clean'
+  - '`cargo test --bin termlink find_idle_notify` passes'
+  - 'CLAUDE.md DISPATCH row extended with `--notify` form'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2079-agent-find-idle---watch---notify--event-.md'
+  - '.tasks/completed/T-2078-agent-find-idle---watch--continuous-idle.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T12:12:55"
+    action: "T-2079: agent find-idle --watch --notify — event hook (substrate primitive #2 obs arc Slice 2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 6
+  lines_added: 335
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2079-agent-find-idle---watch---notify--event-.md
+generated_by: context-agent-hybrid

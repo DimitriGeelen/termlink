@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2063: MCP parity for fleet governor-status + substrate-governor doc polish (T-2062 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-08T20:19:51Z
+# ============================================================================
+
+task_id: T-2063
+task_name: "MCP parity for fleet governor-status + substrate-governor doc polish (T-2062 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-08T20:10:25Z
+completed: 2026-06-08T20:19:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-08T22:17:52+02:00
+last_commit: 2026-06-08T22:18:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP parity for fleet governor-status + substrate-governor doc polish. tighten verification to --lib only (6 integration failures are pre-existing, out of scope)
+
+# Key outcomes
+outcomes:
+  - '`termlink_fleet_governor_status` MCP tool shipped in `crates/termlink-mcp/src/tools.rs` at line ~14593. Walks `list_all_hub_profiles()`, calls `hub.governor_status` per-hub under per-hub `tokio::time::timeout` bound (default 8s via `FleetGovernorStatusParams.timeout`). Returns the same `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary{...}}` envelope shape the T-2062 CLI emits.'
+  - 'Tool name + one-line description registered in the description list (`tools.rs` line 311, `fleet` section).'
+  - '`cargo build -p termlink-mcp` finishes cleanly in 20.85s, no warnings.'
+  - '`cargo test -p termlink-mcp --lib` exits 0 — 837/837 unit tests pass. Note: 6 pre-existing integration-test failures (`test_list_sessions_*`, `test_topics_*`) are unrelated to T-2063 — same failures reproduce on stash-pop of HEAD; scope of a separate task to repair the integration test harness.'
+  - '`docs/operations/substrate-governor.md` "Field semantics" section gained the three T-2049 dedupe fields with semantics. "Recipe — operator probe" section now lists all five surface routes side-by-side (raw RPC, T-2060 Track C single-hub CLI, T-2062 Track D fleet CLI, T-2048 single-hub MCP, T-2063 fleet MCP, bare-bones socat one-liner).'
+  - 'Cross-reference from the new MCP tool description back to `docs/operations/substrate-governor.md` and to the CLI parity (`termlink fleet governor-status`).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/operations/substrate-governor.md'
+  - '.tasks/active/T-2063-mcp-parity-for-fleet-governor-status--su.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-08T22:17:52"
+    action: "T-2063: MCP parity for fleet governor-status + substrate-governor doc polish"
+  - time: "2026-06-08T22:18:10"
+    action: "T-2063: tighten verification to --lib only (6 integration failures are pre-existing, out of scope)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 2
+  files_changed: 3
+  lines_added: 385
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2063-mcp-parity-for-fleet-governor-status--su.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2067: substrate-governor.md: backfill Track G --log section + integrated watch/notify/log recipe
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T05:20:43Z
+# ============================================================================
+
+task_id: T-2067
+task_name: "substrate-governor.md: backfill Track G --log section + integrated watch/notify/log recipe"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T05:18:39Z
+completed: 2026-06-09T05:20:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T07:20:34+02:00
+last_commit: 2026-06-09T07:20:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-governor.md — backfill Track G --log section + integrated watch+log+notify recipe
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-governor.md` gains a dedicated "Recipe — `--log` audit trail (Track G)" subsection with the NDJSON schema, jq examples for the three common forensic queries (capacity hits per hub, rate-limit incidents, recent dedupe activity), and the `logrotate` pointer. — section added, 3 jq examples present (`select(.hub=="..." and .cap_hits_delta>0)`, `select(.ts>$s and .rate_hits_delta>0)`, `select(.dedupe_hits_delta>0)`), operational notes call out logrotate.'
+  - 'The recipe `--notify` block (Track F) is extended to show the full composing pattern: `--watch 30 --log ~/.termlink/governor.log --notify /usr/local/bin/page-on-cap.sh` — both paging AND forensic trail in one command. — recipe block in Track G section shows the one-liner + the readable line-broken form.'
+  - 'The Track-G section explicitly notes the "future `fleet governor-history` retrospective verb" so the doc reflects the deferred-read-side state. — "Future read-side" bullet in the operational notes calls it out as deferred analog of T-1671''s `fleet history`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-governor.md'
+  - '.tasks/active/T-2067-substrate-governormd-backfill-track-g---.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T07:20:34"
+    action: "T-2067: substrate-governor.md — backfill Track G --log section + integrated watch+log+notify recipe"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 253
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2067-substrate-governormd-backfill-track-g---.md
+generated_by: context-agent-hybrid

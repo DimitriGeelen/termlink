@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2115: substrate history retrospective verb — Slice 5 (T-2111 arc, T-2018 §6)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T15:30:39Z
+# ============================================================================
+
+task_id: T-2115
+task_name: "substrate history retrospective verb — Slice 5 (T-2111 arc, T-2018 §6)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T08:16:16Z
+completed: 2026-06-10T15:30:37Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-10T10:22:43+02:00
+last_commit: 2026-06-10T10:22:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate history retrospective verb — Slice 5 (T-2111 arc, T-2018 §6 CLI closure)
+
+# Key outcomes
+outcomes:
+  - 'New `SubstrateAction::History` clap variant with flags `--since'
+  - 'Pure helper `parse_substrate_log(text, cutoff_secs, field_filter)'
+  - 'Pure helper `aggregate_substrate_entries(entries) -> BTreeMap<String, u64>`:'
+  - 'Pure `render_substrate_history_line(entry) -> String`: emits one'
+  - '`--since DAYS` clamped to 1..=365 (mirror prior history verbs).'
+  - 'Missing log file → operator hint pointing at `substrate status'
+  - 'JSON envelope shape per spec: `{ok, entries, summary{total,'
+  - '`cargo check -p termlink` + `cargo test -p termlink --bin termlink'
+  - 'Live smoke: re-use `/tmp/T-2114-smoke.log` from Slice 4 if it has'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2114-substrate-status---watch---log-path-ndjs.md'
+  - '.tasks/active/T-2115-substrate-history-retrospective-verb--sl.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T10:22:43"
+    action: "T-2115: substrate history retrospective verb — Slice 5 (T-2111 arc, T-2018 §6 CLI closure)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 434 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 434
+  commits: 1
+  files_changed: 5
+  lines_added: 686
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2115-substrate-history-retrospective-verb--sl.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2071: MCP parity for fleet governor-status --only-pressured (T-2070 agent-callable companion)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T08:03:55Z
+# ============================================================================
+
+task_id: T-2071
+task_name: "MCP parity for fleet governor-status --only-pressured (T-2070 agent-callable companion)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T07:49:46Z
+completed: 2026-06-09T07:58:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T09:58:12+02:00
+last_commit: 2026-06-09T09:58:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP parity for fleet governor-status --only-pressured (T-2070 agent-callable companion)
+
+# Key outcomes
+outcomes:
+  - '`FleetGovernorStatusParams` gains `only_pressured: Option<bool>` (default false). Backward compatible — callers that omit the field get the same envelope they got before.'
+  - 'When `only_pressured=true`, the returned `hubs[]` contains only hubs satisfying the pressured predicate (unreachable / cap_hits>0 / rate_hits>0 / active>=max); the `summary` block keeps the fleet-wide totals AND gains a `shown` field equal to `hubs[].len()` plus an `only_pressured` boolean — operator/agent can see both "1/5 pressured" and the raw counts at a glance.'
+  - 'Pure predicate helper `mcp_governor_hub_is_pressured(...)` extracted at module scope and covered by ≥3 unit tests: (a) cap_hits>0 returns true, (b) at-capacity returns true, (c) clean baseline returns false.'
+  - '`cargo build -p termlink-mcp --release` succeeds; `cargo test -p termlink-mcp --release --lib mcp_governor_hub_is_pressured` passes.'
+  - 'CLAUDE.md BACKPRESSURE row mentions the new MCP param alongside the CLI flag.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2071-mcp-parity-for-fleet-governor-status---o.md'
+  - '.tasks/completed/T-2070-fleet-governor-status---only-pressured-f.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T09:58:12"
+    action: "T-2071: MCP parity for fleet governor-status --only-pressured (T-2070 agent-callable companion)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 4
+  lines_added: 331
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2071-mcp-parity-for-fleet-governor-status---o.md
+generated_by: context-agent-hybrid

@@ -1,23 +1,23 @@
 ---
-id: T-2117
-name: "termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)"
+id: T-2126
+name: "ensure_topic auto-pick high-rate retention — T-2125 code follow-up"
 description: >
-  termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)
+  ensure_topic auto-pick high-rate retention — T-2125 code follow-up
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
-tags: []
-components: []
-related_tasks: []
+horizon: null
+tags: [arc:arc-parallel-substrate, substrate-primitive-9, code-followup]
+components: [crates/termlink-cli/src/commands/channel.rs]
+related_tasks: [T-2125, T-2058, T-2018, T-1991]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T08:32:09Z
-last_update: 2026-06-10T08:32:09Z
-date_finished: null
+created: 2026-06-10T15:17:13Z
+last_update: 2026-06-10T15:22:25Z
+date_finished: 2026-06-10T15:22:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,86 +30,38 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2117: termlink_substrate_history MCP parity — Slice 7 (T-2111 arc closure, T-2018 §6)
+# T-2126: ensure_topic auto-pick high-rate retention — T-2125 code follow-up
 
 ## Context
 
-Slice 7 of T-2111 substrate-status observability roll-up arc —
-**CLOSURE SLICE** for the entire arc. MCP-tier parity for the
-`substrate history` retrospective CLI verb shipped in Slice 5 (T-2115).
+T-2125 (recommended-retention table in `substrate-orchestrator-recipe.md`) shipped
+the operator-facing guidance for high-rate substrate topics but left a defence-in-depth
+gap: the CLI's `ensure_topic` helper at `crates/termlink-cli/src/commands/channel.rs:1749`
+hard-codes `{"kind": "forever"}` regardless of topic-name pattern. The hub's T-2058
+loud-warn fires on create (`crates/termlink-hub/src/channel.rs:349`) but operators
+who run with reduced log verbosity miss it.
 
-Closes the substrate-status arc end-to-end across BOTH tiers:
-- CLI tier: T-2111 (status one-shot) + T-2112 (--watch) + T-2113
-  (--watch --notify) + T-2114 (--watch --log) + T-2115 (history) ✅
-- MCP tier: T-2116 (status one-shot MCP) + T-2117 (history MCP — this) ✅
+The same `is_high_rate_pattern` predicate the hub already uses
+(`crates/termlink-hub/src/channel.rs:326`) is `pub(crate)` and not accessible from
+the CLI crate. Per T-2069 convention (tiny pure helpers are duplicated, not
+cross-crate-shared), duplicate it into the CLI and switch `ensure_topic` to pick
+`Retention::Messages(1000)` when the pattern matches, `Retention::Forever`
+otherwise.
 
-After this slice the substrate-status arc is at functional parity with
-every prior substrate-primitive arc:
-- governor #10: CLI (T-2048..T-2070) + MCP (T-2063 status + T-2069 history)
-- claim #1:    CLI (T-2042..T-2076)  + MCP (T-2077 + T-2075 history)
-- dispatch #2: CLI (T-2078..T-2081)  + MCP (T-2082 history)
-- queue #5:    CLI (T-2083..T-2086)  + MCP (T-2087 history)
-- status:      CLI (T-2111..T-2115)  + MCP (T-2116 + T-2117 = THIS)
-
-Design — file-walk pattern (mirror T-2087 queue-history MCP):
-- New `SubstrateHistoryParams { since_days: Option<u32>, field:
-  Option<String>, log_path: Option<String> }`
-- Pure helpers duplicated per T-2069 convention into tools.rs:
-  - `parse_substrate_log_mcp(text, cutoff_secs, field_filter) ->
-    (Vec<Value>, malformed_count)`
-  - `aggregate_substrate_entries_mcp(entries) -> BTreeMap<String, u64>`
-  - Reuse `fleet_history_rfc3339_to_unix` for ts→epoch
-- New `termlink_substrate_history` async tool: walks
-  `~/.termlink/substrate.log` (or `log_path` override), reads + parses
-  + aggregates, returns spec-shaped envelope
-- Missing log → `{ok:true, entries:[], summary:{...},
-  hint:"no substrate history yet — run `substrate status --watch --log
-  <path>` to start capturing"}`
-- Read-only: no auth, no network, no log mutation
-
-JSON envelope (mirror of T-2069/T-2075/T-2082/T-2087 + T-2115 CLI shape):
-```
-{ok, entries, summary{total, per_field:{<f>:{count}}, since_days,
-  field_filter, malformed_lines_skipped, log_path}}
-```
-
-Right-sized — ~150 LOC + 2 unit tests (parse, aggregate). Closes the
-substrate-status observability arc.
+The dominant call site is `cmd_channel_dm` (line 1811) which always creates
+`dm:<a>:<b>` topics — every DM auto-create today lands `Retention::Forever`. The
+secondary call site is `channel post --ensure-topic` (line 450) which can hit any
+pattern.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] New `SubstrateHistoryParams` struct: `since_days: Option<u32>
-      (default 7, clamped 1..=365)`, `field: Option<String>`,
-      `log_path: Option<String>`. Mirror of `ChannelQueueHistoryParams`
-      shape.
-- [x] Pure helper `parse_substrate_log_mcp(text, cutoff_secs,
-      field_filter) -> (Vec<Value>, usize)`: skips empty + malformed
-      lines, filters by ts cutoff + field exact-match. Mirror of
-      `parse_queue_log_mcp` shape. Unit test covers all three skip paths.
-- [x] Pure helper `aggregate_substrate_entries_mcp(entries) ->
-      BTreeMap<String, u64>`: groups by `field` column into per-field
-      event counts. BTreeMap for deterministic alphabetical output.
-      Unit test asserts the aggregate shape.
-- [x] New `termlink_substrate_history` async MCP tool: walks
-      `~/.termlink/substrate.log` (or `log_path` override), reads +
-      parses + aggregates + returns the spec-shaped envelope.
-- [x] Missing log → `{ok:true, entries:[], summary:{...},
-      hint:"no substrate history yet — run `substrate status --watch
-      --log <path>` to start capturing"}` (mirror T-2087 missing-log
-      response).
-- [x] Registered in `fleet` category of the help registry next to
-      `termlink_substrate_status`.
-- [x] `cargo check -p termlink-mcp` + `cargo test -p termlink-mcp --lib`
-      pass (863/863, was 861 pre-Slice 7; +2 substrate-history-mcp tests).
-      Pre-existing 6 mcp_integration failures unchanged (same as Slice 6).
-- [x] Live smoke: re-used `/tmp/T-2114-smoke.log` from Slice 4. CLI's
-      `substrate history --json` returns identical envelope shape to
-      what the MCP wrapper produces (both use the same spec — pure
-      helpers duplicated per T-2069). Verified via /tmp/T-2117-verify.py:
-      `total=1, per_field={"claim_topic_count":{"count":1}},
-      malformed_lines_skipped=0, log_path=/tmp/T-2114-smoke.log,
-      field_filter=None`.
+- [x] `is_high_rate_pattern` predicate duplicated into `crates/termlink-cli/src/commands/channel.rs` matching the hub's pattern set verbatim (`agent-presence`, `agent-chat-arc`, `agent-listeners-*`, `agent-conv-*`, `dm:*`)
+- [x] `ensure_topic` picks `{"kind":"messages","value":1000}` when `is_high_rate_pattern(name)` is true, `{"kind":"forever"}` otherwise
+- [x] Unit test `tests::is_high_rate_pattern_matches_known_patterns` (or co-located) verifies all five patterns + at least two negatives
+- [x] `cargo check -p termlink` clean (warnings tolerated only if pre-existing on `main`)
+- [x] `cargo test -p termlink --bin termlink is_high_rate_pattern` passes both is_high_rate_pattern test cases
+- [x] Cross-reference comment in `ensure_topic` body pointing at `T-2058 / T-2125` and the duplicated predicate, so the next reader knows why both crates carry it
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,8 +96,12 @@ substrate-status observability arc.
 
 ## Verification
 
-cargo check -p termlink-mcp 2>&1 | tail -5
-cargo test -p termlink-mcp --lib substrate 2>&1 | tail -10
+cd /opt/termlink && grep -q "fn is_high_rate_pattern" crates/termlink-cli/src/commands/channel.rs
+cd /opt/termlink && out=$(grep -A 3 'async fn ensure_topic' crates/termlink-cli/src/commands/channel.rs); echo "$out" | grep -q "is_high_rate_pattern"
+cd /opt/termlink && grep -q '"kind": "messages"' crates/termlink-cli/src/commands/channel.rs
+cd /opt/termlink && cargo check -p termlink 2>&1 | tail -1 | grep -q "Finished\|Compiling"
+cd /opt/termlink && cargo test -p termlink --bin termlink is_high_rate_pattern 2>&1 | tail -10 | grep -q "test result: ok"
+cd /opt/termlink && grep -q "T-2058\|T-2125" crates/termlink-cli/src/commands/channel.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -196,6 +152,11 @@ cargo test -p termlink-mcp --lib substrate 2>&1 | tail -10
 
 ## Evolution
 
+### 2026-06-10 — filing
+- **What changed:** T-2125 shipped the docs-first half (retention guidance to operators); this task is the code-level complement (CLI auto-create defence-in-depth).
+- **Plan impact:** Predicate must be duplicated (T-2069 convention) not cross-crate-imported.
+- **Triggered:** No new sub-tasks expected; single-deliverable build.
+
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
      filing, what in the original plan no longer fits, what triggered pivots
@@ -241,39 +202,10 @@ cargo test -p termlink-mcp --lib substrate 2>&1 | tail -10
 
 ## Updates
 
-### 2026-06-10T08:40:00Z — slice 7 shipped end-to-end — ARC CLOSURE
-- **Action:** Implemented `termlink_substrate_history` MCP tool.
-  tools.rs: added `SubstrateHistoryParams` struct, two pure helpers
-  (`parse_substrate_log_mcp` + `aggregate_substrate_entries_mcp`,
-  duplicated per T-2069 convention from substrate.rs), tool body
-  (file-walk pattern mirror of T-2087 channel-queue-history MCP), and
-  entry in the `fleet` category of the help registry next to T-2116.
-- **Verification:**
-  - `cargo check -p termlink-mcp` — PASS (13.05s)
-  - `cargo test -p termlink-mcp --lib` — 863/863 PASS (was 861 pre-Slice
-    7; +2 new substrate_history_parse_skips_malformed_and_filters_by_field
-    + substrate_history_aggregate_groups_by_field)
-  - Live smoke against `/tmp/T-2114-smoke.log` (Slice 4 output):
-    `./target/debug/termlink substrate history --since 1
-    --log /tmp/T-2114-smoke.log --json` produces a JSON envelope with
-    `{ok, entries, summary{total:1, per_field:{claim_topic_count:
-    {count:1}}, since_days:1, field_filter:null,
-    malformed_lines_skipped:0, log_path:"/tmp/T-2114-smoke.log"}}`
-  - MCP wrapper uses the SAME spec — pure helpers
-    (parse_substrate_log_mcp + aggregate_substrate_entries_mcp) are unit-
-    tested for parity with the CLI-side parse_substrate_log +
-    aggregate_substrate_entries. Spec parity locked.
-- **Outcome:** **ARC CLOSURE.** Slice 7 closes the substrate-status
-  observability roll-up arc end-to-end across BOTH tiers:
-  - CLI: T-2111 (status) + T-2112 (--watch) + T-2113 (--notify) + T-2114
-    (--log) + T-2115 (history) ✅
-  - MCP: T-2116 (status) + T-2117 (history) ✅
-  The substrate-status arc is now at functional parity with every prior
-  substrate-primitive arc (governor #10, claim #1, dispatch #2, queue
-  #5). T-2018 §6 #11 observability roll-up arc is complete.
-- **Context:** T-2018 §6 closure — T-2111 arc Slice 7.
-
-### 2026-06-10T08:32:09Z — task-created [task-create-agent]
+### 2026-06-10T15:17:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2117-termlinksubstratehistory-mcp-parity--sli.md
+- **Output:** /opt/termlink/.tasks/active/T-2126-ensuretopic-auto-pick-high-rate-retentio.md
 - **Context:** Initial task creation
+
+### 2026-06-10T15:22:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

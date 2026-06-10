@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2074: channel claims-history retrospective verb (T-2073 read-side, T-2068 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T08:56:47Z
+# ============================================================================
+
+task_id: T-2074
+task_name: "channel claims-history retrospective verb (T-2073 read-side, T-2068 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T08:47:01Z
+completed: 2026-06-09T08:52:14Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T10:52:07+02:00
+last_commit: 2026-06-09T10:52:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel claims-history retrospective verb (T-2068 mirror)
+
+# Key outcomes
+outcomes:
+  - '`cli.rs` `ClaimsHistory` variant added under ChannelAction (positional: none; flags: `--since DAYS`, `--topic NAME`, `--log PATH`, `--json`)'
+  - '`main.rs` dispatch wires `ClaimsHistory` to a new `cmd_channel_claims_history`'
+  - 'Default log path: `$HOME/.termlink/claims.log`; helper `claim_log_path()` extracted'
+  - 'Missing log path prints a one-line hint pointing back at `claims-summary --watch --log` (exit 0)'
+  - '`--since DAYS` clamped to 1..=365 (mirror T-2068''s range)'
+  - '`--topic NAME` filters to exact-match entries'
+  - 'Pure helper `parse_claims_log(text, cutoff_secs, topic_filter) -> (Vec<Value>, usize)` extracted; returns `(entries, malformed_count)`'
+  - 'Pure helper `aggregate_claims_entries(entries) -> BTreeMap<String, ClaimsHistoryAgg>` extracted; counts per-topic `transition` / `new` / `removed`'
+  - 'Human-format output renders one line per entry + per-topic aggregate footer + total line + malformed-skip note'
+  - '`--json` emits `{ok, entries, summary{total, per_topic:{<topic>:{transitions, new, removed}}, since_days, topic_filter, malformed_lines_skipped, log_path}}` envelope'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2074-channel-claims-history-retrospective-ver.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T10:52:07"
+    action: "T-2074: channel claims-history retrospective verb (T-2068 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 640
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2074-channel-claims-history-retrospective-ver.md
+generated_by: context-agent-hybrid

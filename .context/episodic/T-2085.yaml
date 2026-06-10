@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2085: queue-status --watch --log <PATH> — substrate primitive #5 RESILIENCE obs arc Slice 3 (T-2080 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T13:47:26Z
+# ============================================================================
+
+task_id: T-2085
+task_name: "queue-status --watch --log <PATH> — substrate primitive #5 RESILIENCE obs arc Slice 3 (T-2080 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T13:41:54Z
+completed: 2026-06-09T13:46:47Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T15:46:41+02:00
+last_commit: 2026-06-09T15:46:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel queue-status --watch --log <PATH> — substrate primitive #5 obs arc Slice 3 (T-2080 mirror)
+
+# Key outcomes
+outcomes:
+  - '`channel queue-status --watch <secs> --log <PATH>` Clap arg added with `requires("watch")`; `--log` without `--watch` rejected by Clap before dispatch'
+  - 'Pure helper `render_queue_log_line(ev, now_secs) -> String` emits one-line JSON with fields `{ts, kind, old_pending, new_pending, oldest_age_ms, queue_path}` (queue_path passed in; `n/a` rendered when `oldest_age_ms` is None — JSON serializes via Option)'
+  - '`append_queue_log_line(path, ev, now_secs, queue_path)` best-effort writer: creates parent dir, opens with `create(true).append(true)`, prints stderr warning on permission/disk error, NEVER panics or returns Err that crashes the watch'
+  - 'Watch loop integration: when `log` is `Some(path)`, each diff event from `diff_queue_states` triggers `append_queue_log_line` after the render+notify branches; baseline tick (prev=None) writes nothing'
+  - 'Unit tests cover: (a) render_queue_log_line schema for both `Pending` and `Drained` kinds with valid JSON output, (b) None oldest_age_ms serializes correctly, (c) append creates a missing parent dir and produces a parseable NDJSON line'
+  - '`cargo build -p termlink` succeeds; `cargo test -p termlink --bin termlink queue_log` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2085-queue-status---watch---log-path--substra.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T15:46:41"
+    action: "T-2085: channel queue-status --watch --log <PATH> — substrate primitive #5 obs arc Slice 3 (T-2080 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 425
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2085-queue-status---watch---log-path--substra.md
+generated_by: context-agent-hybrid

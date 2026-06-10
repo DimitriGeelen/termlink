@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2069: MCP parity for fleet governor-history (T-2068 agent-callable companion)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T07:18:05Z
+# ============================================================================
+
+task_id: T-2069
+task_name: "MCP parity for fleet governor-history (T-2068 agent-callable companion)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T07:01:52Z
+completed: 2026-06-09T07:12:40Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T09:12:32+02:00
+last_commit: 2026-06-09T09:12:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP parity for fleet governor-history (agent-callable companion to T-2068)
+
+# Key outcomes
+outcomes:
+  - '`termlink_fleet_governor_history` MCP tool exists, is registered in the tool list in tools.rs and is callable.'
+  - 'Parameters: `since_days` (Option<u32>, default 7, clamped 1..=365), `hub` (Option<String>), `log_path` (Option<String>, override default `$HOME/.termlink/governor.log`). Out-of-range `since_days` returns a structured error string (not a panic).'
+  - 'Returns `{ok, entries, summary{total, per_hub, since_days, hub_filter, malformed_lines_skipped, log_path}}` JSON. Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: "no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing"}`.'
+  - 'Per-hub aggregate in `summary.per_hub` includes `events`, `cap_hits_total`, `rate_hits_total`, `dedupe_hits_total` per hub — symmetric to the CLI `--json` summary shape (T-2068).'
+  - 'Unit test asserts the empty-log envelope shape; a populated-log test parses a temp log fixture and validates the `per_hub` aggregate.'
+  - '`cargo build -p termlink-mcp --release` succeeds; `cargo test -p termlink-mcp --release --lib fleet_governor_history` passes.'
+  - 'CLAUDE.md BACKPRESSURE row mentions the new MCP tool alongside the CLI verb.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2069-mcp-parity-for-fleet-governor-history-t-.md'
+  - '.tasks/completed/T-2068-fleet-governor-history-retrospective-ver.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T09:12:32"
+    action: "T-2069: MCP parity for fleet governor-history (agent-callable companion to T-2068)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 4
+  lines_added: 407
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2069-mcp-parity-for-fleet-governor-history-t-.md
+generated_by: context-agent-hybrid

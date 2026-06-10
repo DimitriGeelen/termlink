@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2087: termlink_channel_queue_history MCP parity — substrate primitive #5 obs arc Slice 5 (T-2082 mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T13:58:26Z
+# ============================================================================
+
+task_id: T-2087
+task_name: "termlink_channel_queue_history MCP parity — substrate primitive #5 obs arc Slice 5 (T-2082 mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T13:53:09Z
+completed: 2026-06-09T13:58:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T15:57:54+02:00
+last_commit: 2026-06-09T15:57:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_channel_queue_history MCP parity — substrate primitive #5 obs arc CLOSURE (Slice 5, T-2082 mirror)
+
+# Key outcomes
+outcomes:
+  - '`ChannelQueueHistoryParams { since_days: Option<u32>, kind: Option<String>, log_path: Option<String> }` added to termlink-mcp/src/tools.rs (Deserialize+JsonSchema; mirror of `AgentFindIdleHistoryParams`)'
+  - 'Pure helper `parse_queue_log_mcp(text, cutoff_secs, kind_filter) -> (Vec<Value>, usize)` duplicated into MCP crate per T-2069 convention (no cross-crate share). Same skip+count semantics as CLI version.'
+  - 'Pure helper `QueueHistoryAggMcp { pending_events: u64, drained_events: u64 }` + `aggregate_queue_entries_mcp(entries) -> QueueHistoryAggMcp` duplicated into MCP crate'
+  - '`#[tool(name="termlink_channel_queue_history", description="…")]` async method on TermlinkServer: clamps since_days to 1..=365, returns 400-style json_err on out-of-range; resolves default log path `$HOME/.termlink/queue.log` (json_err if HOME unset and no override); missing log returns `{ok:true, entries:[], summary:{…}, hint:"…"}` envelope (non-error path)'
+  - 'Returns envelope `{ok, entries[], summary{total, pending_events, drained_events, since_days, kind_filter, malformed_lines_skipped, log_path}}` (exact shape matches CLI `--json` modulo the optional hint field on missing-log)'
+  - 'Help registry entry added under `channel` category: `("termlink_channel_queue_history", "T-2087/T-2086: …")`'
+  - 'Unit tests cover: (a) parse_queue_log_mcp skips malformed lines + counts them, (b) kind filter applied, (c) cutoff filter applied, (d) aggregate counts pending vs drained correctly'
+  - '`cargo build -p termlink-mcp` succeeds; `cargo test -p termlink-mcp queue_history` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2087-termlinkchannelqueuehistory-mcp-parity--.md'
+  - '.tasks/completed/T-2086-channel-queue-history-retrospective-cli-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T15:57:54"
+    action: "T-2087: termlink_channel_queue_history MCP parity — substrate primitive #5 obs arc CLOSURE (Slice 5, T-2082 mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 438
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2087-termlinkchannelqueuehistory-mcp-parity--.md
+generated_by: context-agent-hybrid

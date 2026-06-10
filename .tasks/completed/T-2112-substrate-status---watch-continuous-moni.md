@@ -1,23 +1,23 @@
 ---
-id: T-2125
-name: "Recommended retention table — operator guidance section in substrate-orchestrator-recipe.md (T-2058 mitigation surface)"
+id: T-2112
+name: "substrate status --watch: continuous monitor (T-2111 arc Slice 2 — pattern parity with T-2064)"
 description: >
-  Recommended retention table — operator guidance section in substrate-orchestrator-recipe.md (T-2058 mitigation surface)
+  substrate status --watch: continuous monitor (T-2111 arc Slice 2 — pattern parity with T-2064)
 
 status: work-completed
 workflow_type: build
 owner: agent
 horizon: null
-tags: [arc:arc-parallel-substrate, docs]
-components: [docs/operations]
-related_tasks: [T-2018, T-2028, T-2058, T-1991, T-2124]
+tags: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-10T13:31:49Z
-last_update: 2026-06-10T13:34:25Z
-date_finished: 2026-06-10T13:34:25Z
+created: 2026-06-10T07:25:24Z
+last_update: 2026-06-10T15:29:33Z
+date_finished: 2026-06-10T15:29:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,23 +30,110 @@ date_finished: 2026-06-10T13:34:25Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2125: Recommended retention table — operator guidance section in substrate-orchestrator-recipe.md (T-2058 mitigation surface)
+# T-2112: substrate status --watch: continuous monitor (T-2111 arc Slice 2 — pattern parity with T-2064)
 
 ## Context
 
-`substrate-orchestrator-recipe.md` (T-2124) walks through the canonical work-stealing pattern but doesn't tell the operator what RETENTION to set on the topics they create. The T-2058 hub-side `tracing::warn!` on `Retention::Forever + is_high_rate_pattern(name)` is good defence-in-depth but operators don't see hub logs; the right place for retention guidance is the operator-facing recipe doc.
+T-2111 shipped `termlink substrate status` — Slice 1 of the substrate-status
+observability arc (T-2018 §6 observability roll-up). This task adds **Slice 2:
+`--watch <SECS>`** — a continuous monitor that re-polls every N seconds (5..=3600
+clamped) and emits change-only output after a baseline cycle. Pattern parity
+with `fleet governor-status --watch` (T-2064), `agent find-idle --watch` (T-2078),
+`channel claims-summary --watch` (T-2041), `channel queue-status --watch` (T-2083).
 
-The CLI's `ensure_topic` helper (`crates/termlink-cli/src/commands/channel.rs:1753`) hard-codes `Retention::Forever` when `--ensure-topic` auto-creates. The hub then fires the T-2058 warn. Closing this loop in code (auto-pick `Messages(1000)` for high-rate patterns) is a separate small task — this task ships the operator-visible guidance now so any operator following the recipe will explicitly create with the right retention from the start.
+Design: substrate-status --watch is the ROLLUP monitor — it tracks high-level
+substrate-health counters (idle agents, stuck claims, queue depth, pressured
+hubs) per cycle, NOT per-entity diffs. Operators wanting per-entity drilldown
+use the underlying verb's own `--watch` loop. This verb answers "is substrate
+health DEGRADING?" in one terminal.
 
-This addresses the T-2028 Track A spirit (retention coverage audit) at the operator-facing layer; the code-level fix to `ensure_topic` is logged as a follow-up.
+Per tick, capture a SubstrateRollup struct: idle_count, claim topic_count +
+stuck_count, resilience pending, backpressure total_hubs + pressured_hubs,
+plus per-section ok flags so a failed sub-read shows up as a "section
+unavailable" transition rather than silently masking metrics as 0.
+
+Cycle 1 = baseline (print full rollup). Cycle N>1 = emit one change-line per
+rollup-field change, or one silent-cycle marker if no changes. SIGINT exits
+cleanly.
+
+Implementation: subprocess `termlink substrate status --json` per cycle, parse
+JSON, diff against prior rollup, render. Subprocess pattern matches
+`cmd_fleet_governor_status_watch` (T-2064) — keeps each tick state-independent.
+
+**Mutex constraints (mirror T-2078 / T-2064 / T-2041 conventions):**
+- `--watch` ⊕ `--json` (streaming text only, not parseable NDJSON-on-cleared-screen)
+- `--watch` ⊕ `--only-pressured` (the filter would silently drop "moved out of
+  pressure" transitions — same reasoning as T-2070 for governor watch)
+
+Not in scope (deferred to later slices):
+- `--notify <CMD>` event hook (Slice 3, mirrors T-2079 / T-2065)
+- `--log <PATH>` audit trail (Slice 4, mirrors T-2080 / T-2066)
+- `substrate history` retrospective CLI (Slice 5, mirrors T-2081 / T-2068)
+- MCP parity (Slice 6+)
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `docs/operations/substrate-orchestrator-recipe.md` gains a "Recommended retention settings" section with a per-topic-pattern table (work topics, agent-presence, agent-chat-arc, dm:*, conv:*, audit/log topics) listing recommended `Retention` value + rationale
-- [x] Section explicitly cross-references T-1991 production incident, T-2058 hub-side loud-warn, and the `is_high_rate_pattern` set (`agent-presence`, `agent-chat-arc`, `agent-listeners-*`, `agent-conv-*`, `dm:*`)
-- [x] Section includes one concrete `termlink channel create --retention ...` example per pattern
-- [x] Cross-referenced from CLAUDE.md row for the recipe doc
+- [x] `SubstrateAction::Status` gains `--watch <SECS>` flag, mutex with
+      `--json` AND `--only-pressured` via clap `conflicts_with`.
+- [x] When `--watch` is present, main.rs dispatches to new
+      `cmd_substrate_status_watch` (in `commands::substrate`).
+- [x] `cmd_substrate_status_watch` validates SECS clamp 5..=3600; rejects
+      out-of-range with a clear error.
+- [x] Each tick subprocesses `termlink substrate status --json` (mirrors
+      the pattern in `cmd_fleet_governor_status_watch`).
+- [x] Per-cycle JSON → `SubstrateRollup` struct via pure helper
+      `parse_substrate_rollup(json)`.
+- [x] Cycle 1 (baseline) prints full rollup: idle/topic/stuck/pending/pressured
+      counts + per-section ok flags.
+- [x] Cycle N>1 prints one change-line per rollup field change with shape
+      `<ts>  <field>: <old>→<new>`. When NO field changed, a single
+      `<ts>  (no changes)` marker prints — affirmative, never silent.
+- [x] SIGINT (`ctrl-c`) exits cleanly with a final summary line showing
+      total cycle count.
+- [x] Sub-verb subprocess failure (JSON unparseable, nonzero exit) prints
+      one stderr line and the loop continues to the next tick.
+- [x] At least 3 unit tests: (a) `parse_substrate_rollup` extracts each
+      field correctly from synthetic JSON; (b) `diff_substrate_rollup`
+      returns no events on identical inputs; (c) `diff_substrate_rollup`
+      surfaces each field change as a distinct event. (Shipped 7 new tests.)
+- [x] Live smoke: `termlink substrate status --watch 5` against local hub
+      prints baseline + at least one silent-cycle marker.
+
+### 2026-06-10T07:32:00Z — Slice 2 implemented + smoked end-to-end
+- **Code shipped:**
+  - `crates/termlink-cli/src/commands/substrate.rs` — added `SubstrateRollup`
+    struct + `parse_substrate_rollup` + `diff_substrate_rollup` +
+    `render_substrate_baseline` + `cmd_substrate_status_watch` (~270 lines)
+  - `crates/termlink-cli/src/cli.rs` — added `--watch <SECONDS>` flag to
+    `SubstrateAction::Status` with `conflicts_with = "watch"` on `--json`
+    and `--only-pressured`
+  - `crates/termlink-cli/src/main.rs` — branched dispatch on `watch.is_some()`
+- **Tests:** 13/13 substrate unit tests pass (7 new for the watch arc);
+  909/909 CLI regression (was 902 baseline).
+- **Live smoke** — `timeout 28 termlink substrate status --watch 6`:
+  ```
+  2026-06-10T07:30:56Z substrate-watch: polling every 6s; ctrl-c to stop
+  2026-06-10T07:30:56Z baseline: substrate rollup
+  2026-06-10T07:30:56Z   dispatch:     ok=true idle_count=0
+  2026-06-10T07:30:56Z   claim:        ok=true topic_count=1336 stuck_count=0
+  2026-06-10T07:30:56Z   resilience:   ok=true pending=0
+  2026-06-10T07:30:56Z   backpressure: ok=true total=5 pressured=5
+  2026-06-10T07:31:02Z  (no changes)
+  2026-06-10T07:31:09Z  (no changes)
+  2026-06-10T07:31:15Z  (no changes)
+  2026-06-10T07:31:22Z  (no changes)
+  ```
+  Baseline + 4 silent cycles in 28s with 6s interval — exactly as designed.
+- **Mutex constraints verified:**
+  - `--watch 5 --json` → clap rejects with "cannot be used with --json"
+  - `--watch 5 --only-pressured` → clap rejects with "cannot be used with --only-pressured"
+  - `--watch 1` → handler rejects with "interval must be 5..=3600 seconds"
+
+## Verification
+cargo check -p termlink 2>&1 | tail -5
+cargo test -p termlink --bin termlink substrate 2>&1 | tail -10
+./target/debug/termlink substrate status --help 2>&1 | grep -q "watch"
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -80,11 +167,6 @@ This addresses the T-2028 Track A spirit (retention coverage audit) at the opera
 -->
 
 ## Verification
-grep -q "Recommended retention settings" docs/operations/substrate-orchestrator-recipe.md
-grep -q "T-1991" docs/operations/substrate-orchestrator-recipe.md
-grep -q "T-2058" docs/operations/substrate-orchestrator-recipe.md
-grep -q "is_high_rate_pattern\|high-rate" docs/operations/substrate-orchestrator-recipe.md
-grep -q "Messages(1000)" docs/operations/substrate-orchestrator-recipe.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -157,12 +239,6 @@ grep -q "Messages(1000)" docs/operations/substrate-orchestrator-recipe.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-06-10 — scope split: ship operator guidance; code-level CLI fix is separate
-
-- **What changed:** Initial framing considered fixing `ensure_topic` (CLI auto-create on `--ensure-topic`) to pick `Messages(1000)` for high-rate patterns in addition to writing the recipe section. The code fix is small (~10 LOC duplicate of the `is_high_rate_pattern` predicate into the CLI crate) but requires a cargo build cycle to validate. Given session budget pressure (240K context, ~50K headroom), splitting the docs-first delivery is safer.
-- **Plan impact:** This task delivers operator-visible guidance NOW. A follow-up task should fix `ensure_topic` to make it consistent with the documented recommendations (defence-in-depth: if operator forgets to pre-create, --ensure-topic should pick the right retention).
-- **Triggered:** Logged in the CLAUDE.md recipe row as "Code-level follow-up (auto-pick high-rate retention in CLI's `ensure_topic` helper) logged separately." — file the follow-up task when picking this up next session.
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -186,10 +262,10 @@ grep -q "Messages(1000)" docs/operations/substrate-orchestrator-recipe.md
 
 ## Updates
 
-### 2026-06-10T13:31:49Z — task-created [task-create-agent]
+### 2026-06-10T07:25:24Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2125-recommended-retention-table--operator-gu.md
+- **Output:** /opt/termlink/.tasks/active/T-2112-substrate-status---watch-continuous-moni.md
 - **Context:** Initial task creation
 
-### 2026-06-10T13:34:25Z — status-update [task-update-agent]
+### 2026-06-10T15:29:33Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

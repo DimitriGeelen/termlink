@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2070: fleet governor-status --only-pressured filter (show only hubs needing attention)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-09T07:47:12Z
+# ============================================================================
+
+task_id: T-2070
+task_name: "fleet governor-status --only-pressured filter (show only hubs needing attention)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-09T07:22:38Z
+completed: 2026-06-09T07:36:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-09T09:36:32+02:00
+last_commit: 2026-06-09T09:36:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet governor-status --only-pressured filter (operator-actionable subset)
+
+# Key outcomes
+outcomes:
+  - '`termlink fleet governor-status --only-pressured` flag exists.'
+  - 'Human-format output renders only hubs matching the pressured predicate (any of: unreachable / capacity_hits_total > 0 / rate_hits_total > 0 / active >= max); when zero hubs match, prints `All hubs healthy (0/N pressured)` line with the visible totals.'
+  - 'JSON output respects the filter: only the matching hubs appear in `hubs[]`; the summary footer keeps the fleet-wide totals (so the operator sees "1/5 pressured" with the original counts) and gains a `shown` field equal to `hubs[].len()`.'
+  - 'Pure predicate helper `governor_hub_is_pressured(...)` extracted and ≥2 unit tests cover (a) capacity_hits > 0 case (b) rate_hits > 0 case (c) at-capacity (active >= max) case (d) unreachable case (e) clean fleet (predicate returns false).'
+  - '`cargo build -p termlink --release` succeeds.'
+  - 'CLAUDE.md BACKPRESSURE row mentions the new filter flag.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-2070-fleet-governor-status---only-pressured-f.md'
+  - '.tasks/completed/T-2069-mcp-parity-for-fleet-governor-history-t-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-09T09:36:32"
+    action: "T-2070: fleet governor-status --only-pressured filter (operator-actionable subset)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 1
+  files_changed: 6
+  lines_added: 291
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2070-fleet-governor-status---only-pressured-f.md
+generated_by: context-agent-hybrid
