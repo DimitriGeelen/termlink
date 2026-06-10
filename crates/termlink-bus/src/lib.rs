@@ -626,6 +626,7 @@ impl Bus {
                 (Some(cutoff), None)
             }
             Retention::Messages(n) => (None, Some(n)),
+            Retention::Latest => (None, Some(1)),
         };
         self.meta.sweep_records(topic, keep_after, keep_last)
     }
@@ -826,6 +827,24 @@ mod tests {
             .map(|r| r.unwrap().0)
             .collect();
         assert_eq!(offsets, vec![3, 4]);
+    }
+
+    #[tokio::test]
+    async fn sweep_retention_latest_keeps_one() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Latest).unwrap();
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        let pruned = bus.sweep("t", 0).unwrap();
+        assert_eq!(pruned, 4);
+        let offsets: Vec<u64> = bus
+            .subscribe("t", 0)
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        assert_eq!(offsets, vec![4]);
+        assert_eq!(bus.topic_retention("t").unwrap(), Some(Retention::Latest));
     }
 
     #[tokio::test]

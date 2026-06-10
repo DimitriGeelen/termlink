@@ -137,6 +137,9 @@ fn parse_retention(spec: &str) -> Result<Value> {
     if spec == "forever" {
         return Ok(json!({"kind": "forever"}));
     }
+    if spec == "latest" {
+        return Ok(json!({"kind": "latest"}));
+    }
     if let Some(n_str) = spec.strip_prefix("days:") {
         let n: u32 = n_str.parse().context("days:N must be a positive integer")?;
         return Ok(json!({"kind": "days", "value": n}));
@@ -145,7 +148,9 @@ fn parse_retention(spec: &str) -> Result<Value> {
         let n: u64 = n_str.parse().context("messages:N must be a positive integer")?;
         return Ok(json!({"kind": "messages", "value": n}));
     }
-    anyhow::bail!("retention must be 'forever', 'days:N', or 'messages:N' (got: {spec})");
+    anyhow::bail!(
+        "retention must be 'forever', 'latest', 'days:N', or 'messages:N' (got: {spec})"
+    );
 }
 
 /// T-1385: parse a `--hub` argument as either a TCP `host:port` or a Unix path.

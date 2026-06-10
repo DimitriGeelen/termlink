@@ -10,6 +10,12 @@ pub enum Retention {
     Days(u32),
     /// Keep at most N most-recent messages; drop the tail beyond that.
     Messages(u64),
+    /// Keep only the single most-recent envelope. Durable-storage counterpart
+    /// to the in-memory cv_index (T-2103): for broadcast-with-replay topics
+    /// where only the freshest envelope per topic matters (presence summaries,
+    /// single-value state). Semantically equivalent to `Messages(1)` with an
+    /// explicit name — disambiguates intent at topic creation time.
+    Latest,
 }
 
 impl Retention {
@@ -20,15 +26,17 @@ impl Retention {
             Retention::Forever => "forever",
             Retention::Days(_) => "days",
             Retention::Messages(_) => "messages",
+            Retention::Latest => "latest",
         }
     }
 
-    /// Numeric payload for SQLite storage. `Forever` stores 0.
+    /// Numeric payload for SQLite storage. `Forever` and `Latest` store 0.
     pub(crate) fn value(&self) -> i64 {
         match self {
             Retention::Forever => 0,
             Retention::Days(d) => i64::from(*d),
             Retention::Messages(m) => *m as i64,
+            Retention::Latest => 0,
         }
     }
 
@@ -37,6 +45,7 @@ impl Retention {
             "forever" => Some(Retention::Forever),
             "days" => u32::try_from(value).ok().map(Retention::Days),
             "messages" => u64::try_from(value).ok().map(Retention::Messages),
+            "latest" => Some(Retention::Latest),
             _ => None,
         }
     }

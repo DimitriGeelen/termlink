@@ -296,6 +296,7 @@ fn retention_from_json(val: &Value) -> Option<Retention> {
             let n = val.get("value").and_then(|v| v.as_u64())?;
             Some(Retention::Messages(n))
         }
+        "latest" => Some(Retention::Latest),
         _ => None,
     }
 }
@@ -305,6 +306,7 @@ fn retention_to_json(r: Retention) -> Value {
         Retention::Forever => json!({"kind": "forever"}),
         Retention::Days(d) => json!({"kind": "days", "value": d}),
         Retention::Messages(n) => json!({"kind": "messages", "value": n}),
+        Retention::Latest => json!({"kind": "latest"}),
     }
 }
 

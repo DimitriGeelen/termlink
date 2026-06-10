@@ -7140,7 +7140,9 @@ pub struct InboxClearParams {
 pub struct ChannelCreateParams {
     /// Topic name (e.g. "broadcast:global", "channel:learnings")
     pub name: String,
-    /// Retention policy kind: "forever" | "days" | "messages". Default: forever.
+    /// Retention policy kind: "forever" | "days" | "messages" | "latest". Default: forever.
+    /// "latest" keeps only the single most-recent envelope — durable-storage
+    /// counterpart to the cv_index (T-2103) for single-value-per-topic patterns.
     pub retention_kind: Option<String>,
     /// Retention value for "days" or "messages" kinds. Ignored for "forever".
     pub retention_value: Option<u64>,
@@ -17130,6 +17132,7 @@ impl TermLinkTools {
             "forever" => serde_json::json!({"kind": "forever"}),
             "days" => serde_json::json!({"kind": "days", "value": p.retention_value.unwrap_or(30)}),
             "messages" => serde_json::json!({"kind": "messages", "value": p.retention_value.unwrap_or(1000)}),
+            "latest" => serde_json::json!({"kind": "latest"}),
             other => return json_err(format!("unknown retention_kind: {other}")),
         };
         match termlink_session::client::rpc_call(
