@@ -204,19 +204,34 @@ RENEW_INTERVAL_S=20                       # claim TTL is 30s by default
 bash scripts/be-reachable.sh start --capabilities deploy &
 
 while :; do
-  # Step 2 — listen for assigned-claim DMs from the orchestrator
-  dm_payload="$(termlink agent dms --watch --limit 1 \
+  # Step 2 — poll the inbox for an unread DM topic (any dm:* with unread > 0).
+  # `agent inbox --watch` is `--json`-incompatible (T-1558), so this is a
+  # one-shot poll inside a loop with a short sleep to keep rate-limit cost low.
+  next_dm="$(termlink agent inbox --json \
+    | jq -r '.topics[]? | select(.unread > 0 and (.topic | startswith("dm:"))) | .topic' \
+    | head -1)"
+  if [ -z "$next_dm" ]; then
+    sleep 2
+    continue
+  fi
+
+  # Step 3 — read the next unread envelope from that DM topic; --resume
+  # advances the persisted cursor so we don't re-read it next iteration.
+  dm_payload="$(termlink channel subscribe "$next_dm" \
+    --resume --limit 1 --json \
     | jq -r '.payload // empty')"
   [ -n "$dm_payload" ] || continue
 
-  # Step 3 — extract claim_id, topic, offset
+  # Step 3b — extract claim_id, topic, offset from the payload
   claim_id="$(echo "$dm_payload" | grep -oP 'claim=\K\S+')"
   topic="$(echo "$dm_payload" | grep -oP 'topic=\K\S+')"
   offset="$(echo "$dm_payload" | grep -oP 'offset=\K\S+')"
 
-  # Step 4 — verify we own the claim (defensive — orchestrator already transferred)
+  # Step 4 — verify we own the claim (defensive — orchestrator already transferred).
+  # The channel.claims JSON envelope uses `.claimer` (see
+  # crates/termlink-bus/src/claim.rs::ClaimInfo); NOT `.claimed_by`.
   current_owner="$(termlink channel claims "$topic" --json \
-    | jq -r ".claims[] | select(.claim_id==\"$claim_id\") | .claimed_by")"
+    | jq -r ".claims[] | select(.claim_id==\"$claim_id\") | .claimer")"
   if [ "$current_owner" != "$WORKER_ID" ]; then
     continue                              # transfer failed or stale DM
   fi
@@ -568,5 +583,5 @@ For full details on each:
 - T-2049 — post idempotency / dedupe
 - T-2103..T-2107 — broadcast-with-replay (substrate primitive #9) build
 - T-2048..T-2119 — backpressure (substrate primitive #10) build chain
-- T-2111..T-2117 — substrate status (substrate primitive #11) build chain
+- T-2111..T-2117 — substrate status build chain (SUBSTRATE-PULSE composition; not a §6 manifest primitive — T-2026 reserves #11 for typed agent-launch)
 - T-2124 — this doc (master integration recipe)
