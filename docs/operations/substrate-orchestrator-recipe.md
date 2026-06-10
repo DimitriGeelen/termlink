@@ -386,6 +386,100 @@ When wiring an AEF integration against this substrate:
       are append-only NDJSON. Operators rotate them with logrotate;
       AEF integrations should not touch them (they're operator-facing).
 
+## Recommended retention settings
+
+The hub's `channel.create` RPC accepts a `retention` policy per topic. The
+default if unspecified is `Retention::Forever` — *never trim*. For most
+substrate topics this is wrong: high-rate broadcast/heartbeat patterns
+will grow unboundedly and eventually wedge subscribers (precedent:
+**T-1991** — `agent-presence` bloated to ~1800 envelopes in production
+before subscribe-path slowdown was noticed).
+
+The hub fires a `tracing::warn!` at create-time when retention is
+`Forever` AND the topic name matches one of these high-rate patterns
+(**T-2058**): `agent-presence`, `agent-chat-arc`, `agent-listeners-*`,
+`agent-conv-*`, `dm:*`. Operators don't always see hub logs, so set
+retention explicitly when wiring an AEF integration — don't rely on the
+warn to remind you.
+
+The CLI's `--ensure-topic` flag (`termlink channel post --ensure-topic …`)
+currently uses `Retention::Forever` on auto-create. Until that helper is
+upgraded to pick high-rate defaults, **prefer `channel.create` first**
+with an explicit retention rather than `--ensure-topic`.
+
+### Per-topic-pattern recommendations
+
+| Topic / pattern | Recommended retention | Why |
+|---|---|---|
+| `agent-presence` | `Messages(1000)` | High-rate heartbeat producer (one envelope per worker per ~30s). T-1991 vector. Latest-per-cv_key is what subscribers want; cv_index (substrate #9) closes the lookup cost — retention just bounds the durable log. 1000 = ~10h of fleet history at 5 LIVE agents. |
+| `agent-chat-arc` | `Messages(2000)` | Fleet-wide broadcast topic. Slower than agent-presence per-envelope but every agent posts, so still bounded. 2000 ≈ ~1-2 weeks of fleet chat at typical homelab rate. |
+| `agent-listeners-*` | `Messages(500)` | Per-host listener registry rollups. One row per heartbeat per host. |
+| `agent-conv-*` | `Messages(500)` | Conversation thread state. Bounded by thread length. |
+| `dm:*` | `Messages(1000)` | DM topics. Two-party conversations; growth bounded by activity but ack-acknowledgement reads from history, so don't trim too aggressively. |
+| **Work topics** (e.g. `aef:work-deploy`) | `Messages(10000)` | Posts represent units of work. Workers consume via claims; old completed work needs to stick around long enough to be replayed if needed. Tune per fleet throughput. |
+| **Audit topics** (e.g. `audit:*`, `routing:lint`) | `Messages(1000)` to `Days(30)` | Pick `Days(N)` for compliance windows, `Messages(N)` for capacity bounds. The hub's `routing:lint` topic ships at `Messages(1000)` by default. |
+| **Channel-1 / framework / pickup** | `Forever` | These are durable audit logs of bounded growth (one envelope per task event, not per-second). `Forever` is correct here. |
+| **One-off / debug** | `Messages(100)` | Anything operator-created interactively for debugging. Cap small. |
+
+### Concrete examples
+
+Create `agent-presence` with the recommended retention before starting
+any heartbeat producer:
+
+```bash
+termlink channel create --name agent-presence \
+  --retention messages --retention-value 1000
+```
+
+Create a work topic for an AEF integration:
+
+```bash
+termlink channel create --name aef:work-deploy \
+  --retention messages --retention-value 10000
+```
+
+Create an audit topic with a time-based policy:
+
+```bash
+termlink channel create --name audit:claim-events \
+  --retention days --retention-value 30
+```
+
+### Reading current retention
+
+```bash
+termlink channel info <topic>
+```
+
+Returns `{ok, name, retention: {kind, value}, ...}`. Check the
+`retention.kind` and `retention.value` fields to confirm the topic
+matches expectations.
+
+### Why this matters
+
+The growth rate of high-rate topics under `Retention::Forever` is
+roughly:
+
+```
+agents × heartbeats/min × 60 × 24 ≈ envelopes/day
+   5  ×       2          × 60 × 24 ≈ 14,400/day
+```
+
+At 14,400 envelopes/day on `agent-presence`, the subscribe-path
+slowdown that triggered T-1991 will start to show within ~2 weeks. The
+hub keeps working; subscribers degrade silently until someone notices
+`/peers` is slow.
+
+`Messages(1000)` caps that growth: at 5 agents × 30s heartbeats, the
+topic holds ~50 minutes of history. cv_index (substrate #9) covers the
+"current value per agent" lookup in O(N_agents), so the durable log
+doesn't need to hold every heartbeat for late-joiner state — it only
+needs enough for subscribers walking the recent past. 1000 is the
+sweet spot.
+
+For *non*-high-rate topics, `Forever` is fine: framework audit logs,
+human-curated knowledge bases, anything growing at <1 envelope/minute.
+
 ## Worked example
 
 A minimal "two workers process a 5-unit queue" walkthrough on a
