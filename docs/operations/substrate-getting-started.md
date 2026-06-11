@@ -182,6 +182,22 @@ above will cover most operator work.
   interacts with `Restart=on-failure` (loud restart-loop, not silent
   wedge) and the three worker-side patterns (DM-driven, external-queue,
   short-lived). Sibling of T-1840's listener-heartbeat unit.
+- **T-2166** — preflight startup gate on `scripts/substrate-worker-pickup.sh`.
+  Mirror of T-2163 for the third long-running substrate supervisor.
+  Closes the supervisor-preflight asymmetry: pickup runs preflight at
+  startup, refuses with exit 4 on FAIL, prints+continues on WARN, silent
+  on PASS. Bypass via `--skip-preflight` for CI/test paths. Under systemd
+  Restart=on-failure this turns a misconfigured host into a loud
+  restart-loop instead of a silently-running supervisor that fails per
+  envelope arrival.
+- **T-2167** — `systemd-templates/termlink-substrate-worker@.service` +
+  [substrate-systemd.md](substrate-systemd.md) "Worker template" + "Worker-
+  side pattern §1" sections — production systemd template for running
+  `scripts/substrate-worker-pickup.sh` as a long-running service.
+  Symmetric to T-2165's orchestrator template; composes with T-2166's
+  exit-4 contract for the loud-restart-loop guarantee. The instance
+  specifier `%i` becomes the worker-id substrate identity; multiple
+  worker instances per host via different `.service` filenames.
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-

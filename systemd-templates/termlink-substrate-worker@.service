@@ -1,0 +1,84 @@
+# T-2167 — persistent substrate worker pickup loop (T-2152 / T-2018 §6 #1 + #3).
+#
+# Template unit: instance specifier `%i` is the worker-id (the substrate
+# identity the orchestrator addresses via `agent contact <worker-id>` and
+# the claimer that `claim-transfer` hands ownership to).
+#
+# Composes with termlink-substrate-orchestrator@.service (T-2165) — the
+# orchestrator picks an idle worker via `agent find-idle`, claim-transfers
+# the slot, and DMs the worker. THIS unit polls the DM inbox and spawns
+# substrate-worker-loop.sh per dispatch.
+#
+# Install (per host, per worker instance):
+#   sudo install -d /etc/termlink/substrate-worker
+#   sudo cp termlink-substrate-worker@.service /etc/systemd/system/
+#   # author /etc/termlink/substrate-worker/<worker-id>.env (see template
+#   # in docs/operations/substrate-systemd.md "Worker template (T-2167)" section).
+#   # TERMLINK_SW_CMD is required.
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now termlink-substrate-worker@<worker-id>.service
+#
+# Inspect:
+#   systemctl status termlink-substrate-worker@<worker-id>
+#   journalctl -u termlink-substrate-worker@<worker-id> -f
+#
+# Uninstall:
+#   sudo systemctl disable --now termlink-substrate-worker@<worker-id>
+#   sudo rm /etc/systemd/system/termlink-substrate-worker@.service
+#   sudo systemctl daemon-reload
+#
+# Recipe: see docs/operations/substrate-systemd.md
+#
+[Unit]
+Description=TermLink substrate worker %i (T-2152 pickup loop)
+Documentation=file:/opt/termlink/docs/operations/substrate-systemd.md
+Documentation=file:/opt/termlink/docs/operations/substrate-orchestrator-recipe.md
+# Wait until the network is up so agent inbox + channel.subscribe + claim
+# renew/release all reach the hub.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+EnvironmentFile=/etc/termlink/substrate-worker/%i.env
+
+# Defaults — .env can override. TERMLINK_RUNTIME_DIR is the load-bearing one:
+# if it lands on /tmp the T-2166 preflight gate exits 4 at startup and systemd's
+# Restart=on-failure kicks the supervisor into a loud restart-loop instead of a
+# silently-running pickup daemon that fails per envelope arrival. Leave
+# Restart=on-failure (below) to keep that contract.
+Environment=TERMLINK_SUBSTRATE_SCRIPT=/opt/termlink/scripts/substrate-worker-pickup.sh
+Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
+Environment=TERMLINK_SW_POLL_MS=2000
+
+# Translate env→flags so the .env stays a flat key=value file.
+# Required: TERMLINK_SW_CMD (the per-unit command template, see pickup --help).
+# Optional: TERMLINK_SW_HUB, TERMLINK_SW_MAX_CLAIMS (0 = unlimited, default).
+# --worker-id is hard-wired to %i so the systemd instance specifier IS the
+# substrate identity (peers find this worker via `agent find-idle` and DM it).
+ExecStart=/bin/sh -c '\
+    set -e; \
+    if [ -z "$${TERMLINK_SW_CMD:-}" ]; then echo "termlink-substrate-worker@%i: TERMLINK_SW_CMD not set in .env" >&2; exit 2; fi; \
+    flags="--worker-id %i --cmd $${TERMLINK_SW_CMD} --poll-ms $${TERMLINK_SW_POLL_MS}"; \
+    if [ -n "$${TERMLINK_SW_HUB:-}" ]; then flags="$$flags --hub $${TERMLINK_SW_HUB}"; fi; \
+    if [ -n "$${TERMLINK_SW_MAX_CLAIMS:-}" ]; then flags="$$flags --max-claims $${TERMLINK_SW_MAX_CLAIMS}"; fi; \
+    exec $${TERMLINK_SUBSTRATE_SCRIPT} $${flags} $${TERMLINK_SW_EXTRA_ARGS:-}'
+
+Restart=on-failure
+RestartSec=10s
+
+# Hardening (low-risk defaults; loosen if your install needs more).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/termlink /tmp
+ProtectHome=true
+
+# Logging: stdout/stderr → journal. pickup's loud lines (claim adopted,
+# worker exit code, max-claims reached) land here for `journalctl -f`.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=termlink-substrate-worker-%i
+
+[Install]
+WantedBy=multi-user.target
