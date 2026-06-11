@@ -4,20 +4,20 @@ name: "T-2178 follow-up: /canaries surface signal-bearing log line not misleadin
 description: >
   T-2178 follow-up: /canaries surface signal-bearing log line not misleading last row
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/canary-status.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T20:01:53Z
-last_update: 2026-06-11T20:01:53Z
-date_finished: null
+last_update: 2026-06-11T20:03:38Z
+date_finished: 2026-06-11T20:03:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -202,3 +202,6 @@ grep -q "signal-bearing" scripts/canary-status.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2180-t-2178-follow-up-canaries-surface-signal.md
 - **Context:** Initial task creation
+
+### 2026-06-11T20:03:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
