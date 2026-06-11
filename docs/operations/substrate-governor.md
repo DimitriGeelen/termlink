@@ -240,6 +240,24 @@ the full counter block for the upgraded hub. If it doesn't, the
 binary swap may have failed silently (check `fw fleet doctor` for
 auth-mismatch).
 
+**Preemptive deploy-time catch (T-2184).** The same class of
+"upgraded the binary on disk but the running hub still serves the
+old envelope" failure is what `/preflight` Check 5 catches
+**before** the symptom hits an operator. Check 5 probes
+`hub.governor_status` and looks for the `rate_buckets_evicted_total`
+field — its absence is the smoking gun that the in-memory hub
+binary predates T-2139 (typically: `cargo install` ran but the hub
+was never restarted; `/proc/<pid>/exe` shows `...(deleted)`). A
+single signal covers both classes documented above — the pre-T-2048
+RPC misroute AND the pre-T-2137 unbounded `rate_buckets_active`
+growth — because both pre-date T-2139 too. Daily cron via
+`.context/cron/substrate-preflight-canary.crontab` (T-2160) runs
+this passively across every host; manual probe via `/preflight` or
+`bash scripts/substrate-preflight.sh`. WARN, not FAIL — the
+substrate still works for the primitives the running binary has;
+the operator just needs to restart the hub (verify runtime_dir
+persists secret/cert per Check 1 first).
+
 ### Recipe — operator probe
 
 The hub.governor_status envelope is reachable through four parallel
