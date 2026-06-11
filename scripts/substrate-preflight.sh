@@ -21,6 +21,15 @@
 #              listener is gone. Catches the "I forgot to /be-reachable
 #              again after reboot" footgun.
 #
+#   Check 4: termlink binary freshness vs project root VERSION (T-2181)
+#            → Catches "I deployed but the binary is older than the
+#              source tree's documented features" footgun. CLAUDE.md
+#              catalog promises flags like `--only-stuck` (T-2076) and
+#              subcommands like `fleet governor-status` (T-2062) that
+#              the operator's stale binary refuses with "unknown flag" /
+#              "unrecognized subcommand". Substrate still works for
+#              primitives the binary has — WARN, not FAIL.
+#
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #
 # Exit codes:
@@ -57,6 +66,8 @@ Checks:
   1. TERMLINK_RUNTIME_DIR not on volatile /tmp (PL-021)
   2. ~/.termlink/hubs.toml present and non-empty
   3. ~/.termlink/be-reachable.state pid alive (if file exists)
+  4. termlink binary version >= project root VERSION (T-2181) — catches
+     stale-binary footgun where catalog promises flags the binary lacks
 
 Options:
   --json           Emit a machine-readable envelope instead of human-format output
@@ -294,6 +305,65 @@ check_be_reachable_state() {
     fi
 }
 
+# ---- Check 4: termlink binary freshness (T-2181) -----------------------
+
+# Compare two SemVer-ish `major.minor.patch` strings. Returns 0 (true) if
+# $1 < $2, 1 otherwise. Empty / malformed components compare as 0.
+version_lt() {
+    local a="$1" b="$2"
+    local IFS=.
+    # shellcheck disable=SC2206
+    local av=($a) bv=($b)
+    local i
+    for i in 0 1 2; do
+        local ai="${av[$i]:-0}" bi="${bv[$i]:-0}"
+        # Strip non-digits (defensive).
+        ai="${ai//[^0-9]/}"; bi="${bi//[^0-9]/}"
+        ai="${ai:-0}"; bi="${bi:-0}"
+        if [ "$ai" -lt "$bi" ]; then return 0; fi
+        if [ "$ai" -gt "$bi" ]; then return 1; fi
+    done
+    return 1
+}
+
+check_binary_freshness() {
+    local version_file="VERSION"
+    if [ ! -r "$version_file" ]; then
+        # No VERSION in cwd (foreign tree) — skip. No signal vs noise.
+        return
+    fi
+    local repo_version
+    repo_version=$(head -n1 "$version_file" 2>/dev/null | tr -d '[:space:]')
+    if [ -z "$repo_version" ]; then
+        return
+    fi
+
+    # Resolve termlink binary version.
+    if ! command -v termlink >/dev/null 2>&1; then
+        emit_check "binary" "medium" "warn" \
+            "termlink not on PATH — catalog flags won't resolve" \
+            "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+        return
+    fi
+    local binary_version
+    binary_version=$(termlink --version 2>/dev/null | awk '{print $NF}')
+    if [ -z "$binary_version" ]; then
+        emit_check "binary" "medium" "warn" \
+            "termlink --version returned no parseable version" \
+            "Reinstall: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+        return
+    fi
+
+    if version_lt "$binary_version" "$repo_version"; then
+        emit_check "binary" "medium" "warn" \
+            "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
+            "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+    else
+        emit_check "binary" "medium" "pass" \
+            "termlink $binary_version >= project VERSION $repo_version"
+    fi
+}
+
 # ---- Run all checks ----------------------------------------------------
 
 if [ "$JSON" -eq 0 ]; then
@@ -304,6 +374,7 @@ fi
 check_runtime_dir_volatility
 check_hubs_toml
 check_be_reachable_state
+check_binary_freshness
 
 # ---- Summary -----------------------------------------------------------
 
