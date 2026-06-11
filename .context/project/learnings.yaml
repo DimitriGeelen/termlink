@@ -2232,3 +2232,10 @@ learnings:
   date: 2026-06-11
   context: Added via context agent
   application: TBD
+- id: PL-211
+  learning: "Doc-set drift canaries that rely on canonical-phrasing grep miss prose-style drift. T-2188 audits 4 surfaces by greppable patterns ('Five checks:' / 'Run all five checks'). But substrate-getting-started.md describes Check 1-3 in prose ('PL-021 volatile /tmp, hubs.toml, be-reachable state') — the same drift class is invisible to the canary because the surface phrasing doesn't match. Generalizable: when adding a drift canary, audit BOTH canonical phrasings AND semantic-content surfaces; the cold-start / on-ramp / narrative-description docs are the highest-leverage surfaces that don't share canonical phrasing with table rows or skill descriptions. T-2191 AC 4 captures the specific follow-up (extend the canary's surface list); this learning captures the generalizable rule."
+  source: P-001
+  task: T-2191
+  date: 2026-06-11
+  context: Added via context agent
+  application: TBD
