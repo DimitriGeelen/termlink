@@ -758,6 +758,10 @@ For full details on each:
   symptom-when-misconfigured. Read this before raising
   `TERMLINK_MAX_CONNECTIONS`, lowering `TERMLINK_DEDUPE_TTL_MS`, or
   changing any other knob.
+- **Cron monitoring recipes** — [`substrate-cron-recipes.md`](substrate-cron-recipes.md)
+  + ready-to-install cron + notify-script templates for every
+  observability surface. Pair the AEF integration walkthrough here with
+  this doc once you're ready to deploy production monitoring.
 
 ## Related ADR sections
 

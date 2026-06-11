@@ -159,3 +159,9 @@ above will cover most operator work.
 - **T-2159** — [substrate-tunables.md](substrate-tunables.md) — canonical
   reference for every `TERMLINK_*` env var that tunes hub or client
   behavior. Read this before adjusting any knob.
+- **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
+  ready-to-install cron + notify-script templates for every
+  observability surface (preflight-nightly, page-on-cap-hits, page-on-
+  cv-overflow, page-on-stuck-claims, page-on-queue-pending,
+  dispatch-on-idle). Operators copy six cron lines and get production
+  monitoring.
