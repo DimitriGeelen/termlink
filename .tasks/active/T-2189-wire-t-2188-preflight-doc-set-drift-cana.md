@@ -4,10 +4,10 @@ name: "Wire T-2188 preflight-doc-set-drift canary into cron"
 description: >
   Follow-up to T-2188. Drift detector script ships at scripts/check-preflight-doc-set-drift.sh. Wire as a cron canary mirror of T-2160 substrate-preflight-canary pattern: append output to .context/working/.preflight-doc-set-drift-canary.log (empty log = healthy). Cron file template at .context/cron/, cadence: daily. Automatically surfaces via /canaries (T-2172 auto-discovers .context/working/.*-canary.log).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T22:03:56Z
-last_update: 2026-06-11T22:03:56Z
+last_update: 2026-06-11T22:08:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,9 +39,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `.context/cron/preflight-doc-set-drift-canary.crontab` exists with daily cadence, unique minute-offset (avoid :13/:17/:23/:33/:43 collisions), appends to `.context/working/.preflight-doc-set-drift-canary.log` (empty log = healthy convention per T-2160 / T-1696 / T-1723).
+- [x] Header block follows T-2160 template: source-of-truth path, install target, operator-action hint, cadence rationale.
+- [x] Smoke: `crontab -T` (or shell parse) shows the line is well-formed cron syntax — no special chars that would break load.
+- [x] Live smoke of the wrapped command: `bash scripts/check-preflight-doc-set-drift.sh --quiet 2>/dev/null` exits 0 (current tree is in sync per T-2185-2188).
+- [x] Cron is operator-installable but NOT installed by this commit (mirror T-2160 convention — install is operator action).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +176,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2189-wire-t-2188-preflight-doc-set-drift-cana.md
 - **Context:** Initial task creation
+
+### 2026-06-11T22:08:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

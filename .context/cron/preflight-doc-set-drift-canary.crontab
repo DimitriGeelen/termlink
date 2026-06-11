@@ -1,0 +1,38 @@
+# T-2189 — /preflight doc-set drift nightly canary (catches Check-N
+# enumeration desync across the 4 canonical surfaces: script docstring,
+# CLAUDE.md catalog row, .claude/commands/preflight.md skill, and
+# docs/operations/substrate-cron-recipes.md).
+#
+# Source of truth: /opt/termlink/.context/cron/preflight-doc-set-drift-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-preflight-doc-set-drift-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Closes the structural prevention gap exposed by T-2185/T-2186/T-2187:
+# each was a same-day doc-sync follow-up that existed because a new
+# Check N was added in one surface but not the other three. The drift
+# detector (scripts/check-preflight-doc-set-drift.sh, T-2188) catches
+# that class; this cron runs it nightly so the next drift episode is
+# operator-visible before anyone reads the stale surface.
+#
+# Exit 0 from --quiet means PASS; the log accumulates only when surfaces
+# disagree on the claimed check count, so an empty log is the healthy
+# state. /canaries auto-discovers this log file via the .*-canary.log
+# glob (T-2172) so operators see it surface alongside the other cron
+# canaries without explicit registration.
+#
+# Diagnostic on log entry: read the diagnostic table — it shows each
+# surface's claimed count side-by-side, with `<-- DRIFT` markers on the
+# outliers. Resync per T-2185/T-2186/T-2187 per-surface edit pattern.
+#
+# Operator action when fired: pick the authoritative source (typically
+# the script docstring's `Check N:` enumeration), bring the other three
+# surfaces into agreement, then verify with
+# `bash scripts/check-preflight-doc-set-drift.sh` (verbose).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 05:53 UTC — minute offset chosen to dodge all known canaries:
+# :13 mirror, :17 heartbeat, :23 substrate-preflight, :33 mirror-meta,
+# :43 rollout-audit, :53 (this). Runs as root so cwd-into the repo is
+# cheap and the .log file's owner matches the substrate-preflight
+# canary's owner (operator inspection convention).
+53 5 * * * root cd /opt/termlink && bash scripts/check-preflight-doc-set-drift.sh --quiet >> .context/working/.preflight-doc-set-drift-canary.log 2>&1

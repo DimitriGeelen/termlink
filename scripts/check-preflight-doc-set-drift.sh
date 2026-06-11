@@ -25,6 +25,26 @@
 
 set -u
 
+QUIET=0
+for arg in "$@"; do
+    case "$arg" in
+        --quiet) QUIET=1 ;;
+        --help)
+            cat <<'EOF'
+Usage: check-preflight-doc-set-drift.sh [--quiet] [--help]
+
+Detect /preflight check-count drift across the four canonical surfaces.
+
+Options:
+  --quiet  Empty-log canary mode: no stdout on PASS, only emit on
+           DRIFT/ERROR (exit non-zero with diagnostic to stderr).
+           Pairs with cron pattern (T-2160 convention).
+EOF
+            exit 0
+            ;;
+    esac
+done
+
 REPO_ROOT="${REPO_ROOT:-$(pwd)}"
 SURFACES=(
     "script:scripts/substrate-preflight.sh"
@@ -137,7 +157,7 @@ for name in "${ORDER[@]}"; do
 done
 
 if [ "$drifted" -eq 0 ]; then
-    echo "preflight-doc-set: all 4 surfaces agree on $first checks"
+    [ "$QUIET" -eq 0 ] && echo "preflight-doc-set: all 4 surfaces agree on $first checks"
     exit 0
 fi
 
