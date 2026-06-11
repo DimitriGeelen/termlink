@@ -62,6 +62,36 @@ If you want to bypass the preflight gate (e.g. on a CI runner where the
 host is known broken-on-purpose), append `--skip-preflight` via
 `TERMLINK_SO_EXTRA_ARGS` in the per-instance `.env` file.
 
+## Pre-deploy verification (T-2169 + T-2170)
+
+Before staging either template, run the two regression smokes from the
+repo root. They run STATIC against the source tree — no `systemctl`, no
+daemon mutation, no termlink RPC — so they're safe to run anywhere
+including from a non-root shell:
+
+```bash
+# Verify the systemd templates still satisfy the install-time contracts.
+# Catches: bad [Unit]/[Service]/[Install] structure, missing
+# EnvironmentFile=, lost --orchestrator-id %i / --worker-id %i hard-wiring,
+# dropped Restart=on-failure (breaks the exit-4 contract above),
+# TERMLINK_SUBSTRATE_SCRIPT= pointing at a non-existent or non-+x script,
+# TERMLINK_RUNTIME_DIR=/tmp (PL-021 — see "How preflight interacts" above).
+bash scripts/substrate-systemd-smoke.sh
+
+# Verify the preflight script itself still honors the exit-code contract
+# the loops gate on (0=PASS, 1=WARN, 2=FAIL). Catches: a fail-classified
+# check returning exit 1 instead of 2 — the regression class that would
+# silently lose PL-021 prevention across every production install.
+bash scripts/substrate-preflight-smoke.sh
+```
+
+Both exit 0 on a green tree, exit 1 on regression, with per-stage
+PASS/FAIL lines. Append `--json` for machine-parseable output suitable
+for CI gating. These smokes ARE the change-author's "did I break the
+contract?" check — run them before any commit that touches
+`scripts/substrate-preflight.sh`, `systemd-templates/*.service`, or any
+of the three loop scripts that gate on the preflight exit code.
+
 ## Install
 
 ```bash
@@ -298,6 +328,8 @@ worker-loop is killed cleanly before the supervisor exits.
 - **T-2163** — preflight startup gate on orchestrator-loop + worker-loop (exit 4 = systemd-restart-loop contract)
 - **T-2166** — preflight startup gate on worker-pickup (closes the supervisor-preflight symmetry; same exit 4 contract)
 - **T-2167** — worker systemd template `termlink-substrate-worker@.service` + this doc's "Worker template" + "Worker-side pattern §1" sections (production-systemd surface for worker side, symmetric to T-2165 orchestrator template)
+- **T-2169** — `scripts/substrate-systemd-smoke.sh` — static-verify regression test for both unit templates. Catches missing sections / directives, dropped `Restart=on-failure`, lost `%i` hard-wiring, `TERMLINK_RUNTIME_DIR=/tmp` (PL-021), and `TERMLINK_SUBSTRATE_SCRIPT=` pointing at a non-existent or non-+x path. Surfaced in the "Pre-deploy verification" section above.
+- **T-2170** — `scripts/substrate-preflight-smoke.sh` — regression test for the preflight exit-code contract that all three loop scripts gate on. Catches the most dangerous regression class: a fail-classified check silently returning exit 1 (warning) instead of exit 2 (fail), which would lose PL-021 prevention across every production install. Surfaced in the "Pre-deploy verification" section above.
 - **T-2159** — [substrate-tunables.md](substrate-tunables.md) — every
   `TERMLINK_*` env var. Read this before adjusting any knob.
 - **T-1840** — [listener-heartbeat-systemd.md](listener-heartbeat-systemd.md) —

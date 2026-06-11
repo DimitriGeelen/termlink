@@ -198,6 +198,19 @@ above will cover most operator work.
   exit-4 contract for the loud-restart-loop guarantee. The instance
   specifier `%i` becomes the worker-id substrate identity; multiple
   worker instances per host via different `.service` filenames.
+- **T-2169** — `scripts/substrate-systemd-smoke.sh` — static-verify
+  regression test for both unit templates (T-2165 + T-2167). Run as
+  pre-deploy verification before staging the templates on a new host;
+  see [substrate-systemd.md "Pre-deploy verification"](substrate-systemd.md).
+  Symmetric pair with T-2170.
+- **T-2170** — `scripts/substrate-preflight-smoke.sh` — regression test
+  for the preflight (T-2154) exit-code contract that the three loop
+  scripts (T-2163/T-2166) gate on. Catches a fail-classified check
+  silently returning the wrong exit code — the regression class that
+  would lose PL-021 prevention across every production install. Surfaced
+  in [substrate-systemd.md "Pre-deploy verification"](substrate-systemd.md).
+  Symmetric pair with T-2169 — together they close the substrate-arc
+  regression-protection surface end-to-end.
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-
