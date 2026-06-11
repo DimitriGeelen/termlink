@@ -313,8 +313,13 @@ while :; do
   # Step 2 — poll the inbox for an unread DM topic (any dm:* with unread > 0).
   # `agent inbox --watch` is `--json`-incompatible (T-1558), so this is a
   # one-shot poll inside a loop with a short sleep to keep rate-limit cost low.
+  # NOTE (T-2153): `agent inbox --json` returns an ARRAY of inbox entries
+  # `[{topic, cursor, latest, unread}, ...]`, not an object with a `.topics`
+  # field. The jq selector is `.[]?`, not `.topics[]?`. The vetted version
+  # of this whole loop ships as `scripts/substrate-worker-pickup.sh`
+  # (T-2152) — prefer that script in production.
   next_dm="$(termlink agent inbox --json \
-    | jq -r '.topics[]? | select(.unread > 0 and (.topic | startswith("dm:"))) | .topic' \
+    | jq -r '.[]? | select(.unread > 0 and (.topic | startswith("dm:"))) | .topic' \
     | head -1)"
   if [ -z "$next_dm" ]; then
     sleep 2
@@ -323,9 +328,11 @@ while :; do
 
   # Step 3 — read the next unread envelope from that DM topic; --resume
   # advances the persisted cursor so we don't re-read it next iteration.
+  # NOTE (T-2153): envelope payload is base64-encoded in `.payload_b64`,
+  # NOT in a `.payload` field (T-1427 envelope canon). Decode before parse.
   dm_payload="$(termlink channel subscribe "$next_dm" \
     --resume --limit 1 --json \
-    | jq -r '.payload // empty')"
+    | jq -r '.payload_b64 // empty' | base64 -d 2>/dev/null)"
   [ -n "$dm_payload" ] || continue
 
   # Step 3b — extract claim_id, topic, offset from the payload
