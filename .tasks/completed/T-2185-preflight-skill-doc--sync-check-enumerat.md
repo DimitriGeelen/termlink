@@ -4,10 +4,10 @@ name: "/preflight skill doc — sync check enumeration to 5 checks (T-2181+T-218
 description: >
   Skill description at .claude/commands/preflight.md line 30 reads 'Run all three checks' and the §What it checks table enumerates only Checks 1-3. T-2181 (Check 4 binary freshness) and T-2184 (Check 5 hub freshness) both shipped without updating the skill doc — operators reading the catalog learn about 5 checks (CLAUDE.md row) but the skill description claims 3. Doc-hygiene fix: bump '/preflight' invocation line + add Check 4 + Check 5 rows to the enumeration table.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T21:22:36Z
-last_update: 2026-06-11T21:22:59Z
-date_finished: null
+last_update: 2026-06-11T21:23:38Z
+date_finished: 2026-06-11T21:23:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -178,3 +178,6 @@ date_finished: null
 
 ### 2026-06-11T21:22:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T21:23:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

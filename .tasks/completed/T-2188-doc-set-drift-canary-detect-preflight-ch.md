@@ -4,10 +4,10 @@ name: "Doc-set drift canary: detect /preflight check-count desync across 4 surfa
 description: >
   T-2185/T-2186/T-2187 each existed because of the same drift class: when Check 4 (T-2181) shipped, the catalog row, skill doc, and cron-recipe doc fell out of sync with the script. Symmetric prevention: a one-shot script that greps the canonical 'N checks' references across all four surfaces (substrate-preflight.sh docstring, CLAUDE.md /preflight row, .claude/commands/preflight.md, docs/operations/substrate-cron-recipes.md) and exits non-zero if they disagree. Pattern: extract each surface's claimed count, compare for unanimity. When the next Check 6 ships, this canary fires before the doc lag hits operators. Wire as cron canary in a follow-up task.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T22:02:30Z
-last_update: 2026-06-11T22:02:50Z
-date_finished: null
+last_update: 2026-06-11T22:04:08Z
+date_finished: 2026-06-11T22:04:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -179,3 +179,6 @@ date_finished: null
 
 ### 2026-06-11T22:02:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T22:04:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

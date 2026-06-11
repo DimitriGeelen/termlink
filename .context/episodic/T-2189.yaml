@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2189: Wire T-2188 preflight-doc-set-drift canary into cron
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T22:10:04Z
+# ============================================================================
+
+task_id: T-2189
+task_name: "Wire T-2188 preflight-doc-set-drift canary into cron"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T22:03:56Z
+completed: 2026-06-11T22:10:01Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-12T00:10:01+02:00
+last_commit: 2026-06-12T00:10:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wire T-2188 doc-set drift canary into cron + add --quiet flag
+
+# Key outcomes
+outcomes:
+  - '`.context/cron/preflight-doc-set-drift-canary.crontab` exists with daily cadence, unique minute-offset (avoid :13/:17/:23/:33/:43 collisions), appends to `.context/working/.preflight-doc-set-drift-canary.log` (empty log = healthy convention per T-2160 / T-1696 / T-1723).'
+  - 'Header block follows T-2160 template: source-of-truth path, install target, operator-action hint, cadence rationale.'
+  - 'Smoke: `crontab -T` (or shell parse) shows the line is well-formed cron syntax — no special chars that would break load.'
+  - 'Live smoke of the wrapped command: `bash scripts/check-preflight-doc-set-drift.sh --quiet 2>/dev/null` exits 0 (current tree is in sync per T-2185-2188).'
+  - 'Cron is operator-installable but NOT installed by this commit (mirror T-2160 convention — install is operator action).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/preflight-doc-set-drift-canary.crontab'
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - '.tasks/active/T-2189-wire-t-2188-preflight-doc-set-drift-cana.md'
+  - '.tasks/completed/T-2188-doc-set-drift-canary-detect-preflight-ch.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-12T00:10:01"
+    action: "T-2189: wire T-2188 doc-set drift canary into cron + add --quiet flag"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 4
+  lines_added: 71
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2189-wire-t-2188-preflight-doc-set-drift-cana.md
+generated_by: context-agent-hybrid

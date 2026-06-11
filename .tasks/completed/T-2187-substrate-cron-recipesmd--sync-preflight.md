@@ -4,10 +4,10 @@ name: "substrate-cron-recipes.md — sync /preflight cron to 5 checks (T-2181 + 
 description: >
   docs/operations/substrate-cron-recipes.md line 65 reads 'three checks are categorical' and line 62 'What fires when' lists only Checks 1-3 trigger cases. Predates T-2181 (Check 4 binary freshness) + T-2184 (Check 5 hub freshness). Operators reading the cron-recipe doc to interpret canary fires would miss the new categories. Symmetric companion to T-2185 (skill doc sync) + T-2186 (catalog row sync) — the doc set for /preflight check enumeration has now reached three surfaces; this closes the third.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T21:57:33Z
-last_update: 2026-06-11T21:58:05Z
-date_finished: null
+last_update: 2026-06-11T21:58:26Z
+date_finished: 2026-06-11T21:58:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -178,3 +178,6 @@ date_finished: null
 
 ### 2026-06-11T21:58:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T21:58:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,10 +4,10 @@ name: "PL-209 follow-up: surface evicted_total + identify noisy sender (rate-lim
 description: >
   Captured 2026-06-11 from PL-209. Fleet /governor shows 380K active rate buckets + 3140 rate_hits across 2 hubs; evicted_total reports n/a so we can't tell if buckets accumulate or rotate. Scope: (1) Surface evicted_total in hub.governor_status JSON-RPC + CLI render. (2) Identify the noisy sender (suspect: listener-heartbeat from a renumbered/respawning host). (3) Decide whether rate-bucket eviction policy needs tuning. Cross-ref: T-2048 (#10 BACKPRESSURE substrate primitive), T-2062 fleet governor-status.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T20:49:17Z
-last_update: 2026-06-11T20:49:34Z
-date_finished: null
+last_update: 2026-06-11T21:14:08Z
+date_finished: 2026-06-11T21:14:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -216,3 +216,10 @@ follow-up's deploy step.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2183-pl-209-follow-up-surface-evictedtotal--i.md
 - **Context:** Initial task creation
+
+### 2026-06-11T21:14:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-11T21:14:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,10 +4,10 @@ name: "/canaries catalog row — surface T-2180 signal-bearing line behavior"
 description: >
   CLAUDE.md /canaries row enumerates the 4 classifications (HEALTHY/FIRING/STALE/NO_HEARTBEAT) but never describes WHAT renders for a FIRING canary. T-2180 shipped a signal-bearing line extraction (latest entry matching fail|drift|stale|warn|error|behind rather than naive tail -n 1) which materially improved operator UX — the actionable signal is now visible instead of a misleading verdict=pass tail. Doc-hygiene catalog tail surface fix. Mirror of T-2185's pattern (skill doc sync for /preflight). Horizon=now.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T21:51:47Z
-last_update: 2026-06-11T21:52:11Z
-date_finished: null
+last_update: 2026-06-11T21:52:43Z
+date_finished: 2026-06-11T21:52:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -176,3 +176,6 @@ date_finished: null
 
 ### 2026-06-11T21:52:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T21:52:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

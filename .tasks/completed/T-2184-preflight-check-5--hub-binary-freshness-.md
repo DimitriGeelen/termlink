@@ -4,20 +4,20 @@ name: "/preflight Check 5 — hub binary freshness probe (T-2183 symmetric to T-
 description: >
   Add /preflight Check 5: probe local hub.governor_status response shape — absence of rate_buckets_evicted_total field signals pre-T-2139 hub (replaced binary, not restarted). Symmetric companion to T-2181 Check 4 (CLI binary freshness). Detection mechanism: positive presence-check of a field shipped by a known release tag; remediation hint: 'restart hub to pick up new binary'. Cross-ref: PL-209 (rate-limit pressure observation, the originating misdiagnosis), T-2181 (client-side prior art), T-2154 (substrate-preflight.sh script), T-2158 (/preflight skill). Horizon=next.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T21:13:22Z
-last_update: 2026-06-11T21:14:26Z
-date_finished: null
+last_update: 2026-06-11T21:17:32Z
+date_finished: 2026-06-11T21:17:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -199,3 +199,6 @@ no hubs.toml ⇒ Check 2 already caught it.
 ### 2026-06-11T21:14:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-11T21:17:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

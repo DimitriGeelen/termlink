@@ -1,8 +1,8 @@
-# Audit Results - 2026-06-11-2358
-timestamp: 2026-06-11T21:58:30Z
+# Audit Results - 2026-06-12-0028
+timestamp: 2026-06-11T22:28:43Z
 sections: "structure"
 summary:
-  pass: 22
+  pass: 23
   warn: 1
   fail: 0
 findings:
@@ -43,6 +43,8 @@ findings:
     check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
   - level: PASS
     check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: PASS
+    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
   - level: PASS
     check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
   - level: PASS
