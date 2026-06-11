@@ -1,0 +1,92 @@
+pickup_id: P-043
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-2155"
+  agent: "claude-code"
+  timestamp: "2026-06-11T10:34:22Z"
+payload:
+  summary: "Agent narrates budget level from historical tool-result JSON in system-reminders, not .context/working/.budget-status canonical cache — reproduced this turn (claimed 273K when actual was 159K)"
+  detail: "SYMPTOM
+=======
+After /resume from compaction, the agent parsed budget JSON
+{"level":"urgent","tokens":273016,...} from a system-reminder echoing a
+PRIOR session's Read of /tmp/claude-0/.../tasks/<id>.output (a Task tool
+ephemeral output file) and treated it as the CURRENT budget state.
+Actual current budget at session start was 159350 (level=ok), verified
+by cat .context/working/.budget-status.
+
+Result: agent narrated entire session as having "27K headroom up to
+user-authorized 300K cap", wrapped at "~298K". ~140K of real headroom
+went unused.
+
+ROOT CAUSE
+==========
+Two compounding framework gaps:
+
+1. The /resume skill workflow (gather → summarize → suggest) does NOT
+   include reading .context/working/.budget-status. It reads:
+   - .context/handovers/LATEST.md
+   - git status / git log
+   - .tasks/active/
+   - .context/working/.tool-counter
+   - web server status
+   ...but skips the budget cache, despite the budget-gate hook
+   maintaining it precisely for fast lookup.
+
+2. SessionStart:compact context-recovery re-injects historical tool
+   results verbatim as system-reminders. A historical Task tool output
+   containing budget-shaped JSON is structurally indistinguishable to
+   the agent from a current cache read (same keys: level, tokens,
+   timestamp, source). Nothing visually marks reminders as historical.
+
+WHY STRUCTURALLY ALLOWED
+========================
+- CLAUDE.md "After context compaction" section names `fw resume status`
+  and `fw resume sync` but does not name .context/working/.budget-status
+  as a required check.
+- The budget-gate hook caches level/tokens in the file but never
+  re-asserts it into agent-visible context. Enforcement is runtime
+  (blocks tools at critical) but visibility is pull-only.
+- Historical system-reminders look identical to current tool results.
+
+PROPOSED FIX (THREE OPTIONS)
+============================
+
+A. Extend /resume skill (smallest change, behaviour-dependent)
+   Add to gather phase: `cat .context/working/.budget-status 2>/dev/null`
+   Add to summary template: `- Budget: {level} ({tokens} tokens) from cache`
+   Ships via userSettings:resume update. Relies on agent following skill.
+
+B. SessionStart:compact hook surfaces current budget (RECOMMENDED PRIMARY)
+   Hook re-reads .context/working/.budget-status post-compaction and
+   PREPENDS "Current budget: level={X} tokens={Y}" to the persisted-output
+   block, BEFORE any historical tool results. Forces correct context
+   independently of agent behaviour. One-line addition to the existing
+   hook script that already writes the persisted-output block.
+
+C. CLAUDE.md doc update (weakest, relies on agent reading the doc)
+   Name .context/working/.budget-status as a mandatory check in the
+   "After context compaction" recovery steps. Same failure mode that
+   produced this slip — agent followed /resume's existing 5 steps but
+   none named the cache.
+
+RECOMMENDATION
+==============
+Ship B as primary (hook-side enforcement, agent-behaviour-independent),
+A as defence-in-depth (skill consistency for non-compaction starts too).
+Skip C — purely doc fixes don't close the failure mode.
+
+TRACEBACK
+=========
+- Origin task: T-2155 (RCA inception, GO recommended)
+- Live reproduction: this session 2026-06-11T10:00-12:30 CEST
+- Pattern: PL-NEW candidate — "historical system-reminders parsed as
+  current state" (likely affects more than budget; same shape could hit
+  any cached JSON: .focus.yaml, .restart-requested, etc.)
+
+Project: 010-termlink at /opt/termlink
+Framework version at slip: 1.6.7 vendored"
+  priority: high
+  tags: [framework, budget-gate, resume-skill, post-compaction, structural-fix]
