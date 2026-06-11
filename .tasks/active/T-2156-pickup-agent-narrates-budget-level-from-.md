@@ -4,10 +4,10 @@ name: "Pickup: Agent narrates budget level from historical tool-result JSON in s
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2155. Type: bug-report.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T10:34:27Z
-last_update: 2026-06-11T10:34:27Z
+last_update: 2026-06-11T19:53:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,14 +36,27 @@ source_project_in_origin: "termlink"
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2155 RCA GO outcome — ship Option A (defence-in-depth): extend the
+`/resume` skill to read `.context/working/.budget-status` (the canonical
+budget cache) so the agent grounds budget claims against current state,
+not against historical tool-result JSON re-injected as system-reminders.
+
+Two surfaces drift on `/resume`:
+- Live `/root/.claude/commands/resume.md` (userSettings, what actually runs)
+- Vendored `/opt/termlink/.claude/commands/resume.md` (source-of-truth
+  for vendor/install — currently more advanced re: watchtower URL)
+
+Both must converge. Option B (SessionStart:compact hook) is framework-side
+and stays open for framework-agent pickup — out of scope here.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Live userSettings `/resume` skill (`/root/.claude/commands/resume.md`) reads `.context/working/.budget-status` as part of Step 1 gather phase.
+- [x] Live userSettings `/resume` skill Step 2 summary template includes a Budget line sourced from the cache (level + tokens).
+- [x] Vendored `/opt/termlink/.claude/commands/resume.md` carries the same budget-cache read + summary line so future installs propagate the fix.
+- [x] Both files name `.context/working/.budget-status` literally so a future audit (grep) can detect drift.
+- [x] Note in task body that Option B (SessionStart:compact hook prepend) remains framework-agent pickup.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -108,8 +121,20 @@ source_project_in_origin: "termlink"
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q "budget-status" /root/.claude/commands/resume.md
+grep -q "budget-status" /opt/termlink/.claude/commands/resume.md
+grep -q "Budget:" /root/.claude/commands/resume.md
+grep -q "Budget:" /opt/termlink/.claude/commands/resume.md
 
 ## RCA
+
+**Symptom:** Agent reads budget level/tokens from system-reminder JSON echoing a prior session's Read of an ephemeral Task tool output file (e.g. `/tmp/claude-0/.../tasks/<id>.output`). Same key names (`level`/`tokens`/`timestamp`/`source`) as the canonical cache make it indistinguishable from a current read. One reproduced instance: agent narrated `level=urgent, tokens=273016` for an entire session when actual cache was `level=ok, tokens=159350` — ~140K of real headroom unused.
+
+**Root cause:** The `/resume` skill's Step 1 gather phase reads handover + git + tasks + tool counter + web server — NOT `.context/working/.budget-status`. Nothing in the skill forces a grounded read of the canonical cache, so the agent satisfies "report budget" from whatever budget-shaped JSON it finds in context.
+
+**Why structurally allowed:** Hook-side budget enforcement (PreToolUse `budget-gate.sh`) is pull-only — it writes the cache but never re-asserts level into agent context. The /resume skill is the next-best surface (runs at every resume) and missed naming the cache file. CLAUDE.md "After context compaction" names `fw resume status` + `fw resume sync` but not the cache path.
+
+**Prevention:** This task (Option A) — extend /resume to read `.context/working/.budget-status` literally + render it in summary. Option B (SessionStart:compact hook prepends current budget) remains framework-agent pickup — would force-feed ground truth at the system-reminder layer, defeating the misread at the source.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -176,3 +201,7 @@ source_project_in_origin: "termlink"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2156-pickup-agent-narrates-budget-level-from-.md
 - **Context:** Initial task creation
+
+### 2026-06-11T19:53:42Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

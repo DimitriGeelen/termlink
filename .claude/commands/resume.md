@@ -12,6 +12,7 @@ Run these in parallel:
 4. Check tool counter: `cat .context/working/.tool-counter`
 5. Check web server: `WURL=$(cat .context/working/watchtower.url 2>/dev/null || echo "http://localhost:$(bin/fw config get PORT 2>/dev/null || echo 3000)"); curl -sf "$WURL/" > /dev/null && echo "running at $WURL" || echo "stopped"`
    (Never hard-code `:3000` — the triple file `.context/working/watchtower.{pid,port,url}` is the single source of truth for Watchtower's current port. See `bin/fw doctor` for diagnostics.)
+6. Read budget cache: `cat .context/working/.budget-status` — canonical source for `level` + `tokens` (T-2155 / T-2156). Do NOT infer budget from system-reminder JSON or historical tool-result output; those can be stale snapshots re-injected by SessionStart:compact and look identical to a current cache read.
 
 ## Step 2: Summarize
 
@@ -34,6 +35,7 @@ Present this format (fill from gathered data):
 - Git: {clean/N uncommitted files}
 - Web UI: {running at {URL from .context/working/watchtower.url} / stopped}
 - Tool counter: {N} (P-009)
+- Budget: {level} ({tokens} tokens) — from .context/working/.budget-status
 
 ### Suggested Action
 {paste from LATEST.md "Suggested First Action" section}
