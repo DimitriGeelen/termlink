@@ -2218,3 +2218,10 @@ learnings:
   date: 2026-06-11
   context: Added via context agent
   application: TBD
+- id: PL-209
+  learning: "Fleet has 380K active rate buckets + 3140 rate_hits across 2 hubs (observed 2026-06-11 via /governor during T-2180 cold-start smoke). Active-bucket count is suspicious — likely accumulation without eviction. evicted_total reports n/a so substrate-side telemetry doesn't surface the lifecycle. Next: investigate rate-bucket lifecycle in termlink-hub::governor; surface evicted_total telemetry; identify noisy sender (possibly listener-heartbeat from a renumbered host)."
+  source: P-001
+  task: T-2181
+  date: 2026-06-11
+  context: Added via context agent
+  application: TBD
