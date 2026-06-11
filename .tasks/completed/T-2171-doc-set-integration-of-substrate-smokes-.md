@@ -4,10 +4,10 @@ name: "doc-set integration of substrate smokes — make T-2169/T-2170 discoverab
 description: >
   doc-set integration of substrate smokes — make T-2169/T-2170 discoverable from substrate-systemd.md + substrate-getting-started.md + CLAUDE.md catalog
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T17:24:36Z
-last_update: 2026-06-11T17:24:36Z
-date_finished: null
+last_update: 2026-06-11T17:27:20Z
+date_finished: 2026-06-11T17:27:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,7 +44,7 @@ Single deliverable: integrate both smokes into the canonical substrate doc-set f
 
 ### Agent
 - [x] `docs/operations/substrate-systemd.md` gains a "Pre-deploy verification" H2 section before "Install" that names both smokes + copy-pasteable run commands + describes what each catches
-- [ ] `docs/operations/substrate-systemd.md` References section gains T-2169 + T-2170 entries
+- [x] `docs/operations/substrate-systemd.md` References section gains T-2169 + T-2170 entries
 - [x] `docs/operations/substrate-getting-started.md` References section gains T-2169 + T-2170 entries
 - [x] Both smokes still pass after edits (verifies no accidental edit clobbered a `.sh` file via path collision)
 - [x] `fw audit` passes
@@ -188,3 +188,6 @@ grep -q "Pre-deploy verification" docs/operations/substrate-systemd.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2171-doc-set-integration-of-substrate-smokes-.md
 - **Context:** Initial task creation
+
+### 2026-06-11T17:27:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
