@@ -37,8 +37,24 @@ is steady; if not, the per-skill output tells you what's wrong.
 
 ## 3. Your first claim lifecycle — five minutes
 
-The fastest way to internalise the substrate is to run one envelope
-through it end-to-end on a smoke topic. Copy-paste this:
+Before deploying, run the pre-flight (T-2154):
+
+```bash
+scripts/substrate-preflight.sh
+# → [PASS] runtime_dir   TERMLINK_RUNTIME_DIR=/var/lib/termlink (not on /tmp …)
+# → [PASS] hubs.toml     /root/.termlink/hubs.toml present (N hub(s) declared)
+# → [PASS] be-reachable  alive | absent
+# → Summary: 3 pass, 0 warn, 0 fail — substrate-ready.
+```
+
+Exit 2 means **stop**: the single largest production failure mode is
+`TERMLINK_RUNTIME_DIR` on volatile `/tmp` (PL-021 — hub regenerates
+secret + TLS cert every reboot). The preflight catches this BEFORE the
+fleet wedges. Exit 1 means warn — you can proceed but the warnings
+should be addressed (missing hubs.toml, stale be-reachable.state).
+Read-only; safe in CI; `--json` available for piping.
+
+Now run one envelope through end-to-end on a smoke topic. Copy-paste this:
 
 ```bash
 # Step 1 — create a smoke topic (idempotent; safe to re-run).
