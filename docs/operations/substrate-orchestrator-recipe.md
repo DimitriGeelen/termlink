@@ -272,10 +272,31 @@ scripts/substrate-worker-loop.sh \
     --cmd 'python3 /opt/myapp/process.py'
 ```
 
-The hand-rolled loop below shows the same wiring with a DM-inbox
-poll for cases where the dispatch step is also yours. If you adopt
-`--claim-id`, drop the inline Step 5–6 renew+release block and
-just spawn `substrate-worker-loop.sh` instead.
+**Ready-to-adapt pickup script (T-2152).**
+`scripts/substrate-worker-pickup.sh` ships a vetted long-running
+inbox-poll loop that closes the orchestrator+worker pair: it polls
+`agent inbox` for unread `dm:*` topics, decodes the orchestrator's
+`payload_b64`, parses `claim=X topic=Y offset=Z`, and spawns
+`substrate-worker-loop.sh --claim-id X --topic Y --offset Z` per
+dispatch. Operator passes one `--cmd` template; everything else is
+wired:
+
+```bash
+scripts/substrate-worker-pickup.sh \
+    --worker-id deploy-worker-a \
+    --cmd 'python3 /opt/myapp/run.py \
+           --topic "$TERMLINK_CLAIM_TOPIC" \
+           --offset "$TERMLINK_CLAIM_OFFSET"'
+```
+
+`--max-claims N` for bounded smoke runs. `--test-parse 'PAYLOAD'`
+prints the parsed claim/topic/offset without hub contact — useful
+for verifying orchestrator-DM-format compatibility before deploying.
+SIGTERM/SIGINT exits 130 with the in-flight worker killed cleanly.
+
+Use the script. The hand-rolled inline loop below documents the same
+wiring for cases where you need to customise (different DM payload
+format, additional ownership checks, custom logging).
 
 ```bash
 #!/usr/bin/env bash
