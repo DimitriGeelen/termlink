@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2170: substrate-preflight-smoke.sh — regression test for preflight script exit-code contract (T-2154/T-2163/T-2166 protection)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T16:43:01Z
+# ============================================================================
+
+task_id: T-2170
+task_name: "substrate-preflight-smoke.sh — regression test for preflight script exit-code contract (T-2154/T-2163/T-2166 protection)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T16:38:45Z
+completed: 2026-06-11T16:42:58Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T18:42:50+02:00
+last_commit: 2026-06-11T18:42:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-preflight-smoke.sh — regression test for preflight exit-code contract
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-preflight-smoke.sh` exists and is `+x`'
+  - 'PASS path: with `TERMLINK_RUNTIME_DIR=/var/lib/termlink` + real `hubs.toml` + no be-reachable.state, preflight exits 0'
+  - 'hubs.toml WARN path: with empty `HOME` (no hubs.toml), preflight exits 1'
+  - 'be-reachable WARN path: with a state file pointing at a dead pid, preflight exits 1'
+  - 'runtime_dir FAIL path: with `TERMLINK_RUNTIME_DIR=/tmp/test` AND /tmp detected as volatile (tmpfs OR D-rule), preflight exits 2; SKIPs gracefully on hosts where /tmp is not volatile'
+  - '`--json` envelope shape verified: `{ok, exit_code, checks, summary{pass,warn,fail}}` parses with `jq -e`'
+  - '`--quiet` PASS path: no stdout/stderr on success (empty-log canary contract)'
+  - '`--quiet` FAIL path: produces output with the `=== <ts> ===` timestamp frame'
+  - '`--help` exits 0 with usage text'
+  - 'Negative test: mutated preflight (FAIL classification → exit 1) is caught'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/scripts-substrate-preflight-smoke.yaml'
+  - 'scripts/substrate-preflight-smoke.sh'
+  - '.tasks/active/T-2170-substrate-preflight-smokesh--regression-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T18:42:50"
+    action: "T-2170: substrate-preflight-smoke.sh — regression test for preflight exit-code contract"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 663
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2170-substrate-preflight-smokesh--regression-.md
+generated_by: context-agent-hybrid
