@@ -211,6 +211,17 @@ above will cover most operator work.
   in [substrate-systemd.md "Pre-deploy verification"](substrate-systemd.md).
   Symmetric pair with T-2169 — together they close the substrate-arc
   regression-protection surface end-to-end.
+- **T-2172** — `scripts/canary-status.sh` + `/canaries` skill — read-only
+  visibility verb for the cron-tier protection layer. Auto-discovers every
+  `.context/working/.*-canary.log` + companion `.heartbeat`, classifies
+  per-canary status (HEALTHY / FIRING / STALE / NO_HEARTBEAT), surfaces
+  the latest-firing log entry inline. Closes the PL-168 dormant-tooling
+  antipattern for the cron canaries above. Substrate-arc framing:
+  completes the safety set visibility tier (CLI/T-2154 → skill/T-2158 →
+  smoke/T-2170 → cron/T-2160 → THIS). Pair with `/preflight` (deploy-
+  time) + `/substrate` (runtime) for the three-orthogonal-questions
+  cold-start digest. See [substrate-cron-recipes.md "Checking that
+  the canaries are firing"](substrate-cron-recipes.md).
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-

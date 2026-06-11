@@ -399,6 +399,54 @@ Each `--log` flag has a matching `*-history` verb (T-2068 / T-2074 /
 T-2081 / T-2086) that renders the same lines plus per-hub/topic
 aggregate footers.
 
+## Checking that the canaries are firing — `/canaries` (T-2172)
+
+The cron canaries from Recipe 1 (and the sibling release-mirror /
+fleet-doorbell-mail / meta-canary-aliveness watchers — out of scope here
+but installed by the same operator surface) follow an **empty-log =
+healthy** convention. That's structurally efficient — no noise on the
+happy path — but it creates a subtle visibility gap: the operator has
+to know each log path, the convention, AND check the heartbeat file
+mtime to confirm the cron is still firing.
+
+PL-168 calls this out: **canary scripts without an operator-facing trigger
+are dormant tooling.** This doc above installs the canaries. The
+`/canaries` skill (T-2172) is the trigger that reads them:
+
+```sh
+/canaries
+# → canary-status: 4 canary(ies) — 3 healthy, 1 firing, 0 stale (threshold 48h)
+#   HEALTHY      canary-aliveness                 hb=2026-06-11 08:33 log=2026-06-06 11:19
+#   FIRING       fleet-doorbell-mail-canary       hb=2026-06-11 09:23 log=2026-06-11 09:23
+#                ↳   - laptop-141@192.168.10.141:9100: verdict=setup-fail
+#   HEALTHY      release-mirror-canary            hb=2026-06-11 07:13 log=2026-06-08 07:13
+#   HEALTHY      substrate-preflight-canary       hb=2026-06-11 05:23 log=--
+```
+
+Per-canary status:
+
+| Status | Meaning | What to do |
+|---|---|---|
+| `HEALTHY` | Empty log AND heartbeat fresh | None — cron firing, no problems |
+| `FIRING` | Log has entries newer than heartbeat | Read the log; fix the underlying drift |
+| `STALE` | Heartbeat older than 48h threshold | Check cron is loaded; run the script manually |
+
+The verb is read-only; safe to run at any time. Pair with `cron`'s own
+healthchecks (`systemctl status cron` + `ps auxf | grep '<canary>'`)
+when STALE fires — the absence of recent heartbeats means the cron
+either isn't loaded or the script crashes before reaching its
+heartbeat-touch step.
+
+Recommended cadence: run `/canaries` (or `bash scripts/canary-status.sh
+--quiet`) at session start alongside `/preflight` and `/substrate`. The
+three answer orthogonal questions:
+
+| Verb | Tier | Question |
+|---|---|---|
+| `/preflight` (T-2158) | Deploy-time | Is the substrate set up right? |
+| `/substrate` (T-2096) | Runtime | Is the substrate healthy right now? |
+| `/canaries` (T-2172) | Cron-tier protection | Are my watchers firing AND clean? |
+
 ---
 
 ## Related
@@ -412,5 +460,15 @@ aggregate footers.
 - `agent-find-idle.md` — RPC behind Recipe 7
 - `substrate-status.md` — composition behind composite watch
 - T-2160 / `.context/cron/substrate-preflight-canary.crontab` — Recipe 1's git-tracked source
+- T-2172 / `scripts/canary-status.sh` / `/canaries` skill — operator-facing
+  visibility verb that scans every `.context/working/.*-canary.log` (auto-
+  discovery, no hard-coded canary list) and reports HEALTHY / FIRING /
+  STALE / NO_HEARTBEAT per canary with the latest-firing log entry inline.
+  Closes the PL-168 dormant-tooling antipattern for the cron-tier protection
+  layer. Default 48h stale threshold (T-1723 convention); `--max-age-hours
+  N` to tune for non-daily cadences. `--quiet` renders only problems
+  (cron-friendly); `--json` emits a parseable envelope.
+- PL-168 (canary scripts without an operator-facing trigger are dormant
+  tooling — T-2172 closes this for the cron canaries above)
 - PL-187 (verb-stack rung 7: ephemeral session integrators → durable cron monitors)
 - PL-208 (chmod gap — every notify script must be `chmod +x`)
