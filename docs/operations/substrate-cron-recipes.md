@@ -60,9 +60,13 @@ PATH=/usr/local/bin:/usr/bin:/bin
 ```
 
 **What fires when:** PL-021 runtime_dir regression (post-reboot /tmp
-wipe), missing `~/.termlink/hubs.toml`, dead `be-reachable.state` PID.
+wipe), missing `~/.termlink/hubs.toml`, dead `be-reachable.state` PID,
+stale CLI binary vs project VERSION (T-2181 Check 4), local hub
+serving a pre-T-2139 binary missing `rate_buckets_evicted_total`
+(T-2184 Check 5 — typical: operator rebuilt + reinstalled but never
+restarted hub, so `/proc/<hub-pid>/exe` shows `...(deleted)`).
 
-**Tuning:** None — the three checks are categorical (binary fail/pass).
+**Tuning:** None — the five checks are categorical (binary fail/pass).
 If you want a SECOND check daily for higher cadence, copy the line and
 change minute/hour offsets.
 
