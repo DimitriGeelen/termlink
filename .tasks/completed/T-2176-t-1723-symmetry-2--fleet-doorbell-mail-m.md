@@ -4,10 +4,10 @@ name: "T-1723 symmetry #2 — fleet-doorbell-mail meta-canary cron line"
 description: >
   T-1723 symmetry #2 — fleet-doorbell-mail meta-canary cron line
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T19:00:08Z
-last_update: 2026-06-11T19:00:08Z
-date_finished: null
+last_update: 2026-06-11T19:02:17Z
+date_finished: 2026-06-11T19:02:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -179,3 +179,6 @@ out=$(grep -l "check-canary-aliveness.sh" .context/cron/*.crontab | wc -l); test
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2176-t-1723-symmetry-2--fleet-doorbell-mail-m.md
 - **Context:** Initial task creation
+
+### 2026-06-11T19:02:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

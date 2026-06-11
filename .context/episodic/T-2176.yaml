@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2176: T-1723 symmetry #2 — fleet-doorbell-mail meta-canary cron line
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T19:02:19Z
+# ============================================================================
+
+task_id: T-2176
+task_name: "T-1723 symmetry #2 — fleet-doorbell-mail meta-canary cron line"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T19:00:08Z
+completed: 2026-06-11T19:02:17Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T21:02:12+02:00
+last_commit: 2026-06-11T21:02:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  meta-canary symmetry #2 — fleet-doorbell-mail canary (T-1723 pattern)
+
+# Key outcomes
+outcomes:
+  - '`.context/cron/fleet-doorbell-mail-canary.crontab` gains a meta-canary line at 10:53 UTC (90 min after the :23 canary, on a unique minute to dodge :13/:17/:23/:33/:43 clusters), invoking `check-canary-aliveness.sh` with HEARTBEAT_FILE, CANARY_NAME, CANARY_PROBE_CMD, CANARY_CRON_PATH env overrides.'
+  - 'Smoke (fresh): `HEARTBEAT_FILE=.context/working/.fleet-doorbell-mail-canary.heartbeat CANARY_NAME="fleet-doorbell-mail canary" bash check-canary-aliveness.sh --quiet` exits 0.'
+  - 'Smoke (stale): force the heartbeat mtime back 60h, run the same command, get exit 1 with diagnostic naming the fleet-doorbell-mail canary by name and the correct cron path.'
+  - 'All three daily cron canaries (mirror, substrate-preflight, fleet-doorbell-mail) now have meta-canary protection — `grep -l check-canary-aliveness.sh .context/cron/*.crontab | wc -l` returns 3.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-doorbell-mail-canary.crontab'
+  - '.tasks/active/T-2176-t-1723-symmetry-2--fleet-doorbell-mail-m.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T21:02:12"
+    action: "T-2176: meta-canary symmetry #2 — fleet-doorbell-mail canary (T-1723 pattern)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 191
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2176-t-1723-symmetry-2--fleet-doorbell-mail-m.md
+generated_by: context-agent-hybrid
