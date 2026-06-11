@@ -161,10 +161,29 @@ classify() {
         fi
     fi
 
-    # Last log entry (last non-empty line, trimmed to 120 chars).
+    # Latest log entry — prefer a signal-bearing line over the literal last
+    # line. Canaries that print one multi-line block per cron run (e.g.
+    # fleet-doorbell-mail prints a `DRIFT` header + summary counters + one
+    # row per hub) have the actionable signal mid-block; `tail -n 1` would
+    # return the last per-row entry (typically a passing row), which is
+    # operator-misleading when status=FIRING. The heuristic scans the recent
+    # tail (last 50 lines) for any line matching fail|drift|stale|warn|
+    # error|behind (case-insensitive — covers verdict=fail / verdict=setup-fail,
+    # `DRIFT`, mirror canary's "behind origin", etc.) and returns the
+    # latest match. Falls back to the first non-empty line of the recent
+    # tail when no signal found — typically the per-run header (e.g.
+    # `Fleet doorbell+mail health: DRIFT`).
     local latest_entry=""
     if [ "$log_size" != "0" ]; then
-        latest_entry=$(tail -n 5 "$log_path" 2>/dev/null | grep -v '^$' | tail -n 1 | head -c 120)
+        local recent_tail
+        recent_tail=$(tail -n 50 "$log_path" 2>/dev/null)
+        local signal
+        signal=$(printf '%s\n' "$recent_tail" | grep -E -i 'fail|drift|stale|warn|error|behind' | tail -n 1 | head -c 120)
+        if [ -n "$signal" ]; then
+            latest_entry="$signal"
+        else
+            latest_entry=$(printf '%s\n' "$recent_tail" | grep -v '^$' | head -n 1 | head -c 120)
+        fi
     fi
 
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
