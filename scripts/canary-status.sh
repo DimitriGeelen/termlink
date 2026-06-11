@@ -87,11 +87,19 @@ MAX_AGE_SECS=$((MAX_AGE_HOURS * 3600))
 NOW=$(date +%s)
 
 # Discover canary log files. Pattern: any `.context/working/.*-canary.log`,
-# plus the meta-canary aliveness log (uses different naming).
+# plus the meta-canary aliveness log (uses different naming), plus the
+# `.log` path SYNTHESIZED from any `.*-canary.heartbeat` so we surface
+# healthy, never-fired canaries (T-2178). classify() handles log_size=0 /
+# log_mtime=0 cleanly so a synthesized-but-absent .log renders as `log=--`.
+# sort -u dedups: if both .log and .heartbeat exist, we list once.
 discover_canaries() {
     {
         ls -1 "$WORKING_DIR"/.*-canary.log 2>/dev/null
         ls -1 "$WORKING_DIR"/.canary-aliveness.log 2>/dev/null
+        for hb in "$WORKING_DIR"/.*-canary.heartbeat; do
+            [ -e "$hb" ] || continue
+            printf '%s\n' "${hb%.heartbeat}.log"
+        done
     } | sort -u
 }
 
