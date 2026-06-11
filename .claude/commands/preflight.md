@@ -27,7 +27,7 @@ before anyone notices (PL-021 / G-058 class).
 
 | Form | Action |
 |------|--------|
-| `/preflight` | Run all three checks (human-format render) |
+| `/preflight` | Run all five checks (human-format render) |
 | `/preflight --json` | Machine-readable envelope (passes through) |
 
 ## What it checks
@@ -37,6 +37,8 @@ before anyone notices (PL-021 / G-058 class).
 | 1 | `TERMLINK_RUNTIME_DIR` NOT on /tmp | HIGH | PL-021: hub regenerates secret + TLS cert every reboot. Two volatile mechanisms detected: tmpfs mount AND systemd-tmpfiles D-rule wipe (the rule that looks innocent in `mount` output but still nukes /tmp on boot — T-1294). |
 | 2 | `~/.termlink/hubs.toml` present + has `[hubs.*]` sections | MEDIUM | Without it, every heal path (T-1054/T-1055/T-1291) fails; fleet verbs (fleet doctor, fleet verify, fleet history) all return "no profiles". |
 | 3 | `~/.termlink/be-reachable.state` PID alive | MEDIUM | If pid is dead, pickup loops, agent contact, and DM receipts all look healthy at registration time but the listener is gone. Catches the "I forgot to `/be-reachable` again after reboot" footgun. |
+| 4 | `termlink --version` >= project root `VERSION` | MEDIUM | T-2181: catches stale-CLIENT footgun where catalog promises flags like `--only-stuck` (T-2076) or subcommands like `fleet governor-status` (T-2062) that an older binary refuses with `unknown flag`. WARN-only — substrate still works for primitives the binary has. Skipped silently outside the project tree (no `VERSION` file). Remediation: `cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/`. |
+| 5 | local hub serves T-2139 `rate_buckets_evicted_total` field | MEDIUM | T-2184: symmetric companion to Check 4. Probes running hub via `termlink hub status --governor --json` for field presence. Absence ⇒ pre-T-2139 hub (typically: operator ran `cargo install` but never restarted hub — `/proc/<pid>/exe` shows `...(deleted)`, in-memory binary keeps serving old envelopes). The CLI loyally renders absent fields as `n/a` and the operator infers missing-feature when the actual gap is missing-restart. Skipped when hub down (Check 1 territory). Remediation: restart hub to pick up new binary; verify runtime_dir persistence per Check 1 first. Origin: PL-209 spent ~30min chasing "missing telemetry" that was a missing restart. |
 
 Exit codes:
 - `0` — all PASS, substrate-ready
