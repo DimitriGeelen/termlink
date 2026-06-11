@@ -395,6 +395,63 @@ Why this pattern is correct:
   lazy-evict the lapsed claim on the next claim attempt and the slot
   reopens. No explicit "tombstone" required.
 
+## Production deployment via systemd templates
+
+The shell loops above are the canonical wiring. For production —
+where you want the orchestrator + workers to survive reboots, log to
+the journal, and refuse to start on a misconfigured host — wrap both
+sides in the shipped systemd templates instead of writing your own
+unit files:
+
+| Side | Template | Wraps | Identity from |
+|---|---|---|---|
+| Dispatch | `systemd-templates/termlink-substrate-orchestrator@.service` (T-2165) | `scripts/substrate-orchestrator-loop.sh` (T-2148) | `%i` = orchestrator-id |
+| Pickup | `systemd-templates/termlink-substrate-worker@.service` (T-2167) | `scripts/substrate-worker-pickup.sh` (T-2152) | `%i` = worker-id |
+
+Both templates use `EnvironmentFile=/etc/termlink/substrate-{orchestrator,worker}/%i.env`
+for per-instance config, default `TERMLINK_RUNTIME_DIR=/var/lib/termlink`
+(load-bearing per PL-021), translate env vars → CLI flags inline, ship
+matching hardening (NoNewPrivileges, PrivateTmp, ProtectSystem=strict),
+and log to the journal under `SyslogIdentifier=termlink-substrate-{role}-%i`.
+
+One-host install:
+
+```bash
+# Dispatch (one per topic per host)
+sudo install -d /etc/termlink/substrate-orchestrator
+sudo cp /opt/termlink/systemd-templates/termlink-substrate-orchestrator@.service \
+        /etc/systemd/system/
+# Author /etc/termlink/substrate-orchestrator/my-orch.env with TERMLINK_SO_WORK_TOPIC=…
+sudo systemctl daemon-reload
+sudo systemctl enable --now termlink-substrate-orchestrator@my-orch.service
+
+# Pickup (one per worker per host; %i becomes the substrate worker-id)
+sudo install -d /etc/termlink/substrate-worker
+sudo cp /opt/termlink/systemd-templates/termlink-substrate-worker@.service \
+        /etc/systemd/system/
+# Author /etc/termlink/substrate-worker/deploy-worker-a.env with TERMLINK_SW_CMD=…
+sudo systemctl daemon-reload
+sudo systemctl enable --now termlink-substrate-worker@deploy-worker-a.service
+```
+
+Multiple worker instances per host: same template, different `.service`
+filename — each appears on `agent-presence` under its own worker-id and
+receives dispatch DMs independently.
+
+**Restart=on-failure + exit-4 contract.** All three long-running
+substrate scripts (orchestrator-loop, worker-pickup, worker-loop) run
+`scripts/substrate-preflight.sh` at startup (T-2163/T-2166): silent on
+PASS, warn-and-continue on WARN, **refuse to start with exit 4** on
+FAIL. The templates ship `Restart=on-failure + RestartSec=10s` for
+exactly this reason — a misconfigured host (volatile `/tmp` runtime_dir,
+missing `hubs.toml`, dead `be-reachable`) produces a visible restart-loop
+in `systemctl status` / `journalctl -u`, instead of a silently-wedging
+service that fails per envelope arrival.
+
+Full install walkthrough, env-file templates, troubleshooting table, and
+the three worker-side patterns (DM-driven via template, external-queue
+hand-roll, short-lived CI): `docs/operations/substrate-systemd.md`.
+
 ## Failure modes and recovery
 
 | Symptom | Diagnosis | Recovery |
