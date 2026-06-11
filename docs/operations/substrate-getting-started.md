@@ -154,3 +154,8 @@ above will cover most operator work.
 - **T-2146** — `scripts/substrate-worker-loop.sh` (worker harness)
 - **T-2148** — `scripts/substrate-orchestrator-loop.sh` (orchestrator harness)
 - **T-2149** — this doc
+- **T-2154** — `scripts/substrate-preflight.sh` (deploy-time correctness; the underlying script behind `/preflight`)
+- **T-2158** — `/preflight` skill (one-keystroke deploy-time check)
+- **T-2159** — [substrate-tunables.md](substrate-tunables.md) — canonical
+  reference for every `TERMLINK_*` env var that tunes hub or client
+  behavior. Read this before adjusting any knob.

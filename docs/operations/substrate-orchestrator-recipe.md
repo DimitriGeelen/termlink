@@ -752,6 +752,12 @@ For full details on each:
   + cross-primitive rollup (substrate status CLI/MCP + watch + notify + log + history)
 - **G-060 cross-hub** — [`channel-topic-semantics.md`](channel-topic-semantics.md)
   + why hubs don't federate state; how to compose
+- **Tunables reference** — [`substrate-tunables.md`](substrate-tunables.md)
+  + canonical list of every `TERMLINK_*` env var that tunes hub or
+  client behavior — defaults, range, when-to-tune-up/down,
+  symptom-when-misconfigured. Read this before raising
+  `TERMLINK_MAX_CONNECTIONS`, lowering `TERMLINK_DEDUPE_TTL_MS`, or
+  changing any other knob.
 
 ## Related ADR sections
 
