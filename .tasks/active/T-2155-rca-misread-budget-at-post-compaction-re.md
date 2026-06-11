@@ -42,10 +42,11 @@ the user-authorized 300K", and wrapped at "~298K" — when the actual current
 budget at session start was 159350 (level=ok), verified by
 `cat .context/working/.budget-status`. ~140K of real headroom was un-used.
 
-## Recommendation
+## Analysis
 
 GO — file structural fix proposal to framework-agent via `framework:pickup`
-topic.
+topic. (Canonical Recommendation block below — this section captures the
+underlying RCA detail referenced by that block's Evidence.)
 
 ### Symptom
 Agent narrates budget level based on historical tool-result JSON pulled from
@@ -192,9 +193,13 @@ Direct evidence: this session I parsed {"level":"urgent","tokens":273016,...} fr
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- **Live reproduction this session.** Agent parsed `{"level":"urgent","tokens":273016,...}` from a SessionStart:compact persisted-output block (echo of prior session's Read of `/tmp/claude-0/.../tasks/<id>.output` Task tool ephemeral). Narrated entire session as "27K headroom up to 300K"; actual budget at session start was 159350 tokens (level=ok) per `cat .context/working/.budget-status`. Result: ~140K of real headroom un-used.
+- **`/resume` skill gap.** Current skill (userSettings:resume) gathers handover + git status + tasks + tool counter + web server — does NOT include `cat .context/working/.budget-status`. See `.claude/commands/resume.md` Step 1 enumeration. Hook-side budget enforcement is pull-only; nothing forces agent to ground claims against canonical cache.
+- **CLAUDE.md "After context compaction" section** (search for "After context compaction (mid-session recovery)") names `fw resume status` + `fw resume sync` — does NOT name `.context/working/.budget-status` as required read.
+- **SessionStart:compact context-recovery flow** re-injects historical tool results verbatim. Historical Task tool output containing budget-shaped JSON (same key names `level`/`tokens`/`timestamp`/`source`) is structurally indistinguishable from current cache read.
+- **Pickup target identified.** Fix lives at framework layer: `/resume` ships from `userSettings:`, SessionStart:compact hook ships from `framework:` — project-side fix would not propagate. Pickup-to-framework-agent via `framework:pickup` topic is the correct escalation path (T-1814-class).
+- **Fix is bounded and reversible.** Option A: one-line addition to `/resume` Step 1 + summary template line (`Budget: {level} ({tokens} tokens) from cache`). Option B: SessionStart:compact hook prepends `Current budget: level={X} tokens={Y}` to persisted-output BEFORE historical snapshots — makes ground truth the first thing agent sees. Recommended: B primary + A defence-in-depth.
+- **Sibling task** [T-2156](http://192.168.10.107:3003/review/T-2156) (the pickup envelope to framework-agent) is already captured horizon=next, awaiting GO here to authorize the post.
 
 ## Decisions
 
