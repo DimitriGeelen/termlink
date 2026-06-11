@@ -4,20 +4,20 @@ name: "T-1723 symmetry — substrate-preflight canary meta-aliveness protection"
 description: >
   T-1723 symmetry — substrate-preflight canary meta-aliveness protection
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-canary-aliveness.sh, scripts/substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T18:51:57Z
-last_update: 2026-06-11T18:51:57Z
-date_finished: null
+last_update: 2026-06-11T18:56:03Z
+date_finished: 2026-06-11T18:56:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -183,3 +183,6 @@ grep -q "no-heartbeat" scripts/substrate-preflight.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2175-t-1723-symmetry--substrate-preflight-can.md
 - **Context:** Initial task creation
+
+### 2026-06-11T18:56:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
