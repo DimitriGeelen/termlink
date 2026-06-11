@@ -39,6 +39,7 @@ set -u
 
 JSON=0
 QUIET=0
+HEARTBEAT=1
 EXIT_RC=0
 PASS_COUNT=0
 WARN_COUNT=0
@@ -58,12 +59,15 @@ Checks:
   3. ~/.termlink/be-reachable.state pid alive (if file exists)
 
 Options:
-  --json     Emit a machine-readable envelope instead of human-format output
-  --quiet    Empty-log canary mode: exit 0 with NO output on PASS; print full
-             output (and exit non-zero) only on WARN/FAIL. Use in cron jobs
-             where an empty log file is the healthy state.
-             Composes with --json (envelope only on WARN/FAIL).
-  --help     Print this help and exit 0
+  --json           Emit a machine-readable envelope instead of human-format output
+  --quiet          Empty-log canary mode: exit 0 with NO output on PASS; print full
+                   output (and exit non-zero) only on WARN/FAIL. Use in cron jobs
+                   where an empty log file is the healthy state.
+                   Composes with --json (envelope only on WARN/FAIL).
+  --no-heartbeat   Suppress the T-1723 heartbeat-file touch. Used by the meta-canary
+                   (check-canary-aliveness.sh with CANARY_PROBE_CMD) so the
+                   freshness probe doesn't side-effect the very signal it watches.
+  --help           Print this help and exit 0
 
 Exit codes:
   0   All checks PASS
@@ -89,10 +93,24 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --json) JSON=1; shift ;;
         --quiet) QUIET=1; shift ;;
+        --no-heartbeat) HEARTBEAT=0; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "substrate-preflight.sh: unknown flag: $1" >&2; exit 2 ;;
     esac
 done
+
+# T-2175 (mirror of T-1723) heartbeat: prove this canary ran, even on FAIL
+# cycles. scripts/check-canary-aliveness.sh stats this file's mtime; if stale,
+# the canary itself is broken (cron didn't load, script crashed, etc.).
+# Placed BEFORE the --quiet buffer redirect so a buffer setup failure can't
+# silently swallow the heartbeat. --no-heartbeat suppresses the touch so the
+# meta-canary can probe the substrate state without side-effecting the very
+# signal it's checking.
+HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.substrate-preflight-canary.heartbeat}"
+if [ "$HEARTBEAT" = 1 ]; then
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
+    touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
+fi
 
 # --quiet buffers all stdout to a temp file; on exit, only emit if non-zero.
 if [ "$QUIET" -eq 1 ]; then

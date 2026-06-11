@@ -31,3 +31,13 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # detection — non-root execution would silently downgrade Check 1 to
 # "tmpfs-only" coverage).
 23 5 * * * root cd /opt/termlink && bash scripts/substrate-preflight.sh --quiet >> .context/working/.substrate-preflight-canary.log 2>&1
+
+# T-2175 — meta-canary. Fires 80 minutes after the canary above, on a
+# different minute so a load-time race or transient cron lock can't take
+# both out together. Reuses scripts/check-canary-aliveness.sh (T-1723
+# parameterized in T-2175) via env-var overrides. --quiet means the log
+# only grows when substrate-preflight.sh's heartbeat is stale; an empty
+# log here is the healthy state (same convention as the canary it
+# watches). Offset chosen to dodge :13 mirror, :17 heartbeat, :23
+# canary above, :33 mirror-meta, :43 rollout-audit.
+43 6 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.substrate-preflight-canary.heartbeat CANARY_NAME="substrate-preflight canary" CANARY_PROBE_CMD="bash scripts/substrate-preflight.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-substrate-preflight-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
