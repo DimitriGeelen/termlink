@@ -1,0 +1,33 @@
+# T-2160 — substrate-preflight nightly canary (PL-021 + hubs.toml + be-reachable
+# deploy-time validation; complement of release-mirror-canary).
+#
+# Source of truth: /opt/termlink/.context/cron/substrate-preflight-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-substrate-preflight-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Daily check that the substrate environment is still correctly configured
+# AFTER any host reboot, container restart, package upgrade, or systemd unit
+# change. Catches PL-021 regressions (a fresh /tmp wipe re-introduces the
+# volatile-runtime-dir failure mode if the migration was lost), missing
+# hubs.toml after a /root rebuild, and dead be-reachable state files.
+#
+# Exit 0 from --quiet means PASS; the log accumulates only when something
+# is wrong, so an empty log is the healthy state.
+#
+# Diagnostic on log entry: read the framed block (each event starts with
+# === YYYY-MM-DDTHH:MM:SSZ === and ends with ---) — it contains the same
+# output `/preflight` would have shown interactively.
+#
+# Operator action: see CLAUDE.md §"Hub Auth Rotation Protocol" → "Special
+# case — volatile runtime_dir" for the runtime_dir failure path; see
+# `docs/operations/substrate-orchestrator-recipe.md` § "Deployment &
+# identity troubleshooting" for the broader failure-mode catalog.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 05:23 UTC — offset chosen to avoid colliding with :13 mirror
+# canary, :17 heartbeat, :33 meta-canary, and :43 rollout audit. Runs as
+# root so cwd-into the repo doesn't trip permissions and so it can read
+# /usr/lib/tmpfiles.d/ (Check 1 needs that for the systemd-tmpfiles D-rule
+# detection — non-root execution would silently downgrade Check 1 to
+# "tmpfs-only" coverage).
+23 5 * * * root cd /opt/termlink && bash scripts/substrate-preflight.sh --quiet >> .context/working/.substrate-preflight-canary.log 2>&1

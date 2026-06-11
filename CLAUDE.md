@@ -68,6 +68,22 @@ if you see `secret-scan: scanner not found (skipping)` in commit output
 (indicates the scanner scripts are non-executable — T-2052 install-time
 chmod gap).
 
+### Substrate preflight canary (T-2154 + T-2158 + T-2160)
+
+The substrate has a symmetric deploy-time canary that catches PL-021
+runtime_dir regressions, missing hubs.toml, and dead be-reachable state
+files BEFORE clients hit hours-later auth-mismatch. Daily cron runs
+`scripts/substrate-preflight.sh --quiet` (see
+`.context/cron/substrate-preflight-canary.crontab`) and appends to
+`.context/working/.substrate-preflight-canary.log`. Empty log = healthy.
+Any entry = the host's substrate environment regressed (typically: a
+reboot wiped /tmp, or systemd-tmpfiles override added post-install).
+Each log entry is framed `=== <ts> ===\n<full preflight output>\n---`
+for forensic clarity. Ad-hoc check: `/preflight` (skill, T-2158) or
+`bash scripts/substrate-preflight.sh` (exit 0 PASS / 1 WARN / 2 FAIL).
+Pair with the mirror-drift canary above — both follow the same
+"empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

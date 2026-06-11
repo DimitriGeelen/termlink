@@ -38,6 +38,7 @@
 set -u
 
 JSON=0
+QUIET=0
 EXIT_RC=0
 PASS_COUNT=0
 WARN_COUNT=0
@@ -58,6 +59,10 @@ Checks:
 
 Options:
   --json     Emit a machine-readable envelope instead of human-format output
+  --quiet    Empty-log canary mode: exit 0 with NO output on PASS; print full
+             output (and exit non-zero) only on WARN/FAIL. Use in cron jobs
+             where an empty log file is the healthy state.
+             Composes with --json (envelope only on WARN/FAIL).
   --help     Print this help and exit 0
 
 Exit codes:
@@ -72,6 +77,9 @@ Examples:
   # Pipe-friendly form for CI / automation
   substrate-preflight.sh --json | jq '.summary'
 
+  # Cron canary form — log only grows when something is wrong:
+  substrate-preflight.sh --quiet >> ~/.substrate-preflight-canary.log 2>&1
+
 See: docs/operations/substrate-getting-started.md
      PL-021 (hub rotation under volatile runtime_dir)
 EOF
@@ -80,10 +88,19 @@ EOF
 while [ $# -gt 0 ]; do
     case "$1" in
         --json) JSON=1; shift ;;
+        --quiet) QUIET=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "substrate-preflight.sh: unknown flag: $1" >&2; exit 2 ;;
     esac
 done
+
+# --quiet buffers all stdout to a temp file; on exit, only emit if non-zero.
+if [ "$QUIET" -eq 1 ]; then
+    QUIET_BUF=$(mktemp)
+    trap 'rm -f "$QUIET_BUF"' EXIT
+    exec 3>&1
+    exec >"$QUIET_BUF"
+fi
 
 # ---- Reporting helpers --------------------------------------------------
 
@@ -299,6 +316,18 @@ else
     else
         printf 'Summary: %d pass, %d warn, %d fail — substrate will silently misbehave. FIX BEFORE DEPLOY.\n' \
             "$PASS_COUNT" "$WARN_COUNT" "$FAIL_COUNT"
+    fi
+fi
+
+# --quiet replay: emit buffered output only on non-zero exit.
+if [ "$QUIET" -eq 1 ]; then
+    exec >&3
+    exec 3>&-
+    if [ "$EXIT_RC" -ne 0 ]; then
+        # Prefix with timestamp so cron logs are forensically useful.
+        printf '=== %s ===\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        cat "$QUIET_BUF"
+        printf -- '---\n'
     fi
 fi
 
