@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2172: canary-status — unified cron canary visibility skill (substrate primitive #10/T-2160 cron-tier closure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T17:53:50Z
+# ============================================================================
+
+task_id: T-2172
+task_name: "canary-status — unified cron canary visibility skill (substrate primitive #10/T-2160 cron-tier closure)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T17:46:21Z
+completed: 2026-06-11T17:53:48Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T19:51:18+02:00
+last_commit: 2026-06-11T19:53:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /canaries — unified cron-canary visibility skill. fabric card for scripts/canary-status.sh
+
+# Key outcomes
+outcomes:
+  - '`scripts/canary-status.sh` exists, is executable, and has `--help` per PL-206'
+  - 'Script auto-discovers `.context/working/.*-canary.log` + companion `.*-canary.heartbeat` files (no hard-coded canary list)'
+  - 'Per-canary status classification: `HEALTHY` (empty log + recent heartbeat), `FIRING` (log has entries), `STALE` (heartbeat older than expected cadence, default 48h), `NO_HEARTBEAT` (log exists but heartbeat does not)'
+  - '`--json` mode emits `{ok, canaries: [{name, status, log_size, log_mtime, heartbeat_mtime, latest_entry}], summary: {total, healthy, firing, stale}}`'
+  - 'Exit codes: 0 = all healthy, 1 = any firing or stale (operator action required), 2 = tooling error'
+  - '`--max-age-hours N` flag tunes the stale threshold (default 48, matches T-1723 meta-canary convention)'
+  - 'Human-format render includes per-canary line + summary footer + actionable hints for FIRING/STALE states'
+  - '`.claude/commands/canaries.md` skill wraps the script with `/canaries` invocation, pre-flight check, pass-through args, and read-only contract documented'
+  - 'Skill doc cites PL-168 (dormant-tooling antipattern this closes) and cross-references `/substrate` (runtime-state sibling) + `/preflight` (deploy-time sibling)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/canaries.md'
+  - '.fabric/components/scripts-canary-status.yaml'
+  - 'scripts/canary-status.sh'
+  - '.tasks/active/T-2172-canary-status--unified-cron-canary-visib.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T19:51:18"
+    action: "T-2172: /canaries — unified cron-canary visibility skill"
+  - time: "2026-06-11T19:53:41"
+    action: "T-2172: fabric card for scripts/canary-status.sh"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 4
+  lines_added: 691
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2172-canary-status--unified-cron-canary-visib.md
+generated_by: context-agent-hybrid
