@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2159: docs: substrate-tunables.md — single reference for TERMLINK_* env vars
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T11:31:56Z
+# ============================================================================
+
+task_id: T-2159
+task_name: "docs: substrate-tunables.md — single reference for TERMLINK_* env vars"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T11:26:40Z
+completed: 2026-06-11T11:31:52Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T13:29:48+02:00
+last_commit: 2026-06-11T13:29:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  docs/operations/substrate-tunables.md — single reference for TERMLINK_* env vars
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-tunables.md` exists with one table per tunable category (hub-side / client-side)'
+  - 'Every TERMLINK_* env var actually referenced in current substrate docs has a row: name, default, range, when-to-tune-up, when-to-tune-down, symptom-when-misconfigured'
+  - 'Doc covers at minimum: TERMLINK_RUNTIME_DIR, TERMLINK_MAX_CONNECTIONS, TERMLINK_RATE_LIMIT_PER_SEC, TERMLINK_DEDUPE_TTL_MS, TERMLINK_DEDUPE_CAPACITY, TERMLINK_CV_INDEX_CAP_PER_TOPIC, TERMLINK_OUTBOUND_CAP, TERMLINK_AGENT_ID, TERMLINK_CLAIMER, TERMLINK_CAPABILITIES (10 variables minimum)'
+  - 'Doc cross-references back to each tunable''s per-primitive ops doc (substrate-governor.md / substrate-broadcast-with-replay.md / substrate-offline-queue-recipe.md / etc.) so operators can drill in for context'
+  - 'At least 2 existing ops docs (substrate-getting-started.md + substrate-orchestrator-recipe.md) link to this new doc as the canonical tunables reference'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-getting-started.md'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'docs/operations/substrate-tunables.md'
+  - '.tasks/active/T-2159-docs-substrate-tunablesmd--single-refere.md'
+  - '.tasks/completed/T-2158-preflight-skill--wrap-substrate-prefligh.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T13:29:48"
+    action: "T-2159: docs/operations/substrate-tunables.md — single reference for TERMLINK_* env vars"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 342
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2159-docs-substrate-tunablesmd--single-refere.md
+generated_by: context-agent-hybrid

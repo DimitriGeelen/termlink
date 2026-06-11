@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2147: Fix 3 pre-existing CLI test failures (version bitrot + T-1426 deprecation noise)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T22:02:34Z
+# ============================================================================
+
+task_id: T-2147
+task_name: "Fix 3 pre-existing CLI test failures (version bitrot + T-1426 deprecation noise)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T21:57:37Z
+completed: 2026-06-10T22:02:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T00:01:35+02:00
+last_commit: 2026-06-11T00:01:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix 3 pre-existing CLI integration test failures
+
+# Key outcomes
+outcomes:
+  - '`cli_version_text` accepts `0.11.` AND `0.12.` (+ existing 0.9./0.10.) with a TODO pointing at regex if past 0.12'
+  - '`cli_inbox_status_json_no_hub` sets `TERMLINK_NO_DEPRECATION_WARN=1` AND switches stderr-check to stdout-check (since T-1916 the --json hub-down path writes its JSON error envelope to stdout via json_error_exit, not stderr)'
+  - '`cli_inbox_clear_json_no_hub` same two-layer fix'
+  - 'All three previously-failing tests pass — `cargo test -p termlink --test cli_integration -- cli_version_text cli_inbox_status_json_no_hub cli_inbox_clear_json_no_hub` → 3 passed'
+  - 'Full cli_integration suite: 172 pass / 0 fail (was 169 pass / 3 fail)'
+  - 'No regressions in main binary tests — `cargo test -p termlink --bin termlink` → 940 passed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix 3 pre-existing CLI integration test failures'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - '.tasks/active/T-2147-fix-3-pre-existing-cli-test-failures-ver.md'
+  - '.tasks/completed/T-2146-canonical-substrate-worker-loopsh-recipe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T00:01:35"
+    action: "T-2147: fix 3 pre-existing CLI integration test failures"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 226
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2147-fix-3-pre-existing-cli-test-failures-ver.md
+generated_by: context-agent-hybrid

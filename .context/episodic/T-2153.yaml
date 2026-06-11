@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2153: substrate-orchestrator-recipe: fix two inline-loop jq bugs (.topics + .payload)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T07:06:36Z
+# ============================================================================
+
+task_id: T-2153
+task_name: "substrate-orchestrator-recipe: fix two inline-loop jq bugs (.topics + .payload)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T07:04:06Z
+completed: 2026-06-11T07:06:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T09:05:56+02:00
+last_commit: 2026-06-11T09:05:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-orchestrator-recipe.md — fix two silent jq bugs
+
+# Key outcomes
+outcomes:
+  - 'Inline recipe jq selector at the inbox-poll step is corrected from `.topics[]?` to `.[]?` (the inbox returns an array of `{topic, cursor, latest, unread}` objects). Verified.'
+  - 'Inline recipe payload extract is corrected from `jq -r ''.payload // empty''` to `jq -r ''.payload_b64 // empty'' | base64 -d` (matches the actual envelope shape). Verified.'
+  - 'A one-line comment near the corrected lines points operators at `substrate-worker-pickup.sh` as the vetted alternative. Verified — the inbox-step NOTE includes "The vetted version of this whole loop ships as `scripts/substrate-worker-pickup.sh` (T-2152) — prefer that script in production."'
+  - 'grep the doc to confirm the wrong selectors are removed. Verified — all 3 verification commands return 0.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'substrate-orchestrator-recipe.md — fix two silent jq bugs'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T09:05:56"
+    action: "T-2153: substrate-orchestrator-recipe.md — fix two silent jq bugs"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 1
+  lines_added: 9
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2153-substrate-orchestrator-recipe-fix-two-in.md
+generated_by: context-agent-hybrid

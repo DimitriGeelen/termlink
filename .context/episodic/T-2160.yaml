@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2160: substrate-preflight: --quiet mode + cron canary template
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T11:37:19Z
+# ============================================================================
+
+task_id: T-2160
+task_name: "substrate-preflight: --quiet mode + cron canary template"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T11:33:17Z
+completed: 2026-06-11T11:37:17Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T13:35:15+02:00
+last_commit: 2026-06-11T13:35:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-preflight --quiet mode + cron canary template
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-preflight.sh --quiet` exits 0 with EMPTY stdout on a healthy host'
+  - '`scripts/substrate-preflight.sh --quiet` exits non-zero AND prints full PASS/WARN/FAIL output on a misconfigured host (reproducible with `TERMLINK_RUNTIME_DIR=/tmp/preflight-canary-test`)'
+  - '`--help` documents `--quiet` and its mutex / non-mutex relationship with `--json`'
+  - '`.context/cron/substrate-preflight-canary.crontab` exists, follows the format of `.context/cron/release-mirror-canary.crontab` (USER field syntax, header comment, log path under `.context/working/.substrate-preflight-canary.log`)'
+  - 'CLAUDE.md "Mirror drift canary" subsection (or a sibling subsection) references the new preflight cron template alongside the release mirror canary so operators discover it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/substrate-preflight-canary.crontab'
+  - 'scripts/substrate-preflight.sh'
+  - '.tasks/active/T-2160-substrate-preflight---quiet-mode--cron-c.md'
+  - '.tasks/completed/T-2159-docs-substrate-tunablesmd--single-refere.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T13:35:15"
+    action: "T-2160: substrate-preflight --quiet mode + cron canary template"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 259
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2160-substrate-preflight---quiet-mode--cron-c.md
+generated_by: context-agent-hybrid

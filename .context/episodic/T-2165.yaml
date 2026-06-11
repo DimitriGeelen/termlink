@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2165: Substrate systemd templates doc — orchestrator + worker patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T14:19:24Z
+# ============================================================================
+
+task_id: T-2165
+task_name: "Substrate systemd templates doc — orchestrator + worker patterns"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T14:15:13Z
+completed: 2026-06-11T14:19:22Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T16:19:16+02:00
+last_commit: 2026-06-11T16:19:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate systemd templates — orchestrator unit + worker patterns
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-systemd.md` created with sections: When-to-install / Install / The orchestrator template / The worker-side pattern / How preflight interacts with Restart= / References'
+  - 'Doc names how T-2163 preflight exit code 4 surfaces under `Restart=on-failure` (loud restart-loop, not silent wedge)'
+  - 'Doc provides a `.service` template for `scripts/substrate-orchestrator-loop.sh` with `Environment=` for `TERMLINK_RUNTIME_DIR`, `TERMLINK_AGENT_ID`, and the `--orchestrator-id` / `--work-topic` / `--capability` flags as `ExecStart` args'
+  - 'Doc covers the worker-side pattern (a DM-driven wrapper that calls `substrate-worker-loop.sh` per claim adoption, OR explicitly notes that worker-loop is per-work-unit and the operator brings their own work-source)'
+  - 'Doc cross-references `substrate-tunables.md` (T-2159) for env-var semantics'
+  - '`docs/operations/substrate-getting-started.md` References section names T-2165 alongside T-2163'
+  - 'Live exec: `grep -q "T-2165" docs/operations/substrate-getting-started.md`'
+  - 'Live exec: `grep -q "exit 4" docs/operations/substrate-systemd.md` (preflight-restart contract surfaced)'
+  - 'Live exec: `grep -q "ExecStart" docs/operations/substrate-systemd.md` (template is real, not abstract)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-getting-started.md'
+  - 'docs/operations/substrate-systemd.md'
+  - 'systemd-templates/termlink-substrate-orchestrator@.service'
+  - '.tasks/active/T-2165-substrate-systemd-templates-doc--orchest.md'
+  - '.tasks/completed/T-2164-t-2163-closure-substrate-smoke-compat--s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T16:19:16"
+    action: "T-2165: substrate systemd templates — orchestrator unit + worker patterns"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [substrate, systemd, docs, T-2018]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 473
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2165-substrate-systemd-templates-doc--orchest.md
+generated_by: context-agent-hybrid

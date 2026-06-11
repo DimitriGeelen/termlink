@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2150: substrate-worker-loop --claim-id adopt-existing-claim flag (orchestrator + worker composition gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T06:44:47Z
+# ============================================================================
+
+task_id: T-2150
+task_name: "substrate-worker-loop --claim-id adopt-existing-claim flag (orchestrator + worker composition gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T06:41:20Z
+completed: 2026-06-11T06:44:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T08:44:20+02:00
+last_commit: 2026-06-11T08:44:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-worker-loop --claim-id adopted-claim mode
+
+# Key outcomes
+outcomes:
+  - '`substrate-worker-loop.sh --claim-id ID` skips the initial `channel claim` call and uses the passed ID for renew + work env vars + release. Verified — `if [ -n "$ADOPT_CLAIM_ID" ]` branch in script bypasses the `channel claim` call, sets `CLAIM_ID="$ADOPT_CLAIM_ID"`, falls through to step 2 (renew) + 3 (work) + 4 (release) unchanged.'
+  - 'When `--claim-id` is NOT passed, behavior is identical to T-2146 (claim + renew + work + release-ack). Verified — `else` branch is the unchanged T-2146 claim path. Smoke confirmed: offset 1 standalone path printed `claiming topic=...` then `claim_id=...` then `release(--ack)`, exit 0.'
+  - '`--help` documents the new flag with one paragraph distinguishing standalone vs adopted-claim modes. Verified — `--help` shows a 9-line ADOPTED-CLAIM description.'
+  - 'Live smoke: pre-claim an offset via `termlink channel claim`, then run `substrate-worker-loop.sh --claim-id <id> --topic <T> --offset <N> --cmd ''true'' --claimer <X>`. Worker reports `adopting existing claim_id=...`, runs cmd, exit 0, release(--ack) succeeds. Active claims drop to 0 afterward. **Verified live (2026-06-11)** on `smoke:t2150` — pre-claim by `t2150-orch` → claim-transfer to `t2150-worker` → worker-loop with `--claim-id` logged `adopting existing claim_id=clm-1781160175128102560-smoke_t2150-0`, ran cmd (env vars correctly populated), exit 0, `release(--ack)` ok, `claims-summary --json` shows `active_count=0 expired_count=0`.'
+  - 'shellcheck on `scripts/substrate-worker-loop.sh` is clean. Verified — exit 0, no findings.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'scripts/substrate-worker-loop.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T08:44:20"
+    action: "T-2150: substrate-worker-loop --claim-id adopted-claim mode"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 59
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2150-substrate-worker-loop---claim-id-adopt-e.md
+generated_by: context-agent-hybrid

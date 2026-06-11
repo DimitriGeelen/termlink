@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2162: docs: substrate-cron-recipes.md — production monitoring patterns
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T12:17:41Z
+# ============================================================================
+
+task_id: T-2162
+task_name: "docs: substrate-cron-recipes.md — production monitoring patterns"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T12:12:47Z
+completed: 2026-06-11T12:17:39Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T14:15:38+02:00
+last_commit: 2026-06-11T14:15:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  docs/operations/substrate-cron-recipes.md — 7 production-monitoring recipes
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-cron-recipes.md` exists with at least 6 recipes (preflight-nightly, page-on-cap-hits, page-on-rate-hits, page-on-cv-overflow, page-on-stuck-claims, page-on-queue-pending) — shipped 7'
+  - 'Each recipe has: (a) cron line ready for `/etc/cron.d/`, (b) notify script template ready for `chmod +x` to `/usr/local/bin/`, (c) "what fires when" explanation, (d) how to silence false positives / tuning hint'
+  - 'Doc cross-references back to the per-primitive ops docs that own the underlying watch verb (substrate-governor.md / substrate-claim-primitive.md / etc.)'
+  - 'At least 2 existing ops docs (substrate-getting-started.md + substrate-orchestrator-recipe.md) link to this new doc as the canonical cron-monitoring reference'
+  - 'Doc warns about the install-time chmod gap (PL-208 / T-2052) for notify scripts — operators must `chmod +x` their script for the `--notify` invocation to work'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-cron-recipes.md'
+  - 'docs/operations/substrate-getting-started.md'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - '.tasks/active/T-2162-docs-substrate-cron-recipesmd--productio.md'
+  - '.tasks/completed/T-2161-fabric-register-6-substrate-primitive-co.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T14:15:38"
+    action: "T-2162: docs/operations/substrate-cron-recipes.md — 7 production-monitoring recipes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 598
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2162-docs-substrate-cron-recipesmd--productio.md
+generated_by: context-agent-hybrid

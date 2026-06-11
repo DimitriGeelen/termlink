@@ -4,10 +4,10 @@ name: "docs: substrate-cron-recipes.md — production monitoring patterns"
 description: >
   Consolidate every substrate observability cron-recipe pattern (page-on-cap-hits, page-on-cv-overflow, page-on-stuck-claims, page-on-queue-pending, page-on-find-idle-removal, nightly preflight canary) into one operator-facing doc. Each recipe: ready-to-install crontab + ready-to-install notify script template + diagnostic ladder. Operators get production-grade substrate monitoring in one copy-paste.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T12:12:47Z
-last_update: 2026-06-11T12:12:51Z
-date_finished: null
+last_update: 2026-06-11T12:17:39Z
+date_finished: 2026-06-11T12:17:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -179,3 +179,6 @@ date_finished: null
 
 ### 2026-06-11T12:12:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T12:17:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

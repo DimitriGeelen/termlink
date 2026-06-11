@@ -4,20 +4,20 @@ name: "Fix 3 pre-existing CLI test failures (version bitrot + T-1426 deprecation
 description: >
   Fix 3 pre-existing CLI test failures (version bitrot + T-1426 deprecation noise)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T21:57:37Z
-last_update: 2026-06-10T21:57:37Z
-date_finished: null
+last_update: 2026-06-10T22:02:31Z
+date_finished: 2026-06-10T22:02:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -132,6 +132,43 @@ cargo test -p termlink --test cli_integration --quiet cli_inbox_clear_json_no_hu
 
 ## RCA
 
+**Symptom:** Three CLI integration tests (`cli_version_text`,
+`cli_inbox_status_json_no_hub`, `cli_inbox_clear_json_no_hub`) had been
+red across multiple sessions. The session's substrate work shipped on
+top of a 169/172 passing baseline, leaving genuine signal masked.
+
+**Root cause:** Two distinct bitrot vectors:
+- Version test enumerated `0.9.` / `0.10.` only; v0.11 shipped 2026-05-17
+  (T-1691) and v0.11.x has been live since. The test rotted the moment
+  the v0.11 tag landed.
+- Inbox-json hub-down tests checked stderr, but since T-1916 added
+  `--json` honoring on the hub-down path, the JSON error envelope routes
+  through `json_error_exit` → stdout. The test was checking the wrong
+  stream. T-1426 deprecation print (added later) flooded stderr with
+  the only string the test could see, completing the masking.
+
+**Why structurally allowed:**
+1. No CI gate fails on new red tests on the main branch — failures
+   accumulate as background noise until someone notices.
+2. The version test enumerates families instead of asserting structure
+   ("looks like semver"). Each major-minor bump rots it.
+3. T-1916 (--json error routing) and T-1426 (deprecation prints) each
+   landed without touching the inbox tests that depended on the prior
+   stderr-only contract. The tests' assertion comment ("should fail
+   with clear error") doesn't pin which stream "clear" lives on, so
+   the contract drift was invisible at PR review.
+
+**Prevention:**
+- Switched test #1 to enumerate up to 0.12 with a TODO comment pointing
+  at regex-based matching once past that.
+- Switched tests #2/#3 to read from stdout (where `--json` errors
+  actually go) AND added `TERMLINK_NO_DEPRECATION_WARN=1` so future
+  deprecation rollouts don't repeat the noise-mask.
+- Sibling concern: a forward-looking gap is that "land a new
+  deprecation print on a verb without updating tests" still has no
+  structural detector. Filed as candidate observation; would need a
+  separate task to address (out of scope here).
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -197,3 +234,6 @@ cargo test -p termlink --test cli_integration --quiet cli_inbox_clear_json_no_hu
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2147-fix-3-pre-existing-cli-test-failures-ver.md
 - **Context:** Initial task creation
+
+### 2026-06-10T22:02:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

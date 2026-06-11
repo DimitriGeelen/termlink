@@ -4,20 +4,20 @@ name: "Close rate_buckets_evicted_total observability through watch/notify/log/h
 description: >
   Close rate_buckets_evicted_total observability through watch/notify/log/history (T-2018 §6 #10 — T-2139 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T19:33:43Z
-last_update: 2026-06-10T19:43:58Z
-date_finished: null
+last_update: 2026-06-10T19:44:29Z
+date_finished: 2026-06-10T19:44:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -207,3 +207,6 @@ out=$(grep -n "evicted_total" crates/termlink-mcp/src/tools.rs 2>&1); test -n "$
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2140-close-ratebucketsevictedtotal-observabil.md
 - **Context:** Initial task creation
+
+### 2026-06-10T19:44:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

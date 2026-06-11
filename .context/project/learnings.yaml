@@ -2204,3 +2204,17 @@ learnings:
   date: 2026-06-10
   context: Added via context agent
   application: TBD
+- id: PL-207
+  learning: "Executable inline shell examples in operations docs need live-probe validation against current API shapes — jq selectors authored from intuition (.topics vs .[], .payload vs .payload_b64) survived multiple edits because no gate runs the docs as code. Mitigation: when adding a shipped script (substrate-worker-pickup.sh) that mirrors an inline doc example, verify both side-by-side. Future lint candidate: extract bash blocks from docs/operations/*.md and at minimum shellcheck them."
+  source: P-001
+  task: T-2153
+  date: 2026-06-11
+  context: Added via context agent
+  application: TBD
+- id: PL-208
+  learning: "pickup-channel-bridge.sh (and other framework shipped scripts) can lose their +x bit — same class as T-2052 install-time chmod gap. Silent no-op for 17 days (G-061) until manual chmod fired. When a substrate component silently misbehaves with no error in logs, ls -l the script BEFORE assuming the API changed or the bridge is broken. Hooks like fw doctor check-bridge-executable would catch this structurally"
+  source: P-001
+  task: T-2157
+  date: 2026-06-11
+  context: Added via context agent
+  application: TBD

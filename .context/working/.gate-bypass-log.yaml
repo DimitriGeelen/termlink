@@ -1270,3 +1270,23 @@ git status --shor'
 T-2039: extend test coverage — direct bus-level unit tests for claims_summary SQL aggregate
 
 The integration te'
+- timestamp: '2026-06-10T16:26:39Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2129'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2129: capture PL-206 doc-CLI drift learning + closure artifacts
+
+PL-206 captures the recurring class behind the three specific bugs
+T-2129 '
+- timestamp: '2026-06-10T18:24:41Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2136'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2136: closure artifacts (active→completed + episodic)" 2>&1 | tail -10'
+- timestamp: '2026-06-11T16:17:37Z'
+  task: 'T-2169'
+  flag: '--skip-rca'
+  caller: 'check_rca_for_bugfix'
+  reason: ''

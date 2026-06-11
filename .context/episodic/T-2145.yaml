@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2145: Auto-pick Retention::Latest for state:* topic patterns (T-2126 sibling, T-2142 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T21:49:59Z
+# ============================================================================
+
+task_id: T-2145
+task_name: "Auto-pick Retention::Latest for state:* topic patterns (T-2126 sibling, T-2142 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T21:43:24Z
+completed: 2026-06-10T21:49:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T23:49:18+02:00
+last_commit: 2026-06-10T23:49:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  auto-pick Retention::Latest for state:* topic patterns
+
+# Key outcomes
+outcomes:
+  - '`is_single_value_state_pattern("state:foo")` returns true in both `crates/termlink-hub/src/channel.rs` and `crates/termlink-cli/src/commands/channel.rs` — duplicated per T-2069 convention with disjoint-from-high-rate test'
+  - '`is_single_value_state_pattern("agent-presence")` returns false — predicate is tight (`starts_with("state:")` only)'
+  - 'CLI `ensure_topic` picks `Retention::Latest` when called on a `state:*` topic name (channel.rs:1781 — state:* branch checked first, then high-rate, then default Forever)'
+  - 'Hub emits a `tracing::warn!` when `channel.create` is called on `state:*` with `Retention::Forever` (channel.rs:362, sibling to T-2058 high-rate warn)'
+  - '`cargo test -p termlink-hub --quiet` passes — 357 tests pass, including 3 new state-pattern tests (matches/rejects/disjoint)'
+  - '`cargo test -p termlink --quiet --bin termlink` passes — 940 tests pass, including 3 new state-pattern tests'
+  - '`docs/operations/substrate-orchestrator-recipe.md` documents the auto-pick (T-2145 section after the state:deploy-mode example)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - '.tasks/active/T-2145-auto-pick-retentionlatest-for-state-topi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T23:49:18"
+    action: "T-2145: auto-pick Retention::Latest for state:* topic patterns"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 346
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2145-auto-pick-retentionlatest-for-state-topi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2152: substrate-worker-pickup.sh — inbox-poll DM dispatch loop (orchestrator pair)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T07:03:27Z
+# ============================================================================
+
+task_id: T-2152
+task_name: "substrate-worker-pickup.sh — inbox-poll DM dispatch loop (orchestrator pair)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T06:51:23Z
+completed: 2026-06-11T07:03:25Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T09:03:20+02:00
+last_commit: 2026-06-11T09:03:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-worker-pickup.sh inbox-poll dispatch loop
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-worker-pickup.sh` exists, is executable, shellcheck-clean (exit 0).'
+  - '`--help` documents all flags: required `--cmd ''TEMPLATE''`; optional `--worker-id ID`, `--hub addr`, `--poll-ms N` (default 2000), `--max-claims N` (default 0 = unlimited), `--test-parse ''PAYLOAD''` (diagnostic mode).'
+  - 'Auto-resolves `--worker-id` via T-1857 chain (flag → `$TERMLINK_AGENT_ID` → `~/.termlink/be-reachable.state` → refuse with hint exit 3). Verified via `resolve_worker_id` in script.'
+  - 'Parses orchestrator DM payload format `claim=X topic=Y offset=Z` (the format produced by `substrate-orchestrator-loop.sh` line 270). **Verified live (2026-06-11)**: `--test-parse "claim=clm-abc123 topic=smoke:work offset=42"` → `claim_id=clm-abc123 topic=smoke:work offset=42`, exit 0. Negative case `--test-parse "hello world"` → `parse-failed (missing field)`, exit 1.'
+  - 'Spawns `substrate-worker-loop.sh --claim-id X --topic Y --offset Z --claimer $WORKER_ID --cmd ''<template>''` and waits for it. Verified by code read of main loop (lines after the dispatch parse): `"$WORKER_LOOP" --topic "$TOPIC" --offset "$OFFSET" --claim-id "$CLAIM_ID" --claimer "$WORKER_ID" --cmd "$CMD_TEMPLATE" ... &` followed by `wait "$CURRENT_WORKER_PID"`.'
+  - 'Live smoke: pickup loop runs against the local hub and processes existing DM topics correctly — payload_b64 decoded, dispatch-format classified, non-dispatch payloads loud-skipped with the original payload echoed. **Verified live (2026-06-11)**: 30s `--max-claims 1` run iterated 7 unread DM envelopes (mix of real-world non-dispatch content), each correctly classified as `non-dispatch DM on <topic> (skipped): <decoded text>`. SIGTERM exit 130 confirmed. End-to-end happy-path with foreign-sender dispatch DM is gated by T-1427 strict identity binding (cannot fake sender_id on a single host); the regression gate for the worker-loop spawn arguments is substrate-smoke.sh (T-2151) which exercises the same `--claim-id` composition.'
+  - 'SIGTERM/SIGINT exits cleanly with exit 130 (matches T-2146 + T-2148 signal convention). Verified — `trap ''cleanup; exit 130'' INT TERM` + `cleanup` kills any in-flight worker pid.'
+  - 'Cross-ref added in `substrate-orchestrator-recipe.md`. Verified — "Ready-to-adapt pickup script (T-2152)" block sits between the standalone-worker example and the hand-rolled inline loop, pointing operators at the new script first.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'scripts/substrate-worker-pickup.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T09:03:20"
+    action: "T-2152: substrate-worker-pickup.sh inbox-poll dispatch loop"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 2
+  lines_added: 310
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2152-substrate-worker-pickupsh--inbox-poll-dm.md
+generated_by: context-agent-hybrid

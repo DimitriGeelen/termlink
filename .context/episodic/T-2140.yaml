@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2140: Close rate_buckets_evicted_total observability through watch/notify/log/history (T-2018 §6 #10 — T-2139 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T19:45:04Z
+# ============================================================================
+
+task_id: T-2140
+task_name: "Close rate_buckets_evicted_total observability through watch/notify/log/history (T-2018 §6 #10 — T-2139 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T19:33:43Z
+completed: 2026-06-10T19:44:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T21:43:57+02:00
+last_commit: 2026-06-10T21:44:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  close rate_buckets_evicted_total observability through watch/notify/log/history. tick all 11 Agent ACs — all surfaces shipped + tested
+
+# Key outcomes
+outcomes:
+  - '`WatchGovernorState` extended from 7-tuple to 8-tuple with `Option<i64>` at position 7 for `evicted_total` (pre-T-2139 hubs serialize as None).'
+  - 'Watch loop reads `rate_buckets_evicted_total` from `hub.governor_status` response and constructs the 8-tuple state.'
+  - '`render_governor_watch_change_line` adds `evicted=A→B(+delta)` segment to the change-line output (or `n/a` when missing on either side, matching cv_overflow convention).'
+  - '`build_governor_notify_env` emits `TERMLINK_GOV_OLD_EVICTED`, `TERMLINK_GOV_NEW_EVICTED`, `TERMLINK_GOV_EVICTED_DELTA` env vars (empty when either side missing).'
+  - '`build_governor_log_entry` writes `old_evicted`, `new_evicted`, `evicted_delta` fields to the NDJSON line (JSON null when missing, matching cv_overflow convention).'
+  - '`render_governor_history_line` shows the evicted segment.'
+  - '`GovernorHubAgg` (CLI) gains `evicted_total: i64` field; aggregator sums `evicted_delta` over window; CLI history footer displays `evicted=+N` column; CLI `--json` envelope `per_hub` ships `evicted_total`.'
+  - '`GovernorHubAggMcp` (MCP) gains matching `evicted_total: i64` field; MCP aggregator sums `evicted_delta`; MCP `per_hub` envelope ships `evicted_total`.'
+  - 'Unit tests added (CLI): `watch_governor_renders_evicted_delta`, `build_governor_notify_env_computes_evicted_delta`, `aggregate_governor_entries_sums_evicted_delta` — mirror of T-2119''s cv_overflow tests.'
+  - 'Unit tests added (MCP): `fleet_governor_history_aggregates_evicted_delta` — mirror of MCP cv_overflow test.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/focus.yaml'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2140-close-ratebucketsevictedtotal-observabil.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T21:43:57"
+    action: "T-2140: close rate_buckets_evicted_total observability through watch/notify/log/history"
+  - time: "2026-06-10T21:44:25"
+    action: "T-2140: tick all 11 Agent ACs — all surfaces shipped + tested"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+  files_changed: 5
+  lines_added: 602
+  lines_removed: 59
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2140-close-ratebucketsevictedtotal-observabil.md
+generated_by: context-agent-hybrid

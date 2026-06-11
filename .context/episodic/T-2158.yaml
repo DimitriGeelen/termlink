@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2158: /preflight skill — wrap substrate-preflight.sh as deploy-time correctness daily verb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T11:25:42Z
+# ============================================================================
+
+task_id: T-2158
+task_name: "/preflight skill — wrap substrate-preflight.sh as deploy-time correctness daily verb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T11:21:31Z
+completed: 2026-06-11T11:25:40Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T13:23:37+02:00
+last_commit: 2026-06-11T13:23:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /preflight skill — deploy-time substrate correctness daily verb
+
+# Key outcomes
+outcomes:
+  - '`.claude/commands/preflight.md` exists and parses as a valid skill (YAML-free, follows the pattern of `find-idle.md`)'
+  - 'Skill body references `scripts/substrate-preflight.sh` as the wrapper and explains the three checks (PL-021 / hubs.toml / be-reachable state)'
+  - 'Skill cross-references the complementary verbs: `/substrate` (runtime digest), `/self-test` (framework E2E), `fw doctor` (framework health), and points operators at when to use each'
+  - 'Skill supports `--json` pass-through (operators piping into automation) and a no-arg default'
+  - 'Live invocation: `bash scripts/substrate-preflight.sh` returns exit 0 PASS on this host; `bash scripts/substrate-preflight.sh --json` returns parseable JSON envelope'
+  - 'Skill enumerated in CLAUDE.md Quick Reference (one row under the substrate read-side verbs)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/preflight.md'
+  - 'CLAUDE.md'
+  - '.tasks/active/T-2158-preflight-skill--wrap-substrate-prefligh.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T13:23:37"
+    action: "T-2158: /preflight skill — deploy-time substrate correctness daily verb"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 380
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2158-preflight-skill--wrap-substrate-prefligh.md
+generated_by: context-agent-hybrid

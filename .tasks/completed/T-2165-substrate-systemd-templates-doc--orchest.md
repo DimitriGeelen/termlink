@@ -4,10 +4,10 @@ name: "Substrate systemd templates doc — orchestrator + worker patterns"
 description: >
   Author docs/operations/substrate-systemd.md — production systemd templates for substrate-orchestrator-loop.sh AND the worker-loop wrapper pattern. Operators currently have no copy-pasteable systemd surface for substrate components: listener-heartbeat-systemd.md exists for presence, but substrate-orchestrator-loop.sh (T-2148) and the worker-loop wrap pattern have no equivalent. Include: (1) .service template with the right Restart=, Environment= for TERMLINK_RUNTIME_DIR + TERMLINK_AGENT_ID + TERMLINK_CAPABILITIES, ExecStart pointing at the loop script, (2) note that T-2163 preflight gate's exit 4 interacts correctly with Restart=on-failure (loud restart-loop rather than silent wedge — exactly what you want from a misconfigured host), (3) worker-side pattern (a wrapping work-source / inbox-poll loop calling substrate-worker-loop.sh per claim adoption — DM-driven path from T-2148 orchestrator). Cross-link from substrate-getting-started.md References + substrate-tunables.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [substrate, systemd, docs, T-2018]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T14:15:13Z
-last_update: 2026-06-11T14:15:21Z
-date_finished: null
+last_update: 2026-06-11T14:19:22Z
+date_finished: 2026-06-11T14:19:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -188,3 +188,6 @@ grep -q "T-2165" docs/operations/substrate-getting-started.md
 
 ### 2026-06-11T14:15:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T14:19:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

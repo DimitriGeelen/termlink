@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2146: Canonical substrate-worker-loop.sh recipe script (T-2124 hello-world)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T21:57:32Z
+# ============================================================================
+
+task_id: T-2146
+task_name: "Canonical substrate-worker-loop.sh recipe script (T-2124 hello-world)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T21:50:13Z
+completed: 2026-06-10T21:57:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-10T23:56:25+02:00
+last_commit: 2026-06-10T23:56:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ship canonical substrate-worker-loop.sh recipe script
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-worker-loop.sh` exists, executable (chmod +x), shebang `#!/usr/bin/env bash`'
+  - '`bash -n scripts/substrate-worker-loop.sh` passes — syntax ok'
+  - '`--help` exits 0, documents `--topic`, `--offset`, `--cmd`, `--ttl-ms`, `--claimer`, `--renew-every-ms`, `--hub` + exit-code table'
+  - 'Missing required flag (`--topic`, `--offset`, `--cmd`) → exits 2 with `Usage: --X required (see --help)` stderr line'
+  - 'Successful path verified live on smoke:t2146 offset 0 — claim → worker → release(--ack), exit 0'
+  - 'Failure path verified live on offset 1 — worker exit 7 → release (no --ack), exit 1; re-claim on offset 1 succeeded confirming slot reopened'
+  - 'Signal handling wired via trap INT TERM — releases-without-ack, exits 130 (smoke: trap is set; can''t unit-test SIGTERM cleanly in CI without flakes)'
+  - 'Auto-renew background subshell renews every `renew_every_ms` (default ttl_ms/2) with `--additional-ttl-ms $TTL_MS`; renew failures land on stderr and don''t kill the loop'
+  - 'Master recipe doc gains a "Ready-to-adapt script (T-2146)" block at the top of the "Canonical worker pattern" section'
+  - 'shellcheck clean — `shellcheck scripts/substrate-worker-loop.sh` produces no output'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'scripts/substrate-worker-loop.sh'
+  - '.tasks/active/T-2146-canonical-substrate-worker-loopsh-recipe.md'
+  - '.tasks/completed/T-2145-auto-pick-retentionlatest-for-state-topi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T23:56:25"
+    action: "T-2146: ship canonical substrate-worker-loop.sh recipe script"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 501
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2146-canonical-substrate-worker-loopsh-recipe.md
+generated_by: context-agent-hybrid

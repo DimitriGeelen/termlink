@@ -1,0 +1,115 @@
+pickup_id: P-043
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-2018"
+  agent: "claude-code"
+  timestamp: "2026-06-08T10:18:22Z"
+payload:
+  summary: "T-2190 inception-decide auto-completion path blocked by 2 framework bugs (gate vocab mismatch + heredoc __file__)"
+  detail: "Hit while operator clicked GO on 5 T-2018 substrate primitive inceptions
+via Watchtower (T-2020, T-2021, T-2023, T-2027, T-2028). All 5 GOs
+recorded the decision commit, but auto-completion (status → work-completed,
+move to .tasks/completed/) failed. Operator saw errors. Workarounds in
+place but unblock requires two upstream fixes.
+
+═══ BUG 1: T-2190 disposition-gate vocabulary mismatch ═══
+
+File:    .agentic-framework/agents/task-create/update-task.sh:787
+Symptom: ERROR: Cannot complete inception — N Open Question(s) under-disposed.
+Gate accepts: disposition: answered|deferred|dissolved
+Common usage in inception research artifacts (incl. zzz-default.md
+authoring conventions): disposition: resolved|partial|open
+
+The vocabulary mismatch is silent until --status work-completed runs.
+Operators see the gate AFTER the GO commit lands — the decision is
+recorded but the task is stuck in started-work, requiring manual
+disposition translation per IW question per task.
+
+Fix options:
+  (a) Widen allowlist: accept 'resolved' as synonym for 'answered',
+      'partial' as 'answered' (or 'deferred' — judgment), 'open' as
+      'deferred'. Single-line regex change at update-task.sh:787.
+  (b) Update zzz-default.md Open Questions template to document the
+      exact accepted vocabulary in the comment block. Discoverability
+      fix only — does not help existing artifacts.
+  (c) Both — widen + document.
+
+Recommend (c). The semantic intent of 'resolved' (research produced a
+definitive answer) is exactly 'answered'; rejecting it on vocabulary
+grounds creates friction for no governance benefit.
+
+═══ BUG 2: heredoc __file__ breaks inception-scope-trace check ═══
+
+File:    .agentic-framework/agents/task-create/update-task.sh:578-588
+Symptom: After disposition gate passes, IMMEDIATELY crashes with
+         ModuleNotFoundError: No module named 'lib.inception_decisions'
+         (Traceback File '<stdin>', line 10)
+Code:
+  py_output=\$(python3 - \"\$TASK_FILE\" \"\$PROJECT_ROOT\" <<'PYEOF'
+  import sys, os
+  sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+  ...
+  from lib.inception_decisions import parse_inception_decisions, check_ships_in_reachable
+
+Root cause: When python3 is invoked via '- <<HEREDOC', __file__ is
+'<stdin>' (or undefined in newer Python). os.path.abspath('<stdin>')
+joins with CWD, producing /opt/termlink/<stdin>. Three dirname() calls
+then collapse to /, NOT to the framework root. From / the package
+'lib.inception_decisions' is unimportable.
+
+Workaround: PYTHONPATH=\$FRAMEWORK_ROOT fw task update T-XXX ...
+This unblocks but is not discoverable; operators hit the error before
+ever knowing the workaround exists.
+
+Fix shape (one-line):
+  sys.path.insert(0, os.environ.get('FRAMEWORK_ROOT', os.path.dirname(...))
+FRAMEWORK_ROOT is already exported by bin/fw before the script runs
+(verified: PROJECT_ROOT and FRAMEWORK_ROOT are both in scope). Drop the
+brittle __file__ arithmetic entirely.
+
+Alternative: pass framework_root as sys.argv[3] alongside task_file and
+project_root.
+
+═══ IMPACT ═══
+
+EVERY inception decision via Watchtower or CLI passes through this
+code path. Bug 1 jams every GO/NO-GO/DEFER click; Bug 2 jams every one
+that passes the disposition gate. Once unblocked individually per task,
+each takes ~30-60s of operator/agent time to translate dispositions
+and retry with PYTHONPATH= prefix.
+
+This blocks the entire T-2018 (arc-parallel-substrate ADR) acceptance
+flow. 5 Foundation+Supporting primitives are GO'd and waiting for
+build-task promotion. The next operator clicking GO on any future
+inception hits the same wall.
+
+═══ REPRODUCER ═══
+
+1. Create an inception task with at least one '- **IW-1: ...**' entry
+2. Use 'disposition: resolved' (or 'partial', 'open') in the IW block
+3. fw inception decide T-XXX go --rationale '...'
+4. fw task update T-XXX --status work-completed --skip-sovereignty
+5. Observe: 'ERROR: Cannot complete inception — N Open Question(s) under-disposed'
+6. Change disposition to 'answered'; retry
+7. Observe: 'ModuleNotFoundError: No module named lib.inception_decisions'
+8. PYTHONPATH=/opt/termlink/.agentic-framework fw task update ...; succeeds
+
+═══ EVIDENCE ═══
+
+Watchtower log (truncated):
+  inception decide T-2020 failed: primary_landed=True
+  stdout='... Disposition gate: 4 Open Question(s) under-disposed.
+  T-2190 (T-2186 Slice 4): every IW-N question in ## Open Questions
+  must carry disposition: answered|deferred|dissolved'
+
+Commits with the fixes-then-close (5 tasks unblocked manually):
+  3edd6f1d T-2023: fix Open Question dispositions (resolved/partial → answered, open → deferred)
+  051d0814 T-2021: fix Open Question dispositions (resolved → answered)
+  63d4988b T-2020: fix Open Question dispositions (resolved → answered)
+  + T-2027 / T-2028 same pattern, landed on origin/main 2a53dd2f.
+
+Reported from termlink session 2026-06-08T10:15Z."
+  priority: high
+  tags: [inception-gate, t-2190, update-task, disposition, heredoc-bug]

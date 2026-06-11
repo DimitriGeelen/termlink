@@ -4,10 +4,10 @@ name: "fabric: register 6 substrate-primitive code files (T-2018 backlog)"
 description: >
   Register the 6 substrate-primitive code files that ship without fabric cards (claim.rs, claim_client.rs, agent_find_idle.rs, cv_index.rs, governor.rs, dedupe.rs). Closes the fabric-drift WARN that's accumulated across T-2018 substrate shipping; makes substrate code visible to fw fabric deps/impact/blast-radius for future agents.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T11:45:53Z
-last_update: 2026-06-11T11:45:57Z
-date_finished: null
+last_update: 2026-06-11T11:49:31Z
+date_finished: 2026-06-11T11:49:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -177,3 +177,6 @@ date_finished: null
 
 ### 2026-06-11T11:45:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T11:49:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

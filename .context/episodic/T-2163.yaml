@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2163: Wire substrate-preflight into loop-script startup (T-2154 closure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T14:05:57Z
+# ============================================================================
+
+task_id: T-2163
+task_name: "Wire substrate-preflight into loop-script startup (T-2154 closure)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T14:00:47Z
+completed: 2026-06-11T14:05:54Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T16:05:49+02:00
+last_commit: 2026-06-11T16:05:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wire substrate-preflight into loop-script startup (T-2154 closure)
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-orchestrator-loop.sh` calls `scripts/substrate-preflight.sh` before its first hub-touching operation'
+  - '`scripts/substrate-worker-loop.sh` does the same'
+  - 'On preflight exit 2 (FAIL), both loops refuse to start: print the preflight output to stderr and exit 4 (new code, distinct from existing 2=usage / 3=claimer-unresolved / 11=claim-fail / 12=release-fail / 130=signal)'
+  - 'On preflight exit 1 (WARN), both loops print one stderr WARNING line plus the preflight body and continue'
+  - 'On preflight exit 0 (PASS), both loops are silent (no extra output)'
+  - 'Both loops accept `--skip-preflight` to bypass the check entirely (CI/test paths)'
+  - '`--help` text on both loops mentions `--skip-preflight` and the new exit code 4'
+  - 'Live exec: `scripts/substrate-orchestrator-loop.sh --help` succeeds and shows `--skip-preflight`'
+  - 'Live exec: `scripts/substrate-worker-loop.sh --help` succeeds and shows `--skip-preflight`'
+  - 'Live exec: `TERMLINK_RUNTIME_DIR=/tmp/preflight-loop-test scripts/substrate-worker-loop.sh --topic smoke --offset 0 --cmd ''true''` exits 4 with a `[FAIL] runtime_dir` line on stderr (no hub contact attempted)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/substrate-orchestrator-loop.sh'
+  - 'scripts/substrate-worker-loop.sh'
+  - '.tasks/active/T-2163-wire-substrate-preflight-into-loop-scrip.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T16:05:49"
+    action: "T-2163: wire substrate-preflight into loop-script startup (T-2154 closure)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [substrate, preflight, T-2018, safety]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 3
+  lines_added: 297
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2163-wire-substrate-preflight-into-loop-scrip.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "Wire substrate-preflight into loop-script startup (T-2154 closure)"
 description: >
   Wire substrate-preflight.sh into substrate-orchestrator-loop.sh and substrate-worker-loop.sh as a startup check. The two loop scripts are the load-bearing 'real' substrate-runtime entry points (every production worker/orchestrator wraps them). Today they will happily start with TERMLINK_RUNTIME_DIR=/tmp and wedge silently on the next reboot — PL-021. Add a preflight call at the top of each loop: on exit 2 (FAIL) refuse to start, on exit 1 (WARN) print and continue, on exit 0 (PASS) silent. Add --skip-preflight flag for CI/test paths where preflight is already known clean. Closes the substrate-arc safety arc: preflight CLI (T-2154) → /preflight skill (T-2158) → cron canary (T-2160) → loop-startup gate (this slice).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [substrate, preflight, T-2018, safety]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T14:00:47Z
-last_update: 2026-06-11T14:00:57Z
-date_finished: null
+last_update: 2026-06-11T14:05:54Z
+date_finished: 2026-06-11T14:05:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -192,3 +192,6 @@ out=$(TERMLINK_RUNTIME_DIR=/tmp/preflight-loop-test scripts/substrate-orchestrat
 
 ### 2026-06-11T14:00:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T14:05:54Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -20,6 +20,9 @@ Thumbs.db
 # Framework symlink (machine-specific)
 .agentic-framework
 
+# fw upgrade rollback backup — machine-local, never tracked
+.agentic-framework.rollback/
+
 # Vendored TermLink binary (machine-specific, per-project isolation)
 .termlink/bin/
 

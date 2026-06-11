@@ -4,10 +4,10 @@ name: "docs: substrate-tunables.md — single reference for TERMLINK_* env vars"
 description: >
   Consolidate all substrate-tunable env vars (TERMLINK_*) into one operator-facing reference doc — defaults, when-to-tune, symptom-when-misconfigured. Currently scattered across 5+ ops docs; an operator tuning a deployment has to grep the codebase.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T11:26:40Z
-last_update: 2026-06-11T11:26:47Z
-date_finished: null
+last_update: 2026-06-11T11:31:52Z
+date_finished: 2026-06-11T11:31:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -179,3 +179,6 @@ date_finished: null
 
 ### 2026-06-11T11:26:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T11:31:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

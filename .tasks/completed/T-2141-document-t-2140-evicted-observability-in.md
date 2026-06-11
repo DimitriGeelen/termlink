@@ -4,10 +4,10 @@ name: "Document T-2140 evicted observability in substrate-governor runbook (T-20
 description: >
   Document T-2140 evicted observability in substrate-governor runbook (T-2018 §6 #10 docs follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T19:46:00Z
-last_update: 2026-06-10T19:48:48Z
-date_finished: null
+last_update: 2026-06-10T20:07:01Z
+date_finished: 2026-06-10T20:07:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -194,3 +194,6 @@ out=$(grep -c "T-2140" docs/operations/substrate-governor.md 2>&1); test "$out" 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2141-document-t-2140-evicted-observability-in.md
 - **Context:** Initial task creation
+
+### 2026-06-10T20:07:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

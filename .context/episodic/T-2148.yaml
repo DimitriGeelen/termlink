@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2148: Canonical substrate-orchestrator-loop.sh recipe script (T-2146 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-10T22:08:39Z
+# ============================================================================
+
+task_id: T-2148
+task_name: "Canonical substrate-orchestrator-loop.sh recipe script (T-2146 sibling)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T22:03:01Z
+completed: 2026-06-10T22:08:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T00:08:32+02:00
+last_commit: 2026-06-11T00:08:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ship canonical substrate-orchestrator-loop.sh recipe script
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-orchestrator-loop.sh` exists, executable, shebang `#!/usr/bin/env bash`'
+  - '`bash -n` passes'
+  - '`--help` exits 0 and documents `--work-topic`, `--capability`, `--orchestrator-id`, `--ttl-ms`, `--idle-poll-ms`, `--hub`, `--max-envelopes` flags + exit-code table'
+  - 'Missing `--work-topic` exits 2 with stderr line `Usage: --work-topic required (see --help)`'
+  - 'Stream-driven loop: subscribes to work-topic with `--resume`, jq-parses one envelope at a time, dispatches per `.offset`'
+  - 'Find-idle backoff: when no idle worker matches `--capability`, sleeps `idle_poll_ms` then retries — never crashes the loop (wait_for_idle_worker helper)'
+  - 'Claim → claim-transfer → DM sequence per envelope. If `claim-transfer` fails after a successful `claim`, the claim is released (without --ack) so the slot reopens — no claim leak (cleanup path proven by IN_FLIGHT_CLAIM_ID state machine)'
+  - 'Signal handling: trap INT TERM → cleanup() releases IN_FLIGHT_CLAIM_ID + kills subscribe child + exits 130'
+  - '`shellcheck` clean — `shellcheck scripts/substrate-orchestrator-loop.sh` produces no output'
+  - 'Master recipe doc gains a "Ready-to-adapt script (T-2148)" block at the top of the "Canonical orchestrator pattern" section'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'scripts/substrate-orchestrator-loop.sh'
+  - '.tasks/active/T-2148-canonical-substrate-orchestrator-loopsh-.md'
+  - '.tasks/completed/T-2147-fix-3-pre-existing-cli-test-failures-ver.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T00:08:32"
+    action: "T-2148: ship canonical substrate-orchestrator-loop.sh recipe script"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 531
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2148-canonical-substrate-orchestrator-loopsh-.md
+generated_by: context-agent-hybrid

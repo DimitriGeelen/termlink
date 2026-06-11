@@ -1,13 +1,13 @@
 ---
-id: T-2169
-name: "substrate-systemd-smoke.sh — static-verify regression test for orchestrator + worker templates (T-2165/T-2167 protection)"
+id: T-2153
+name: "substrate-orchestrator-recipe: fix two inline-loop jq bugs (.topics + .payload)"
 description: >
-  substrate-systemd-smoke.sh — static-verify regression test for orchestrator + worker templates (T-2165/T-2167 protection)
+  substrate-orchestrator-recipe: fix two inline-loop jq bugs (.topics + .payload)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-11T16:11:06Z
-last_update: 2026-06-11T16:11:06Z
-date_finished: null
+created: 2026-06-11T07:04:06Z
+last_update: 2026-06-11T07:06:34Z
+date_finished: 2026-06-11T07:06:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,32 +30,45 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2169: substrate-systemd-smoke.sh — static-verify regression test for orchestrator + worker templates (T-2165/T-2167 protection)
+# T-2153: substrate-orchestrator-recipe: fix two inline-loop jq bugs (.topics + .payload)
 
 ## Context
 
-T-2165 (orchestrator template) + T-2167 (worker template) shipped without regression protection. A single accidental edit could silently break a future operator's `systemctl enable --now` install — bad `%i` specifier, missing `EnvironmentFile=`, dropped `Restart=on-failure`, or a `TERMLINK_SUBSTRATE_SCRIPT=` path that no longer exists. Static-verify smoke catches these classes BEFORE the templates land on a production host.
+The hand-rolled "Canonical work-stealing worker" loop in
+`docs/operations/substrate-orchestrator-recipe.md` has two silent-failure
+bugs that would prevent it from ever picking up an orchestrator dispatch:
 
-The smoke is intentionally STATIC: no `systemctl enable`, no service install, no daemon mutation. Pure file-content checks + `systemd-analyze verify` + script-existence + script-`+x` validation. Safe to run anywhere, suitable for CI.
+1. **`.topics[]?` (line ~317)** — `agent inbox --json` returns an array
+   directly, not an object with a `.topics` field. The recipe's jq filter
+   `.topics[]? | select(...)` would silently yield empty output, leaving
+   `next_dm` empty and the worker spinning in `continue`.
 
-Mirrors the `scripts/substrate-smoke.sh` (T-2151) pattern: PASS/FAIL per stage, exit 0/1/2, optional `--json`. Local-only — no termlink RPC, no hub auth, no state mutation.
+2. **`.payload // empty` (line ~284)** — `channel subscribe` returns
+   envelopes with the payload base64-encoded in `.payload_b64`, not in
+   `.payload`. The recipe would always extract empty `dm_payload`, hit
+   `[ -n "$dm_payload" ] || continue`, and skip every envelope.
+
+Both bugs were verified live (2026-06-11) against the local hub:
+
+```
+$ termlink agent inbox --json | jq -c 'keys?'  # ⇒ [0,1,2,3] (array, not object)
+$ termlink channel subscribe dm:t2152-test:t2152-orch --limit 1 --json \
+    | jq -c '.payload, .payload_b64'           # ⇒ null  "Y2xhaW09..."
+```
+
+T-2152 ships `substrate-worker-pickup.sh` which uses the correct jq
+filters (`.[]?` and `.payload_b64` + base64 -d), so the operator-facing
+ship path is clean. This task fixes the customisation reference so
+operators who copy-paste the inline loop don't burn an afternoon
+debugging silent failures.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `scripts/substrate-systemd-smoke.sh` exists and is `+x`
-- [x] Runs with no args and exits 0 on a clean tree (both templates valid)
-- [x] Verifies both templates exist at `systemd-templates/termlink-substrate-{orchestrator,worker}@.service`
-- [x] Asserts each template has `[Unit]`, `[Service]`, `[Install]` sections + `Description=`, `Type=exec`, `EnvironmentFile=`, `ExecStart=`, `Restart=on-failure`, `RestartSec=`, `WantedBy=`
-- [x] Asserts each template carries `Environment=TERMLINK_SUBSTRATE_SCRIPT=` AND that the referenced script EXISTS in `scripts/` AND is `+x`
-- [x] Asserts each template carries `Environment=TERMLINK_RUNTIME_DIR=` NOT pointing at `/tmp` (PL-021 prevention contract)
-- [x] Asserts orchestrator hard-wires `--orchestrator-id %i` in ExecStart; worker hard-wires `--worker-id %i`
-- [x] Asserts worker ExecStart has the `TERMLINK_SW_CMD` required-env guard (exit 2 if unset)
-- [x] Runs `systemd-analyze verify` against each template (if available) and skips gracefully if not (e.g. WSL/container without systemd-analyze)
-- [x] Negative test: deliberately mutated template (`Restart=on-failure` → `Restart=no`) fails the smoke with a clear PASS/FAIL line on stderr
-- [x] `--json` emits envelope `{ok, stages_passed, stages_failed, errors}` parseable by `jq -e .ok`
-- [x] `--help` prints usage with exit 0
-- [x] `fw audit` passes after the script lands (no new structure warnings)
+- [x] Inline recipe jq selector at the inbox-poll step is corrected from `.topics[]?` to `.[]?` (the inbox returns an array of `{topic, cursor, latest, unread}` objects). Verified.
+- [x] Inline recipe payload extract is corrected from `jq -r '.payload // empty'` to `jq -r '.payload_b64 // empty' | base64 -d` (matches the actual envelope shape). Verified.
+- [x] A one-line comment near the corrected lines points operators at `substrate-worker-pickup.sh` as the vetted alternative. Verified — the inbox-step NOTE includes "The vetted version of this whole loop ships as `scripts/substrate-worker-pickup.sh` (T-2152) — prefer that script in production."
+- [x] grep the doc to confirm the wrong selectors are removed. Verified — all 3 verification commands return 0.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -90,10 +103,13 @@ Mirrors the `scripts/substrate-smoke.sh` (T-2151) pattern: PASS/FAIL per stage, 
 
 ## Verification
 
-bash scripts/substrate-systemd-smoke.sh
-bash scripts/substrate-systemd-smoke.sh --json | jq -e .ok > /dev/null
-bash scripts/substrate-systemd-smoke.sh --help > /dev/null
-test -x scripts/substrate-systemd-smoke.sh
+# Confirm the corrected selectors are in place AND the executable line of
+# the inline loop block no longer contains the wrong jq path.
+# (The fix-note comment may still mention the wrong path in prose — that's
+# intentional, so the grep is keyed to the executable code line shape.)
+grep -q "jq -r '\\.\\[\\]?" docs/operations/substrate-orchestrator-recipe.md
+grep -q "payload_b64 // empty' | base64 -d" docs/operations/substrate-orchestrator-recipe.md
+! grep -q "jq -r '\\.topics\\[\\]?" docs/operations/substrate-orchestrator-recipe.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -128,19 +144,16 @@ test -x scripts/substrate-systemd-smoke.sh
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Inline "Canonical work-stealing worker" loop in the substrate-orchestrator-recipe.md doc would silently fail to pick up dispatches when copy-pasted by an operator. `next_dm` would always be empty (silently — jq `?` swallows the type error from indexing into an array as if it were an object); when staged with manual cursor bootstrap, `dm_payload` would still always be empty because `.payload` doesn't exist on the envelope shape.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Doc-as-code was authored without verifying the jq selectors against live envelope shapes. Both bugs had the same anti-pattern — the author intuited a field name (`.topics` from "agent inbox shows topics"; `.payload` from "channel post --payload") rather than running a probe to confirm. The actual shapes (`.[]?` for an array-returning RPC; `.payload_b64` per T-1427 envelope canon) were never validated. Bugs survived several edits (T-2148, T-2150, T-2151) because each subsequent edit only added cross-references to other parts of the doc without re-reading the loop block.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Inline shell examples in operations docs are not linted, executed, or property-tested by any framework gate. The only path to discovery is an operator copy-pasting and finding it broken. T-2152 (`substrate-worker-pickup.sh`) was authored to ship a vetted version, and during that authoring I probed the live envelope shapes and discovered the doc bugs (the find condition exists for THIS bug: writing a real, executable mirror of the inline example).
+
+**Prevention:** Three layers:
+1. **PL-206 reminder reinforced** — when authoring a doc that contains an executable example, treat the example as code: run it against the actual surface before committing.
+2. **Cross-link.** The recipe now points operators at `substrate-worker-pickup.sh` first, with NOTEs at the buggy-shape boundary explaining the correct selector — so any future operator who finds yet another shape-bug has a direct comparison to the working script.
+3. **Possible future lint:** an audit step that extracts ```bash blocks from docs/operations/*.md and runs shellcheck on them would catch syntax issues (not semantic ones like wrong jq paths, but a partial mitigation). Filed informally — not blocking on this task.
 
 ## Evolution
 
@@ -189,7 +202,10 @@ test -x scripts/substrate-systemd-smoke.sh
 
 ## Updates
 
-### 2026-06-11T16:11:06Z — task-created [task-create-agent]
+### 2026-06-11T07:04:06Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2169-substrate-systemd-smokesh--static-verify.md
+- **Output:** /opt/termlink/.tasks/active/T-2153-substrate-orchestrator-recipe-fix-two-in.md
 - **Context:** Initial task creation
+
+### 2026-06-11T07:06:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

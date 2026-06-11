@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2164: T-2163 closure: substrate-smoke compat + safety-arc doc cross-refs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T14:12:07Z
+# ============================================================================
+
+task_id: T-2164
+task_name: "T-2163 closure: substrate-smoke compat + safety-arc doc cross-refs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T14:09:15Z
+completed: 2026-06-11T14:11:49Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T16:11:43+02:00
+last_commit: 2026-06-11T16:11:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-smoke compat + safety-arc doc cross-refs (T-2163 closure)
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-smoke.sh` passes `--skip-preflight` to its `substrate-worker-loop.sh` invocation'
+  - 'Inline comment explains WHY (smoke is a mechanical test, not a deploy-correctness check)'
+  - '`docs/operations/substrate-getting-started.md` Section 3 (or References) names T-2163 alongside T-2154/T-2158/T-2160'
+  - '`docs/operations/substrate-cron-recipes.md` Recipe 1 cross-references T-2163 as the runtime-startup companion to the nightly cron'
+  - 'Live exec: `bash -n scripts/substrate-smoke.sh` succeeds'
+  - 'Live exec: `scripts/substrate-smoke.sh` end-to-end exits 0 with 6/6 PASS (no regression)'
+  - '`grep -n "T-2163" docs/operations/substrate-getting-started.md docs/operations/substrate-cron-recipes.md` returns at least 2 lines'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-cron-recipes.md'
+  - 'docs/operations/substrate-getting-started.md'
+  - 'scripts/substrate-smoke.sh'
+  - '.tasks/active/T-2164-t-2163-closure-substrate-smoke-compat--s.md'
+  - '.tasks/completed/T-2163-wire-substrate-preflight-into-loop-scrip.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T16:11:43"
+    action: "T-2164: substrate-smoke compat + safety-arc doc cross-refs (T-2163 closure)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [substrate, preflight, T-2018, docs]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 5
+  lines_added: 225
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2164-t-2163-closure-substrate-smoke-compat--s.md
+generated_by: context-agent-hybrid
