@@ -4,10 +4,10 @@ name: "Wire substrate-preflight into substrate-worker-pickup.sh startup gate (T-
 description: >
   Wire substrate-preflight into substrate-worker-pickup.sh startup gate (T-2163 symmetry)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T14:50:03Z
-last_update: 2026-06-11T14:50:03Z
-date_finished: null
+last_update: 2026-06-11T14:53:39Z
+date_finished: 2026-06-11T14:53:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,15 +50,15 @@ closes the symmetry: pickup runs preflight at startup, refuses with exit
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/substrate-worker-pickup.sh` runs `scripts/substrate-preflight.sh` at startup, before any inbox poll or hub contact
-- [ ] Preflight PASS (exit 0) → silent, continue (mirror of T-2163 worker-loop wiring)
-- [ ] Preflight WARN (exit 1) → print captured output to stderr, continue (mirror of T-2163)
-- [ ] Preflight FAIL (exit 2+) → print captured output to stderr, refuse to start with exit 4 (mirror of T-2163)
-- [ ] `--skip-preflight` flag bypasses the gate (CI / smoke / known-broken-on-purpose paths)
-- [ ] `--help` documents both the gate behavior and `--skip-preflight`
-- [ ] Live verify: on a host where `TERMLINK_RUNTIME_DIR=/tmp/foo` (forced FAIL), running pickup.sh exits 4 with the [FAIL] line on stderr
-- [ ] Live verify: `--skip-preflight` bypass exits past preflight (eventually fails on missing --cmd or worker-id resolution — not on preflight)
-- [ ] Substrate-smoke (`scripts/substrate-smoke.sh`) still PASS — pickup.sh is not invoked by smoke so no compat change needed
+- [x] `scripts/substrate-worker-pickup.sh` runs `scripts/substrate-preflight.sh` at startup, before any inbox poll or hub contact
+- [x] Preflight PASS (exit 0) → silent, continue (mirror of T-2163 worker-loop wiring)
+- [x] Preflight WARN (exit 1) → print captured output to stderr, continue (mirror of T-2163)
+- [x] Preflight FAIL (exit 2+) → print captured output to stderr, refuse to start with exit 4 (mirror of T-2163)
+- [x] `--skip-preflight` flag bypasses the gate (CI / smoke / known-broken-on-purpose paths)
+- [x] `--help` documents both the gate behavior and `--skip-preflight`
+- [x] Live verify: on a host where `TERMLINK_RUNTIME_DIR=/tmp/foo` (forced FAIL), running pickup.sh exits 4 with the [FAIL] line on stderr
+- [x] Live verify: `--skip-preflight` bypass exits past preflight (eventually fails on missing --cmd or worker-id resolution — not on preflight)
+- [x] Substrate-smoke (`scripts/substrate-smoke.sh`) still PASS — pickup.sh is not invoked by smoke so no compat change needed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -201,3 +201,6 @@ scripts/substrate-smoke.sh >/dev/null 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2166-wire-substrate-preflight-into-substrate-.md
 - **Context:** Initial task creation
+
+### 2026-06-11T14:53:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

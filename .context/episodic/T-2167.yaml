@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2167: Worker-side systemd template termlink-substrate-worker@.service + substrate-systemd.md walkthrough (T-2165 symmetry)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T14:59:30Z
+# ============================================================================
+
+task_id: T-2167
+task_name: "Worker-side systemd template termlink-substrate-worker@.service + substrate-systemd.md walkthrough (T-2165 symmetry)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T14:54:02Z
+completed: 2026-06-11T14:59:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T16:59:02+02:00
+last_commit: 2026-06-11T16:59:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  worker systemd template + substrate-systemd.md walkthrough
+
+# Key outcomes
+outcomes:
+  - '`systemd-templates/termlink-substrate-worker@.service` exists (template unit, %i = worker-id)'
+  - 'Template uses `EnvironmentFile=/etc/termlink/substrate-worker/%i.env` (per-instance config)'
+  - 'Template defaults `TERMLINK_RUNTIME_DIR=/var/lib/termlink` (load-bearing per PL-021)'
+  - 'Template ExecStart resolves env→flags for pickup.sh (required: TERMLINK_SW_CMD; optional: TERMLINK_SW_HUB, TERMLINK_SW_POLL_MS, TERMLINK_SW_MAX_CLAIMS)'
+  - 'Template wires `--worker-id %i` so the systemd instance specifier becomes the substrate identity'
+  - '`Restart=on-failure` + `RestartSec=10s` (composes with T-2166 exit-4 for the loud-restart-loop contract)'
+  - 'Hardening matches orchestrator template: NoNewPrivileges, PrivateTmp, ProtectSystem=strict, ReadWritePaths=/var/lib/termlink /tmp, ProtectHome'
+  - 'Logging to journal with SyslogIdentifier=termlink-substrate-worker-%i'
+  - '`docs/operations/substrate-systemd.md` extended with a "Worker template (T-2167)" install section: copy template, author env file, enable + verify'
+  - '`docs/operations/substrate-systemd.md` "How preflight interacts with Restart=" table extended to call out pickup.sh by name (now that it''s in the contract per T-2166)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-getting-started.md'
+  - 'docs/operations/substrate-systemd.md'
+  - 'systemd-templates/termlink-substrate-worker@.service'
+  - '.tasks/active/T-2167-worker-side-systemd-template-termlink-su.md'
+  - '.tasks/completed/T-2166-wire-substrate-preflight-into-substrate-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T16:59:02"
+    action: "T-2167: worker systemd template + substrate-systemd.md walkthrough"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 5
+  lines_added: 478
+  lines_removed: 45
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2167-worker-side-systemd-template-termlink-su.md
+generated_by: context-agent-hybrid

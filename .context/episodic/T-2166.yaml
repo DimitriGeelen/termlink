@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2166: Wire substrate-preflight into substrate-worker-pickup.sh startup gate (T-2163 symmetry)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T14:53:57Z
+# ============================================================================
+
+task_id: T-2166
+task_name: "Wire substrate-preflight into substrate-worker-pickup.sh startup gate (T-2163 symmetry)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T14:50:03Z
+completed: 2026-06-11T14:53:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T16:53:15+02:00
+last_commit: 2026-06-11T16:53:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wire substrate-preflight into substrate-worker-pickup.sh startup gate
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-worker-pickup.sh` runs `scripts/substrate-preflight.sh` at startup, before any inbox poll or hub contact'
+  - 'Preflight PASS (exit 0) → silent, continue (mirror of T-2163 worker-loop wiring)'
+  - 'Preflight WARN (exit 1) → print captured output to stderr, continue (mirror of T-2163)'
+  - 'Preflight FAIL (exit 2+) → print captured output to stderr, refuse to start with exit 4 (mirror of T-2163)'
+  - '`--skip-preflight` flag bypasses the gate (CI / smoke / known-broken-on-purpose paths)'
+  - '`--help` documents both the gate behavior and `--skip-preflight`'
+  - 'Live verify: on a host where `TERMLINK_RUNTIME_DIR=/tmp/foo` (forced FAIL), running pickup.sh exits 4 with the [FAIL] line on stderr'
+  - 'Live verify: `--skip-preflight` bypass exits past preflight (eventually fails on missing --cmd or worker-id resolution — not on preflight)'
+  - 'Substrate-smoke (`scripts/substrate-smoke.sh`) still PASS — pickup.sh is not invoked by smoke so no compat change needed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/substrate-worker-pickup.sh'
+  - '.tasks/active/T-2166-wire-substrate-preflight-into-substrate-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T16:53:15"
+    action: "T-2166: wire substrate-preflight into substrate-worker-pickup.sh startup gate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 260
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2166-wire-substrate-preflight-into-substrate-.md
+generated_by: context-agent-hybrid
