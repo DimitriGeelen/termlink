@@ -401,9 +401,9 @@ aggregate footers.
 
 ## Checking that the canaries are firing — `/canaries` (T-2172)
 
-The cron canaries from Recipe 1 (and the sibling release-mirror /
-fleet-doorbell-mail / meta-canary-aliveness watchers — out of scope here
-but installed by the same operator surface) follow an **empty-log =
+The cron canaries from Recipe 1 (and the sibling release-mirror,
+fleet-doorbell-mail, plus the three meta-canary-aliveness watchers
+installed by the same operator surface) follow an **empty-log =
 healthy** convention. That's structurally efficient — no noise on the
 happy path — but it creates a subtle visibility gap: the operator has
 to know each log path, the convention, AND check the heartbeat file
@@ -447,6 +447,42 @@ three answer orthogonal questions:
 | `/substrate` (T-2096) | Runtime | Is the substrate healthy right now? |
 | `/canaries` (T-2172) | Cron-tier protection | Are my watchers firing AND clean? |
 
+### Layered protection: the meta-canary safety set (T-1723 / T-2175 / T-2176)
+
+Each daily canary is itself watched by a **meta-canary** that fires
+80–90 min later. This is the second protection layer — it catches
+silent cron stoppage of the canary itself (cron entry failed to load,
+script crashed, log path moved). The layering:
+
+1. **Daily canary** runs at its scheduled minute. On every invocation
+   (success OR failure) it touches its `.context/working/.<name>-canary.heartbeat`
+   file BEFORE doing any real work — so even a crashing canary leaves
+   a heartbeat that proves it ran.
+2. **Daily meta-canary** runs 80–90 min later (different minute, to
+   dodge cron-lock and load-race classes). It stats the heartbeat's
+   mtime via `scripts/check-canary-aliveness.sh`; if older than 48h
+   (`--max-age-hours` configurable), it appends a diagnostic line to
+   `.context/working/.canary-aliveness.log`.
+3. **`/canaries` (PULL-side, T-2172)** classifies both layers — fresh
+   heartbeats with non-empty `.canary-aliveness.log` means a meta-canary
+   has fired and an operator must act.
+
+Coverage matrix (after T-2175 + T-2176):
+
+| Canary | Canary task | Cron minute | Meta-canary task | Meta cron minute |
+|---|---|---|---|---|
+| release-mirror | T-1696 | 07:13 UTC | T-1723 | 08:33 UTC |
+| substrate-preflight | T-2160 | 05:23 UTC | T-2175 | 06:43 UTC |
+| fleet-doorbell-mail | T-1831 | 09:23 UTC | T-2176 | 10:53 UTC |
+
+`scripts/check-canary-aliveness.sh` is a single env-parameterized
+script (T-2175 generalized it from the original mirror-only T-1723
+shape): each meta-canary cron line passes `HEARTBEAT_FILE`,
+`CANARY_NAME`, `CANARY_PROBE_CMD`, `CANARY_CRON_PATH` env vars
+specific to the canary it watches. Operator-side: `/canaries`
+auto-discovers all `.<name>-canary.log` files (no hard-coded list),
+so adding a fourth canary doesn't require editing the skill.
+
 ---
 
 ## Related
@@ -472,3 +508,15 @@ three answer orthogonal questions:
   tooling — T-2172 closes this for the cron canaries above)
 - PL-187 (verb-stack rung 7: ephemeral session integrators → durable cron monitors)
 - PL-208 (chmod gap — every notify script must be `chmod +x`)
+- T-1723 (the original meta-canary — release-mirror watcher; introduced
+  the heartbeat-touch convention and the `scripts/check-canary-aliveness.sh`
+  script that T-2175 later parameterized for reuse across all three
+  daily canaries)
+- T-2175 (meta-canary for the substrate-preflight canary — added
+  heartbeat-touch + `--no-heartbeat` to `substrate-preflight.sh`,
+  env-parameterized `check-canary-aliveness.sh`, wired the meta cron
+  line at 06:43 UTC)
+- T-2176 (meta-canary for the fleet-doorbell-mail canary — completed
+  the three-arm safety-set symmetry; `check-fleet-doorbell-mail-health.sh`
+  already had the heartbeat-touch from T-1831 so this was a one-line
+  cron addition at 10:53 UTC)
