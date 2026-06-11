@@ -4,10 +4,10 @@ name: "Pickup: Agent narrates budget level from historical tool-result JSON in s
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2155. Type: bug-report.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T10:34:27Z
-last_update: 2026-06-11T19:53:42Z
-date_finished: null
+last_update: 2026-06-11T19:56:27Z
+date_finished: 2026-06-11T19:56:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -205,3 +205,6 @@ grep -q "Budget:" /opt/termlink/.claude/commands/resume.md
 ### 2026-06-11T19:53:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-11T19:56:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2156: Pickup: Agent narrates budget level from historical tool-result JSON in system-reminders, not .context/working/.budget-status canonical cache — reproduced this turn (claimed 273K when actual was 159K) (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T19:56:30Z
+# ============================================================================
+
+task_id: T-2156
+task_name: "Pickup: Agent narrates budget level from historical tool-result JSON in system-reminders, not .context/working/.budget-status canonical cache — reproduced this turn (claimed 273K when actual was 159K) (from termlink)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T10:34:27Z
+completed: 2026-06-11T19:56:27Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-11T21:56:21+02:00
+last_commit: 2026-06-11T21:56:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  /resume reads budget-status cache (T-2155 Option A defence-in-depth)
+
+# Key outcomes
+outcomes:
+  - 'Live userSettings `/resume` skill (`/root/.claude/commands/resume.md`) reads `.context/working/.budget-status` as part of Step 1 gather phase.'
+  - 'Live userSettings `/resume` skill Step 2 summary template includes a Budget line sourced from the cache (level + tokens).'
+  - 'Vendored `/opt/termlink/.claude/commands/resume.md` carries the same budget-cache read + summary line so future installs propagate the fix.'
+  - 'Both files name `.context/working/.budget-status` literally so a future audit (grep) can detect drift.'
+  - 'Note in task body that Option B (SessionStart:compact hook prepend) remains framework-agent pickup.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/resume.md'
+  - '.tasks/active/T-2156-pickup-agent-narrates-budget-level-from-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T21:56:21"
+    action: "T-2156: /resume reads budget-status cache (T-2155 Option A defence-in-depth)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 562 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, bug-report]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 562
+  commits: 1
+  files_changed: 2
+  lines_added: 38
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2156-pickup-agent-narrates-budget-level-from-.md
+generated_by: context-agent-hybrid
