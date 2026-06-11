@@ -251,8 +251,31 @@ scripts/substrate-worker-loop.sh --topic work-queue --offset 42 \
 The worker sees `TERMLINK_CLAIM_ID`, `TERMLINK_CLAIM_TOPIC`,
 `TERMLINK_CLAIM_OFFSET`, `TERMLINK_CLAIMER` in its env. Read the
 script source for the full inline contract — it's the "hello world"
-for substrate users. The hand-rolled loop below shows the same wiring
-with a DM-inbox poll for cases where the dispatch step is also yours.
+for substrate users.
+
+**Adopted-claim mode (T-2150).** When pairing with
+`scripts/substrate-orchestrator-loop.sh` (T-2148), the orchestrator
+already does `channel claim` + `claim-transfer` before DMing the worker.
+A second `channel claim` from the worker would fail with
+`CLAIM_ALREADY_HELD` (the worker IS the current holder via transfer).
+Pass `--claim-id <existing>` to skip the self-claim step and adopt
+the pre-transferred claim — auto-renew + work + release proceed
+identically. Use this form in worker-side pickup loops:
+
+```bash
+# Worker pickup logic: parse claim_id/topic/offset from the
+# orchestrator's DM payload, then delegate everything else to the
+# vetted lifecycle. No inline renew loop, no inline release branching.
+scripts/substrate-worker-loop.sh \
+    --topic "$topic" --offset "$offset" \
+    --claim-id "$claim_id" \
+    --cmd 'python3 /opt/myapp/process.py'
+```
+
+The hand-rolled loop below shows the same wiring with a DM-inbox
+poll for cases where the dispatch step is also yours. If you adopt
+`--claim-id`, drop the inline Step 5–6 renew+release block and
+just spawn `substrate-worker-loop.sh` instead.
 
 ```bash
 #!/usr/bin/env bash

@@ -65,6 +65,7 @@ CLAIMER=""
 TTL_MS=30000
 RENEW_EVERY_MS=""
 HUB=""
+ADOPT_CLAIM_ID=""
 
 # ---- Helpers -------------------------------------------------------------
 
@@ -83,6 +84,15 @@ Options:
   --claimer ID           Worker identity. Default: $TERMLINK_AGENT_ID env,
                          then $HOME/.termlink/be-reachable.state (T-1841).
                          Refuses if neither is set — no implicit claimer.
+  --claim-id ID          ADOPTED-CLAIM mode (T-2150): skip the self-claim
+                         step and adopt an existing claim_id (typically
+                         transferred from an orchestrator via
+                         channel claim-transfer). The script still runs
+                         auto-renew + work + release against this claim.
+                         Without this flag (default): STANDALONE mode —
+                         worker claims the offset itself. Use the
+                         adopted-claim form when paired with
+                         substrate-orchestrator-loop.sh (T-2148).
   --ttl-ms N             Lease length per claim/renew, ms. Default 30000.
                          Hub clamps to 1h max.
   --renew-every-ms N     Auto-renew cadence, ms. Default ttl_ms/2.
@@ -156,6 +166,7 @@ while [ $# -gt 0 ]; do
         --offset) OFFSET="$2"; shift 2 ;;
         --cmd) CMD="$2"; shift 2 ;;
         --claimer) CLAIMER="$2"; shift 2 ;;
+        --claim-id) ADOPT_CLAIM_ID="$2"; shift 2 ;;
         --ttl-ms) TTL_MS="$2"; shift 2 ;;
         --renew-every-ms) RENEW_EVERY_MS="$2"; shift 2 ;;
         --hub) HUB="$2"; shift 2 ;;
@@ -182,24 +193,33 @@ if [ -n "$HUB" ]; then
     HUB_ARGS=(--hub "$HUB")
 fi
 
-# ---- Step 1 — claim ------------------------------------------------------
+# ---- Step 1 — claim (or adopt existing) ----------------------------------
 
-echo "substrate-worker-loop.sh: claiming topic=$TOPIC offset=$OFFSET claimer=$CLAIMER ttl=${TTL_MS}ms" >&2
+if [ -n "$ADOPT_CLAIM_ID" ]; then
+    # ADOPTED-CLAIM mode (T-2150): orchestrator already claimed + transferred
+    # ownership to this worker. Skip the channel.claim call (it would fail
+    # CLAIM_ALREADY_HELD since the worker IS the current holder) and use the
+    # passed claim_id for the rest of the lifecycle.
+    CLAIM_ID="$ADOPT_CLAIM_ID"
+    echo "substrate-worker-loop.sh: adopting existing claim_id=$CLAIM_ID topic=$TOPIC offset=$OFFSET claimer=$CLAIMER" >&2
+else
+    echo "substrate-worker-loop.sh: claiming topic=$TOPIC offset=$OFFSET claimer=$CLAIMER ttl=${TTL_MS}ms" >&2
 
-CLAIM_OUT=$("$TERMLINK" channel claim --json "${HUB_ARGS[@]}" \
-            --claimer "$CLAIMER" --ttl-ms "$TTL_MS" \
-            "$TOPIC" "$OFFSET" 2>&1) || {
-    echo "$CLAIM_OUT" >&2
-    die "claim failed — slot still held by someone else, or auth/rate-limit (exit 11)" 11
-}
+    CLAIM_OUT=$("$TERMLINK" channel claim --json "${HUB_ARGS[@]}" \
+                --claimer "$CLAIMER" --ttl-ms "$TTL_MS" \
+                "$TOPIC" "$OFFSET" 2>&1) || {
+        echo "$CLAIM_OUT" >&2
+        die "claim failed — slot still held by someone else, or auth/rate-limit (exit 11)" 11
+    }
 
-CLAIM_ID=$(echo "$CLAIM_OUT" | extract_claim_id)
-[ -n "$CLAIM_ID" ] || {
-    echo "$CLAIM_OUT" >&2
-    die "claim returned no claim_id — malformed response (exit 11)" 11
-}
+    CLAIM_ID=$(echo "$CLAIM_OUT" | extract_claim_id)
+    [ -n "$CLAIM_ID" ] || {
+        echo "$CLAIM_OUT" >&2
+        die "claim returned no claim_id — malformed response (exit 11)" 11
+    }
 
-echo "substrate-worker-loop.sh: claim_id=$CLAIM_ID — running worker" >&2
+    echo "substrate-worker-loop.sh: claim_id=$CLAIM_ID — running worker" >&2
+fi
 
 # ---- Step 2 — background auto-renew --------------------------------------
 
