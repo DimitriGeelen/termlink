@@ -4,16 +4,16 @@ name: "RCA: misread budget at post-compaction /resume — historical task-output
 description: >
   Inception: RCA: misread budget at post-compaction /resume — historical task-output JSON parsed as current state, propose structural fix for framework /resume skill
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-11T10:32:26Z
-last_update: 2026-06-11T17:40:31Z
-date_finished: null
+last_update: 2026-06-11T19:49:17Z
+date_finished: 2026-06-11T19:49:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -145,15 +145,15 @@ options, recommendation, this task's ID for traceback.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -214,7 +214,25 @@ Direct evidence: this session I parsed {"level":"urgent","tokens":273016,...} fr
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Direct evidence: this session I parsed {"level":"urgent","tokens":273016,...} from a system-reminder echoing a prior session's Read of /tmp/claude-0/.../tasks/bp1ad5lmy.output (a Task tool ephemeral output file) and treated it as the current budget state. Actual current budget at session start was 159350 tokens (level=ok), verified by cat .context/working/.budget-status. The result was a session-long misread that constrained behaviour as if 27K from critical when ~140K of real headroom existed. The /resume skill workflow does not include 'cat .context/working/.budget-status' — it reads handover, git status, tasks, tool counter, web server. Post-compaction context-recovery injects historical tool results as system-reminders, which can contain stale JSON that LOOKS current. Structural fix is framework-side (/resume skill ships from userSettings, SessionStart:compact hook ships from framework). GO recommended because the slip is reproducible (any future post-compaction /resume will hit it whenever a historical tool result contains budget-shaped JSON) and the fix is small (one-line addition to the skill + summary template line).
+
+Evidence:
+
+- Live reproduction this session. Agent parsed `{"level":"urgent","tokens":273016,...}` from a SessionStart:compact persisted-output block (echo of prior session's Read of `/tmp/claude-0/.../tasks/<id>.output` Task tool ephemeral). Narrated entire session as "27K headroom up to 300K"; actual budget at session start was 159350 tokens (level=ok) per `cat .context/working/.budget-status`. Result: ~140K of real headroom un-used.
+- `/resume` skill gap. Current skill (userSettings:resume) gathers handover + git status + tasks + tool counter + web server — does NOT include `cat .context/working/.budget-status`. See `.claude/commands/resume.md` Step 1 enumeration. Hook-side budget enforcement is pull-only; nothing forces agent to ground claims against canonical cache.
+- CLAUDE.md "After context compaction" section (search for "After context compaction (mid-session recovery)") names `fw resume status` + `fw resume sync` — does NOT name `.context/working/.budget-status` as required read.
+- SessionStart:compact context-recovery flow re-injects historical tool results verbatim. Historical Task tool output containing budget-shaped JSON (same key names `level`/`tokens`/`timestamp`/`source`) is structurally indistinguishable from current cache read.
+- Pickup target identified. Fix lives at framework layer: `/resume` ships from `userSettings:`, SessionStart:compact hook ships from `framework:` — project-side fix would not propagate. Pickup-to-framework-agent via `framework:pickup` topic is the correct escalation path (T-1814-class).
+- Fix is bounded and reversible. Option A: one-line addition to `/resume` Step 1 + summary template line (`Budget: {level} ({tokens} tokens) from cache`). Option B: SessionStart:compact hook prepends `Current budget: level={X} tokens={Y}` to persisted-output BEFORE historical snapshots — makes ground truth the first thing agent sees. Recommended: B primary + A defence-in-depth.
+- Sibling task [T-2156](http://192.168.10.107:3003/review/T-2156) (the pickup envelope to framework-agent) is already captured horizon=next, awaiting GO here to authorize the post.
+
+**Date**: 2026-06-11T19:49:17Z
 
 ## Updates
 
@@ -223,3 +241,26 @@ Direct evidence: this session I parsed {"level":"urgent","tokens":273016,...} fr
 
 ### 2026-06-11T10:33:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-11T19:49:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Direct evidence: this session I parsed {"level":"urgent","tokens":273016,...} from a system-reminder echoing a prior session's Read of /tmp/claude-0/.../tasks/bp1ad5lmy.output (a Task tool ephemeral output file) and treated it as the current budget state. Actual current budget at session start was 159350 tokens (level=ok), verified by cat .context/working/.budget-status. The result was a session-long misread that constrained behaviour as if 27K from critical when ~140K of real headroom existed. The /resume skill workflow does not include 'cat .context/working/.budget-status' — it reads handover, git status, tasks, tool counter, web server. Post-compaction context-recovery injects historical tool results as system-reminders, which can contain stale JSON that LOOKS current. Structural fix is framework-side (/resume skill ships from userSettings, SessionStart:compact hook ships from framework). GO recommended because the slip is reproducible (any future post-compaction /resume will hit it whenever a historical tool result contains budget-shaped JSON) and the fix is small (one-line addition to the skill + summary template line).
+
+Evidence:
+
+- Live reproduction this session. Agent parsed `{"level":"urgent","tokens":273016,...}` from a SessionStart:compact persisted-output block (echo of prior session's Read of `/tmp/claude-0/.../tasks/<id>.output` Task tool ephemeral). Narrated entire session as "27K headroom up to 300K"; actual budget at session start was 159350 tokens (level=ok) per `cat .context/working/.budget-status`. Result: ~140K of real headroom un-used.
+- `/resume` skill gap. Current skill (userSettings:resume) gathers handover + git status + tasks + tool counter + web server — does NOT include `cat .context/working/.budget-status`. See `.claude/commands/resume.md` Step 1 enumeration. Hook-side budget enforcement is pull-only; nothing forces agent to ground claims against canonical cache.
+- CLAUDE.md "After context compaction" section (search for "After context compaction (mid-session recovery)") names `fw resume status` + `fw resume sync` — does NOT name `.context/working/.budget-status` as required read.
+- SessionStart:compact context-recovery flow re-injects historical tool results verbatim. Historical Task tool output containing budget-shaped JSON (same key names `level`/`tokens`/`timestamp`/`source`) is structurally indistinguishable from current cache read.
+- Pickup target identified. Fix lives at framework layer: `/resume` ships from `userSettings:`, SessionStart:compact hook ships from `framework:` — project-side fix would not propagate. Pickup-to-framework-agent via `framework:pickup` topic is the correct escalation path (T-1814-class).
+- Fix is bounded and reversible. Option A: one-line addition to `/resume` Step 1 + summary template line (`Budget: {level} ({tokens} tokens) from cache`). Option B: SessionStart:compact hook prepends `Current budget: level={X} tokens={Y}` to persisted-output BEFORE historical snapshots — makes ground truth the first thing agent sees. Recommended: B primary + A defence-in-depth.
+- Sibling task [T-2156](http://192.168.10.107:3003/review/T-2156) (the pickup envelope to framework-agent) is already captured horizon=next, awaiting GO here to authorize the post.
+
+### 2026-06-11T19:49:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
