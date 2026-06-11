@@ -116,6 +116,14 @@ For a real worker fleet you'll write a service that wraps
 `scripts/substrate-worker-loop.sh` per work unit. The master recipe
 (T-2124) shows the full pattern.
 
+Both loop scripts run `substrate-preflight.sh` at startup (T-2163) — on
+FAIL they refuse to start with exit 4 (no hub call attempted), on WARN
+they print and continue, on PASS silent. systemd will see the exit 4
+and restart-loop loudly rather than silently wedging — exactly the
+failure mode you want for a misconfigured host. Bypass with
+`--skip-preflight` only in CI/test paths where preflight is already
+known clean.
+
 ## 4. Where to go next
 
 Pick whichever question you have:
@@ -159,6 +167,14 @@ above will cover most operator work.
 - **T-2159** — [substrate-tunables.md](substrate-tunables.md) — canonical
   reference for every `TERMLINK_*` env var that tunes hub or client
   behavior. Read this before adjusting any knob.
+- **T-2163** — preflight startup gate on `scripts/substrate-{orchestrator,worker}-loop.sh`.
+  The loops now run substrate-preflight.sh before any hub call: FAIL refuses
+  to start (exit 4), WARN prints and continues, PASS silent. `--skip-preflight`
+  bypasses (CI / test paths where preflight is already known clean — see
+  `scripts/substrate-smoke.sh`). Closes the substrate-arc safety set: CLI
+  (T-2154) → skill (T-2158) → nightly cron (T-2160) → runtime-entry gate
+  (T-2163). Production deployments now get the PL-021 catch automatically;
+  no operator discipline required.
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-

@@ -76,6 +76,15 @@ the failing check + remediation hint are inline.
 See `substrate-getting-started.md` for the underlying script (T-2154)
 and `/preflight` skill (T-2158).
 
+**Companion (T-2163, runtime-entry gate).** This nightly cron catches
+drift on a 24-hour cadence — but the same script also fires at the
+startup of every `scripts/substrate-orchestrator-loop.sh` /
+`scripts/substrate-worker-loop.sh` invocation (T-2163). systemd-managed
+worker/orchestrator services will exit 4 on FAIL and restart-loop
+loudly, surfacing the regression in seconds rather than ~24 hours.
+The cron canary remains load-bearing for hosts that don't run loop
+scripts (hubs, dev VMs, the watchtower host).
+
 ---
 
 ## Recipe 2: Page on hub capacity hits (T-2065)

@@ -235,10 +235,16 @@ fi
 
 # $TERMLINK_CLAIM_ID expands inside the spawned worker process, not here.
 # shellcheck disable=SC2016
+# --skip-preflight (T-2164): substrate-smoke is a MECHANICAL test (does
+# claim → transfer → release work?), not a DEPLOY-CORRECTNESS check (is
+# TERMLINK_RUNTIME_DIR off /tmp?). On CI/ephemeral hosts where /tmp is
+# the runtime_dir, the T-2163 preflight gate would block this self-contained
+# smoke from running. Bypass — deploy-correctness is covered by /preflight
+# (T-2158) + the nightly cron canary (T-2160).
 if ! out=$("$WORKER_LOOP" \
            --topic "$SMOKE_TOPIC" --offset "$OFFSET" \
            --claim-id "$CLAIM_ID" --claimer "$SMOKE_WORKER_ID" \
-           --ttl-ms 30000 \
+           --ttl-ms 30000 --skip-preflight \
            --cmd 'echo "smoke worker ok claim=$TERMLINK_CLAIM_ID"' \
            "${WORKER_HUB_ARGS[@]}" 2>&1); then
     # Worker now owns — attempt to release without ack so we don't leak.
