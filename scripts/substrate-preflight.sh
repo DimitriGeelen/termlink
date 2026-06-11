@@ -30,6 +30,20 @@
 #              "unrecognized subcommand". Substrate still works for
 #              primitives the binary has — WARN, not FAIL.
 #
+#   Check 5: local hub binary freshness via field-presence probe (T-2184)
+#            → Symmetric to Check 4: catches stale HUB (vs Check 4's stale
+#              CLIENT). When operator runs `cargo install termlink` but
+#              never restarts the running hub, the new file on disk
+#              replaces the inode but the process keeps serving from the
+#              old in-memory binary (/proc/<pid>/exe shows
+#              "...(deleted)"). The CLI loyally renders fields the hub's
+#              older binary doesn't emit as "n/a", and the operator infers
+#              a missing-feature gap when the actual gap is a missing
+#              restart. Probe: `hub status --governor --json` MUST contain
+#              `rate_buckets_evicted_total` (T-2139 field). Absence ⇒ WARN
+#              with restart remediation. Origin: T-2183 PL-209
+#              misdiagnosis loop, ~30min wasted investigation.
+#
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #
 # Exit codes:
@@ -68,6 +82,9 @@ Checks:
   3. ~/.termlink/be-reachable.state pid alive (if file exists)
   4. termlink binary version >= project root VERSION (T-2181) — catches
      stale-binary footgun where catalog promises flags the binary lacks
+  5. local hub serves T-2139 field (`rate_buckets_evicted_total`) — catches
+     stale-HUB footgun where a `(deleted)` in-memory binary keeps serving
+     pre-T-2139 envelopes (T-2184, symmetric to Check 4)
 
 Options:
   --json           Emit a machine-readable envelope instead of human-format output
@@ -364,6 +381,48 @@ check_binary_freshness() {
     fi
 }
 
+# T-2184: Check 5 — local hub binary freshness.
+# Symmetric to check_binary_freshness (Check 4, T-2181) but probes the
+# RUNNING hub via JSON-RPC field presence rather than the on-disk binary
+# version. Catches the "I rebuilt the binary but never restarted the hub"
+# failure mode where /proc/<pid>/exe shows "...(deleted)" and the live
+# process keeps serving an in-memory binary that predates T-2139's
+# rate_buckets_evicted_total field. The CLI loyally renders absent
+# fields as "n/a", which is how PL-209 spent 30+ minutes chasing a
+# phantom telemetry gap.
+#
+# Probe: `termlink hub status --governor --json` MUST contain the literal
+# string `rate_buckets_evicted_total` somewhere in its output. Field
+# presence (any numeric value including 0) ⇒ PASS; absence ⇒ WARN with
+# `restart hub` remediation. Graceful degradation: hub not running, CLI
+# missing, or non-zero exit ⇒ SKIP (different failure modes, Check 1/4
+# cover them).
+check_hub_binary_freshness() {
+    # If termlink isn't installed, Check 4 already warned — don't double-emit.
+    if ! command -v termlink >/dev/null 2>&1; then
+        return
+    fi
+    # Probe live hub. Bounded by timeout — if hub is unresponsive,
+    # SKIP rather than block /preflight on a wedged hub.
+    local probe_output probe_rc
+    probe_output=$(timeout 5 termlink hub status --governor --json 2>/dev/null)
+    probe_rc=$?
+    if [ "$probe_rc" -ne 0 ] || [ -z "$probe_output" ]; then
+        # Hub down, RPC failed, timeout, or empty body — out of scope.
+        # Don't false-positive a stale-binary classification.
+        return
+    fi
+    # L-387 capture-first SIGPIPE safety: capture full body, then grep.
+    if echo "$probe_output" | grep -q '"rate_buckets_evicted_total"'; then
+        emit_check "hub-binary" "medium" "pass" \
+            "local hub serves T-2139 rate_buckets_evicted_total field — fresh binary"
+    else
+        emit_check "hub-binary" "medium" "warn" \
+            "local hub omits rate_buckets_evicted_total (pre-T-2139) — likely (deleted)-on-disk binary still in memory" \
+            "Restart hub to pick up new binary (verify runtime_dir persists secret/cert per Check 1 first). Inspect: ls -la /proc/\$(pgrep -f 'termlink hub start' | head -1)/exe"
+    fi
+}
+
 # ---- Run all checks ----------------------------------------------------
 
 if [ "$JSON" -eq 0 ]; then
@@ -375,6 +434,7 @@ check_runtime_dir_volatility
 check_hubs_toml
 check_be_reachable_state
 check_binary_freshness
+check_hub_binary_freshness
 
 # ---- Summary -----------------------------------------------------------
 

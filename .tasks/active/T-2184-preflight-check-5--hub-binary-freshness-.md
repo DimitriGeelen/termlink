@@ -4,10 +4,10 @@ name: "/preflight Check 5 — hub binary freshness probe (T-2183 symmetric to T-
 description: >
   Add /preflight Check 5: probe local hub.governor_status response shape — absence of rate_buckets_evicted_total field signals pre-T-2139 hub (replaced binary, not restarted). Symmetric companion to T-2181 Check 4 (CLI binary freshness). Detection mechanism: positive presence-check of a field shipped by a known release tag; remediation hint: 'restart hub to pick up new binary'. Cross-ref: PL-209 (rate-limit pressure observation, the originating misdiagnosis), T-2181 (client-side prior art), T-2154 (substrate-preflight.sh script), T-2158 (/preflight skill). Horizon=next.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T21:13:22Z
-last_update: 2026-06-11T21:13:22Z
+last_update: 2026-06-11T21:14:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Symmetric companion to T-2181 `/preflight` Check 4 (CLI binary
+freshness). Captured 2026-06-11 from T-2183, where PL-209's
+"evicted_total=n/a" turned out to be a stale **hub** binary
+(/proc/<pid>/exe → `... (deleted)`, predates T-2139's
+`rate_buckets_evicted_total` field) — not a missing telemetry feature.
+The misdiagnosis took 30+ minutes of investigation; a deploy-time
+probe would catch the same class instantly.
+
+Detection strategy: probe local hub via `termlink hub status
+--governor --json` and test for `rate_buckets_evicted_total` field
+presence in `.governor` object. Field absence ⇒ pre-T-2139 hub ⇒
+WARN with `restart hub` remediation hint. Field present (any value
+including 0) ⇒ PASS.
+
+Graceful degradation: hub not running ⇒ SKIP (different failure
+mode, runtime_dir Check 1 is upstream); JSON parse error ⇒ SKIP;
+no hubs.toml ⇒ Check 2 already caught it.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/substrate-preflight.sh` gains a new `check_hub_binary_freshness()` function modelled after `check_binary_freshness()` (Check 4 template, lines 329-365).
+- [x] Function probes local hub via `termlink hub status --governor --json`, tests for `rate_buckets_evicted_total` field presence (using `grep` or `jq` — pick the lighter dependency match for the existing file), classifies WARN on absence with remediation hint, PASS on presence, SKIP on hub-not-running.
+- [x] Function wired into the "Run all checks" sequence after `check_binary_freshness`.
+- [x] Script header docstring updated: "Check 5: hub binary freshness via field-presence probe" with cross-ref to T-2139 + T-2183 root cause.
+- [x] `usage()` updated: Check 5 line added.
+- [x] CLAUDE.md `/preflight` catalog row updated: "Four checks" → "Five checks", Check 5 entry added (T-2184 cross-ref).
+- [x] `.claude/commands/preflight.md` skill description updated to mention Check 5 (if it enumerates checks).
+- [x] Live validation on this host: `./scripts/substrate-preflight.sh` emits the Check 5 line. Since the local hub IS stale (PID 2058543, deleted-on-disk binary), expect WARN. After hub restart (out-of-scope here, recipe documented), expect PASS.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +195,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2184-preflight-check-5--hub-binary-freshness-.md
 - **Context:** Initial task creation
+
+### 2026-06-11T21:14:26Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
