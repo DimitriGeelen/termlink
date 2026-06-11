@@ -69,6 +69,13 @@ That's the canonical lifecycle. The worker script handled claim →
 auto-renew → run → release for you. You now know what every substrate
 primitive does because you ran one.
 
+**One-shot health verifier (T-2151).** For an automated PASS/FAIL of
+the full pattern above without typing each step, run
+`scripts/substrate-smoke.sh`. It posts → claims → claim-transfers →
+adopts via worker-loop → verifies cursor-clean, prints one PASS line
+per stage, exits 0 if healthy. CI-runnable; `--json` for piping.
+Failure mode: `FAIL at stage <name>: <error>` on stderr + exit 1.
+
 To exercise the orchestrator side (find-idle workers + dispatch work
 to them automatically), substitute step 3 with the orchestrator harness
 and bring up a worker in another terminal:
