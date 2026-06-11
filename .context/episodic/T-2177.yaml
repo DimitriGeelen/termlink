@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2177: T-2175/T-2176 doc — surface meta-canary safety-set symmetry in substrate-cron-recipes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-11T19:06:29Z
+# ============================================================================
+
+task_id: T-2177
+task_name: "T-2175/T-2176 doc — surface meta-canary safety-set symmetry in substrate-cron-recipes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T19:04:00Z
+completed: 2026-06-11T19:06:26Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-11T21:06:18+02:00
+last_commit: 2026-06-11T21:06:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface meta-canary safety-set symmetry in substrate-cron-recipes
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-cron-recipes.md` /canaries section gains an explicit explanation of the layered protection (canary → heartbeat → meta-canary → .canary-aliveness.log) plus a table mapping each daily canary to its T-XXX meta-canary task.'
+  - 'The stale "(... out of scope here ...)" parenthetical at the original line 405 is rewritten to reflect the now-symmetric, fully-protected set.'
+  - 'Related section gains T-1723, T-2175, T-2176 entries.'
+  - '`grep -q "T-2175" docs/operations/substrate-cron-recipes.md` and `grep -q "T-2176" docs/operations/substrate-cron-recipes.md` succeed.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-cron-recipes.md'
+  - '.tasks/active/T-2177-t-2175t-2176-doc--surface-meta-canary-sa.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-11T21:06:18"
+    action: "T-2177: surface meta-canary safety-set symmetry in substrate-cron-recipes"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 233
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2177-t-2175t-2176-doc--surface-meta-canary-sa.md
+generated_by: context-agent-hybrid
