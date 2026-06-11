@@ -2225,3 +2225,10 @@ learnings:
   date: 2026-06-11
   context: Added via context agent
   application: TBD
+- id: PL-210
+  learning: "Stale-binary class is bidirectional: CLI and HUB both fail the same way. /preflight Check 4 (T-2181) catches stale CLIENT (catalog promises a flag the binary lacks). The symmetric failure: stale HUB serving a deleted-on-disk binary emits envelopes missing fields the CLI then loyally renders as 'n/a' — operator infers missing-feature when actual gap is missing-restart. Diagnosis: ls /proc/<hub-pid>/exe shows '(deleted)' + (lstart predates last cargo build). Recipe: probe hub.governor_status response shape — absence of a field shipped by a known release tag means the hub predates that tag and needs restart. Symmetric Check 5 follow-up captured under T-2183."
+  source: P-001
+  task: T-2183
+  date: 2026-06-11
+  context: Added via context agent
+  application: TBD

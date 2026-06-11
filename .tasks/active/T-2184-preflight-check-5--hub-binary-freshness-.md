@@ -1,8 +1,8 @@
 ---
-id: T-2183
-name: "PL-209 follow-up: surface evicted_total + identify noisy sender (rate-limit pressure)"
+id: T-2184
+name: "/preflight Check 5 — hub binary freshness probe (T-2183 symmetric to T-2181 Check 4)"
 description: >
-  Captured 2026-06-11 from PL-209. Fleet /governor shows 380K active rate buckets + 3140 rate_hits across 2 hubs; evicted_total reports n/a so we can't tell if buckets accumulate or rotate. Scope: (1) Surface evicted_total in hub.governor_status JSON-RPC + CLI render. (2) Identify the noisy sender (suspect: listener-heartbeat from a renumbered/respawning host). (3) Decide whether rate-bucket eviction policy needs tuning. Cross-ref: T-2048 (#10 BACKPRESSURE substrate primitive), T-2062 fleet governor-status.
+  Add /preflight Check 5: probe local hub.governor_status response shape — absence of rate_buckets_evicted_total field signals pre-T-2139 hub (replaced binary, not restarted). Symmetric companion to T-2181 Check 4 (CLI binary freshness). Detection mechanism: positive presence-check of a field shipped by a known release tag; remediation hint: 'restart hub to pick up new binary'. Cross-ref: PL-209 (rate-limit pressure observation, the originating misdiagnosis), T-2181 (client-side prior art), T-2154 (substrate-preflight.sh script), T-2158 (/preflight skill). Horizon=next.
 
 status: captured
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-11T20:49:17Z
-last_update: 2026-06-11T20:49:34Z
+created: 2026-06-11T21:13:22Z
+last_update: 2026-06-11T21:13:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,60 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2183: PL-209 follow-up: surface evicted_total + identify noisy sender (rate-limit pressure)
+# T-2184: /preflight Check 5 — hub binary freshness probe (T-2183 symmetric to T-2181 Check 4)
 
 ## Context
 
-**Discovery (2026-06-11):** PL-209's "evicted_total=n/a" was not a missing
-telemetry field — it was a stale-binary artifact on the **hub** side.
-T-2139 (with T-2137's eviction loop) already shipped
-`rate_buckets_evicted_total` end-to-end across JSON-RPC + single-hub
-CLI + fleet CLI + watch/notify/log/history surfaces:
-
-| Surface | Wired at |
-|---------|----------|
-| Hub-side counter | `crates/termlink-hub/src/governor.rs:211` (`evictions_total`) |
-| JSON-RPC field | `crates/termlink-hub/src/router.rs:862` (`rate_buckets_evicted_total`) |
-| Single-hub CLI | `crates/termlink-cli/src/commands/infrastructure.rs:806-809` |
-| Fleet CLI | `crates/termlink-cli/src/commands/remote.rs:2591-2594` |
-| Fleet JSON sum | `crates/termlink-cli/src/commands/remote.rs:2802` |
-| Watch loop | `crates/termlink-cli/src/commands/remote.rs:2837-3109` |
-
-Live verification (2026-06-11, post-T-2181 rebuild):
-```
-$ termlink fleet governor-status --json | jq '.hubs[] | select(.ok) | .governor'
-{ ... "rate_buckets_active": 384168, "rate_hits_total": 1570 }
-# field rate_buckets_evicted_total ABSENT from envelope
-```
-
-Root cause: local hub `PID 2058543` started `Jun 8 17:20`, binary
-on disk at `/root/.cargo/bin/termlink (deleted)` — i.e. the binary
-file was replaced by yesterday's T-2181 rebuild, but the running
-process still serves from the in-memory (older) inode. That older
-binary predates T-2139's field emission.
-
-**Implication.** This is the symmetric class to T-2181 `/preflight`
-Check 4 (CLI binary freshness). `/preflight` Check 4 catches stale
-**clients**; there is no equivalent probe for stale **hubs**. Both
-fail the same way — catalog promises a field, but the binary in
-use doesn't emit it, so the CLI loyally renders `n/a` and the
-operator infers a missing-feature gap when the actual gap is a
-missing-restart.
-
-**Remaining work for this task:** capture the finding (this Context
-section), register the learning, and schedule the symmetric hub
-freshness probe as a follow-up. The actual hub-restart is a
-shared-infrastructure mutation that needs explicit operator
-authority and is NOT in this task's scope — it lands under the
-follow-up's deploy step.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Context section documents the T-2139 shipping evidence + live `(deleted)` binary diagnosis (this commit).
-- [x] Learning registered via `fw context add-learning` capturing the "stale-binary class is bidirectional (client AND hub)" insight, citing T-2181 (client side) as the partial fix.
-- [x] Follow-up build task `T-2184` captured (status=captured, horizon=next) for `/preflight` Check 5 / hub-freshness probe — symmetric companion to T-2181 Check 4. Probe via `hub.governor_status` field-presence (`rate_buckets_evicted_total` absence ⇒ pre-T-2139 hub).
-- [x] Scope (2) "identify the noisy sender" deferred — sender attribution on rate_hits is a NEW substrate feature (hub doesn't currently track sender_id per refusal), not a bug-fix. Logged as a follow-up note here rather than expanding T-2183's scope.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -212,7 +170,7 @@ follow-up's deploy step.
 
 ## Updates
 
-### 2026-06-11T20:49:17Z — task-created [task-create-agent]
+### 2026-06-11T21:13:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2183-pl-209-follow-up-surface-evictedtotal--i.md
+- **Output:** /opt/termlink/.tasks/active/T-2184-preflight-check-5--hub-binary-freshness-.md
 - **Context:** Initial task creation
