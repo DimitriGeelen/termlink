@@ -43,6 +43,7 @@
 #   0    --max-envelopes reached, loop exited cleanly
 #   2    usage error / missing flag / jq missing
 #   3    couldn't resolve --orchestrator-id (no flag, env, or be-reachable.state)
+#   4    preflight refused start — TERMLINK_RUNTIME_DIR on /tmp etc. (T-2163)
 #   130  SIGTERM/SIGINT received during dispatch
 #
 # Requires: jq (the script parses JSON envelopes from `channel subscribe --json`).
@@ -66,6 +67,7 @@ TTL_MS=60000
 IDLE_POLL_MS=5000
 HUB=""
 MAX_ENVELOPES=0   # 0 = unlimited
+SKIP_PREFLIGHT=0
 
 # Internal state for signal handling.
 IN_FLIGHT_CLAIM_ID=""
@@ -96,12 +98,16 @@ Options:
   --hub addr                Target hub. Default: local hub.
   --max-envelopes N         Stop after dispatching N envelopes (smoke testing
                             / bounded runs). Default 0 = unlimited.
+  --skip-preflight          Skip the startup substrate-preflight.sh call
+                            (CI/test paths where preflight is already known
+                            clean). T-2163. Default: run preflight.
   -h, --help                Print this help and exit 0.
 
 Exit codes:
   0    --max-envelopes reached, loop exited cleanly
   2    usage error / missing flag / jq missing
   3    --orchestrator-id unresolved
+  4    preflight refused start (T-2163, e.g. TERMLINK_RUNTIME_DIR on /tmp)
   130  SIGTERM/SIGINT received during dispatch
 
 Requires: jq (parses JSON envelopes from channel subscribe --json)
@@ -150,6 +156,45 @@ resolve_orchestrator_id() {
     die "orchestrator-id unresolved — pass --orchestrator-id, set \$TERMLINK_AGENT_ID, or run /be-reachable first" 3
 }
 
+run_preflight() {
+    # T-2163: run substrate-preflight.sh as a startup gate.
+    #   exit 0 (PASS) → silent, continue
+    #   exit 1 (WARN) → print body + WARN line to stderr, continue
+    #   exit 2 (FAIL) → print body to stderr, refuse to start (exit 4)
+    # Locates sibling script via $0 dirname so install-location doesn't matter.
+    # Missing preflight script → warn + continue (defensive — don't block on
+    # absent tooling; the canary covers the long-running drift case).
+    [ "$SKIP_PREFLIGHT" -eq 1 ] && return 0
+
+    local self_dir preflight pf_out pf_rc
+    self_dir=$(cd "$(dirname "$0")" && pwd)
+    preflight="$self_dir/substrate-preflight.sh"
+
+    if [ ! -x "$preflight" ]; then
+        echo "substrate-orchestrator-loop.sh: preflight script not found at $preflight — continuing without check" >&2
+        return 0
+    fi
+
+    pf_out=$("$preflight" 2>&1)
+    pf_rc=$?
+
+    case "$pf_rc" in
+        0) return 0 ;;
+        1)
+            echo "substrate-orchestrator-loop.sh: WARNING — substrate-preflight reported warnings:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-orchestrator-loop.sh: continuing despite WARN (use --skip-preflight to suppress)" >&2
+            return 0
+            ;;
+        *)
+            echo "substrate-orchestrator-loop.sh: substrate-preflight FAILED (exit $pf_rc) — refusing to start:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-orchestrator-loop.sh: fix the failure above OR pass --skip-preflight if you accept the risk" >&2
+            exit 4
+            ;;
+    esac
+}
+
 # ---- Arg parsing ---------------------------------------------------------
 
 while [ $# -gt 0 ]; do
@@ -161,6 +206,7 @@ while [ $# -gt 0 ]; do
         --idle-poll-ms) IDLE_POLL_MS="$2"; shift 2 ;;
         --hub) HUB="$2"; shift 2 ;;
         --max-envelopes) MAX_ENVELOPES="$2"; shift 2 ;;
+        --skip-preflight) SKIP_PREFLIGHT=1; shift ;;
         -h|--help) usage; exit 0 ;;
         --) shift; break ;;
         *) die "unknown flag: $1" 2 ;;
@@ -171,6 +217,11 @@ done
 command -v jq >/dev/null 2>&1 || die "Usage: jq is required (parses JSON envelopes from channel subscribe)" 2
 
 resolve_orchestrator_id
+
+# T-2163: preflight gate — catch PL-021 (volatile /tmp) BEFORE any hub call.
+# Silent on PASS; warn-and-continue on WARN; refuse-to-start (exit 4) on FAIL.
+# Bypass via --skip-preflight in CI/test paths where preflight is already clean.
+run_preflight
 
 HUB_ARGS=()
 if [ -n "$HUB" ]; then

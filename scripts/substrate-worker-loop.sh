@@ -43,6 +43,7 @@
 #   0   worker exited 0, release(ack=true) succeeded — work done
 #   1   worker exited non-zero, release(ack=false) — slot reopened
 #   2   usage / missing flag
+#   4   preflight refused start — TERMLINK_RUNTIME_DIR on /tmp etc. (T-2163)
 #   11  claim failed (CLAIM_ALREADY_HELD, AUTH_FAIL, ...) — no work attempted
 #   12  release failed after worker — worker's own exit is masked by 12
 #   130 SIGTERM/SIGINT during work (release-without-ack attempted)
@@ -66,6 +67,7 @@ TTL_MS=30000
 RENEW_EVERY_MS=""
 HUB=""
 ADOPT_CLAIM_ID=""
+SKIP_PREFLIGHT=0
 
 # ---- Helpers -------------------------------------------------------------
 
@@ -98,12 +100,16 @@ Options:
   --renew-every-ms N     Auto-renew cadence, ms. Default ttl_ms/2.
                          Smaller is safer but more chatty.
   --hub addr             Target hub. Default: local hub.
+  --skip-preflight       Skip the startup substrate-preflight.sh call
+                         (CI/test paths where preflight is already known
+                         clean). T-2163. Default: run preflight.
   -h, --help             Print this help and exit 0.
 
 Exit codes:
   0    worker exit 0  + release(--ack) ok       — work done
   1    worker exit !=0 + release(no --ack) ok    — slot reopened
   2    usage error
+  4    preflight refused start (T-2163, e.g. TERMLINK_RUNTIME_DIR on /tmp)
   11   claim refused (held / auth / rate-limit)  — no work attempted
   12   release failed after worker — work outcome masked
   130  SIGTERM/SIGINT mid-work; release-without-ack attempted
@@ -158,6 +164,45 @@ extract_claim_id() {
         | head -n1
 }
 
+run_preflight() {
+    # T-2163: run substrate-preflight.sh as a startup gate.
+    #   exit 0 (PASS) → silent, continue
+    #   exit 1 (WARN) → print body + WARN line to stderr, continue
+    #   exit 2 (FAIL) → print body to stderr, refuse to start (exit 4)
+    # Locates sibling script via $0 dirname so install-location doesn't matter.
+    # Missing preflight script → warn + continue (defensive — don't block on
+    # absent tooling; the canary covers the long-running drift case).
+    [ "$SKIP_PREFLIGHT" -eq 1 ] && return 0
+
+    local self_dir preflight pf_out pf_rc
+    self_dir=$(cd "$(dirname "$0")" && pwd)
+    preflight="$self_dir/substrate-preflight.sh"
+
+    if [ ! -x "$preflight" ]; then
+        echo "substrate-worker-loop.sh: preflight script not found at $preflight — continuing without check" >&2
+        return 0
+    fi
+
+    pf_out=$("$preflight" 2>&1)
+    pf_rc=$?
+
+    case "$pf_rc" in
+        0) return 0 ;;
+        1)
+            echo "substrate-worker-loop.sh: WARNING — substrate-preflight reported warnings:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-worker-loop.sh: continuing despite WARN (use --skip-preflight to suppress)" >&2
+            return 0
+            ;;
+        *)
+            echo "substrate-worker-loop.sh: substrate-preflight FAILED (exit $pf_rc) — refusing to start:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-worker-loop.sh: fix the failure above OR pass --skip-preflight if you accept the risk" >&2
+            exit 4
+            ;;
+    esac
+}
+
 # ---- Arg parsing ---------------------------------------------------------
 
 while [ $# -gt 0 ]; do
@@ -170,6 +215,7 @@ while [ $# -gt 0 ]; do
         --ttl-ms) TTL_MS="$2"; shift 2 ;;
         --renew-every-ms) RENEW_EVERY_MS="$2"; shift 2 ;;
         --hub) HUB="$2"; shift 2 ;;
+        --skip-preflight) SKIP_PREFLIGHT=1; shift ;;
         -h|--help) usage; exit 0 ;;
         --) shift; break ;;
         *) die "unknown flag: $1" 2 ;;
@@ -192,6 +238,12 @@ HUB_ARGS=()
 if [ -n "$HUB" ]; then
     HUB_ARGS=(--hub "$HUB")
 fi
+
+# ---- Step 0 — preflight gate (T-2163) -----------------------------------
+# Catch PL-021 (volatile /tmp) before any hub call. Silent on PASS; warn
+# and continue on WARN; refuse to start on FAIL (exit 4). Bypass via
+# --skip-preflight for CI/test paths where preflight is already clean.
+run_preflight
 
 # ---- Step 1 — claim (or adopt existing) ----------------------------------
 
