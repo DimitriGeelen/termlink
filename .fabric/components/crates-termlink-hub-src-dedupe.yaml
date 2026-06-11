@@ -1,0 +1,20 @@
+id: crates/termlink-hub/src/dedupe.rs
+name: dedupe
+type: source
+subsystem: hub
+location: crates/termlink-hub/src/dedupe.rs
+tags: []
+
+purpose: "Substrate primitive #5 EXACTLY-ONCE post idempotency LRU (T-2049). Keyed by (sender_id, client_msg_id) with TERMLINK_DEDUPE_TTL_MS TTL; absorbs spoke retries so flush-replay of the offline queue never double-applies."
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-06-11
+created_by: unknown

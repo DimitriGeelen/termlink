@@ -1,0 +1,20 @@
+id: crates/termlink-bus/src/claim.rs
+name: claim
+type: source
+subsystem: bus
+location: crates/termlink-bus/src/claim.rs
+tags: []
+
+purpose: "Substrate primitive #1 CLAIM in-memory state (T-2019/T-2042). Implements claim acquire/renew/release/transfer with TTL leases on (topic, offset) pairs; the orchestrator-to-worker reservation primitive."
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-06-11
+created_by: unknown

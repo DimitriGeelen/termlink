@@ -1,0 +1,20 @@
+id: crates/termlink-session/src/claim_client.rs
+name: claim_client
+type: source
+subsystem: session
+location: crates/termlink-session/src/claim_client.rs
+tags: []
+
+purpose: "Substrate primitive #1 CLAIM client wrapper (T-2019/T-2032). RPC client façade for channel.claim / channel.renew / channel.release / channel.claim_transfer used by CLI handlers + AEF integrations."
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-06-11
+created_by: unknown
