@@ -22,3 +22,13 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # trip permissions and so it can read /var/lib/termlink/hub.secret for the
 # local profile when selftest needs it.
 23 9 * * * root cd /opt/termlink && bash scripts/check-fleet-doorbell-mail-health.sh --quiet >> .context/working/.fleet-doorbell-mail-canary.log 2>&1
+
+# T-2176 — meta-canary. Fires 90 minutes after the canary above, on a
+# unique minute (:53) to dodge :13 mirror, :17 heartbeat, :23 canaries,
+# :33 mirror-meta, :43 substrate-meta + rollout-audit clusters. So a
+# load-time race or cron lock at any of the busy minutes can't take both
+# canary and meta out together. Reuses scripts/check-canary-aliveness.sh
+# (T-1723 / T-2175-parameterized) via env-var overrides. --quiet means
+# the log only grows when check-fleet-doorbell-mail-health.sh's heartbeat
+# is stale; empty log = healthy.
+53 10 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.fleet-doorbell-mail-canary.heartbeat CANARY_NAME="fleet-doorbell-mail canary" CANARY_PROBE_CMD="bash scripts/check-fleet-doorbell-mail-health.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-fleet-doorbell-mail-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
