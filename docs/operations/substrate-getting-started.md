@@ -35,6 +35,25 @@ For a single cold-start digest run `/substrate` — it composes all four
 into one parallel view (T-2096). If everything reads green the substrate
 is steady; if not, the per-skill output tells you what's wrong.
 
+### Cold-start three-verb sequence
+
+`/substrate` answers "is the substrate healthy right now?" but it's only
+the runtime layer. Two more skills answer orthogonal questions and
+together form the canonical pickup pattern when landing on a host:
+
+| Verb | Tier | Answers |
+|---|---|---|
+| `/preflight` (T-2158) | Deploy-time | Is the substrate environment set up correctly? (PL-021 volatile /tmp, hubs.toml, be-reachable state) |
+| `/substrate` (T-2096) | Runtime | Is the substrate healthy right now? (composes /find-idle + /claims + /queue-status + /governor) |
+| `/canaries` (T-2172/T-2178) | Cron-tier protection | Are my daily watchers firing AND clean? (auto-discovers `.*-canary.log` AND `.heartbeat`) |
+
+Run them in that order at session start. They take <5 seconds combined,
+they read-only by contract, and they fail loudly if anything is
+structurally wrong — instead of letting you discover the regression
+later under pressure. See `substrate-cron-recipes.md` § "Checking that
+the canaries are firing" for the meta-canary layered-protection layer
+behind `/canaries`.
+
 ## 3. Your first claim lifecycle — five minutes
 
 Before deploying, run the pre-flight (T-2154):
@@ -222,6 +241,19 @@ above will cover most operator work.
   time) + `/substrate` (runtime) for the three-orthogonal-questions
   cold-start digest. See [substrate-cron-recipes.md "Checking that
   the canaries are firing"](substrate-cron-recipes.md).
+- **T-2175 / T-2176 / T-2177** — meta-canary symmetry: substrate-preflight
+  and fleet-doorbell-mail canaries now get T-1723-style heartbeat
+  freshness checks 80–90 min after their daily run, via the parameterized
+  `scripts/check-canary-aliveness.sh`. All three daily canaries
+  (release-mirror / substrate-preflight / fleet-doorbell-mail) are
+  symmetrically protected against silent cron stoppage. See
+  `substrate-cron-recipes.md` § "Layered protection".
+- **T-2178** — `/canaries` discovers never-fired canaries via `.heartbeat`
+  glob (was log-only). A healthy install whose log file doesn't exist
+  yet (the steady state for the empty-log=healthy convention) was
+  previously invisible to the operator-pull view; now it renders as
+  HEALTHY with `log=--`. Closes a real visibility gap caught during
+  T-2175 smoke.
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-
