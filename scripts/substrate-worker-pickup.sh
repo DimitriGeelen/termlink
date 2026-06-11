@@ -37,6 +37,7 @@
 #   0    --max-claims reached, loop exited cleanly
 #   2    usage / missing flag / jq missing
 #   3    --worker-id unresolved
+#   4    preflight refused start (T-2166, e.g. TERMLINK_RUNTIME_DIR on /tmp)
 #   130  SIGTERM/SIGINT
 #
 # Requires: jq (envelope parsing), base64 (payload decode).
@@ -55,6 +56,7 @@ HUB=""
 POLL_MS=2000
 MAX_CLAIMS=0
 TEST_PARSE=""
+SKIP_PREFLIGHT=0
 
 CLAIMS_DISPATCHED=0
 CURRENT_WORKER_PID=""
@@ -89,12 +91,16 @@ Options:
                           fields parsed; exit 1 if any missing.
                           Use for verifying orchestrator-DM-format
                           compatibility without setting up a live workload.
+  --skip-preflight        Skip the startup substrate-preflight.sh call
+                          (CI/test paths where preflight is already known
+                          clean). T-2166. Default: run preflight.
   -h, --help              Print this help and exit 0.
 
 Exit codes:
   0    --max-claims reached, loop exited cleanly
   2    usage error / missing flag / jq missing
   3    --worker-id unresolved
+  4    preflight refused start (T-2166, e.g. TERMLINK_RUNTIME_DIR on /tmp)
   130  SIGTERM/SIGINT
 
 Requires: jq (envelope parsing), base64 (payload decode).
@@ -142,6 +148,46 @@ resolve_worker_id() {
     die "worker-id unresolved — pass --worker-id, set \$TERMLINK_AGENT_ID, or run /be-reachable first" 3
 }
 
+run_preflight() {
+    # T-2166: run substrate-preflight.sh as a startup gate (mirror of T-2163
+    # on substrate-worker-loop.sh + substrate-orchestrator-loop.sh).
+    #   exit 0 (PASS) → silent, continue
+    #   exit 1 (WARN) → print body + WARN line to stderr, continue
+    #   exit 2 (FAIL) → print body to stderr, refuse to start (exit 4)
+    # Locates sibling script via $0 dirname so install-location doesn't matter.
+    # Missing preflight script → warn + continue (defensive — don't block on
+    # absent tooling; the canary covers the long-running drift case).
+    [ "$SKIP_PREFLIGHT" -eq 1 ] && return 0
+
+    local self_dir preflight pf_out pf_rc
+    self_dir=$(cd "$(dirname "$0")" && pwd)
+    preflight="$self_dir/substrate-preflight.sh"
+
+    if [ ! -x "$preflight" ]; then
+        echo "substrate-worker-pickup.sh: preflight script not found at $preflight — continuing without check" >&2
+        return 0
+    fi
+
+    pf_out=$("$preflight" 2>&1)
+    pf_rc=$?
+
+    case "$pf_rc" in
+        0) return 0 ;;
+        1)
+            echo "substrate-worker-pickup.sh: WARNING — substrate-preflight reported warnings:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-worker-pickup.sh: continuing despite WARN (use --skip-preflight to suppress)" >&2
+            return 0
+            ;;
+        *)
+            echo "substrate-worker-pickup.sh: substrate-preflight FAILED (exit $pf_rc) — refusing to start:" >&2
+            echo "$pf_out" >&2
+            echo "substrate-worker-pickup.sh: fix the failure above OR pass --skip-preflight if you accept the risk" >&2
+            exit 4
+            ;;
+    esac
+}
+
 # ---- Arg parsing ---------------------------------------------------------
 
 while [ $# -gt 0 ]; do
@@ -152,6 +198,7 @@ while [ $# -gt 0 ]; do
         --poll-ms) POLL_MS="$2"; shift 2 ;;
         --max-claims) MAX_CLAIMS="$2"; shift 2 ;;
         --test-parse) TEST_PARSE="$2"; shift 2 ;;
+        --skip-preflight) SKIP_PREFLIGHT=1; shift ;;
         -h|--help) usage; exit 0 ;;
         --) shift; break ;;
         *) die "unknown flag: $1" 2 ;;
@@ -199,6 +246,16 @@ if [ -n "$HUB" ]; then
 fi
 
 POLL_S=$(awk -v ms="$POLL_MS" 'BEGIN { printf "%.3f", ms/1000 }')
+
+# ---- Step 0 — preflight gate (T-2166) -----------------------------------
+# Catch PL-021 (volatile /tmp) before any inbox poll or worker-loop spawn.
+# Silent on PASS; warn and continue on WARN; refuse to start on FAIL
+# (exit 4). Bypass via --skip-preflight for CI/test paths where preflight
+# is already clean. Mirror of T-2163 on substrate-worker-loop.sh +
+# substrate-orchestrator-loop.sh — under systemd Restart=on-failure this
+# turns a misconfigured host into a loud restart-loop instead of a
+# silently-running supervisor that fails per envelope arrival.
+run_preflight
 
 # ---- Signal handling -----------------------------------------------------
 
