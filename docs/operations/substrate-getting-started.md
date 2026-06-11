@@ -175,6 +175,13 @@ above will cover most operator work.
   (T-2154) → skill (T-2158) → nightly cron (T-2160) → runtime-entry gate
   (T-2163). Production deployments now get the PL-021 catch automatically;
   no operator discipline required.
+- **T-2165** — [substrate-systemd.md](substrate-systemd.md) +
+  `systemd-templates/termlink-substrate-orchestrator@.service` — production
+  systemd templates for running `scripts/substrate-orchestrator-loop.sh`
+  as a long-running service. Covers how T-2163's preflight exit code 4
+  interacts with `Restart=on-failure` (loud restart-loop, not silent
+  wedge) and the three worker-side patterns (DM-driven, external-queue,
+  short-lived). Sibling of T-1840's listener-heartbeat unit.
 - **T-2162** — [substrate-cron-recipes.md](substrate-cron-recipes.md) —
   ready-to-install cron + notify-script templates for every
   observability surface (preflight-nightly, page-on-cap-hits, page-on-

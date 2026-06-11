@@ -1,0 +1,73 @@
+# T-2165 — persistent substrate orchestrator loop (T-2148 / T-2018 §6 #2 + #3).
+#
+# Template unit: instance specifier `%i` is the orchestrator-id.
+#
+# Install (per host, per orchestrator instance):
+#   sudo install -d /etc/termlink/substrate-orchestrator
+#   sudo cp termlink-substrate-orchestrator@.service /etc/systemd/system/
+#   # author /etc/termlink/substrate-orchestrator/<orchestrator-id>.env (see template
+#   # in docs/operations/substrate-systemd.md)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now termlink-substrate-orchestrator@<orchestrator-id>.service
+#
+# Inspect:
+#   systemctl status termlink-substrate-orchestrator@<orchestrator-id>
+#   journalctl -u termlink-substrate-orchestrator@<orchestrator-id> -f
+#
+# Uninstall:
+#   sudo systemctl disable --now termlink-substrate-orchestrator@<orchestrator-id>
+#   sudo rm /etc/systemd/system/termlink-substrate-orchestrator@.service
+#   sudo systemctl daemon-reload
+#
+# Recipe: see docs/operations/substrate-systemd.md
+#
+[Unit]
+Description=TermLink substrate orchestrator %i (T-2148 dispatch loop)
+Documentation=file:/opt/termlink/docs/operations/substrate-systemd.md
+Documentation=file:/opt/termlink/docs/operations/substrate-orchestrator-recipe.md
+# Wait until the network is up so channel.subscribe + agent contact + claim
+# all reach the hub.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+EnvironmentFile=/etc/termlink/substrate-orchestrator/%i.env
+
+# Defaults — .env can override. TERMLINK_RUNTIME_DIR is the load-bearing one:
+# if it lands on /tmp the T-2163 preflight gate exits 4 at startup and systemd's
+# Restart=on-failure kicks the loop into a loud restart-loop instead of a silent
+# wedge. Leave Restart=on-failure (below) to keep that contract.
+Environment=TERMLINK_SUBSTRATE_SCRIPT=/opt/termlink/scripts/substrate-orchestrator-loop.sh
+Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
+Environment=TERMLINK_SO_TTL_MS=60000
+Environment=TERMLINK_SO_IDLE_POLL_MS=5000
+
+# Translate env→flags so the .env stays a flat key=value file. --capability and
+# --hub are optional. --max-envelopes 0 = unlimited (default).
+ExecStart=/bin/sh -c '\
+    set -e; \
+    flags="--orchestrator-id %i --work-topic $${TERMLINK_SO_WORK_TOPIC} --ttl-ms $${TERMLINK_SO_TTL_MS} --idle-poll-ms $${TERMLINK_SO_IDLE_POLL_MS}"; \
+    if [ -n "$${TERMLINK_SO_CAPABILITY:-}" ]; then flags="$$flags --capability $${TERMLINK_SO_CAPABILITY}"; fi; \
+    if [ -n "$${TERMLINK_SO_HUB:-}" ]; then flags="$$flags --hub $${TERMLINK_SO_HUB}"; fi; \
+    if [ -n "$${TERMLINK_SO_MAX_ENVELOPES:-}" ]; then flags="$$flags --max-envelopes $${TERMLINK_SO_MAX_ENVELOPES}"; fi; \
+    exec $${TERMLINK_SUBSTRATE_SCRIPT} $${flags} $${TERMLINK_SO_EXTRA_ARGS:-}'
+
+Restart=on-failure
+RestartSec=10s
+
+# Hardening (low-risk defaults; loosen if your install needs more).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/termlink /tmp
+ProtectHome=true
+
+# Logging: stdout/stderr → journal. The script's loud lines (subscribed/
+# claimed/dispatched/transferred) land here for `journalctl -f`-style watching.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=termlink-substrate-orchestrator-%i
+
+[Install]
+WantedBy=multi-user.target
