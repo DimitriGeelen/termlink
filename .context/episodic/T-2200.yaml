@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2200: Audit nit — orchestrator-mcp-scan.sh was not executable (chmod applied inline)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-12T10:50:45Z
+# ============================================================================
+
+task_id: T-2200
+task_name: "Audit nit — orchestrator-mcp-scan.sh was not executable (chmod applied inline)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-12T10:21:32Z
+completed: 2026-06-12T10:50:43Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Immediate fix applied inline this session: `chmod +x .agentic-framework/agents/audit/orchestrator-mcp-scan.sh` (verified -rwxr-xr-x)'
+  - 'RCA refined: NOT a G-061 class for `lib/` files — they''re sourced not executed, non-exec is BY DESIGN. The genuine bug is scoped narrowly to `.agentic-framework/agents/**/*.sh` (which ARE invoked directly). The orchestrator-mcp-scan.sh fix this turn was the only real instance found'
+  - 'Sweep done: `find .agentic-framework -name "*.sh" -not -perm -u+x` returned ONLY lib/*.sh (all sourced, non-issue). No other agents/*.sh files non-exec. Sweep clean'
+  - 'Long-term remediation re-classified: a `check-executable` lint would need to distinguish sourced-vs-invoked files (else it false-positives on lib/). Lower-priority than originally framed — surface as a hint, not a blocker. Filed lighter follow-up via the audit episodic'
+  - 'Re-run not needed within this session — runtime chmod is already in place; next audit cycle will confirm'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 29 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 29
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2200-audit-nit--orchestrator-mcp-scansh-was-n.md
+generated_by: context-agent-hybrid

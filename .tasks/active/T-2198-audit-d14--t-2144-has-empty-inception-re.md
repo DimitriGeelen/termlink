@@ -4,9 +4,9 @@ name: "Audit D14 — T-2144 has empty inception Recommendation (false-positive o
 description: >
   Audit D14 WARN: T-2144 'Empty inception Recommendation'. Scout: T-2144 ACTUALLY has a populated Recommendation section ('Substrate is at clean ship state. Forward motion needs human input on...'). Two possible RCAs: (a) auditor pattern looks for specific anchor that doesn't match the existing format; (b) T-2144 needs to be finalized via fw inception decide to record the conclusion structurally. Both — fix the auditor false-positive AND structurally close T-2144.
 
-status: captured
+status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:21:07Z
-last_update: 2026-06-12T10:21:07Z
+last_update: 2026-06-12T10:52:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,10 +39,13 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Read the D14 check implementation (lib/audit_d14.sh or similar) to identify exact anchor pattern it looks for. Compare to T-2144's actual `## Recommendation` section
-- [ ] If the check looks for a different anchor (e.g. `## Decision` instead of `## Recommendation`): file an auditor-fix follow-up
-- [ ] Finalize T-2144 structurally via `fw inception decide T-2144 no-go --rationale "Substrate at clean ship state per audit — no ship-ready slice without human input on T-2090/T-2025/T-2022/T-2024/T-2026"` (T-2144's conclusion is a NO-GO on additional substrate-arc primitives without human GO/NO-GO on the open inceptions)
-- [ ] Re-run audit, confirm D14 no longer fires on T-2144
+- [x] Read D14 check at `.agentic-framework/agents/audit/audit.sh` (Python heredoc). Pattern: requires `**Recommendation:**` (bold prefix) at line-start of Recommendation section body. T-1510 added bulleted variants. T-2144's prose-only format failed the regex
+- [x] Updated T-2144's `## Recommendation` to canonical format: `**Recommendation:** NO-GO on additional substrate-arc primitives...` + rationale. D14 pattern will match next audit run
+- [ ] **(HUMAN)** Finalize T-2144 structurally: `cd /opt/termlink && .agentic-framework/bin/fw inception decide T-2144 no-go --rationale "Substrate at clean ship state — no ship-ready slice without human input on T-2090/T-2025/T-2022/T-2024/T-2026"` (Tier-0 blocks agent execution; human authority required per autonomous-mode boundary)
+- [ ] Re-run audit after human decide, confirm D14 no longer fires on T-2144 (covered automatically next audit cycle)
+
+### Human
+- [ ] [REVIEWER] Approve the T-2144 NO-GO decision. **Steps:** 1) read T-2144's updated Recommendation; 2) if you agree with the NO-GO conclusion (substrate at clean ship state, deferred primitives need human GO/NO-GO), run `cd /opt/termlink && .agentic-framework/bin/fw inception decide T-2144 no-go --rationale "..."` — copy rationale from the T-2144 file. **Expected:** T-2144 transitions to work-completed and moves to .tasks/completed/. **If not:** if you disagree (substrate has open slice you want shipped), decide go + file a build task per the ship-ready slice you want
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -175,3 +178,9 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2198-audit-d14--t-2144-has-empty-inception-re.md
 - **Context:** Initial task creation
+
+### 2026-06-12T10:52:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-06-12T10:52:15Z — status-update [task-update-agent]
+- **Change:** owner: agent → human

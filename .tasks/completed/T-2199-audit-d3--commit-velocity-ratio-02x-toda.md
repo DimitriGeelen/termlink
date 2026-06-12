@@ -4,10 +4,10 @@ name: "Audit D3 — commit velocity ratio 0.2x today=16 vs avg=72 (likely noise)
 description: >
   Audit D3 WARN: today's commit count is 16 vs 14-day avg of 72 (0.2x ratio). Working hypothesis: noise from session structure. This session shipped 14 commits including 3 pre-scoped slices + handovers + housekeeping; 16/today reflects the actual ship-count delta from a more typical full-throughput session (typical ~70-80 daily). Likely measurement-vs-significance gap, not productivity regression. RCA + close as noise unless evidence emerges otherwise.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:21:20Z
-last_update: 2026-06-12T10:21:20Z
-date_finished: null
+last_update: 2026-06-12T10:50:50Z
+date_finished: 2026-06-12T10:50:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -39,10 +39,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Confirm hypothesis: walk `git log --since=2026-06-12 --oneline | wc -l` vs 14-day rolling. Note today's session was a substrate-arc cross-reference closure session (lower-throughput by design — discoverable / scoped slices, not feature blast)
-- [ ] If today's count matches expected for the session type: close as noise with one-line Updates entry noting the calibration
-- [ ] If today's count is genuinely below expected even accounting for session type: file a productivity-investigation follow-up (this would be a real signal, not noise)
-- [ ] If D3 fires repeatedly without distinguishing session-type signal from noise: file an audit-improvement follow-up to weight by session type (handover-heavy vs feature-heavy)
+- [x] Confirmed: today 18 commits, 14d-avg 63.6 (891/14) → 0.28x ratio. Audit's 0.2x reading matches. Session structure: cross-link slice (T-2190 ship) + 3 pre-scopes + 1 promote + 1 memory + 8 audit-follow-up tasks + handovers. Substantive work, low commit count by design
+- [x] Closing as noise: today's throughput matches expected for a triage / cross-link / scope-heavy session. No productivity regression signal
+- [x] No productivity-investigation follow-up needed
+- [x] Audit-improvement follow-up DEFERRED: D3 hasn't repeatedly fired without signal yet; one false-positive does not warrant a session-type-weighting refactor. Revisit if D3 fires noisily 3+ times in 30 days
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -175,3 +175,9 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2199-audit-d3--commit-velocity-ratio-02x-toda.md
 - **Context:** Initial task creation
+
+### 2026-06-12T10:50:49Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+### 2026-06-12T10:50:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
