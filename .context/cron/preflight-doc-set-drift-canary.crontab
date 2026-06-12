@@ -36,3 +36,16 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # cheap and the .log file's owner matches the substrate-preflight
 # canary's owner (operator inspection convention).
 53 5 * * * root cd /opt/termlink && bash scripts/check-preflight-doc-set-drift.sh --quiet >> .context/working/.preflight-doc-set-drift-canary.log 2>&1
+
+# T-2193 — meta-canary. Fires ~50 minutes after the canary above on a
+# different minute so a load-time race or transient cron lock can't take
+# both out together. Reuses scripts/check-canary-aliveness.sh (T-1723
+# parameterized in T-2175) via env-var overrides. --quiet means the log
+# only grows when check-preflight-doc-set-drift.sh's heartbeat is stale;
+# an empty log here is the healthy state (same convention as the canary
+# it watches). Offset chosen to dodge known canaries: :13 mirror,
+# :17 heartbeat, :23 substrate-preflight, :33 mirror-meta,
+# :43 substrate-preflight-meta / rollout-audit, :53 (canary above).
+# Probe runs the drift detector itself with --no-heartbeat so the
+# freshness probe doesn't side-effect the very signal it's checking.
+43 7 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.preflight-doc-set-drift-canary.heartbeat CANARY_NAME="preflight-doc-set-drift canary" CANARY_PROBE_CMD="bash scripts/check-preflight-doc-set-drift.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-preflight-doc-set-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1

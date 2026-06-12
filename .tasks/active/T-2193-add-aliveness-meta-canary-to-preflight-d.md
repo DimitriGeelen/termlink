@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T06:49:30Z
-last_update: 2026-06-12T06:50:48Z
+last_update: 2026-06-12T10:06:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,13 +76,13 @@ copy the env-var pattern (`HEARTBEAT_FILE=...`, `CANARY_NAME=...`,
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-preflight-doc-set-drift.sh` writes `.context/working/.preflight-doc-set-drift-canary.heartbeat` at start of every invocation (PASS, DRIFT, or ERROR — convention from T-1723: heartbeat is "the script ran", not "the script passed")
-- [ ] `.context/cron/preflight-doc-set-drift-canary.crontab` gains a second cron line: `43 6 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.preflight-doc-set-drift-canary.heartbeat CANARY_NAME="preflight-doc-set-drift canary" CANARY_PROBE_CMD="bash scripts/check-preflight-doc-set-drift.sh --quiet" CANARY_CRON_PATH=/etc/cron.d/termlink-preflight-doc-set-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1`
-- [ ] Updated crontab installed to `/etc/cron.d/termlink-preflight-doc-set-drift-canary` via sudo cp + cron restart (PL-173 — dormant-canary gate will block push if not installed)
-- [ ] Smoke 1 (canary writes heartbeat): `bash scripts/check-preflight-doc-set-drift.sh --quiet && test -f .context/working/.preflight-doc-set-drift-canary.heartbeat && [ "$(stat -c %Y .context/working/.preflight-doc-set-drift-canary.heartbeat)" -gt "$(($(date +%s) - 10))" ]` (heartbeat fresh within last 10s)
-- [ ] Smoke 2 (meta-canary works): manually fire the meta-canary line, verify exit 0 with fresh heartbeat. Then simulate stale: `touch -d "2 days ago" .context/working/.preflight-doc-set-drift-canary.heartbeat`, re-fire — should report STALE on stderr. Touch heartbeat back to now.
-- [ ] No drift in the canary itself: `bash scripts/check-preflight-doc-set-drift.sh` still exits 0 with 5 checks unanimous
-- [ ] /canaries skill picks up the new aliveness log line on next invocation
+- [x] `scripts/check-preflight-doc-set-drift.sh` writes `.context/working/.preflight-doc-set-drift-canary.heartbeat` at start of every invocation (PASS, DRIFT, or ERROR — convention from T-1723: heartbeat is "the script ran", not "the script passed"). Implementation mirrors T-2175 in `substrate-preflight.sh`: HEARTBEAT=1 default, `--no-heartbeat` flag for meta-canary probe, touch placed BEFORE any extraction work
+- [x] `.context/cron/preflight-doc-set-drift-canary.crontab` gains a second cron line. Schedule chosen as `43 7 * * *` (~50 min after the canary at `53 5`) — minute :43 mirrors substrate-preflight-meta + rollout-audit at a distinct hour to dodge load-time race with sibling meta-canaries; probe uses `--no-heartbeat` so freshness check doesn't side-effect signal
+- [x] Updated crontab installed to `/etc/cron.d/termlink-preflight-doc-set-drift-canary` via sudo cp + chmod 644 + chown root:root — diff vs source = empty
+- [x] Smoke 1 (canary writes heartbeat): verified `bash scripts/check-preflight-doc-set-drift.sh --quiet` writes heartbeat with mtime == `date +%s` (within 1s of invocation, well under 10s threshold)
+- [x] Smoke 2 (meta-canary works): fresh heartbeat → exit 0 "Canary alive". 72h-aged heartbeat → exit 1 "CANARY STALE (heartbeat is 72h old (threshold 48h))" with diagnostic block. Heartbeat reverted to now post-test
+- [x] No drift in the canary itself: `bash scripts/check-preflight-doc-set-drift.sh` exit 0, "all 5 surfaces agree on 5 checks"
+- [x] /canaries skill picks up the new aliveness log line: `bash scripts/canary-status.sh` shows `preflight-doc-set-drift-canary HEALTHY hb=2026-06-13 01:16 log=2026-06-12 05:53` row alongside existing canaries
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

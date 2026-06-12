@@ -27,24 +27,42 @@
 set -u
 
 QUIET=0
+HEARTBEAT=1
 for arg in "$@"; do
     case "$arg" in
         --quiet) QUIET=1 ;;
+        --no-heartbeat) HEARTBEAT=0 ;;
         --help)
             cat <<'EOF'
-Usage: check-preflight-doc-set-drift.sh [--quiet] [--help]
+Usage: check-preflight-doc-set-drift.sh [--quiet] [--no-heartbeat] [--help]
 
-Detect /preflight check-count drift across the four canonical surfaces.
+Detect /preflight check-count drift across the canonical surfaces.
 
 Options:
-  --quiet  Empty-log canary mode: no stdout on PASS, only emit on
-           DRIFT/ERROR (exit non-zero with diagnostic to stderr).
-           Pairs with cron pattern (T-2160 convention).
+  --quiet         Empty-log canary mode: no stdout on PASS, only emit on
+                  DRIFT/ERROR (exit non-zero with diagnostic to stderr).
+                  Pairs with cron pattern (T-2160 convention).
+  --no-heartbeat  Suppress the T-2193 heartbeat-file touch. Used by the
+                  meta-canary (check-canary-aliveness.sh with
+                  CANARY_PROBE_CMD) so the freshness probe doesn't
+                  side-effect the very signal it watches.
 EOF
             exit 0
             ;;
     esac
 done
+
+# T-2193 (mirror of T-1723/T-2175) heartbeat: prove this canary ran, even on
+# DRIFT/ERROR cycles. scripts/check-canary-aliveness.sh stats this file's
+# mtime; if stale, the canary itself is broken (cron didn't load, script
+# crashed, etc.). Placed BEFORE any extraction work so a missing surface or
+# tooling error can't silently swallow the heartbeat. --no-heartbeat
+# suppresses the touch so the meta-canary can probe without side-effecting.
+HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.preflight-doc-set-drift-canary.heartbeat}"
+if [ "$HEARTBEAT" = 1 ]; then
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
+    touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
+fi
 
 REPO_ROOT="${REPO_ROOT:-$(pwd)}"
 SURFACES=(
