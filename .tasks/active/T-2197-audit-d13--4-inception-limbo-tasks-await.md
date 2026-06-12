@@ -4,7 +4,7 @@ name: "Audit D13 — 4 inception limbo tasks awaiting go/no-go (T-1635, T-1898, 
 description: >
   Audit D13 WARN: 4 inception tasks in limbo. T-1635 A-class (1 human unchecked); T-1898/T-2025/T-2028 B-class (no decision recorded yet). Substrate-arc-aligned: T-2025 + T-2028 are §6 primitives whose GO/NO-GO is blocking new substrate work per T-2144 conclusion. Operator authority required for resolution.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:20:56Z
-last_update: 2026-06-12T10:20:56Z
+last_update: 2026-06-12T12:06:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,11 +39,15 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] T-1635 RCA: read task, identify the 1 unchecked Human AC, refresh evidence if RUBBER-STAMP; if REVIEW, surface for human decision in this task's Human ACs
-- [ ] T-1898 RCA: identify whether the inception has produced enough information for a go/no-go OR whether more exploration is required. Document conclusion as a one-line Recommendation in T-1898 itself
-- [ ] T-2025 RCA: same as T-1898. Note T-2025 is substrate primitive #4 (filesystem-write observation) — substrate-arc directly blocks if deferred
-- [ ] T-2028 RCA: same as T-1898. Note T-2028 is substrate primitive #10 throughput/connection budget per T-2144 (already shipped) — likely closable as superseded
-- [ ] Per-task next-step proposed in Updates section of each (decide GO / decide NO-GO with evidence / DEFER with revisit_at)
+- [x] T-1635 RCA: read task, identify the 1 unchecked Human AC, refresh evidence if RUBBER-STAMP; if REVIEW, surface for human decision in this task's Human ACs. **Done.** T-1635 Recommendation = GO (with option-i refinement); Decision section already records "**Decision**: GO". Agent ACs all ticked. The single unchecked Human AC is a [REVIEW] of `docs/reports/v2-peer-consult-seam-response.md` against the AEF proposal — pure human-judgment seam-review. Surfaced via `fw task review T-1635`. Already done; just needs human REVIEW click
+- [x] T-1898 RCA: identify whether the inception has produced enough information for a go/no-go OR whether more exploration is required. **Recommendation = DEFER (revisit_at: 2026-07-06).** Rationale (per T-1898 file): zero of 8 spikes (S1-S8) executed because operator paused before spike-budget authorization. Decision recorded = DEFER. Two ways back to actionable: explicit spike-budget authorization OR triggering event (e.g. ring20-management >24h silence recurrence within 7d). G-053 daily revisit-due cron will surface on 2026-07-06. Surfaced via `fw task review T-1898`
+- [x] T-2025 RCA: same as T-1898. Note T-2025 is substrate primitive #4 (filesystem-write observation) — substrate-arc directly blocks if deferred. **Recommendation = NO-GO; re-scope as documentation-only.** Investigation revealed the captured framing didn't match reality: `agent-presence` IS already durable (retention=forever SQLite-backed), only the derived LIVE/STALE/OFFLINE view is in-memory, reconstructible within one heartbeat (~30s). Building T-2025 as captured would create two-sources-of-truth anti-pattern. Action on NO-GO is doc-only (ADR §6 #7 wording + substrate-claim-primitive post-restart blackout paragraph). Substrate-arc IS NOT blocked — primitive #4 was a phantom requirement. Surfaced via `fw task review T-2025`. **Correction: T-2025 is substrate primitive #7 (persistent presence + circuit-breaker), not #4 (filesystem-write observation, which is T-2022). T-2197's original description had this miscategorized**
+- [x] T-2028 RCA: same as T-1898. Note T-2028 is substrate primitive #10 throughput/connection budget per T-2144 (already shipped) — likely closable as superseded. **Recommendation = PARTIAL GO with 3 tracks (A: retention audit + Retention::Latest, B: connection cap + per-sender rate limit, C: budget observability).** ALL THREE TRACKS SHIPPED per CLAUDE.md catalog: Track A (T-2142 Retention::Latest), Track B + C (T-2048..T-2070 hub.governor_status RPC + CLI + fleet wrapping + watch + notify + log + history MCP). Closeable as "GO retroactively — all three tracks shipped." Already surfaced for human close via `fw task review T-2028` during T-2201 work, see commit `dc6df225`
+- [x] Per-task next-step proposed in Updates section of each (decide GO / decide NO-GO with evidence / DEFER with revisit_at). **Done by Recommendation section in each task file** (all 4 have populated Recommendation blocks). Per-task /inception/<id> Watchtower URL surfaced via the 4 `fw task review` calls. Decision routes:
+  - **T-1635** → GO (Watchtower or `fw inception decide T-1635 go --rationale "..."`)
+  - **T-1898** → DEFER (already recorded; needs human confirmation to close as DEFER, or operator wants to bump revisit_at)
+  - **T-2025** → NO-GO (closure-ready; doc-only follow-ups per Recommendation)
+  - **T-2028** → GO retroactively (all three tracks shipped; closure-as-superseded equivalent)
 
 ### Human
 - [ ] [REVIEW] Make GO/NO-GO/DEFER decision on each of the 4 inceptions per agent recommendations. **Steps:** read each task's Recommendation; run `fw inception decide T-XXX go|no-go|defer --rationale "..."`. **Expected:** all 4 transition out of limbo. **If not:** defer with explicit revisit_at date so G-053 daily scan picks them up later
@@ -179,3 +183,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2197-audit-d13--4-inception-limbo-tasks-await.md
 - **Context:** Initial task creation
+
+### 2026-06-12T12:06:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → started-work

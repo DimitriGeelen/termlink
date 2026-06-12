@@ -6,7 +6,7 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: next
 tags: []
 components: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T12:04:05Z
-last_update: 2026-06-12T12:04:05Z
+last_update: 2026-06-12T12:05:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,12 +46,18 @@ date_finished: null
      to bypass completion gates. Mitigation hint per audit: `bin/fw task update T-XXXX
      --status work-completed --force` per task. Risk-assessment: safe — files are
      already in completed/, frontmatter sync only. -->
-- [ ] Extract complete list: `grep -oE "CTL-028: T-[0-9]+" .context/audits/2026-06-12.yaml | awk '{print $2}'` → expected count 157
-- [ ] Sample inspect 10 random tasks from the list to confirm they're all the same class (in completed/ + status=started-work + likely have substantive work captured in Updates/episodic). If any sample reveals a DIFFERENT class (e.g. work truly incomplete, just misfiled), exclude that subset and re-classify
-- [ ] Bulk-flip loop: per task in list, run `FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw task update T-XXXX --status work-completed --force --skip-rca` capturing stdout per task. Expected: each call updates status + sets date_finished
-- [ ] Re-run `fw audit | grep -c CTL-028` to confirm zero remaining (or surface exclusions with rationale)
+- [x] Extract complete list: `grep -oE "CTL-028: T-[0-9]+" .context/audits/2026-06-12.yaml | awk '{print $2}' > /tmp/ctl028-list.txt` → confirmed count 157
+- [x] Sample inspect 10 random tasks: T-2095 / T-1983 / T-1938 / T-1956 / T-1974 / T-2009 / T-1977 / T-1968 / T-1919 / T-2001 — ALL same class (in completed/ + status=started-work + date_finished=null + 3-4 update entries showing substantive work). Bulk-flip is safe
+- [x] **Mechanism discovery — Tier-0 block on `--force`.** The `fw task update --force --skip-rca` path classified as Tier-0 destructive ("Bypasses sovereignty gate R-033, AC verification P-010, or verification gate P-011"). Per-call human approval required. For 157 calls this is impractical; need either (a) one-shot `fw tier0 approve` covering the whole sweep, OR (b) direct frontmatter sed/python edit (skip the fw helper). Option (b) is structurally identical to what the helper does for this class — frontmatter status flip + date_finished stamp — but bypasses 157× Tier-0 prompts. The agent cannot self-authorize either path
+- [ ] **(HUMAN AUTHORIZATION REQUIRED)** Approve the bulk-flip approach via one of:
+  - **Path A — `fw tier0 approve` session-wide grant:** run `cd /opt/termlink && .agentic-framework/bin/fw tier0 approve` to grant per-session approval, then `for tid in $(cat /tmp/ctl028-list.txt); do FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw task update "$tid" --status work-completed --force --skip-rca 2>&1 | tail -1; done` (test if approval covers loop calls or only ONE)
+  - **Path B — direct frontmatter sed sweep:** python script that walks `/tmp/ctl028-list.txt`, sets `status: work-completed` + `date_finished: 2026-06-12T<commit-ts>Z` per file, leaves all other content (Updates/RCA/Decisions/episodic-references) untouched. Single Tier-2 bypass (skipping the canonical close path) is acceptable for this class — the work is done, frontmatter is stale; the helper would do exactly this
+- [ ] After human-authorized sweep: re-run `fw audit | grep -c CTL-028` to confirm zero remaining
 - [ ] Commit as one atomic sweep — single commit so the structural sweep is bisectable as one change rather than 157 individual ones
 - [ ] No completed/ task's substantive content (Updates, RCA, Decisions, Evolution) was modified — only frontmatter `status` + `date_finished`
+
+### Human
+- [ ] [REVIEW] Choose Path A (`fw tier0 approve` + loop) or Path B (direct frontmatter sed). **Steps:** read AC 3's mechanism discovery, decide which path. Path A is cleaner ceremonially but may require per-call approval (untested). Path B is faster + structurally equivalent for this class. **Expected:** authorization granted, agent runs the sweep. **If not:** defer — CTL-028 noise is bookkeeping, not load-bearing
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
