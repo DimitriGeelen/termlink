@@ -43,11 +43,16 @@ date_finished: null
      RCA captured under T-2195: CTL-012 fires on 3 distinct sub-classes; only
      class C is auditor noise. Classes A (decide auto-tick bug) + B (missing
      decide path) are real signal but currently rendered identically. -->
-- [ ] Locate CTL-012 heuristic in `.agentic-framework/agents/audit/audit.sh` (the "completed task with unchecked AC" detector)
-- [ ] Refine to skip checkbox lines whose visible text starts with `**DEFERRED**` or `**Deferred to` (T-1299/T-1213 pattern — prose marker pre-empts a real AC). Pattern: `re.match(r'^\s*-\s+\[ \]\s+\*\*(DEFERRED|Deferred)', line)` → skip
-- [ ] Add a SECOND classifier: when an unchecked AC carries `<!-- @auto-tick-on-decide -->` AND the task's `## Decision` section is empty, render as `CTL-012-MISSING-DECIDE` (distinct from CTL-012). This is the T-1993 class — status-flipped to work-completed without ever running `fw inception decide`, so auto-tick path never executed. Auditor message should hint at `fw inception decide T-XXX` or backfill instructions
-- [ ] Unit-test the refinement against `.tasks/completed/T-1213-*.md` + `.tasks/completed/T-1299-*.md` (both should NO LONGER fire CTL-012) and `.tasks/completed/T-1993-*.md` (should fire under the NEW CTL-012-MISSING-DECIDE class, not original CTL-012)
-- [ ] Re-run `fw audit | grep CTL-012` and confirm: T-1299 + T-1213 drop out, T-1993 surfaces with the missing-decide hint
+- [x] Located CTL-012 heuristic: detection in `.agentic-framework/agents/audit/completed-task-scan.py` loop 7 (line 159 `re.match(r'^- \[ \]', line)`); render in `audit.sh` line 3213 `warn "CTL-012: ..."`
+- [x] Refined Python scanner to skip `- [ ] **DEFERRED` / `- [ ] **Deferred` prefix lines (T-1213/T-1299 prose-DEFERRED scope-cut markers). Pattern: `re.match(r'^- \[ \]\s+\*\*(DEFERRED|Deferred)', line)` → continue
+- [x] Added second classifier: tracks `@auto-tick-on-decide` marker on preceding line + computes `decision_empty` (true when `## Decision` section has nothing but heading + comments). When marker AND empty Decision → `class: missing-decide`. Audit.sh CTL-012 emit block now branches on class field — missing-decide produces `CTL-012-MISSING-DECIDE` warn with hint `fw inception decide T-XXX go|no-go|defer --rationale '...'` OR backfill instructions
+- [x] Direct scanner unit test confirms:
+  - T-1213 → DROPPED (prose-DEFERRED filtered upstream)
+  - T-1299 → DROPPED (prose-Deferred-to filtered upstream)
+  - T-1993 → flagged with `class: missing-decide` (auto-tick markers + empty Decision)
+  - T-2012 → also flagged with `class: missing-decide` (same pattern — direct frontmatter-flip)
+  - T-1497 + T-1450 → remain as `class: drift` (genuine CTL-012, generic-template placeholder text remaining — real outstanding ACs)
+- [x] Re-run `fw audit` confirms: 4 unchecked_ac fires (down from 6 — T-1213 + T-1299 dropped); 2 render as `CTL-012-MISSING-DECIDE` with decide hint; 2 render as original `CTL-012` with bypass hint
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
