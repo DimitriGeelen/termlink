@@ -15,6 +15,7 @@
 #   2. CLAUDE.md                              — /preflight catalog row
 #   3. .claude/commands/preflight.md          — skill description + "What it checks" table
 #   4. docs/operations/substrate-cron-recipes.md — cron-recipe "N checks are categorical"
+#   5. docs/operations/substrate-getting-started.md — sample-output "Summary: N pass" (T-2192, PL-211)
 #
 # Exit codes:
 #   0    All surfaces agree
@@ -51,6 +52,7 @@ SURFACES=(
     "catalog:CLAUDE.md"
     "skill:.claude/commands/preflight.md"
     "cron:docs/operations/substrate-cron-recipes.md"
+    "getting-started:docs/operations/substrate-getting-started.md"
 )
 
 # Map English number words to digits. Five is the current target; we cover
@@ -121,6 +123,18 @@ extract_count() {
                 echo "ERROR"
             fi
             ;;
+        getting-started)
+            # On-ramp doc sample-output block: "Summary: N pass, ..." (PL-211 / T-2192).
+            # Greps the fenced sample-output for the "Summary: <digits> pass" line — the
+            # operator's expected output, which tracks the script's true check count.
+            local digit
+            digit=$(printf '%s\n' "$body" | grep -oE 'Summary: [0-9]+ pass' | head -n 1 | awk '{print $2}')
+            if [ -n "$digit" ]; then
+                echo "$digit"
+            else
+                echo "ERROR"
+            fi
+            ;;
     esac
 }
 
@@ -157,7 +171,7 @@ for name in "${ORDER[@]}"; do
 done
 
 if [ "$drifted" -eq 0 ]; then
-    [ "$QUIET" -eq 0 ] && echo "preflight-doc-set: all 4 surfaces agree on $first checks"
+    [ "$QUIET" -eq 0 ] && echo "preflight-doc-set: all ${#ORDER[@]} surfaces agree on $first checks"
     exit 0
 fi
 

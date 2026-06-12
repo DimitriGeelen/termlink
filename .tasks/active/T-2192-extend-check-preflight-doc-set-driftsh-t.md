@@ -72,11 +72,11 @@ to 5 checks, T-2192 wires it into the canary without firing drift.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] T-2191 closed first (getting-started.md says "5 pass" in the sample-output block)
-- [ ] `scripts/check-preflight-doc-set-drift.sh` SURFACES array gains 5th entry: `"getting-started:docs/operations/substrate-getting-started.md"`
-- [ ] `extract_count()` gains a `getting-started)` case that greps the sample block for `Summary: N pass` and emits N (or ERROR if missing)
-- [ ] Smoke: `bash scripts/check-preflight-doc-set-drift.sh` exits 0 with line "preflight-doc-set: all 5 surfaces agree on 5 checks" (verbose mode) on a clean tree
-- [ ] Negative smoke: temporarily edit getting-started.md sample to "Summary: 6 pass", re-run canary, exit 1 with DRIFT table showing 5/5/5/5/6, getting-started row marked `<-- DRIFT`. Revert edit. (Validates the new surface is wired correctly)
+- [x] T-2191 closed first (getting-started.md says "5 pass" in the sample-output block) — closed in commit 35f164e5
+- [x] `scripts/check-preflight-doc-set-drift.sh` SURFACES array gains 5th entry: `"getting-started:docs/operations/substrate-getting-started.md"`
+- [x] `extract_count()` gains a `getting-started)` case that greps the sample block for `Summary: N pass` and emits N (or ERROR if missing)
+- [x] Smoke: `bash scripts/check-preflight-doc-set-drift.sh` exits 0 with line "preflight-doc-set: all 5 surfaces agree on 5 checks" (verbose mode) on a clean tree
+- [x] Negative smoke: temporarily edit getting-started.md sample to "Summary: 6 pass", re-run canary, exit 1 with DRIFT table showing 5/5/5/5/6, getting-started row marked `<-- DRIFT`. Revert edit. Validated 2026-06-13 — drift detected exactly as predicted (PASS-PASS-PASS-PASS-DRIFT), revert restored exit 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
