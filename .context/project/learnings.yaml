@@ -2239,3 +2239,10 @@ learnings:
   date: 2026-06-11
   context: Added via context agent
   application: TBD
+- id: PL-212
+  learning: "CTL-012 (completed task with unchecked AC) fires on 3 distinct sub-classes that look identical in audit output but need different remediation: (A) decide ran but auto-tick failed — actual bug in fw inception decide; (B) status flipped to work-completed without running fw inception decide — auto-tick path never invoked (T-1993 case: T-1909 status-mismatch direct-frontmatter-fix bypasses the ceremony); (C) prose-DEFERRED checkbox false-positive — body starts with **DEFERRED** or **Deferred to follow-up** and is a hold-marker, not a real AC (T-1299, T-1213). Auditor should split these into CTL-012, CTL-012-MISSING-DECIDE, and skip class C. Triage classifier: empty ## Decision + auto-tick markers present = class B; **DEFERRED prefix = class C; else class A."
+  source: P-001
+  task: T-2195
+  date: 2026-06-12
+  context: Added via context agent
+  application: TBD

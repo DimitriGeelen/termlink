@@ -1,13 +1,13 @@
 ---
-id: T-2196
-name: "Audit D5 — 32 task lifecycle anomalies (stale active >25d)"
+id: T-2203
+name: "CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)"
 description: >
-  Audit D5 WARN: 32 tasks have been in started-work status for 11-42 days. Sample: T-1632 30d-active, T-1430 42d-active, T-1432 42d-active, T-1457 39d-active, T-1451 40d-active. Likely overlap with D2 partial-complete pool but includes agent-owned tasks that should have closed by now. Distinct from D2 in that owner may be agent, not human.
+  CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)
 
 status: started-work
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-12T10:20:45Z
-last_update: 2026-06-12T12:04:57Z
+created: 2026-06-12T12:04:05Z
+last_update: 2026-06-12T12:04:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2196: Audit D5 — 32 task lifecycle anomalies (stale active >25d)
+# T-2203: CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)
 
 ## Context
 
@@ -39,26 +39,19 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [x] Enumerate all 32 anomaly tasks: extract from audit `[WARN] D5` line, sort by age descending. **Done.** D5 detector: tasks in `.tasks/active/` with `status: started-work` OR `issues` AND `created > 7 days ago`. Full enumeration via python frontmatter scan (see Updates 2026-06-12 enumeration entry)
-- [x] Per-task classification: (i) partial-complete (Agent ✓ Human pending) → fold into T-2194, (ii) agent-blocked (waiting on external) → surface blocker explicitly, (iii) genuinely-stale (forgotten / superseded) → close with rationale or revive. **Done.** Breakdown:
-  - **22 human-owned partial-completes** (T-212, T-1137, T-1291, T-1294, T-1296, T-1420, T-1415, T-1432, T-1431, T-1430, T-1429, T-1428, T-1427, T-1426, T-1423, T-1453, T-1452, T-1451, T-1633, T-1632, T-1665, T-1799) → **fold into T-2194 scope** (Agent ACs done, Human ACs pending Watchtower click). T-1452 and T-1451 are framework Phase-1 revisit shipped — closure-ready
-  - **9 agent-owned aged-but-shipped tasks** (T-1166, T-1457, T-1643, T-1695, T-1699, T-1727, T-1885, T-1907, T-1908) → MOSTLY closure-ready per session history. Sub-classify:
-    - T-1166 — open due to G-060 ring20-management-agent dependency (7-day window or `.122 fw upgrade`); ACTIVELY BLOCKED on external
-    - T-1457 — open; ring20-agent identity registration; ACTIVELY BLOCKED on operator
-    - T-1643 — open; framework-agent follow-up proposal; awaiting framework-agent response
-    - T-1695 — closure-ready ("PAT rotated 2026-05-18, object-store re-verified clean")
-    - T-1699 — open; framework upgrade test suite
-    - T-1727 — closure-ready (upstream ship per session history)
-    - T-1885 — closure-ready (independent-review v0.1 shipped)
-    - T-1907 + T-1908 — open; auto-commit + grace-period defence-in-depth pair (T-1906 follow-ups)
-  - **1 inception** (T-1898, human-owned, vendored-agent-runner) → already in T-2197 scope (D13 inception limbo)
-- [x] Per-class remediation: partial-completes refer to T-2194; agent-blocked get blocker notes appended; stale get fw task update --status work-completed (with --skip-rca for non-bug) or --status superseded. **Done by classification above.** No autonomous closures attempted — closure-ready agent-owned tasks still need `fw task update --status work-completed` after Human AC validation (their evidence may have stale-RUBBER-STAMP issues per workflow_fresh_resmoke_before_rubber_stamp memory). Those are part of T-2194's refresh-evidence-and-close flow
-- [x] Aim: reduce the D5 anomaly count from 32 to <10 in next audit run; document baseline + delta in Updates section. **Pragmatic update:** the D5 count is dominated by tasks blocked on human Watchtower clicks (T-2194) and external operator action (T-1166/T-1457). Autonomous reduction is bounded by ~5 closure-ready agent-owned tasks. Realistic next-audit floor is ~27, not <10, without the T-2194 batch-click execution
-- [x] Identify if any of the 32 are substrate-arc-relevant — those get priority handling. **Substrate-arc-aligned subset:**
-  - T-1166 (legacy primitive retirement) — substrate work, blocked on ring20-management
-  - T-1294/T-1296 (runtime_dir migrations) — substrate persistence, blocked on operator host action
-  - T-1166 + T-1294/T-1296 + T-1432 (legacy-usage telemetry) form the §6 G-060 cleanup arc. None are agent-actionable today
-- [x] **Adjacent finding (NOT in T-2196 scope but surfaced):** audit also flags **CTL-028: 157 tasks** in `.tasks/completed/` with stale `status: started-work` frontmatter — a 5× larger systemic bookkeeping issue (PL-209 class at scale). Filed **T-2203** for bulk-flip with `fw task update --status work-completed --force` per audit's own mitigation hint
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these.
+     Surfaced during T-2196 D5 RCA: audit `fw audit` shows 157 instances of CTL-028
+     (tasks in .tasks/completed/ with frontmatter status='started-work'). PL-209 class
+     at scale — likely accumulated from T-1909-style direct-frontmatter-fixes done
+     to bypass completion gates. Mitigation hint per audit: `bin/fw task update T-XXXX
+     --status work-completed --force` per task. Risk-assessment: safe — files are
+     already in completed/, frontmatter sync only. -->
+- [ ] Extract complete list: `grep -oE "CTL-028: T-[0-9]+" .context/audits/2026-06-12.yaml | awk '{print $2}'` → expected count 157
+- [ ] Sample inspect 10 random tasks from the list to confirm they're all the same class (in completed/ + status=started-work + likely have substantive work captured in Updates/episodic). If any sample reveals a DIFFERENT class (e.g. work truly incomplete, just misfiled), exclude that subset and re-classify
+- [ ] Bulk-flip loop: per task in list, run `FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw task update T-XXXX --status work-completed --force --skip-rca` capturing stdout per task. Expected: each call updates status + sets date_finished
+- [ ] Re-run `fw audit | grep -c CTL-028` to confirm zero remaining (or surface exclusions with rationale)
+- [ ] Commit as one atomic sweep — single commit so the structural sweep is bisectable as one change rather than 157 individual ones
+- [ ] No completed/ task's substantive content (Updates, RCA, Decisions, Evolution) was modified — only frontmatter `status` + `date_finished`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -187,7 +180,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-06-12T10:20:45Z — task-created [task-create-agent]
+### 2026-06-12T12:04:05Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2196-audit-d5--32-task-lifecycle-anomalies-st.md
+- **Output:** /opt/termlink/.tasks/active/T-2203-ctl-028-bulk-flip--157-completed-tasks-w.md
 - **Context:** Initial task creation

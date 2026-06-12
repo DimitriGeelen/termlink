@@ -4,7 +4,7 @@ name: "Audit Arc-001 — 36/45 tasks completed (0.80) but arc still in-progress"
 description: >
   Audit WARN: Arc-001 has 36/45 tasks completed (80% ratio) but arc status remains 'in-progress' in .context/arcs/. Either: (a) arc-001 should transition to closure (the 9 remaining tasks are deferred/parked and not blockers), OR (b) the 9 remaining tasks are real blockers that should be enumerated + ticketed. Walk .context/arcs/arc-001.yaml, classify the 9 outstanding, decide closure vs continuation.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T10:21:42Z
-last_update: 2026-06-12T10:21:42Z
+last_update: 2026-06-12T11:53:10Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,11 +39,19 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Read `.context/arcs/arc-001.yaml` — identify the 9 outstanding tasks (45 total - 36 completed = 9)
-- [ ] Classify each outstanding: (i) ACTIVELY blocked → identify blocker, surface, (ii) DEFERRED with revisit_at → confirm scheduled, (iii) SUPERSEDED → close with rationale, (iv) ABANDONED → close with rationale
-- [ ] If all 9 classify as deferred / superseded / abandoned: transition arc-001 to status `partial-complete` or `closed-with-deferrals` per framework arc-status taxonomy
-- [ ] If 1+ classify as actively-blocked: list blockers explicitly in arc-001.yaml `blockers:` field; arc stays in-progress with documented dependency
-- [ ] Re-run audit, confirm Arc-001 status no longer triggers WARN (either closure transitioned correctly OR blockers are explicit and that satisfies the auditor)
+- [x] Read `.context/arcs/arc-001.yaml` — identify the 9 outstanding tasks (45 total - 36 completed = 9). Done. Membership scan: `grep -lE "arc:arc-parallel-substrate" .tasks/{active,completed}/*.md` returns 45 (5 active + 40 in completed/, of which 4 carry stale `status: started-work` frontmatter — see classification)
+- [x] Classify each outstanding: 5 active + 4 status-mismatch =
+  - **Status-mismatch in completed/ (4)** — substrate primitives that SHIPPED but inception was never structurally closed (PL-209-class bookkeeping bug). All 4 surfaced via `fw task review` to /inception/<id> for human GO-close:
+    - T-2020 → primitive #2 (find-idle, shipped T-2045/T-2078..T-2082)
+    - T-2021 → primitive #3 (claim-transfer, shipped T-2046/T-2099)
+    - T-2023 → primitive #5 (outbound queue, shipped T-2051/T-2083..T-2087)
+    - T-2027 → primitive #9 (broadcast-with-replay, shipped T-2089/T-2103..T-2107)
+  - **Active inception primitives (5)** —
+    - T-2028 → primitive #10 (throughput/connection budget) SUPERSEDED by shipped T-2048..T-2070. Surfaced via `fw task review` to /inception/T-2028 for human close-as-superseded
+    - T-2022 / T-2024 / T-2025 / T-2026 → primitives #6 / #7 / #4 / #8 all DEFERRED-by-ADR-design per T-2018 §6 (substrate ships only if/when human decides primitive needed). Surfaced in T-2197 (D13 inception limbo)
+- [x] If all 9 classify as deferred / superseded / abandoned: transition arc-001 to status `partial-complete` or `closed-with-deferrals` per framework arc-status taxonomy. NOT applicable here — 4 of 9 are ACTIVELY blocked on human GO/NO-GO. Path B (next AC) applies
+- [x] If 1+ classify as actively-blocked: list blockers explicitly in arc-001.yaml `blockers:` field; arc stays in-progress with documented dependency. Done — added `blockers:` block to `.context/arcs/arc-parallel-substrate.yaml` listing T-2022 / T-2024 / T-2025 / T-2026 with primitive ID + state + decision-route URL. The 5 surfaced-for-close inceptions (T-2020/21/23/27/28) are NOT structural blockers; they are bookkeeping closures awaiting one batch of Watchtower clicks
+- [ ] Re-run audit, confirm Arc-001 status no longer triggers WARN (either closure transitioned correctly OR blockers are explicit and that satisfies the auditor). After human clicks GO on the 5 surfaced inceptions, arc ratio becomes 41/45 = 0.91, still over threshold — but the `blockers:` field documents structural dependency. Manual re-run after human action: `cd /opt/termlink && .agentic-framework/bin/fw audit | grep "Arc 'arc-001'"`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -176,3 +184,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2201-audit-arc-001--3645-tasks-completed-080-.md
 - **Context:** Initial task creation
+
+### 2026-06-12T11:53:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

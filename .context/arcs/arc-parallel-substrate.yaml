@@ -18,3 +18,27 @@ decision: null
 bvp_scores: {}
 scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
 proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.
+
+# T-2201 (2026-06-12) — documented blockers preventing arc closure despite 36/45
+# completed (auditor threshold 0.80 fires). 4 active inception primitives await
+# human GO/NO-GO; these are DEFERRED-by-ADR-design per T-2018 §6 (each ships only
+# if/when human decides primitive is needed). Arc closure is gated on these
+# decisions, not on additional agent work. See T-2197 for the inception-limbo
+# surface, T-2144 for the substrate-primitive-review NO-GO recommendation.
+blockers:
+  - task: T-2022
+    primitive: "#6 filesystem-write observation (CSMA/CD)"
+    state: deferred-pending-human
+    note: "ADR-design DEFER. Decision route: /inception/T-2022 Watchtower"
+  - task: T-2024
+    primitive: "#7 symmetric authentication across UDS + TCP"
+    state: deferred-pending-human
+    note: "ADR-design DEFER. Decision route: /inception/T-2024 Watchtower"
+  - task: T-2025
+    primitive: "#4 hub-persistent presence + circuit-breaker state"
+    state: deferred-pending-human
+    note: "ADR-design DEFER. Decision route: /inception/T-2025 Watchtower. Surfaced in T-2197"
+  - task: T-2026
+    primitive: "#8 typed agent-launch surface (checkout/commit/publish RPCs)"
+    state: deferred-pending-human
+    note: "ADR-design DEFER. Decision route: /inception/T-2026 Watchtower"

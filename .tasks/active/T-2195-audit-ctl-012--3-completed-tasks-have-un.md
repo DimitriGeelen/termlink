@@ -4,7 +4,7 @@ name: "Audit CTL-012 — 3 completed tasks have unchecked ACs (T-1993, T-1299, T
 description: >
   Audit CTL-012 flagged T-1993, T-1299, T-1213 as completed-but-unchecked-AC. Scout found two distinct sub-classes: T-1993 has auto-tick markers ('@auto-tick-on-decide') that didn't fire — likely real bug in fw inception decide auto-tick. T-1299 + T-1213 have prose 'DEFERRED to follow-up' items that use checkbox syntax — false-positives from auditor heuristic.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -39,11 +39,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] T-1993 RCA: read full task, identify which auto-tick markers should have fired. Likely root cause: `fw inception decide` auto-tick scope didn't include the `@auto-tick-on-decide` markers. Reproduce + file bug-class follow-up against the framework agent if confirmed
-- [ ] T-1299 RCA: confirm the unchecked items are "DEFERRED to follow-up" prose, NOT real ACs. If confirmed false-positive, propose auditor heuristic refinement (skip checkboxes that have `**DEFERRED**` or `**Deferred to`...prefix). File against the audit agent if confirmed
-- [ ] T-1213 RCA: same as T-1299 — confirm "DEFERRED hold" pattern false-positive
-- [ ] If T-1299 / T-1213 confirmed false-positives: file ONE follow-up task to refine the auditor's CTL-012 check to skip DEFERRED-prefix patterns
-- [ ] Document the 2-class taxonomy (auto-tick bug vs deferred-prose false-positive) in PL-2XX learning so future CTL-012 fires are classified faster
+- [x] T-1993 RCA: read full task, identify which auto-tick markers should have fired. **Original hypothesis disproven.** Real RCA: T-1993 has `## Recommendation` populated AND 4 ACs with `<!-- @auto-tick-on-decide -->` markers — auto-tick WOULD have fired IF `fw inception decide T-1993` had run. But `## Decision` section is empty AND there is NO inception-decide entry in Updates. The decide ceremony was SKIPPED. Task was direct-frontmatter-flipped to `status: work-completed` (per session memory: "T-1993 + T-2012: fix frontmatter status work-completed (T-1909 class state mismatch)"). The fix bypassed the decide path, therefore the auto-tick path never ran. This is a 3rd class distinct from the originally-hypothesized "decide auto-tick bug"
+- [x] T-1299 RCA: confirm the unchecked items are "DEFERRED to follow-up" prose, NOT real ACs. **Confirmed false-positive.** Line 39: `- [ ] **Deferred to a follow-up build (T-13xx):** (a) termlink register env-var injection...` — explicit prose-DEFERRED marker, not a real outstanding AC. Auditor should skip
+- [x] T-1213 RCA: same as T-1299 — confirm "DEFERRED hold" pattern false-positive. **Confirmed false-positive.** Line 79: `- [ ] **DEFERRED** check-dispatch.sh retirement — hold until the new handler` — same prose-DEFERRED hold marker. Auditor should skip
+- [x] If T-1299 / T-1213 confirmed false-positives: file ONE follow-up task to refine the auditor's CTL-012 check to skip DEFERRED-prefix patterns. **Done: T-2202** filed with 5 ACs covering (i) skip-DEFERRED-prefix refinement, (ii) NEW CTL-012-MISSING-DECIDE class for the T-1993 pattern, (iii) regression tests against T-1213/T-1299/T-1993
+- [x] Document the 2-class taxonomy (auto-tick bug vs deferred-prose false-positive) in PL-2XX learning so future CTL-012 fires are classified faster. **Done: PL-212** registered with the corrected 3-class taxonomy (Class A: decide auto-tick bug, Class B: missing-decide bypass — T-1993, Class C: prose-DEFERRED false-positive — T-1299/T-1213). Includes triage classifier (empty Decision + auto-tick markers = B; **DEFERRED prefix = C; else A)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
