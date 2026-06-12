@@ -60,10 +60,10 @@ audit this 5th surface is filed as a separate slice.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `docs/operations/substrate-getting-started.md` line 46 table row mentions all 5 checks (runtime_dir, hubs.toml, be-reachable, CLI binary T-2181, hub binary T-2184) — not just the original 3
-- [ ] `docs/operations/substrate-getting-started.md` sample output block (lines ~63-66) shows 5 PASS lines and summary "5 pass, 0 warn, 0 fail" (matches real `scripts/substrate-preflight.sh` output on a clean host)
-- [ ] `bash scripts/check-preflight-doc-set-drift.sh` exit 0 (no new drift introduced — getting-started.md is currently OUT of the canary's surface list; this slice doesn't change that, only the prose)
-- [ ] Follow-up task filed (separate slice) to extend `scripts/check-preflight-doc-set-drift.sh` to also audit getting-started.md as a 5th surface, so this drift class is structurally caught next time
+- [x] `docs/operations/substrate-getting-started.md` line 46 table row mentions all 5 checks (runtime_dir, hubs.toml, be-reachable, CLI binary T-2181, hub binary T-2184) — not just the original 3
+- [x] `docs/operations/substrate-getting-started.md` sample output block (lines ~63-66) shows 5 PASS lines and summary "5 pass, 0 warn, 0 fail" (matches real `scripts/substrate-preflight.sh` output on a clean host)
+- [x] `bash scripts/check-preflight-doc-set-drift.sh` exit 0 (no new drift introduced — getting-started.md is currently OUT of the canary's surface list; this slice doesn't change that, only the prose). Verified: `preflight-doc-set: all 4 surfaces agree on 5 checks` (2026-06-13)
+- [x] Follow-up task filed (separate slice) to extend `scripts/check-preflight-doc-set-drift.sh` to also audit getting-started.md as a 5th surface, so this drift class is structurally caught next time. Done: **T-2192** filed (`Extend check-preflight-doc-set-driftsh-t.md`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
