@@ -303,3 +303,24 @@ practices:
   promoted_from: PL-007
   status: active
   applications: 12
+- id: PP-013
+  name: hub-rotation-recovery
+  derived_from: D2
+  description: 'When a remote hub rotates BOTH secret and TLS cert (container nuke
+    / clean runtime_dir), reauth requires TWO steps: (1) fleet reauth --bootstrap-from
+    file:... for the secret, (2) termlink tofu clear <addr>:<port> to drop the stale
+    cert pin so TOFU re-trusts. fleet reauth alone is not enough — TLS layer still
+    rejects. Observed 2026-04-15 for ring20-management after .122 container came back
+    bare. UPDATE 2026-04-26 (T-1294, see PL-085): the ''clean runtime_dir'' cause
+    is volatile /tmp via TWO mechanisms — tmpfs mount OR systemd-tmpfiles ''D /tmp''
+    rule. Mount-table check alone misses #2. Diagnostic: also cat /usr/lib/tmpfiles.d/tmp.conf.
+    Permanent fix: move runtime_dir off /tmp per CLAUDE.md §Hub Auth Rotation Protocol
+    > Special case — volatile runtime_dir.'
+  anti_pattern: Added via context agent; updated 2026-04-26 to cross-reference T-1294
+    widened diagnostic
+  scope: project
+  origin_task: T-1067
+  origin_date: '2026-04-15'
+  promoted_from: PL-021
+  status: active
+  applications: 34

@@ -4,7 +4,7 @@ name: "Add aliveness meta-canary to preflight-doc-set-drift cron (PL-168 / T-172
 description: >
   T-2189 shipped the preflight-doc-set-drift canary at .context/cron/preflight-doc-set-drift-canary.crontab + /etc/cron.d/termlink-preflight-doc-set-drift-canary but BOTH the script (no .heartbeat write) AND the crontab (no aliveness meta-canary cron entry) are missing the T-1723 / PL-168 'every canary must have an aliveness watcher' convention. Asymmetric vs substrate-preflight-canary.crontab (T-2175) and fleet-doorbell-mail-canary.crontab (T-2176) which both have aliveness companions.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T06:49:30Z
-last_update: 2026-06-12T06:49:30Z
+last_update: 2026-06-12T06:50:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -215,3 +215,6 @@ copy the env-var pattern (`HEARTBEAT_FILE=...`, `CANARY_NAME=...`,
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2193-add-aliveness-meta-canary-to-preflight-d.md
 - **Context:** Initial task creation
+
+### 2026-06-12T06:50:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

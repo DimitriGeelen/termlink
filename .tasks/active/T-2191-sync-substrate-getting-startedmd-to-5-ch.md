@@ -4,7 +4,7 @@ name: "Sync substrate-getting-started.md to 5-check preflight (T-2181 + T-2184 f
 description: >
   substrate-getting-started.md line 46 + lines 63-66 still describe the original 3-check preflight (runtime_dir, hubs.toml, be-reachable). Checks 4 (CLI binary freshness, T-2181) and 5 (hub binary freshness, T-2184) shipped after this doc was last touched. Same drift class T-2185/T-2186/T-2187 closed for skill/catalog/cron-recipes — this is the on-ramp doc, highest-leverage surface for new operators.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T22:47:10Z
-last_update: 2026-06-11T22:47:10Z
+last_update: 2026-06-11T23:08:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -196,3 +196,6 @@ audit this 5th surface is filed as a separate slice.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2191-sync-substrate-getting-startedmd-to-5-ch.md
 - **Context:** Initial task creation
+
+### 2026-06-11T22:48:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
