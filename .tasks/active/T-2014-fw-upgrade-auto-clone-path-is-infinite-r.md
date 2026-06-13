@@ -4,16 +4,16 @@ name: "fw upgrade auto-clone path is infinite recursion — propagate fix upstre
 description: >
   fw upgrade in consumer projects with upstream_repo set spawns infinite-recursing nested processes via bare-from-consumer auto-clone loop. Killed 132 nested procs + 16GB clone debris from /tmp during first occurrence (2026-06-06 root@.107 /opt/termlink). Root cause in upstream resolve_framework Step 2. This task tracks upstream fix landing.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [framework, upgrade, bug, infinite-loop]
 components: []
 related_tasks: []
 created: 2026-06-06T06:30:34Z
-last_update: 2026-06-06T13:09:11Z
-date_finished: null
+last_update: 2026-06-13T09:36:11Z
+date_finished: 2026-06-13T09:36:11Z
 ---
 
 # T-2014: fw upgrade auto-clone path is infinite recursion — propagate fix upstream
@@ -226,3 +226,6 @@ The only remaining gate is the Human REVIEW AC (framework-agent prompt operator-
 
 ### 2026-06-06T06:35:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T09:36:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

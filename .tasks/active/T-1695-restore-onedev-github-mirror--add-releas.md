@@ -4,16 +4,16 @@ name: "Restore OneDev → GitHub mirror — release pipeline silently broken sin
 description: >
   OneDev → GitHub mirror has been broken since 2026-05-02. GH HEAD frozen at b39fc916, OneDev HEAD at b179b0cb. 16 days of commits + 3 release tags (v0.10.0, v0.11.0, v0.11.1) never reached GitHub Releases. Homebrew install path broken. Operator-only: needs OneDev UI access + likely github-push-token rotation.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-05-31T15:48:37Z
-date_finished: null
+last_update: 2026-06-13T09:37:51Z
+date_finished: 2026-06-13T09:37:51Z
 ---
 
 # T-1695: Restore OneDev → GitHub mirror (G-058)
@@ -137,19 +137,13 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** OneDev→GitHub mirror silently fast-failed (~2s, HTTP 401 signature) on every push for 21 days (2026-04-27 → 2026-05-18). 3 release tags (v0.10.0/v0.11.0/v0.11.1) and ~900 commits never reached GitHub. Homebrew install path broken throughout.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Replacement `github-push-token` was minted as a **fine-grained PAT with `Contents: Read/write` only** — missing the `Workflows: Read and write` permission. Every commit on main since v0.10 had workflow-file changes in its ancestry, so every push was rejected by GitHub's pre-receive hook ("refusing to allow a Personal Access Token to create or update workflow `.github/workflows/ci.yml` without `workflow` scope"). The original classic PAT had `repo` scope which implicitly granted workflow-write; the fine-grained replacement was effectively a permission downgrade no one caught.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** (1) OneDev surfaces only HTTP status code, not GitHub's error message, so the misleading 401 fast-fail masked the real "workflow scope required" cause for 4 diagnostic attempts. (2) Dry-run push test (`git push --dry-run`) succeeded because dry-run doesn't transmit workflow refs — false-negative diagnostic. (3) Canary was added retroactively (T-1696) — the 21-day silence had no detection.
+
+**Prevention:** (1) T-1696 mirror-freshness canary ships and fires daily — next breakage detected in <24h instead of 21 days. (2) T-2052 oversize-blob root-cause diagnosis added to canary — distinguishes auth-failure from large-file-rejection drift causes. (3) This RCA documents the fine-grained-PAT-permission trap so the next operator minting a replacement PAT adds Workflows scope from the start.
 
 ## Evolution
 
@@ -195,6 +189,18 @@ git ls-remote --tags github | grep -E 'v0\.11\.1$'
      so `fw inception decide` (lib/inception.sh) finds the anchor heading
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
+
+## Recommendation
+
+**Recommendation:** GO — agent-side incident response complete; partial-complete on human GitHub hygiene.
+
+**Rationale:** OneDev→GitHub mirror was silently broken because the fine-grained PAT was missing `Workflows: Read and write` permission. Direct push (main + tags v0.10/v0.11/v0.11.1) by the agent restored release tag visibility on GitHub; canary now reports synced. RCA captured (PAT permission gap, not "PAT expired" as initially hypothesized). The three remaining Human ACs are GitHub-admin operations (rotate PAT with `Workflows` perm, revoke a diagnostic PAT shown in this session's transcript, verify the three releases auto-published by GH Actions) — none of which the agent can perform.
+
+**Evidence:**
+- Direct push completed: main + v0.10/v0.11/v0.11.1 tags now visible at github.com/DimitriGeelen/termlink
+- Root cause documented in task body §Diagnostic + §Resolution
+- Canary `scripts/check-mirror-freshness.sh` reports synced post-push
+- Human ACs are operator-only — see §AC §Human
 
 ## Updates
 
@@ -388,3 +394,6 @@ as the recovery path.
   prior envelopes of back-and-forth exist).
 - **Memory updated:** added project_g058_root_cause.md so future sessions don't
   recite "PAT rotation" again.
+
+### 2026-06-13T09:37:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

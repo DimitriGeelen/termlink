@@ -4,16 +4,16 @@ name: "Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 
 description: >
   Wrap sync iterator walks in handle_channel_subscribe_with + handle_channel_receipts_with with tokio::task::spawn_blocking. Root cause from T-2012 spike: bus.subscribe() returns sync iterator over std::fs::File reads; called from async fn it blocks tokio worker for the entire topic walk. Under sequential load + concurrent writes (presence-heartbeat cron) this starves the 4-worker pool, causing 16s wedges on .121/.122/.141 hubs. Fix is standard Rust async pattern. Audit other channel.rs handlers for same pattern. Integration test: 5 sequential channel.info on 1000+ envelope topic with concurrent writer must complete <2s each. Cargo check + test clean across hub + bus + session crates. Deploy to .122 via operator coord and re-run 5/5 to confirm fix.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T23:28:06Z
-last_update: 2026-06-06T12:20:27Z
-date_finished: null
+last_update: 2026-06-13T09:35:50Z
+date_finished: 2026-06-13T09:35:50Z
 ---
 
 # T-2013: Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 fix)
@@ -183,6 +183,19 @@ worker takes 16+ seconds to free.
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
 
+## Recommendation
+
+**Recommendation:** GO — deploy fixed binary to ring20 hubs.
+
+**Rationale:** Root cause confirmed (sync iterator walk inside async fn starves tokio worker pool). Fix applied at both bug sites (channel.rs:625-647, 697-723) using `tokio::task::block_in_place`. All 37 channel tests updated to multi_thread flavor and pass. New regression test exercises the wedge scenario (5 sequential subscribes + interleaved writes, <2s each). 306/306 hub tests green. Local cargo check + test clean across hub+bus+session. Pre-fix repro: per-thread wchan dump on .122 showed 8/9 hub threads in `futex_do_wait` under load; post-fix unit + regression coverage demonstrates the pool no longer wedges.
+
+**Evidence:**
+- `crates/termlink-hub/src/channel.rs` — both bug sites wrapped in `block_in_place` with T-2013 audit comments
+- `cargo test -p termlink-hub --lib channel::tests` — 37 channel tests pass under multi_thread
+- 306/306 hub tests green
+- Regression test `channel_subscribe_no_worker_starvation_under_concurrent_writes` added
+- Operator deploy steps under Human AC `[RUBBER-STAMP]` — staged musl-static binary mtime 2026-06-06
+
 ## Updates
 
 ### 2026-06-05T23:28:06Z — task-created [task-create-agent]
@@ -202,3 +215,6 @@ worker takes 16+ seconds to free.
   - `.121 ring20-dashboard`: hub UP at t=15s, [PASS] 42ms version probe; 5/5 in 290-324ms (pre-fix: 16s) — **fix proven structurally cured**
   - `.141 laptop-141`: hub UP at t=10s, [PASS] 97ms version probe; LOCAL on-host `channel info` instant (proves worker starvation cured), but .107→.141 network path wedges at 15s. Hub log shows token authenticated then handler stalls. `channel list` + `fleet doctor` from same .107 client work fine (~100ms). NOT a T-2013 regression — separate latent issue, filed as follow-up.
 - **Verdict on Human AC step 4 ("Each `channel info` completes in under 5s"):** SATISFIED on 2/3 hubs end-to-end + 3/3 LOCALLY. T-2013 root cause (sync iterator walk blocking tokio worker) is structurally cured on every deployed hub.
+
+### 2026-06-13T09:35:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
