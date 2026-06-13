@@ -21,6 +21,7 @@
 #   check-fleet-doorbell-mail-health.sh --quiet         # only print on drift (cron-friendly)
 #   check-fleet-doorbell-mail-health.sh --hubs-file P   # override default ~/.termlink/hubs.toml
 #   check-fleet-doorbell-mail-health.sh --no-heartbeat  # suppress heartbeat touch
+#   check-fleet-doorbell-mail-health.sh --transient-file P  # override transient-host declaration file (T-2225)
 set -u
 
 FORMAT=human
@@ -28,6 +29,14 @@ QUIET=0
 HEARTBEAT=1
 HUBS_FILE="${HOME}/.termlink/hubs.toml"
 SELFTEST="${SELFTEST:-scripts/agent-conversation-selftest.sh}"
+# T-2225 — operator-declared "expected-transient" hosts. A profile NAME listed
+# here that is unreachable/setup-fail is classified transient_skipped and does
+# NOT flip overall_ok (a sleeping laptop must not DRIFT the whole-fleet canary —
+# G-019 alert-fatigue prevention). Sources merged: the declaration file (one
+# profile name per line, # comments) UNION the FLEET_DM_CANARY_TRANSIENT env var
+# (comma-separated). Match is by profile name. A transient host that is REACHABLE
+# still counts pass/fail normally — the skip suppresses down-ness, not brokenness.
+TRANSIENT_FILE="${FLEET_DM_CANARY_TRANSIENT_FILE:-.context/cron/fleet-dm-canary-transient}"
 
 # T-1845 / PL-189 — per-hub bound. The selftest internally wraps each
 # termlink RPC with `timeout 8` (PER_CALL_TIMEOUT in selftest), but the
@@ -51,7 +60,7 @@ die() {
 }
 
 usage() {
-    sed -n '2,23p' "$0"
+    sed -n '2,24p' "$0"
 }
 
 while [ $# -gt 0 ]; do
@@ -60,6 +69,7 @@ while [ $# -gt 0 ]; do
         --quiet)         QUIET=1; shift ;;
         --no-heartbeat)  HEARTBEAT=0; shift ;;
         --hubs-file)     HUBS_FILE="${2:-}"; shift 2 ;;
+        --transient-file) TRANSIENT_FILE="${2:-}"; shift 2 ;;
         -h|--help)       usage; exit 0 ;;
         *)               echo "unknown arg: $1 (try --help)" >&2; exit 2 ;;
     esac
@@ -121,7 +131,16 @@ _tsv_in=""
 for i in "${!profile_names[@]}"; do
     _tsv_in+="${profile_addrs[$i]}"$'\t'"${profile_names[$i]}"$'\n'
 done
-_tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp check-fleet-doorbell-mail-health)"
+# T-2225 — in --quiet (cron) mode, suppress the dedup helper's informational
+# "skipping duplicate" stderr chatter so a HEALTHY run stays truly silent. The
+# cron redirects `--quiet >> log 2>&1`, so any stderr would pollute the log and
+# break the "empty log = healthy" contract (and re-fire /canaries) even when the
+# fleet is fine. The helper emits no error-level stderr, only this one line.
+if [ "$QUIET" = 1 ]; then
+    _tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp check-fleet-doorbell-mail-health 2>/dev/null)"
+else
+    _tsv_out="$(printf '%s' "$_tsv_in" | dedup_addrs_by_fp check-fleet-doorbell-mail-health)"
+fi
 declare -a _kept_names=()
 declare -a _kept_addrs=()
 while IFS=$'\t' read -r _kept_addr _kept_name; do
@@ -135,12 +154,32 @@ profile_names=("${_kept_names[@]}")
 total="${#profile_names[@]}"
 [ "$total" -gt 0 ] || die "no profiles found in $HUBS_FILE (after dedup)"
 
+# T-2225 — load the expected-transient profile-name set (file UNION env).
+declare -A TRANSIENT_SET=()
+if [ -n "${TRANSIENT_FILE:-}" ] && [ -f "$TRANSIENT_FILE" ]; then
+    while IFS= read -r t_line || [ -n "$t_line" ]; do
+        t_line="${t_line%$'\r'}"; t_line="${t_line%%#*}"
+        t_line="${t_line#"${t_line%%[![:space:]]*}"}"; t_line="${t_line%"${t_line##*[![:space:]]}"}"
+        [ -z "$t_line" ] && continue
+        TRANSIENT_SET["$t_line"]=1
+    done < "$TRANSIENT_FILE"
+fi
+if [ -n "${FLEET_DM_CANARY_TRANSIENT:-}" ]; then
+    IFS=',' read -ra _env_transient <<< "$FLEET_DM_CANARY_TRANSIENT"
+    for _t in "${_env_transient[@]}"; do
+        _t="${_t#"${_t%%[![:space:]]*}"}"; _t="${_t%"${_t##*[![:space:]]}"}"
+        [ -z "$_t" ] && continue
+        TRANSIENT_SET["$_t"]=1
+    done
+fi
+
 # Per-profile sweep. Each entry is captured as a JSON object string so we can
 # stitch them into the final envelope without spawning jq per profile twice.
 results_json="[]"
 pass_count=0
 fail_count=0
 unreachable_count=0
+transient_skipped_count=0
 
 # Use a temp file to collect jq-shaped objects line-by-line.
 tmp_results="$(mktemp -t fleet-dm-canary.XXXXXX)"
@@ -150,16 +189,27 @@ for i in "${!profile_names[@]}"; do
     name="${profile_names[$i]}"
     addr="${profile_addrs[$i]}"
 
+    is_transient=0
+    [ -n "${TRANSIENT_SET[$name]:-}" ] && is_transient=1
+    if [ "$is_transient" = 1 ]; then transient_json=true; else transient_json=false; fi
+
     out="$($TIMEOUT_CMD bash "$SELFTEST" --hub "$addr" --json 2>/dev/null || true)"
     if [ -z "$out" ] || ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
         # Selftest exited non-zero AND emitted no parseable JSON — treat as
         # unreachable. Includes timeout(1) exit 124 (whole-sweep wedged on
         # a frozen hub — PL-189) and selftest setup-fail (network drop).
-        unreachable_count=$((unreachable_count + 1))
+        # T-2225: a declared-transient host being down is EXPECTED — classify
+        # transient_skipped (does NOT flip overall_ok) instead of unreachable.
+        if [ "$is_transient" = 1 ]; then
+            transient_skipped_count=$((transient_skipped_count + 1))
+        else
+            unreachable_count=$((unreachable_count + 1))
+        fi
         jq -n -c \
             --arg name "$name" \
             --arg addr "$addr" \
-            '{name:$name,address:$addr,verdict:"unreachable",elapsed_ms:null,error:"selftest produced no json"}' \
+            --argjson transient "$transient_json" \
+            '{name:$name,address:$addr,verdict:"unreachable",elapsed_ms:null,transient:$transient,error:"selftest produced no json"}' \
             >> "$tmp_results"
         continue
     fi
@@ -168,7 +218,8 @@ for i in "${!profile_names[@]}"; do
     elapsed="$(printf '%s' "$out" | jq -r '.elapsed_ms // 0')"
     case "$verdict" in
         pass)          pass_count=$((pass_count + 1)) ;;
-        setup-fail)    unreachable_count=$((unreachable_count + 1)) ;;
+        # T-2225: setup-fail on a declared-transient host is "asleep", not broken.
+        setup-fail)    if [ "$is_transient" = 1 ]; then transient_skipped_count=$((transient_skipped_count + 1)); else unreachable_count=$((unreachable_count + 1)); fi ;;
         *)             fail_count=$((fail_count + 1)) ;;
     esac
     jq -n -c \
@@ -176,7 +227,8 @@ for i in "${!profile_names[@]}"; do
         --arg addr "$addr" \
         --arg verdict "$verdict" \
         --argjson elapsed "$elapsed" \
-        '{name:$name,address:$addr,verdict:$verdict,elapsed_ms:$elapsed}' \
+        --argjson transient "$transient_json" \
+        '{name:$name,address:$addr,verdict:$verdict,elapsed_ms:$elapsed,transient:$transient}' \
         >> "$tmp_results"
 done
 
@@ -193,14 +245,15 @@ if [ "$FORMAT" = json ]; then
         --argjson pass "$pass_count" \
         --argjson fail "$fail_count" \
         --argjson unreachable "$unreachable_count" \
+        --argjson transient_skipped "$transient_skipped_count" \
         --argjson ok "$overall_ok" \
-        '{ok:$ok, summary:{total:$total, pass:$pass, fail:$fail, unreachable:$unreachable}, profiles:$profiles}'
+        '{ok:$ok, summary:{total:$total, pass:$pass, fail:$fail, unreachable:$unreachable, transient_skipped:$transient_skipped}, profiles:$profiles}'
 elif [ "$QUIET" = 1 ] && [ "$overall_ok" = true ]; then
     :
 else
     echo "Fleet doorbell+mail health: $([ "$overall_ok" = true ] && echo pass || echo DRIFT)"
-    echo "  total=$total  pass=$pass_count  fail=$fail_count  unreachable=$unreachable_count"
-    printf '%s\n' "$profiles_arr" | jq -r '.[] | "  - \(.name)@\(.address): verdict=\(.verdict)\(if .elapsed_ms then " elapsed=\(.elapsed_ms)ms" else "" end)\(if .error then " error=\(.error)" else "" end)"'
+    echo "  total=$total  pass=$pass_count  fail=$fail_count  unreachable=$unreachable_count  transient_skipped=$transient_skipped_count"
+    printf '%s\n' "$profiles_arr" | jq -r '.[] | "  - \(.name)@\(.address): verdict=\(.verdict)\(if .elapsed_ms then " elapsed=\(.elapsed_ms)ms" else "" end)\(if .transient == true then " (transient — skipped)" else "" end)\(if .error then " error=\(.error)" else "" end)"'
 fi
 
 if [ "$overall_ok" = true ]; then

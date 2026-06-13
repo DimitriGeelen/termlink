@@ -7,6 +7,8 @@
 #   T3 --json with local-only --hubs-file → ok=true, verdict=pass (skip if no local hub)
 #   T4 --json with unreachable-only --hubs-file → ok=false, unreachable>=1
 #   T5 missing --hubs-file → exit 2 tooling error
+#   T6 unreachable host declared transient (T-2225) → ok=true, no DRIFT, exit 0
+#   T7 unreachable host NOT declared transient → still DRIFT (skip-leak guard)
 set -u
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
@@ -89,6 +91,37 @@ else
     rc=$?
     if [ "$rc" -eq 2 ]; then pass "T5: exit=$rc"
     else fail "T5: expected 2, got $rc"; fi
+fi
+
+# -------- T6 (T-2225): unreachable host declared transient → ok=true, no DRIFT --------
+echo "T6: unreachable + declared-transient (env) → ok=true transient_skipped>=1 exit 0"
+cat > "$work/hubs-transient.toml" <<EOF
+[hubs.t2225-trans-canary]
+address = "127.0.0.1:6"
+secret_file = "/tmp/nonexistent.hex"
+EOF
+out="$(FLEET_DM_CANARY_TRANSIENT=t2225-trans-canary bash "$SCRIPT" --hubs-file "$work/hubs-transient.toml" --json --no-heartbeat 2>/dev/null)"
+rc=$?
+ok_field="$(printf '%s' "$out" | jq -r '.ok' 2>/dev/null || echo "")"
+tskip="$(printf '%s' "$out" | jq -r '.summary.transient_skipped // 0' 2>/dev/null || echo "0")"
+unreach="$(printf '%s' "$out" | jq -r '.summary.unreachable // 0' 2>/dev/null || echo "0")"
+ptrans="$(printf '%s' "$out" | jq -r '.profiles[0].transient // false' 2>/dev/null || echo "")"
+if [ "$rc" -eq 0 ] && [ "$ok_field" = "true" ] && [ "$tskip" -ge 1 ] && [ "$unreach" -eq 0 ] && [ "$ptrans" = "true" ]; then
+    pass "T6: rc=0 ok=true transient_skipped=$tskip unreachable=$unreach"
+else
+    fail "T6: rc=$rc ok=$ok_field transient_skipped=$tskip unreachable=$unreach profile.transient=$ptrans out=$out"
+fi
+
+# -------- T7 (T-2225): unreachable host NOT declared transient → still DRIFT (regression guard) --------
+echo "T7: unreachable + NOT transient → ok=false (skip must not leak to undeclared hosts)"
+out="$(bash "$SCRIPT" --hubs-file "$work/hubs-transient.toml" --json --no-heartbeat 2>/dev/null)"
+rc=$?
+ok_field="$(printf '%s' "$out" | jq -r '.ok' 2>/dev/null || echo "")"
+tskip="$(printf '%s' "$out" | jq -r '.summary.transient_skipped // 0' 2>/dev/null || echo "0")"
+if [ "$rc" -eq 1 ] && [ "$ok_field" = "false" ] && [ "$tskip" -eq 0 ]; then
+    pass "T7: rc=1 ok=false transient_skipped=0 (undeclared host still DRIFTs)"
+else
+    fail "T7: rc=$rc ok=$ok_field transient_skipped=$tskip out=$out"
 fi
 
 echo ""

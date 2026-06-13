@@ -1,0 +1,17 @@
+# T-2225 — Expected-transient fleet hosts for check-fleet-doorbell-mail-health.sh.
+#
+# One profile NAME (the [hubs.NAME] from ~/.termlink/hubs.toml) per line.
+# A host listed here that is unreachable / setup-fail is classified
+# `transient_skipped` by the fleet doorbell+mail canary and does NOT flip the
+# fleet verdict to DRIFT — a laptop being asleep is expected, not a failure
+# (G-019 alert-fatigue prevention). A listed host that is REACHABLE still counts
+# pass/fail normally: this suppresses down-ness, not brokenness.
+#
+# Lines starting with # are comments; blank lines ignored. The
+# FLEET_DM_CANARY_TRANSIENT env var (comma-separated) is merged on top of this.
+#
+# laptop-141 — WSL-on-Windows laptop (192.168.10.141), intermittently off the
+# network (No route to host when the laptop is asleep/off). Its reachable-but-
+# wedged failure mode is separately tracked by T-2017; this entry stops the
+# whole-fleet canary DRIFTing every time the laptop is simply powered down.
+laptop-141
