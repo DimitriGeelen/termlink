@@ -928,6 +928,55 @@ dry-run reads a simulated claim and decodes its payload (task_id,
 classification, ac_count, dispatched_by) correctly; release --ack
 closes the loop with `{"ok":true,"ack":true}` from the hub.
 
+### Validation evidence — first complete end-to-end LIVE pipeline
+
+T-2206 captured the first complete LIVE pipeline execution against
+the real backlog (one-keystroke proof the substrate kit closes the
+loop). Sequence on a single host with the orchestrator running as
+`fake-orch` so the local session shows up as an eligible worker:
+
+```text
+$ scripts/orchestrator-backlog-drain.sh --live --orchestrator-id fake-orch --limit 1
+# Step 1: governor pre-flight (#10)
+#   conn_active=3/256 cap_hits_total=0 rate_hits_total=0
+# Step 2: enumerate agent-eligible work-units from .tasks/active/
+#   found 20 agent-eligible units
+# Step 3: discover idle workers via find-idle (#2)
+#   capability=backlog-drain  idle_workers=1 (excluding self=fake-orch)
+#     - root-claude-dimitrimintdev
+# Step 4: pair-and-dispatch
+DISPATCH [LIVE] worker=root-claude-dimitrimintdev unit=T-1166 \
+         claim_id=clm-…-work_queue-3 offset=3 classification=closure-ready
+# Summary: total=20 dispatched=1 no_worker=0 failures=0 mode=live
+
+$ termlink channel claims work-queue --json | jq '.claims[0]'
+{ "claim_id":  "clm-…-work_queue-3",
+  "claimer":   "root-claude-dimitrimintdev",   ← claim-transferred from fake-orch
+  "offset":    3,
+  "topic":     "work-queue" }
+
+$ scripts/worker-backlog-drain.sh --auto-noop --once
+CLAIM #1/1
+  offset=3 claim_id=clm-…-work_queue-3 ttl_remaining=599535ms
+  unit: task=T-1166 classification=closure-ready ac_count=0 dispatched_by=fake-orch
+  action: [AUTO-NOOP] releasing without doing work (substrate smoke-test only)
+ack: true
+
+$ termlink channel claims work-queue --json | jq '.count'
+0
+```
+
+The pipeline closes the loop cleanly: orchestrator posts a work-unit,
+claims it, atomically transfers to the worker (T-2046 #3 primitive,
+no race window), DM dispatches the brief; worker discovers the
+held claim, reads the envelope at the offset, decodes the
+base64-encoded payload, releases with --ack. Final hub state has
+zero active claims and the offset is permanently retired by the ack.
+
+This validation is the load-bearing artifact for the substrate
+consumer kit: future AEF integrators can read it once to trust the
+end-to-end pipeline before running their own smoke.
+
 ## Related primitives — per-primitive docs
 
 The recipe above stitches together every shipped substrate primitive.

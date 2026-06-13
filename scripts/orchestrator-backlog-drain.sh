@@ -287,7 +287,8 @@ while IFS='|' read -r tid classification ac_count name; do
   fi
 
   # 4c: atomic claim-transfer to worker (T-2046 #3 — no race window)
-  xfer_resp="$(termlink channel claim-transfer "$claim_id" "$target" \
+  xfer_resp="$(termlink channel claim-transfer \
+                  --claim-id "$claim_id" --to-owner "$target" \
                   --by "$ORCHESTRATOR_ID" --reason "T-2204 dispatch of $tid" --json 2>&1 \
                   || echo '{"ok":false}')"
   xfer_ok="$(echo "$xfer_resp" | jq -r '.ok // false' 2>/dev/null || echo "false")"
