@@ -4,10 +4,10 @@ name: "Fleet canary: expected-transient host skip (.141 alert-fatigue fix)"
 description: >
   Teach check-fleet-doorbell-mail-health.sh to treat operator-declared transient hosts (e.g. laptop-141) as expected-down so a sleeping laptop does not DRIFT the whole-fleet canary (G-019 alert-fatigue prevention).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T22:54:10Z
-last_update: 2026-06-13T22:54:10Z
-date_finished: null
+last_update: 2026-06-13T23:01:39Z
+date_finished: 2026-06-13T23:01:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -118,19 +118,34 @@ grep -q '^laptop-141' .context/cron/fleet-dm-canary-transient` instead of a Huma
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The `fleet-doorbell-mail-canary` fired DRIFT (exit 1) on every daily
+run because `laptop-141` — a WSL-on-Windows laptop that is frequently powered
+off — was unreachable (No route to host). `/canaries` showed permanent FIRING,
+which trains operators to ignore the canary and thereby masks a *real*
+production-hub failure when one eventually occurs.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** Two compounding gaps. (1) The canary treated every `hubs.toml`
+profile as a permanent production hub — an unreachable transient laptop counted
+toward `unreachable_count` identically to a down production hub, flipping the
+fleet verdict to DRIFT. (2) A latent stderr leak: the T-1892 dedup helper's
+informational `skipping duplicate` line was captured by the cron's
+`--quiet >> log 2>&1`, so even a fully-healthy run wrote bytes to the log —
+already partially breaking the "empty log = healthy" contract.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** `hubs.toml` has no notion of host criticality or
+expected-transience, and the canary's roster was simply "every profile" with no
+expected-down classification. The `--quiet` contract ("silent unless drift") was
+never enforced against helper-emitted stderr, only against the script's own
+stdout.
+
+**Prevention:** (1) Declarative expected-transient host list (git-tracked file
+`.context/cron/fleet-dm-canary-transient` UNION `FLEET_DM_CANARY_TRANSIENT` env),
+with a `transient_skipped` classification that is visible in output but does NOT
+flip `overall_ok`. (2) Regression tests T6 (skip works → exit 0) and T7
+(skip-leak guard — an *undeclared* unreachable host still DRIFTs), so a future
+edit cannot silently widen the skip. (3) Quiet-mode stderr suppression restores
+the "empty log = healthy" contract, verified by reproducing the exact cron
+redirection (0 bytes on a healthy run).
 
 ## Evolution
 
@@ -183,3 +198,6 @@ grep -q '^laptop-141' .context/cron/fleet-dm-canary-transient` instead of a Huma
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2225-fleet-canary-expected-transient-host-ski.md
 - **Context:** Initial task creation
+
+### 2026-06-13T23:01:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

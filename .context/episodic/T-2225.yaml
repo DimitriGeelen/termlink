@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2225: Fleet canary: expected-transient host skip (.141 alert-fatigue fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T23:01:42Z
+# ============================================================================
+
+task_id: T-2225
+task_name: "Fleet canary: expected-transient host skip (.141 alert-fatigue fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T22:54:10Z
+completed: 2026-06-13T23:01:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-14T01:01:09+02:00
+last_commit: 2026-06-14T01:01:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet doorbell-mail canary — expected-transient host skip (.141 alert-fatigue fix)
+
+# Key outcomes
+outcomes:
+  - 'Canary loads an operator-declared expected-transient host set from a file (default `.context/cron/fleet-dm-canary-transient`, one profile NAME per line, `#` comments) merged with the `FLEET_DM_CANARY_TRANSIENT` env var (comma-separated); `--transient-file PATH` overrides the file.'
+  - 'A declared-transient host that is unreachable or `setup-fail` is classified `transient_skipped` and does NOT flip `overall_ok` (exit stays 0, no DRIFT) — a sleeping laptop no longer DRIFTs the whole-fleet canary.'
+  - 'Skip suppresses down-ness only, not brokenness: a transient host that is reachable still counts `pass`; reachable-but-`fail` still triggers DRIFT.'
+  - 'Both human and `--json` output surface transient-skipped hosts with a clear marker plus a `transient_skipped=N` summary field.'
+  - '`laptop-141` is declared transient in `.context/cron/fleet-dm-canary-transient`; a live run shows the fleet canary returns exit 0 (was DRIFT) with `.141` marked `(transient — skipped)`.'
+  - 'A regression test in `test-check-fleet-doorbell-mail-health.sh` covers the transient-skip path (unreachable host + declared transient → ok=true, transient_skipped>=1, exit 0).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fleet doorbell-mail canary — expected-transient host skip (.141 alert-fatigue fix)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-dm-canary-transient'
+  - 'scripts/check-fleet-doorbell-mail-health.sh'
+  - 'scripts/test-check-fleet-doorbell-mail-health.sh'
+  - '.tasks/active/T-2225-fleet-canary-expected-transient-host-ski.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-14T01:01:09"
+    action: "T-2225: fleet doorbell-mail canary — expected-transient host skip (.141 alert-fatigue fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 297
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2225-fleet-canary-expected-transient-host-ski.md
+generated_by: context-agent-hybrid

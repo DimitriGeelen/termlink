@@ -2288,3 +2288,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-219
+  learning: "Fleet-health canaries must classify expected-transient hosts (laptops, dev boxes) separately from production hubs — a canary that fires DRIFT forever on an expected-down host is alert-fatigue that masks real failures (G-019). Declare transience out-of-band (git-tracked file + env), classify as transient_skipped (visible but non-verdict-flipping), and regression-test the skip-leak guard so it can't widen to undeclared hosts. Secondary: any helper stderr (e.g. dedup chatter) leaks into 'empty-log=healthy' canary logs via cron's '>> log 2>&1' — suppress informational stderr in --quiet mode or the healthy-log contract breaks silently."
+  source: P-001
+  task: T-2225
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
