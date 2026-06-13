@@ -135,7 +135,7 @@ Empty path = no posts have ever needed buffering. This is fine.
 
 If you expected to see queue activity, verify:
   ls -la ~/.termlink/outbound.sqlite           # default path
-  echo "$TERMLINK_OUTBOUND_QUEUE_PATH"         # custom path override
+  echo "${TERMLINK_IDENTITY_DIR:-$HOME/.termlink}/outbound.sqlite"  # custom path via TERMLINK_IDENTITY_DIR
 ```
 
 Never silent on empty.

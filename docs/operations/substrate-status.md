@@ -126,9 +126,9 @@ baseline cycle. Per-event env vars passed:
 
 | Env var | Meaning |
 |---|---|
-| `TERMLINK_SUBSTRATE_FIELD` | Which rollup field changed (`DISPATCH`, `CLAIM`, `RESILIENCE`, `BACKPRESSURE`) |
-| `TERMLINK_SUBSTRATE_OLD` | Prior value (printable string, e.g. `idle=0`, `stuck=0`) |
-| `TERMLINK_SUBSTRATE_NEW` | New value |
+| `TERMLINK_SUBSTRATE_CHANGE_FIELD` | Which flattened rollup field changed — one of `dispatch_ok`, `dispatch_idle_count`, `claim_ok`, `claim_topic_count`, `claim_stuck_count`, `resilience_ok`, `resilience_pending`, `backpressure_ok`, `backpressure_total_hubs`, `backpressure_pressured_hubs` |
+| `TERMLINK_SUBSTRATE_CHANGE_OLD` | Prior value (stringified scalar, e.g. `0`, `false`) |
+| `TERMLINK_SUBSTRATE_CHANGE_NEW` | New value (stringified scalar, e.g. `3`, `true`) |
 | `TERMLINK_SUBSTRATE_TS` | RFC3339 detection timestamp |
 
 Hanging scripts do NOT block the loop (fire-and-forget). Spawn
@@ -138,7 +138,7 @@ line + continue). Requires `--watch`.
 Common gate at the top of the notify script:
 
 ```sh
-[ "$TERMLINK_SUBSTRATE_FIELD" = "BACKPRESSURE" ] || exit 0
+[ "$TERMLINK_SUBSTRATE_CHANGE_FIELD" = "backpressure_pressured_hubs" ] || exit 0
 # then page on-call ...
 ```
 
@@ -260,12 +260,12 @@ Sample notify script:
 #!/bin/sh
 # /usr/local/bin/page-on-rollup-change.sh
 # Page on backpressure transitions OR stuck-claim emergence.
-case "$TERMLINK_SUBSTRATE_FIELD" in
-  BACKPRESSURE) ;;
-  CLAIM) echo "$TERMLINK_SUBSTRATE_NEW" | grep -q "stuck=" || exit 0 ;;
+case "$TERMLINK_SUBSTRATE_CHANGE_FIELD" in
+  backpressure_pressured_hubs) ;;                                  # any change in pressured-hub count
+  claim_stuck_count) [ "$TERMLINK_SUBSTRATE_CHANGE_NEW" -gt 0 ] || exit 0 ;;  # only when stuck count rises above 0
   *) exit 0 ;;
 esac
-exec /usr/local/bin/page-oncall "substrate $TERMLINK_SUBSTRATE_FIELD: $TERMLINK_SUBSTRATE_OLD → $TERMLINK_SUBSTRATE_NEW"
+exec /usr/local/bin/page-oncall "substrate $TERMLINK_SUBSTRATE_CHANGE_FIELD: $TERMLINK_SUBSTRATE_CHANGE_OLD → $TERMLINK_SUBSTRATE_CHANGE_NEW"
 ```
 
 ### Recurring-flap investigation (post-incident)

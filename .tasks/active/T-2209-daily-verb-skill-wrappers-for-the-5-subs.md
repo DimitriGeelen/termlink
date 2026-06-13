@@ -4,9 +4,9 @@ name: "Daily-verb skill wrappers for the 5 substrate history/retrospective verbs
 description: >
   Add .claude/commands/ skill wrappers for claims-history, find-idle-history, queue-history, governor-history, substrate-history — completing the daily-verb skill layer (base verbs shipped as /claims, /find-idle, /queue-status, /governor, /substrate under T-2092..T-2096). CLI+MCP tiers already exist (T-2074/2081/2086/2068/2111); only the skill tier is missing, breaking the established pattern for operators investigating flaps.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [substrate, skill, observability]
 components: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T10:34:40Z
-last_update: 2026-06-13T10:41:01Z
-date_finished: null
+last_update: 2026-06-13T10:46:41Z
+date_finished: 2026-06-13T10:46:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,3 +208,6 @@ grep -q "termlink substrate history" .claude/commands/substrate-history.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/T-2209-history-skills/.tasks/active/T-2209-daily-verb-skill-wrappers-for-the-5-subs.md
 - **Context:** Initial task creation
+
+### 2026-06-13T10:46:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

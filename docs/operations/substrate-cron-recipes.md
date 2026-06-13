@@ -349,8 +349,8 @@ homelabs, combine into one composite watch via:
 @reboot root cd /opt/termlink && nohup setsid termlink substrate status --watch 30 --notify /usr/local/bin/page-on-substrate-change.sh --log ~/.termlink/substrate.log > /var/log/termlink-substrate-watch.log 2>&1 &
 ```
 
-The composite `substrate status --watch` exposes `TERMLINK_SUBSTRATE_FIELD`
-+ `TERMLINK_SUBSTRATE_OLD` + `TERMLINK_SUBSTRATE_NEW` so the notify
+The composite `substrate status --watch` exposes `TERMLINK_SUBSTRATE_CHANGE_FIELD`
++ `TERMLINK_SUBSTRATE_CHANGE_OLD` + `TERMLINK_SUBSTRATE_CHANGE_NEW` so the notify
 script can branch on which sub-section changed. Trade-off: less
 information per event (no `cap_hits_delta` for example, just a "field
 changed" signal).

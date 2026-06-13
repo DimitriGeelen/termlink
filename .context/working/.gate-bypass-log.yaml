@@ -1363,3 +1363,46 @@ T-2197/T-2203: RCA inception-limbo set + flip CT'
 T-2194: classify 60 unchecked Human ACs across all human-owned tasks (RCA)
 
 Sweep wider t'
+- timestamp: '2026-06-13T14:24:07Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2212'
+  command: 'cd /opt/termlink
+git add scripts/substrate-cooperative-handoff-demo.sh \
+        docs/reports/T-2212-substrate-cooperative-handoff-demo.md \
+        .context/arcs/arc-parallel-substrate.yaml \
+       '
+- timestamp: '2026-06-13T14:26:01Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2212'
+  command: 'cd /opt/termlink
+git add docs/operations/substrate-orchestrator-recipe.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2212: cross-reference both runnable arc proofs in orchestrator re'
+- timestamp: '2026-06-13T14:47:41Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2213'
+  command: 'cd /opt/termlink
+git add scripts/substrate-drain-demo.sh scripts/substrate-smoke.sh .tasks/active/T-2213-*.md \
+        .context/working/focus.yaml .context/episodic/ .context/project/ 2>/dev/null
+ech'
+- timestamp: '2026-06-13T15:16:12Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2214'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2214-*.md .context/episodic/T-2214.yaml .context/arcs/arc-parallel-substrate.yaml 2>/dev/null
+git status --short | grep -E "T-2214|arc-parallel" 
+FW_SWITCH_'
+- timestamp: '2026-06-13T15:21:44Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2215'
+  command: 'cd /opt/termlink
+.agentic-framework/bin/fw context add-learning "Doc tables that list error SYMBOLS/strings (failure-modes tables, recovery runbooks) drift from the real protocol because nothing tests'
