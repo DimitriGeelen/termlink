@@ -584,10 +584,11 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            AgentAction::FindIdleHistory { since, agent_id, log, json } => {
+            AgentAction::FindIdleHistory { since, agent_id, kind, log, json } => {
                 commands::agent_find_idle::cmd_agent_find_idle_history(
                     since,
                     agent_id.as_deref(),
+                    kind.as_deref(),
                     log.as_deref(),
                     json,
                 )

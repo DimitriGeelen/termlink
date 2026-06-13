@@ -6068,6 +6068,12 @@ pub(crate) enum AgentAction {
         /// Filter to this exact agent_id. Optional.
         #[arg(long = "agent-id", value_name = "AGENT_ID")]
         agent_id: Option<String>,
+        /// Filter to a specific event kind (e.g. `new`, `removed`). T-2208:
+        /// parity with `channel queue-history --kind`. Optional; permissive
+        /// — values other than `new`/`removed` yield zero matches without
+        /// validation panic.
+        #[arg(long)]
+        kind: Option<String>,
         /// Override the log file location. Default `~/.termlink/find-idle.log`.
         #[arg(long)]
         log: Option<std::path::PathBuf>,

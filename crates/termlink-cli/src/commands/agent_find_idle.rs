@@ -457,6 +457,7 @@ pub(crate) fn parse_find_idle_log(
     text: &str,
     cutoff_secs: i64,
     agent_id_filter: Option<&str>,
+    kind_filter: Option<&str>,
 ) -> (Vec<serde_json::Value>, usize) {
     let mut entries = Vec::new();
     let mut malformed = 0usize;
@@ -486,12 +487,23 @@ pub(crate) fn parse_find_idle_log(
                 continue;
             }
         };
-        if v.get("kind").and_then(|k| k.as_str()).is_none() {
-            malformed += 1;
-            continue;
-        }
+        let kind = match v.get("kind").and_then(|k| k.as_str()) {
+            Some(s) => s,
+            None => {
+                malformed += 1;
+                continue;
+            }
+        };
         if let Some(want) = agent_id_filter {
             if agent_id != want {
+                continue;
+            }
+        }
+        // T-2208: --kind filter mirrors queue-history. Permissive: any
+        // value other than the actual emitted kinds (`new`, `removed`)
+        // just yields zero matches without panic.
+        if let Some(want_kind) = kind_filter {
+            if kind != want_kind {
                 continue;
             }
         }
@@ -614,6 +626,7 @@ fn render_find_idle_history_line(e: &serde_json::Value) -> String {
 pub(crate) async fn cmd_agent_find_idle_history(
     since_days: u32,
     agent_id_filter: Option<&str>,
+    kind_filter: Option<&str>,
     log_override: Option<&std::path::Path>,
     json_out: bool,
 ) -> anyhow::Result<()> {
@@ -636,6 +649,7 @@ pub(crate) async fn cmd_agent_find_idle_history(
                             "per_agent": {},
                             "since_days": since_days,
                             "agent_id_filter": agent_id_filter,
+                            "kind_filter": kind_filter,
                             "malformed_lines_skipped": 0,
                             "log_path": path_str,
                             "note": "log file does not exist yet",
@@ -657,7 +671,8 @@ pub(crate) async fn cmd_agent_find_idle_history(
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
     let cutoff_secs = now_secs - (since_days as i64) * 86_400;
-    let (entries, malformed) = parse_find_idle_log(&text, cutoff_secs, agent_id_filter);
+    let (entries, malformed) =
+        parse_find_idle_log(&text, cutoff_secs, agent_id_filter, kind_filter);
     let agg = aggregate_find_idle_entries(&entries);
     if json_out {
         let per_agent: serde_json::Map<String, serde_json::Value> = agg
@@ -682,6 +697,7 @@ pub(crate) async fn cmd_agent_find_idle_history(
                     "per_agent": per_agent,
                     "since_days": since_days,
                     "agent_id_filter": agent_id_filter,
+                    "kind_filter": kind_filter,
                     "malformed_lines_skipped": malformed,
                     "log_path": path_str,
                 }
@@ -693,9 +709,12 @@ pub(crate) async fn cmd_agent_find_idle_history(
         let id_clause = agent_id_filter
             .map(|t| format!(" agent_id={:?}", t))
             .unwrap_or_default();
+        let kind_clause = kind_filter
+            .map(|t| format!(" kind={:?}", t))
+            .unwrap_or_default();
         println!(
-            "(no entries in last {} day(s){} — log: {})",
-            since_days, id_clause, path_str
+            "(no entries in last {} day(s){}{} — log: {})",
+            since_days, id_clause, kind_clause, path_str
         );
         if malformed > 0 {
             println!("({} malformed line(s) skipped)", malformed);
@@ -947,7 +966,7 @@ not-json\n\
 \n\
 {\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"d\",\"kind\":\"removed\"}\n";
         // cutoff=0 → no time filter applied.
-        let (entries, malformed) = parse_find_idle_log(text, 0, None);
+        let (entries, malformed) = parse_find_idle_log(text, 0, None, None);
         assert_eq!(entries.len(), 2, "only the two complete lines survive");
         assert_eq!(malformed, 3, "not-json + missing-kind + missing-ts all count");
         assert_eq!(entries[0]["agent_id"], "a");
@@ -961,7 +980,7 @@ not-json\n\
 {\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"fresh\",\"kind\":\"new\"}\n";
         // 2026-01-01T00:00:00Z epoch = 1_767_225_600. Cut at 2027 → drop the old.
         let cutoff = rfc3339_to_unix_secs_local("2027-01-01T00:00:00Z");
-        let (entries, _) = parse_find_idle_log(text, cutoff, None);
+        let (entries, _) = parse_find_idle_log(text, cutoff, None, None);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["agent_id"], "fresh");
     }
@@ -972,11 +991,31 @@ not-json\n\
 {\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"wanted\",\"kind\":\"new\"}\n\
 {\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"other\",\"kind\":\"new\"}\n\
 {\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"wanted\",\"kind\":\"removed\"}\n";
-        let (entries, _) = parse_find_idle_log(text, 0, Some("wanted"));
+        let (entries, _) = parse_find_idle_log(text, 0, Some("wanted"), None);
         assert_eq!(entries.len(), 2);
         for e in &entries {
             assert_eq!(e["agent_id"], "wanted");
         }
+    }
+
+    #[test]
+    fn find_idle_history_parse_applies_kind_filter() {
+        // T-2208: --kind filter drops entries whose `kind` field doesn't match.
+        let text = "\
+{\"ts\":\"2030-01-01T00:00:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
+{\"ts\":\"2030-01-01T00:01:00Z\",\"agent_id\":\"a\",\"kind\":\"removed\"}\n\
+{\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"b\",\"kind\":\"new\"}\n";
+        let (only_new, _) = parse_find_idle_log(text, 0, None, Some("new"));
+        assert_eq!(only_new.len(), 2);
+        for e in &only_new {
+            assert_eq!(e["kind"], "new");
+        }
+        let (only_removed, _) = parse_find_idle_log(text, 0, None, Some("removed"));
+        assert_eq!(only_removed.len(), 1);
+        assert_eq!(only_removed[0]["agent_id"], "a");
+        // Permissive — unknown kind yields zero matches without panic.
+        let (zero, _) = parse_find_idle_log(text, 0, None, Some("transition"));
+        assert_eq!(zero.len(), 0);
     }
 
     #[test]
@@ -987,7 +1026,7 @@ not-json\n\
 {\"ts\":\"2030-01-01T00:02:00Z\",\"agent_id\":\"a\",\"kind\":\"new\"}\n\
 {\"ts\":\"2030-01-01T00:03:00Z\",\"agent_id\":\"b\",\"kind\":\"new\"}\n\
 {\"ts\":\"2030-01-01T00:04:00Z\",\"agent_id\":\"b\",\"kind\":\"unknown_kind\"}\n";
-        let (entries, _) = parse_find_idle_log(text, 0, None);
+        let (entries, _) = parse_find_idle_log(text, 0, None, None);
         let agg = aggregate_find_idle_entries(&entries);
         let a = agg.get("a").expect("a present");
         assert_eq!(a.new_events, 2, "a flipped from busy→idle twice");
