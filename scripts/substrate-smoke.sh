@@ -19,6 +19,7 @@
 #         drain-demo.sh      — N-way work-stealing race, exclusive delivery (T-2211)
 #         cooperative-handoff-demo.sh — CLAIM_NOT_OWNED ownership gates (T-2212)
 #         lease-expiry-demo.sh — worker-death auto-reclaim + lapsed-owner lockout (T-2214)
+#         resilience-demo.sh — hub-blip queue absorb + exactly-once drain (T-2223)
 #
 # Composition of:
 #   - termlink channel create / post / claim / claim-transfer / claims-summary
@@ -316,5 +317,19 @@ if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
     stage_fail "lease-expiry-demo" "auto-reclaim demo not ok: $out"
 fi
 stage_pass "lease-expiry-demo (worker-death auto-reclaim, lapsed-owner lockout)"
+
+# ---- Stage: arc-demo offline-queue resilience (T-2223, regression gate) ---
+# Proves the Reliability path: a post issued while the hub is DOWN is durably
+# queued (not silent-dropped), auto-drains on the next post once the hub
+# returns, and a replay of the same client_msg_id is absorbed exactly-once.
+# Self-isolating: runs its OWN throwaway UDS hub on a temp runtime_dir, so it
+# does NOT take HUB_ARGS and never touches the smoke run's hub.
+if ! out=$(bash "${SCRIPT_DIR}/substrate-resilience-demo.sh" --json 2>&1); then
+    stage_fail "resilience-demo" "$out"
+fi
+if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+    stage_fail "resilience-demo" "offline-queue resilience demo not ok: $out"
+fi
+stage_pass "resilience-demo (hub-blip queue absorb + exactly-once drain)"
 
 finalize 0
