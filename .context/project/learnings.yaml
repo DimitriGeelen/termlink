@@ -2246,3 +2246,24 @@ learnings:
   date: 2026-06-12
   context: Added via context agent
   application: TBD
+- id: PL-213
+  learning: "Demo/proof scripts must assert the PROPERTY they claim (e.g. bounded retention), not just the happy-path outcome; and never silence a 'create' whose flags are unverified against the INSTALLED binary — a rejected flag silently falls back (substrate-drain-demo claimed bounded but created retention=forever because --retention-value is not in CLI 0.11.1230)."
+  source: P-001
+  task: T-2213
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
+- id: PL-214
+  learning: "Lapsed/expired claims return a DIFFERENT error vocabulary than contested or not-owned ones: a renew/release on an auto-expired claim yields 'claim \"...\" not found (never existed, released, or expired)' (claim record is GONE), NOT the 'held by another claimer'/CLAIM_NOT_OWNED string that a still-live wrongly-owned claim returns. Demo/test assertions that grep for ownership-gate strings will silently mis-pass on lapsed claims unless they also match the not-found family. Verified live T-2214."
+  source: P-001
+  task: T-2214
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
+- id: PL-215
+  learning: "Doc tables that list error SYMBOLS/strings (failure-modes tables, recovery runbooks) drift from the real protocol because nothing tests prose against the source enum — same class as T-2213 (demo asserted a CLI flag the binary rejects). Found a fictional 'CLAIM_LAPSED' symbol in substrate-orchestrator-recipe.md that no code emits. PREVENTION: when a task touches an error-vocabulary doc, add a Verification grep gate that asserts the REAL token is present AND the wrong/old token is absent (e.g. grep -q CLAIM_EXPIRED && ! grep -q CLAIM_LAPSED). Cross-check error strings against crates/termlink-session/src/claim_client.rs (typed ClaimError enum: -32015 Conflict / -32016 NotFound / -32017 NotOwned / -32018 Expired) and live probe before documenting."
+  source: P-001
+  task: T-2215
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
