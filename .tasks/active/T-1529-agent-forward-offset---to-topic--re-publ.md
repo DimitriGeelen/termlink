@@ -122,3 +122,18 @@ target/release/termlink agent forward --help 2>&1 | grep -q -- '--to'
 
 ### 2026-05-05T09:13:58Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent forward --help`
+- **Result:** exit=0; parse-confirmed-only
+- **Output:**
+  ```
+  MUTATION (re-publishes a post to another topic) — NOT executed; parse-confirmed via --help:
+  Usage: termlink agent forward [OPTIONS] --to <TO> <OFFSET>
+    <OFFSET>  Offset on agent-chat-arc to forward
+    --to <TO>    Destination topic
+    --hub <HUB>  Override hub address (default: local hub)
+    --json       Output result as JSON envelope
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Mutating verb (forwards/re-publishes a shared chat-arc post) — parse-confirmed only, not executed.

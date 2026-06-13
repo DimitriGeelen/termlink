@@ -119,3 +119,17 @@ out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window
 ### 2026-05-04T17:21:46Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 3600 --n 5`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  # agent recent d1993c2c3ec44c94 (peer_fp=d1993c2c3ec44c94) | window=3600s | n=5
+  [23m ago] @3198 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T15:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  1 post(s) shown
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

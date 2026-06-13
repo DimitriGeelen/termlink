@@ -129,3 +129,27 @@ out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T
 ### 2026-05-04T22:08:00Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `agent timeline --window-secs 86400 --grep T-1438 ; agent timeline --window-secs 86400 --grep agent --n 10 ; agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --grep T-1500`
+- **Result:** exit=0; 0; 0; ok
+- **Output:**
+  ```
+  ### CMD1: timeline --grep T-1438
+  # agent timeline | window=86400s | n=50 grep=T-1438
+  [15h ago] [d1993c2c] @3175 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T00:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [14h ago] [d1993c2c] @3176 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T01:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [13h ago] [d1993c2c] @3178 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T02:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [12h ago] [d1993c2c] @3179 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T03:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [11h ago] [d1993c2c] @3180 msg_type=chat thread=T-1438 project=010-termlink
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

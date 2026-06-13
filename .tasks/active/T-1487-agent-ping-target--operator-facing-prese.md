@@ -112,3 +112,18 @@ out=$(target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-s
 
 ### 2026-05-04T15:46:30Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-secs 86400`; `target/release/termlink agent ping --target-fp deadbeefdeadbeef --window-secs 60`
+- **Result:** exit=0,1; ok — online (exit=0) vs offline (exit=1) clearly distinguished, single-line each
+- **Output:**
+  ```
+  $ target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-secs 86400
+  d1993c2c3ec44c94 (d1993c2c3ec44c94): online — last seen 23m ago (window=86400s)
+  [exit=0]
+  $ target/release/termlink agent ping --target-fp deadbeefdeadbeef --window-secs 60
+  deadbeefdeadbeef (deadbeefdeadbeef): offline — last seen never (window=60s)
+  [exit=1]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

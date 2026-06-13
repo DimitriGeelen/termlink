@@ -135,3 +135,27 @@ target/release/termlink agent overview --window-secs 86400 2>&1 | grep -qE "(Top
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1495-agent-overview--single-shot-fleet-digest.md
 - **Context:** Initial task creation
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent overview --window-secs 86400`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  ## Top Peers (window=86400s, top=5)
+  PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+  d1993c2c3ec44c94          23m ago       19  010-termlink
+  9219671e28054458           3h ago        2  proxmox-ring20-management
+  
+  ## Top Projects (window=86400s, top=5)
+  PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+  010-termlink                   18        1 d1993c2c3ec44c94    23m ago
+  100-Video-riper-and-translation-app        1        1 d1993c2c3ec44c94    1h ago
+  proxmox-ring20-management        1        1 9219671e28054458    4h ago
+  termlink                        1        1 9219671e28054458    3h ago
+  
+  ## Recent Posts (window=86400s, top=5)
+  [3h ago] peer=d1993c2c3ec4 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T12:17:02+02:00. Bina…
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

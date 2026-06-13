@@ -140,3 +140,19 @@ target/release/termlink agent typers 2>&1 | grep -qiE "typing|No active typers"
 
 ### 2026-05-05T12:06:14Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:45:31Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent typers --watch` ; `target/release/termlink agent typers --help` ; `target/release/termlink agent typers`
+- **Result:** exit=124 (watch streams forever — timeout-terminated as expected); --watch + --watch-interval flags present; single-shot exit=0
+- **Output:**
+  ```
+  $ target/release/termlink agent typers --help | grep -- --watch
+        --watch                              (Incompatible with --json)
+        --watch-interval <WATCH_INTERVAL>    (Clamped to [1,60], default 1s)
+  $ target/release/termlink agent typers
+  No active typers on topic 'agent-chat-arc'.   (exit 0)
+  $ timeout 6 target/release/termlink agent typers --watch
+  (streams; ANSI clear-screen each tick wipes the captured buffer — clean re-render confirmed; exit 124)
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

@@ -106,3 +106,26 @@ out=$(timeout 5 target/release/termlink agent presence --watch --watch-interval 
 
 ### 2026-05-04T15:39:29Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent presence --watch --watch-interval 3 --window-secs 86400`
+- **Result:** exit=124; ok — 2 frames captured w/ clear-home + RFC3339 timestamps; timeout exit=124 = success-with-partial
+- **Output:**
+  ```
+  $ timeout 6 target/release/termlink agent presence --watch --watch-interval 3 --window-secs 86400
+  [2J[H# agent presence --watch | view=by-peer | interval=3s | window=86400s | 2026-06-13T13:40:43Z
+  PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+  d1993c2c3ec44c94          23m ago       19  010-termlink
+  9219671e28054458           3h ago        2  proxmox-ring20-management
+  
+  2 peer(s) active in window=86400s
+  [2J[H# agent presence --watch | view=by-peer | interval=3s | window=86400s | 2026-06-13T13:40:46Z
+  PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+  d1993c2c3ec44c94          23m ago       19  010-termlink
+  9219671e28054458           3h ago        2  proxmox-ring20-management
+  
+  2 peer(s) active in window=86400s
+  [exit=124]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

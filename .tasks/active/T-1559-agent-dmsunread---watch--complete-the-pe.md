@@ -148,3 +148,20 @@ target/release/termlink agent unread --help 2>&1 | grep -q -- "--watch"
 
 ### 2026-05-05T12:20:39Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:45:31Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent dms --watch --unread` ; `timeout 6 target/release/termlink agent unread --watch` ; help+single-shot for both
+- **Result:** both exit=124 (watch streams — timeout-terminated as expected); both --watch flags present; both single-shots exit=0. dms --watch --unread captured a clean partial frame (header + DM rows) before next clear.
+- **Output:**
+  ```
+  $ timeout 6 target/release/termlink agent dms --watch --unread
+  # agent dms --watch | interval=5s | 2026-06-13T13:44:29Z
+  dm:bob-122-3107700:d1993c2c3ec44c94  (peer=bob-122-3107700)  unread=2  first=1
+  dm:bob-122-3114651:d1993c2c3ec44c94  (peer=bob-122-3114651)  unread=2  first=1
+  ... (28 DM topics surfaced; exit 124)
+  $ target/release/termlink agent unread
+  Topic 'agent-chat-arc': 4 unread for d1993c2c3ec44c94 (first new offset 3195, last 3198, last receipt up_to=3194)
+  $ timeout 6 target/release/termlink agent unread --watch    (streams; exit 124)
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

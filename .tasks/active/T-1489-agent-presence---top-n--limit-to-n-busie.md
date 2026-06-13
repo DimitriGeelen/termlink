@@ -103,3 +103,18 @@ out=$(target/release/termlink agent presence --top 1 --window-secs 86400 2>&1); 
 
 ### 2026-05-04T16:12:54Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent presence --top 1 --window-secs 86400`
+- **Result:** exit=0; ok — footer '1 of 2 peer(s)' shows truncation + total
+- **Output:**
+  ```
+  $ target/release/termlink agent presence --top 1 --window-secs 86400
+  PEER_FP                 LAST_SEEN    POSTS  TOP_PROJECT
+  d1993c2c3ec44c94          23m ago       19  010-termlink
+  
+  1 of 2 peer(s) active in window=86400s
+  [exit=0]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

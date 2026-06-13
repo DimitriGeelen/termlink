@@ -113,3 +113,15 @@ out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); e
 ### 2026-05-04T16:59:07Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent presence --thread T-1487 --window-secs 86400`
+- **Result:** exit=0; ok — empty-state names window AND thread filter
+- **Output:**
+  ```
+  $ target/release/termlink agent presence --thread T-1487 --window-secs 86400
+  (no peers active in window=86400s matching thread=T-1487)
+  [exit=0]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

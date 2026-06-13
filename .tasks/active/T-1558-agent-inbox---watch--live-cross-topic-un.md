@@ -139,3 +139,19 @@ target/release/termlink agent inbox 2>&1 | head -5 | grep -qiE "topic|unread|cur
 
 ### 2026-05-05T12:12:56Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:45:31Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent inbox --watch` ; `target/release/termlink agent inbox --help` ; `target/release/termlink agent inbox`
+- **Result:** exit=124 (watch streams forever — timeout-terminated as expected); --watch + --watch-interval (clamp [1,300], default 5s) flags present; single-shot exit=0 showing 3 unread topics
+- **Output:**
+  ```
+  $ target/release/termlink agent inbox
+  3 topic(s) with unread content:
+    agent-chat-arc — 1587 unread (latest=3198, cursor=1611)
+    t-1358-inbox-1777360315 — 2 unread (latest=5, cursor=3)
+    dm:9219671e28054458:d1993c2c3ec44c94 — 1 unread (latest=45, cursor=44)
+  $ timeout 6 target/release/termlink agent inbox --watch
+  (live monitor; ANSI clear each 5s tick; exit 124)
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

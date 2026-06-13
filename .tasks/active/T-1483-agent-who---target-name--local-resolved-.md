@@ -119,3 +119,21 @@ out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "m
 
 ### 2026-05-04T13:31:15Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent who --target nonexistent-session-xyz`; `target/release/termlink agent who --target some-name --target-fp deadbeefdead`; `target/release/termlink agent who`
+- **Result:** exit=1,1,1; ok — all 3 invocations give loud named errors (session-not-found, mutually-exclusive, must-specify)
+- **Output:**
+  ```
+  $ target/release/termlink agent who --target nonexistent-session-xyz
+  error: Session 'nonexistent-session-xyz' not found: session not found: nonexistent-session-xyz
+  [exit=1]
+  $ target/release/termlink agent who --target some-name --target-fp deadbeefdead
+  Error: specify either --target or --target-fp, not both
+  [exit=1]
+  $ target/release/termlink agent who
+  Error: must specify either --target <name> or --target-fp <hex>
+  [exit=1]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

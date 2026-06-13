@@ -112,3 +112,27 @@ out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-se
 
 ### 2026-05-04T16:00:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400`; `target/release/termlink agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400`
+- **Result:** exit=0,0; ok — thread filter narrows posts 19→0; filter_thread header shown
+- **Output:**
+  ```
+  $ target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400
+  peer_fp:           d1993c2c3ec44c94
+  last_seen:         1428s ago (ts_ms=1781356621735)
+  posts_in_window:   19 (window_secs=86400)
+  from_projects:
+    010-termlink                       18
+    100-Video-riper-and-translation-app      1
+  [exit=0]
+  $ target/release/termlink agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400
+  # filter_thread=T-1487
+  peer_fp:           d1993c2c3ec44c94
+  last_seen:         1428s ago (ts_ms=1781356621735)
+  posts_in_window:   0 (window_secs=86400)
+  from_projects:     (none observed in window)
+  [exit=0]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

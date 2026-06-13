@@ -116,3 +116,18 @@ out=$(timeout 15 target/release/termlink agent contact --target-fp deadbeefdeadb
 
 ### 2026-05-04T15:21:48Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent contact --target-fp deadbeefdeadbeef --message hi --ack-required --ack-timeout-secs 5`
+- **Result:** exit=1; error — loud named error (retention-policy conflict on pre-existing dm topic; differs from documented timeout path but still names peer_fp & topic, exit=1)
+- **Output:**
+  ```
+  $ target/release/termlink agent contact --target-fp deadbeefdeadbeef --message hi --ack-required --ack-timeout-secs 5
+  Error: agent contact: posting to dm topic for peer fp=deadbeefdeadbeef failed
+  
+  Caused by:
+      channel.create failed: JSON-RPC error -32603: channel.create: topic "dm:d1993c2c3ec44c94:deadbeefdeadbeef" already exists with a different retention policy (existing=Forever, requested=Messages(1000))
+  [exit=1]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

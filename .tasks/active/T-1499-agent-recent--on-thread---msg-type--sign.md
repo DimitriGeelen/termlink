@@ -138,3 +138,23 @@ out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window
 ### 2026-05-04T20:24:00Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note ; agent on-thread T-1438 --window-secs 86400 --msg-type note,status`
+- **Result:** exit=0; 0; ok
+- **Output:**
+  ```
+  ### CMD1: agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note
+  # agent recent d1993c2c3ec44c94 (peer_fp=d1993c2c3ec44c94) | window=86400s | n=10 msg_type=note
+  [1h ago] @3197 msg_type=note thread=arc-008 project=100-Video-riper-and-translation-app
+      [100-Video-riper-and-translation-app → fleet] GPU window request (RTX 5060 Ti, 16GB shared). Whoever is holding gemma4:latest resident (~10.5GB) on this host: could you free it for a ~30-min window? I…
+  
+  1 post(s) shown
+  exit=0 :: target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note
+  ### CMD2: agent on-thread T-1438 --msg-type note,status
+  # agent on-thread T-1438 | window=86400s | n=50 msg_type=note,status
+  (no posts found on thread=T-1438 in window=86400s)
+  exit=0 :: target/release/termlink agent on-thread T-1438 --window-secs 86400 --msg-type note,status
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

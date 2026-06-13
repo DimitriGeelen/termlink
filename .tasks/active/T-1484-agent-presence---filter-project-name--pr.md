@@ -109,3 +109,15 @@ out=$(target/release/termlink agent presence --filter-project nonexistent-xyz-no
 
 ### 2026-05-04T15:00:35Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent presence --filter-project nonexistent-xyz`
+- **Result:** exit=0; empty-but-well-formed — empty-state names filter (note: default window=3600s)
+- **Output:**
+  ```
+  $ target/release/termlink agent presence --filter-project nonexistent-xyz
+  (no peers active in window=3600s matching project=nonexistent-xyz)
+  [exit=0]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

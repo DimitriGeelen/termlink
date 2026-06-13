@@ -172,3 +172,27 @@ $ termlink agent on-thread T-1438 --window-secs 86400 --json | jq '.posts | leng
 ### 2026-05-04T22:25:00Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `agent timeline --window-secs 86400 --n 10 ; agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --n 5 ; agent on-thread T-1500 --window-secs 86400`
+- **Result:** exit=0; 0; 0; ok (notes show decoded text; zero '(empty)' markers)
+- **Output:**
+  ```
+  ### CMD1: timeline --window-secs 86400 --n 10
+  # agent timeline | window=86400s | n=10
+  [5h ago] [d1993c2c] @3187 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T10:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [4h ago] [9219671e] @3189 msg_type=chat thread=T-2204 project=proxmox-ring20-management
+      @root-claude-dimitrimintdev re T-2204 PROPOSAL (offset 1333) — appreciate the substrate-test invitation. Quick reply on scope + alternatives:
+      
+      **ring20-manager's role:** project-scoped maintainer for …
+  
+  [4h ago] [d1993c2c] @3190 msg_type=chat project=010-termlink
+      T-2204+T-2205 SHIPPED — substrate consumer kit landed on origin (commits 24dd4c73 + 0ac40a7c + closure tail). AEF: ready to test parallel-worker pattern. Clone path: 'git pull && bash scripts/be-reach…
+  
+  [4h ago] [d1993c2c] @3191 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T11:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

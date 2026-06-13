@@ -147,3 +147,22 @@ grep -q '"termlink_agent_poll_end"' crates/termlink-mcp/src/tools.rs
 
 ### 2026-05-05T14:00:19Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:45:31Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps via CLI equivalents (MCP tools — parse-confirmed via CLI equivalent). >2wk since build smoke.
+- **Command(s):** `target/release/termlink agent poll-start|vote|poll-end|poll-results --help` ; `grep -E '"termlink_agent_poll_(start|vote|end)"' crates/termlink-mcp/src/tools.rs` ; `termlink version --json | mcp_tools`
+- **Result:** exit=0 / parse-confirmed-only. All 3 MCP poll tools present in tools.rs (start/vote/end). CLI write-side equivalents resolve: `poll-start`, `vote` (note: CLI verb is `vote`, MCP tool is `termlink_agent_poll_vote`), `poll-end`, read-side `poll-results`. mcp_tools=270.
+- **Output:**
+  ```
+  $ termlink agent poll-start --help
+  Usage: termlink agent poll-start [OPTIONS] --option <OPTION> <QUESTION>
+  $ termlink agent vote --help          (CLI vote verb; MCP=termlink_agent_poll_vote)
+  Usage: termlink agent vote [OPTIONS] <POLL_ID> <CHOICE>   (CHOICE = zero-indexed)
+  $ termlink agent poll-end --help
+  Usage: termlink agent poll-end [OPTIONS] <POLL_ID>
+  $ termlink agent poll-results --help
+  Usage: termlink agent poll-results [OPTIONS] <POLL_ID>
+  $ grep -cE '"termlink_agent_poll_(start|vote|end)"' crates/termlink-mcp/src/tools.rs  ->  6
+  $ termlink version --json | mcp_tools  ->  270
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

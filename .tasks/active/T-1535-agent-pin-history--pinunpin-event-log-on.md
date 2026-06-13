@@ -121,3 +121,15 @@ target/release/termlink agent pin-history --help 2>&1 | grep -q -- "agent"
 
 ### 2026-05-05T09:21:41Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent pin-history`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  Pin history for 'agent-chat-arc':
+    [7] PIN → [6] by d1993c2c3ec44c94: {"event":"inception-rfc","task":"T-1425","title":"agent-to-a…
+    [355] PIN → [346] by d1993c2c3ec44c94: Session wrap: 14 features shipped (T-1511..T-1524). Handover…
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Read-only — executed for real. Chronological PIN events with target offsets.

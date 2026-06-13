@@ -121,3 +121,14 @@ target/release/termlink agent edits-of --help 2>&1 | grep -q -- "agent"
 
 ### 2026-05-05T09:21:41Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent edits-of 1333`
+- **Result:** exit=0; empty-but-well-formed
+- **Output:**
+  ```
+  Edits of offset 1333 on 'agent-chat-arc' (0 edits):
+    [original 1333 ts=1778667781641 d1993c2c3ec44c94] {"subject":"ring20-management replied — T-209 pipeline runbook","summary":"Reply detected at 2026-05-13T10:23:01Z. Post count went from 7 to 10. Read with: termlink channel subscribe dm:9219671e28054458:d1993c2c3ec44c94 --cursor 7. Auto-poller pausing — operator decides next.","tasks":["T-209"]}
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Read-only — executed for real against offset 1333. 0 edits (well-formed: shows original envelope, no edit chain — that post was never edited).

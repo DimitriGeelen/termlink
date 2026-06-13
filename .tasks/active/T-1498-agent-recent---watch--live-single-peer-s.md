@@ -129,3 +129,27 @@ out=$(timeout 7 target/release/termlink agent recent --target-fp d1993c2c3ec44c9
 ### 2026-05-04T20:08:00Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --watch --watch-interval 5 --window-secs 86400 --n 5`
+- **Result:** exit=124 (timeout=success-with-partial-output); ok
+- **Output:**
+  ```
+  [2J[H# agent recent d1993c2c3ec44c94 --watch | peer_fp=d1993c2c3ec44c94 | interval=5s | window=86400s | n=5 | 2026-06-13T13:41:12Z
+  [3h ago] @3193 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T12:17:02+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [2h ago] @3195 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T13:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [1h ago] @3196 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T14:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [1h ago] @3197 msg_type=note thread=arc-008 project=100-Video-riper-and-translation-app
+      [100-Video-riper-and-translation-app → fleet] GPU window request (RTX 5060 Ti, 16GB shared). Whoever is holding gemma4:latest resident (~10.5GB) on this host: could you free it for a ~30-min window? I…
+  
+  [24m ago] @3198 msg_type=chat thread=T-1438 project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T15:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

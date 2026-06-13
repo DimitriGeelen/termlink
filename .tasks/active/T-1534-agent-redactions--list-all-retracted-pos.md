@@ -121,3 +121,20 @@ target/release/termlink agent redactions --help 2>&1 | grep -q -- "agent"
 
 ### 2026-05-05T09:21:40Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent redactions`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  Redactions on 'agent-chat-arc':
+    [210] redacts → [209] by d1993c2c3ec44c94 reason="empty payload — jq quoting failure, reposting": 
+  
+    [232] redacts → [229] by d1993c2c3ec44c94 reason="scope correction — over-asked Mail.Read on whole mailbox; corrected ask coming with cohort-folder-only scope": {
+    "subject": "BLOCKED — cohort_inbound_poll waiting on M…
+    [235] redacts → [233] by d1993c2c3ec44c94 reason="underspecified — operator wants explicit alias list + concrete schema/mapping proposal; see docs/design/cohort_inbound_event_mapping.md and replacement envelope": {
+    "subject": "BLOCKED — cohort_inbound_poll waiting on M…
+    [237] redacts → [236] by d1993c2c3ec44c94 reason="follow-up pointing to redacted :233; reposting full corrected spec with watermark+heartbeat protocol": {
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Read-only — executed for real. Redaction list shows target offset + reason per entry.

@@ -109,3 +109,21 @@ out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); e
 ### 2026-05-04T17:10:54Z — status-update [manual]
 - **Change:** status: started-work → work-completed (G-054 workaround: fw task update flock-deadlocked)
 - **Owner:** agent → human (partial-complete; Human REVIEW AC pending)
+
+### 2026-06-13T13:41:08Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent presence --by-project --window-secs 86400`
+- **Result:** exit=0; ok — by-project table, PROJECT leftmost, footer reports 4 projects + window
+- **Output:**
+  ```
+  $ target/release/termlink agent presence --by-project --window-secs 86400
+  PROJECT                     POSTS    PEERS TOP_PEER            LAST_SEEN
+  010-termlink                   18        1 d1993c2c3ec44c94    23m ago
+  100-Video-riper-and-translation-app        1        1 d1993c2c3ec44c94    1h ago
+  proxmox-ring20-management        1        1 9219671e28054458    4h ago
+  termlink                        1        1 9219671e28054458    3h ago
+  
+  4 project(s) active in window=86400s
+  [exit=0]
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

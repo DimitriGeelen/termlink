@@ -121,3 +121,18 @@ target/release/termlink agent redact --help 2>&1 | grep -q -- '--reason'
 
 ### 2026-05-05T09:13:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent redact --help`
+- **Result:** exit=0; parse-confirmed-only
+- **Output:**
+  ```
+  MUTATION (retracts a prior post) — NOT executed; parse-confirmed via --help:
+  Usage: termlink agent redact [OPTIONS] <OFFSET>
+    <OFFSET>  Offset of the post to redact
+    --reason <REASON>  Optional reason logged on the redaction envelope
+    --hub <HUB>        Override hub address (default: local hub)
+    --json             Output result as JSON envelope
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Mutating verb (redacts a post) — parse-confirmed only, not executed. (Prior T-1531 smoke baseline 360->361 visible in `agent redactions`.)

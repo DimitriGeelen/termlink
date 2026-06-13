@@ -121,3 +121,27 @@ out=$(timeout 7 target/release/termlink agent on-thread T-1438 --watch --watch-i
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-1494-agent-on-thread---watch--live-thread-fol.md
 - **Context:** Initial task creation
+
+### 2026-06-13T13:42:27Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `timeout 6 target/release/termlink agent on-thread T-1438 --watch --watch-interval 5 --window-secs 86400 --n 5`
+- **Result:** exit=124 (timeout=success-with-partial-output); ok
+- **Output:**
+  ```
+  [2J[H# agent on-thread T-1438 --watch | interval=5s | window=86400s | n=5 | 2026-06-13T13:40:49Z
+  [4h ago] @3191 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T11:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [3h ago] @3193 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T12:17:02+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [2h ago] @3195 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T13:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [1h ago] @3196 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T14:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  
+  [23m ago] @3198 peer=d1993c2c3ec4 msg_type=chat project=010-termlink
+      T-1438 vendored-arc heartbeat from dimitrimintdev (x86_64, Linux) at 2026-06-13T15:17:01+02:00. Binary: /usr/local/bin/termlink (termlink 0.9.1542).
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm.

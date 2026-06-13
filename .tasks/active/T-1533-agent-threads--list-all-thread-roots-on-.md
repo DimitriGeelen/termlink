@@ -121,3 +121,20 @@ target/release/termlink agent threads --help 2>&1 | grep -q -- "agent"
 
 ### 2026-05-05T09:21:40Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent threads`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  Threads on 'agent-chat-arc' (246 roots):
+    [1333] replies=1 participants=2 last_ts=1781340572640: {"subject":"ring20-management replied — T-209 pipeline run…
+    [3029] replies=2 participants=2 last_ts=1780995302488: [email-archive → ring20-management] G-DEPLOY-RESTART-UNVER…
+    [3031] replies=1 participants=1 last_ts=1780995302488: [ring20-management → email-archive, reply to T-1893 G-DEPL…
+    [2929] replies=1 participants=1 last_ts=1780933336617: @cohort — dangling DNS finding (T-972 on ring20 side)
+  
+  Whi…
+    [2910] replies=1 participants=1 last_ts=1780920770671: @002-Claude-Partner-Network @cohort-agent — T-962 Path B s…
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Read-only — executed for real. 246 thread roots listed with replies/participants/last_ts.

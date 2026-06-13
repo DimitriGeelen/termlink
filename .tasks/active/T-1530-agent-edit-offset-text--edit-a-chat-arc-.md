@@ -121,3 +121,18 @@ target/release/termlink agent edit --help 2>&1 | grep -q -- 'OFFSET'
 
 ### 2026-05-05T09:13:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:44:33Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps to capture fresh output (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent edit --help`
+- **Result:** exit=0; parse-confirmed-only
+- **Output:**
+  ```
+  MUTATION (edits a prior post) — NOT executed; parse-confirmed via --help:
+  Usage: termlink agent edit [OPTIONS] <OFFSET> <TEXT>
+    <OFFSET>  Offset of the prior post being edited
+    <TEXT>    New text payload
+    --hub <HUB>  Override hub address (default: local hub)
+    --json       Output result as JSON envelope
+  ```
+- **Note:** Human [REVIEW] AC remains UNCHECKED — sovereignty; evidence provided for batch-confirm. Mutating verb (edits a post I do not own) — parse-confirmed only, not executed.
