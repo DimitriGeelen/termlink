@@ -4,20 +4,20 @@ name: "Substrate-preflight binary check: feature-aware staleness (stop false WAR
 description: >
   Make the T-2181 binary-staleness check WARN only when crates/ (CLI source) actually changed since the installed binary, not on mere VERSION-number drift. VERSION auto-increments on every commit (git-derived), so the check currently false-WARNs after any doc/task commit even when the binary's features are current — PL-219 alert-fatigue class.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T23:23:28Z
-last_update: 2026-06-13T23:23:28Z
-date_finished: null
+last_update: 2026-06-13T23:25:01Z
+date_finished: 2026-06-13T23:25:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -181,3 +181,6 @@ d=$(mktemp -d); printf '#!/bin/sh\necho "termlink 0.10.0"\n' > "$d/termlink"; ch
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2226-substrate-preflight-binary-check-feature.md
 - **Context:** Initial task creation
+
+### 2026-06-13T23:25:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

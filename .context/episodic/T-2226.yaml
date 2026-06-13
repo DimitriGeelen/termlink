@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2226: Substrate-preflight binary check: feature-aware staleness (stop false WARN on doc-only version drift)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T23:25:04Z
+# ============================================================================
+
+task_id: T-2226
+task_name: "Substrate-preflight binary check: feature-aware staleness (stop false WARN on doc-only version drift)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T23:23:28Z
+completed: 2026-06-13T23:25:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-14T01:24:55+02:00
+last_commit: 2026-06-14T01:24:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate-preflight binary check — feature-aware staleness (no false WARN on doc-only version drift)
+
+# Key outcomes
+outcomes:
+  - '`check_binary_freshness` downgrades the staleness WARN to PASS when it can PROVE `crates/` is unchanged between the installed binary version and HEAD (same major.minor, positive patch delta, `HEAD~delta` resolvable, no `crates/` commits in that range).'
+  - 'Any uncertainty keeps the WARN (fail-safe): differing major/minor, unparseable patch, non-positive delta, `HEAD~delta` not resolvable (shallow clone), or any `crates/` change in range — never silences a genuinely stale binary.'
+  - 'Live run on current repo state (crates/ unchanged for the commits since the installed binary) reports the binary check as PASS and substrate-preflight exits 0 (was WARN/exit 1).'
+  - 'Negative proof: a PATH-shimmed `termlink` reporting an old major.minor (e.g. 0.10.0) still WARNs (exit 1) — the downgrade does not leak to genuine cross-release staleness.'
+  - 'The PASS message names the distinction ("version drift only — no crates/ change since binary; rebuild not required") so an operator understands why no action is needed.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/substrate-preflight.sh'
+  - '.tasks/active/T-2226-substrate-preflight-binary-check-feature.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-14T01:24:55"
+    action: "T-2226: substrate-preflight binary check — feature-aware staleness (no false WARN on doc-only version drift)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 227
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2226-substrate-preflight-binary-check-feature.md
+generated_by: context-agent-hybrid
