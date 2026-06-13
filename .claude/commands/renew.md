@@ -173,7 +173,7 @@ If you were the original claimer but lost identity (session restart):
   Pass --claimer <original-id> to renew under the right identity.
 ```
 
-**CLAIM_LAPSED** (lease already expired — the case renew exists to PREVENT):
+**CLAIM_NOT_FOUND** (lease already expired — the case renew exists to PREVENT):
 
 ```
 renew refused: <claim-id> already lapsed.
@@ -260,7 +260,7 @@ themselves, not some stale env var.
   a hint. The hub will refuse silently-defaulted identities via
   CLAIM_NOT_OWNED anyway — better to refuse loudly client-side.
 - **Loud refusals.** Each known error class gets an actionable
-  next-step. The CLAIM_LAPSED case especially — operators need to know
+  next-step. The CLAIM_NOT_FOUND case especially — operators need to know
   the slot may have been re-claimed already.
 - **No `AskUserQuestion`** — just run and report.
 - **No auto-renew loop.** This skill renews ONCE per invocation. For

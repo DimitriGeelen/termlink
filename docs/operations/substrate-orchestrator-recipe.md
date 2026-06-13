@@ -281,7 +281,7 @@ for substrate users.
 `scripts/substrate-orchestrator-loop.sh` (T-2148), the orchestrator
 already does `channel claim` + `claim-transfer` before DMing the worker.
 A second `channel claim` from the worker would fail with
-`CLAIM_ALREADY_HELD` (the worker IS the current holder via transfer).
+`CLAIM_CONFLICT` (the worker IS the current holder via transfer).
 Pass `--claim-id <existing>` to skip the self-claim step and adopt
 the pre-transferred claim — auto-renew + work + release proceed
 identically. Use this form in worker-side pickup loops:

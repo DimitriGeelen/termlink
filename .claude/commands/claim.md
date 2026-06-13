@@ -157,7 +157,7 @@ Execute via Bash. Capture stdout + stderr + exit code.
 Substrate claim has a known refusal taxonomy. Recognize each and
 surface an actionable next-step hint:
 
-**CLAIM_ALREADY_HELD** (offset already claimed by another worker):
+**CLAIM_CONFLICT** (offset already claimed by another worker):
 
 ```
 claim refused: offset <N> on <topic> is already held.
