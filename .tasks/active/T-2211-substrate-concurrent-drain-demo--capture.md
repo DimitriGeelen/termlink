@@ -4,9 +4,9 @@ name: "Substrate concurrent-drain demo — capture arc-001 demo_evidence"
 description: >
   Self-contained shell demo: N synthetic workers drain an M-unit work-queue on the live hub via the claim primitive, asserting each unit is won by exactly one worker (no double-claim) — the operator-facing proof of arc-001's headline mechanic. Composes existing verbs (channel create/post/claim/claims-summary); no new primitive, no human-gated inception. Captures demo_evidence for the arc.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T13:59:19Z
-last_update: 2026-06-13T14:03:15Z
-date_finished: null
+last_update: 2026-06-13T14:03:39Z
+date_finished: 2026-06-13T14:03:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -175,3 +175,6 @@ unchanged by this work.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2211-substrate-concurrent-drain-demo--capture.md
 - **Context:** Initial task creation
+
+### 2026-06-13T14:03:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
