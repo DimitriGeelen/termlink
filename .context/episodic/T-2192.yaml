@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2192: Extend check-preflight-doc-set-drift.sh to also audit substrate-getting-started.md (PL-211)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-12T23:14:57Z
+# ============================================================================
+
+task_id: T-2192
+task_name: "Extend check-preflight-doc-set-drift.sh to also audit substrate-getting-started.md (PL-211)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T23:19:04Z
+completed: 2026-06-12T23:14:53Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-12T01:19:56+02:00
+last_commit: 2026-06-13T01:14:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope canary surface extension to substrate-getting-started.md (PL-211). extend preflight-doc-set drift canary to 5th surface (PL-211)
+
+# Key outcomes
+outcomes:
+  - 'T-2191 closed first (getting-started.md says "5 pass" in the sample-output block) — closed in commit 35f164e5'
+  - '`scripts/check-preflight-doc-set-drift.sh` SURFACES array gains 5th entry: `"getting-started:docs/operations/substrate-getting-started.md"`'
+  - '`extract_count()` gains a `getting-started)` case that greps the sample block for `Summary: N pass` and emits N (or ERROR if missing)'
+  - 'Smoke: `bash scripts/check-preflight-doc-set-drift.sh` exits 0 with line "preflight-doc-set: all 5 surfaces agree on 5 checks" (verbose mode) on a clean tree'
+  - 'Negative smoke: temporarily edit getting-started.md sample to "Summary: 6 pass", re-run canary, exit 1 with DRIFT table showing 5/5/5/5/6, getting-started row marked `<-- DRIFT`. Revert edit. Validated 2026-06-13 — drift detected exactly as predicted (PASS-PASS-PASS-PASS-DRIFT), revert restored exit 0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - '.tasks/active/T-2192-extend-check-preflight-doc-set-driftsh-t.md'
+  - '.tasks/completed/T-2191-sync-substrate-getting-startedmd-to-5-ch.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-12T01:19:56"
+    action: "T-2192: scope canary surface extension to substrate-getting-started.md (PL-211)"
+  - time: "2026-06-13T01:14:47"
+    action: "T-2192: extend preflight-doc-set drift canary to 5th surface (PL-211)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1435 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1435
+  commits: 2
+  files_changed: 3
+  lines_added: 231
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2192-extend-check-preflight-doc-set-driftsh-t.md
+generated_by: context-agent-hybrid

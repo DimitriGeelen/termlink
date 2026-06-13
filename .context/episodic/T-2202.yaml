@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2202: Auditor CTL-012 — skip DEFERRED-prefix false-positives + flag missing-decide class
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-12T23:29:06Z
+# ============================================================================
+
+task_id: T-2202
+task_name: "Auditor CTL-012 — skip DEFERRED-prefix false-positives + flag missing-decide class"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-12T11:56:32Z
+completed: 2026-06-12T23:29:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-13T01:28:59+02:00
+last_commit: 2026-06-13T01:28:59+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CTL-012 3-class taxonomy refinement (PL-212 closure)
+
+# Key outcomes
+outcomes:
+  - 'Located CTL-012 heuristic: detection in `.agentic-framework/agents/audit/completed-task-scan.py` loop 7 (line 159 `re.match(r''^- \[ \]'', line)`); render in `audit.sh` line 3213 `warn "CTL-012: ..."`'
+  - 'Refined Python scanner to skip `- [ ] **DEFERRED` / `- [ ] **Deferred` prefix lines (T-1213/T-1299 prose-DEFERRED scope-cut markers). Pattern: `re.match(r''^- \[ \]\s+\*\*(DEFERRED|Deferred)'', line)` → continue'
+  - 'Added second classifier: tracks `@auto-tick-on-decide` marker on preceding line + computes `decision_empty` (true when `## Decision` section has nothing but heading + comments). When marker AND empty Decision → `class: missing-decide`. Audit.sh CTL-012 emit block now branches on class field — missing-decide produces `CTL-012-MISSING-DECIDE` warn with hint `fw inception decide T-XXX go|no-go|defer --rationale ''...''` OR backfill instructions'
+  - 'Direct scanner unit test confirms:'
+  - 'Re-run `fw audit` confirms: 4 unchecked_ac fires (down from 6 — T-1213 + T-1299 dropped); 2 render as `CTL-012-MISSING-DECIDE` with decide hint; 2 render as original `CTL-012` with bypass hint'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2202-auditor-ctl-012--skip-deferred-prefix-fa.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T01:28:59"
+    action: "T-2202: CTL-012 3-class taxonomy refinement (PL-212 closure)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 692 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 692
+  commits: 1
+  files_changed: 1
+  lines_added: 10
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2202-auditor-ctl-012--skip-deferred-prefix-fa.md
+generated_by: context-agent-hybrid

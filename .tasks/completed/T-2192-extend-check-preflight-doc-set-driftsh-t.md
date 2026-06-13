@@ -4,10 +4,10 @@ name: "Extend check-preflight-doc-set-drift.sh to also audit substrate-getting-s
 description: >
   T-2188's drift canary currently audits 4 surfaces (script, CLAUDE.md, skill, cron-recipes) using canonical-phrasing greps ('Five checks:' / 'Run all five checks'). PL-211 captured the structural gap: prose-style surfaces drift invisibly because they don't share the canonical phrasing. T-2191 AC 4 captures the specific follow-up; this task is that follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T23:19:04Z
-last_update: 2026-06-11T23:22:17Z
-date_finished: null
+last_update: 2026-06-12T23:14:53Z
+date_finished: 2026-06-12T23:14:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -212,3 +212,6 @@ to 5 checks, T-2192 wires it into the canary without firing drift.
 
 ### 2026-06-11T23:22:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-12T23:14:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

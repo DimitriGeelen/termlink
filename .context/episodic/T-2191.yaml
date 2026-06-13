@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2191: Sync substrate-getting-started.md to 5-check preflight (T-2181 + T-2184 follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-12T23:13:21Z
+# ============================================================================
+
+task_id: T-2191
+task_name: "Sync substrate-getting-started.md to 5-check preflight (T-2181 + T-2184 follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-11T22:47:10Z
+completed: 2026-06-12T23:13:17Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-12T00:48:15+02:00
+last_commit: 2026-06-13T01:13:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope sync of substrate-getting-started.md to 5-check preflight. register PL-211 — doc-set drift canaries miss prose-style surfaces. sync substrate-getting-started.md to 5-check preflight
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/substrate-getting-started.md` line 46 table row mentions all 5 checks (runtime_dir, hubs.toml, be-reachable, CLI binary T-2181, hub binary T-2184) — not just the original 3'
+  - '`docs/operations/substrate-getting-started.md` sample output block (lines ~63-66) shows 5 PASS lines and summary "5 pass, 0 warn, 0 fail" (matches real `scripts/substrate-preflight.sh` output on a clean host)'
+  - '`bash scripts/check-preflight-doc-set-drift.sh` exit 0 (no new drift introduced — getting-started.md is currently OUT of the canary''s surface list; this slice doesn''t change that, only the prose). Verified: `preflight-doc-set: all 4 surfaces agree on 5 checks` (2026-06-13)'
+  - 'Follow-up task filed (separate slice) to extend `scripts/check-preflight-doc-set-drift.sh` to also audit getting-started.md as a 5th surface, so this drift class is structurally caught next time. Done: **T-2192** filed (`Extend check-preflight-doc-set-driftsh-t.md`).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/operations/substrate-getting-started.md'
+  - '.tasks/active/T-2191-sync-substrate-getting-startedmd-to-5-ch.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-12T00:48:15"
+    action: "T-2191: scope sync of substrate-getting-started.md to 5-check preflight"
+  - time: "2026-06-12T01:08:26"
+    action: "T-2191: register PL-211 — doc-set drift canaries miss prose-style surfaces"
+  - time: "2026-06-13T01:13:12"
+    action: "T-2191: sync substrate-getting-started.md to 5-check preflight"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 1466 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1466
+  commits: 3
+  files_changed: 3
+  lines_added: 216
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2191-sync-substrate-getting-startedmd-to-5-ch.md
+generated_by: context-agent-hybrid

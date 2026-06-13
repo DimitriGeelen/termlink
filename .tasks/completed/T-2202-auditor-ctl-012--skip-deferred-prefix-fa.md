@@ -4,10 +4,10 @@ name: "Auditor CTL-012 — skip DEFERRED-prefix false-positives + flag missing-d
 description: >
   Auditor CTL-012 — skip DEFERRED-prefix false-positives + flag missing-decide class
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-12T11:56:32Z
-last_update: 2026-06-12T11:56:32Z
-date_finished: null
+last_update: 2026-06-12T23:29:04Z
+date_finished: 2026-06-12T23:29:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -185,3 +185,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2202-auditor-ctl-012--skip-deferred-prefix-fa.md
 - **Context:** Initial task creation
+
+### 2026-06-12T23:29:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

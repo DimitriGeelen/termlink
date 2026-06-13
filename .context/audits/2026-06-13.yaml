@@ -1,8 +1,8 @@
-# Audit Results - 2026-06-12-1409
-timestamp: 2026-06-12T12:09:00Z
+# Audit Results - 2026-06-13-0120
+timestamp: 2026-06-12T23:20:24Z
 summary:
-  pass: 260
-  warn: 203
+  pass: 258
+  warn: 204
   fail: 1740
 findings:
   - level: PASS
@@ -55,22 +55,22 @@ findings:
   - level: PASS
     check: "Large-file gate: tracked tree clean"
   - level: PASS
-    check: "All 108 active tasks are valid"
+    check: "All 105 active tasks are valid"
   - level: PASS
     check: "All active tasks meet quality thresholds"
   - level: PASS
-    check: "Git traceability: 99% (4999/5045 commits reference tasks)"
+    check: "Git traceability: 99% (5004/5050 commits reference tasks)"
   - level: WARN
     check: "Uncommitted changes present"
     mitigation: "Commit changes with task reference or stash"
   - level: PASS
     check: "All commit task refs resolve to actual tasks"
   - level: PASS
-    check: "OneDev → GitHub mirror in sync (origin=github=64cace26)"
+    check: "OneDev → GitHub mirror in sync (origin=github=a4d5a232)"
   - level: PASS
     check: "Bypass log exists"
   - level: WARN
-    check: "Gate-bypass log: 23 safety bypasses in last 7 days (+ 0 drift overrides)"
+    check: "Gate-bypass log: 24 safety bypasses in last 7 days (+ 0 drift overrides)"
     mitigation: "Review .context/working/.gate-bypass-log.yaml — investigate --skip-* / --scope-reduction-acknowledged callers"
   - level: PASS
     check: "Commit-msg hook installed"
@@ -83,7 +83,7 @@ findings:
   - level: PASS
     check: "All completed tasks have episodic summaries"
   - level: PASS
-    check: "All 1859 episodic summaries have quality content"
+    check: "All 1862 episodic summaries have quality content"
   - level: PASS
     check: "No orphaned episodic files"
   - level: PASS
@@ -122,23 +122,23 @@ findings:
     check: "C-006: Inception T-2028 has template-only Recommendation block"
     mitigation: "Retrofit: fill in **Recommendation:** GO"
   - level: PASS
-    check: "CTL-001: Focus file has active task (T-2197)"
+    check: "CTL-001: Focus file has active task (T-2202)"
   - level: PASS
     check: "CTL-003: Budget status file fresh (< 5min old)"
   - level: PASS
-    check: "CTL-004: Tool counter at 3 (last commit: 4 minutes ago)"
+    check: "CTL-004: Tool counter at 33 (last commit: 7 minutes ago)"
   - level: PASS
     check: "CTL-018: Budget status valid JSON (level: warn)"
   - level: PASS
     check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
   - level: PASS
-    check: "CTL-020: 3 cron audit file(s) in last hour"
+    check: "CTL-020: 1 cron audit file(s) in last hour"
   - level: PASS
     check: "CTL-002: Tier 0 guard installed and wired in settings.json"
   - level: PASS
     check: "CTL-005: Error watchdog installed and wired in settings.json"
   - level: PASS
-    check: "CTL-006: Handover coverage for compactions (1094 handovers, 222 compactions)"
+    check: "CTL-006: Handover coverage for compactions (1095 handovers, 223 compactions)"
   - level: PASS
     check: "CTL-007: Post-compact resume hook configured in settings.json"
   - level: PASS
@@ -260,7 +260,7 @@ findings:
   - level: PASS
     check: "CTL-009: Inception T-1425 has decision (15 commits)"
   - level: PASS
-    check: "CTL-009: Inception T-142 has decision (96 commits)"
+    check: "CTL-009: Inception T-142 has decision (97 commits)"
   - level: PASS
     check: "CTL-009: Inception T-1444 has decision (6 commits)"
   - level: PASS
@@ -427,8 +427,6 @@ findings:
     check: "CTL-010: Bypass log exists but empty (no bypasses detected)"
   - level: PASS
     check: "CTL-011: pre-push hook installed and executable"
-  - level: PASS
-    check: "CTL-013: T-2190 verification re-run: 4/4 pass"
   - level: PASS
     check: "CTL-019: claude-fw wrapper installed and executable"
   - level: PASS
@@ -6283,6 +6281,9 @@ findings:
     check: "CTL-029: T-2144 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2144 --status work-completed"
   - level: WARN
+    check: "CTL-029: T-2194 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2194 --status work-completed"
+  - level: WARN
     check: "CTL-029: T-2195 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2195 --status work-completed"
   - level: WARN
@@ -6292,27 +6293,24 @@ findings:
     check: "CTL-029: T-2197 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2197 --status work-completed"
   - level: WARN
+    check: "CTL-029: T-2202 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2202 --status work-completed"
+  - level: WARN
     check: "CTL-012: Completed task T-1497 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: WARN
     check: "CTL-012: Completed task T-1450 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
   - level: WARN
-    check: "CTL-012: Completed task T-2012 has unchecked AC"
-    mitigation: "Review task completion — AC gate may have been bypassed"
+    check: "CTL-012-MISSING-DECIDE: Inception task T-2012 flipped without decide ceremony"
+    mitigation: "Auto-tick markers present but ## Decision section empty — run: fw inception decide T-2012 go"
   - level: WARN
-    check: "CTL-012: Completed task T-1993 has unchecked AC"
-    mitigation: "Review task completion — AC gate may have been bypassed"
-  - level: WARN
-    check: "CTL-012: Completed task T-1299 has unchecked AC"
-    mitigation: "Review task completion — AC gate may have been bypassed"
-  - level: WARN
-    check: "CTL-012: Completed task T-1213 has unchecked AC"
-    mitigation: "Review task completion — AC gate may have been bypassed"
+    check: "CTL-012-MISSING-DECIDE: Inception task T-1993 flipped without decide ceremony"
+    mitigation: "Auto-tick markers present but ## Decision section empty — run: fw inception decide T-1993 go"
   - level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (8/1859)"
+    check: "D1: Episodic quality — 0% [TODO] (8/1862)"
   - level: FAIL
-    check: "D2: Human review queue — 38 task(s) waiting >30d: T-1417(43d) T-1419(43d) T-1435(42d) T-1442(41d) T-1482(38d) T-1483(38d) T-1484(38d) T-1485(38d) T-1486(38d) T-1487(38d) T-1488(38d) T-1489(38d) T-1490(38d) T-1491(38d) T-1492(38d) T-1493(38d) T-1494(38d) T-1495(38d) T-1496(38d) T-1498(38d) T-1499(38d) T-1500(38d) T-1501(38d) T-1502(38d) T-1506(38d) T-1529(38d) T-1530(38d) T-1531(38d) T-1532(38d) T-1533(38d) T-1534(38d) T-1535(38d) T-1536(38d) T-1537(38d) T-1557(38d) T-1558(37d) T-1559(37d) T-1570(37d) T-1635(27d) T-1673(25d) T-1691(25d) T-1696(25d) T-1722(16d) T-1723(16d) T-1795(21d)"
+    check: "D2: Human review queue — 38 task(s) waiting >30d: T-1417(43d) T-1419(43d) T-1435(42d) T-1442(42d) T-1482(39d) T-1483(39d) T-1484(39d) T-1485(39d) T-1486(39d) T-1487(39d) T-1488(39d) T-1489(39d) T-1490(39d) T-1491(39d) T-1492(39d) T-1493(39d) T-1494(39d) T-1495(39d) T-1496(39d) T-1498(39d) T-1499(39d) T-1500(39d) T-1501(39d) T-1502(39d) T-1506(38d) T-1529(38d) T-1530(38d) T-1531(38d) T-1532(38d) T-1533(38d) T-1534(38d) T-1535(38d) T-1536(38d) T-1537(38d) T-1557(38d) T-1558(38d) T-1559(38d) T-1570(38d) T-1635(28d) T-1673(26d) T-1691(25d) T-1696(25d) T-1722(17d) T-1723(17d) T-1795(21d)"
     mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
   - level: PASS
     check: "D8: Handover quality — no [TODO] in LATEST.md"
@@ -6325,17 +6323,18 @@ findings:
   - level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - level: WARN
-    check: "D5: Task lifecycle — 32 anomaly(s): T-1632(30d-active) T-1907(11d-active) T-1451(40d-active) T-1799(21d-active) T-1908(11d-active) T-1457(39d-active) T-1430(42d-active) T-1633(30d-active) T-1432(42d-active) T-1695(25d-active) (+22 more)"
+    check: "D5: Task lifecycle — 32 anomaly(s): T-1632(31d-active) T-1907(11d-active) T-1451(41d-active) T-1799(21d-active) T-1908(11d-active) T-1457(40d-active) T-1430(42d-active) T-1633(31d-active) T-1432(42d-active) T-1695(25d-active) (+22 more)"
     mitigation: "Review flagged tasks for process issues"
   - level: WARN
     check: "D13: Inception limbo — 4 task(s): A=1/B=3 T-1635(A:1hu) T-1898(B) T-2025(B) T-2028(B)"
     mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
+  - level: WARN
+    check: "D3: Commit velocity — WARN drop today=3 avg=69 ratio=0.0x"
+    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - level: PASS
-    check: "D3: Commit velocity — normal (PASS today=24 avg=72 ratio=0.3x)"
+    check: "D7: Commit bunching — none (PASS 17_commits_24h_no_bunching)"
   - level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 87_commits_24h)"
-  - level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=27.0 earlier=5.7)"
+    check: "D6: Completion velocity — normal (PASS recent=28.0 earlier=5.7)"
   - level: PASS
     check: "D12: Bypass log — no log file"
   - level: PASS

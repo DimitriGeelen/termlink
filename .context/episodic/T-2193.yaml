@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2193: Add aliveness meta-canary to preflight-doc-set-drift cron (PL-168 / T-1723 symmetry)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-12T23:17:38Z
+# ============================================================================
+
+task_id: T-2193
+task_name: "Add aliveness meta-canary to preflight-doc-set-drift cron (PL-168 / T-1723 symmetry)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-12T06:49:30Z
+completed: 2026-06-12T23:17:35Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-12T08:50:40+02:00
+last_commit: 2026-06-13T01:17:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope aliveness meta-canary for preflight-doc-set-drift (PL-168 / T-1723). promote PL-021 → PP-013 hub-rotation-recovery (D2) + standing-directive feedback memory. wire aliveness meta-canary for preflight-doc-set-drift canary
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-preflight-doc-set-drift.sh` writes `.context/working/.preflight-doc-set-drift-canary.heartbeat` at start of every invocation (PASS, DRIFT, or ERROR — convention from T-1723: heartbeat is "the script ran", not "the script passed"). Implementation mirrors T-2175 in `substrate-preflight.sh`: HEARTBEAT=1 default, `--no-heartbeat` flag for meta-canary probe, touch placed BEFORE any extraction work'
+  - '`.context/cron/preflight-doc-set-drift-canary.crontab` gains a second cron line. Schedule chosen as `43 7 * * *` (~50 min after the canary at `53 5`) — minute :43 mirrors substrate-preflight-meta + rollout-audit at a distinct hour to dodge load-time race with sibling meta-canaries; probe uses `--no-heartbeat` so freshness check doesn''t side-effect signal'
+  - 'Updated crontab installed to `/etc/cron.d/termlink-preflight-doc-set-drift-canary` via sudo cp + chmod 644 + chown root:root — diff vs source = empty'
+  - 'Smoke 1 (canary writes heartbeat): verified `bash scripts/check-preflight-doc-set-drift.sh --quiet` writes heartbeat with mtime == `date +%s` (within 1s of invocation, well under 10s threshold)'
+  - 'Smoke 2 (meta-canary works): fresh heartbeat → exit 0 "Canary alive". 72h-aged heartbeat → exit 1 "CANARY STALE (heartbeat is 72h old (threshold 48h))" with diagnostic block. Heartbeat reverted to now post-test'
+  - 'No drift in the canary itself: `bash scripts/check-preflight-doc-set-drift.sh` exit 0, "all 5 surfaces agree on 5 checks"'
+  - '/canaries skill picks up the new aliveness log line: `bash scripts/canary-status.sh` shows `preflight-doc-set-drift-canary HEALTHY hb=2026-06-13 01:16 log=2026-06-12 05:53` row alongside existing canaries'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-12.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/cron/preflight-doc-set-drift-canary.crontab'
+  - '.context/project/metrics-history.yaml'
+  - '.context/project/practices.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2191-sync-substrate-getting-startedmd-to-5-ch.md'
+  - '.tasks/active/T-2192-extend-check-preflight-doc-set-driftsh-t.md'
+  - '.tasks/active/T-2193-add-aliveness-meta-canary-to-preflight-d.md'
+  - '.tasks/completed/T-2192-extend-check-preflight-doc-set-driftsh-t.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-12T08:50:40"
+    action: "T-2193: scope aliveness meta-canary for preflight-doc-set-drift (PL-168 / T-1723)"
+  - time: "2026-06-12T12:06:10"
+    action: "T-2193: promote PL-021 → PP-013 hub-rotation-recovery (D2) + standing-directive feedback memory"
+  - time: "2026-06-13T01:17:31"
+    action: "T-2193: wire aliveness meta-canary for preflight-doc-set-drift canary"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 988 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 988
+  commits: 3
+  files_changed: 23
+  lines_added: 917
+  lines_removed: 107
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2193-add-aliveness-meta-canary-to-preflight-d.md
+generated_by: context-agent-hybrid
