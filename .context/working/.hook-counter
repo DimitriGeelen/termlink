@@ -1,17 +1,17 @@
-error-watchdog=131
+error-watchdog=134
 
-check-project-boundary=279
+check-project-boundary=282
 check-dispatch=7
 check-agent-dispatch=5
 check-fabric-new-file=4
 post-compact-resume=3
-checkpoint=187
-check-tier0=173
-budget-gate=174
-check-active-task=170
-loop-detect=186
+checkpoint=190
+check-tier0=176
+budget-gate=177
+check-active-task=173
+loop-detect=189
 error-watchdog=20
 check-human-ac-tick=3
 commit-cadence=3
-audit-task-tools=156
+audit-task-tools=159
 pre-compact=2

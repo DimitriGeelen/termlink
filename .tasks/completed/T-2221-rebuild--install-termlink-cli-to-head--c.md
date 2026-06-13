@@ -4,10 +4,10 @@ name: "Rebuild + install termlink CLI to HEAD — clear preflight binary-stalene
 description: >
   substrate-preflight.sh check #4 (T-2181) WARNs: installed ~/.cargo/bin/termlink is 0.11.1230 vs project VERSION 0.11.1324 (HEAD 0.11.1328). The stale CLI predates most of the substrate observability arc (governor-history T-2068, find-idle-history T-2081, queue-history T-2086, claims-history T-2074, cv-keys T-2106, --only-stuck T-2076, --only-pressured T-2070, ...), so an operator copy-pasting those documented verbs hits 'unknown subcommand/flag'. Hub is fresh (serves T-2139 telemetry) — CLI-only fix, no hub restart, no PL-209 footgun. Remediation per preflight: cargo build --release && install to ~/.cargo/bin.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: [T-2181, T-2219, T-2220]
@@ -16,8 +16,8 @@ related_tasks: [T-2181, T-2219, T-2220]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T17:52:26Z
-last_update: 2026-06-13T18:00:19Z
-date_finished: null
+last_update: 2026-06-13T18:00:35Z
+date_finished: 2026-06-13T18:00:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -201,3 +201,6 @@ termlink fleet governor-history --help
 
 ### 2026-06-13T18:00:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T18:00:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
