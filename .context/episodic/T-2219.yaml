@@ -1,0 +1,110 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2219: Fix substrate/queue notify env-var name drift in operator docs (silent-hook footgun)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T16:34:04Z
+# ============================================================================
+
+task_id: T-2219
+task_name: "Fix substrate/queue notify env-var name drift in operator docs (silent-hook footgun)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T16:29:07Z
+completed: 2026-06-13T16:34:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-13T18:33:26+02:00
+last_commit: 2026-06-13T18:33:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix substrate/queue notify env-var-name + field-value drift in operator docs (silent-hook footgun)
+
+# Key outcomes
+outcomes:
+  - '`substrate-status.md`, `substrate-tunables.md`, `substrate-cron-recipes.md` reference `TERMLINK_SUBSTRATE_CHANGE_FIELD/OLD/NEW` (the `_CHANGE_`-less FIELD/OLD/NEW forms no longer appear)'
+  - '`queue-status.md:138` references the real queue-relocation knob `TERMLINK_IDENTITY_DIR` (not the non-existent `TERMLINK_OUTBOUND_QUEUE_PATH`)'
+  - 'No remaining `TERMLINK_SUBSTRATE_FIELD`/`_OLD`/`_NEW` (non-`_CHANGE_`) or `TERMLINK_OUTBOUND_QUEUE_PATH` token in tracked docs (worktree copies excluded)'
+  - '`bash scripts/check-error-code-docs.sh` still exits 0 (no regression to the error-code lint)'
+  - 'substrate-status.md notify recipe gates on REAL flattened field labels (`backpressure_pressured_hubs`, `claim_stuck_count`), not the uppercase section names (`BACKPRESSURE`/`CLAIM`) — those never match the emitted value, so the gate would always `exit 0`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix substrate/queue notify env-var-name + field-value drift in operator docs (silent-hook footgun)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/queue-status.md'
+  - '.context/audits/2026-06-13.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.dispatch-approval'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.restart-requested'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/operations/substrate-cron-recipes.md'
+  - 'docs/operations/substrate-status.md'
+  - 'docs/operations/substrate-tunables.md'
+  - '.gitignore'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2209-daily-verb-skill-wrappers-for-the-5-subs.md'
+  - '.tasks/active/T-2210-g-008-backlog-gather-fresh-evidence-for-.md'
+  - '.tasks/active/T-2211-substrate-concurrent-drain-demo--capture.md'
+  - '.tasks/active/T-2212-substrate-cooperative-handoff-demo--clai.md'
+  - '.tasks/active/T-2213-harden-substrate-arc-demos--fix-t-2211-u.md'
+  - '.tasks/active/T-2219-fix-substratequeue-notify-env-var-name-d.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T18:33:26"
+    action: "T-2219: fix substrate/queue notify env-var-name + field-value drift in operator docs (silent-hook footgun)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 33
+  lines_added: 483
+  lines_removed: 216
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2219-fix-substratequeue-notify-env-var-name-d.md
+generated_by: context-agent-hybrid

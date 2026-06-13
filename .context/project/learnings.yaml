@@ -2274,3 +2274,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-217
+  learning: "Doc-vs-source identifier drift extends past error codes to env-var NAMES and the VALUES they're compared against. When correcting a documented identifier (T-2219: TERMLINK_SUBSTRATE_FIELD->_CHANGE_FIELD), also verify the example VALUES in the same recipe against source — substrate-status.md gated notify hooks on uppercase section names (BACKPRESSURE/CLAIM) while the hub emits flattened keys (backpressure_pressured_hubs/claim_stuck_count), so a name-only fix would still leave the hook silently never firing. Source of truth for env-var event values: the emit call sites + the CLI's own --help, not prose tables."
+  source: P-001
+  task: T-2219
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD

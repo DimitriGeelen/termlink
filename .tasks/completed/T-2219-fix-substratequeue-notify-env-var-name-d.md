@@ -4,10 +4,10 @@ name: "Fix substrate/queue notify env-var name drift in operator docs (silent-ho
 description: >
   Operator docs document TERMLINK_SUBSTRATE_FIELD/OLD/NEW and TERMLINK_OUTBOUND_QUEUE_PATH; source exports TERMLINK_SUBSTRATE_CHANGE_FIELD/OLD/NEW and the queue path knob is TERMLINK_IDENTITY_DIR. Copy-pasted notify-hook recipes silently never fire. Same doc-vs-source identifier drift class as T-2215/2216/2217 (error codes), now for env-var names.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T16:29:07Z
-last_update: 2026-06-13T16:29:07Z
-date_finished: null
+last_update: 2026-06-13T16:34:01Z
+date_finished: 2026-06-13T16:34:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -259,3 +259,6 @@ it cannot be caught at runtime by the operator — only doc correctness prevents
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2219-fix-substratequeue-notify-env-var-name-d.md
 - **Context:** Initial task creation
+
+### 2026-06-13T16:34:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

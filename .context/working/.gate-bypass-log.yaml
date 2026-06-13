@@ -1406,3 +1406,13 @@ FW_SWITCH_'
   target: 'T-2215'
   command: 'cd /opt/termlink
 .agentic-framework/bin/fw context add-learning "Doc tables that list error SYMBOLS/strings (failure-modes tables, recovery runbooks) drift from the real protocol because nothing tests'
+- timestamp: '2026-06-13T16:34:26Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2219'
+  command: 'cd /opt/termlink
+git add -A
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2219: closure tail — episodic + PL-217 (env-var name+value drift learning)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@an'
