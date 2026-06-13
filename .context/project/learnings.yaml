@@ -2281,3 +2281,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-218
+  learning: "UDS rate-limit buckets key on peer_pid (per-process) for channel.post calls lacking params.from — sender_key precedence is params.from > peer_addr > peer_pid (server.rs:756). channel.post sets sender_id but NOT params.from (bus_client.rs post_to_params), so every short-lived CLI/agent process presents a fresh peer_pid and mints a distinct RateGovernor bucket (governor.rs HashMap<sender_key,RateBucket>). This is the mechanism behind PL-209's bucket bloat (governor.rs:312 notes rate_buckets_active=258236 observed against a ~5-agent fleet); T-2137 idle-TTL eviction mitigates but does not address the root (a 5-agent fleet should have ~5 buckets, not hundreds of thousands). A deeper fix (key UDS buckets on verified identity fingerprint per T-1427 instead of ephemeral pid) is a security tradeoff: client-asserted sender_id is spoofable; peer_pid is kernel-trusted but ephemeral. Corollary: a rate-limit DEMO cannot be triggered reliably from sequential CLI posts (each is a distinct sender) — the governor is covered by governor.rs unit tests instead."
+  source: P-001
+  task: T-2224
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
