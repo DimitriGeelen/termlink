@@ -152,3 +152,19 @@ All 7 task-file Verification commands pass on today's binary; both unit tests st
 **Ready to close.** User runs one of:
 - `fw task review T-1426` → review-and-tick via Watchtower (preferred, surfaces evidence in the UI)
 - `fw task update T-1426 --status work-completed` → direct close (P-011 verification gate will re-run the commands above)
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps (>2wk since build smoke) — fully local
+- **Command(s):** `target/release/termlink {event broadcast|inbox status|inbox list|inbox clear|file send|remote push}` 2>&1 | grep DEPRECATED; + suppression via TERMLINK_NO_DEPRECATION_WARN=1
+- **Result:** exit=0; ok — all 6 legacy verbs emit exactly one [DEPRECATED] line; suppression flag zeroes the count
+- **Output:**
+  ```
+  [DEPRECATED] termlink event broadcast — use 'termlink channel post' instead. See T-1166.
+  [DEPRECATED] termlink inbox status — use 'termlink channel info' instead. See T-1166.
+  [DEPRECATED] termlink inbox list — use 'termlink channel subscribe' instead. See T-1166.
+  [DEPRECATED] termlink inbox clear — use 'termlink channel subscribe --cursor' instead. See T-1166.
+  [DEPRECATED] termlink file send — use 'termlink channel post --file' instead. See T-1166.
+  [DEPRECATED] termlink remote push — use 'termlink channel post' instead. See T-1166.
+  suppression (TERMLINK_NO_DEPRECATION_WARN=1): grep -c DEPRECATED = 0
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

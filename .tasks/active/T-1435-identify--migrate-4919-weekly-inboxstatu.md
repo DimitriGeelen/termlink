@@ -124,3 +124,18 @@ target/release/termlink fleet doctor --legacy-usage --legacy-window-days 1 2>&1 
 
 ### 2026-05-01T10:03:30Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `target/release/termlink fleet doctor --legacy-usage --legacy-window-days 1`
+- **Result:** exit=0; ok
+- **Output:**
+  ```
+  === T-1166 cut-readiness (1d window) ===
+  Verdict: CUT-READY
+    total legacy invocations across fleet: 0
+    CLEAN (1d): local-test, ring20-dashboard, ring20-management, workstation-107-public
+    -> no live legacy callers (T-1166 cut already landed in T-1415; verdict is informational).
+  (laptop-141 timed out at 10s; all other hubs PASS; 0 legacy invocations)
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

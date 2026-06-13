@@ -192,3 +192,13 @@ DEFER preserves the ADR §6 #8 requirement (vs NO-GO which would contradict it),
 
 ### 2026-06-09T14:51:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Assessed Human-AC Steps — operator-env. AC is a [REVIEW] inception go/no-go: open Watchtower via `fw task review T-2090`, review recommendation/criteria, and record the decision through the Watchtower form. Human-judgment + Watchtower UI; no local smokable command.
+- **Command(s):** `n/a — operator-env`
+- **Result:** exit=n/a; operator-env-skip
+- **Output:**
+  ```
+  not re-smokable here — needs human review of exploration findings + Watchtower go/no-go decision
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

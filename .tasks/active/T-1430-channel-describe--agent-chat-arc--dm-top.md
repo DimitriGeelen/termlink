@@ -99,3 +99,18 @@ All Agent ACs ticked + dependency (T-1429) shipped. Suggest closing:
 ```
 cd /opt/termlink && bash -x .agentic-framework/agents/task-create/update-task.sh T-1430 --status work-completed
 ```
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps (>2wk since build smoke) — local hub read
+- **Command(s):** `target/release/termlink channel info agent-chat-arc | head -20`
+- **Result:** exit=0; ok — description present on agent-chat-arc; self-doc visible (3 grep invariants msg_type/inbox.push/in_reply_to confirmed in prior runs)
+- **Output:**
+  ```
+  Topic: agent-chat-arc
+  Retention: forever
+  Posts: 3199
+  Description: agent-chat-arc — protocol stack ... (msg_type, identity-via-whoami,
+               _thread, in_reply_to, inbox.push deprecation)
+  Step 2 (--hub 192.168.10.107:9100 from a peer) = operator-env; local read confirms description present.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

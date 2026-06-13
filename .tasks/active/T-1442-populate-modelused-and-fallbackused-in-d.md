@@ -146,3 +146,20 @@ Plus bonus: `resolution_source` field (provides traceability for the model choic
 
 ### 2026-05-01T21:03:11Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke); live-spawn steps (2-4) are mutating (start hub + cmd_spawn) — not executed; ran the local non-mutating regression test that pins the same model_used/fallback_used/task_type logic.
+- **Command(s):** `bash tests/test_tl_dispatch_meta.sh`
+- **Result:** exit=0; ok (regression — all pins PASS)
+- **Output:**
+  ```
+  Pin 3: cmd_spawn writes populated meta.json
+    PASS: caseA model_used (got: haiku)
+    PASS: caseA fallback_used (Python bool repr) (got: False)
+    PASS: caseA task_type (got: build)
+    PASS: caseB model_used (per-type) (got: sonnet)
+    PASS: caseC model_used (default) (got: opus); fallback_used (got: True)
+    PASS: caseD model_used/fallback_used JSON null
+  (live spawn against running hub: mutation not executed)
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

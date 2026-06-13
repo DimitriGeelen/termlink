@@ -218,3 +218,13 @@ worker takes 16+ seconds to free.
 
 ### 2026-06-13T09:35:50Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Assessed Human-AC Steps — operator-env. AC is a [RUBBER-STAMP] deploy of the musl-static artifact to ring20 hubs (.122/.121/.141) via scripts/fleet-deploy-binary.sh --swap-restart (ssh + remote hub restart), then 5/5 sequential remote `channel info` timing. Requires remote hosts + binary swap on production hubs — not runnable from this host.
+- **Command(s):** `n/a — operator-env`
+- **Result:** exit=n/a; operator-env-skip
+- **Output:**
+  ```
+  not re-smokable here — needs ssh deploy to remote ring20 hubs (.122/.121/.141) + hub restart
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

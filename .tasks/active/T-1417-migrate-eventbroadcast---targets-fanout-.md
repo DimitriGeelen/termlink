@@ -164,3 +164,16 @@ $ fw metrics api-usage --last-Nd 7 --json
 
 ### 2026-04-30T07:44:37Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `.agentic-framework/bin/fw metrics api-usage --cut-ready --json` (audit step of AC; build-release + hub-restart + 7d-bake = operator-env, not run)
+- **Result:** exit=0; ok — audit clean (zero attributable event.broadcast from this host); build/restart/bake = operator-env-skip
+- **Output:**
+  ```
+  {"cut_ready": true, "window_days": 7, "legacy_attributable": 0,
+   "legacy_unattributable_pre_t1409": 0,
+   "audit_file": "/var/lib/termlink/rpc-audit.jsonl"}
+  Steps 1-3 (cargo build --release + hub restart + 7d wait) = operator-env.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

@@ -102,3 +102,13 @@ Companion verb to T-1452 (the cron) and T-1451 (the field). All three slices for
 - **Upstream (/opt/999-Agentic-Engineering-Framework):** Same patch applied via `termlink exec` against `framework-agent` session running `/tmp/T-1453-mirror.sh` (idempotent patcher). Committed `670b46fb` on `master`, pushed to `origin` (onedev). GitHub mirror picks up via OneDev buildspec auto-sync.
 - **Caveat:** First upstream test run failed because the framework-agent shell has `PROJECT_ROOT=/root` pre-exported in its env, which routes fw to the stale `/root/.agentic-framework` copy instead of the in-repo path. Re-ran the test with `env -i HOME=/root PATH=...` and it passed cleanly — confirming the patch itself is correct, not a hidden bug. The CLI behavior under operator use is unaffected (operators run from project root with no PROJECT_ROOT env override).
 - All Agent ACs ✓. Human REVIEW AC awaiting user.
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `.agentic-framework/bin/fw task revisit-due`
+- **Result:** exit=0; ok (clean output, no debug noise)
+- **Output:**
+  ```
+  No revisits due today (2026-06-13 UTC)
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm. (No known-ripe revisit_at on this host today to exercise the populated-row path.)

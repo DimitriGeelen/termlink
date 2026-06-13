@@ -152,3 +152,17 @@ $ fw metrics api-usage --last-Nd 7 --json | python3 -c "..."
 
 ### 2026-04-30T08:37:01Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `.agentic-framework/bin/fw metrics api-usage --last-Nd 7 --json` (schema/freshness-field check; .143 deploy-bracket steps 1-2 = operator-env, not run)
+- **Result:** exit=0; empty-well-formed — all 3 legacy_caller arrays present + zero rows (clean window); no rows to carry last_seen_iso right now
+- **Output:**
+  ```
+  legacy_callers          present len=0
+  legacy_callers_by_ip    present len=0
+  legacy_callers_by_pid   present len=0
+  rows missing last_seen_iso: 0 (no rows in clean window)
+  Steps 1-2 (.143 deploy + restart polling agents) = operator-env.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

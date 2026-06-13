@@ -146,3 +146,17 @@ target/release/termlink agent contact framework-agent --message "x" 2>&1 | grep 
 **Phase-2 (deferred, separate follow-up):** `--file`, `--ack-required`, `--ack-wait`, `--require-online`, advanced target forms (`name@hub:port`, `sender_id:<hex>`), `metadata.thread`/`requires_ack`/`subject` envelope fields, dm-self-describe-on-create. ACs marked `**Phase-2 (deferred)**` above. None of them block Phase-1 utility — vendored agents can fire-and-forget contact peers TODAY using just `--message`.
 
 **Status:** Phase-1 ACs ticked. Agent ACs split between Phase-1 (done) and Phase-2 (deferred). T-1429 stays in active/ with owner=human; human REVIEW remains pending. The task naturally transitions into a Phase-2 build later, or a human can split it into T-1429a/b at their discretion.
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `target/release/termlink agent contact --help`; `agent contact --target-fp d1993c2c3ec44c94 --message ... --dry-run --json` (no mutation). Live steps 2-5 need reachable named peer 'ring20-management-agent' + are mutating — not run.
+- **Result:** exit=0; parse-confirmed-only + dry-run ok — help documents all Phase-2 flags (ack-required/require-online/target-fp/json/dry-run); dry-run resolves canonical dm topic, no post
+- **Output:**
+  ```
+  --help: T-1425/RFC present; --ack-required, --require-online, --target-fp, --json all present
+  --dry-run --target-fp d1993c2c3ec44c94 --json →
+    "topic": "dm:d1993c2c3ec44c94:d1993c2c3ec44c94", "dry_run": true,
+    "my_id": "d1993c2c3ec44c94", "peer_fp": "d1993c2c3ec44c94"
+  Steps 2-5 (live ack-required / require-online / json post vs named peer) = need reachable peer; mutating, not executed.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

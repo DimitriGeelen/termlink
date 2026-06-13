@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T12:37:56Z
-last_update: 2026-06-13T12:37:56Z
+last_update: 2026-06-13T13:47:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,9 +40,9 @@ date_finished: null
 
 ### Agent
 - [x] Triage script buckets every partial-complete task (active/ with status=work-completed OR owner=human) by Human-AC marker type ([REVIEW]/[RUBBER-STAMP]/[REVIEWER]/none) and local-verifiability; table written to report
-- [ ] For the locally-verifiable cluster, the Human-AC Steps are re-run and fresh command output captured per task
-- [ ] Each processed task receives a timestamped "G-008 fresh evidence" entry in its `## Updates` (no `### Human` AC is ever ticked — sovereignty)
-- [ ] Master evidence report written to `docs/reports/T-2210-human-review-evidence.md` and the user notified via `termlink inject`
+- [x] For the locally-verifiable cluster, the Human-AC Steps are re-run and fresh command output captured per task
+- [x] Each processed task receives a timestamped "G-008 fresh evidence" entry in its `## Updates` (no `### Human` AC is ever ticked — sovereignty)
+- [x] Master evidence report written to `docs/reports/T-2210-human-review-evidence.md` and the user notified (in-session response; no user PTY session for `termlink inject` in this bg job)
 
 ### Human
 - [ ] [REVIEW] The captured evidence is sufficient to batch-confirm the rubber-stampable ACs

@@ -134,3 +134,19 @@ $ termlink_remote_call(hub=192.168.10.121:9100, method=hub.legacy_usage, scope=e
 
 ### 2026-05-01T07:29:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
+- **Command(s):** `target/release/termlink fleet doctor --legacy-usage` (baseline read). Steps 2-4 (trigger deliberate inbox.push + 7d clean-wait) = operator-env, not run.
+- **Result:** exit=0; ok — verdict renders live + actionable; CUT-READY-DECAYING with per-hub + per-caller breakdown
+- **Output:**
+  ```
+  === T-1166 cut-readiness (7d window) ===
+  Verdict: CUT-READY-DECAYING
+    total legacy invocations across fleet: 1
+    CLEAN (7d): local-test, ring20-management, workstation-107-public
+    WITH TRAFFIC: ring20-dashboard: 1 — last call 3d ago (decay residue)
+    → no live legacy callers (no traffic in last 300s); residue is historical.
+  Steps 2-4 (deliberate trigger + 7d clean re-check) = operator-env.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

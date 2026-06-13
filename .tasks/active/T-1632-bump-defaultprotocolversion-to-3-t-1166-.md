@@ -173,3 +173,14 @@ The two-axis split (control_plane_version for capability surface, protocol_versi
 
 ### 2026-05-12T22:12:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Assessed Human-AC Steps — operator-env. AC gates on the NEXT .122 deploy after T-1166 bake; fleet doctor shows .122 still running 0.11.806 (pre-deploy), so the new build is not yet on .122. Additionally the AC's verb form `remote call --method hub.capabilities` is not present in target/release/termlink (only remote ping/list/status/inject/.../exec).
+- **Command(s):** `target/release/termlink remote call --hub 192.168.10.122:9100 --method hub.capabilities` -> unrecognized subcommand 'call'
+- **Result:** exit=2; operator-env-skip (needs the new build deployed to .122 + a remote.call/capabilities surface)
+- **Output:**
+  ```
+  not re-smokable here — needs the post-T-1166 binary deployed to remote host .122
+  (and a hub.capabilities call path; current binary's 'remote' has no 'call' subcommand)
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.

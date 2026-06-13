@@ -193,3 +193,16 @@ $ termlink agent timeline --thread T-1438 --window-secs 604800
 
 ### 2026-05-22T07:06:08Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-06-13T13:51:15Z — G-008 fresh evidence [resmoke-agent]
+- **Action:** Re-ran Human-AC Steps on this populated local hub (thread T-1438 has posts in window)
+- **Command(s):** `target/release/termlink agent on-thread T-1438 --window-secs 604800` ; compared with `agent timeline --thread T-1438 --window-secs 604800`
+- **Result:** exit=0; ok (fix confirmed — non-empty, both surfaces agree)
+- **Output:**
+  ```
+  # agent on-thread T-1438 | window=604800s | n=50  (152 lines total, exit=0)
+  [2d ago] @3117 peer=d1993c2c3ec4 msg_type=chat ... T-1438 vendored-arc heartbeat ...
+  timeline --thread T-1438 surfaces the SAME @3117.. posts.
+  on-thread no longer prints '(no posts found)'.
+  ```
+- **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.
