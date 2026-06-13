@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T12:37:56Z
-last_update: 2026-06-13T13:47:19Z
+last_update: 2026-06-13T13:53:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -148,6 +148,24 @@ grep -rq "G-008 fresh evidence" .tasks/active/
      so `fw inception decide` (lib/inception.sh) finds the anchor heading
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
+
+## Recommendation
+
+**Recommendation:** GO (partial-complete — Agent ACs met; one Human [REVIEW] AC awaits you)
+
+**Rationale:** All four Agent ACs are satisfied. 48 partial-complete backlog tasks now
+carry timestamped "G-008 fresh evidence" entries in their `## Updates`, captured by
+re-running each task's mechanically-verifiable Human-AC Steps against today's binary
+(0.11.1293) and live hub. Sovereignty was preserved — zero `### Human` checkboxes were
+ticked (verified: `grep -c '[x]'` in each Human section = 0). The remaining Human AC is
+your judgment call: confirm the captured evidence is sufficient to batch-tick the READY
+tasks. Operator-env tasks (ssh/GitHub/remote) were honestly flagged, not faked.
+
+**Evidence:**
+- `docs/reports/T-2210-human-review-evidence.md` — triage (84 tasks) + per-cluster READY table + flagged items + operator-env bucket
+- `docs/reports/T-2210-evidence/{cluster-A..D,batch2-a,batch2-b}.md` — raw command/exit/output per task
+- 48 task files with fresh `## Updates` evidence entries (commits 4481b78a, 0f756046)
+- Flagged for your eye before confirming: T-1485 (divergent-but-loud error), T-1529-1532 (mutating verbs, parse-confirmed only)
 
 ## Updates
 
