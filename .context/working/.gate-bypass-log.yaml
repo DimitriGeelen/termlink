@@ -1416,3 +1416,13 @@ git add -A
 FW_SWITCH_FOCUS=1 git commit -q -m "T-2219: closure tail — episodic + PL-217 (env-var name+value drift learning)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@an'
+- timestamp: '2026-06-13T16:39:43Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2220'
+  command: 'cd /opt/termlink
+.agentic-framework/bin/fw fabric register scripts/check-env-var-docs.sh 2>&1 | tail -5
+echo "--- closure tail commit ---"
+git add -A .context .fabric .tasks 2>/dev/null
+FW_SWITCH_FOCU'

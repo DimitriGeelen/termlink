@@ -4,10 +4,10 @@ name: "Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name dri
 description: >
   T-2219 fixed env-var-name drift in operator docs but the prevention was deferred. Add a sibling lint to check-error-code-docs.sh that scans every TERMLINK_* env var cited in docs/CLAUDE.md/.claude against the union of names referenced in crates/+scripts/+systemd-templates/, flagging citations with no implementation surface. Wire into the existing doc-lint.yml CI job. Completes the G-019 prevention loop for the env-var-name surface of the doc-vs-source identifier drift class.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: [T-2219, T-2217, T-2218]
@@ -16,8 +16,8 @@ related_tasks: [T-2219, T-2217, T-2218]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T16:35:14Z
-last_update: 2026-06-13T16:39:05Z
-date_finished: null
+last_update: 2026-06-13T16:39:27Z
+date_finished: 2026-06-13T16:39:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -211,3 +211,6 @@ bash scripts/check-error-code-docs.sh
 
 ### 2026-06-13T16:39:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T16:39:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

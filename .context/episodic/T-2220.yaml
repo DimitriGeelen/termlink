@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2220: Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name drift (G-019 prevention for T-2219)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T16:39:30Z
+# ============================================================================
+
+task_id: T-2220
+task_name: "Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name drift (G-019 prevention for T-2219)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T16:35:14Z
+completed: 2026-06-13T16:39:27Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-13T18:39:18+02:00
+last_commit: 2026-06-13T18:39:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add check-env-var-docs.sh lint + wire into doc-lint.yml; fix cv-keys.md TERMLINK_CV_KEY drift
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-env-var-docs.sh` exists, is executable, and exits 0 (CLEAN) on the current tree'
+  - '`cv-keys.md` no longer cites the non-existent `TERMLINK_CV_KEY` env var (points at `--metadata cv_key=<id>`)'
+  - 'Lint correctly flags a reintroduced drift (demonstrated live: inject a bogus `TERMLINK_*` token into a doc -> lint exits 1 -> revert) and does NOT false-flag the `TERMLINK_WATCH_` glob-prefix mention'
+  - '`.github/workflows/doc-lint.yml` runs `check-env-var-docs.sh` (CI-wired alongside the error-code lint)'
+  - '`bash scripts/check-error-code-docs.sh` still exits 0 (no regression to the sibling lint)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add check-env-var-docs.sh lint + wire into doc-lint.yml; fix cv-keys.md TERMLINK_CV_KEY drift'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/cv-keys.md'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.github/workflows/doc-lint.yml'
+  - 'scripts/check-env-var-docs.sh'
+  - '.tasks/active/T-2220-add-check-env-var-docssh-lint--prevent-d.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T18:39:18"
+    action: "T-2220: add check-env-var-docs.sh lint + wire into doc-lint.yml; fix cv-keys.md TERMLINK_CV_KEY drift"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 12
+  lines_added: 329
+  lines_removed: 26
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2220-add-check-env-var-docssh-lint--prevent-d.md
+generated_by: context-agent-hybrid
