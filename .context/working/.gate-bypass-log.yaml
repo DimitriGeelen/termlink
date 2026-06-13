@@ -1436,3 +1436,12 @@ git add -A .context .tasks 2>/dev/null
 FW_SWITCH_FOCUS=1 git commit -q -m "T-2221: closure tail — episodic
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>&'
+- timestamp: '2026-06-13T18:49:02Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2203'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git commit -m "T-2203: CTL-028 finalize 157 stale-state completed tasks (status + git-mined date_finished)
+
+157 tasks sat in completed/ with status:started-work + em'

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2223: substrate RESILIENCE demo — offline-queue absorbs hub blip + exactly-once drain (arc-001 #5 proof)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T20:22:55Z
+# ============================================================================
+
+task_id: T-2223
+task_name: "substrate RESILIENCE demo — offline-queue absorbs hub blip + exactly-once drain (arc-001 #5 proof)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T20:16:49Z
+completed: 2026-06-13T20:22:51Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-13T22:22:17+02:00
+last_commit: 2026-06-13T22:22:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate RESILIENCE demo — offline-queue absorbs hub blip + exactly-once drain (arc-001 #5 proof, wired into smoke as 10th stage). register fabric card + record resilience demo in arc-001 demo_evidence
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-resilience-demo.sh` exists, is executable, and passes `bash -n` (syntax clean).'
+  - 'The demo runs a fully ISOLATED throwaway hub (temp `TERMLINK_RUNTIME_DIR` + `TERMLINK_IDENTITY_DIR`) and never touches the operator''s live hub or `~/.termlink/outbound.sqlite`.'
+  - '`scripts/substrate-resilience-demo.sh --json` exits 0 with `verdict:"PASS"` and asserts the three RESILIENCE properties (PL-213): (a) a post during a hub blip is QUEUED not silent-dropped, (b) the queue auto-drains on the next post once the hub returns, (c) a replay of the same `client_msg_id` is absorbed exactly-once (topic count unchanged).'
+  - 'The demo is wired into `scripts/substrate-smoke.sh` as a regression stage alongside the T-2211/2212/2214 arc-demo gates.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-parallel-substrate.yaml'
+  - '.fabric/components/scripts-substrate-resilience-demo.yaml'
+  - 'scripts/substrate-resilience-demo.sh'
+  - 'scripts/substrate-smoke.sh'
+  - '.tasks/active/T-2223-substrate-resilience-demo--offline-queue.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T22:22:17"
+    action: "T-2223: substrate RESILIENCE demo — offline-queue absorbs hub blip + exactly-once drain (arc-001 #5 proof, wired into smoke as 10th stage)"
+  - time: "2026-06-13T22:22:46"
+    action: "T-2223: register fabric card + record resilience demo in arc-001 demo_evidence"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 5
+  lines_added: 375
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2223-substrate-resilience-demo--offline-queue.md
+generated_by: context-agent-hybrid

@@ -1,22 +1,22 @@
 ---
-id: T-2203
-name: "CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)"
+id: T-2222
+name: "Pickup: BVP estimator corrupts anchor-less task frontmatter (orphaned proposed-score lists produce invalid YAML) (from termlink)"
 description: >
-  CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)
+  Auto-created from pickup envelope. Source: termlink, task T-2203. Type: bug-report.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: human
+owner: agent
 horizon: next
-tags: []
+tags: [pickup, bug-report]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-12T12:04:05Z
-last_update: 2026-06-13T20:09:42Z
+created: 2026-06-13T20:08:02Z
+last_update: 2026-06-13T20:08:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,9 +28,11 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+source_task_id_in_origin: T-2203
+source_project_in_origin: "termlink"
 ---
 
-# T-2203: CTL-028 bulk-flip — 157 completed tasks with stale status:started-work frontmatter (T-1909 class at scale)
+# T-2222: Pickup: BVP estimator corrupts anchor-less task frontmatter (orphaned proposed-score lists produce invalid YAML) (from termlink)
 
 ## Context
 
@@ -39,25 +41,9 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these.
-     Surfaced during T-2196 D5 RCA: audit `fw audit` shows 157 instances of CTL-028
-     (tasks in .tasks/completed/ with frontmatter status='started-work'). PL-209 class
-     at scale — likely accumulated from T-1909-style direct-frontmatter-fixes done
-     to bypass completion gates. Mitigation hint per audit: `bin/fw task update T-XXXX
-     --status work-completed --force` per task. Risk-assessment: safe — files are
-     already in completed/, frontmatter sync only. -->
-- [x] Extract complete list: `grep -oE "CTL-028: T-[0-9]+" .context/audits/2026-06-12.yaml | awk '{print $2}' > /tmp/ctl028-list.txt` → confirmed count 157
-- [x] Sample inspect 10 random tasks: T-2095 / T-1983 / T-1938 / T-1956 / T-1974 / T-2009 / T-1977 / T-1968 / T-1919 / T-2001 — ALL same class (in completed/ + status=started-work + date_finished=null + 3-4 update entries showing substantive work). Bulk-flip is safe
-- [x] **Mechanism discovery — Tier-0 block on `--force`.** The `fw task update --force --skip-rca` path classified as Tier-0 destructive ("Bypasses sovereignty gate R-033, AC verification P-010, or verification gate P-011"). Per-call human approval required. For 157 calls this is impractical; need either (a) one-shot `fw tier0 approve` covering the whole sweep, OR (b) direct frontmatter sed/python edit (skip the fw helper). Option (b) is structurally identical to what the helper does for this class — frontmatter status flip + date_finished stamp — but bypasses 157× Tier-0 prompts. The agent cannot self-authorize either path
-- [ ] **(HUMAN AUTHORIZATION REQUIRED)** Approve the bulk-flip approach via one of:
-  - **Path A — `fw tier0 approve` session-wide grant:** run `cd /opt/termlink && .agentic-framework/bin/fw tier0 approve` to grant per-session approval, then `for tid in $(cat /tmp/ctl028-list.txt); do FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw task update "$tid" --status work-completed --force --skip-rca 2>&1 | tail -1; done` (test if approval covers loop calls or only ONE)
-  - **Path B — direct frontmatter sed sweep:** python script that walks `/tmp/ctl028-list.txt`, sets `status: work-completed` + `date_finished: 2026-06-12T<commit-ts>Z` per file, leaves all other content (Updates/RCA/Decisions/episodic-references) untouched. Single Tier-2 bypass (skipping the canonical close path) is acceptable for this class — the work is done, frontmatter is stale; the helper would do exactly this
-- [ ] After human-authorized sweep: re-run `fw audit | grep -c CTL-028` to confirm zero remaining
-- [ ] Commit as one atomic sweep — single commit so the structural sweep is bisectable as one change rather than 157 individual ones
-- [ ] No completed/ task's substantive content (Updates, RCA, Decisions, Evolution) was modified — only frontmatter `status` + `date_finished`
-
-### Human
-- [ ] [REVIEW] Choose Path A (`fw tier0 approve` + loop) or Path B (direct frontmatter sed). **Steps:** read AC 3's mechanism discovery, decide which path. Path A is cleaner ceremonially but may require per-call approval (untested). Path B is faster + structurally equivalent for this class. **Expected:** authorization granted, agent runs the sweep. **If not:** defer — CTL-028 noise is bookkeeping, not load-bearing
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -186,7 +172,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-06-12T12:04:05Z — task-created [task-create-agent]
+### 2026-06-13T20:08:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2203-ctl-028-bulk-flip--157-completed-tasks-w.md
+- **Output:** /opt/termlink/.tasks/active/T-2222-pickup-bvp-estimator-corrupts-anchor-les.md
 - **Context:** Initial task creation
