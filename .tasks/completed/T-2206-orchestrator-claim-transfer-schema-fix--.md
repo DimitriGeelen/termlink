@@ -4,20 +4,20 @@ name: "Orchestrator claim-transfer schema fix + end-to-end LIVE smoke proof (T-2
 description: >
   Smoke testing T-2204+T-2205 substrate consumer kit end-to-end uncovered that scripts/orchestrator-backlog-drain.sh's claim-transfer call used positional args ('claim_id' 'to-owner') but the CLI verb requires --claim-id + --to-owner flags. Fix the call, re-run the LIVE smoke proof, capture the success path in the recipe doc as a validation reference.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [substrate, parallel-worker, bug-fix, arc-001, T-2018]
-components: []
+components: [scripts/orchestrator-backlog-drain.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T09:18:44Z
-last_update: 2026-06-13T09:18:44Z
-date_finished: null
+last_update: 2026-06-13T09:20:49Z
+date_finished: 2026-06-13T09:20:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -189,3 +189,6 @@ Validation evidence (after fix):
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2206-orchestrator-claim-transfer-schema-fix--.md
 - **Context:** Initial task creation
+
+### 2026-06-13T09:20:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

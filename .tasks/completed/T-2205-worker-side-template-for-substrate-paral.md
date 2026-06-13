@@ -4,20 +4,20 @@ name: "Worker-side template for substrate parallel-worker pattern (T-2204 follow
 description: >
   Ship scripts/worker-backlog-drain.sh as the worker-side companion to scripts/orchestrator-backlog-drain.sh (T-2204). Mirror its --dry-run/--live symmetry: dry-run iterates the worker's claim queue and prints intended actions; --live actually does work + release --ack. AEF integrators clone both scripts as a complete substrate consumer kit. Extends docs/operations/substrate-orchestrator-recipe.md with the worker-script reference.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [substrate, parallel-worker, worker, arc-001, T-2018]
-components: []
+components: [scripts/orchestrator-backlog-drain.sh, scripts/worker-backlog-drain.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T09:05:49Z
-last_update: 2026-06-13T09:05:49Z
-date_finished: null
+last_update: 2026-06-13T09:12:27Z
+date_finished: 2026-06-13T09:12:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -187,3 +187,6 @@ grep -q "worker-backlog-drain" docs/operations/substrate-orchestrator-recipe.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2205-worker-side-template-for-substrate-paral.md
 - **Context:** Initial task creation
+
+### 2026-06-13T09:12:27Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
