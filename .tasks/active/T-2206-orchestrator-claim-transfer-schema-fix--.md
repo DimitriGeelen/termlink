@@ -115,7 +115,16 @@ Validation evidence (after fix):
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+**Symptom:** `scripts/orchestrator-backlog-drain.sh --live` failed at the claim-transfer step with `DISPATCH [TRANSFER-FAIL]` and `unexpected argument 'clm-…-work_queue-2' found`. The claim ITSELF landed; only the transfer to worker failed, leaving fake-orch as the stuck claimer.
+
+**Root cause:** The script's `claim-transfer` call used positional args (`termlink channel claim-transfer "$claim_id" "$target" --by …`) but the CLI verb requires `--claim-id` + `--to-owner` flags. The other verbs (post, claim, release) all happen to use a mix of positional + flag patterns; claim-transfer is flag-only. Easy mismatch when authoring from CLAUDE.md catalogue alone without `--help` cross-check.
+
+**Why structurally allowed:** Smoke testing of the kit happened at the script-validation level (dry-run output, simulated single-step substrate calls) but did NOT exercise the full LIVE pipeline before T-2204 closure. The dry-run path bypasses the actual CLI verbs, so schema bugs survived to first --live attempt.
+
+**Prevention:** Recipe doc's "In-tree consumer" section now ships with explicit "Validation evidence" subsection showing the proven invocation. This is grep-able for future readers and serves as the load-bearing artifact AEF integrators trust before running their own smoke. Future substrate-consumer additions should run a `--live` end-to-end against the local hub at task-close time (added to PL-206 follow-up pattern: don't trust catalogue notes — `--help` is authoritative).
+
+<!-- Original template hint follows:
+     REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
 
