@@ -15,9 +15,14 @@
 #       (this is the regression gate for the composition path)
 #     → verify active=0 + expired=0 (cursor advanced cleanly)
 #
+#     → arc-demo regression gates (T-2213):
+#         drain-demo.sh      — N-way work-stealing race, exclusive delivery (T-2211)
+#         cooperative-handoff-demo.sh — CLAIM_NOT_OWNED ownership gates (T-2212)
+#
 # Composition of:
 #   - termlink channel create / post / claim / claim-transfer / claims-summary
 #   - scripts/substrate-worker-loop.sh (T-2146 + T-2150)
+#   - scripts/substrate-drain-demo.sh (T-2211) + substrate-cooperative-handoff-demo.sh (T-2212)
 #
 # Exit codes:
 #   0   substrate healthy — every stage PASSed
@@ -273,5 +278,29 @@ if [ "$active" != "0" ] || [ "$expired" != "0" ]; then
     stage_fail "verify-clean" "active=$active expired=$expired (expected 0/0) in: $out"
 fi
 stage_pass "verify-clean (active=0 expired=0)"
+
+# ---- Stage: arc-demo work-stealing race (T-2211, regression gate) --------
+# The stages above prove single-unit transfer. This gate proves the N-way
+# concurrent claim race still delivers each unit to EXACTLY one worker
+# (exclusive delivery, zero double-claims) — coverage the happy path lacks.
+if ! out=$(bash "${SCRIPT_DIR}/substrate-drain-demo.sh" --workers 3 --units 9 --json "${HUB_ARGS[@]}" 2>&1); then
+    stage_fail "drain-demo" "$out"
+fi
+if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+    stage_fail "drain-demo" "work-stealing race not ok: $out"
+fi
+stage_pass "drain-demo (work-stealing race, exclusive delivery)"
+
+# ---- Stage: arc-demo ownership gates (T-2212, regression gate) -----------
+# Proves the CLAIM_NOT_OWNED ownership gate still refuses stale-by transfer,
+# ex-owner renew, and ex-owner release — negative paths the stages above
+# never exercise.
+if ! out=$(bash "${SCRIPT_DIR}/substrate-cooperative-handoff-demo.sh" --json "${HUB_ARGS[@]}" 2>&1); then
+    stage_fail "handoff-demo" "$out"
+fi
+if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+    stage_fail "handoff-demo" "ownership-gate demo not ok: $out"
+fi
+stage_pass "handoff-demo (CLAIM_NOT_OWNED ownership gates)"
 
 finalize 0

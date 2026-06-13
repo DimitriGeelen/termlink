@@ -89,9 +89,13 @@ log "# substrate-drain-demo (T-2211) — proving the arc-001 headline mechanic"
 log "#   topic=$TOPIC workers=$WORKERS units=$UNITS ttl_ms=$TTL_MS"
 
 # ── Stage 1: create the queue topic ──────────────────────────────────────────
+# Bounded retention via the single-arg "messages:N" form. (The earlier
+# "--retention messages --retention-value N" spelling is NOT accepted by the
+# shipped CLI and silently fell back to retention=forever — T-2213 fix.)
 if ! "$TERMLINK" "${HUB_ARG[@]}" channel create "$TOPIC" \
-      --retention messages --retention-value "$UNITS" >/dev/null 2>&1; then
-  # create may already exist or not support retention flags on older hubs; retry plain
+      --retention "messages:$UNITS" >/dev/null 2>&1; then
+  # topic may already exist (idempotent) or the CLI may predate retention args;
+  # retry plain so the demo still runs (unbounded, but functional).
   "$TERMLINK" "${HUB_ARG[@]}" channel create "$TOPIC" >/dev/null 2>&1 \
     || die2 "channel create failed for $TOPIC"
 fi
