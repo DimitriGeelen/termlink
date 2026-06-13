@@ -1,0 +1,32 @@
+# Doc lint — cross-check operator-facing docs against source-of-truth enums.
+#
+# Why: error-vocabulary prose (failure-modes tables, skill recovery taxonomies)
+# drifts from the real protocol because nothing tested it against the source
+# enum. A fictional `CLAIM_LAPSED`/`CLAIM_ALREADY_HELD` symbol and two
+# mislabeled rows propagated across 5 operator surfaces before being caught
+# (T-2213 / T-2215 / T-2216 / T-2217). This gate is the Level-C close of that
+# whack-a-mole: it fails the build if any doc `SYMBOL(-320NN)` pairing
+# disagrees with crates/termlink-protocol/src/control.rs.
+#
+# Fast (seconds, no Rust build) and isolated from install-check.yml /
+# release.yml / the OneDev mirror job.
+
+name: Doc Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  error-code-doc-lint:
+    name: error-code symbol↔number pairings match control.rs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint error-code doc pairings
+        run: bash scripts/check-error-code-docs.sh
