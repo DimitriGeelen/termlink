@@ -43,11 +43,11 @@ Workload is the real backlog: agent-eligible tasks (owner!=human, horizon in {no
 ### Agent
 - [x] T-2204 coordination message broadcast on agent-chat-arc to 3+ hubs (offsets recorded above)
 - [x] find-idle arrival watch is running with auto-greet hook firing on AEF-flavored arrivals
-- [ ] Orchestrator script `scripts/orchestrator-backlog-drain.sh` exists and is executable
-- [ ] Script defaults to `--dry-run`; live mode requires explicit `--live` flag (refuses to dispatch without it)
-- [ ] Dry-run identifies the agent-eligible work-unit set from `.tasks/active/` (owner!=human, horizon in {now,next}, status!=blocked)
-- [ ] Dry-run prints per-unit: task_id, intended worker (or `no-idle-worker` placeholder), planned claim payload, planned DM body
-- [ ] Documentation extended at `docs/operations/substrate-orchestrator-recipe.md` explaining the consumer pattern with this script as the worked example
+- [x] Orchestrator script `scripts/orchestrator-backlog-drain.sh` exists and is executable
+- [x] Script defaults to `--dry-run`; live mode requires explicit `--live` flag (refuses to dispatch without it)
+- [x] Dry-run identifies the agent-eligible work-unit set from `.tasks/active/` (owner!=human, horizon in {now,next}, status!=blocked) — 21 units found on first run
+- [x] Dry-run prints per-unit: task_id, intended worker (or `no-idle-worker` placeholder), planned claim payload, planned DM body — validated with `--orchestrator-id fake-orch` showing round-robin dispatch + per-worker-max=3 cap
+- [x] Documentation extended at `docs/operations/substrate-orchestrator-recipe.md` explaining the consumer pattern with this script as the worked example
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

@@ -786,6 +786,97 @@ Expected behaviour:
    `find_idle` shows both workers idle again.
 8. `substrate.history --since 1` shows the full transition timeline.
 
+## In-tree consumer — `scripts/orchestrator-backlog-drain.sh`
+
+T-2204 (T-2018 §6) shipped the first in-tree consumer that exercises
+the full claim-pipeline against a real workload. It lives at
+`scripts/orchestrator-backlog-drain.sh` and drains the project's own
+backlog: agent-eligible tasks in `.tasks/active/` (owner≠human,
+horizon∈{now,next}, status∈{captured,started-work}, workflow_type≠
+inception).
+
+It differs from the abstract walkthrough above in three ways worth
+calling out:
+
+1. **The work-source is `.tasks/active/`, not a hand-posted queue.**
+   The script enumerates tasks via the same logic the auditor uses,
+   classifies each as `closure-ready` (0 unchecked Agent ACs, just
+   needs `Verification` + flip to `work-completed`) or `needs-work`
+   (N unchecked Agent ACs, real implementation), and builds a per-unit
+   DM brief that links the worker back to the task file.
+
+2. **`--dry-run` is the default; `--live` must be explicit.** The
+   script refuses to post/claim/transfer/DM without `--live`. Dry-run
+   prints the intended dispatches with full `claim_payload` and
+   `dm_body` so the orchestrator policy can be validated against the
+   live backlog before any hub writes. This is the substrate
+   equivalent of `fleet doctor --auto-heal --dry-run` (T-1684).
+
+3. **Round-robin with per-worker cap.** Workers are picked
+   round-robin across the idle set returned by `find-idle`, but each
+   worker is capped at `--per-worker-max` (default 3) concurrent
+   dispatches. Beyond that, units fall through to `[SKIP]
+   no-idle-worker` until releases free up worker slots. This avoids
+   piling N units on the first idle worker only because it appeared
+   first in the JSON.
+
+Invocation:
+
+```bash
+# Validate the policy against the current backlog (no hub writes)
+scripts/orchestrator-backlog-drain.sh --dry-run
+
+# Same, scoped to first 5 units (useful for iterating brief copy)
+scripts/orchestrator-backlog-drain.sh --dry-run --limit 5
+
+# Actually dispatch — requires LIVE idle workers with capability=backlog-drain
+scripts/orchestrator-backlog-drain.sh --live
+
+# Custom worker pool (e.g. AEF workers advertising different capability)
+scripts/orchestrator-backlog-drain.sh --live --capability aef-worker --limit 10
+```
+
+Output (one `DISPATCH` line per unit, plus a header + summary):
+
+```
+# orchestrator-backlog-drain.sh — T-2204
+# mode=dry-run capability=backlog-drain queue_topic=work-queue limit=20 per_worker_max=3
+# orchestrator=root-claude-dimitrimintdev
+
+# Step 1: governor pre-flight (#10)
+#   conn_active=3/256 cap_hits_total=0 rate_hits_total=0
+
+# Step 2: enumerate agent-eligible work-units from .tasks/active/
+#   found 21 agent-eligible units
+
+# Step 3: discover idle workers via find-idle (#2)
+#   capability=backlog-drain  idle_workers=2 (excluding self=orchestrator-0)
+#     - worker-alpha
+#     - worker-beta
+
+# Step 4: pair-and-dispatch
+DISPATCH [DRY-RUN] worker=worker-alpha unit=T-1166 classification=closure-ready ac_count=0
+         claim_payload={"task_id":"T-1166","classification":"closure-ready","ac_count":0,"dispatched_by":"orchestrator-0"}
+         dm_body="T-2204 dispatch [closure-ready] T-1166 — … Run the task's ## Verification block. If all pass, commit, then 'fw task update T-1166 --status work-completed'."
+DISPATCH [DRY-RUN] worker=worker-beta unit=T-1457 classification=needs-work ac_count=1
+…
+# Summary: total=21 dispatched=6 no_worker=15 failures=0 mode=dry-run
+```
+
+How AEF integrates as a worker: spawn a claude-code session on the
+AEF host with `/be-reachable start --capabilities backlog-drain`. The
+notify hook at `/tmp/aef-arrived.sh` (or its production analogue) will
+auto-greet on first arrival; the orchestrator picks the worker up on
+the next dispatch pass. The worker loop is the canonical pattern in
+the [Canonical worker pattern](#canonical-worker-pattern) section
+above — `release --ack` on success, `release` (no `--ack`) to return
+the offset for retry.
+
+The script is read-only against the filesystem (it does not touch
+`.tasks/` source files); all mutations happen via hub RPC and are
+visible in `fleet history --include-heals`, `claims-history`, and
+`substrate.history` for retrospective audit.
+
 ## Related primitives — per-primitive docs
 
 The recipe above stitches together every shipped substrate primitive.
