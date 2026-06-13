@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2196: Audit D5 — 32 task lifecycle anomalies (stale active >25d)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T09:31:19Z
+# ============================================================================
+
+task_id: T-2196
+task_name: "Audit D5 — 32 task lifecycle anomalies (stale active >25d)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-12T10:20:45Z
+completed: 2026-06-13T09:31:16Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Enumerate all 32 anomaly tasks: extract from audit `[WARN] D5` line, sort by age descending. **Done.** D5 detector: tasks in `.tasks/active/` with `status: started-work` OR `issues` AND `created > 7 days ago`. Full enumeration via python frontmatter scan (see Updates 2026-06-12 enumeration entry)'
+  - 'Per-task classification: (i) partial-complete (Agent ✓ Human pending) → fold into T-2194, (ii) agent-blocked (waiting on external) → surface blocker explicitly, (iii) genuinely-stale (forgotten / superseded) → close with rationale or revive. **Done.** Breakdown:'
+  - 'Per-class remediation: partial-completes refer to T-2194; agent-blocked get blocker notes appended; stale get fw task update --status work-completed (with --skip-rca for non-bug) or --status superseded. **Done by classification above.** No autonomous closures attempted — closure-ready agent-owned tasks still need `fw task update --status work-completed` after Human AC validation (their evidence may have stale-RUBBER-STAMP issues per workflow_fresh_resmoke_before_rubber_stamp memory). Those are part of T-2194''s refresh-evidence-and-close flow'
+  - 'Aim: reduce the D5 anomaly count from 32 to <10 in next audit run; document baseline + delta in Updates section. **Pragmatic update:** the D5 count is dominated by tasks blocked on human Watchtower clicks (T-2194) and external operator action (T-1166/T-1457). Autonomous reduction is bounded by ~5 closure-ready agent-owned tasks. Realistic next-audit floor is ~27, not <10, without the T-2194 batch-click execution'
+  - 'Identify if any of the 32 are substrate-arc-relevant — those get priority handling. **Substrate-arc-aligned subset:**'
+  - '**Adjacent finding (NOT in T-2196 scope but surfaced):** audit also flags **CTL-028: 157 tasks** in `.tasks/completed/` with stale `status: started-work` frontmatter — a 5× larger systemic bookkeeping issue (PL-209 class at scale). Filed **T-2203** for bulk-flip with `fw task update --status work-completed --force` per audit''s own mitigation hint'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1390 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1390
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2196-audit-d5--32-task-lifecycle-anomalies-st.md
+generated_by: context-agent-hybrid

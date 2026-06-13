@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2195: Audit CTL-012 — 3 completed tasks have unchecked ACs (T-1993, T-1299, T-1213)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T09:31:13Z
+# ============================================================================
+
+task_id: T-2195
+task_name: "Audit CTL-012 — 3 completed tasks have unchecked ACs (T-1993, T-1299, T-1213)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-12T10:20:34Z
+completed: 2026-06-13T09:31:10Z
+duration_days: 1
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'T-1993 RCA: read full task, identify which auto-tick markers should have fired. **Original hypothesis disproven.** Real RCA: T-1993 has `## Recommendation` populated AND 4 ACs with `<!-- @auto-tick-on-decide -->` markers — auto-tick WOULD have fired IF `fw inception decide T-1993` had run. But `## Decision` section is empty AND there is NO inception-decide entry in Updates. The decide ceremony was SKIPPED. Task was direct-frontmatter-flipped to `status: work-completed` (per session memory: "T-1993 + T-2012: fix frontmatter status work-completed (T-1909 class state mismatch)"). The fix bypassed the decide path, therefore the auto-tick path never ran. This is a 3rd class distinct from the originally-hypothesized "decide auto-tick bug"'
+  - 'T-1299 RCA: confirm the unchecked items are "DEFERRED to follow-up" prose, NOT real ACs. **Confirmed false-positive.** Line 39: `- [ ] **Deferred to a follow-up build (T-13xx):** (a) termlink register env-var injection...` — explicit prose-DEFERRED marker, not a real outstanding AC. Auditor should skip'
+  - 'T-1213 RCA: same as T-1299 — confirm "DEFERRED hold" pattern false-positive. **Confirmed false-positive.** Line 79: `- [ ] **DEFERRED** check-dispatch.sh retirement — hold until the new handler` — same prose-DEFERRED hold marker. Auditor should skip'
+  - 'If T-1299 / T-1213 confirmed false-positives: file ONE follow-up task to refine the auditor''s CTL-012 check to skip DEFERRED-prefix patterns. **Done: T-2202** filed with 5 ACs covering (i) skip-DEFERRED-prefix refinement, (ii) NEW CTL-012-MISSING-DECIDE class for the T-1993 pattern, (iii) regression tests against T-1213/T-1299/T-1993'
+  - 'Document the 2-class taxonomy (auto-tick bug vs deferred-prose false-positive) in PL-2XX learning so future CTL-012 fires are classified faster. **Done: PL-212** registered with the corrected 3-class taxonomy (Class A: decide auto-tick bug, Class B: missing-decide bypass — T-1993, Class C: prose-DEFERRED false-positive — T-1299/T-1213). Includes triage classifier (empty Decision + auto-tick markers = B; **DEFERRED prefix = C; else A)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1390 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1390
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2195-audit-ctl-012--3-completed-tasks-have-un.md
+generated_by: context-agent-hybrid
