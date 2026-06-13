@@ -877,6 +877,57 @@ The script is read-only against the filesystem (it does not touch
 visible in `fleet history --include-heals`, `claims-history`, and
 `substrate.history` for retrospective audit.
 
+### Worker-side companion — `scripts/worker-backlog-drain.sh`
+
+T-2205 shipped the worker-side mirror at `scripts/worker-backlog-drain.sh`.
+AEF integrators clone both `orchestrator-backlog-drain.sh` and
+`worker-backlog-drain.sh` to have a complete substrate consumer kit.
+
+The worker polls `channel claims` (the LIST verb T-2037, NOT
+`claims-summary` which is aggregate-only) for claims held by its
+`worker_id`, reads each work-unit envelope via `channel subscribe
+--cursor <offset> --limit 1`, decodes the base64-encoded payload, and
+renders one of three actions:
+
+| Mode | Behaviour |
+|---|---|
+| `--dry-run` (default) | Print held claims + intended brief; no hub writes |
+| `--live` | Print + prompt operator (stdin) with `ack` / `retry` / `skip` |
+| `--auto-noop` | `release --ack` every claim WITHOUT doing the work — substrate smoke-test only, never production |
+
+Invocation:
+
+```bash
+# Inspect what I'm holding
+scripts/worker-backlog-drain.sh --dry-run --once
+
+# Interactive operator session — poll every 15s, prompt on each claim
+scripts/worker-backlog-drain.sh --live
+
+# Substrate smoke-test — releases everything in the pipe without doing work
+# (useful only for proving the claim→release lifecycle end-to-end)
+scripts/worker-backlog-drain.sh --auto-noop --once
+```
+
+Identity resolution mirrors the orchestrator: `--worker-id` flag →
+`TERMLINK_AGENT_ID` env → `~/.termlink/be-reachable.state`. SIGINT
+exits the poll loop cleanly.
+
+Prerequisite (one-time per hub): create the work-queue topic with the
+recommended bounded retention before the orchestrator's first `--live`
+pass — the orchestrator surfaces `unknown topic` loudly with the
+exact create command if missing:
+
+```bash
+termlink channel create --retention "messages:1000" work-queue
+```
+
+End-to-end smoke validated on the local hub: orchestrator dry-run
+identifies 21 agent-eligible units against the live backlog; worker
+dry-run reads a simulated claim and decodes its payload (task_id,
+classification, ac_count, dispatched_by) correctly; release --ack
+closes the loop with `{"ok":true,"ack":true}` from the hub.
+
 ## Related primitives — per-primitive docs
 
 The recipe above stitches together every shipped substrate primitive.

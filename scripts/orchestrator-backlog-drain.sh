@@ -261,9 +261,16 @@ while IFS='|' read -r tid classification ac_count name; do
   # ── LIVE PATH ────────────────────────────────────────────────────────────
   # 4a: post the unit to the work-queue topic
   post_resp="$(termlink channel post "$QUEUE_TOPIC" --payload "$unit_payload" --json 2>&1 || echo '{"error":"post-failed"}')"
-  queue_offset="$(echo "$post_resp" | jq -r '.offset // empty' 2>/dev/null || true)"
+  queue_offset="$(echo "$post_resp" | jq -r '.delivered.offset // .offset // empty' 2>/dev/null || true)"
   if [ -z "$queue_offset" ]; then
     failures=$((failures+1))
+    # surface the canonical "unknown topic" error loudly
+    if echo "$post_resp" | grep -q "unknown topic"; then
+      echo "DISPATCH [POST-FAIL] unit=$tid — topic '$QUEUE_TOPIC' does not exist on hub."
+      echo "  Create it once with:"
+      echo "    termlink channel create --retention 'messages:1000' $QUEUE_TOPIC"
+      continue
+    fi
     echo "DISPATCH [POST-FAIL] worker=$target unit=$tid response=$post_resp"
     continue
   fi
