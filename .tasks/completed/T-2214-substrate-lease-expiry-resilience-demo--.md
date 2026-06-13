@@ -4,10 +4,10 @@ name: "substrate lease-expiry resilience demo — worker-death auto-reclaim proo
 description: >
   substrate lease-expiry resilience demo — worker-death auto-reclaim proof
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T15:11:25Z
-last_update: 2026-06-13T15:11:25Z
-date_finished: null
+last_update: 2026-06-13T15:15:53Z
+date_finished: 2026-06-13T15:15:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,10 +40,10 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/substrate-lease-expiry-demo.sh` exists, is executable, passes `bash -n`, and supports `--hub`/`--topic`/`--json`/`--help`.
-- [ ] The demo proves the Antifragility property live: a claim taken with a short TTL auto-expires, the slot reopens to a *different* claimer (worker-death auto-reclaim), and the original (lapsed) claimer can no longer renew/release it. All assertions green (`verdict:PASS`, `ok:true`) across ≥2 consecutive runs.
-- [ ] Wired into `scripts/substrate-smoke.sh` as a regression-gate stage (asserts `ok:true`); full smoke suite passes exit 0.
-- [ ] Proof report `docs/reports/T-2214-substrate-lease-expiry-demo.md` captures a live run + the per-assertion table + the observed lapsed-claim error vocabulary.
+- [x] `scripts/substrate-lease-expiry-demo.sh` exists, is executable, passes `bash -n`, and supports `--hub`/`--topic`/`--json`/`--help`.
+- [x] The demo proves the Antifragility property live: a claim taken with a short TTL auto-expires, the slot reopens to a *different* claimer (worker-death auto-reclaim), and the original (lapsed) claimer can no longer renew/release it. All assertions green (`verdict:PASS`, `ok:true`) across ≥2 consecutive runs.
+- [x] Wired into `scripts/substrate-smoke.sh` as a regression-gate stage (asserts `ok:true`); full smoke suite passes exit 0.
+- [x] Proof report `docs/reports/T-2214-substrate-lease-expiry-demo.md` captures a live run + the per-assertion table + the observed lapsed-claim error vocabulary.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +114,14 @@ test -x scripts/substrate-lease-expiry-demo.sh
 grep -q "substrate-lease-expiry-demo.sh" scripts/substrate-smoke.sh
 test -f docs/reports/T-2214-substrate-lease-expiry-demo.md
 
+## Recommendation
+
+**Recommendation:** Ship. The lease-expiry resilience demo is the third runnable arc-001 proof, completing coverage of all three substrate work mechanics (work-stealing T-2211, directed-assignment T-2212, worker-death auto-reclaim T-2214). No code/hub change — composes shipped verbs only.
+
+**Rationale:** Constitutional directive #1 (Antifragility) was the one arc mechanic with no live proof: a worker dying mid-claim. Proving the slot auto-reopens and the lapsed owner is locked out closes that gap and is now regression-guarded as the smoke suite's 9th stage.
+
+**Evidence:** `bash scripts/substrate-lease-expiry-demo.sh --json` → `{"ok":true,"verdict":"PASS","passed":6,"total":6}` (consecutive runs); full `substrate-smoke.sh` PASS exit 0 across 9 stages; proof report `docs/reports/T-2214-substrate-lease-expiry-demo.md`.
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -181,3 +189,6 @@ test -f docs/reports/T-2214-substrate-lease-expiry-demo.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2214-substrate-lease-expiry-resilience-demo--.md
 - **Context:** Initial task creation
+
+### 2026-06-13T15:15:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

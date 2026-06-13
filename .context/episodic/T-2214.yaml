@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2214: substrate lease-expiry resilience demo — worker-death auto-reclaim proof
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T15:15:56Z
+# ============================================================================
+
+task_id: T-2214
+task_name: "substrate lease-expiry resilience demo — worker-death auto-reclaim proof"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T15:11:25Z
+completed: 2026-06-13T15:15:53Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-13T17:15:34+02:00
+last_commit: 2026-06-13T17:15:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate lease-expiry resilience demo — worker-death auto-reclaim proof (arc-001 proof #3, Antifragility)
+
+# Key outcomes
+outcomes:
+  - '`scripts/substrate-lease-expiry-demo.sh` exists, is executable, passes `bash -n`, and supports `--hub`/`--topic`/`--json`/`--help`.'
+  - 'The demo proves the Antifragility property live: a claim taken with a short TTL auto-expires, the slot reopens to a *different* claimer (worker-death auto-reclaim), and the original (lapsed) claimer can no longer renew/release it. All assertions green (`verdict:PASS`, `ok:true`) across ≥2 consecutive runs.'
+  - 'Wired into `scripts/substrate-smoke.sh` as a regression-gate stage (asserts `ok:true`); full smoke suite passes exit 0.'
+  - 'Proof report `docs/reports/T-2214-substrate-lease-expiry-demo.md` captures a live run + the per-assertion table + the observed lapsed-claim error vocabulary.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/arc-parallel-substrate.yaml'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'docs/reports/T-2214-substrate-lease-expiry-demo.md'
+  - 'scripts/substrate-lease-expiry-demo.sh'
+  - 'scripts/substrate-smoke.sh'
+  - '.tasks/active/T-2214-substrate-lease-expiry-resilience-demo--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T17:15:34"
+    action: "T-2214: substrate lease-expiry resilience demo — worker-death auto-reclaim proof (arc-001 proof #3, Antifragility)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 6
+  lines_added: 477
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2214-substrate-lease-expiry-resilience-demo--.md
+generated_by: context-agent-hybrid
