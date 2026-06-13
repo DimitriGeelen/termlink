@@ -2295,3 +2295,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-220
+  learning: "Staleness checks that compare against the git-derived VERSION file false-fire: VERSION patch = commits-since-tag, so it increments on EVERY commit (docs, tasks, scripts), not just feature-relevant ones. 'installed version < VERSION' therefore WARNs constantly even when the relevant SOURCE (crates/) is unchanged, eroding signal (PL-219 alert-fatigue class). Fix: gate the WARN on whether the feature-relevant path actually changed (git log HEAD~delta..HEAD -- crates/), fail-safe toward WARN on any uncertainty (cross-minor, shallow clone, unparseable). Applies to substrate-preflight Check 4 (T-2226) and any future deploy-freshness gate."
+  source: P-001
+  task: T-2226
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
