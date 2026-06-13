@@ -409,8 +409,8 @@ The substrate error taxonomy maps to specific skill-tier recovery patterns:
 | `CLAIM_CONFLICT` (-32015) | `/claim` refuses | `/claims <topic>` to see who; pick a different offset OR wait for natural release |
 | `CLAIM_NOT_OWNED` (-32017) | `/release`/`/renew`/`/claim-transfer` refuse | `/claims <topic>` to see actual holder; `/claim-transfer` from holder OR Tier-0 `claim-force-release` |
 | `CLAIM_NOT_FOUND` (-32016; protocol reserves -32018 `CLAIM_EXPIRED` but a lapsed lease is lazy-evicted to not-found) | `/renew`/`/release` refuses with *"not found (never existed, released, or expired)"* | Slot has reopened — re-claim with `/claim <topic> <offset>` (gets new claim_id; `renew` cannot resurrect a lapsed claim). Next time, renew SOONER (well before `claimed_until`). Proven live: `scripts/substrate-lease-expiry-demo.sh` (T-2214) |
-| `CLAIM_NOT_FOUND` (-32018) | `/release` / `/renew` refuse | `/claims <topic>` + `termlink channel claims-history --since 1` (T-2074) to audit |
-| `AUTH_FAIL` (-32001) | Any skill refuses | `termlink fleet doctor` + `termlink fleet reauth --bootstrap-from auto` |
+| `CLAIM_EXPIRED` (-32018) | `/release` / `/renew` refuse (explicit-expiry path; cf. -32016 lazy-evict above) | `/claims <topic>` + `termlink channel claims-history --since 1` (T-2074) to audit |
+| `AUTH_DENIED` (-32010) / `AUTH_REQUIRED` (-32009) | Any skill refuses | `termlink fleet doctor` + `termlink fleet reauth --bootstrap-from auto` |
 | `RATE_LIMITED` (-32008) | Any skill refuses | `/governor --only-pressured` + wait `retry_after_ms` |
 | `HUB_AT_CAPACITY` (-32019) | `/claim` refuses | `/governor` + wait |
 
