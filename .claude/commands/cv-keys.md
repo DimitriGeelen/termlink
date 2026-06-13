@@ -134,8 +134,8 @@ This means no producer on this hub has posted to `<X>` with
 
 2. The producer SHOULD be cv-indexing but isn't wired correctly. See
    `docs/operations/substrate-broadcast-with-replay.md` for the
-   producer-side recipe (`channel post --metadata cv_key=<stable-id>`
-   or set `TERMLINK_CV_KEY=<id>` env var on the producer).
+   producer-side recipe (`channel post --metadata cv_key=<stable-id>`;
+   `listener-heartbeat.sh` does this automatically as `--metadata cv_key=$agent_id`, T-2107).
 
 If you reached this skill because `/governor` flagged
 `cv_overflow > 0`: the saturating topic is likely a DIFFERENT topic

@@ -1,12 +1,21 @@
-# Doc lint — cross-check operator-facing docs against source-of-truth enums.
+# Doc lint — cross-check operator-facing docs against source-of-truth.
 #
-# Why: error-vocabulary prose (failure-modes tables, skill recovery taxonomies)
-# drifts from the real protocol because nothing tested it against the source
-# enum. A fictional `CLAIM_LAPSED`/`CLAIM_ALREADY_HELD` symbol and two
-# mislabeled rows propagated across 5 operator surfaces before being caught
-# (T-2213 / T-2215 / T-2216 / T-2217). This gate is the Level-C close of that
-# whack-a-mole: it fails the build if any doc `SYMBOL(-320NN)` pairing
-# disagrees with crates/termlink-protocol/src/control.rs.
+# Why: identifier prose (failure-modes tables, skill recovery taxonomies,
+# notify-hook env-var recipes) drifts from the real source because nothing
+# tested it. Two sibling lints close that whack-a-mole at Level-C:
+#
+#   error-code-doc-lint  — every doc `SYMBOL(-320NN)` pairing must agree with
+#                          crates/termlink-protocol/src/control.rs. A fictional
+#                          CLAIM_LAPSED/CLAIM_ALREADY_HELD symbol + two mislabeled
+#                          rows propagated across 5 surfaces before being caught
+#                          (T-2213/T-2215/T-2216/T-2217).
+#   env-var-doc-lint     — every doc-cited TERMLINK_* env var must have an
+#                          implementation surface in crates/+scripts/+systemd-templates/.
+#                          A copy-pasted notify-hook gating on a misnamed var
+#                          (TERMLINK_SUBSTRATE_FIELD vs _CHANGE_FIELD) silently
+#                          never fires; a queue-path knob (TERMLINK_OUTBOUND_QUEUE_PATH)
+#                          and a producer var (TERMLINK_CV_KEY) were documented but
+#                          read nowhere (T-2219/T-2220, PL-217).
 #
 # Fast (seconds, no Rust build) and isolated from install-check.yml /
 # release.yml / the OneDev mirror job.
@@ -21,7 +30,7 @@ on:
 
 jobs:
   error-code-doc-lint:
-    name: error-code symbol↔number pairings match control.rs
+    name: error-code symbol-number pairings match control.rs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -30,3 +39,14 @@ jobs:
 
       - name: Lint error-code doc pairings
         run: bash scripts/check-error-code-docs.sh
+
+  env-var-doc-lint:
+    name: doc-cited TERMLINK_* env vars have an implementation surface
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint env-var doc citations
+        run: bash scripts/check-env-var-docs.sh
