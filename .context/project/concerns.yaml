@@ -2,6 +2,30 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-066
+  type: gap
+  title: "157 tasks reached .tasks/completed/ with status:started-work + null date_finished — finalization was bypassed by whatever moved them"
+  description: "CTL-028 (T-2203) found 157 completed/ tasks whose status field still said started-work and whose date_finished was empty — archived without going through the finalize routine (fw task update --status work-completed, which sets BOTH status and date_finished). Several share identical move-commit timestamps (e.g. T-1889 and T-1890 both 2026-05-31T17:34:40Z), indicating bulk git mv / migration moves that skipped finalization. The symptom-level fix (T-2203, 444a7e9b) aligned status + git-mined date_finished across all 157, but the MECHANISM that lands tasks in completed/ without finalizing them is unaddressed and will recur."
+  spec_reference: "T-2203 (CTL-028 symptom fix, 444a7e9b); CLAUDE.md §Post-Fix Root Cause Escalation (G-019 — fix the reason the framework couldn't detect it, not just the mess); sibling class to G-008 (work-completed tasks stuck in active/)"
+  severity: medium
+  what_works_now: "T-2203 repaired the 157 existing files; an audit check (no duplicate task IDs, all YAML parses) passes. The corruption is latent only on FUTURE bulk moves."
+  what_remains: "(1) git log the move commits of the 157 (--diff-filter=A on completed/ paths), cluster by timestamp/author/message to identify the mover (bulk script, manual git mv, or a framework path such as update-task.sh / handover / a migration). (2) Confirm whether any code path moves files into completed/ without calling the finalize routine. (3) Prevent: either (a) a guard/canary that flags completed/ tasks with status != work-completed (cheap audit check, pairs with the existing duplicate-ID audit), or (b) make every code path that lands a task in completed/ go through the finalize routine."
+  status: watching
+  created: 2026-06-13
+  related_tasks: [T-2203, G-008]
+
+- id: G-065
+  type: gap
+  title: "BVP estimator corrupts anchor-less task frontmatter — orphaned proposed-score lists produce invalid YAML"
+  description: "fw bvp estimate all and fw bvp estimate-cost all (estimator.py write_proposed / write_proposed_cost, vendored at .agentic-framework/agents/termlink/bvp-estimator/) corrupt OLD-format task frontmatter. New-format tasks carry a commented template anchor (# bvp_scores_proposed: / # cost_estimate: block, T-1918) that the estimator keys on to place the real key. On tasks lacking that anchor it writes the proposed-score list items WITHOUT the parent key (an orphaned '- ts:' list directly under date_finished), which is malformed YAML (mapping values are not allowed here). Observed 2026-06-13: a 'bvp recalculate' request corrupted 106 of 1984 task files. Recovery was clean because nothing was committed — git checkout -- .tasks/ restored HEAD. The in-memory ranking (fw bvp value+cost) still computes, so a recalc's ranking output looks fine while silently corrupting files on disk."
+  spec_reference: "T-1918 (BVP arc-006, new-format template anchor); estimator.py write_proposed / write_proposed_cost; vendored .agentic-framework — fix must go upstream (AEF), do not patch locally"
+  severity: medium
+  what_works_now: "Per-task scoring on confirmed new-format tasks (with the # anchor) works. fw bvp ranking (value+cost) computes in-memory without touching files. Workaround in place: do NOT run fw bvp estimate{,-cost} all until fixed; always git diff --stat .tasks/ after any scoring run."
+  what_remains: "Upstream AEF fix to estimator.py: when the anchor comment is absent, INSERT the key before the closing --- (prefer a YAML round-trip write over line-anchoring). Regression test: estimate a fixture task whose frontmatter has NO # bvp_scores_proposed: comment; assert the result re-parses as valid YAML and the key exists. Relay as an AEF task to /opt/999-Agentic-Engineering-Framework."
+  status: watching
+  created: 2026-06-13
+  related_tasks: [T-2203, T-1918]
+
 - id: G-064
   type: gap
   title: "Hub has no per-user authorization model — every authenticated caller has equal privilege over every claim, channel, and primitive surface"
