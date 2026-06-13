@@ -4,20 +4,20 @@ name: "AEF coordination — substrate parallel-worker test using backlog drain w
 description: >
   Initiate cross-host coordination with AEF (upstream) to run the first end-to-end test of the arc-parallel-substrate ADR (T-2018 §6) using the 18 agent-eligible backlog tasks as real workload. Roles: this session (root-claude-dimitrimintdev on 127.0.0.1:9100) acts as orchestrator; AEF spawns a worker session with /be-reachable --capabilities backlog-drain. Coordination via agent-chat-arc broadcast + DM thread. Substrate primitives exercised: find-idle (#2), claim (#1), agent contact (DM dispatch), release (#1), governor (#10).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [substrate, parallel-worker, coordination, arc-001, T-2018]
-components: []
+components: [scripts/orchestrator-backlog-drain.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T08:15:01Z
-last_update: 2026-06-13T08:58:38Z
-date_finished: null
+last_update: 2026-06-13T09:04:44Z
+date_finished: 2026-06-13T09:04:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -191,3 +191,6 @@ test -x /tmp/aef-arrived.sh
 
 ### 2026-06-13T08:58:38Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-13T09:04:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

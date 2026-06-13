@@ -1,0 +1,120 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2204: AEF coordination — substrate parallel-worker test using backlog drain workload (T-2018 §6)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T09:04:47Z
+# ============================================================================
+
+task_id: T-2204
+task_name: "AEF coordination — substrate parallel-worker test using backlog drain workload (T-2018 §6)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T08:15:01Z
+completed: 2026-06-13T09:04:44Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-13T10:59:12+02:00
+last_commit: 2026-06-13T11:04:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture prior-session closure artifacts + T-2191/2192/2193/2202 episodic. create coordination task for substrate parallel-worker test (T-2018 §6). ship orchestrator-backlog-drain.sh — first in-tree consumer of T-2018 §6 substrate
+
+# Key outcomes
+outcomes:
+  - 'T-2204 coordination message broadcast on agent-chat-arc to 3+ hubs (offsets recorded above)'
+  - 'find-idle arrival watch is running with auto-greet hook firing on AEF-flavored arrivals'
+  - 'Orchestrator script `scripts/orchestrator-backlog-drain.sh` exists and is executable'
+  - 'Script defaults to `--dry-run`; live mode requires explicit `--live` flag (refuses to dispatch without it)'
+  - 'Dry-run identifies the agent-eligible work-unit set from `.tasks/active/` (owner!=human, horizon in {now,next}, status!=blocked) — 21 units found on first run'
+  - 'Dry-run prints per-unit: task_id, intended worker (or `no-idle-worker` placeholder), planned claim payload, planned DM body — validated with `--orchestrator-id fake-orch` showing round-robin dispatch + per-worker-max=3 cap'
+  - 'Documentation extended at `docs/operations/substrate-orchestrator-recipe.md` explaining the consumer pattern with this script as the worked example'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/audit/audit.sh'
+  - '.agentic-framework/agents/audit/completed-task-scan.py'
+  - '.context/audits/2026-06-12.yaml'
+  - '.context/audits/2026-06-13.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2191.yaml'
+  - '.context/episodic/T-2192.yaml'
+  - '.context/episodic/T-2193.yaml'
+  - '.context/episodic/T-2202.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/operations/substrate-orchestrator-recipe.md'
+  - 'scripts/orchestrator-backlog-drain.sh'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md'
+  - '.tasks/active/T-2196-audit-d5--32-task-lifecycle-anomalies-st.md'
+  - '.tasks/active/T-2197-audit-d13--4-inception-limbo-tasks-await.md'
+  - '.tasks/active/T-2198-audit-d14--t-2144-has-empty-inception-re.md'
+  - '.tasks/active/T-2204-aef-coordination--substrate-parallel-wor.md'
+  - '.tasks/completed/T-2191-sync-substrate-getting-startedmd-to-5-ch.md'
+  - '.tasks/completed/T-2192-extend-check-preflight-doc-set-driftsh-t.md'
+  - '.tasks/completed/T-2193-add-aliveness-meta-canary-to-preflight-d.md'
+  - '.tasks/completed/T-2202-auditor-ctl-012--skip-deferred-prefix-fa.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T10:59:12"
+    action: "T-2204: capture prior-session closure artifacts + T-2191/2192/2193/2202 episodic"
+  - time: "2026-06-13T10:59:23"
+    action: "T-2204: create coordination task for substrate parallel-worker test (T-2018 §6)"
+  - time: "2026-06-13T11:04:31"
+    action: "T-2204: ship orchestrator-backlog-drain.sh — first in-tree consumer of T-2018 §6 substrate"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 49 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [substrate, parallel-worker, coordination, arc-001, T-2018]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 49
+  commits: 3
+  files_changed: 38
+  lines_added: 14473
+  lines_removed: 118
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2204-aef-coordination--substrate-parallel-wor.md
+generated_by: context-agent-hybrid
