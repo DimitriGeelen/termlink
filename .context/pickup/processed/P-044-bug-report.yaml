@@ -1,0 +1,29 @@
+pickup_id: P-044
+version: 1
+type: bug-report
+source:
+  project: "termlink"
+  task_id: "T-2203"
+  agent: "claude-code"
+  timestamp: "2026-06-13T20:07:47Z"
+payload:
+  summary: "BVP estimator corrupts anchor-less task frontmatter (orphaned proposed-score lists produce invalid YAML)"
+  detail: "fw bvp estimate all / estimate-cost all (estimator.py write_proposed / write_proposed_cost, agents/termlink/bvp-estimator/) corrupt OLD-format task frontmatter.
+
+ROOT CAUSE: New-format tasks carry a commented template anchor (# bvp_scores_proposed: / # cost_estimate:, T-1918) that the estimator keys on to place the real key. On tasks lacking that anchor it writes the proposed-score list items WITHOUT the parent key — an orphaned '- ts:' list directly under date_finished:, e.g.:
+
+    date_finished: 2026-06-05T22:46:32Z
+      - ts: '2026-06-13T18:08:38Z'
+        estimator: bvp-estimator-v1-heuristic
+
+That is malformed YAML (mapping values are not allowed here).
+
+IMPACT: Observed 2026-06-13 in consumer project 010-termlink — one 'bvp recalculate' (estimate all + estimate-cost all) corrupted 106 of 1984 task files. In-memory ranking (fw bvp value+cost) still computes, so the recalc output looks fine while files silently corrupt on disk — only caught by git diff --stat .tasks/ after. Recovery clean only because nothing was committed (git checkout -- .tasks/).
+
+PROPOSED FIX: When the anchor comment is absent, INSERT the key before the closing --- (prefer a YAML round-trip write over line-anchoring).
+
+REGRESSION TEST: Estimate a fixture task whose frontmatter has NO # bvp_scores_proposed: comment; assert the result re-parses as valid YAML and the bvp_scores_proposed: key exists.
+
+CONSUMER WORKAROUND: do not run fw bvp estimate{,-cost} all until fixed; always git diff --stat .tasks/ after scoring. Tracked locally as gap G-065."
+  priority: high
+  tags: [bvp, estimator, frontmatter-corruption, yaml]
