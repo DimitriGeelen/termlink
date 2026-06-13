@@ -21,7 +21,9 @@
 #              listener is gone. Catches the "I forgot to /be-reachable
 #              again after reboot" footgun.
 #
-#   Check 4: termlink binary freshness vs project root VERSION (T-2181)
+#   Check 4: termlink binary freshness vs project root VERSION (T-2181;
+#            T-2226 feature-aware: WARN only when crates/ changed since the
+#            installed binary, not on doc/task-only VERSION-number drift)
 #            → Catches "I deployed but the binary is older than the
 #              source tree's documented features" footgun. CLAUDE.md
 #              catalog promises flags like `--only-stuck` (T-2076) and
@@ -343,6 +345,37 @@ version_lt() {
     return 1
 }
 
+# T-2226 — Distinguish version-number drift from genuine CLI-feature drift.
+# VERSION is git-derived (patch = commits-since-tag), so it increments on EVERY
+# commit — including doc/task/script commits that never touch the binary. The
+# naive "binary_version < VERSION" test therefore false-WARNs after any such
+# commit even though the installed binary's feature set is current (PL-219
+# alert-fatigue class: a check that cries wolf trains operators to ignore it,
+# masking a REAL stale binary). This returns 0 (true) ONLY when it can PROVE
+# crates/ (the CLI source) is unchanged between the installed binary and HEAD.
+# ANY uncertainty returns 1 (keep WARN) — the check must never silence a
+# genuinely stale binary, only the proven-false-positive case.
+crates_unchanged_since_binary() {
+    local bin_ver="$1" repo_ver="$2"
+    local IFS=.
+    # shellcheck disable=SC2206
+    local bv=($bin_ver) rv=($repo_ver)
+    # Same release line only: a major/minor bump is a real boundary — keep WARN.
+    [ "${bv[0]:-x}" = "${rv[0]:-y}" ] || return 1
+    [ "${bv[1]:-x}" = "${rv[1]:-y}" ] || return 1
+    local bp="${bv[2]:-}" rp="${rv[2]:-}"
+    bp="${bp//[^0-9]/}"; rp="${rp//[^0-9]/}"
+    [ -n "$bp" ] && [ -n "$rp" ] || return 1
+    local delta=$(( rp - bp ))
+    [ "$delta" -gt 0 ] || return 1
+    # Need a git repo with enough history to look back $delta commits.
+    git rev-parse --verify -q "HEAD~${delta}" >/dev/null 2>&1 || return 1
+    # Any crates/ commit in (binary, HEAD] → genuine feature drift → keep WARN.
+    local touched
+    touched=$(git log --oneline "HEAD~${delta}..HEAD" -- crates/ 2>/dev/null | head -n1)
+    [ -z "$touched" ]
+}
+
 check_binary_freshness() {
     local version_file="VERSION"
     if [ ! -r "$version_file" ]; then
@@ -372,9 +405,16 @@ check_binary_freshness() {
     fi
 
     if version_lt "$binary_version" "$repo_version"; then
-        emit_check "binary" "medium" "warn" \
-            "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
-            "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+        if crates_unchanged_since_binary "$binary_version" "$repo_version"; then
+            # T-2226: version number drifted but no crates/ change since the
+            # installed binary — features are current, rebuild not required.
+            emit_check "binary" "medium" "pass" \
+                "termlink $binary_version < VERSION $repo_version but no crates/ change since binary — version drift only, rebuild not required (T-2226)"
+        else
+            emit_check "binary" "medium" "warn" \
+                "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
+                "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+        fi
     else
         emit_check "binary" "medium" "pass" \
             "termlink $binary_version >= project VERSION $repo_version"
