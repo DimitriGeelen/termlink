@@ -37,7 +37,7 @@ presence (T-2025 NO-GO — derived from durable heartbeats), #8 typed
 agent-launch (T-2026/T-2090 DEFER).
 
 
-> **Runnable proofs.** Two self-contained scripts exercise this exact pattern
+> **Runnable proofs.** Three self-contained scripts exercise this exact pattern
 > live against a local hub — run them before integrating to see the substrate
 > behave:
 >
@@ -50,6 +50,12 @@ agent-launch (T-2026/T-2090 DEFER).
 >   `claim-transfer`, which then renews and releases; asserts the full lifecycle
 >   AND the `CLAIM_NOT_OWNED` ownership gate (7/7 — 3 positive + 3 refusals).
 >   Evidence: `docs/reports/T-2212-substrate-cooperative-handoff-demo.md`.
+> - `scripts/substrate-lease-expiry-demo.sh` — **worker-death resilience**: a
+>   worker claims under a short lease then stops renewing (simulated crash); asserts
+>   the slot auto-reopens to another worker AND the lapsed owner is locked out of
+>   renew/release (6/6 — 3 positive + 3 refusals). The Antifragility path the other
+>   two demos don't cover. Evidence:
+>   `docs/reports/T-2214-substrate-lease-expiry-demo.md`.
 >
 > The "Canonical orchestrator pattern" and "Canonical worker pattern" sections
 > below generalise what these two demos prove at minimal scale.

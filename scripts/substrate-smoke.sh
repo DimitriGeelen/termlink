@@ -18,11 +18,13 @@
 #     → arc-demo regression gates (T-2213):
 #         drain-demo.sh      — N-way work-stealing race, exclusive delivery (T-2211)
 #         cooperative-handoff-demo.sh — CLAIM_NOT_OWNED ownership gates (T-2212)
+#         lease-expiry-demo.sh — worker-death auto-reclaim + lapsed-owner lockout (T-2214)
 #
 # Composition of:
 #   - termlink channel create / post / claim / claim-transfer / claims-summary
 #   - scripts/substrate-worker-loop.sh (T-2146 + T-2150)
 #   - scripts/substrate-drain-demo.sh (T-2211) + substrate-cooperative-handoff-demo.sh (T-2212)
+#     + substrate-lease-expiry-demo.sh (T-2214)
 #
 # Exit codes:
 #   0   substrate healthy — every stage PASSed
@@ -302,5 +304,17 @@ if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
     stage_fail "handoff-demo" "ownership-gate demo not ok: $out"
 fi
 stage_pass "handoff-demo (CLAIM_NOT_OWNED ownership gates)"
+
+# ---- Stage: arc-demo lease-expiry resilience (T-2214, regression gate) ---
+# Proves the Antifragility path: a claim whose owner stops renewing auto-expires,
+# the slot reopens to a different worker, and the lapsed owner is locked out.
+# This is the worker-death recovery the stages above never exercise.
+if ! out=$(bash "${SCRIPT_DIR}/substrate-lease-expiry-demo.sh" --json "${HUB_ARGS[@]}" 2>&1); then
+    stage_fail "lease-expiry-demo" "$out"
+fi
+if ! echo "$out" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+    stage_fail "lease-expiry-demo" "auto-reclaim demo not ok: $out"
+fi
+stage_pass "lease-expiry-demo (worker-death auto-reclaim, lapsed-owner lockout)"
 
 finalize 0
