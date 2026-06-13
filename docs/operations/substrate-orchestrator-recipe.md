@@ -36,6 +36,24 @@ Out of scope (deferred per ADR §6): #4 filesystem-write observation
 presence (T-2025 NO-GO — derived from durable heartbeats), #8 typed
 agent-launch (T-2026/T-2090 DEFER).
 
+
+> **Runnable proofs.** Two self-contained scripts exercise this exact pattern
+> live against a local hub — run them before integrating to see the substrate
+> behave:
+>
+> - `scripts/substrate-drain-demo.sh` — **work-stealing**: N workers race to
+>   claim disjoint units of an M-unit queue; asserts exclusive delivery (every
+>   unit won exactly once, zero double-claims). Evidence:
+>   `docs/reports/T-2211-substrate-drain-demo.md`.
+> - `scripts/substrate-cooperative-handoff-demo.sh` — **directed assignment**:
+>   an orchestrator claims a slot and atomically hands the lease to a worker via
+>   `claim-transfer`, which then renews and releases; asserts the full lifecycle
+>   AND the `CLAIM_NOT_OWNED` ownership gate (7/7 — 3 positive + 3 refusals).
+>   Evidence: `docs/reports/T-2212-substrate-cooperative-handoff-demo.md`.
+>
+> The "Canonical orchestrator pattern" and "Canonical worker pattern" sections
+> below generalise what these two demos prove at minimal scale.
+
 ## Mental model
 
 ```
