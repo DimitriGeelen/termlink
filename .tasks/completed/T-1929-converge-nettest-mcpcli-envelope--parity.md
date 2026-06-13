@@ -4,7 +4,7 @@ name: "Converge net_test MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
   MCP net_test emits message field on empty hubs case; CLI emits same envelope without message. Add message to CLI, add parity_net_test_no_hubs test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T16:18:57Z
 last_update: 2026-06-02T16:18:57Z
-date_finished: null
+date_finished: 2026-06-02T18:25:08Z
 ---
 
 # T-1929: Converge net_test MCP/CLI envelope + parity test (PL-198 follow-up)

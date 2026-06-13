@@ -4,7 +4,7 @@ name: "Disambiguate 7 more agent_* chat-arc-only tools with topic-generic help t
 description: >
   Apply (chat-arc) suffix pattern to 7 tools missed in the original sweep
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:40:11Z
 last_update: 2026-06-03T20:42:22Z
-date_finished: null
+date_finished: 2026-06-03T20:43:35Z
 ---
 
 # T-1951: Disambiguate 7 more agent_* chat-arc-only tools with topic-generic help text (T-1947 follow-up)

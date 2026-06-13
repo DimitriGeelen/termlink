@@ -4,7 +4,7 @@ name: "termlink_help — surface 18 operator-essential missing tools + dedup age
 description: >
   Help registry has 252 real MCP tools but only surfaces 179. Surface Tier-1 operator-essentials (events, inbox, remote, net_test, recent_dm, agent_listen, agent_overview, agent_typing, agent_help, etc.). Dedup termlink_agent_ask (appears in agent_presence AND diagnostics).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T15:49:17Z
 last_update: 2026-06-03T15:52:31Z
-date_finished: null
+date_finished: 2026-06-03T15:54:24Z
 ---
 
 # T-1942: termlink_help — surface 18 operator-essential missing tools + dedup agent_ask

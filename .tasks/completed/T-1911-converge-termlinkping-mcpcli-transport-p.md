@@ -4,7 +4,7 @@ name: "Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)"
 description: >
   MCP termlink_ping reaches session via in-process lookup; CLI termlink ping routes through hub and times out without one. Either align MCP to use hub-routing, or give CLI an in-process fallback when hub absent. Un-ignore parity_ping when converged.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
 last_update: 2026-06-02T10:54:26Z
-date_finished: null
+date_finished: 2026-06-02T13:17:21Z
 ---
 
 # T-1911: Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)

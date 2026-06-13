@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcod
 description: >
   Add a third extractor (parallel to tool_descriptions()) that regex-scans tools.rs to build {tool_name: [{param_name, type, optional, doc}]}. Surface in tool_detail JSON response as parameters: [...]. Closes the call-the-tool-correctly gap — LLMs no longer have to guess param shapes or invoke-to-error to learn them. Auto-covers all 252 tools, structurally maintained, no curation. T-1952 follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:05:10Z
 last_update: 2026-06-03T21:13:36Z
-date_finished: null
+date_finished: 2026-06-03T21:17:30Z
 ---
 
 # T-1953: termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcode)

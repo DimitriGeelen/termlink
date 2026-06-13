@@ -4,7 +4,7 @@ name: "docs: extend mcp-help-registry.md with CLI termlink help parity (T-2002 f
 description: >
   docs: extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T17:45:44Z
 last_update: 2026-06-05T17:45:44Z
-date_finished: null
+date_finished: 2026-06-05T18:00:47Z
 ---
 
 # T-2003: docs: extend mcp-help-registry.md with CLI termlink help parity (T-2002 follow-up)

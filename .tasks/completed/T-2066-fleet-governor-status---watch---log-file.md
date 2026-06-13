@@ -4,7 +4,7 @@ name: "fleet governor-status --watch --log <FILE> — append-only NDJSON transit
 description: >
   fleet governor-status --watch --log <FILE> — append-only NDJSON transition log (T-2028 §6 #10 Track G, audit-trail axis)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T23:16:33Z
 last_update: 2026-06-08T23:34:27Z
-date_finished: null
+date_finished: 2026-06-08T23:46:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

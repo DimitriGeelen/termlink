@@ -4,7 +4,7 @@ name: "tofu_clear MCP/CLI convergence — add --all support to MCP + align singl
 description: >
   MCP termlink_tofu_clear only accepts host (CLI has --all to wipe entire store; MCP missing). CLI single-host JSON lacks message field (MCP has it). Fill both gaps: add 'all: bool' to TofuClearParams + branch to store.clear_all(); add message field to CLI single-host JSON. Two parity tests: --all empty-store + single-host miss.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T20:39:37Z
 last_update: 2026-06-02T20:40:47Z
-date_finished: null
+date_finished: 2026-06-02T21:43:57Z
 ---
 
 # T-1934: tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host envelope (message field)

@@ -4,7 +4,7 @@ name: "termlink_help list_categories rows carry deprecated_count"
 description: >
   Enrich every list_categories row with deprecated_count: number — the count of deprecated tools in that category (derived from is_deprecated() on each tool's description). Composes with existing {name, tool_count, description} to complete the category-shape signal at discovery time. Drift-proof — derived live.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:49:06Z
 last_update: 2026-06-03T22:51:39Z
-date_finished: null
+date_finished: 2026-06-03T22:52:48Z
 ---
 
 # T-1967: termlink_help list_categories rows carry deprecated_count

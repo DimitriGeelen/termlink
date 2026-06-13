@@ -4,7 +4,7 @@ name: "termlink_help essentials=true mode — canonical entry-point per category
 description: >
   Add essentials=true mode to termlink_help returning the first non-deprecated tool of each category as a flat list. Auto-derived from help_categories() registry order — drift-proof. Gives MCP clients a focused starter set (~27 tools out of 252) for cold-start learning without curating an essentials list manually.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T23:01:48Z
 last_update: 2026-06-03T23:08:47Z
-date_finished: null
+date_finished: 2026-06-03T23:10:27Z
 ---
 
 # T-1968: termlink_help essentials=true mode — canonical entry-point per category

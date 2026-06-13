@@ -7,7 +7,7 @@ description: >
   no outbound queue). A worker that finishes during a hub blip loses its completion
   report. Needed so the governance plane does not silently drop ledger messages.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -16,8 +16,7 @@ components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:33Z
 last_update: 2026-06-08T07:43:50Z
-date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+date_finished: 2026-06-08T10:05:42Z
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.

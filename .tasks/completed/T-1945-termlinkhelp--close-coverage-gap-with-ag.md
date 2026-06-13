@@ -4,7 +4,7 @@ name: "termlink_help — close coverage gap with agent_stats + agent_thread_heal
 description: >
   Final 28 unsurfaced agent_* tools across 2 new categories: agent_stats (16 counters/distributions/aggregates) + agent_thread_health (12 thread-quality/activity-pattern queries). After this slice the help registry covers 100% of real MCP tools.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T19:45:49Z
 last_update: 2026-06-03T19:48:40Z
-date_finished: null
+date_finished: 2026-06-03T19:49:54Z
 ---
 
 # T-1945: termlink_help — close coverage gap with agent_stats + agent_thread_health (28 tools)

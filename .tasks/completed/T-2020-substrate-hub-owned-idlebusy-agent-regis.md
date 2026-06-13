@@ -6,7 +6,7 @@ description: >
   no in-flight counter. Heartbeats land in a topic and LIVE/STALE/OFFLINE classification
   is client-side. Orchestrator needs a reliable picture of who is free to assign safely.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,8 +15,7 @@ components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:20Z
 last_update: 2026-06-08T07:03:25Z
-date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+date_finished: 2026-06-08T10:04:37Z
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.

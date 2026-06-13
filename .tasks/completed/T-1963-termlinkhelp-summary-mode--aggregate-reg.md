@@ -4,7 +4,7 @@ name: "termlink_help summary mode — aggregate registry stats"
 description: >
   Add summary=true mode to termlink_help returning aggregate registry stats: total_tools, total_categories, total_deprecated, deprecated_by_category (non-zero only), largest_categories (top 5), smallest_categories (bottom 5). Drift-proof — all derived from help_categories() + is_deprecated(). Gives MCP-client consumers an O(1) cold-start snapshot of the API surface shape.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:30:37Z
 last_update: 2026-06-03T22:36:54Z
-date_finished: null
+date_finished: 2026-06-03T22:39:21Z
 ---
 
 # T-1963: termlink_help summary mode — aggregate registry stats

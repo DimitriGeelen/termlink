@@ -4,7 +4,7 @@ name: "Converge fleet_verify MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
   MCP fleet_verify emits {ok, verdict, profiles, message}; CLI emits {verdict, profiles, note}. Add ok to CLI, rename note->message, align text. Add parity_fleet_verify_no_hubs test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T16:58:38Z
 last_update: 2026-06-02T16:58:38Z
-date_finished: null
+date_finished: 2026-06-02T18:25:08Z
 ---
 
 # T-1930: Converge fleet_verify MCP/CLI envelope + parity test (PL-198 follow-up)

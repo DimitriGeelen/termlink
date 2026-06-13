@@ -4,7 +4,7 @@ name: "termlink_help: name_filter multi-token AND search (intent-based discovery
 description: >
   Split name_filter on whitespace into tokens; match tools whose name+description contains EVERY token (case-insensitive, any order). Single-token behavior unchanged. Closes the intent-search gap: LLMs querying 'send message' or 'agent post' get conjunctive results instead of empty/spurious matches. T-1954 follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:22:40Z
 last_update: 2026-06-03T21:25:59Z
-date_finished: null
+date_finished: 2026-06-03T21:28:41Z
 ---
 
 # T-1955: termlink_help: name_filter multi-token AND search (intent-based discovery)

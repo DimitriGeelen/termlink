@@ -4,7 +4,7 @@ name: "parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes"
 description: >
   Add parity_kv_full_cycle test exercising the full kv RPC cycle (set → get → list → del). Locks the shapes against future drift. Uses multi_thread runtime per PL-199 since CLI subprocess calls hit the in-process session over unix socket.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T12:59:02Z
 last_update: 2026-06-02T12:59:02Z
-date_finished: null
+date_finished: 2026-06-02T13:28:19Z
 ---
 
 # T-1926: parity_kv_full_cycle — lock kv_set/get/list/del MCP/CLI shapes

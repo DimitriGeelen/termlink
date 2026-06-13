@@ -4,7 +4,7 @@ name: "termlink_help: category=X mode embeds category_meta envelope block (descr
 description: >
   When called with category=X (no other modes), the response currently returns {X: [rows...], total_tools}. Add a top-level category_meta object: {name, description, tool_count, deprecated_count, live_tool_count}. LLMs drilling into a category see its purpose + size + retirement status at the same round-trip as the row enumeration, without a separate list_categories call. Derives from category_descriptions() + the existing tool walk.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:28:27Z
 last_update: 2026-06-04T07:31:12Z
-date_finished: null
+date_finished: 2026-06-04T07:33:11Z
 ---
 
 # T-1981: termlink_help: category=X mode embeds category_meta envelope block (description+counts at first round-trip)

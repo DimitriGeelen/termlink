@@ -4,7 +4,7 @@ name: "Test reliability — connect_addr_with_timeout_errors_on_unreachable asse
 description: >
   Test reliability — connect_addr_with_timeout_errors_on_unreachable assertion too narrow (rejects 'No route to host' fast-fail)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T19:16:33Z
 last_update: 2026-05-31T19:16:33Z
-date_finished: null
+date_finished: 2026-05-31T19:21:02Z
 ---
 
 # T-1901: Test reliability — connect_addr_with_timeout_errors_on_unreachable assertion too narrow (rejects 'No route to host' fast-fail)

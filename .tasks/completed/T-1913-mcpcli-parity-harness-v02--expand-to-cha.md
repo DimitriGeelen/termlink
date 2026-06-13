@@ -4,7 +4,7 @@ name: "MCP/CLI parity harness v0.2 — expand to channel_* pairs (T-1909 follow-
 description: >
   Add 3-5 channel_* parity pairs to crates/termlink-mcp/tests/parity.rs. Highest-trafficked subsystem (53 pairs total in census). v0.1 caught 3 real divergences; v0.2 has high expected-catch yield.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T12:58:08Z
 last_update: 2026-06-01T13:23:35Z
-date_finished: null
+date_finished: 2026-06-01T14:06:27Z
 ---
 
 # T-1913: MCP/CLI parity harness v0.2 — expand to channel_* pairs (T-1909 follow-on)

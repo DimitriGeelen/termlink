@@ -4,7 +4,7 @@ name: "termlink_help: did-you-mean suggestions on unknown tool / unknown categor
 description: >
   When tool_detail or category receives an unknown name, return a did_you_mean array of nearest matches (substring overlap + Levenshtein distance). Closes the self-correcting-error gap: LLM consumers fix typos and near-misses in one round-trip instead of falling back to list_categories or name_filter. Tiny slice, high LLM ergonomics gain. T-1953 follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:15:54Z
 last_update: 2026-06-03T21:20:55Z
-date_finished: null
+date_finished: 2026-06-03T21:23:29Z
 ---
 
 # T-1954: termlink_help: did-you-mean suggestions on unknown tool / unknown category

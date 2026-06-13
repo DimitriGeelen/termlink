@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail surfaces is_replacement_for[] — reverse of T
 description: >
   Walk every tool's description for (use NAME instead) markers; collect a reverse map name -> [deprecated tools pointing at it]. tool_detail on a live tool emits is_replacement_for[]; tool_detail on a tool that nothing depends on returns it as []. LLMs choosing between live tools see at a glance which retirement-WIP primitives each replaces — high-value during T-1166 retirement window. Bidirectional replacement navigation: replacement_hint = forward, is_replacement_for = backward.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:24:14Z
 last_update: 2026-06-04T07:27:31Z
-date_finished: null
+date_finished: 2026-06-04T07:29:12Z
 ---
 
 # T-1980: termlink_help: tool_detail surfaces is_replacement_for[] — reverse of T-1970 replacement_hint

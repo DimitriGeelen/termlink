@@ -4,7 +4,7 @@ name: "termlink_help name_filter offset param — pagination cursor (cycle 12 sl
 description: >
   termlink_help name_filter offset param — pagination cursor (cycle 12 slice 2)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T12:10:34Z
 last_update: 2026-06-05T12:10:34Z
-date_finished: null
+date_finished: 2026-06-05T12:40:42Z
 ---
 
 # T-1994: termlink_help name_filter offset param — pagination cursor (cycle 12 slice 2)

@@ -4,7 +4,7 @@ name: "Enforce local termlink upgrade on workshop-designer (.107)"
 description: >
   Enforce local termlink upgrade on workshop-designer (.107)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T19:43:34Z
 last_update: 2026-05-31T19:43:34Z
-date_finished: null
+date_finished: 2026-05-31T20:21:37Z
 ---
 
 # T-1902: Enforce local termlink upgrade on workshop-designer (.107)

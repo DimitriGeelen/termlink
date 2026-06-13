@@ -4,7 +4,7 @@ name: "termlink_help list_categories surfaces per-category description"
 description: >
   MCP client arc T-1957: list_categories mode currently returns {name, tool_count} per category. An LLM cold-discovering the registry sees 27 category names with counts but no purpose hint, forcing it to drill into each category just to read tool descriptions and infer the category's domain. Add a curated one-line description per category and surface it in list_categories output. Structural invariant test ensures the map covers every help_categories() entry — drift cannot land silently.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:44:57Z
 last_update: 2026-06-03T21:48:35Z
-date_finished: null
+date_finished: 2026-06-03T21:51:21Z
 ---
 
 # T-1957: termlink_help list_categories surfaces per-category description

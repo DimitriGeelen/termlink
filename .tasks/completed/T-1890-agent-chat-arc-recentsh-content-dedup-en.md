@@ -4,7 +4,7 @@ name: "agent-chat-arc-recent.sh: content-dedup envelopes — sibling of T-1889 o
 description: >
   scripts/agent-chat-arc-recent.sh walks hubs.toml profiles and concatenates envelopes from each hub without dedup. When two profiles point at the same hub (canonical: workstation-107-public + local-test → 0.0.0.0:9100), every envelope appears twice in the merged output. Same root cause as T-1889 (write side) on the read side. Bonus benefit: also collapses historical write-side duplicates (envelopes posted twice before T-1889 landed). Fix: in the merge jq step, group by composite key (sender_id, ts, payload preview) and keep one per group. Same fix applies to scripts/recent-dm.sh (T-1862) which shares the same merge pattern. Verification: /recent-chat output rows are unique by (sender, ts, payload) after the fix.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T07:20:31Z
 last_update: 2026-05-31T07:23:51Z
-date_finished: null
+date_finished: 2026-05-31T15:34:40Z
 ---
 
 # T-1890: agent-chat-arc-recent.sh: content-dedup envelopes — sibling of T-1889 on the read side

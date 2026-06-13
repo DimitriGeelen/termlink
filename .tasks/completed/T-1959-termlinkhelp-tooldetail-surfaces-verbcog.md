@@ -4,7 +4,7 @@ name: "termlink_help tool_detail surfaces verb_cognates across categories"
 description: >
   MCP client arc T-1959: T-1956's related_tools only surfaces siblings sharing the same first-3-segment prefix (intra-domain). An LLM landing on termlink_agent_post never learns about termlink_channel_post / termlink_broadcast — verb-cognate tools in different domains. Add verb_cognates field: tools sharing the LAST segment but a DIFFERENT first segment, capped at 5. When the verb family exceeds 5 (common verbs like _status, _list signaling low discriminative value), the field is omitted to avoid noise. related_tools (intra-domain) preserved unchanged.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:54:35Z
 last_update: 2026-06-03T21:57:27Z
-date_finished: null
+date_finished: 2026-06-03T21:58:56Z
 ---
 
 # T-1959: termlink_help tool_detail surfaces verb_cognates across categories

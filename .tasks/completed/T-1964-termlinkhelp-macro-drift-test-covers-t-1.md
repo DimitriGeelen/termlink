@@ -4,7 +4,7 @@ name: "termlink_help macro drift test covers T-1963 summary fields"
 description: >
   Extend the T-1962 drift-detection test to require the termlink_help macro description mentions T-1963's new fields: 'summary', 'total_deprecated', 'largest_categories', 'smallest_categories', 'deprecated_by_category'. Locks the schema-doc contract so future return-shape additions cannot ship without macro-text updates.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:38:36Z
 last_update: 2026-06-03T22:40:13Z
-date_finished: null
+date_finished: 2026-06-03T22:42:15Z
 ---
 
 # T-1964: termlink_help macro drift test covers T-1963 summary fields

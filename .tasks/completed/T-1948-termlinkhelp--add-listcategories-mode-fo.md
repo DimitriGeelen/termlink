@@ -4,7 +4,7 @@ name: "termlink_help — add list_categories mode for cold-start tree-walk disco
 description: >
   New boolean param returning categories + tool counts only — for LLMs that want to drill in
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:26:03Z
 last_update: 2026-06-03T20:29:26Z
-date_finished: null
+date_finished: 2026-06-03T20:31:52Z
 ---
 
 # T-1948: termlink_help — add list_categories mode for cold-start tree-walk discovery

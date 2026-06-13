@@ -4,7 +4,7 @@ name: "Watchtower 403 CSRF error UX — actionable recovery steps on stale-sessi
 description: >
   Watchtower 403 CSRF error UX — actionable recovery steps on stale-session POST
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1306, T-1343, T-1898, T-1899]
 created: 2026-05-31T18:58:11Z
 last_update: 2026-05-31T18:58:11Z
-date_finished: null
+date_finished: 2026-05-31T19:21:02Z
 ---
 
 # T-1900: Watchtower 403 CSRF error UX — actionable recovery steps on stale-session POST

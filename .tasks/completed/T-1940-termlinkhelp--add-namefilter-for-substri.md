@@ -4,7 +4,7 @@ name: "termlink_help — add name_filter for substring search across categories"
 description: >
   When LLM consumers don't know the exact category for the tool they want, they currently get 'Unknown category' on guesses. Add a  parameter to termlink_help that returns a flat list of {category, name, description} for tools whose name OR description contains the substring (case-insensitive). Works alongside or instead of . Delivers real LLM value: 'I want to redact a post' → search 'redact' → finds termlink_channel_redact + termlink_agent_redact + redactions verbs.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T05:32:22Z
 last_update: 2026-06-03T05:42:49Z
-date_finished: null
+date_finished: 2026-06-03T05:50:08Z
 ---
 
 # T-1940: termlink_help — add name_filter for substring search across categories

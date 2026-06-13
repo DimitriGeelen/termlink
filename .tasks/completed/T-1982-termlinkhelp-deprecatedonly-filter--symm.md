@@ -4,7 +4,7 @@ name: "termlink_help: deprecated_only filter — symmetric inverse of exclude_de
 description: >
   Add deprecated_only: Option<bool> to HelpParams. When true on name_filter or standalone-arity-filter, suppresses live rows (keeps only deprecated). Symmetric inverse of T-1977's exclude_deprecated. LLMs can query 'show me deprecated channel tools' for migration planning in one round-trip. Mutex with exclude_deprecated — if both set true, the response is empty (their intersection is the empty set) and the hint notes it. Same envelope shape.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:32:24Z
 last_update: 2026-06-04T07:39:12Z
-date_finished: null
+date_finished: 2026-06-04T07:40:46Z
 ---
 
 # T-1982: termlink_help: deprecated_only filter — symmetric inverse of exclude_deprecated

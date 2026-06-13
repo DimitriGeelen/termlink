@@ -4,7 +4,7 @@ name: "MCP help registry — surface agent_* family (chat/read/presence/inbox/th
 description: >
   Add the agent_* conversation/thread family to termlink_help so LLM consumers can discover them. Currently ~100 agent_* MCP tools are registered but invisible via help — agents calling termlink_help to plan their work cannot find post/reply/recent/inbox/threads etc. Scope: workflow tools only (chat=write, read=history, presence=who/where, inbox=mailbox, thread=navigation, poll=lifecycle). Out of scope: admin/aggregate stats (emoji_stats, age_distribution, busiest_threads, top_*, response_latency, daily_volume, etc.) — those are diagnostics, not workflow. Out of scope: channel_* family (separate slice).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T00:33:24Z
 last_update: 2026-06-03T00:36:52Z
-date_finished: null
+date_finished: 2026-06-03T00:40:09Z
 ---
 
 # T-1938: MCP help registry — surface agent_* family (chat/read/presence/inbox/thread/poll categories)

@@ -4,7 +4,7 @@ name: "termlink_status MCP envelope — align to {ok,...result} matching CLI"
 description: >
   termlink_status MCP envelope — align to {ok,...result} matching CLI
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-01T22:33:57Z
 last_update: 2026-06-01T22:33:57Z
-date_finished: null
+date_finished: 2026-06-02T05:52:00Z
 ---
 
 # T-1921: termlink_status MCP envelope — align to {ok,...result} matching CLI

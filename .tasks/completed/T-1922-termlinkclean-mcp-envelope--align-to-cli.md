@@ -4,7 +4,7 @@ name: "termlink_clean MCP envelope — align to CLI {ok, sessions, count, action
 description: >
   termlink_clean MCP envelope — align to CLI {ok, sessions, count, action}
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T05:43:32Z
 last_update: 2026-06-02T05:43:32Z
-date_finished: null
+date_finished: 2026-06-02T05:59:58Z
 ---
 
 # T-1922: termlink_clean MCP envelope — align to CLI {ok, sessions, count, action}

@@ -4,7 +4,7 @@ name: "termlink_help: exclude_deprecated filter on name_filter — discovery wit
 description: >
   Add exclude_deprecated: Option<bool> to HelpParams. When true, name_filter and standalone-arity-filter modes suppress rows where deprecated==true. Composes with name_filter + min_parameters + max_parameters for clean discovery queries: 'find me live, low-arity tools matching channel'. Mirrors the T-1975/T-1976 filter pattern: same call site, same envelope shape, only the row set shrinks. Real value: LLM clients no longer fetch deprecated rows just to filter them out.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:10:05Z
 last_update: 2026-06-04T07:14:59Z
-date_finished: null
+date_finished: 2026-06-04T07:17:13Z
 ---
 
 # T-1977: termlink_help: exclude_deprecated filter on name_filter — discovery without retirement-WIP noise

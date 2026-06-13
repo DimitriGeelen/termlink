@@ -4,7 +4,7 @@ name: "termlink_help surfaces deprecated flag on legacy tools"
 description: >
   MCP client arc T-1960: legacy / retirement-WIP tools (inbox primitives, remote-inbox-*) carry 'legacy' / 'T-1166 retirement WIP' phrases in their short descriptions but LLMs see them in name_filter and tool_detail results indistinguishable from live tools. Add a derived deprecated boolean field: scan short description for 'legacy', 'retirement', 'deprecated', '(T-1166' (case-insensitive). Surface in both tool_detail and name_filter match rows so the LLM can route around deprecated paths. Pure derivation — no curation, drift-proof.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:00:42Z
 last_update: 2026-06-03T22:03:19Z
-date_finished: null
+date_finished: 2026-06-03T22:05:57Z
 ---
 
 # T-1960: termlink_help surfaces deprecated flag on legacy tools

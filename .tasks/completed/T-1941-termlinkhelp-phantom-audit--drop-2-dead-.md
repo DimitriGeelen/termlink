@@ -4,7 +4,7 @@ name: "termlink_help phantom audit — drop 2 dead entries + add regression test
 description: >
   Two help-registry entries reference tools that do not exist as real MCP tools — LLM consumers calling them get tool-not-found errors. Drop the phantoms and add a unit test that walks the registry against the real tool name table so this class of bug cannot recur.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T15:40:30Z
 last_update: 2026-06-03T15:46:29Z
-date_finished: null
+date_finished: 2026-06-03T15:50:12Z
 ---
 
 # T-1941: termlink_help phantom audit — drop 2 dead entries + add regression test

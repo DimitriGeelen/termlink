@@ -4,7 +4,7 @@ name: "cmd_net_test: --json honored on profile-not-found error path (T-1915 sibl
 description: >
   cmd_net_test: --json honored on profile-not-found error path (T-1915 sibling slice)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-01T17:39:24Z
 last_update: 2026-06-01T17:39:24Z
-date_finished: null
+date_finished: 2026-06-01T17:56:56Z
 ---
 
 # T-1917: cmd_net_test: --json honored on profile-not-found error path (T-1915 sibling slice)

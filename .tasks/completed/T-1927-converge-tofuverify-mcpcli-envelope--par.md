@@ -4,7 +4,7 @@ name: "Converge tofu_verify MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
   MCP and CLI tofu_verify diverge in 4 fields: status=probe-fail vs probe-failed, error vs probe_error, MCP missing match:bool, MCP has ok+actions CLI lacks. Align MCP field names to CLI, add ok+actions to CLI, add parity_tofu_verify_no_pin test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T14:57:41Z
 last_update: 2026-06-02T14:57:41Z
-date_finished: null
+date_finished: 2026-06-02T18:25:08Z
 ---
 
 # T-1927: Converge tofu_verify MCP/CLI envelope + parity test (PL-198 follow-up)

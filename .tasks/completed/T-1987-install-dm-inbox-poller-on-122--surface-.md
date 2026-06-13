@@ -4,7 +4,7 @@ name: "Install DM-inbox poller on .122 — surface unread DMs to /var/log/dm-inb
 description: >
   T-1985 shipped the presence-emitter (peers can reach .122). Companion missing: nothing on .122 is READING the dm:* topics, so inbound messages still go unseen even though they land cleanly. This task installs a per-2-minute cron poller on .122 that walks all dm:<self-fp>:* topics, tracks per-topic last-seen offsets in /root/.termlink/dm-poller.state, and appends new envelopes to /var/log/dm-inbox.log so the operator can tail -f and see what arrived. Read-only (no auto-ack), idempotent across restarts. Closes the doorbell+mail rail for .122: T-1985 = presence (announce), T-1987 = polling (receive). Same install mechanism as T-1985 (remote exec → write script + add cron). Does NOT subscribe in real-time — that's a heavier listener-process pattern reserved for follow-up if cron-poll proves insufficient.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T08:52:05Z
 last_update: 2026-06-04T08:55:26Z
-date_finished: null
+date_finished: 2026-06-04T08:57:20Z
 ---
 
 # T-1987: Install DM-inbox poller on .122 — surface unread DMs to /var/log/dm-inbox.log (T-1985 followup)

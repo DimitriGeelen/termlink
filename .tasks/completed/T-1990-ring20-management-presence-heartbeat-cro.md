@@ -4,7 +4,7 @@ name: "ring20-management presence-heartbeat cron stopped firing — listener sil
 description: >
   ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T09:07:07Z
 last_update: 2026-06-05T09:21:14Z
-date_finished: null
+date_finished: 2026-06-05T09:35:07Z
 ---
 
 # T-1990: ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE

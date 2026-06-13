@@ -4,7 +4,7 @@ name: "termlink_help essentials rows carry category_description"
 description: >
   Enrich essentials mode rows with category_description (T-1957 source). Gives LLMs cold-starting via the essentials view both the canonical tool name AND the category's purpose in one entry. Drift-proof — derived live from category_descriptions().
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T23:09:45Z
 last_update: 2026-06-03T23:11:45Z
-date_finished: null
+date_finished: 2026-06-03T23:12:47Z
 ---
 
 # T-1969: termlink_help essentials rows carry category_description

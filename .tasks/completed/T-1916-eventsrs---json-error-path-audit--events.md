@@ -4,7 +4,7 @@ name: "inbox commands --json error-path — cmd_inbox_status/clear/list bail wit
 description: >
   Audit found events.rs already handles --json correctly at all 4 sites. Real bug is in infrastructure.rs cmd_inbox_status / cmd_inbox_clear / cmd_inbox_list — they take json_output: bool but bail with anyhow::bail!() on hub-down without checking the flag. T-1166 will retire these eventually, but until then `termlink inbox status --json | jq` is broken.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-01T17:22:36Z
 last_update: 2026-06-01T17:22:36Z
-date_finished: null
+date_finished: 2026-06-01T17:47:22Z
 ---
 
 # T-1916: events.rs --json error-path audit — events/emit_to/subscribe (T-1915 sibling)

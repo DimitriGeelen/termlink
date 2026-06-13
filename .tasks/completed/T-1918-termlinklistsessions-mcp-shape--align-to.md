@@ -4,7 +4,7 @@ name: "termlink_list_sessions MCP shape — align to CLI envelope {ok,sessions} 
 description: >
   termlink_list_sessions MCP shape — align to CLI envelope {ok,sessions} (parity v0.3 catch)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-01T19:51:26Z
 last_update: 2026-06-01T19:51:26Z
-date_finished: null
+date_finished: 2026-06-01T20:24:54Z
 ---
 
 # T-1918: termlink_list_sessions MCP shape — align to CLI envelope {ok,sessions} (parity v0.3 catch)

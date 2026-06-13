@@ -4,7 +4,7 @@ name: "termlink_help name_filter accepts sort_by param — deterministic orderin
 description: >
   termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T14:52:50Z
 last_update: 2026-06-05T14:52:50Z
-date_finished: null
+date_finished: 2026-06-05T15:09:04Z
 ---
 
 # T-1996: termlink_help name_filter accepts sort_by param — deterministic ordering (cycle 12 slice 4)

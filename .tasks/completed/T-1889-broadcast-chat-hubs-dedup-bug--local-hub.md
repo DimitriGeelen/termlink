@@ -4,7 +4,7 @@ name: "broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml h
 description: >
   chat-arc-broadcast.sh + termlink_broadcast (via scripts/chat-arc-broadcast.sh) iterate hubs.toml profiles without canonicalizing address. workstation-107-public (192.168.10.107:9100) and local-test (127.0.0.1:9100) both resolve to the single hub process bound to 0.0.0.0:9100 (PID 2382342, /var/lib/termlink/hub.secret), so every /broadcast-chat post lands twice with ~100-150ms gap. Visible in chat-arc-recent output: 6 consecutive duplicate entries from root-claude-dimitrimintdev with ts deltas 96/147/104 ms. Fix: dedup by canonicalized destination in chat-arc-broadcast.sh (resolve loopback + same-port collisions) so script-of-truth wins regardless of hubs.toml profile multiplicity.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T07:15:18Z
 last_update: 2026-05-31T07:18:02Z
-date_finished: null
+date_finished: 2026-05-31T15:34:40Z
 ---
 
 # T-1889: broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple profiles for same address

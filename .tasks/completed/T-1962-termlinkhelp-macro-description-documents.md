@@ -4,7 +4,7 @@ name: "termlink_help macro description documents post-T-1953 return fields"
 description: >
   MCP client arc T-1962: the termlink_help #[tool(description=...)] macro string is the schema description MCP clients see at tool-discovery time. T-1953..T-1961 added parameters / verb_cognates / category_hint / deprecated to return envelopes, but the macro description never updated. LLMs reading the schema cannot know these fields exist. Update the description + add structural-invariant tests asserting each field name appears in the documented schema — drift-detection so future field additions can't ship without doc updates.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:09:06Z
 last_update: 2026-06-03T22:11:14Z
-date_finished: null
+date_finished: 2026-06-03T22:12:18Z
 ---
 
 # T-1962: termlink_help macro description documents post-T-1953 return fields

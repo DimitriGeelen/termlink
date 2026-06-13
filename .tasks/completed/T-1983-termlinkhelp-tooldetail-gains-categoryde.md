@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail gains category_deprecated_count + category_liv
 description: >
   Add two flat fields to tool_detail: category_deprecated_count and category_live_tool_count. Completes per-mode metadata symmetry — list_categories rows now carry deprecated_count/live_tool_count (T-1967/T-1979), category=X carries category_meta (T-1981), and tool_detail already carries category_tool_count (T-1965). The remaining gap is that tool_detail does not show the retirement status of its category. This slice closes that. Same source: per-category walk of is_deprecated().
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:39:59Z
 last_update: 2026-06-04T07:43:09Z
-date_finished: null
+date_finished: 2026-06-04T07:44:08Z
 ---
 
 # T-1983: termlink_help: tool_detail gains category_deprecated_count + category_live_tool_count

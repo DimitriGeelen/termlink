@@ -4,7 +4,7 @@ name: "termlink_help — limit/offset/sort_by route into flat-list branch on no-
 description: >
   termlink_help — limit/offset/sort_by route into flat-list branch on no-needle calls (cycle 12 slice 5)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T15:05:21Z
 last_update: 2026-06-05T15:05:21Z
-date_finished: null
+date_finished: 2026-06-05T15:16:15Z
 ---
 
 # T-1997: termlink_help — limit/offset/sort_by route into flat-list branch on no-needle calls (cycle 12 slice 5)

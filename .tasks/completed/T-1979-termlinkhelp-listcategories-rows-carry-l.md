@@ -4,7 +4,7 @@ name: "termlink_help: list_categories rows carry live_tool_count (T-1978 mirror)
 description: >
   Add live_tool_count field to each row in list_categories mode, computed as tool_count - deprecated_count. Symmetric extension of T-1978's summary additions into the per-category enumeration. LLM cold-start drilling via list_categories sees 'channel has 17 tools but 12 live' at first round-trip, without summing client-side. Same source of truth as T-1967's deprecated_count + the existing tool_count walk.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:20:38Z
 last_update: 2026-06-04T07:23:07Z
-date_finished: null
+date_finished: 2026-06-04T07:24:57Z
 ---
 
 # T-1979: termlink_help: list_categories rows carry live_tool_count (T-1978 mirror)

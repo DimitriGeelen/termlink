@@ -4,7 +4,7 @@ name: "termlink help: honor --json on positional-conflict error (cycle 13 slice 
 description: >
   termlink help: honor --json on positional-conflict error (cycle 13 slice 5)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T20:39:19Z
 last_update: 2026-06-05T20:53:39Z
-date_finished: null
+date_finished: 2026-06-05T21:20:30Z
 ---
 
 # T-2008: termlink help: honor --json on positional-conflict error (cycle 13 slice 5)

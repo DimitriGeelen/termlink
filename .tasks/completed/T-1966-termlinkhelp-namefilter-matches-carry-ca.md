@@ -4,7 +4,7 @@ name: "termlink_help name_filter matches carry category_tool_count"
 description: >
   Enrich each name_filter match row with category_tool_count (size of the match's category) so an LLM ranking search results sees the namespace bound — a match in an 8-tool category is easier to learn than one in a 40-tool category. Composes with the existing {category, name, description, deprecated} shape. Drift-proof — derived live from help_categories().
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:45:23Z
 last_update: 2026-06-03T22:48:06Z
-date_finished: null
+date_finished: 2026-06-03T22:49:55Z
 ---
 
 # T-1966: termlink_help name_filter matches carry category_tool_count

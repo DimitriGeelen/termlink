@@ -4,7 +4,7 @@ name: "termlink_help adds parameter_required_count — cost-aware ranking signal
 description: >
   termlink_help adds parameter_required_count — cost-aware ranking signal (cycle 12 slice 3)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T12:35:45Z
 last_update: 2026-06-05T12:35:45Z
-date_finished: null
+date_finished: 2026-06-05T14:05:29Z
 ---
 
 # T-1995: termlink_help adds parameter_required_count — cost-aware ranking signal (cycle 12 slice 3)

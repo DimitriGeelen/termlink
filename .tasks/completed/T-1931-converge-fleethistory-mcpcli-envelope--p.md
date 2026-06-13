@@ -4,7 +4,7 @@ name: "Converge fleet_history MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
   MCP fleet_history empty-log summary includes since_days+hub_filter fields; CLI summary lacks them. Add to CLI summary, add parity_fleet_history_no_log test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T17:44:10Z
 last_update: 2026-06-02T17:44:10Z
-date_finished: null
+date_finished: 2026-06-02T18:25:08Z
 ---
 
 # T-1931: Converge fleet_history MCP/CLI envelope + parity test (PL-198 follow-up)

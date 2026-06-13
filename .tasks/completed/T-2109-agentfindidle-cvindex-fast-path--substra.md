@@ -4,7 +4,7 @@ name: "agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-r
 description: >
   agent.find_idle cv_index fast path — substrate primitives 2 + 9 cross-reference optimization
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T22:24:25Z
 last_update: 2026-06-09T22:24:25Z
-date_finished: null
+date_finished: 2026-06-09T22:45:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

@@ -4,7 +4,7 @@ name: "Add termlink_whoami MCP tool — identity discovery for LLM consumers (MC
 description: >
   CLI termlink whoami exists (metadata.rs:529 cmd_whoami); MCP has no equivalent. LLM agents calling MCP cannot answer 'who am I?'. Add termlink_whoami with same resolution chain (explicit session/name > TERMLINK_SESSION_ID env > PID-walk fallback > candidate list) and identical JSON shape. v1 copies PID-walk helpers from CLI; future task extracts to shared module.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T19:26:27Z
 last_update: 2026-06-02T19:28:15Z
-date_finished: null
+date_finished: 2026-06-02T20:40:47Z
 ---
 
 # T-1933: Add termlink_whoami MCP tool — identity discovery for LLM consumers (MCP-arc parity gap)

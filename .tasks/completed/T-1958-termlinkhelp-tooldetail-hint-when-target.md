@@ -4,7 +4,7 @@ name: "termlink_help tool_detail hint when target is a category name"
 description: >
   MCP client arc T-1958: when an LLM passes a category name (e.g. 'channel', 'session', 'kv') as tool_detail, the error path emits did_you_mean tool-name suggestions by Levenshtein, none of which are likely matches because the input was a valid CATEGORY (not a typoed tool). Add a category_hint field to the error envelope when target is a known category — points the LLM at category=<value> or list_categories=true. Unknown non-category inputs keep the existing did_you_mean behavior unchanged.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:50:40Z
 last_update: 2026-06-03T21:53:01Z
-date_finished: null
+date_finished: 2026-06-03T21:55:22Z
 ---
 
 # T-1958: termlink_help tool_detail hint when target is a category name

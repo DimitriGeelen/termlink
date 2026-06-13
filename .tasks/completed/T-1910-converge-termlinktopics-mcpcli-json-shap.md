@@ -4,7 +4,7 @@ name: "Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)"
 description: >
   MCP returns sessions as object map; CLI returns sessions as array with extra total_sessions field. Choose one shape; update divergent side; un-ignore parity_topics test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:45Z
 last_update: 2026-06-01T12:43:36Z
-date_finished: null
+date_finished: 2026-06-01T12:57:56Z
 ---
 
 # T-1910: Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)

@@ -4,7 +4,7 @@ name: "termlink_help — disambiguate 15 duplicate description pairs (agent_* vs
 description: >
   Differentiate help-registry descriptions where agent_X and channel_X share identical text
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:19:00Z
 last_update: 2026-06-03T20:24:03Z
-date_finished: null
+date_finished: 2026-06-03T20:26:48Z
 ---
 
 # T-1947: termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_* parallel families)

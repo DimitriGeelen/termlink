@@ -6,7 +6,7 @@ description: >
   log. Subscriber registers and receives the current value of a designated key, then
   live updates. Smaller spec than the Foundation primitives.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,8 +15,7 @@ components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:50Z
 last_update: 2026-06-08T07:33:29Z
-date_finished:
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+date_finished: 2026-06-08T10:05:49Z
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.

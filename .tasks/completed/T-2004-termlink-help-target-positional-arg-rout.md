@@ -4,7 +4,7 @@ name: "termlink help target: positional arg routes to tool_detail (exact) or nam
 description: >
   termlink help target: positional arg routes to tool_detail (exact) or name_filter (substring) — cycle 13 slice 2 ergonomics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T17:48:32Z
 last_update: 2026-06-05T18:01:08Z
-date_finished: null
+date_finished: 2026-06-05T18:26:56Z
 ---
 
 # T-2004: termlink help target: positional arg routes to tool_detail (exact) or name_filter (substring) — cycle 13 slice 2 ergonomics

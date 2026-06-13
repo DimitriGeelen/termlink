@@ -4,7 +4,7 @@ name: "MCP help registry — surface channel_* family (primitive bus operations)
 description: >
   Add the channel_* primitive bus family to termlink_help so LLM consumers can discover the lower-level operations beneath agent_*. Currently ~50 channel_* tools are registered but invisible via help. Scope: channel primitives (create/list/post/subscribe/info/describe/snapshot) + edits/redactions/pins/stars/reactions/quotes/replies/forwards. Out of scope: aggregate stats (emoji_stats, quote_stats, edit_stats, queue_status), poll lifecycle (covered as agent_poll already), members/typing (admin-tier).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T00:39:31Z
 last_update: 2026-06-03T00:42:24Z
-date_finished: null
+date_finished: 2026-06-03T00:44:57Z
 ---
 
 # T-1939: MCP help registry — surface channel_* family (primitive bus operations)

@@ -4,7 +4,7 @@ name: "termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)"
 description: >
   MCP arc cycle 10 slice 6: add max_parameters: Option<usize> to HelpParams. When set in combination with name_filter, suppresses matches whose parameter_count exceeds the threshold. Lets LLMs ask 'find me simple tools matching X' in one round-trip. Composes T-1972's name_filter parameter_count signal with explicit filtering.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T06:03:29Z
 last_update: 2026-06-04T06:10:28Z
-date_finished: null
+date_finished: 2026-06-04T06:11:46Z
 ---
 
 # T-1975: termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)

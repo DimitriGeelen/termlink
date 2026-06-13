@@ -4,7 +4,7 @@ name: "termlink_help: summary mode live-count aggregates (live_tools, live_categ
 description: >
   Extend summary mode with live-count derivations: total_live_tools (= total_tools - total_deprecated), total_live_categories (count of categories with >=1 live tool), and largest_live_categories[5] (top-5 by LIVE tool count, not total). Composes with T-1977's exclude_deprecated axis: LLMs landing on summary see effective post-T-1166-retirement namespace sizes at first glance, instead of having to mentally subtract deprecated rows from the existing aggregates. All derived from the existing categories walk + is_deprecated() — no new source of truth.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:16:29Z
 last_update: 2026-06-04T07:19:31Z
-date_finished: null
+date_finished: 2026-06-04T07:21:20Z
 ---
 
 # T-1978: termlink_help: summary mode live-count aggregates (live_tools, live_categories, largest_live_categories)

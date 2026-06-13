@@ -4,7 +4,7 @@ name: "Federation gap .107↔.122 — dm topic posts don't relay since T-1166 cu
 description: >
   Both-direction hub relay gap. dm:9219671e28054458:d1993c2c3ec44c94 has 30 posts on .122 (21 d1993c2c + 8 9219671e) but only 22 posts on .107 (18 d1993c2c + 2 9219671e). 8 of .107's d1993c2c posts to that topic were made via --hub 192.168.10.122:9100 and landed on .122 but did NOT come back via federation to local .107 hub. Conversely, 6 of .122's 9219671e posts (incl. offsets 22, 23) never appeared on .107's local view. Both directions appear broken since the T-1166 legacy-primitive cut (~2026-05-12). Self-documenting evidence in offset 25 of the dm topic, by cohort-agent. T-1985 investigation found, scoped, and dispatched (presence listener restored as immediate user-visible fix). Scope here: (1) inspect hub relay path in crates/termlink-hub for channel.post replication logic; (2) repro by posting a test envelope to .107 and verifying it federates to .122; (3) bisect against T-1166 cut commits; (4) propose fix or document expected behavior if federation was intentionally severed in T-1166. Predecessor: T-1166 (legacy primitive cut). Related: G-060 (channel topic per-hub semantics).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T08:33:05Z
 last_update: 2026-06-04T08:36:04Z
-date_finished: null
+date_finished: 2026-06-04T08:53:17Z
 ---
 
 # T-1986: Federation gap .107↔.122 — dm topic posts don't relay since T-1166 cut

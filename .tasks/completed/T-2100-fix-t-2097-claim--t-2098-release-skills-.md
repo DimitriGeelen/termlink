@@ -4,7 +4,7 @@ name: "Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + o
 description: >
   Fix T-2097 /claim + T-2098 /release skills — correct --claimer flag + offset-based model + --ack semantics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T19:36:04Z
 last_update: 2026-06-09T19:40:29Z
-date_finished: null
+date_finished: 2026-06-09T20:31:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

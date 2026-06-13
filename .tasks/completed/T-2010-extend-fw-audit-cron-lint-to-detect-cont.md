@@ -4,7 +4,7 @@ name: "Extend fw audit cron lint to detect content-drift between source and /etc
 description: >
   T-1722 ships a cron-misload lint with scope 'USER-field syntax check'; it does not detect when /etc/cron.d/<x> diverges in content from .context/cron/<x>.crontab. T-1887 hit this on 2026-06-06: 7-line drift (T-1723 meta-canary block missing) went undetected for 9 days. Extend the audit cron section: for every .context/cron/*.crontab source, if a corresponding /etc/cron.d/<basename> exists, fail-loud on diff. Catches the next 'source updated, install forgotten' instance automatically.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1722, T-1887]
 created: 2026-06-05T22:39:21Z
 last_update: 2026-06-05T22:47:28Z
-date_finished: null
+date_finished: 2026-06-05T22:49:32Z
 ---
 
 # T-2010: Extend fw audit cron lint to detect content-drift between source and /etc/cron.d/ (T-1887 RCA Prevention §1)

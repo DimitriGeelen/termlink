@@ -4,7 +4,7 @@ name: "termlink_event_poll MCP envelope — align to {ok,...result} matching CLI
 description: >
   termlink_event_poll MCP envelope — align to {ok,...result} matching CLI
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T08:37:41Z
 last_update: 2026-06-02T08:37:41Z
-date_finished: null
+date_finished: 2026-06-02T08:39:12Z
 ---
 
 # T-1925: termlink_event_poll MCP envelope — align to {ok,...result} matching CLI

@@ -4,7 +4,7 @@ name: "termlink_help — fields projection on matches rows (cycle 12 slice 6)"
 description: >
   termlink_help — fields projection on matches rows (cycle 12 slice 6)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T15:11:09Z
 last_update: 2026-06-05T15:11:09Z
-date_finished: null
+date_finished: 2026-06-05T15:35:23Z
 ---
 
 # T-1998: termlink_help — fields projection on matches rows (cycle 12 slice 6)

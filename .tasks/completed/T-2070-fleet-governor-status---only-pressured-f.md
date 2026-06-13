@@ -4,7 +4,7 @@ name: "fleet governor-status --only-pressured filter (show only hubs needing att
 description: >
   fleet governor-status --only-pressured filter (show only hubs needing attention)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-09T07:22:38Z
 last_update: 2026-06-09T07:22:38Z
-date_finished: null
+date_finished: 2026-06-09T07:58:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

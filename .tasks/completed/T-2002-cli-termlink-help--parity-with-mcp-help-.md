@@ -4,7 +4,7 @@ name: "CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pu
 description: >
   CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T17:20:29Z
 last_update: 2026-06-05T17:36:56Z
-date_finished: null
+date_finished: 2026-06-05T17:47:17Z
 ---
 
 # T-2002: CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)

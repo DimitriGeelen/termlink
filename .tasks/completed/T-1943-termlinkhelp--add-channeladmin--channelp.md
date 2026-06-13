@@ -4,7 +4,7 @@ name: "termlink_help — add channel_admin + channel_poll categories (8 tools)"
 description: >
   Surface 8 remaining channel admin tools: channel_members, channel_queue_status, channel_typing_emit, channel_typing_list (new channel_admin category) + channel_poll_start, channel_poll_vote, channel_poll_end, channel_poll_results (new channel_poll category).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T15:53:47Z
 last_update: 2026-06-03T15:55:46Z
-date_finished: null
+date_finished: 2026-06-03T15:57:33Z
 ---
 
 # T-1943: termlink_help — add channel_admin + channel_poll categories (8 tools)

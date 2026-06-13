@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail surfaces parameter_count (cycle 10 slice 2)"
 description: >
   MCP arc cycle 10 slice 2: add parameter_count field to tool_detail envelope, auto-derived from parameters.len(). Lets LLMs compare tool complexity at-a-glance without walking the parameters array — useful for cold-start triage. Drift-proof: sourced from the same parse_tool_parameters() output that already populates parameters[].
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T05:48:32Z
 last_update: 2026-06-04T05:50:51Z
-date_finished: null
+date_finished: 2026-06-04T05:53:06Z
 ---
 
 # T-1971: termlink_help: tool_detail surfaces parameter_count (cycle 10 slice 2)

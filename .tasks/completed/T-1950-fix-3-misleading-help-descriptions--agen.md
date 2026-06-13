@@ -4,7 +4,7 @@ name: "Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_do
 description: >
   Help registry descriptions inaccurately describe tool semantics; LLMs would pick wrong tool
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:35:19Z
 last_update: 2026-06-03T20:37:21Z
-date_finished: null
+date_finished: 2026-06-03T20:40:56Z
 ---
 
 # T-1950: Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor (LLM-mispick bug)

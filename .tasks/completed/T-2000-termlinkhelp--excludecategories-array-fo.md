@@ -4,7 +4,7 @@ name: "termlink_help — exclude_categories array for negative multi-namespace f
 description: >
   termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T15:36:03Z
 last_update: 2026-06-05T15:36:03Z
-date_finished: null
+date_finished: 2026-06-05T17:03:27Z
 ---
 
 # T-2000: termlink_help — exclude_categories array for negative multi-namespace filtering (cycle 12 slice 8)

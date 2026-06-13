@@ -4,7 +4,7 @@ name: "termlink_help reverse coverage invariant — every real tool must have a 
 description: >
   Add structural CI guard preventing future help-registry coverage gaps
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:14:56Z
 last_update: 2026-06-03T20:17:01Z
-date_finished: null
+date_finished: 2026-06-03T20:20:02Z
 ---
 
 # T-1946: termlink_help reverse coverage invariant — every real tool must have a help entry

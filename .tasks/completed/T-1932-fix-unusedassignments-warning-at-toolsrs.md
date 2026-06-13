@@ -4,7 +4,7 @@ name: "Fix unused_assignments warning at tools.rs:23215 (build noise cleanup)"
 description: >
   Pre-existing dead initialization of cur_run_end on tools.rs:23215. First iteration of the for loop unconditionally overwrites it; initial value only read if days.len()==1 in which case loop doesn't run. Replace with placeholder 0 to silence warning while preserving logic.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T18:35:11Z
 last_update: 2026-06-02T19:21:16Z
-date_finished: null
+date_finished: 2026-06-02T19:28:15Z
 ---
 
 # T-1932: Fix unused_assignments warning at tools.rs:23215 (build noise cleanup)

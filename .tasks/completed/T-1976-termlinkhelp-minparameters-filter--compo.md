@@ -4,7 +4,7 @@ name: "termlink_help: min_parameters filter — composes with max_parameters for
 description: >
   Add min_parameters: Option<usize> to HelpParams. Composes with max_parameters (T-1975) for arity-range queries on name_filter and standalone-arity-filter modes. Same surface as T-1975 — symmetric lower-bound gate. Real value: LLM clients can ask 'find me tools with 2-4 params matching channel' in one round-trip, instead of fetching the whole catalog and filtering client-side.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T07:01:32Z
 last_update: 2026-06-04T07:08:46Z
-date_finished: null
+date_finished: 2026-06-04T07:11:08Z
 ---
 
 # T-1976: termlink_help: min_parameters filter — composes with max_parameters for arity-range search

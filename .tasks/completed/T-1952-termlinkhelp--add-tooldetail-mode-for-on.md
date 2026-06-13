@@ -4,7 +4,7 @@ name: "termlink_help — add tool_detail mode for one-tool drill-in (closes 3-st
 description: >
   Return full macro description for a named tool — extract from source via cached regex
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:46:58Z
 last_update: 2026-06-03T20:51:52Z
-date_finished: null
+date_finished: 2026-06-03T20:53:06Z
 ---
 
 # T-1952: termlink_help — add tool_detail mode for one-tool drill-in (closes 3-step discovery loop)

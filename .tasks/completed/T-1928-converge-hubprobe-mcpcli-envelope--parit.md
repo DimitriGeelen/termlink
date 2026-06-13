@@ -4,7 +4,7 @@ name: "Converge hub_probe MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
   MCP hub_probe emits {ok, address, fingerprint, error}; CLI emits {address, fingerprint} on success and non-JSON on failure. Add ok+error to CLI, structure CLI failure path as JSON, add parity_hub_probe test.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T15:28:13Z
 last_update: 2026-06-02T15:28:13Z
-date_finished: null
+date_finished: 2026-06-02T18:25:08Z
 ---
 
 # T-1928: Converge hub_probe MCP/CLI envelope + parity test (PL-198 follow-up)

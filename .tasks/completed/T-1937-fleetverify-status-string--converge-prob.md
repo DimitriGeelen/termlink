@@ -4,7 +4,7 @@ name: "fleet_verify status string — converge probe-fail → probe-failed (matc
 description: >
   T-1927 settled tofu_verify on 'probe-failed'. fleet_verify, fleet_doctor --include-pin-check, and fleet_reauth_all all still emit 'probe-fail' — both CLI and MCP. Aligning gives operators and LLM consumers a single status string to recognize across the rotation-protocol family. Scope: only string literal values that appear in 'status' / 'verdict' fields + operator-visible print strings + exit-code match arms. Out of scope: JSON field names (probe_fail_count, any_probe_fail) and internal Rust variable names.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T23:03:44Z
 last_update: 2026-06-02T23:40:15Z
-date_finished: null
+date_finished: 2026-06-03T00:34:17Z
 ---
 
 # T-1937: fleet_verify status string — converge probe-fail → probe-failed (matches tofu_verify, T-1927)

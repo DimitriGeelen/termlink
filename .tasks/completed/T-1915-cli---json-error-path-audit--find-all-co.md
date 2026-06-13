@@ -4,7 +4,7 @@ name: "CLI --json error-path audit — find all commands like cmd_channel_list (
 description: >
   T-1914 fixed cmd_channel_list to honor --json on hub-down. Audit all other CLI commands for the same pattern: early bail/?-propagation before reaching the --json branch. Expected suspects: any cmd_channel_*, cmd_event_*, cmd_kv_* that contact a hub. Add parity tests for each as caught.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1904, T-1909, T-1913, T-1914]
 created: 2026-06-01T14:06:37Z
 last_update: 2026-06-01T17:00:49Z
-date_finished: null
+date_finished: 2026-06-01T17:31:35Z
 ---
 
 # T-1915: CLI --json error-path audit — find all commands like cmd_channel_list (T-1914 broader)

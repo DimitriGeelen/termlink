@@ -4,7 +4,7 @@ name: "termlink_help default mode includes deprecated flag (T-1960 consistency)"
 description: >
   MCP client arc T-1961: T-1960 added deprecated:bool to tool_detail and name_filter match rows but the default no-flag mode (which returns {cat: [{name, description}]}) was missed. An LLM enumerating all tools via default mode sees rows without the routing signal. Close the consistency gap so EVERY shape carrying a tool row also carries deprecated.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:05:04Z
 last_update: 2026-06-03T22:07:35Z
-date_finished: null
+date_finished: 2026-06-03T22:09:47Z
 ---
 
 # T-1961: termlink_help default mode includes deprecated flag (T-1960 consistency)

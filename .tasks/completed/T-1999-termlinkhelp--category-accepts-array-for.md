@@ -4,7 +4,7 @@ name: "termlink_help — category accepts array for multi-namespace scoping (cyc
 description: >
   termlink_help — category accepts array for multi-namespace scoping (cycle 12 slice 7)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T15:29:11Z
 last_update: 2026-06-05T15:29:11Z
-date_finished: null
+date_finished: 2026-06-05T15:40:17Z
 ---
 
 # T-1999: termlink_help — category accepts array for multi-namespace scoping (cycle 12 slice 7)

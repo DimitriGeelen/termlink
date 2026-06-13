@@ -4,7 +4,7 @@ name: "/check-outbox slash skill — surface dm:<self>:* topics where peer hasn'
 description: >
   /check-arc shows my INBOUND unread DMs (topics where count > my last ack). The OUTBOUND complement is missing: did peers actually read my DMs, or are they accumulating in someone's silent inbox? Today's evidence: T-1457 surfaced 5 DMs accumulating on dm:6604a2af:d1993c2c (.141 inbox) with NO receipts — operator had no way to detect this short of manually inspecting each dm:* topic per hub. This skill closes the loop. Read-only, no auth modification, mirrors /check-arc pattern. Output: list each dm:<self-fp>:* topic on each hub where count > max(peer_receipts.up_to), with unread-count delta. Pair with /agent-handoff (which opens a thread you can't otherwise know is being ignored).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T07:55:15Z
 last_update: 2026-05-31T15:25:35Z
-date_finished: null
+date_finished: 2026-05-31T15:34:40Z
 ---
 
 # T-1891: /check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read my posts (OUTBOUND complement of /check-arc)

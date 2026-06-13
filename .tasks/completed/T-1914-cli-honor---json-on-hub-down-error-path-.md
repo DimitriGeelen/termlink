@@ -4,7 +4,7 @@ name: "CLI: honor --json on hub-down error path (T-1913 fourth-catch)"
 description: >
   CLI 'termlink channel list --json' writes to stderr + empty stdout on hub-down (exit 1). MCP emits structured JSON error. Make CLI emit JSON error on stdout when --json is set, matching MCP shape. Likely affects more commands than just channel list — broader audit needed. Un-ignore parity_channel_list_no_hub when converged.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-1904, T-1909, T-1913]
 created: 2026-06-01T13:12:25Z
 last_update: 2026-06-01T14:20:03Z
-date_finished: null
+date_finished: 2026-06-01T14:31:33Z
 ---
 
 # T-1914: CLI: honor --json on hub-down error path (T-1913 fourth-catch)

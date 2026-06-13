@@ -4,7 +4,7 @@ name: "termlink_help: parameter_count on name_filter + default-mode rows (cycle 
 description: >
   MCP arc cycle 10 slice 3: extend T-1971's parameter_count signal from tool_detail to name_filter matches and default-mode rows. Without this, an LLM browsing tools sees arity only via per-tool drill-in — costly. Each row carries its own parameter_count so the LLM can rank tools in a single round-trip. Drift-proof: sourced from the same parse_tool_parameters() output that backs tool_detail.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T05:52:02Z
 last_update: 2026-06-04T05:54:44Z
-date_finished: null
+date_finished: 2026-06-04T05:56:47Z
 ---
 
 # T-1972: termlink_help: parameter_count on name_filter + default-mode rows (cycle 10 slice 3)

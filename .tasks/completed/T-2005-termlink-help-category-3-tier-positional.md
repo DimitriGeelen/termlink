@@ -4,7 +4,7 @@ name: "termlink help <category>: 3-tier positional routing (exact tool > exact c
 description: >
   termlink help <category>: 3-tier positional routing (exact tool > exact category > substring) — cycle 13 slice 3
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T18:17:56Z
 last_update: 2026-06-05T18:26:56Z
-date_finished: null
+date_finished: 2026-06-05T18:34:44Z
 ---
 
 # T-2005: termlink help <category>: 3-tier positional routing (exact tool > exact category > substring) — cycle 13 slice 3

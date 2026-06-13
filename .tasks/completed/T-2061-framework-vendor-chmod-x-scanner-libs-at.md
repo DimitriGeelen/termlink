@@ -4,7 +4,7 @@ name: "Framework vendor: chmod +x scanner libs at install or vendor time (T-2052
 description: >
   Framework upstream gap: hooks.sh:install_hooks writes a pre-commit hook that delegates to agents/git/lib/*.sh, but the vendored scanner libs are not chmod +x. Pre-commit hook checks [ ! -x SCANNER ] and exits 0 fail-open if non-executable, silently disabling T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate. Discovered in T-2052 closure 2026-06-08. Fix options: (a) chmod +x in hooks.sh:install_hooks for each scanner before writing the hook, OR (b) vendor logic in fw upgrade preserves exec bits on lib/*.sh. Needs upstream landing on /opt/999-AEF before next fw upgrade in any consumer project.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T19:15:43Z
 last_update: 2026-06-08T19:27:28Z
-date_finished: null
+date_finished: 2026-06-08T20:06:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

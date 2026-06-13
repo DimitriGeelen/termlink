@@ -4,7 +4,7 @@ name: "parity_tofu_list — lock identical MCP/CLI TOFU list shape"
 description: >
   parity_tofu_list — lock identical MCP/CLI TOFU list shape
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T05:52:54Z
 last_update: 2026-06-02T05:52:54Z
-date_finished: null
+date_finished: 2026-06-02T06:00:20Z
 ---
 
 # T-1923: parity_tofu_list — lock identical MCP/CLI TOFU list shape

@@ -4,7 +4,7 @@ name: "termlink_discover MCP envelope — align to {ok,sessions} matching CLI"
 description: >
   termlink_discover MCP envelope — align to {ok,sessions} matching CLI
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-01T22:10:42Z
 last_update: 2026-06-01T22:10:42Z
-date_finished: null
+date_finished: 2026-06-01T22:33:11Z
 ---
 
 # T-1919: termlink_discover MCP envelope — align to {ok,sessions} matching CLI

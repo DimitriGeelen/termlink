@@ -4,7 +4,7 @@ name: "Fix termlink_help unknown-category hint — derive list from help_categor
 description: >
   Hard-coded category list in error path silently diverged; derive structurally
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T20:30:53Z
 last_update: 2026-06-03T20:33:04Z
-date_finished: null
+date_finished: 2026-06-03T20:36:21Z
 ---
 
 # T-1949: Fix termlink_help unknown-category hint — derive list from help_categories() (drift bug, 6 missing)

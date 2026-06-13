@@ -4,7 +4,7 @@ name: "termlink_help: extract replacement_hint from deprecated tool descriptions
 description: >
   MCP arc cycle 10 slice 1: surface a replacement_hint field on every deprecated tool so an LLM client routing the registry learns what to use instead. Derived from description text (parser extracts (use NAME instead) marker) — zero curated lists, auto-clears when T-1166 lands and the deprecation phrasing goes away. Surfaces in tool_detail, name_filter matches, and default mode for deprecated tools.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T05:42:54Z
 last_update: 2026-06-04T05:47:30Z
-date_finished: null
+date_finished: 2026-06-04T05:49:22Z
 ---
 
 # T-1970: termlink_help: extract replacement_hint from deprecated tool descriptions (cycle 10)

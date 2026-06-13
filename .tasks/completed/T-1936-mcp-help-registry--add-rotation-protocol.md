@@ -4,7 +4,7 @@ name: "MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_
 description: >
   Add the rotation-protocol tool family to termlink_help registry so LLM consumers can discover them. Currently tofu_clear/list/verify, hub_probe/fingerprint/export_secret/restart, and the entire fleet_* family (verify/doctor/history/status/bootstrap_check/reauth/secrets_audit/adoption_snapshot) are registered as MCP tools but invisible via termlink_help. LLM agents cannot help with auth-rotation recovery (documented at length in CLAUDE.md) without discovery. Out of scope: agent_* family (100+ tools, separate slice).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T22:55:51Z
 last_update: 2026-06-02T23:00:04Z
-date_finished: null
+date_finished: 2026-06-02T23:04:21Z
 ---
 
 # T-1936: MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_*)

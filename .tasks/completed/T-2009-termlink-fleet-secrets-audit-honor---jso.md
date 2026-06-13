@@ -4,7 +4,7 @@ name: "termlink fleet secrets-audit: honor --json on --target-cache-without-chec
 description: >
   termlink fleet secrets-audit: honor --json on --target-cache-without-check-drift usage error
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-05T21:07:28Z
 last_update: 2026-06-05T21:07:28Z
-date_finished: null
+date_finished: 2026-06-05T21:31:37Z
 ---
 
 # T-2009: termlink fleet secrets-audit: honor --json on --target-cache-without-check-drift usage error

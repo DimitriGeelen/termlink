@@ -4,7 +4,7 @@ name: "termlink_help tool_detail enriches with category_description + category_t
 description: >
   Extend tool_detail return envelope with category-context fields: category_description (from T-1957 category_descriptions()) and category_tool_count (size of the target's category). Drift-proof — both derived live. Gives LLMs drilling into one tool the sizing + semantic context of its category without a second round-trip.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T22:41:18Z
 last_update: 2026-06-03T22:44:08Z
-date_finished: null
+date_finished: 2026-06-03T22:46:24Z
 ---
 
 # T-1965: termlink_help tool_detail enriches with category_description + category_tool_count

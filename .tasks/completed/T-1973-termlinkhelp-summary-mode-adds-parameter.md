@@ -4,7 +4,7 @@ name: "termlink_help: summary mode adds parameter-count aggregates (cycle 10 sli
 description: >
   MCP arc cycle 10 slice 4: extend the summary-mode aggregate envelope (T-1963) with parameter-count rollups composing T-1971/T-1972. Adds total_parameters, zero_arity_tools count, and highest_arity_tools (top 5). All derived live from tool_params().
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T05:56:06Z
 last_update: 2026-06-04T05:58:42Z
-date_finished: null
+date_finished: 2026-06-04T06:00:52Z
 ---
 
 # T-1973: termlink_help: summary mode adds parameter-count aggregates (cycle 10 slice 4)

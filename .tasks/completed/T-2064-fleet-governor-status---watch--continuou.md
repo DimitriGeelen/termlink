@@ -4,7 +4,7 @@ name: "fleet governor-status --watch — continuous fleet-wide governor monitor 
 description: >
   fleet governor-status --watch — continuous fleet-wide governor monitor (T-2028 §6 #10 Track E)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T21:37:58Z
 last_update: 2026-06-08T22:10:12Z
-date_finished: null
+date_finished: 2026-06-08T22:58:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──

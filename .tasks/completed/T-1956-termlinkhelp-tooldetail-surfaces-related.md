@@ -4,7 +4,7 @@ name: "termlink_help: tool_detail surfaces related_tools (same name-prefix famil
 description: >
   When tool_detail returns a tool, also include related_tools[] — other tool names sharing the first 2-3 underscore segments. E.g., termlink_agent_react surfaces siblings termlink_agent_reactions, termlink_agent_react_*. Closes the workflow-continuity gap: LLMs see the verb family without a second category lookup. Derive-not-hardcode (no curation). T-1955 follow-up.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-03T21:27:57Z
 last_update: 2026-06-03T21:30:14Z
-date_finished: null
+date_finished: 2026-06-03T21:32:00Z
 ---
 
 # T-1956: termlink_help: tool_detail surfaces related_tools (same name-prefix family)

@@ -4,7 +4,7 @@ name: "Enforce termlink upgrade across remote fleet (laptop-141, ring20-manageme
 description: >
   Enforce termlink upgrade across remote fleet (laptop-141, ring20-management, ring20-dashboard)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-31T20:12:03Z
 last_update: 2026-05-31T20:21:38Z
-date_finished: null
+date_finished: 2026-05-31T20:58:47Z
 ---
 
 # T-1903: Enforce termlink upgrade across remote fleet (laptop-141, ring20-management, ring20-dashboard)

@@ -4,7 +4,7 @@ name: "termlink_whoami populated-path parity test — registered-session happy p
 description: >
   T-1933 shipped MCP whoami + empty-state parity test. The populated path (one registered session, query via name_hint) is the LLM agent's actual production flow and is currently un-tested. Add parity_whoami_session_match: register a session, both MCP and CLI whoami with name_hint return matching identity card. Surface and document any residual shape drift (posts_as.from_project in particular).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-02T22:00:31Z
 last_update: 2026-06-02T22:01:32Z
-date_finished: null
+date_finished: 2026-06-02T22:45:16Z
 ---
 
 # T-1935: termlink_whoami populated-path parity test — registered-session happy path (T-1933 follow-up)

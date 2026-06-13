@@ -4,7 +4,7 @@ name: "PL-200 closure on .121 ring20-dashboard (T-1988 sibling)"
 description: >
   T-1988 closed PL-200 on .141 + validated .122 end-to-end. Fleet listener walk shows ring20-dashboard (.121) still has zero presence-emitter entries — same PL-200 gap as .141. Install presence-heartbeat cron on .121 following the T-1988 PL-146-aware recipe. Verify ring20-dashboard-agent appears LIVE in fleet. Tags: pl-200, ring20-dashboard, doorbell-mail.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-06-04T20:15:20Z
 last_update: 2026-06-04T20:16:25Z
-date_finished: null
+date_finished: 2026-06-04T20:26:32Z
 ---
 
 # T-1989: PL-200 closure on .121 ring20-dashboard (T-1988 sibling)
