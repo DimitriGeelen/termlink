@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T13:59:19Z
-last_update: 2026-06-13T13:59:19Z
+last_update: 2026-06-13T14:03:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -148,6 +148,26 @@ test -f docs/reports/T-2211-substrate-drain-demo.md
      so `fw inception decide` (lib/inception.sh) finds the anchor heading
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
+
+## Recommendation
+
+**Recommendation:** GO (partial-complete — Agent ACs met; one Human [REVIEW] AC awaits you)
+
+**Rationale:** All four Agent ACs pass. `scripts/substrate-drain-demo.sh` composes only
+shipped substrate verbs (no new primitive, no hub change, no human-gated inception) and
+proves arc-001's headline mechanic — N concurrent workers drain an M-unit queue via the
+claim primitive with exclusive delivery (each unit won exactly once, zero double-claims)
+under real contention (18-60 CLAIM_CONFLICTs/run). Verified live at 3/9, 5/15, 4/12 — all
+PASS, exit 0. This is the operator-facing companion to the existing Rust race test and
+substrate-smoke.sh, and it populates the arc's previously-null demo_evidence. Arc closure
+remains gated on the 4 human GO/NO-GO inception decisions (T-2022/24/25/26) per T-2201 —
+unchanged by this work.
+
+**Evidence:**
+- `scripts/substrate-drain-demo.sh` (190 LOC, `bash -n` clean, exit 0 on clean drain / 1 on violation)
+- `docs/reports/T-2211-substrate-drain-demo.md` — captured runs + reproduce instructions
+- arc-001 `demo_evidence` field populated (commit this session)
+- Reproduce: `TERMLINK_BIN=target/release/termlink scripts/substrate-drain-demo.sh --workers 4 --units 12`
 
 ## Updates
 
