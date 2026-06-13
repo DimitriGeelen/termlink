@@ -2267,3 +2267,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-216
+  learning: "Standing gate for the error-vocab doc-drift class (4 incidents: T-2213/2215/2216/2217): run scripts/check-error-code-docs.sh — it parses crates/termlink-protocol/src/control.rs and flags any doc/skill SYMBOL(-320NN) pairing that disagrees with the authoritative error_code enum (exit 1 on mismatch, 0 clean, --json available). Run it before shipping any change that touches an error-taxonomy table or after adding a new error code. Level-C closure of the whack-a-mole that token-targeted greps (T-2216) could not converge."
+  source: P-001
+  task: T-2217
+  date: 2026-06-13
+  context: Added via context agent
+  application: TBD
