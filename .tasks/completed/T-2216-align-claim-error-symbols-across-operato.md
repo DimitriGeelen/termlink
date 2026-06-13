@@ -4,10 +4,10 @@ name: "align claim error symbols across operator docs+skills with real error_cod
 description: >
   align claim error symbols across operator docs+skills with real error_code enum (kill fictional CLAIM_LAPSED/CLAIM_ALREADY_HELD)
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T15:23:55Z
-last_update: 2026-06-13T15:23:55Z
-date_finished: null
+last_update: 2026-06-13T15:25:13Z
+date_finished: 2026-06-13T15:25:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -198,3 +198,6 @@ grep -q "CLAIM_NOT_FOUND" docs/operations/substrate-claim-primitive.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2216-align-claim-error-symbols-across-operato.md
 - **Context:** Initial task creation
+
+### 2026-06-13T15:25:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
