@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2208: Add --kind filter to agent find-idle-history (parity with queue-history)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-13T10:16:16Z
+# ============================================================================
+
+task_id: T-2208
+task_name: "Add --kind filter to agent find-idle-history (parity with queue-history)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T10:04:17Z
+completed: 2026-06-13T10:16:03Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-13T12:15:56+02:00
+last_commit: 2026-06-13T12:15:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add --kind filter to agent find-idle-history (parity with queue-history)
+
+# Key outcomes
+outcomes:
+  - '`agent find-idle-history` accepts `--kind <new|removed>` optional flag (mirror of `channel queue-history --kind`)'
+  - '`parse_find_idle_log` extended with optional `kind_filter` arg that drops entries whose `kind` field doesn''t match'
+  - 'When `--kind` is provided with a value other than `new`/`removed`, accept it silently (no validation panic) — the filter just yields zero results, matching `queue-history`''s permissive behavior. Smoke verified: `--kind transition --json` returned `total: 0` without error'
+  - '`--json` envelope includes `kind_filter` field next to existing `agent_id_filter`. Smoke verified: `summary.kind_filter` = `"new"` / `"removed"` / `"transition"` respectively'
+  - 'Empty-result human render mentions the active filter ("agent_id=... kind=new") so the operator knows the filter is in effect. Verified output: `(no entries in last 365 day(s) kind="transition" — log: /tmp/find-idle-test.log)`'
+  - 'New unit test `find_idle_history_parse_applies_kind_filter` mirrors the structure of `find_idle_history_parse_applies_agent_id_filter` and tests new/removed/unknown cases'
+  - '`cargo check -p termlink` clean (package name is `termlink`, not `termlink-cli`)'
+  - '`cargo test -p termlink find_idle_history` passes — 6 tests including new kind_filter test all green'
+  - 'CLI help text for `--kind` documents that it filters to a single event kind (mirror of queue-history''s help)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2208-add---kind-filter-to-agent-find-idle-his.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T12:15:56"
+    action: "T-2208: add --kind filter to agent find-idle-history (parity with queue-history)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 5
+  lines_added: 243
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2208-add---kind-filter-to-agent-find-idle-his.md
+generated_by: context-agent-hybrid
