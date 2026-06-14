@@ -441,6 +441,46 @@ when STALE fires — the absence of recent heartbeats means the cron
 either isn't loaded or the script crashes before reaching its
 heartbeat-touch step.
 
+### Expected-transient hosts — silencing a sleeping laptop (T-2225)
+
+The `laptop-141` row above is the canonical false-positive: a laptop or
+dev box that is *expected* to be off the network much of the time. Left
+unhandled, `check-fleet-doorbell-mail-health.sh` reports DRIFT every day
+the host is asleep, the canary log never goes empty, and `/canaries`
+shows a permanent `FIRING` — which trains operators to ignore it and
+masks a *real* production-hub failure (the G-019 alert-fatigue class; see
+PL-219).
+
+Declare such hosts as **expected-transient**. A declared host that is
+unreachable / `setup-fail` is classified `transient_skipped` — still
+shown in the output, but it does **not** flip the fleet verdict to DRIFT,
+so the cron log stays empty (healthy) while the laptop is simply off:
+
+```sh
+# .context/cron/fleet-dm-canary-transient  (git-tracked, one profile NAME per line)
+laptop-141
+
+# or ad hoc / for a one-off run, via env (merged on top of the file):
+FLEET_DM_CANARY_TRANSIENT=laptop-141,some-other-host \
+  bash scripts/check-fleet-doorbell-mail-health.sh --quiet
+```
+
+Names match the `[hubs.NAME]` profile in `~/.termlink/hubs.toml`. The skip
+suppresses **down-ness, not brokenness**: a declared host that is
+*reachable* still counts pass/fail normally, so a laptop that is up but
+whose doorbell+mail loop is broken still DRIFTs. Override the declaration
+file path with `--transient-file PATH`.
+
+Result on a fleet where only `laptop-141` is down:
+
+```sh
+bash scripts/check-fleet-doorbell-mail-health.sh --no-heartbeat
+# Fleet doorbell+mail health: pass
+#   total=4  pass=3  fail=0  unreachable=0  transient_skipped=1
+#   - laptop-141@192.168.10.141:9100: verdict=setup-fail … (transient — skipped)
+```
+
+
 Recommended cadence: run `/canaries` (or `bash scripts/canary-status.sh
 --quiet`) at session start alongside `/preflight` and `/substrate`. The
 three answer orthogonal questions:

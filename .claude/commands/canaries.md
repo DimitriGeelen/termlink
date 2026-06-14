@@ -127,6 +127,28 @@ STALE canary recovery:
   bash scripts/<canary-script>.sh --quiet       # run the canary manually
 ```
 
+## Note: a FIRING canary on an expected-transient host
+
+If the FIRING canary is `fleet-doorbell-mail-canary` and the offending
+host is a laptop or dev box that is *expected* to be off the network
+much of the time (the canonical case is `laptop-141` showing
+`verdict=setup-fail`), the remedy is **not** to chase the host — it is to
+declare it expected-transient so a sleeping laptop no longer DRIFTs the
+whole-fleet canary (G-019 alert-fatigue; PL-219):
+
+```sh
+# add the [hubs.NAME] profile name, one per line:
+echo 'laptop-141' >> .context/cron/fleet-dm-canary-transient
+```
+
+A declared host that is unreachable is classified `transient_skipped`
+(shown but non-verdict-flipping); a declared host that is *reachable*
+still counts pass/fail (the skip suppresses down-ness, not brokenness).
+Full recipe: `docs/operations/substrate-cron-recipes.md` §
+"Expected-transient hosts". For any *other* FIRING canary, read its log
+and fix the underlying drift per its runbook.
+
+
 ## Exit codes
 
 - 0 — all canaries healthy
