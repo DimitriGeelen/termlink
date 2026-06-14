@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2227: Regression test harness for substrate-preflight Check 4 (lock in T-2226 fail-safe staleness logic)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-14T05:51:22Z
+# ============================================================================
+
+task_id: T-2227
+task_name: "Regression test harness for substrate-preflight Check 4 (lock in T-2226 fail-safe staleness logic)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-14T05:48:39Z
+completed: 2026-06-14T05:51:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-14T07:50:55+02:00
+last_commit: 2026-06-14T07:50:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  regression test harness for substrate-preflight Check 4 (locks in T-2226 fail-safe staleness logic)
+
+# Key outcomes
+outcomes:
+  - '`scripts/test-substrate-preflight.sh` exists, is executable, and runs without a live hub dependency (black-box: shims `termlink --version` via PATH; asserts only the Check-4 `binary` verdict line, never overall exit code, since other checks depend on environment).'
+  - 'Covers the fail-safe branches: (a) shimmed version >= VERSION → PASS `>=`; (b) cross-minor old (0.10.0) → WARN `older than`; (c) same-minor spanning a real crates/ change → WARN `older than`; (d) same-minor with NO crates/ change in range → PASS `version drift only` (computed dynamically from git history, SKIP if not constructible); (e) unparseable version → WARN `no parseable version`.'
+  - 'The crates/-aware cases compute their delta dynamically from `git rev-list <last-crates-commit>..HEAD` so the test is robust to repo state, not hard-coded to a version number.'
+  - 'Test suite prints a `Results: N pass / M fail / K skip` line and exits non-zero iff any case fails (CI-friendly).'
+  - 'All cases pass on the current tree.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/scripts-test-substrate-preflight.yaml'
+  - 'scripts/test-substrate-preflight.sh'
+  - '.tasks/active/T-2227-regression-test-harness-for-substrate-pr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-14T07:50:55"
+    action: "T-2227: regression test harness for substrate-preflight Check 4 (locks in T-2226 fail-safe staleness logic)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 316
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2227-regression-test-harness-for-substrate-pr.md
+generated_by: context-agent-hybrid

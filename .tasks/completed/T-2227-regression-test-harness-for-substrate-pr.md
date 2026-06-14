@@ -4,20 +4,20 @@ name: "Regression test harness for substrate-preflight Check 4 (lock in T-2226 f
 description: >
   substrate-preflight.sh has no test coverage. The T-2226 crates_unchanged_since_binary fail-safe (must never silence a genuinely stale binary) needs a regression guard. Add scripts/test-substrate-preflight.sh exercising the Check 4 branches via PATH-shimmed termlink.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/test-substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-14T05:48:39Z
-last_update: 2026-06-14T05:48:39Z
-date_finished: null
+last_update: 2026-06-14T05:51:20Z
+date_finished: 2026-06-14T05:51:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -113,19 +113,25 @@ bash scripts/test-substrate-preflight.sh` instead of a Human AC here. Only keep 
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `substrate-preflight.sh` shipped Check 4's new feature-aware
+staleness logic (T-2226, `crates_unchanged_since_binary`) with subtle fail-safe
+branches but **zero automated test coverage** — the branches were verified
+manually at ship time and nothing guards them against a future refactor.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** No test harness existed for `substrate-preflight.sh` at all. A
+fail-safe whose entire purpose is "never silence a genuinely stale binary" is
+exactly the kind of logic that can regress silently (e.g. a future edit inverts
+a return, or drops the cross-minor guard) with no failing test to catch it.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Canary/preflight scripts under `scripts/` are not
+covered by `cargo test`, and there is no gate requiring a sibling
+`test-*.sh` for them — so a script can carry non-trivial branching logic with no
+regression net.
+
+**Prevention:** This black-box harness (`scripts/test-substrate-preflight.sh`)
+exercises all five Check-4 branches, with the crates/-aware cases computed
+dynamically from git history so they stay valid as the repo evolves. Future
+edits to Check 4 are now caught by `bash scripts/test-substrate-preflight.sh`.
 
 ## Evolution
 
@@ -178,3 +184,6 @@ bash scripts/test-substrate-preflight.sh` instead of a Human AC here. Only keep 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2227-regression-test-harness-for-substrate-pr.md
 - **Context:** Initial task creation
+
+### 2026-06-14T05:51:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
