@@ -1,0 +1,52 @@
+pickup_id: P-046
+version: 1
+type: feature-proposal
+source:
+  project: "termlink"
+  task_id: "T-2233"
+  agent: "claude-code"
+  timestamp: "2026-06-21T11:51:51Z"
+payload:
+  summary: "claude-fw: print a one-line project banner at startup (which project this session governs)"
+  detail: "REQUEST (from termlink operator): when invoking `claude-fw`, print a one-line banner
+showing WHICH PROJECT the session is governing.
+
+WHY (operator-inferred benefits):
+1. Wrong-project safety — operators run claude-fw across multiple repos (termlink,
+   ring20, AEF). Identical terminal chrome makes it easy to act in the wrong repo.
+   A startup banner anchors which governed project this session is.
+2. Audit/handover clarity — banner sits at the top of scrollback, so screenshots and
+   pasted logs are self-identifying without a separate pwd / fw version.
+3. Onboarding / lower cognitive load — new operators see the governed project
+   immediately, no command needed.
+4. Auto-restart re-anchoring — with the T-179 auto-restart loop, a resumed `claude -c`
+   session should re-print the banner so context is re-established after a restart.
+
+WHERE (in .agentic-framework/bin/claude-fw): add a print_project_banner function and
+call it (a) once before the main while loop after termlink_start (~line 120), and
+(b) again on the auto-restart branch (after the "Auto-restart #N" block, ~line 181)
+so resumed sessions re-print it.
+
+RECOMMENDED IMPLEMENTATION (dependency-free, no fw call -> no startup latency, degrades
+gracefully outside a git repo):
+
+  print_project_banner() {
+      local git_root proj
+      git_root=$(git rev-parse --show-toplevel 2>/dev/null) || git_root="$PWD"
+      proj=$(sed -nE 's/^\*\*Project:\*\*[[:space:]]*(.+)$/\1/p' "$git_root/CLAUDE.md" 2>/dev/null | head -1)
+      [ -z "$proj" ] && proj=$(basename "$git_root")
+      proj="${FW_PROJECT:-$proj}"
+      echo "claude-fw: project = ${proj}  (${git_root})" >&2
+  }
+
+CONSTRAINTS:
+- No network, no heavy fw subprocess at startup (keep launch instant).
+- Must degrade gracefully outside a git repo (fall back to PWD basename).
+- Emit to stderr so the --termlink PTY-mode prompt regex (lines ~139-140, which already
+  matches a "claude-fw:" line) is not false-triggered into thinking claude exited.
+
+ACCEPTANCE: claude-fw in /opt/termlink prints "claude-fw: project = 010-termlink ..."; in
+a repo without a "**Project:**" line, prints the git-root basename; outside any repo,
+prints the cwd basename; --no-restart and --termlink modes still behave as before."
+  priority: low
+  tags: [claude-fw, ux, wrapper, project-banner]
