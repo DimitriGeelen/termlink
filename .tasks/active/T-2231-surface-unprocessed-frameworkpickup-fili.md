@@ -39,13 +39,13 @@ G-063: termlink has no consumer of the `framework:pickup` hub topic. ring20's hi
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-framework-pickup-freshness.sh` exists: reads recent `framework:pickup` posts, compares against a last-processed marker (offset or .context/pickup/processed/ set), and emits an entry ONLY for unprocessed filings (empty output = healthy, mirroring check-mirror-freshness.sh).
-- [ ] `--quiet` mode suitable for cron `>> log 2>&1`; healthy run produces ZERO stderr/stdout (no leak — the T-2225 lesson).
-- [ ] `--json` mode emits a structured `{ok, unprocessed:[...]}` envelope.
-- [ ] Crontab fragment under `.context/cron/` following the release-mirror-canary.crontab pattern.
-- [ ] Bats/shell test (`scripts/test-check-framework-pickup-freshness.sh`) covers: healthy (all processed → empty), firing (an unprocessed high-sev filing → one entry, exit non-zero), and quiet-mode no-leak.
-- [ ] `/canaries` auto-discovers the new log (no code change needed — it globs `.context/working/.*-canary.log`); confirm the log path matches that glob.
-- [ ] CLAUDE.md canary section documents it (empty-log=healthy convention).
+- [x] `scripts/check-framework-pickup-freshness.sh` exists: reads recent `framework:pickup` posts, compares against a last-processed marker (offset or .context/pickup/processed/ set), and emits an entry ONLY for unprocessed filings (empty output = healthy, mirroring check-mirror-freshness.sh).
+- [x] `--quiet` mode suitable for cron `>> log 2>&1`; healthy run produces ZERO stderr/stdout (no leak — the T-2225 lesson).
+- [x] `--json` mode emits a structured `{ok, unprocessed:[...]}` envelope.
+- [x] Crontab fragment under `.context/cron/` following the release-mirror-canary.crontab pattern.
+- [x] Bats/shell test (`scripts/test-check-framework-pickup-freshness.sh`) covers: healthy (all processed → empty), firing (an unprocessed high-sev filing → one entry, exit non-zero), and quiet-mode no-leak.
+- [x] `/canaries` auto-discovers the new log (no code change needed — it globs `.context/working/.*-canary.log`); confirm the log path matches that glob.
+- [x] CLAUDE.md canary section documents it (empty-log=healthy convention).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

@@ -1,0 +1,19 @@
+# T-2231 — framework:pickup unprocessed-filing canary (G-063 prevention)
+# Source of truth: /opt/termlink/.context/cron/framework-pickup-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-framework-pickup-canary (USER field syntax — do NOT load into a user crontab)
+#
+# The framework:pickup hub topic receives peer-project bug-reports / RCAs but
+# termlink has no automatic consumer (G-063). A high-severity ring20 RCA sat
+# ~27h unprocessed (T-2229) because nothing surfaced it. This daily canary
+# flags any filing newer than the last-acked offset. Exit 1 from --quiet means
+# unprocessed filings exist; the log accumulates only then, so an empty log is
+# the healthy state (same convention as the mirror / substrate-preflight canaries).
+#
+# Operator action on firing: triage the surfaced filings (file tasks / reply),
+# then run `bash scripts/check-framework-pickup-freshness.sh --ack` to mark them
+# surfaced. /canaries auto-discovers this log.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 06:37 UTC — offset to avoid the :13 mirror canary and :23/:53 heartbeats.
+37 6 * * * root bash scripts/check-framework-pickup-freshness.sh --quiet >> .context/working/.framework-pickup-canary.log 2>&1

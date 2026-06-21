@@ -84,6 +84,29 @@ for forensic clarity. Ad-hoc check: `/preflight` (skill, T-2158) or
 Pair with the mirror-drift canary above — both follow the same
 "empty-log = healthy" convention.
 
+### Framework-pickup canary (T-2231, G-063 prevention)
+
+The `framework:pickup` hub topic receives bug-reports / feature-proposals /
+RCAs filed by peer projects (ring20, CPN, etc.), but termlink has **no
+automatic consumer** of that topic (G-063). G-063 surfaced when a
+high-severity ring20 RCA (T-2229: cross-hub "federation" + heartbeat-freeze)
+sat ~27h unprocessed because nothing surfaced it. A daily cron runs
+`scripts/check-framework-pickup-freshness.sh --quiet` (see
+`.context/cron/framework-pickup-canary.crontab`) and appends to
+`.context/working/.framework-pickup-canary.log`. Empty log = healthy. Any
+entry = there are filings on the topic newer than the last-acked offset.
+Workflow on firing: triage the surfaced filings (file tasks / reply on the
+peer's hub), then run `bash scripts/check-framework-pickup-freshness.sh --ack`
+to bump the marker (`.context/working/.framework-pickup-canary.seen-offset`)
+so they go quiet. Ad-hoc check: `bash scripts/check-framework-pickup-freshness.sh`
+(exit 0 = nothing new, 1 = unprocessed filings, 2 = tooling error).
+`/canaries` auto-discovers the log. Severity is shown as a best-effort
+`[HIGH]` hint sniffed from the payload body — it is an annotation, NOT the
+firing gate (the gate is "newer than last-acked"); gating on a parsed
+severity field would be fragile given the free-form YAML payloads (T-2225
+false-positive lesson). Pair with the mirror-drift and substrate-preflight
+canaries above — all three follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
