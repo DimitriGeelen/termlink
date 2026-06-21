@@ -454,6 +454,40 @@ mod tests {
         let _ = original; // suppress unused warning
     }
 
+    /// T-2230 regression: the heartbeat timestamp must STRICTLY advance when
+    /// touched. The original bug was that `termlink register` never called
+    /// touch_heartbeat at all, so `heartbeat_at` stayed frozen at registration
+    /// time forever (ring20 "frozen husk" RCA, T-2229). The pre-existing
+    /// `touch_heartbeat_persists` test tolerated an unchanged timestamp
+    /// ("may be equal"), so it could not catch the freeze. This one waits past
+    /// the 1-second clock resolution and asserts the parsed epoch increases.
+    #[test]
+    fn heartbeat_strictly_advances_over_time() {
+        let dir = tempdir();
+        let id = SessionId::generate();
+        let socket = dir.join("test.sock");
+        let mut reg = Registration::new(id.clone(), SessionConfig::default(), socket);
+        let json_path = dir.join(format!("{id}.json"));
+        reg.write_atomic(&json_path).unwrap();
+
+        let parse = |ts: &str| -> u64 {
+            ts.trim_end_matches('Z').parse::<u64>().expect("epoch seconds")
+        };
+        let before = parse(&reg.heartbeat_at);
+
+        // Sleep past the 1-second timestamp resolution of now_iso8601().
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        reg.touch_heartbeat(&json_path).unwrap();
+
+        let after_mem = parse(&reg.heartbeat_at);
+        let read_back = Registration::read_from(&json_path).unwrap();
+        let after_disk = parse(&read_back.heartbeat_at);
+
+        assert!(after_mem > before, "in-memory heartbeat must advance ({after_mem} > {before})");
+        assert!(after_disk > before, "on-disk heartbeat must advance ({after_disk} > {before})");
+        assert_eq!(after_mem, after_disk, "in-memory and on-disk heartbeat must match");
+    }
+
     #[test]
     fn set_state_persists() {
         let dir = tempdir();

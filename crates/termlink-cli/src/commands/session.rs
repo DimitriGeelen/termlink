@@ -277,6 +277,35 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         None
     };
 
+    // T-2230: periodic self-heartbeat. Before this fix `termlink register` set
+    // heartbeat_at once at registration and never advanced it (touch_heartbeat
+    // had zero production callers), so status showed the session frozen at
+    // creation time forever — the symptom ring20 reported as "frozen husks"
+    // surviving a hub restart (T-2229). The interval task advances heartbeat_at
+    // in BOTH the in-memory registration (read by the query.status RPC) and the
+    // on-disk JSON file (read by the hub directory sweep). Interval tunable via
+    // TERMLINK_HEARTBEAT_INTERVAL_SECS (default 30s).
+    let shared_hb = shared.clone();
+    let hb_interval_secs = std::env::var("TERMLINK_HEARTBEAT_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(30);
+    let heartbeat_task = tokio::spawn(async move {
+        let mut ticker =
+            tokio::time::interval(std::time::Duration::from_secs(hb_interval_secs));
+        ticker.tick().await; // consume the immediate first tick
+        loop {
+            ticker.tick().await;
+            let mut ctx = shared_hb.write().await;
+            if let Some(path) = ctx.registration_path.clone()
+                && let Err(e) = ctx.registration.touch_heartbeat(&path)
+            {
+                tracing::warn!(error = %e, "T-2230: heartbeat touch failed");
+            }
+        }
+    });
+
     tokio::select! {
         _ = server::run_accept_loop(listener, shared_clone) => {}
         _ = tokio::signal::ctrl_c() => {
@@ -305,6 +334,7 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
         }
     }
 
+    heartbeat_task.abort();
     Ok(())
 }
 

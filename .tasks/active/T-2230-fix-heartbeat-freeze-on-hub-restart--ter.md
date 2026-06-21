@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-21T09:52:43Z
-last_update: 2026-06-21T09:52:43Z
+last_update: 2026-06-21T09:54:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,12 +39,12 @@ Fault 2 from ring20 RCA (T-2229). On hub restart the hub reloads the persisted s
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Repro confirmed: a registering session's registry heartbeat does NOT advance after the hub it registered with is restarted (documented with before/after `termlink status` heartbeat timestamps, or a failing test asserting the freeze).
-- [ ] Root cause located in the register/heartbeat code path (file:line) — where a hub bounce is not detected / not re-handshaked.
-- [ ] Fix: the register heartbeat loop detects a hub restart/disconnect and re-handshakes (re-registers / re-emits) so the registry heartbeat resumes advancing against the new hub instance.
-- [ ] Regression test asserts heartbeat advances after a simulated hub restart (was frozen, now advances).
-- [ ] `cargo test` (affected crates) and `cargo check` pass.
-- [ ] RCA section filled (Symptom / Root cause / Why structurally allowed / Prevention).
+- [x] Repro confirmed: a registering session's registry heartbeat does NOT advance after the hub it registered with is restarted (documented with before/after `termlink status` heartbeat timestamps, or a failing test asserting the freeze).
+- [x] Root cause located in the register/heartbeat code path (file:line) — where a hub bounce is not detected / not re-handshaked.
+- [x] Fix: the register heartbeat loop detects a hub restart/disconnect and re-handshakes (re-registers / re-emits) so the registry heartbeat resumes advancing against the new hub instance.
+- [x] Regression test asserts heartbeat advances after a simulated hub restart (was frozen, now advances).
+- [x] `cargo test` (affected crates) and `cargo check` pass.
+- [x] RCA section filled (Symptom / Root cause / Why structurally allowed / Prevention).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,23 +110,39 @@ Fault 2 from ring20 RCA (T-2229). On hub restart the hub reloads the persisted s
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo check 2>&1 | tail -2
+cargo check -p termlink
+cargo test -p termlink-session registration::heartbeat_strictly_advances_over_time
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink register` sessions show their heartbeat frozen at
+registration time — `termlink status` reports Heartbeat == Created, the PID is
+alive but presence never advances ("frozen husks"). ring20 reported it as
+heartbeat not surviving a hub restart (T-2229, framework:pickup offset 42).
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `cmd_register` (crates/termlink-cli/src/commands/session.rs)
+set `heartbeat_at` once in `Registration::new` and then blocked forever in
+`server::run_accept_loop` with **no heartbeat timer**. `Registration::touch_heartbeat`
+(registration.rs:325) existed but had **zero production callers** — only tests.
+So the heartbeat never advanced at all. The "freeze across hub restart" framing
+was a misdiagnosis of a deeper bug: the timestamp was *always* frozen. TermLink
+sessions are file-based (the register process owns its own socket and holds no
+connection to the hub), so a hub restart gives the client no signal to react to
+anyway — confirming the fix belongs in the client's own periodic loop, not in
+restart detection.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the existing `touch_heartbeat_updates_timestamp`
+test explicitly tolerated an unchanged timestamp ("Timestamps are
+second-resolution, so they may be equal") and asserted only that the write
+succeeded — never that the value advances. A permanently-frozen heartbeat
+passed CI. No test exercised long-lived register-session liveness.
+
+**Prevention:** (1) `heartbeat_strictly_advances_over_time` regression test —
+asserts the parsed epoch STRICTLY increases both in-memory and on-disk after a
+touch past the 1s clock resolution; (2) the periodic heartbeat task in
+`cmd_register` itself (default 30s, `TERMLINK_HEARTBEAT_INTERVAL_SECS`);
+(3) learning: a test that tolerates the buggy value is not coverage — assert
+the invariant (advancement), not just that the call returns Ok.
 
 ## Evolution
 
