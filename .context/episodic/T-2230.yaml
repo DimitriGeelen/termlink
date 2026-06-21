@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2230: Fix heartbeat freeze on hub restart — termlink register must re-handshake on reconnect
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-21T10:07:29Z
+# ============================================================================
+
+task_id: T-2230
+task_name: "Fix heartbeat freeze on hub restart — termlink register must re-handshake on reconnect"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T09:52:43Z
+completed: 2026-06-21T10:07:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-21T12:07:08+02:00
+last_commit: 2026-06-21T12:07:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix frozen heartbeat — periodic self-heartbeat in termlink register
+
+# Key outcomes
+outcomes:
+  - 'Repro confirmed: a registering session''s registry heartbeat does NOT advance after the hub it registered with is restarted (documented with before/after `termlink status` heartbeat timestamps, or a failing test asserting the freeze).'
+  - 'Root cause located in the register/heartbeat code path (file:line) — where a hub bounce is not detected / not re-handshaked.'
+  - 'Fix: the register heartbeat loop detects a hub restart/disconnect and re-handshakes (re-registers / re-emits) so the registry heartbeat resumes advancing against the new hub instance.'
+  - 'Regression test asserts heartbeat advances after a simulated hub restart (was frozen, now advances).'
+  - '`cargo test` (affected crates) and `cargo check` pass.'
+  - 'RCA section filled (Symptom / Root cause / Why structurally allowed / Prevention).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix frozen heartbeat — periodic self-heartbeat in termlink register'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/focus.yaml'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-session/src/registration.rs'
+  - '.tasks/active/T-2230-fix-heartbeat-freeze-on-hub-restart--ter.md'
+  - '.tasks/completed/T-2231-surface-unprocessed-frameworkpickup-fili.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-21T12:07:08"
+    action: "T-2230: fix frozen heartbeat — periodic self-heartbeat in termlink register"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 2
+  files_changed: 6
+  lines_added: 466
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2230-fix-heartbeat-freeze-on-hub-restart--ter.md
+generated_by: context-agent-hybrid

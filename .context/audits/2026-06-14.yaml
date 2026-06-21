@@ -1,0 +1,57 @@
+# Audit Results - 2026-06-14-0757
+timestamp: 2026-06-14T05:57:01Z
+sections: "structure"
+summary:
+  pass: 23
+  warn: 1
+  fail: 0
+findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "No duplicate task IDs across active/ and completed/"
+  - level: PASS
+    check: "All 10 project YAML files parse correctly"
+  - level: PASS
+    check: "All 1 arc anchor_task references resolve to existing tasks"
+  - level: PASS
+    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
+  - level: PASS
+    check: "No stale-slice-references (L-417)"
+  - level: PASS
+    check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
+  - level: PASS
+    check: "Fabric: 152 registered, 0 unregistered"
+  - level: WARN
+    check: "Fabric: 30/140 cards have no edges"
+    mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric drift: All watched source files registered (152 cards)"
+  - level: PASS
+    check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
+  - level: PASS
+    check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
+  - level: PASS
+    check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
+  - level: PASS
+    check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: PASS
+    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
+  - level: PASS
+    check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
+  - level: PASS
+    check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
+  - level: PASS
+    check: "Secret scan: tracked tree clean"
+  - level: PASS
+    check: "Large-file gate: tracked tree clean"

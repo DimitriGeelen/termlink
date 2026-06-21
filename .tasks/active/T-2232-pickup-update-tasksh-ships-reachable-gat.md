@@ -1,23 +1,23 @@
 ---
-id: T-2231
-name: "Surface unprocessed framework:pickup filings — close G-063 silent-drop gap"
+id: T-2232
+name: "Pickup: update-task.sh ships-reachable gate crashes on inception work-completed: __file__ is - under python3 stdin, breaks lib.inception_decisions import (from termlink)"
 description: >
-  G-063: termlink has no consumer of the framework:pickup hub topic, so a high-severity RCA from ring20 sat 27h unprocessed (root cause of T-2229's delayed pickup). Add a daily canary (empty-log=healthy convention) that reads framework:pickup for filings newer than the last-processed marker and surfaces unprocessed high-severity ones, so operator/handover sees them. Mirrors the mirror-drift / substrate-preflight canary pattern.
+  Auto-created from pickup envelope. Source: termlink, task T-2229. Type: bug-report.
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
-tags: []
-components: [scripts/check-framework-pickup-freshness.sh, scripts/test-check-framework-pickup-freshness.sh]
+horizon: next
+tags: [pickup, bug-report]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-21T09:53:50Z
-last_update: 2026-06-21T09:59:41Z
-date_finished: 2026-06-21T09:59:41Z
+created: 2026-06-21T10:39:02Z
+last_update: 2026-06-21T10:39:02Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,24 +28,22 @@ date_finished: 2026-06-21T09:59:41Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+source_task_id_in_origin: T-2229
+source_project_in_origin: "termlink"
 ---
 
-# T-2231: Surface unprocessed framework:pickup filings — close G-063 silent-drop gap
+# T-2232: Pickup: update-task.sh ships-reachable gate crashes on inception work-completed: __file__ is - under python3 stdin, breaks lib.inception_decisions import (from termlink)
 
 ## Context
 
-G-063: termlink has no consumer of the `framework:pickup` hub topic. ring20's high-severity RCA (T-2229) sat ~27h unprocessed because nothing surfaces filings on that topic — a framework-blindness gap of the same class we harden against with the mirror-drift / substrate-preflight canaries. Add a daily canary that flags unprocessed high-severity filings.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `scripts/check-framework-pickup-freshness.sh` exists: reads recent `framework:pickup` posts, compares against a last-processed marker (offset or .context/pickup/processed/ set), and emits an entry ONLY for unprocessed filings (empty output = healthy, mirroring check-mirror-freshness.sh).
-- [x] `--quiet` mode suitable for cron `>> log 2>&1`; healthy run produces ZERO stderr/stdout (no leak — the T-2225 lesson).
-- [x] `--json` mode emits a structured `{ok, unprocessed:[...]}` envelope.
-- [x] Crontab fragment under `.context/cron/` following the release-mirror-canary.crontab pattern.
-- [x] Bats/shell test (`scripts/test-check-framework-pickup-freshness.sh`) covers: healthy (all processed → empty), firing (an unprocessed high-sev filing → one entry, exit non-zero), and quiet-mode no-leak.
-- [x] `/canaries` auto-discovers the new log (no code change needed — it globs `.context/working/.*-canary.log`); confirm the log path matches that glob.
-- [x] CLAUDE.md canary section documents it (empty-log=healthy convention).
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -111,9 +109,6 @@ G-063: termlink has no consumer of the `framework:pickup` hub topic. ring20's hi
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash -n scripts/check-framework-pickup-freshness.sh
-bash scripts/test-check-framework-pickup-freshness.sh
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -177,10 +172,7 @@ bash scripts/test-check-framework-pickup-freshness.sh
 
 ## Updates
 
-### 2026-06-21T09:53:50Z — task-created [task-create-agent]
+### 2026-06-21T10:39:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2231-surface-unprocessed-frameworkpickup-fili.md
+- **Output:** /opt/termlink/.tasks/active/T-2232-pickup-update-tasksh-ships-reachable-gat.md
 - **Context:** Initial task creation
-
-### 2026-06-21T09:59:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

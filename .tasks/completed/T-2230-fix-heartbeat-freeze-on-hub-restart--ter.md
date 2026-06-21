@@ -4,20 +4,20 @@ name: "Fix heartbeat freeze on hub restart — termlink register must re-handsha
 description: >
   Fault 2 from ring20 RCA (T-2229): on hub restart the hub reloads the persisted session with its ORIGINAL registration heartbeat; termlink register never re-handshakes with the new hub instance, so presence freezes at registration time (live PID but registry heartbeat==created). Repro then fix: register should detect a hub bounce and re-emit/re-handshake heartbeat.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-session/src/registration.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-21T09:52:43Z
-last_update: 2026-06-21T09:54:27Z
-date_finished: null
+last_update: 2026-06-21T10:07:16Z
+date_finished: 2026-06-21T10:07:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -195,3 +195,6 @@ the invariant (advancement), not just that the call returns Ok.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2230-fix-heartbeat-freeze-on-hub-restart--ter.md
 - **Context:** Initial task creation
+
+### 2026-06-21T10:07:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

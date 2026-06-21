@@ -2309,3 +2309,10 @@ learnings:
   date: 2026-06-21
   context: Added via context agent
   application: TBD
+- id: PL-222
+  learning: "Inception 'fw task update T-XXX --status work-completed' crashes with 'ModuleNotFoundError: No module named lib.inception_decisions' (+ apport FileNotFoundError on '<cwd>/-') AFTER 'Inception decision: recorded'. Vendored AEF bug: agents/task-create/update-task.sh ships-reachable gate runs python via 'python3 -' (stdin), so __file__=='-' and abspath('-') triple-dirname puts '/' on sys.path instead of FRAMEWORK_ROOT. The GO decision IS saved to the task file; only the archive/status-flip aborts. WORKAROUND (no patch): re-run with PYTHONPATH=<project>/.agentic-framework set. Upstream fix filed P-045 (use $FRAMEWORK_ROOT via env, not __file__). Don't patch vendored locally — overwritten by fw upgrade."
+  source: P-001
+  task: T-2229
+  date: 2026-06-21
+  context: Added via context agent
+  application: TBD

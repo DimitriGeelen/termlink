@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2231: Surface unprocessed framework:pickup filings — close G-063 silent-drop gap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-21T09:59:45Z
+# ============================================================================
+
+task_id: T-2231
+task_name: "Surface unprocessed framework:pickup filings — close G-063 silent-drop gap"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T09:53:50Z
+completed: 2026-06-21T09:59:41Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-21T11:59:28+02:00
+last_commit: 2026-06-21T11:59:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  framework:pickup freshness canary — close G-063 silent-drop gap
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-framework-pickup-freshness.sh` exists: reads recent `framework:pickup` posts, compares against a last-processed marker (offset or .context/pickup/processed/ set), and emits an entry ONLY for unprocessed filings (empty output = healthy, mirroring check-mirror-freshness.sh).'
+  - '`--quiet` mode suitable for cron `>> log 2>&1`; healthy run produces ZERO stderr/stdout (no leak — the T-2225 lesson).'
+  - '`--json` mode emits a structured `{ok, unprocessed:[...]}` envelope.'
+  - 'Crontab fragment under `.context/cron/` following the release-mirror-canary.crontab pattern.'
+  - 'Bats/shell test (`scripts/test-check-framework-pickup-freshness.sh`) covers: healthy (all processed → empty), firing (an unprocessed high-sev filing → one entry, exit non-zero), and quiet-mode no-leak.'
+  - '`/canaries` auto-discovers the new log (no code change needed — it globs `.context/working/.*-canary.log`); confirm the log path matches that glob.'
+  - 'CLAUDE.md canary section documents it (empty-log=healthy convention).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/framework-pickup-canary.crontab'
+  - '.context/working/focus.yaml'
+  - '.fabric/components/scripts-check-framework-pickup-freshness.yaml'
+  - '.fabric/components/scripts-test-check-framework-pickup-freshness.yaml'
+  - 'scripts/check-framework-pickup-freshness.sh'
+  - 'scripts/test-check-framework-pickup-freshness.sh'
+  - '.tasks/active/T-2231-surface-unprocessed-frameworkpickup-fili.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-21T11:59:28"
+    action: "T-2231: framework:pickup freshness canary — close G-063 silent-drop gap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 9
+  lines_added: 695
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2231-surface-unprocessed-frameworkpickup-fili.md
+generated_by: context-agent-hybrid
