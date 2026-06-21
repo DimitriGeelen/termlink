@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-21T11:50:47Z
-last_update: 2026-06-21T11:50:47Z
+last_update: 2026-06-21T11:53:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,9 +40,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A `feature-proposal` pickup envelope for the claude-fw project-banner request is created via `fw pickup send` (source-project=termlink, task-id T-2233)
-- [ ] The envelope detail contains a concrete, implementable spec: insertion point in `.agentic-framework/bin/claude-fw`, a recommended `print_project_banner` implementation, constraints (no startup latency, graceful degradation, no PTY-output-parse pollution), and acceptance criteria
-- [ ] The envelope is bridged out of `.context/pickup/inbox/` (lands in `.context/pickup/processed/` or is posted to the `framework:pickup` hub topic)
+- [x] A `feature-proposal` pickup envelope for the claude-fw project-banner request is created via `fw pickup send` (source-project=termlink, task-id T-2233) — P-046-feature-proposal.yaml
+- [x] The envelope detail contains a concrete, implementable spec: insertion point in `.agentic-framework/bin/claude-fw`, a recommended `print_project_banner` implementation, constraints (no startup latency, graceful degradation, no PTY-output-parse pollution), and acceptance criteria
+- [x] The envelope is bridged out of `.context/pickup/inbox/` (in `.context/pickup/processed/P-046-feature-proposal.yaml` + posted to `framework:pickup` hub; bridge marker 44a5337c at 13:51, payload verified on topic)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
