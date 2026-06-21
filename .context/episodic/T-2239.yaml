@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2239: Frozen-husk regression canary — detect live sessions whose heartbeat never advances (G-019 prevention for T-2230/T-2235)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-21T15:31:41Z
+# ============================================================================
+
+task_id: T-2239
+task_name: "Frozen-husk regression canary — detect live sessions whose heartbeat never advances (G-019 prevention for T-2230/T-2235)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T15:26:57Z
+completed: 2026-06-21T15:31:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-21T17:31:30+02:00
+last_commit: 2026-06-21T17:31:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  frozen-husk regression canary — detect live sessions with stale heartbeat (G-019 prevention for T-2230/T-2235)
+
+# Key outcomes
+outcomes:
+  - 'scripts/check-frozen-husk-freshness.sh exists, is executable, --help works, exit codes 0/1/2 documented'
+  - 'Detects a live frozen husk (pid alive + heartbeat_at stale > threshold); fires exit 1 with the offending session id/pid/age — found 11 live v0.9.0 husks on core host, /proc-confirmed'
+  - 'Healthy/no-husk case exits 0; --quiet prints nothing on healthy; --json emits a parseable envelope — verified clean dir + high-threshold both exit 0'
+  - 'Heartbeat-first touch (.context/working/.frozen-husk-canary.heartbeat) so /canaries auto-discovers and aliveness-checks it — /canaries shows "HEALTHY frozen-husk-canary"'
+  - 'Daily crontab def added (.context/cron/frozen-husk-canary.crontab) following the established empty-log-=-healthy redirect pattern — installed to /etc/cron.d/termlink-frozen-husk-canary'
+  - 'CLAUDE.md documents the canary alongside the other canaries (mirror/substrate-preflight/framework-pickup) — added "### Frozen-husk canary (T-2239...)" section'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/frozen-husk-canary.crontab'
+  - 'scripts/check-frozen-husk-freshness.sh'
+  - '.tasks/active/T-2239-frozen-husk-regression-canary--detect-li.md'
+  - '.tasks/completed/T-2238-stage-0111367-heartbeat-fix-binary-to-12.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-21T17:31:30"
+    action: "T-2239: frozen-husk regression canary — detect live sessions with stale heartbeat (G-019 prevention for T-2230/T-2235)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 489
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2239-frozen-husk-regression-canary--detect-li.md
+generated_by: context-agent-hybrid

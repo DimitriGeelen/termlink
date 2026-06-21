@@ -1,11 +1,11 @@
-timestamp: 2026-06-21T11:00:02Z
+timestamp: 2026-06-21T15:00:01Z
 findings:
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 42 anomaly(s): T-1632(39d-active) T-1907(20d-active) T-2203(8d-active) T-2090(11d-active) T-2144(10d-active) T-1451(49d-active) T-1799(30d-active) T-1908(20d-active) T-2016(14d-active) T-1457(48d-active) (+32 more)"
+    check: "D5: Task lifecycle — 42 anomaly(s): T-1632(39d-active) T-1907(20d-active) T-2203(9d-active) T-2090(12d-active) T-2144(10d-active) T-1451(49d-active) T-1799(30d-active) T-1908(20d-active) T-2016(15d-active) T-1457(48d-active) (+32 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D13
     level: WARN
@@ -13,15 +13,14 @@ findings:
     mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
   - id: D3
     level: WARN
-    check: "D3: Commit velocity — WARN drop today=6 avg=67 ratio=0.1x"
+    check: "D3: Commit velocity — WARN drop today=18 avg=67 ratio=0.3x"
     mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — none (PASS 6_commits_24h_no_bunching)"
+    check: "D7: Commit bunching — none (PASS 18_commits_24h_no_bunching)"
   - id: D6
-    level: WARN
-    check: "D6: Completion velocity — sustained drop (drop recent_avg=0.7 vs earlier_avg=3.9)"
-    mitigation: "Check for blockers or process issues slowing work"
+    level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=2.7 earlier=3.9)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
@@ -36,7 +35,7 @@ findings:
     check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 6
-  warn: 4
+  pass: 7
+  warn: 3
   fail: 0
   total: 10

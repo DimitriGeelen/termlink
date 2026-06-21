@@ -2323,3 +2323,10 @@ learnings:
   date: 2026-06-21
   context: Added via context agent
   application: TBD
+- id: PL-224
+  learning: "When fixing a producer-side telemetry bug (e.g. a heartbeat that stops advancing), add a detector canary for that telemetry going stale — not just the producer fix. G-019 reflex: the framework stays blind to the bug class for as long as the bug exists. T-2230/T-2235 fixed the heartbeat producer; T-2239 added the frozen-husk canary that would have caught the original bug and will catch regressions / pre-fix field binaries."
+  source: P-001
+  task: T-2239
+  date: 2026-06-21
+  context: Added via context agent
+  application: TBD
