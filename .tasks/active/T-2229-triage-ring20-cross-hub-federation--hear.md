@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-21T09:37:18Z
-last_update: 2026-06-21T09:37:47Z
+last_update: 2026-06-21T09:40:30Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,9 +72,9 @@ registration time. This is the "frozen husks" symptom.
   rationale: PL-176 + G-060 + CLAUDE.md §"Channel Topic Semantics" all state TermLink has NO inter-hub federation primitive — never existed. Client-driven cross-post (`channel post --hub`) is the intended pattern; ring20's "beacon" IS that pattern, not a band-aid. Fault 1 is a consumer-expectation mismatch, not a termlink regression.
 
 - **IW-2: Is the heartbeat-freeze-on-hub-restart (fault 2) a real, bounded termlink bug worth a fix task?**
-  confidence: 2
-  disposition: deferred
-  rationale: ring20 evidence is strong (register PID alive, heartbeat==created across a hub restart 6 days later). Needs a local repro to confirm before filing a bounded build/bug task. Likely real liveness bug independent of fault 1.
+  confidence: 3
+  disposition: answered
+  rationale: CONFIRMED and broader than diagnosed — `termlink register` never advanced heartbeat_at at all (touch_heartbeat had zero production callers); the freeze was permanent, not restart-specific. Fixed in T-2230 (periodic heartbeat task + strict-advance regression test; cargo check + 24 session tests pass). PL-221 captured.
 
 - **IW-3: Should termlink expose an operator-facing federation enable/status verb, or is documenting client-driven cross-post sufficient?**
   confidence: 1
@@ -159,6 +159,12 @@ Confirmed high-severity, durable filing on framework:pickup (offset ~43) sitting
 <!-- Add evidence bullets as exploration progresses (file paths,
      commit hashes, test results). The filing-time recommendation
      can be revised before fw inception decide. -->
+
+- Fault 1 = working-as-designed: PL-176 / G-060 / CLAUDE.md §Channel Topic Semantics — no federation primitive exists; client-driven cross-post is the intended pattern. No code change.
+- Fault 2 = real bug, FIXED: T-2230 (commit b182a803) — periodic self-heartbeat in cmd_register; root cause was touch_heartbeat had zero production callers (registration.rs:325).
+- G-063 (root cause of the 27h drop) = closed: T-2231 framework:pickup freshness canary (empty-log=healthy, /canaries HEALTHY).
+- Replied to ring20 hub agent-chat-arc @ .122 (offset 2299).
+- Fault 3 (operator-facing federation status verb) = open operator decision (IW-3 deferred).
 
 ## Decisions
 

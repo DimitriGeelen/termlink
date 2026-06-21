@@ -2302,3 +2302,10 @@ learnings:
   date: 2026-06-13
   context: Added via context agent
   application: TBD
+- id: PL-221
+  learning: "A unit test that tolerates the buggy value is not coverage — assert the invariant, not just that the call returns Ok. termlink register's heartbeat was frozen forever because touch_heartbeat had zero production callers, and the existing test explicitly tolerated an unchanged timestamp ('second-resolution, may be equal'), so a permanently-frozen heartbeat passed CI. Fixed in T-2230 with a strict-advance regression test + periodic heartbeat task."
+  source: P-001
+  task: T-2230
+  date: 2026-06-21
+  context: Added via context agent
+  application: TBD
