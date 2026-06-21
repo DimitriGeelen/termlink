@@ -2316,3 +2316,10 @@ learnings:
   date: 2026-06-21
   context: Added via context agent
   application: TBD
+- id: PL-223
+  learning: "T-2230 heartbeat fix covers cmd_register (full PTY register, line ~294) but NOT cmd_register_self (--self event-only path, line ~341). Event-only endpoints registered with --self still never advance heartbeat_at and will appear as frozen husks to the hub sweep. Verified by live smoke 2026-06-21: --shell advances (+6s/6s @2s interval), --self does not."
+  source: P-001
+  task: T-2234
+  date: 2026-06-21
+  context: Added via context agent
+  application: TBD
