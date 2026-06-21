@@ -118,9 +118,15 @@ impl Endpoint {
             .with_registration_path(json_path.clone());
         let shared = Arc::new(RwLock::new(ctx));
 
+        // T-2235: keep heartbeat_at fresh for event-only (--self) endpoints, mirroring
+        // the PTY register path (T-2230). As a never-completing select branch it is
+        // cancelled automatically when the accept loop or shutdown signal wins.
+        let shared_hb = shared.clone();
+
         tokio::select! {
             _ = server::run_accept_loop(listener, shared) => {}
             _ = tokio::signal::ctrl_c() => {}
+            _ = heartbeat_loop(shared_hb) => {}
         }
 
         let _ = std::fs::remove_file(&socket_path);
@@ -138,8 +144,15 @@ impl Endpoint {
             .with_registration_path(json_path.clone());
         let shared = Arc::new(RwLock::new(ctx));
 
+        // T-2235: background endpoints heartbeat too. The heartbeat_loop is a
+        // never-completing select branch, so it is cancelled when the accept loop
+        // ends or the outer task is aborted via EndpointHandle::stop() — no leak.
+        let shared_hb = shared.clone();
         let task = tokio::spawn(async move {
-            server::run_accept_loop(listener, shared).await;
+            tokio::select! {
+                _ = server::run_accept_loop(listener, shared) => {}
+                _ = heartbeat_loop(shared_hb) => {}
+            }
         });
 
         EndpointHandle {
@@ -147,6 +160,33 @@ impl Endpoint {
             socket_path,
             json_path,
             session_id,
+        }
+    }
+}
+
+/// T-2235: periodic self-heartbeat for event-only (`--self`) endpoints.
+///
+/// Mirrors the PTY register-path heartbeat (T-2230): every
+/// `TERMLINK_HEARTBEAT_INTERVAL_SECS` seconds (default 30) it touches
+/// `heartbeat_at` both in-memory (read by `query.status`) and on-disk (read by
+/// the hub's directory sweep). Loops forever and is intended to be used as a
+/// never-completing branch in a `tokio::select!`, so it is cancelled cleanly
+/// when the accept loop or shutdown signal wins.
+async fn heartbeat_loop(shared: Arc<RwLock<SessionContext>>) {
+    let interval_secs = std::env::var("TERMLINK_HEARTBEAT_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(30);
+    let mut ticker = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+    ticker.tick().await; // consume the immediate first tick
+    loop {
+        ticker.tick().await;
+        let mut ctx = shared.write().await;
+        if let Some(path) = ctx.registration_path.clone() {
+            if let Err(e) = ctx.registration.touch_heartbeat(&path) {
+                tracing::warn!(error = %e, "T-2235: endpoint heartbeat touch failed");
+            }
         }
     }
 }
@@ -257,6 +297,62 @@ mod tests {
         assert_eq!(events[0]["payload"]["msg"], "hi");
 
         handle.stop();
+    }
+
+    #[tokio::test]
+    async fn endpoint_self_heartbeat_advances() {
+        // T-2235: event-only (--self) endpoints must advance heartbeat_at on-disk
+        // (the path the hub sweep reads) — otherwise they appear as frozen husks.
+        let dir = test_dir().join("hb-sessions");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Short interval so the test is fast. SAFETY: no test in this module
+        // asserts the 30s default; a faster heartbeat is harmless to the others.
+        unsafe {
+            std::env::set_var("TERMLINK_HEARTBEAT_INTERVAL_SECS", "1");
+        }
+
+        let endpoint = Endpoint::start_in(
+            SessionConfig {
+                display_name: Some("hb-endpoint".into()),
+                ..Default::default()
+            },
+            &dir,
+        )
+        .await
+        .unwrap();
+        let id = endpoint.id().clone();
+        let json_path = Registration::json_path(&dir, &id);
+        let handle = endpoint.run_background();
+
+        let read_hb = |p: &std::path::Path| -> u64 {
+            let s = std::fs::read_to_string(p).unwrap();
+            let v: serde_json::Value = serde_json::from_str(&s).unwrap();
+            v["heartbeat_at"]
+                .as_str()
+                .unwrap()
+                .trim_end_matches('Z')
+                .parse::<u64>()
+                .unwrap()
+        };
+
+        // Initial heartbeat from registration.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let hb0 = read_hb(&json_path);
+
+        // Wait for at least two 1s ticks.
+        tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+        let hb1 = read_hb(&json_path);
+
+        assert!(
+            hb1 > hb0,
+            "heartbeat_at must advance for --self endpoint: hb0={hb0} hb1={hb1}"
+        );
+
+        handle.stop();
+        unsafe {
+            std::env::remove_var("TERMLINK_HEARTBEAT_INTERVAL_SECS");
+        }
     }
 
     #[tokio::test]
