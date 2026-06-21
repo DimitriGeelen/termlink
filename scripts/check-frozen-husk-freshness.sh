@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# T-2239 — Frozen-husk regression canary (G-019 prevention for T-2230/T-2235).
+#
+# The T-2230/T-2235 arc fixed the *symptom* of "frozen husk" sessions: a process
+# that calls `termlink register` (or `register --self`) and never advances its
+# `heartbeat_at`. Before that arc, an ALIVE session could register once and then
+# sit forever with a stale heartbeat, and NOTHING in the framework surfaced it.
+# This canary closes that detection gap so a regression (or a field host still
+# running a pre-fix binary) is caught instead of silently rotting.
+#
+# Model: walk the local runtime_dir's session registrations
+# ($TERMLINK_RUNTIME_DIR/sessions/*.json). A "frozen husk" is a session whose
+#   - pid is ALIVE (kill -0 succeeds), AND
+#   - heartbeat_at is older than --threshold-secs (default 600; the heartbeat
+#     interval is 30s, so 600s is ~20 missed beats — well past any GC/scheduling
+#     slack and immune to flapping).
+# A live process that has stopped (or never started) heartbeating is exactly the
+# bug class T-2230/T-2235 fixed; post-fix it must never appear.
+#
+# Dead-pid registrations (process gone, JSON left behind) are a DIFFERENT class
+# (orphan cruft → deregister/cleanup, not the heartbeat bug). They are counted
+# and reported as informational context but do NOT fire the canary — gating on
+# them would be noisy (the sessions dir accumulates dead registrations over time).
+#
+# Empty output (in --quiet) = healthy — same convention as the mirror /
+# substrate-preflight / framework-pickup canaries. /canaries auto-discovers this
+# canary via the .heartbeat companion + the cron log.
+#
+# Exit codes:
+#   0  — healthy (no live frozen husks)
+#   1  — one or more live frozen husks detected
+#   2  — tooling error (no runtime dir / parse failure)
+#
+# Usage:
+#   check-frozen-husk-freshness.sh                  # human-readable, one-shot
+#   check-frozen-husk-freshness.sh --json           # JSON envelope for scripting
+#   check-frozen-husk-freshness.sh --quiet          # print only on firing (cron)
+#   check-frozen-husk-freshness.sh --threshold-secs N   # staleness gate (default 600)
+#   check-frozen-husk-freshness.sh --runtime-dir PATH   # override sessions root
+#   check-frozen-husk-freshness.sh --no-heartbeat   # suppress heartbeat touch
+
+set -eu
+
+RUNTIME_DIR="${TERMLINK_RUNTIME_DIR:-/var/lib/termlink}"
+HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.frozen-husk-canary.heartbeat}"
+THRESHOLD_SECS=600
+
+FORMAT=human
+QUIET=0
+HEARTBEAT=1
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --json)  FORMAT=json ;;
+        --quiet) QUIET=1 ;;
+        --no-heartbeat) HEARTBEAT=0 ;;
+        --threshold-secs) shift; THRESHOLD_SECS="${1:-600}" ;;
+        --threshold-secs=*) THRESHOLD_SECS="${1#*=}" ;;
+        --runtime-dir) shift; RUNTIME_DIR="${1:-/var/lib/termlink}" ;;
+        --runtime-dir=*) RUNTIME_DIR="${1#*=}" ;;
+        -h|--help) sed -n '2,46p' "$0"; exit 0 ;;
+        *) echo "unknown arg: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# Heartbeat first (prove the canary ran even on healthy/error cycles — T-1723).
+if [ "$HEARTBEAT" = 1 ]; then
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
+    touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
+fi
+
+SESS_DIR="$RUNTIME_DIR/sessions"
+if [ ! -d "$SESS_DIR" ]; then
+    # No sessions dir = no registrations on this host. Healthy (nothing to rot).
+    if [ "$QUIET" != 1 ]; then
+        if [ "$FORMAT" = json ]; then
+            printf '{"ok": true, "runtime_dir": "%s", "reason": "no sessions dir", "husks": [], "dead_orphans": 0}\n' "$RUNTIME_DIR"
+        else
+            echo "frozen-husk canary: healthy — no sessions dir at $SESS_DIR (nothing registered)"
+        fi
+    fi
+    exit 0
+fi
+
+# Parse all registration JSONs in python: classify each as frozen-husk / dead /
+# fresh. pid liveness is checked here via os.kill(pid, 0). Emits the rendered
+# report on stdout and a trailing "FIRE=<n>" sentinel line for the shell.
+REPORT="$(python3 - "$SESS_DIR" "$THRESHOLD_SECS" "$FORMAT" "$RUNTIME_DIR" <<'PY'
+import sys, os, json, glob, time
+
+sess_dir, threshold, fmt, runtime_dir = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+now = int(time.time())
+
+def parse_ts(v):
+    # heartbeat_at / created_at serialize as "<secs>Z"
+    if not isinstance(v, str):
+        return None
+    s = v.strip().rstrip('Z')
+    try:
+        return int(s)
+    except Exception:
+        return None
+
+def pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True   # exists, owned by someone else
+    except Exception:
+        return False
+
+def pid_is_termlink(pid):
+    # Guard against pid-recycle false positives: a dead session's pid may have
+    # been reused by an unrelated process. Confirm the live pid is actually a
+    # termlink process before calling it a husk. On Linux, read /proc cmdline.
+    # If /proc is unavailable (non-Linux) we cannot tell — return None so the
+    # caller falls back to liveness-only (best-effort, documented).
+    try:
+        with open("/proc/%d/cmdline" % int(pid), "rb") as f:
+            cmd = f.read().replace(b"\x00", b" ").decode("utf8", "replace").lower()
+        return "termlink" in cmd
+    except FileNotFoundError:
+        return False   # /proc exists but pid gone (raced) → not a husk
+    except Exception:
+        return None    # /proc unreadable → undecidable, fall back to liveness
+
+husks = []
+dead = 0
+total = 0
+for path in sorted(glob.glob(os.path.join(sess_dir, "*.json"))):
+    try:
+        m = json.load(open(path))
+    except Exception:
+        continue
+    total += 1
+    pid = m.get("pid")
+    hb = parse_ts(m.get("heartbeat_at"))
+    created = parse_ts(m.get("created_at"))
+    if pid is None or hb is None:
+        continue
+    age = now - hb
+    alive = pid_alive(pid)
+    if not alive:
+        if age > threshold:
+            dead += 1
+        continue
+    # alive — but is it really termlink, or a recycled pid?
+    is_tl = pid_is_termlink(pid)
+    if is_tl is False:
+        # live pid, but NOT a termlink process → recycled pid, the real session
+        # is gone. Treat as a dead orphan, not a frozen husk.
+        if age > threshold:
+            dead += 1
+        continue
+    # is_tl True (confirmed termlink) or None (undecidable → best-effort liveness)
+    if age > threshold:
+        husks.append({
+            "id": m.get("id"),
+            "display_name": m.get("display_name"),
+            "pid": pid,
+            "heartbeat_age_secs": age,
+            "never_advanced": (created is not None and created == hb),
+            "termlink_version": (m.get("metadata", {}) or {}).get("termlink_version"),
+        })
+
+husks.sort(key=lambda h: -h["heartbeat_age_secs"])
+
+if fmt == "json":
+    print(json.dumps({
+        "ok": len(husks) == 0,
+        "runtime_dir": runtime_dir,
+        "threshold_secs": threshold,
+        "total_registrations": total,
+        "dead_orphans": dead,
+        "husks": husks,
+    }))
+else:
+    if husks:
+        print("frozen-husk canary: %d live frozen husk(s) detected (heartbeat stale > %ds)" % (len(husks), threshold))
+        for h in husks:
+            na = " [heartbeat NEVER advanced]" if h["never_advanced"] else ""
+            ver = h["termlink_version"] or "?"
+            print("  %s  (%s)  pid=%s  age=%ds  v%s%s" % (
+                h["id"], h["display_name"], h["pid"], h["heartbeat_age_secs"], ver, na))
+        print("  → a live process registered but is not heartbeating — likely a pre-T-2230/T-2235")
+        print("    binary or a hung session. Upgrade its binary (>= 0.11.1359) and re-register,")
+        print("    or terminate+deregister the husk (termlink deregister <id>).")
+        if dead:
+            print("  (also %d dead-pid orphan registration(s) — cleanup, non-firing)" % dead)
+    # healthy text printed by the shell below (needs QUIET awareness)
+print("FIRE=%d" % len(husks))
+PY
+)" || { echo "frozen-husk canary: parse error" >&2; exit 2; }
+
+FIRE="$(printf '%s\n' "$REPORT" | sed -n 's/^FIRE=//p' | tail -1)"
+BODY="$(printf '%s\n' "$REPORT" | grep -v '^FIRE=' || true)"
+
+if [ "${FIRE:-0}" = 0 ]; then
+    if [ "$QUIET" != 1 ]; then
+        if [ "$FORMAT" = json ]; then
+            printf '%s\n' "$BODY"
+        else
+            echo "frozen-husk canary: healthy — no live frozen husks under $SESS_DIR"
+        fi
+    fi
+    exit 0
+fi
+
+# Firing — always print (including --quiet, so the cron log captures it).
+printf '%s\n' "$BODY"
+exit 1

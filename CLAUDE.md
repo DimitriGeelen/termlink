@@ -107,6 +107,34 @@ severity field would be fragile given the free-form YAML payloads (T-2225
 false-positive lesson). Pair with the mirror-drift and substrate-preflight
 canaries above — all three follow the same "empty-log = healthy" convention.
 
+### Frozen-husk canary (T-2239, G-019 prevention for T-2230/T-2235)
+
+The T-2230 + T-2235 arc fixed the *symptom* of "frozen husk" sessions: a live
+`termlink register` (or `register --self`) process that registers once and never
+advances its `heartbeat_at`. Before that arc the framework was structurally
+**blind** to the class — a live process could sit forever with a stale heartbeat
+and nothing surfaced it (G-019: fix the symptom, then ask "why was the framework
+blind?"). A daily cron runs `scripts/check-frozen-husk-freshness.sh --quiet` (see
+`.context/cron/frozen-husk-canary.crontab`) and appends to
+`.context/working/.frozen-husk-canary.log`. Empty log = healthy. Any entry =
+one or more LIVE termlink processes under the local `runtime_dir` have a
+heartbeat older than the threshold (default 600s ≈ 20 missed 30s beats).
+
+The canary walks `$TERMLINK_RUNTIME_DIR/sessions/*.json`; a "frozen husk" is a
+registration whose pid is alive **AND** confirmed to be a termlink process (via
+`/proc/<pid>/cmdline` — guards against pid-recycle false positives) **AND** whose
+`heartbeat_at` is stale beyond the threshold. Dead-pid and recycled-pid
+registrations are counted as orphan cruft (informational, non-firing) — they are
+a cleanup class, not the heartbeat bug. Ad-hoc check: `bash
+scripts/check-frozen-husk-freshness.sh` (exit 0 = healthy, 1 = live husk(s)
+detected, 2 = tooling error); `--json` for scripting, `--threshold-secs N` to
+tune. Operator action on firing: upgrade the host's binary to >= 0.11.1359 and
+re-register, or terminate + `termlink deregister <id>` the husk. A persistent
+husk on a current binary is a genuine T-2230/T-2235 regression — file a bug task.
+`/canaries` auto-discovers the log. Pair with the mirror-drift,
+substrate-preflight, and framework-pickup canaries above — all four follow the
+same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
