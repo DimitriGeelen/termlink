@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2235: T-2230 follow-up: add periodic heartbeat to cmd_register_self (--self event-only path)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-21T12:17:15Z
+# ============================================================================
+
+task_id: T-2235
+task_name: "T-2230 follow-up: add periodic heartbeat to cmd_register_self (--self event-only path)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T12:01:46Z
+completed: 2026-06-21T12:17:09Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-21T14:17:05+02:00
+last_commit: 2026-06-21T14:17:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add periodic heartbeat to --self event-only endpoints (Endpoint::run_until_shutdown/run_background)
+
+# Key outcomes
+outcomes:
+  - '`cmd_register_self` (--self event-only path) advances `heartbeat_at` periodically, via a `heartbeat_loop` added centrally in `Endpoint::run_until_shutdown` (and `run_background`), honoring `TERMLINK_HEARTBEAT_INTERVAL_SECS` (default 30s) — mirrors the T-2230 PTY-path fix'
+  - '`cargo test -p termlink-session` passes (339 unit + integration), including new `endpoint_self_heartbeat_advances` test exercising the endpoint path'
+  - 'Live smoke: `termlink register --self` @2s interval — on-disk heartbeat_at advanced 1782044154→1782044160 (+6s/6s)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/endpoint.rs'
+  - '.tasks/active/T-2235-t-2230-follow-up-add-periodic-heartbeat-.md'
+  - '.tasks/completed/T-2236-fleet-survey-which-hosts-run-pre-t-2230-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-21T14:17:05"
+    action: "T-2235: add periodic heartbeat to --self event-only endpoints (Endpoint::run_until_shutdown/run_background)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 3
+  lines_added: 299
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2235-t-2230-follow-up-add-periodic-heartbeat-.md
+generated_by: context-agent-hybrid

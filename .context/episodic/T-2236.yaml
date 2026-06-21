@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2236: Fleet survey: which hosts run pre-T-2230 termlink + plan heartbeat-fix rollout
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-21T12:07:37Z
+# ============================================================================
+
+task_id: T-2236
+task_name: "Fleet survey: which hosts run pre-T-2230 termlink + plan heartbeat-fix rollout"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T12:02:59Z
+completed: 2026-06-21T12:07:34Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-21T14:07:27+02:00
+last_commit: 2026-06-21T14:07:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet survey — .121 needs binary update, .122 needs restart, .107+local OK
+
+# Key outcomes
+outcomes:
+  - 'Enumerate the fleet (hubs.toml) and, for each reachable host, determine its running termlink version — done; 5 hubs, .141 unreachable, rest read via remote exec (table above)'
+  - 'Classify each host as fix-present (>=0.11.1359) or NEEDS-UPDATE (<0.11.1359), reporting the version per host — done (table above); .121 genuinely needs update, .122 needs restart, .107+local OK'
+  - 'Produce a rollout plan: hosts I own staged via fleet-deploy-binary.sh; ring20 self-deploys — local installed; .122 staged + restart-advised; .121 offered to stage on request; ring20 notified (offset 2306)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2236-fleet-survey-which-hosts-run-pre-t-2230-.md'
+  - '.tasks/completed/T-2234-install-t-2230-heartbeat-fix-binary-on-l.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-21T14:07:27"
+    action: "T-2236: fleet survey — .121 needs binary update, .122 needs restart, .107+local OK"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 197
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2236-fleet-survey-which-hosts-run-pre-t-2230-.md
+generated_by: context-agent-hybrid
