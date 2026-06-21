@@ -16,4 +16,4 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:37 UTC — offset to avoid the :13 mirror canary and :23/:53 heartbeats.
-37 6 * * * root bash scripts/check-framework-pickup-freshness.sh --quiet >> .context/working/.framework-pickup-canary.log 2>&1
+37 6 * * * root cd /opt/termlink && bash scripts/check-framework-pickup-freshness.sh --quiet >> .context/working/.framework-pickup-canary.log 2>&1
