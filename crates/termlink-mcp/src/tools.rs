@@ -368,6 +368,21 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Build the `{kind, value?}` retention JSON for the channel.* RPCs from an
+/// MCP-supplied kind string. Shared by channel.create / channel.set_retention
+/// so a new retention kind lands in both without a silent strip (PL-172).
+/// T-2245 added `latest_per_cv_key`.
+fn retention_json(kind: &str, value: Option<u64>) -> std::result::Result<serde_json::Value, String> {
+    Ok(match kind {
+        "forever" => serde_json::json!({"kind": "forever"}),
+        "days" => serde_json::json!({"kind": "days", "value": value.unwrap_or(30)}),
+        "messages" => serde_json::json!({"kind": "messages", "value": value.unwrap_or(1000)}),
+        "latest" => serde_json::json!({"kind": "latest"}),
+        "latest_per_cv_key" => serde_json::json!({"kind": "latest_per_cv_key"}),
+        other => return Err(format!("unknown retention_kind: {other}")),
+    })
+}
+
 // T-2075: per-topic aggregate over claims.log entries within window.
 // Mirror of GovernorHubAggMcp shape — different counters (kind taxonomy)
 // but identical aggregation pattern.
@@ -812,6 +827,8 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         ]),
         ("channel", vec![
             ("termlink_channel_create", "Create a new bus topic with optional ACL/metadata"),
+            ("termlink_channel_set_retention", "Change retention policy of an existing topic (T-2244). Storage-only — pair with termlink_channel_sweep to enforce."),
+            ("termlink_channel_sweep", "Enforce a topic's retention policy now, pruning out-of-policy records (T-2245). The explicit trigger the retention subsystem lacks."),
             ("termlink_channel_list", "List topics (optionally filter by --prefix)"),
             ("termlink_agent_find_idle", "T-2045: hub-derived idle-agent roster (LIVE presence ∖ active claimers). Orchestrator's 'who can I dispatch to?' primitive — pair with termlink_channel_claim for assignment."),
             ("termlink_agent_find_idle_history", "T-2082/T-2081: retrospective read of ~/.termlink/find-idle.log NDJSON audit trail. Per-agent aggregate of new/removed event counts within --since-days window. Answers 'is this worker flapping?' / 'when did claude-alpha go busy?'"),
@@ -7140,12 +7157,31 @@ pub struct InboxClearParams {
 pub struct ChannelCreateParams {
     /// Topic name (e.g. "broadcast:global", "channel:learnings")
     pub name: String,
-    /// Retention policy kind: "forever" | "days" | "messages" | "latest". Default: forever.
-    /// "latest" keeps only the single most-recent envelope — durable-storage
-    /// counterpart to the cv_index (T-2103) for single-value-per-topic patterns.
+    /// Retention policy kind: "forever" | "days" | "messages" | "latest" |
+    /// "latest_per_cv_key". Default: forever. "latest" keeps only the single
+    /// most-recent envelope; "latest_per_cv_key" (T-2245) keeps the most-recent
+    /// record per distinct metadata.cv_key — for current-state-per-agent topics
+    /// like agent-presence where record count should track agent COUNT.
     pub retention_kind: Option<String>,
-    /// Retention value for "days" or "messages" kinds. Ignored for "forever".
+    /// Retention value for "days" or "messages" kinds. Ignored for the others.
     pub retention_value: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSetRetentionParams {
+    /// Topic name (must already exist — use channel.create first)
+    pub name: String,
+    /// New retention kind: "forever" | "days" | "messages" | "latest" |
+    /// "latest_per_cv_key". Required (the whole point is to change it).
+    pub retention_kind: String,
+    /// Retention value for "days" or "messages" kinds. Ignored for the others.
+    pub retention_value: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct ChannelSweepParams {
+    /// Topic name (must already exist) whose retention policy to enforce now.
+    pub topic: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -17128,12 +17164,9 @@ impl TermLinkTools {
         if !hub_socket.exists() {
             return json_err("Hub is not running (no socket found)");
         }
-        let retention = match p.retention_kind.as_deref().unwrap_or("forever") {
-            "forever" => serde_json::json!({"kind": "forever"}),
-            "days" => serde_json::json!({"kind": "days", "value": p.retention_value.unwrap_or(30)}),
-            "messages" => serde_json::json!({"kind": "messages", "value": p.retention_value.unwrap_or(1000)}),
-            "latest" => serde_json::json!({"kind": "latest"}),
-            other => return json_err(format!("unknown retention_kind: {other}")),
+        let retention = match retention_json(p.retention_kind.as_deref().unwrap_or("forever"), p.retention_value) {
+            Ok(r) => r,
+            Err(e) => return json_err(e),
         };
         match termlink_session::client::rpc_call(
             &hub_socket,
@@ -17145,6 +17178,64 @@ impl TermLinkTools {
             Ok(resp) => match termlink_session::client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
                 Err(e) => json_err(format!("channel.create error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_set_retention",
+        description = "Change the retention policy of an ALREADY-EXISTING bus topic on the local hub (T-2244 / R2a). Unlike channel.create (which refuses a policy change on idempotent re-create), this is the explicit opt-in — e.g. move agent-presence off 'forever' to 'days' or 'latest_per_cv_key'. Storage-only: existing records are pruned on the next channel.sweep, not by this call. Errors on unknown topic (no stealth create)."
+    )]
+    async fn termlink_channel_set_retention(
+        &self,
+        Parameters(p): Parameters<ChannelSetRetentionParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        let retention = match retention_json(&p.retention_kind, p.retention_value) {
+            Ok(r) => r,
+            Err(e) => return json_err(e),
+        };
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_SET_RETENTION,
+            serde_json::json!({"name": p.name, "retention": retention}),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.set_retention error: {e}")),
+            },
+            Err(e) => json_err(format!("RPC call failed: {e}")),
+        }
+    }
+
+    #[tool(
+        name = "termlink_channel_sweep",
+        description = "Enforce a bus topic's retention policy NOW on the local hub, pruning records that fall outside it (T-2245 / R2b). The explicit trigger the retention subsystem otherwise lacks: channel.create / channel.set_retention only PERSIST a policy — nothing prunes until you sweep (the bus runs no background thread). Enforces whatever policy is set (days / messages / latest / latest_per_cv_key). Returns {ok, topic, pruned}. Errors on unknown topic."
+    )]
+    async fn termlink_channel_sweep(
+        &self,
+        Parameters(p): Parameters<ChannelSweepParams>,
+    ) -> String {
+        let hub_socket = termlink_hub::server::hub_socket_path();
+        if !hub_socket.exists() {
+            return json_err("Hub is not running (no socket found)");
+        }
+        match termlink_session::client::rpc_call(
+            &hub_socket,
+            termlink_protocol::control::method::CHANNEL_SWEEP,
+            serde_json::json!({"topic": p.topic}),
+        )
+        .await
+        {
+            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
+                Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
+                Err(e) => json_err(format!("channel.sweep error: {e}")),
             },
             Err(e) => json_err(format!("RPC call failed: {e}")),
         }
