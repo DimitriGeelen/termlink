@@ -6,19 +6,21 @@
 # `termlink register` / `register --self` process that never advances its
 # heartbeat_at. Before that arc the framework was structurally blind to the class.
 # This daily canary walks the local runtime_dir's session registrations and fires
-# (exit 1) if any LIVE termlink process has a heartbeat older than 600s — exactly
-# the regression those tasks closed, or a field host still on a pre-fix binary.
-# Dead-pid / recycled-pid registrations are counted as orphans, not fired on.
-# Empty log = healthy (same convention as the mirror / substrate-preflight /
-# framework-pickup canaries). /canaries auto-discovers this log.
+# (exit 1) if any LIVE termlink process whose binary HAS the heartbeat fix
+# (>= 0.11.1359) nonetheless has a stale heartbeat — a genuine T-2230/T-2235
+# regression. Runs with --regressions-only (T-2240): pre-fix husks (old binaries
+# that never had the heartbeat feature) are a known upgrade-backlog, NOT an
+# incident, so they do NOT spam the daily log — keeping "empty log = healthy"
+# meaningful while the fleet still has old binaries in the field. Dead-pid /
+# recycled-pid registrations are counted as orphans, not fired on. /canaries
+# auto-discovers this log.
 #
-# Operator action on firing: identify the husk(s) in the log; upgrade the host's
-# termlink binary to >= 0.11.1359 and re-register, or terminate + `termlink
-# deregister <id>` the husk. A persistent husk on a current binary is a genuine
-# T-2230/T-2235 regression — file a bug task.
+# Operator action on firing: a regression husk means the fix is present but the
+# heartbeat froze anyway — file a bug task. (To audit the pre-fix upgrade-backlog
+# ad-hoc, run without --regressions-only: `bash scripts/check-frozen-husk-freshness.sh`.)
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:43 UTC — offset from the :13 mirror, :37 framework-pickup canaries
 # and the :23/:53 heartbeats.
-43 6 * * * root cd /opt/termlink && bash scripts/check-frozen-husk-freshness.sh --quiet >> .context/working/.frozen-husk-canary.log 2>&1
+43 6 * * * root cd /opt/termlink && bash scripts/check-frozen-husk-freshness.sh --regressions-only --quiet >> .context/working/.frozen-husk-canary.log 2>&1

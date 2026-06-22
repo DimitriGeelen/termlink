@@ -125,15 +125,30 @@ registration whose pid is alive **AND** confirmed to be a termlink process (via
 `/proc/<pid>/cmdline` — guards against pid-recycle false positives) **AND** whose
 `heartbeat_at` is stale beyond the threshold. Dead-pid and recycled-pid
 registrations are counted as orphan cruft (informational, non-firing) — they are
-a cleanup class, not the heartbeat bug. Ad-hoc check: `bash
-scripts/check-frozen-husk-freshness.sh` (exit 0 = healthy, 1 = live husk(s)
-detected, 2 = tooling error); `--json` for scripting, `--threshold-secs N` to
-tune. Operator action on firing: upgrade the host's binary to >= 0.11.1359 and
-re-register, or terminate + `termlink deregister <id>` the husk. A persistent
-husk on a current binary is a genuine T-2230/T-2235 regression — file a bug task.
-`/canaries` auto-discovers the log. Pair with the mirror-drift,
-substrate-preflight, and framework-pickup canaries above — all four follow the
-same "empty-log = healthy" convention.
+a cleanup class, not the heartbeat bug.
+
+**Two husk classes (T-2240).** Each husk is classified by its registered
+`termlink_version` against the fix threshold (>= `0.11.1359`, tunable via
+`FROZEN_HUSK_FIX_VERSION`):
+- **REGRESSION** — binary HAS the fix yet the heartbeat froze anyway. The
+  alarming case the canary exists to catch; file a bug task.
+- **pre-fix** — binary predates the fix (e.g. `v0.9.0`) or version is unknown.
+  A frozen heartbeat is EXPECTED; remediation is a binary upgrade (a known
+  upgrade-backlog, not an incident).
+
+The **daily cron runs with `--regressions-only`**, so the log accumulates ONLY
+on genuine regressions — pre-fix husks (old binaries still in the field) do not
+spam it, keeping "empty log = healthy" meaningful during a fleet upgrade. The
+default (no flag) fires on ANY husk (back-compat with T-2239). Ad-hoc check:
+`bash scripts/check-frozen-husk-freshness.sh` (exit 0 = healthy / no firing,
+1 = firing husk(s), 2 = tooling error); add `--regressions-only` to fire only on
+post-fix regressions, `--json` for scripting (carries `class` per husk +
+`regression_count` / `prefix_count`), `--threshold-secs N` to tune staleness.
+Operator action: a REGRESSION is a genuine T-2230/T-2235 regression (bug task);
+a pre-fix husk wants a binary upgrade to >= `0.11.1359` + re-register, or
+terminate + `termlink deregister <id>`. `/canaries` auto-discovers the log. Pair
+with the mirror-drift, substrate-preflight, and framework-pickup canaries above —
+all four follow the same "empty-log = healthy" convention.
 
 ## Project-Specific Rules
 
