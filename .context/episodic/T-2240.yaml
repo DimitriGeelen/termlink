@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2240: Frozen-husk canary: version-aware classification + --regressions-only (separate pre-fix upgrade-backlog from genuine post-fix regressions)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-22T02:36:24Z
+# ============================================================================
+
+task_id: T-2240
+task_name: "Frozen-husk canary: version-aware classification + --regressions-only (separate pre-fix upgrade-backlog from genuine post-fix regressions)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-22T02:31:48Z
+completed: 2026-06-22T02:36:21Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-22T04:36:01+02:00
+last_commit: 2026-06-22T04:36:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  frozen-husk canary version-aware classification + --regressions-only (separate pre-fix upgrade-backlog from genuine regressions)
+
+# Key outcomes
+outcomes:
+  - 'Canary parses each husk''s termlink_version and classifies it pre-fix (< 0.11.1359 or unknown) vs regression (>= 0.11.1359) — version_tuple + classify()'
+  - 'Human output labels each husk [REGRESSION] or [pre-fix vX — upgrade]; JSON envelope carries a `class` field + `regression_count` / `prefix_count` — verified v3'
+  - 'New --regressions-only flag fires (exit 1) ONLY on regression husks; pre-fix husks become informational (exit 0) so the cron log stays empty when only known-old husks exist — proven w/ fabricated post-fix husk (exit 1) + quiet test (no output, exit 0)'
+  - 'Default (no flag) preserves T-2239 behaviour: any husk fires exit 1 (back-compat); --help documents the new flag — default still exits 1 on the 11 husks'
+  - 'Cron crontab updated to use --regressions-only (daily log = genuine regressions only); CLAUDE.md doc updated to explain the two classes — reinstalled to /etc/cron.d'
+  - 'Verified live: with 11 v0.9.0 husks present, --regressions-only exits 0 (no regressions); default still exits 1'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'frozen-husk canary version-aware classification + --regressions-only (separate pre-fix upgrade-backlog from genuine regressions)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/frozen-husk-canary.crontab'
+  - 'scripts/check-frozen-husk-freshness.sh'
+  - '.tasks/active/T-2240-frozen-husk-canary-version-aware-classif.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-22T04:36:01"
+    action: "T-2240: frozen-husk canary version-aware classification + --regressions-only (separate pre-fix upgrade-backlog from genuine regressions)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 313
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2240-frozen-husk-canary-version-aware-classif.md
+generated_by: context-agent-hybrid
