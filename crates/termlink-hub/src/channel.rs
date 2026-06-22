@@ -367,7 +367,7 @@ pub(crate) async fn handle_channel_create_with(
         tracing::warn!(
             topic = %name,
             retention = "forever",
-            "channel.create on high-rate topic with Retention::Forever — consider Messages(N) (e.g. Messages(200) for agent-presence) to prevent silent topic growth (T-1991 / G-058)"
+            "channel.create on high-rate topic with Retention::Forever — for per-agent state like agent-presence prefer LatestPerCvKey (compacts to one record per cv_key — closes T-1991 count-scaling, T-2245); for stream topics use Messages(N). Prevents silent topic growth (T-1991 / G-058)"
         );
     }
     // T-2145: sibling warn for the single-value-state pattern (`state:*`)
