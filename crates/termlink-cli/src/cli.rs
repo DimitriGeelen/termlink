@@ -1833,9 +1833,26 @@ pub(crate) enum ChannelAction {
         /// Topic name (must already exist — `channel create` first if not)
         name: String,
 
-        /// New retention: "forever", "days:N", "messages:N", or "latest"
+        /// New retention: "forever", "days:N", "messages:N", "latest", or "latest-per-cv-key"
         #[arg(long)]
         retention: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Enforce a topic's retention policy NOW, pruning records outside it
+    /// (T-2245 / R2b). The explicit trigger for retention: `create` /
+    /// `set-retention` only PERSIST a policy — nothing prunes until you sweep
+    /// (the bus runs no background thread). Operator- or cron-invoked. Enforces
+    /// whatever policy is set (days / messages / latest / latest-per-cv-key).
+    Sweep {
+        /// Topic name (must already exist)
+        name: String,
 
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]

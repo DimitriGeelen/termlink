@@ -297,6 +297,7 @@ fn retention_from_json(val: &Value) -> Option<Retention> {
             Some(Retention::Messages(n))
         }
         "latest" => Some(Retention::Latest),
+        "latest_per_cv_key" => Some(Retention::LatestPerCvKey),
         _ => None,
     }
 }
@@ -307,6 +308,7 @@ fn retention_to_json(r: Retention) -> Value {
         Retention::Days(d) => json!({"kind": "days", "value": d}),
         Retention::Messages(n) => json!({"kind": "messages", "value": n}),
         Retention::Latest => json!({"kind": "latest"}),
+        Retention::LatestPerCvKey => json!({"kind": "latest_per_cv_key"}),
     }
 }
 
@@ -450,6 +452,49 @@ pub(crate) async fn handle_channel_set_retention_with(
         Err(e) => {
             ErrorResponse::internal_error(id, &format!("channel.set_retention: {e}")).into()
         }
+    }
+}
+
+/// `channel.sweep(topic)` — enforce the topic's retention policy NOW,
+/// pruning records outside it. The explicit trigger for the retention
+/// subsystem (T-2245 / R2b): create/set_retention only persist a policy;
+/// nothing prunes until this runs (no background sweep thread, T-1155).
+pub async fn handle_channel_sweep(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_sweep_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_sweep_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    match bus.sweep(topic, now) {
+        Ok(pruned) => Response::success(
+            id,
+            json!({ "ok": true, "topic": topic, "pruned": pruned }),
+        )
+        .into(),
+        // Unknown topic is an explicit error (no stealth create), matching
+        // set_retention's contract.
+        Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
+            id,
+            -32602,
+            &format!("channel.sweep: unknown topic '{topic}' (use channel.create first)"),
+        )
+        .into(),
+        Err(e) => ErrorResponse::internal_error(id, &format!("channel.sweep: {e}")).into(),
     }
 }
 
@@ -2213,6 +2258,73 @@ mod tests {
         let (_d, bus) = tmp_bus();
         bus.create_topic("t", Retention::Forever).unwrap();
         let resp = handle_channel_set_retention_with(&bus, json!(1), &json!({"name": "t"})).await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602);
+    }
+
+    // === T-2245 (R2b): latest_per_cv_key retention + channel.sweep trigger ===
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_retention_latest_per_cv_key_roundtrips() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let resp = handle_channel_set_retention_with(
+            &bus,
+            json!(1),
+            &json!({"name": "agent-presence", "retention": {"kind": "latest_per_cv_key"}}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["retention"]["kind"], "latest_per_cv_key");
+        assert_eq!(
+            bus.topic_retention("agent-presence").unwrap(),
+            Some(Retention::LatestPerCvKey)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sweep_enforces_latest_per_cv_key_and_reports_pruned() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::LatestPerCvKey).unwrap();
+        // 2 agents × 3 beats = 6 keyed records.
+        for round in 0..3 {
+            for key in ["alpha", "beta"] {
+                let mut metadata = std::collections::BTreeMap::new();
+                metadata.insert("cv_key".to_string(), key.to_string());
+                let env = Envelope {
+                    topic: "agent-presence".to_string(),
+                    sender_id: key.to_string(),
+                    msg_type: "presence".to_string(),
+                    payload: format!("{key}-{round}").into_bytes(),
+                    artifact_ref: None,
+                    ts_unix_ms: round,
+                    metadata,
+                };
+                bus.post("agent-presence", &env).await.unwrap();
+            }
+        }
+        let resp =
+            handle_channel_sweep_with(&bus, json!(1), &json!({"topic": "agent-presence"})).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["pruned"], 4, "6 beats - 2 keys = 4 pruned");
+        // PROPERTY: record count converges to the agent count.
+        assert_eq!(bus.topic_record_count("agent-presence").unwrap(), 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sweep_unknown_topic_errors_not_creates() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_sweep_with(&bus, json!(1), &json!({"topic": "no-such"})).await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602, "unknown topic is a clear error, not a stealth create");
+        assert_eq!(bus.topic_retention("no-such").unwrap(), None);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sweep_missing_topic_param_is_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_sweep_with(&bus, json!(1), &json!({})).await;
         let (code, _) = unwrap_error(resp);
         assert_eq!(code, -32602);
     }

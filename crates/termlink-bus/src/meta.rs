@@ -285,6 +285,31 @@ impl Meta {
         Ok(deleted)
     }
 
+    /// Delete the specific `offsets` from `topic` in a single transaction.
+    /// Index-only delete (log file bytes remain — same convention as
+    /// `sweep_records`/`trim_records`). Offsets not present are skipped.
+    /// Empty input is a no-op. Used by the per-cv_key compaction sweep
+    /// (`Bus::compact_per_cv_key`, R2b/T-2245) which computes the exact
+    /// stale-record set in the bus layer and asks the meta layer to remove it.
+    /// Returns count actually deleted.
+    pub(crate) fn delete_records_at(&self, topic: &str, offsets: &[u64]) -> Result<u64> {
+        if offsets.is_empty() {
+            return Ok(0);
+        }
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let mut deleted: u64 = 0;
+        {
+            let mut stmt =
+                tx.prepare("DELETE FROM records WHERE topic = ?1 AND offset = ?2")?;
+            for off in offsets {
+                deleted += stmt.execute(params![topic, *off as i64])? as u64;
+            }
+        }
+        tx.commit()?;
+        Ok(deleted)
+    }
+
     /// T-2029: attempt to claim `(topic, offset)` for `claimer` until
     /// `now_ms + ttl_ms`. Lazily evicts any prior claim past its
     /// `claimed_until` before inserting. Returns `ClaimConflict` when an

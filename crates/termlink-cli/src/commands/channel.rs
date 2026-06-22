@@ -140,6 +140,12 @@ fn parse_retention(spec: &str) -> Result<Value> {
     if spec == "latest" {
         return Ok(json!({"kind": "latest"}));
     }
+    // R2b (T-2245): compact-to-latest-per-cv_key. Accept the operator-friendly
+    // hyphenated spelling (and a `compact-per-key` alias); both map to the
+    // stable wire kind `latest_per_cv_key`.
+    if spec == "latest-per-cv-key" || spec == "compact-per-key" {
+        return Ok(json!({"kind": "latest_per_cv_key"}));
+    }
     if let Some(n_str) = spec.strip_prefix("days:") {
         let n: u32 = n_str.parse().context("days:N must be a positive integer")?;
         return Ok(json!({"kind": "days", "value": n}));
@@ -149,7 +155,7 @@ fn parse_retention(spec: &str) -> Result<Value> {
         return Ok(json!({"kind": "messages", "value": n}));
     }
     anyhow::bail!(
-        "retention must be 'forever', 'latest', 'days:N', or 'messages:N' (got: {spec})"
+        "retention must be 'forever', 'latest', 'latest-per-cv-key', 'days:N', or 'messages:N' (got: {spec})"
     );
 }
 
@@ -388,6 +394,30 @@ pub(crate) async fn cmd_channel_set_retention(
             "Set retention for topic '{}' to {} (run a sweep to enforce against existing records)",
             name, retention
         );
+    }
+    Ok(())
+}
+
+/// `channel sweep <name>` — enforce the topic's retention policy NOW, pruning
+/// records that fall outside it (T-2245 / R2b). The explicit trigger the
+/// retention subsystem otherwise lacks: create/set-retention only persist a
+/// policy. Operator- or cron-invoked.
+pub(crate) async fn cmd_channel_sweep(
+    name: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
+    let resp = rpc_call_authed(&sock, method::CHANNEL_SWEEP, json!({"topic": name}))
+        .await
+        .context("Hub rpc_call failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.sweep: {e}"))?;
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        let pruned = result.get("pruned").and_then(|v| v.as_u64()).unwrap_or(0);
+        println!("Swept topic '{name}': pruned {pruned} record(s)");
     }
     Ok(())
 }

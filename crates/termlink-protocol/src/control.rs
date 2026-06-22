@@ -112,6 +112,16 @@ pub mod method {
     /// create). Params: `{ name, retention: {kind, value?} }`.
     pub const CHANNEL_SET_RETENTION: &str = "channel.set_retention";
 
+    /// Tier-A — enforce a topic's retention policy NOW, pruning records that
+    /// fall outside it (T-2245 / R2b). The explicit trigger for the otherwise
+    /// inert retention subsystem: `channel.create` / `channel.set_retention`
+    /// only PERSIST a policy; nothing enforces it until this is called (the bus
+    /// runs no background sweep thread, per T-1155). Operator- or cron-invoked.
+    /// Enforces whatever policy is set (days / messages / latest /
+    /// latest_per_cv_key). Unknown topic returns an error. Params: `{ topic }`
+    /// → `{ ok, topic, pruned }`.
+    pub const CHANNEL_SWEEP: &str = "channel.sweep";
+
     /// Tier-A — append a signed envelope to a topic.
     /// Params: `{ topic, msg_type, payload_b64, artifact_ref?, ts, sender_id, sender_pubkey_hex, signature_hex }`.
     /// Hub verifies `signature_hex` against `sender_pubkey_hex` over the canonical bytes

@@ -761,6 +761,9 @@ async fn main() -> Result<()> {
             ChannelAction::SetRetention { name, retention, hub, json } => {
                 commands::channel::cmd_channel_set_retention(&name, &retention, hub.as_deref(), json).await
             }
+            ChannelAction::Sweep { name, hub, json } => {
+                commands::channel::cmd_channel_sweep(&name, hub.as_deref(), json).await
+            }
             ChannelAction::Post {
                 topic,
                 msg_type,

@@ -636,6 +636,9 @@ impl Bus {
         };
         let (keep_after, keep_last) = match retention {
             Retention::Forever => return Ok(0),
+            // Per-key compaction cannot be expressed as a (keep_after, keep_last)
+            // tuple — it groups by cv_key — so it has its own routine.
+            Retention::LatestPerCvKey => return self.compact_per_cv_key(topic),
             Retention::Days(d) => {
                 let cutoff = now_unix_ms - i64::from(d) * 86_400_000;
                 (Some(cutoff), None)
@@ -644,6 +647,62 @@ impl Bus {
             Retention::Latest => (None, Some(1)),
         };
         self.meta.sweep_records(topic, keep_after, keep_last)
+    }
+
+    /// Compaction sweep for [`Retention::LatestPerCvKey`]: keep only the
+    /// highest-offset record per distinct `metadata.cv_key`, deleting the
+    /// older records that share a key. Records carrying no (or empty) cv_key
+    /// are **retained** — un-keyed data is never silently dropped. Returns the
+    /// number of records pruned.
+    ///
+    /// cv_key is recovered by reading each record's envelope from the log
+    /// (`metadata` lives in the envelope blob); no `records`-table schema
+    /// column is required, and the sweep works on records written before this
+    /// mode existed. The sweep is on-demand only (the library runs no
+    /// background thread), so the O(N) envelope reads are paid exactly when an
+    /// operator chooses to shrink the topic. After one compaction the live set
+    /// is one record per key, so subsequent sweeps only re-scan that small set
+    /// plus whatever has been posted since.
+    ///
+    /// R2b / T-2245 — the only retention mode that closes the T-1991
+    /// agent-*count* scaling problem for `agent-presence`-style topics.
+    pub fn compact_per_cv_key(&self, topic: &str) -> Result<u64> {
+        let locs = self.meta.records_from(topic, 0)?;
+        // cv_key -> highest offset seen for that key.
+        let mut latest: HashMap<String, Offset> = HashMap::new();
+        // Every (offset, cv_key) for records that carry a cv_key, so we can
+        // compute the delete set = keyed records that are not their key's latest.
+        let mut keyed: Vec<(Offset, String)> = Vec::with_capacity(locs.len());
+        for loc in &locs {
+            let env = match self.envelope_at(topic, loc.offset)? {
+                Some(e) => e,
+                // Index row with no recoverable blob (e.g. truncated log); leave
+                // it alone rather than guess — compaction must not destroy data
+                // it cannot read.
+                None => continue,
+            };
+            match env.metadata.get("cv_key") {
+                Some(cv) if !cv.is_empty() => {
+                    keyed.push((loc.offset, cv.clone()));
+                    latest
+                        .entry(cv.clone())
+                        .and_modify(|o| {
+                            if loc.offset > *o {
+                                *o = loc.offset;
+                            }
+                        })
+                        .or_insert(loc.offset);
+                }
+                // No cv_key (or empty): retained, not compacted.
+                _ => {}
+            }
+        }
+        let to_delete: Vec<Offset> = keyed
+            .iter()
+            .filter(|(off, cv)| latest.get(cv).is_some_and(|latest_off| off != latest_off))
+            .map(|(off, _)| *off)
+            .collect();
+        self.meta.delete_records_at(topic, &to_delete)
     }
 
     fn appender_for(&self, topic: &str) -> Result<Arc<log::LogAppender>> {
@@ -860,6 +919,85 @@ mod tests {
             .collect();
         assert_eq!(offsets, vec![4]);
         assert_eq!(bus.topic_retention("t").unwrap(), Some(Retention::Latest));
+    }
+
+    fn env_cv(topic: &str, payload: &[u8], cv_key: &str) -> Envelope {
+        let mut e = env(topic, payload);
+        e.metadata.insert("cv_key".to_string(), cv_key.to_string());
+        e
+    }
+
+    #[tokio::test]
+    async fn compact_per_cv_key_keeps_exactly_one_record_per_key() {
+        // R2b / T-2245 — PROPERTY assertion (PL-213): post M heartbeats across
+        // K distinct cv_keys (M >> K). After compaction EXACTLY K keyed records
+        // remain — one per key, each the latest offset for that key — proving
+        // record count converges to agent *count*, not heartbeat count (T-1991).
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::LatestPerCvKey).unwrap();
+        // Round-trip of the new policy through SQLite (kind/value/from_parts).
+        assert_eq!(
+            bus.topic_retention("agent-presence").unwrap(),
+            Some(Retention::LatestPerCvKey)
+        );
+
+        let keys = ["alpha", "beta", "gamma"]; // K = 3
+        for round in 0..4u32 {
+            // M = 12 keyed beats
+            for k in &keys {
+                bus.post("agent-presence", &env_cv("agent-presence", format!("{k}-{round}").as_bytes(), k))
+                    .await
+                    .unwrap();
+            }
+        }
+        // One un-keyed record (offset 12) — must be RETAINED, never silently dropped.
+        bus.post("agent-presence", &env("agent-presence", b"no-key")).await.unwrap();
+        assert_eq!(bus.topic_record_count("agent-presence").unwrap(), 13);
+
+        let pruned = bus.sweep("agent-presence", 0).unwrap();
+        assert_eq!(pruned, 9, "12 keyed beats - 3 keys = 9 stale beats pruned");
+
+        // Survivors: latest offset per key {alpha:9, beta:10, gamma:11} + un-keyed 12.
+        let survivors: Vec<u64> = bus
+            .subscribe("agent-presence", 0)
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        assert_eq!(survivors, vec![9, 10, 11, 12]);
+        // PROPERTY: keyed record count == distinct key count, exactly.
+        let keyed_survivors = survivors.len() - 1; // minus the un-keyed record
+        assert_eq!(keyed_survivors, keys.len());
+
+        // Each surviving keyed record is its key's freshest payload.
+        for off in [9u64, 10, 11] {
+            let env = bus.envelope_at("agent-presence", off).unwrap().unwrap();
+            let cv = env.metadata.get("cv_key").unwrap();
+            assert_eq!(env.payload, format!("{cv}-3").into_bytes(), "latest round survives");
+        }
+    }
+
+    #[tokio::test]
+    async fn compact_per_cv_key_is_idempotent_and_handles_empty() {
+        // A second sweep on an already-compact topic prunes nothing; an empty
+        // topic and an all-un-keyed topic both prune nothing (no silent drops).
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("p", Retention::LatestPerCvKey).unwrap();
+        // Empty topic.
+        assert_eq!(bus.sweep("p", 0).unwrap(), 0);
+        // All un-keyed: retained.
+        for i in 0..3 {
+            bus.post("p", &env("p", format!("u{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.sweep("p", 0).unwrap(), 0, "un-keyed records are never dropped");
+        assert_eq!(bus.topic_record_count("p").unwrap(), 3);
+        // Keyed: one key, three beats -> compacts to 1, second sweep is a no-op.
+        bus.create_topic("q", Retention::LatestPerCvKey).unwrap();
+        for i in 0..3 {
+            bus.post("q", &env_cv("q", format!("a{i}").as_bytes(), "a")).await.unwrap();
+        }
+        assert_eq!(bus.sweep("q", 0).unwrap(), 2);
+        assert_eq!(bus.sweep("q", 0).unwrap(), 0, "idempotent: already compact");
+        assert_eq!(bus.topic_record_count("q").unwrap(), 1);
     }
 
     #[tokio::test]

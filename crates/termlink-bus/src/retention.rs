@@ -16,6 +16,16 @@ pub enum Retention {
     /// single-value state). Semantically equivalent to `Messages(1)` with an
     /// explicit name — disambiguates intent at topic creation time.
     Latest,
+    /// Keep only the most-recent envelope **per distinct `metadata.cv_key`**.
+    /// The durable-storage counterpart to the in-memory cv_index keyed view
+    /// (T-2107): for current-state-per-key topics like `agent-presence`, where
+    /// the live set is "one record per agent", record count converges to the
+    /// number of distinct keys (agent *count*) rather than the number of
+    /// heartbeats. This is the only retention mode that closes the T-1991
+    /// agent-count scaling problem (`Latest` would collapse the whole topic to
+    /// a single record, losing all but one agent). Records carrying no cv_key
+    /// are retained — un-keyed data is never silently dropped (R2b, T-2245).
+    LatestPerCvKey,
 }
 
 impl Retention {
@@ -27,6 +37,7 @@ impl Retention {
             Retention::Days(_) => "days",
             Retention::Messages(_) => "messages",
             Retention::Latest => "latest",
+            Retention::LatestPerCvKey => "latest_per_cv_key",
         }
     }
 
@@ -37,6 +48,7 @@ impl Retention {
             Retention::Days(d) => i64::from(*d),
             Retention::Messages(m) => *m as i64,
             Retention::Latest => 0,
+            Retention::LatestPerCvKey => 0,
         }
     }
 
@@ -46,6 +58,7 @@ impl Retention {
             "days" => u32::try_from(value).ok().map(Retention::Days),
             "messages" => u64::try_from(value).ok().map(Retention::Messages),
             "latest" => Some(Retention::Latest),
+            "latest_per_cv_key" => Some(Retention::LatestPerCvKey),
             _ => None,
         }
     }
