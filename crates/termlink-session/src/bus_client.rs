@@ -199,15 +199,37 @@ impl BusClient {
                         // bump and break (preserves the no-busy-loop behavior
                         // for transient errors / restart races).
                         if attempts + 1 >= POISON_THRESHOLD {
+                            // T-2243 (R4): MOVE the poison post into the durable
+                            // dead-letter store instead of the old bare `pop()`
+                            // that silently lost it. A governance-plane "complete"
+                            // rejected during a hub blip now surfaces in
+                            // `queue-status`, recoverable, rather than vanishing
+                            // with only this trace.
+                            let reason = format!(
+                                "hub rejected after {} attempts: {e}",
+                                attempts + 1
+                            );
                             tracing::warn!(
                                 queue_id = id.0,
                                 attempts = attempts + 1,
                                 topic = %post.topic,
                                 msg_type = %post.msg_type,
                                 error = %e,
-                                "flush: dropping poison post after {POISON_THRESHOLD} hub-reject attempts"
+                                "flush: dead-lettering poison post after {POISON_THRESHOLD} hub-reject attempts"
                             );
-                            let _ = self.queue.pop(id);
+                            if let Err(de) = self.queue.dead_letter(id, &reason) {
+                                // Dead-letter write itself failed (disk/SQLite
+                                // broken). Fall back to a drop so a single poison
+                                // entry can't head-block the whole queue forever,
+                                // but make the loss LOUD (error, not the silent
+                                // debug the old path used).
+                                tracing::error!(
+                                    queue_id = id.0,
+                                    error = %de,
+                                    "flush: dead-letter write failed; dropping poison post to avoid head-of-line block"
+                                );
+                                let _ = self.queue.pop(id);
+                            }
                             report.dropped_poison += 1;
                             // Continue draining — don't let the poison
                             // permanently block subsequent entries.
@@ -348,6 +370,88 @@ mod tests {
 
         drop(client);
         let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+    }
+
+    #[tokio::test]
+    async fn flush_poison_dead_letters_instead_of_silent_drop() {
+        // T-2243 (R4): end-to-end proof that the flush loop's poison-drop
+        // now lands in the durable dead-letter store, not a bare DELETE.
+        // We point the BusClient at the in-process session server, which
+        // answers `channel.post` with a JSON-RPC error (-32601 method-not-
+        // found) — i.e. a hub-REJECT (not a transport failure). Each flush
+        // bumps the head entry's attempt count; once POISON_THRESHOLD is
+        // crossed the entry must be dead-lettered, recoverable.
+        use crate::handler::SessionContext;
+        use crate::registration::{Registration, SessionConfig};
+        use crate::server;
+        use crate::{SessionId, SessionState};
+        use std::sync::atomic::{AtomicU32, Ordering};
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        static C: AtomicU32 = AtomicU32::new(0);
+        let n = C.fetch_add(1, Ordering::Relaxed);
+        let socket_path =
+            std::path::PathBuf::from(format!("/tmp/tl-busdl-{}-{}.sock", std::process::id(), n));
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(id, SessionConfig::default(), socket_path.clone());
+        reg.state = SessionState::Ready;
+        let shared = Arc::new(RwLock::new(SessionContext::new(reg)));
+        let shared_clone = shared.clone();
+        let server_handle =
+            tokio::spawn(async move { server::run_accept_loop(listener, shared_clone).await });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let dir = tempfile::tempdir().unwrap();
+        let queue_path = dir.path().join("outbound.sqlite");
+
+        // Seed the queue directly via a separate handle to the same file.
+        // (We can't use `client.post()` to seed: the hub ANSWERS with an
+        // error, so post() surfaces the reject rather than queuing — queuing
+        // only happens on a transport failure. The poison path we're testing
+        // is reached by the flush loop replaying an already-queued entry.)
+        {
+            let seed = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+            seed.enqueue(&sample_post("nonexistent-topic")).unwrap();
+        }
+
+        let (client, flush_handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(socket_path.clone()),
+            &queue_path,
+            Duration::from_secs(3600), // we drive flush() manually
+        )
+        .unwrap();
+        assert_eq!(client.queue_size(), 1);
+
+        // Drive the flush loop POISON_THRESHOLD times. Each call gets a
+        // hub-reject; the last one crosses the threshold.
+        let mut dropped = 0;
+        for _ in 0..POISON_THRESHOLD {
+            let r = client.flush().await;
+            dropped += r.dropped_poison;
+        }
+        assert_eq!(dropped, 1, "exactly one poison post dead-lettered");
+        assert_eq!(client.queue_size(), 0, "poison no longer head-blocks the queue");
+
+        // The crux: it was MOVED, not silently dropped.
+        let q = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+        assert_eq!(
+            q.dead_letter_count().unwrap(),
+            1,
+            "poison post is recoverable in the dead-letter store — zero silent loss"
+        );
+        let rows = q.list_dead_letters(10).unwrap();
+        assert_eq!(rows[0].post.topic, "nonexistent-topic");
+        assert!(rows[0].attempts >= POISON_THRESHOLD - 1);
+        assert!(!rows[0].reason.is_empty(), "reject reason recorded");
+
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), flush_handle).await;
+        server_handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
     }
 
     #[tokio::test]

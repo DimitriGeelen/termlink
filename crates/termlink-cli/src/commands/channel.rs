@@ -8507,6 +8507,16 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
         .with_context(|| format!("Failed to open offline queue at {}", path.display()))?;
     let size = queue.size().context("Failed to read queue size")?;
     let head = queue.peek_oldest().context("Failed to peek queue head")?;
+    // T-2243 (R4): surface dead-lettered poison posts so a poison-drop is
+    // visible to the operator, not silent. Cap the listed rows so a large
+    // dead-letter backlog can't flood the output (count is always exact).
+    const DEAD_LETTER_LIST_CAP: u64 = 50;
+    let dead_count = queue
+        .dead_letter_count()
+        .context("Failed to read dead-letter count")?;
+    let dead_rows = queue
+        .list_dead_letters(DEAD_LETTER_LIST_CAP)
+        .context("Failed to read dead-letter rows")?;
 
     if json_output {
         let head_json = head.as_ref().map(|(id, post)| {
@@ -8519,6 +8529,21 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
                 "artifact_ref": post.artifact_ref,
             })
         });
+        let dead_json: Vec<_> = dead_rows
+            .iter()
+            .map(|d| {
+                json!({
+                    "id": d.id,
+                    "topic": d.post.topic,
+                    "msg_type": d.post.msg_type,
+                    "sender_id": d.post.sender_id,
+                    "reason": d.reason,
+                    "attempts": d.attempts,
+                    "enqueued_ms": d.enqueued_ms,
+                    "dead_lettered_ms": d.dead_lettered_ms,
+                })
+            })
+            .collect();
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
@@ -8527,6 +8552,8 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
                 "cap": queue.cap(),
                 "pending": size,
                 "oldest": head_json,
+                "dead_letters": dead_count,
+                "dead_letter_rows": dead_json,
             }))?
         );
     } else {
@@ -8537,6 +8564,20 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
             println!(
                 "oldest:   id={} topic={} msg_type={} ts_ms={} sender={}",
                 id.0, post.topic, post.msg_type, post.ts_unix_ms, post.sender_id
+            );
+        }
+        println!("dead:     {dead_count} (poison posts dead-lettered, recoverable)");
+        for d in &dead_rows {
+            println!(
+                "  dead id={} topic={} msg_type={} attempts={} reason={}",
+                d.id, d.post.topic, d.post.msg_type, d.attempts, d.reason
+            );
+        }
+        if dead_count > dead_rows.len() as u64 {
+            println!(
+                "  ... and {} more (showing first {})",
+                dead_count - dead_rows.len() as u64,
+                dead_rows.len()
             );
         }
     }

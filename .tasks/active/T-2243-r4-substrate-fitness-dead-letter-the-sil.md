@@ -45,10 +45,10 @@ Minted as the post-compact focus for continuity; confirm a fresh go before writi
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A post that crosses `POISON_THRESHOLD` (10) lands in a durable dead-letter store (post + reason + ts + attempts), NOT a bare `DELETE` (replaces the silent drop at `offline_queue.rs:223-225` / `bus_client.rs` flush threshold logic)
-- [ ] Dead-letter rows are readable by an operator (via `queue-status` or a read verb) with reason + attempt count
-- [ ] Regression test: N poison cycles ⇒ N recoverable dead-letter rows, 0 silent losses (proves the F-INSTRUMENTATION gap is closed for this path)
-- [ ] `cargo test` passes for the touched crate(s); happy-path delivery semantics unchanged (delivered posts still leave the queue cleanly)
+- [x] A post that crosses `POISON_THRESHOLD` (10) lands in a durable dead-letter store (post + reason + ts + attempts), NOT a bare `DELETE` (replaces the silent drop at `offline_queue.rs:223-225` / `bus_client.rs` flush threshold logic)
+- [x] Dead-letter rows are readable by an operator (via `queue-status` or a read verb) with reason + attempt count
+- [x] Regression test: N poison cycles ⇒ N recoverable dead-letter rows, 0 silent losses (proves the F-INSTRUMENTATION gap is closed for this path)
+- [x] `cargo test` passes for the touched crate(s); happy-path delivery semantics unchanged (delivered posts still leave the queue cleanly)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -114,6 +114,10 @@ Minted as the post-compact focus for continuity; confirm a fresh go before writi
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# T-2243 (R4): queue-layer durability + conservation, and end-to-end poison→dead-letter via flush.
+cargo test -p termlink-session --lib offline_queue
+cargo test -p termlink-session --lib bus_client::tests::flush_poison_dead_letters_instead_of_silent_drop
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -153,6 +157,33 @@ Minted as the post-compact focus for continuity; confirm a fresh go before writi
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-06-22 — silent-drop is split across two sites, not one
+
+- **What changed:** The discovery framed the silent loss as `offline_queue.rs:223-225`
+  (the bare `DELETE` in `pop()`). On reading the code, the *decision* to drop lives
+  one layer up in `bus_client.rs::flush` (the `attempts + 1 >= POISON_THRESHOLD`
+  branch calling `pop()`). `pop()` itself is legitimately used on successful
+  delivery too — so the fix is NOT to change `pop()` but to give the flush loop a
+  new durable verb (`dead_letter()`) to call on the poison branch instead.
+- **Plan impact:** Keeps `pop()` semantics intact (happy-path delivery unchanged,
+  AC4); adds an additive `dead_letters` table + 3 methods + a one-branch swap in
+  flush. Smaller blast radius than rewriting `pop()`.
+- **Triggered:** No new sub-task. Dead-letter recovery/replay (re-queue a
+  dead-lettered post) is intentionally out of scope for R4 — inspection (AC2) is
+  enough to close the silent-loss gap; replay is a candidate follow-up if operators
+  need it.
+
+### 2026-06-22 — atomicity matters more than the table
+
+- **What changed:** A dead-letter that DELETEs-then-INSERTs non-atomically would
+  reintroduce the exact failure class (crash between the two ⇒ silent loss). The
+  move runs in a single SQLite transaction so the post is never in neither table
+  nor both.
+- **Plan impact:** `dead_letter()` takes `&mut` conn via the guard + `transaction()`;
+  the conservation invariant ("N poison ⇒ N recoverable, 0 lost") is the regression
+  test's core assertion.
+- **Triggered:** none.
 
 ## Decisions
 

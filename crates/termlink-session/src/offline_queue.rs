@@ -69,6 +69,21 @@ pub fn mint_client_msg_id() -> String {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct QueueId(pub i64);
 
+/// T-2243 (R4): one row from the durable dead-letter store. Carries the
+/// original post plus the forensic context an operator needs to decide
+/// whether to recover, re-post, or discard: why the hub rejected it
+/// (`reason`), how many flush attempts it survived (`attempts`), when it
+/// was first enqueued and when it was finally dead-lettered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeadLetter {
+    pub id: i64,
+    pub post: PendingPost,
+    pub reason: String,
+    pub attempts: u64,
+    pub enqueued_ms: i64,
+    pub dead_lettered_ms: i64,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum QueueError {
     #[error("outbound queue full ({cap} entries; refusing new posts — R3 loud-fail)")]
@@ -111,6 +126,24 @@ CREATE TABLE IF NOT EXISTS pending_posts (
     attempts      INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS pending_posts_enqueued ON pending_posts(enqueued_ms);
+
+-- T-2243 (R4 substrate-fitness): durable dead-letter store. Before this,
+-- the flush loop's poison-drop ran a bare DELETE on `pending_posts`
+-- (offline_queue.rs::pop + bus_client.rs flush), so a discarded post —
+-- including a governance-plane "complete"/ledger message rejected during
+-- a hub blip — vanished with only a `tracing::warn!` trace. Crossing
+-- POISON_THRESHOLD now MOVES the row here (atomically, see `dead_letter`)
+-- instead, preserving the post + reject reason + attempt count + timing so
+-- an operator can recover or diagnose it via `queue-status`.
+CREATE TABLE IF NOT EXISTS dead_letters (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_json        TEXT    NOT NULL,
+    reason           TEXT    NOT NULL,
+    attempts         INTEGER NOT NULL,
+    enqueued_ms      INTEGER NOT NULL,
+    dead_lettered_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS dead_letters_dl_ms ON dead_letters(dead_lettered_ms);
 "#;
 
 /// Persistent FIFO of pending `channel.post` calls.
@@ -235,6 +268,93 @@ impl OfflineQueue {
             params![id.0],
         )?;
         Ok(())
+    }
+
+    /// T-2243 (R4): atomically MOVE a pending row into the durable
+    /// dead-letter store instead of silently dropping it. Replaces the
+    /// bare `pop()` the flush loop ran on poison-drop, which lost the post
+    /// with only a trace. The read + insert + delete run in a single
+    /// transaction so a crash mid-move can never leave the post in neither
+    /// table (no silent loss) nor both (no duplicate replay). The
+    /// `attempts`/`enqueued_ms` are copied from the live row; `reason` is
+    /// the caller's diagnosis (typically the hub-reject error) and
+    /// `dead_lettered_ms` is stamped now.
+    ///
+    /// No-op (returns `Ok`) if the row is already gone — same forgiving
+    /// semantics as `pop`, so a double dead-letter or a race with delivery
+    /// can't error.
+    pub fn dead_letter(&self, id: QueueId, reason: &str) -> Result<()> {
+        let mut conn = self.conn.lock().expect("queue mutex poisoned");
+        let tx = conn.transaction()?;
+        let row = tx
+            .query_row(
+                "SELECT post_json, enqueued_ms, attempts FROM pending_posts WHERE id = ?1",
+                params![id.0],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((post_json, enqueued_ms, attempts)) = row else {
+            // Already delivered/popped — nothing to dead-letter.
+            return Ok(());
+        };
+        let now_ms = now_unix_ms();
+        tx.execute(
+            "INSERT INTO dead_letters \
+             (post_json, reason, attempts, enqueued_ms, dead_lettered_ms) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![post_json, reason, attempts, enqueued_ms, now_ms],
+        )?;
+        tx.execute("DELETE FROM pending_posts WHERE id = ?1", params![id.0])?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// T-2243 (R4): number of dead-lettered posts currently retained.
+    /// Surfaced by `queue-status` so a poison-drop is visible, not silent.
+    pub fn dead_letter_count(&self) -> Result<u64> {
+        let conn = self.conn.lock().expect("queue mutex poisoned");
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM dead_letters", [], |r| r.get(0))?;
+        Ok(n as u64)
+    }
+
+    /// T-2243 (R4): read up to `limit` dead-letter rows, oldest first, so
+    /// an operator can inspect (and ultimately recover) discarded posts.
+    pub fn list_dead_letters(&self, limit: u64) -> Result<Vec<DeadLetter>> {
+        let conn = self.conn.lock().expect("queue mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT id, post_json, reason, attempts, enqueued_ms, dead_lettered_ms \
+             FROM dead_letters ORDER BY id ASC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, json, reason, attempts, enqueued_ms, dead_lettered_ms) = row?;
+            let post: PendingPost = serde_json::from_str(&json)?;
+            out.push(DeadLetter {
+                id,
+                post,
+                reason,
+                attempts: attempts.max(0) as u64,
+                enqueued_ms,
+                dead_lettered_ms,
+            });
+        }
+        Ok(out)
     }
 }
 
@@ -405,5 +525,91 @@ mod tests {
     fn peek_oldest_with_attempts_empty_returns_none() {
         let q = OfflineQueue::open_in_memory().unwrap();
         assert!(q.peek_oldest_with_attempts().unwrap().is_none());
+    }
+
+    // ── T-2243 (R4): dead-letter the silent poison-drop ──
+
+    #[test]
+    fn dead_letter_moves_row_and_preserves_forensics() {
+        let q = OfflineQueue::open_in_memory().unwrap();
+        let p = sample_post("gov-plane", b"complete");
+        let id = q.enqueue(&p).unwrap();
+        for _ in 0..3 {
+            q.bump_attempts(id).unwrap();
+        }
+        q.dead_letter(id, "hub rejected: unknown topic").unwrap();
+
+        // Gone from the live queue, present in the dead-letter store.
+        assert_eq!(q.size().unwrap(), 0, "row left pending_posts");
+        assert_eq!(q.dead_letter_count().unwrap(), 1);
+
+        let rows = q.list_dead_letters(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        let d = &rows[0];
+        assert_eq!(d.post, p, "full post recoverable, not just metadata");
+        assert_eq!(d.reason, "hub rejected: unknown topic");
+        assert_eq!(d.attempts, 3, "attempt count carried over from the live row");
+        assert!(d.dead_lettered_ms >= d.enqueued_ms);
+    }
+
+    #[test]
+    fn dead_letter_missing_id_is_noop() {
+        let q = OfflineQueue::open_in_memory().unwrap();
+        // No such row — must not error (matches pop() forgiving semantics).
+        q.dead_letter(QueueId(999), "whatever").unwrap();
+        assert_eq!(q.dead_letter_count().unwrap(), 0);
+    }
+
+    #[test]
+    fn n_poison_cycles_yield_n_recoverable_rows_zero_silent_loss() {
+        // AC3: the regression that proves F-INSTRUMENTATION is closed for
+        // this path. N posts that each cross the poison threshold must end
+        // up as N recoverable dead-letter rows — never silently dropped.
+        let q = OfflineQueue::open_in_memory().unwrap();
+        const N: u8 = 12;
+        for i in 0..N {
+            let id = q.enqueue(&sample_post("work-queue", &[i])).unwrap();
+            // Simulate the flush loop bumping to threshold then dead-lettering.
+            for _ in 0..super_poison_threshold() {
+                q.bump_attempts(id).unwrap();
+            }
+            q.dead_letter(id, &format!("poison cycle {i}")).unwrap();
+        }
+        // Conservation: 0 left pending, N in dead-letter store, 0 lost.
+        assert_eq!(q.size().unwrap(), 0, "no poison left head-blocking the queue");
+        assert_eq!(
+            q.dead_letter_count().unwrap(),
+            N as u64,
+            "every poison post is accounted for — zero silent losses"
+        );
+        // Every original payload is recoverable.
+        let rows = q.list_dead_letters(1000).unwrap();
+        let mut payloads: Vec<u8> = rows.iter().map(|d| d.post.payload[0]).collect();
+        payloads.sort_unstable();
+        assert_eq!(payloads, (0..N).collect::<Vec<_>>());
+    }
+
+    fn super_poison_threshold() -> usize {
+        // Mirror bus_client::POISON_THRESHOLD without a cross-crate dep;
+        // the exact count is irrelevant to the queue-layer invariant.
+        10
+    }
+
+    #[test]
+    fn dead_letters_survive_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dl.sqlite");
+        {
+            let q = OfflineQueue::open(&path).unwrap();
+            let id = q.enqueue(&sample_post("persist-dl", b"xyz")).unwrap();
+            q.dead_letter(id, "rejected before restart").unwrap();
+            assert_eq!(q.dead_letter_count().unwrap(), 1);
+        }
+        // Durability: a client restart must not lose dead-lettered posts.
+        let q2 = OfflineQueue::open(&path).unwrap();
+        assert_eq!(q2.dead_letter_count().unwrap(), 1);
+        let rows = q2.list_dead_letters(10).unwrap();
+        assert_eq!(rows[0].post.topic, "persist-dl");
+        assert_eq!(rows[0].reason, "rejected before restart");
     }
 }
