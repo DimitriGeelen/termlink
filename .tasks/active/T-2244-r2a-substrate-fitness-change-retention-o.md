@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-22T19:50:15Z
-last_update: 2026-06-22T19:50:15Z
+last_update: 2026-06-22T19:57:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,16 +50,19 @@ step — agent does not mutate live shared-host state autonomously).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `Bus::set_topic_retention(name, retention)` exists: UPDATEs an existing topic's retention
+- [x] `Bus::set_topic_retention(name, retention)` exists: UPDATEs an existing topic's retention
       policy in the meta DB; returns whether the topic existed (false = no-op, not an error);
       a subsequent `topic_retention(name)` reflects the new policy.
-- [ ] A hub RPC method exposes set-retention so a remote client can change a topic's retention
-      (mirrors `channel.create`'s RPC wiring + Manage-scope auth).
-- [ ] CLI `termlink channel set-retention <topic> --retention <forever|days:N|messages:N|latest>`
+- [x] A hub RPC method exposes set-retention so a remote client can change a topic's retention
+      (mirrors `channel.create`'s RPC wiring). [Note: `channel.create` itself has no explicit
+      per-method scope gate in the router; set-retention mirrors that exactly — no extra gate.]
+- [x] CLI `termlink channel set-retention <topic> --retention <forever|days:N|messages:N|latest>`
       drives the RPC; rejects an unknown/missing topic with a clear error (not a silent create).
-- [ ] After set-retention to `days:N`, a `sweep` of that topic enforces the NEW policy (old
+      [Live round-trip verified: create forever → set days:2 → list shows kind=days; unknown
+      topic → -32602 "use channel.create first", exit 1.]
+- [x] After set-retention to `days:N`, a `sweep` of that topic enforces the NEW policy (old
       records beyond N days are trimmed) — proves the change actually takes effect, not just stored.
-- [ ] `cargo test` passes for the touched crates; existing `create_topic` mismatch-refusal
+- [x] `cargo test` passes for the touched crates; existing `create_topic` mismatch-refusal
       behaviour is unchanged (set-retention is the explicit opt-in to change it).
 
 ### Human
@@ -126,6 +129,10 @@ step — agent does not mutate live shared-host state autonomously).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# T-2244 (R2a): bus primitive (+ set->sweep enforcement) and hub RPC handler.
+cargo test -p termlink-bus --lib set_topic_retention
+cargo test -p termlink-hub --lib set_retention
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -165,6 +172,36 @@ step — agent does not mutate live shared-host state autonomously).
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-06-22 — R2 had to be sliced; the plan's R1/R2 sizing was optimistic
+
+- **What changed:** Investigating R2 surfaced that the plan's per-cv_key compaction
+  ("compact-to-latest-per-key") needs a **records-schema migration** — `cv_key` is not a
+  column on the `records` table (only `offset/byte_pos/length/ts_unix_ms`); the envelope (with
+  `metadata.cv_key`) lives in the log-file blob. A latest-per-cv_key sweep therefore can't be a
+  pure SQLite op without either adding a `cv_key` column on the hot append path or parsing every
+  envelope at sweep time. That is an L-sized build of its own.
+- **Plan impact:** R2 splits. **R2a (this task)** = the change-retention-on-existing-topic
+  mechanism (the plan flagged "no such path exists"), which independently unlocks the Q1
+  **interim days:2** decision. **R2b (follow-up)** = the `LatestPerKey`-per-cv_key retention
+  mode + records-schema migration. Also confirmed R1 collapses into R3 (the binary `register`
+  self-heartbeat only touches an on-disk file for the directory sweep — it does NOT post to the
+  `agent-presence` bus topic, so there is no envelope to add `cv_key` to without first making
+  that path post heartbeats — which is the frozen-husk / T-2230 area overlapping R3's Sovereign
+  T-2025 revisit).
+- **Triggered:** R2b (per-cv_key compaction, needs records migration) — not yet minted, depends
+  on no Sovereign answer but is L-sized. Surfaced to the human alongside the evolved arc shape.
+
+### 2026-06-22 — set-retention is storage-only by design
+
+- **What changed:** Considered having `set_retention` sweep immediately. Chose storage-only
+  (mirrors how `create_topic` + `sweep` are separate): the RPC changes the policy, the operator
+  runs a sweep to enforce it. Keeps the verb single-purpose and avoids a surprise mass-delete
+  hidden behind a "set policy" call.
+- **Plan impact:** AC4 proves the change *takes effect* via an explicit set→sweep test rather
+  than folding the sweep into set.
+- **Triggered:** none. (MCP parity for `channel.set_retention` is a deliberate out-of-scope
+  follow-up — RPC + CLI cover the operator path; the MCP tool can mirror later.)
 
 ## Decisions
 
