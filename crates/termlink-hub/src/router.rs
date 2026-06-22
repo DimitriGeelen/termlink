@@ -84,6 +84,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
         control::method::CHANNEL_CREATE => {
             crate::channel::handle_channel_create(id, &req.params).await
         }
+        control::method::CHANNEL_SET_RETENTION => {
+            crate::channel::handle_channel_set_retention(id, &req.params).await
+        }
         control::method::CHANNEL_POST => {
             crate::channel::handle_channel_post(id, &req.params).await
         }
@@ -906,6 +909,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         "session.heartbeat",
         "session.deregister_remote",
         control::method::CHANNEL_CREATE,
+        control::method::CHANNEL_SET_RETENTION,
         control::method::CHANNEL_POST,
         control::method::CHANNEL_SUBSCRIBE,
         control::method::CHANNEL_LIST,

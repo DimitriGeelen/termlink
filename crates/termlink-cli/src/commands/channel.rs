@@ -359,6 +359,39 @@ pub(crate) async fn cmd_channel_create(
     Ok(())
 }
 
+/// T-2244 (R2a): change the retention policy of an EXISTING topic. The
+/// operator-facing path to move e.g. `agent-presence` off `forever` to
+/// `days:2` (Q1 interim) without recreating it. Unknown topic errors loudly
+/// (no stealth create). Storage-only — the hub does not sweep; old records
+/// are trimmed on the next sweep cycle under the new policy.
+pub(crate) async fn cmd_channel_set_retention(
+    name: &str,
+    retention: &str,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    let retention_val = parse_retention(retention)?;
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
+    let resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_SET_RETENTION,
+        json!({"name": name, "retention": retention_val}),
+    )
+    .await
+    .context("Hub rpc_call failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.set_retention: {e}"))?;
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!(
+            "Set retention for topic '{}' to {} (run a sweep to enforce against existing records)",
+            name, retention
+        );
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn cmd_channel_post(
     topic: &str,

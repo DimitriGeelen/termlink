@@ -758,6 +758,9 @@ async fn main() -> Result<()> {
             ChannelAction::Create { name, retention, hub, json } => {
                 commands::channel::cmd_channel_create(&name, &retention, hub.as_deref(), json).await
             }
+            ChannelAction::SetRetention { name, retention, hub, json } => {
+                commands::channel::cmd_channel_set_retention(&name, &retention, hub.as_deref(), json).await
+            }
             ChannelAction::Post {
                 topic,
                 msg_type,

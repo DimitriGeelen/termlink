@@ -397,6 +397,62 @@ pub(crate) async fn handle_channel_create_with(
     }
 }
 
+/// `channel.set_retention(name, retention)` — change the retention policy of
+/// an EXISTING topic (T-2244 / R2a). Unlike `channel.create` (which refuses a
+/// policy change on idempotent re-create), this is the explicit opt-in.
+/// Storage-only: does NOT sweep — the operator runs a sweep separately to
+/// enforce the new policy against the backlog. Unknown topic returns an error
+/// rather than stealth-creating it.
+pub async fn handle_channel_set_retention(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_set_retention_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_set_retention_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let name = match param_str(params, "name") {
+        Some(n) if !n.is_empty() => n,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'name' in params").into(),
+    };
+    // Retention is REQUIRED here (the whole point is to change it) — unlike
+    // create, there is no Forever default.
+    let retention = match params.get("retention").and_then(retention_from_json) {
+        Some(r) => r,
+        None => {
+            return ErrorResponse::new(id, -32602, "Missing or invalid 'retention' in params")
+                .into()
+        }
+    };
+    match bus.set_topic_retention(name, retention) {
+        Ok(true) => Response::success(
+            id,
+            json!({
+                "ok": true,
+                "name": name,
+                "retention": retention_to_json(retention),
+                "updated": true,
+            }),
+        )
+        .into(),
+        // Unknown topic — loud, not a stealth create (AC: clear error).
+        Ok(false) => ErrorResponse::new(
+            id,
+            -32602,
+            &format!("channel.set_retention: unknown topic '{name}' (use channel.create first)"),
+        )
+        .into(),
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("channel.set_retention: {e}")).into()
+        }
+    }
+}
+
 /// `channel.post(topic, msg_type, payload_b64, artifact_ref?, ts, sender_id,
 /// sender_pubkey_hex, signature_hex)` — verifies signature then appends.
 pub async fn handle_channel_post(id: Value, params: &Value) -> RpcResponse {
@@ -2112,6 +2168,51 @@ mod tests {
     async fn create_missing_name_is_invalid_params() {
         let (_d, bus) = tmp_bus();
         let resp = handle_channel_create_with(&bus, json!(1), &json!({})).await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602);
+    }
+
+    // === T-2244 (R2a): channel.set_retention ===
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_retention_changes_existing_topic() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let resp = handle_channel_set_retention_with(
+            &bus,
+            json!(1),
+            &json!({"name": "agent-presence", "retention": {"kind": "days", "value": 2}}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["updated"], true);
+        assert_eq!(v["retention"]["kind"], "days");
+        assert_eq!(v["retention"]["value"], 2);
+        // Confirm the policy actually changed in the bus.
+        assert_eq!(bus.topic_retention("agent-presence").unwrap(), Some(Retention::Days(2)));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_retention_unknown_topic_errors_not_creates() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_set_retention_with(
+            &bus,
+            json!(1),
+            &json!({"name": "no-such-topic", "retention": {"kind": "latest"}}),
+        )
+        .await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602, "unknown topic is a clear error");
+        // Must NOT have stealth-created the topic.
+        assert_eq!(bus.topic_retention("no-such-topic").unwrap(), None);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_retention_missing_retention_is_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let resp = handle_channel_set_retention_with(&bus, json!(1), &json!({"name": "t"})).await;
         let (code, _) = unwrap_error(resp);
         assert_eq!(code, -32602);
     }

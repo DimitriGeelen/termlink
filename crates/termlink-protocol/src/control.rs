@@ -105,6 +105,13 @@ pub mod method {
     /// Params: `{ name, retention: {kind, value?} }`.
     pub const CHANNEL_CREATE: &str = "channel.create";
 
+    /// Tier-A — change the retention policy of an ALREADY-EXISTING topic
+    /// (T-2244 / R2a). `channel.create` refuses a policy change on idempotent
+    /// re-create; this is the explicit opt-in. Storage-only — the hub does not
+    /// sweep as part of this call. Unknown topic returns an error (no stealth
+    /// create). Params: `{ name, retention: {kind, value?} }`.
+    pub const CHANNEL_SET_RETENTION: &str = "channel.set_retention";
+
     /// Tier-A — append a signed envelope to a topic.
     /// Params: `{ topic, msg_type, payload_b64, artifact_ref?, ts, sender_id, sender_pubkey_hex, signature_hex }`.
     /// Hub verifies `signature_hex` against `sender_pubkey_hex` over the canonical bytes

@@ -1824,6 +1824,27 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Change the retention policy of an EXISTING topic (T-2244 / R2a). Unlike
+    /// `create` (which refuses a policy change on re-create), this is the
+    /// explicit opt-in — e.g. move `agent-presence` off `forever` to `days:2`.
+    /// Errors on unknown topic (no stealth create). Storage-only: old records
+    /// are trimmed on the next sweep cycle under the new policy.
+    SetRetention {
+        /// Topic name (must already exist — `channel create` first if not)
+        name: String,
+
+        /// New retention: "forever", "days:N", "messages:N", or "latest"
+        #[arg(long)]
+        retention: String,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Post a signed envelope to a topic (reads payload from stdin if not given)
     Post {
         /// Topic name
