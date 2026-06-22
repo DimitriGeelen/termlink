@@ -17,6 +17,19 @@ demo_evidence: null
 created: 2026-06-22T10:36:21Z
 closed_at: null
 decision: null
+# ── RESOLVED DECISIONS (2026-06-22, human-decided via T-2242 walkthrough) ──
+# Q4 reopen T-2025? NO — `termlink agent find-idle` returns [] (derived LIVE view correctly
+#   excludes ~4.7d-stale heartbeats); correctness holds. Stale presence = volume (->R2) +
+#   operational (binary upgrade, watched by T-2239 canary). R3 dissolves; R6 -> optional.
+# Q3 arc scope: ONE arc (inception+build coexist; cadence is task-level).
+# Q1 presence retention: days:2 NOW (interim, shipped) + latest-per-key compaction as R2 build
+#   target (only mode that closes T-1991 agent-count scaling; NOT shipped -> new work w/ cv_key).
+# Q2 telemetry: local-first capture+aggregate -> daily AGGREGATED push over TermLink to a
+#   collector (rides R4 queue; raw stays local; collection topic bounded). Tiered rollup
+#   (raw 24-48h, aggregates long). presence=current-state(compact) vs telemetry=series(retain-agg).
+# Weights: AS_COORDINATION_TRUTH 6 / AS_FAILURE_OBSERVABILITY 5 / AS_RESOURCE_FOOTPRINT 4 —
+#   human applies via `fw arc approve-driver ... --i-am-human` (agent cannot; sovereignty gate).
+# Surviving arc: R4(keystone) -> R2 -> R7 -> R1(minor) -> R5(telemetry inception). R3/R6 dropped.
 # T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
 # docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
 bvp_scores: {}
@@ -26,7 +39,7 @@ scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc 
 proposed_scoped_drivers:     # PROPOSALS from HANDOFF-termlink-remediation-2026-06-22 (claude-primary). NOT approved.
   - name: AS_COORDINATION_TRUTH
     rationale: "Discriminates tasks that make the coordination picture factually correct (live, not stale; no silent loss) from tasks that only make coordination cheaper or faster. D2 Reliability reads as uptime; this reads as accuracy-of-state."
-    poles: "5 = R3 (discovery stops returning dead agents); 0 = R1 (faster read, same truthfulness)."
+    poles: "5 = R4 (governance plane never silently loses a 'complete'); 0 = R7/R1 (cheaper/faster, same truthfulness). [re-anchored 2026-06-22 — original R3 anchor dropped per Q4=NO]"
     suggested_weight: 6
     suggested_at: 2026-06-22T00:00:00Z
     suggested_by: claude-primary

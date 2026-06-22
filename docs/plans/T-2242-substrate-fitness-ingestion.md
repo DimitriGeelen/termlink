@@ -15,6 +15,46 @@ decisions. This document is the ingestion artifact — "enough structure to inge
 finished work package." It also records the §7-mandated verification of the §1 finding→gap
 mapping against current source.
 
+## 0.5 RESOLVED decisions (2026-06-22 — human, via T-2242 walkthrough)
+
+All five surfaced decisions were taken with the human. This section is the durable record of
+outcomes; §4 below retains the option sets that were weighed.
+
+- **Q4 — reopen T-2025? → NO.** Verified read-only: `termlink agent find-idle` returns
+  `idle: []` — the derived LIVE view correctly classifies the ~4.7-day-stale heartbeats as
+  not-LIVE, so T-2025's correctness claim **holds** (discovery returns empty, not ghosts). F3 is
+  a *volume* symptom (→ R2) + an *operational* one (binary upgrade, already watched by the
+  T-2239 frozen-husk canary), NOT a gap-#7 architecture defect. **R3 dissolves** (re-registration
+  = operational/canaried; reaping folds into R2); **R6 drops** from keystone to optional telemetry
+  (absence-detection partially already exists as T-2239).
+- **Q3 — arc scope → ONE arc.** Inception + build coexist; start/stop/pause/horizon are
+  task-level; multiple arcs would need a master arc. R5's design-first cadence rides on its task.
+- **Q1 — presence retention → two-step.** `days:2` on `agent-presence` NOW (interim; shipped
+  mode; config-only; drains the 30k stale beats) + **latest-per-key compaction as R2's build
+  target** — the only mode that closes the T-1991 agent-*count* scaling (NOT shipped: the enum
+  has forever/days/messages/Latest[keep-1]; per-key compaction = new work pairing eviction with
+  the existing cv_key). R2 scope flag: needs a change-retention-on-existing-topic path (no such
+  verb found today).
+- **Q2 — telemetry → local-first capture+aggregate, daily aggregated push over TermLink.**
+  Capture+rollup stay local (resilient to hub/agent loss; sees crashes; no observer effect); a
+  once-a-day **aggregated** batch is pushed over TermLink to a collector agent (centralized +
+  actionable). The push is best-effort and **rides R4's durable queue**; raw Tier-0 stays local
+  for forensics; the collection topic gets the same bounded/aggregated retention (dogfoods Q1).
+  Retention shape = **tiered rollup** (raw 24–48 h; aggregates kept long). Key insight: presence
+  (current-state → compact/expire) and telemetry (time-series → retain-aggregated) are **opposite
+  data classes**; the F1 bug was applying forever-raw to current-state data; aggregation dissolves
+  the AS_FAILURE_OBSERVABILITY ↔ AS_RESOURCE_FOOTPRINT tension.
+- **Driver weights → 6 / 5 / 4** (COORDINATION_TRUTH / FAILURE_OBSERVABILITY / RESOURCE_FOOTPRINT).
+  Human applies via `fw arc approve-driver arc-substrate-fitness "<name>" --weight N --i-am-human`
+  (agent-gated — sovereignty). AS_COORDINATION_TRUTH pole re-anchored off the dead R3 (→ R4/R2).
+
+**Surviving arc shape:** R4 (keystone, now) → R2 (days:2 now + per-key compaction) → R7
+(hygiene) → R1 (minor — cv_key on the `register` path) → R5 (telemetry inception, design above).
+**R3 + R6 dropped per Q4=NO.**
+
+**Human's next actions:** (1) run the 3 `approve-driver` commands; (2) `fw arc start
+arc-substrate-fitness`; (3) build R4 first (minted + set as the focused task for post-compact continuity).
+
 ## 1. Verification of §1 mapping against source (§7 requirement)
 
 §7: *"Verify the §1 finding→gap mapping against current source before building on it; if the
@@ -160,7 +200,7 @@ substrate is the cheap error, a blind/stale one the expensive error." Cap is 3 d
 weight ≤6 (met). Rejected candidates (AS_VERIFIABLE_NOW, AS_GOVERNANCE_PLANE_PROTECTION)
 preserved in the handoff §5 for artefact discipline.
 
-## 4. Open Sovereign questions (SURFACED, not answered)
+## 4. Sovereign questions — RESOLVED 2026-06-22 (outcomes in §0.5; option sets retained below)
 
 - **Q1 — Presence retention policy (feeds R2).** compact-to-latest-per-key | short TTL |
   message-cap. Handoff lean: compact-to-latest-per-key. **Unresolved.**
