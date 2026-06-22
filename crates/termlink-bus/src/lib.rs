@@ -98,6 +98,21 @@ impl Bus {
         self.meta.list_topics()
     }
 
+    /// T-2244 (R2a): change the retention policy of an EXISTING topic.
+    /// Complements `create_topic`, which refuses a policy change on an
+    /// idempotent re-create (`TopicPolicyMismatch`). Returns `Ok(true)`
+    /// when the topic existed and was re-tuned, `Ok(false)` when no such
+    /// topic exists (a no-op — the caller decides whether absence is an
+    /// error; e.g. the CLI reports "unknown topic" rather than creating).
+    ///
+    /// Storage-only: this updates the policy but does NOT trim existing
+    /// records. Call `sweep(topic, now)` afterwards to enforce the new
+    /// policy against the backlog (e.g. drop `agent-presence` history older
+    /// than the newly-set `Days(2)` window).
+    pub fn set_topic_retention(&self, topic: &str, retention: Retention) -> Result<bool> {
+        self.meta.set_topic_retention(topic, retention)
+    }
+
     /// Retention policy for `topic`, or `None` if the topic doesn't exist.
     pub fn topic_retention(&self, topic: &str) -> Result<Option<Retention>> {
         self.meta.topic_retention(topic)
@@ -845,6 +860,66 @@ mod tests {
             .collect();
         assert_eq!(offsets, vec![4]);
         assert_eq!(bus.topic_retention("t").unwrap(), Some(Retention::Latest));
+    }
+
+    #[tokio::test]
+    async fn set_topic_retention_changes_policy_and_unknown_is_noop() {
+        // T-2244 (R2a): the change-retention-on-existing-topic primitive.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        assert_eq!(
+            bus.topic_retention("agent-presence").unwrap(),
+            Some(Retention::Forever)
+        );
+        // Re-tune the existing topic — create_topic would refuse this.
+        let updated = bus
+            .set_topic_retention("agent-presence", Retention::Days(2))
+            .unwrap();
+        assert!(updated, "existing topic was updated");
+        assert_eq!(
+            bus.topic_retention("agent-presence").unwrap(),
+            Some(Retention::Days(2)),
+            "new policy is persisted"
+        );
+        // Unknown topic is a no-op (false), not an error or a stealth create.
+        let unknown = bus.set_topic_retention("no-such-topic", Retention::Latest).unwrap();
+        assert!(!unknown, "unknown topic returns false");
+        assert_eq!(bus.topic_retention("no-such-topic").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn set_topic_retention_then_sweep_enforces_new_policy() {
+        // T-2244 (R2a): proves the changed policy actually takes effect —
+        // not merely stored. A forever topic with old + fresh records, moved
+        // to Days(1), must trim the old record on the next sweep.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let day_ms: i64 = 86_400_000;
+        let now: i64 = 10 * day_ms;
+        bus.post(
+            "agent-presence",
+            &Envelope { ts_unix_ms: now - 3 * day_ms, ..env("agent-presence", b"stale") },
+        )
+        .await
+        .unwrap();
+        bus.post(
+            "agent-presence",
+            &Envelope { ts_unix_ms: now, ..env("agent-presence", b"live") },
+        )
+        .await
+        .unwrap();
+        // Under the original `forever`, a sweep is a no-op.
+        assert_eq!(bus.sweep("agent-presence", now).unwrap(), 0);
+        // Re-tune to Days(1), then sweep enforces it.
+        assert!(bus.set_topic_retention("agent-presence", Retention::Days(1)).unwrap());
+        let pruned = bus.sweep("agent-presence", now).unwrap();
+        assert_eq!(pruned, 1, "the 3-day-old record is trimmed under the new policy");
+        let payloads: Vec<Vec<u8>> = bus
+            .subscribe("agent-presence", 0)
+            .unwrap()
+            .map(|r| r.unwrap().1.payload)
+            .collect();
+        assert_eq!(payloads, vec![b"live".to_vec()], "only the fresh record survives");
     }
 
     #[tokio::test]

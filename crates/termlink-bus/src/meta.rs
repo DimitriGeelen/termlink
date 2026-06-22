@@ -82,6 +82,24 @@ impl Meta {
         }
     }
 
+    /// T-2244 (R2a): change the retention policy of an ALREADY-EXISTING
+    /// topic. `create_topic` deliberately refuses a policy change (returns
+    /// `TopicPolicyMismatch`) so an idempotent re-create can't silently
+    /// re-tune a topic; this is the explicit opt-in to change it. Returns
+    /// `true` if the topic existed and was updated, `false` if no such topic
+    /// (a no-op, NOT an error — caller decides whether absence is a problem;
+    /// the CLI surfaces it as a clear "unknown topic" rather than creating).
+    /// Does not sweep — the caller runs `Bus::sweep` to enforce the new
+    /// policy against existing records.
+    pub(crate) fn set_topic_retention(&self, name: &str, retention: Retention) -> Result<bool> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let n = conn.execute(
+            "UPDATE topics SET retention_kind = ?1, retention_value = ?2 WHERE name = ?3",
+            params![retention.kind(), retention.value(), name],
+        )?;
+        Ok(n > 0)
+    }
+
     pub(crate) fn topic_exists(&self, name: &str) -> Result<bool> {
         let conn = self.conn.lock().expect("meta mutex poisoned");
         let n: i64 = conn.query_row(
