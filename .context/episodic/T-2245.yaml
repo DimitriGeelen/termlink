@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2245: R2b substrate-fitness: compact-to-latest-per-cv_key retention (close T-1991 agent-count scaling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-22T21:19:47Z
+# ============================================================================
+
+task_id: T-2245
+task_name: "R2b substrate-fitness: compact-to-latest-per-cv_key retention (close T-1991 agent-count scaling)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-22T21:05:35Z
+completed: 2026-06-22T21:19:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-22T23:18:54+02:00
+last_commit: 2026-06-22T23:18:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  per-cv_key compaction retention + channel.sweep trigger (R2b)
+
+# Key outcomes
+outcomes:
+  - '`Retention` enum gains a `LatestPerCvKey` variant (latest-record-per-cv_key);'
+  - 'cv_key is available to the storage-layer sweep **without a schema migration** (per'
+  - 'The retention sweep enforces `LatestPerCvKey` (`Bus::compact_per_cv_key`): for a topic'
+  - 'Existing readers/late-joiners still resolve current presence after compaction'
+  - '**Regression test asserts the PROPERTY (PL-213):** post M heartbeats across K distinct'
+  - '**Sweep trigger exists** — `channel.sweep(topic)` RPC + `termlink channel sweep <name>`'
+  - 'Backward-compatible: no schema change, so pre-existing meta.db opens unchanged; topics'
+  - 'All existing bus + hub tests still pass (bus 79/79, hub 364/364) + live CLI smoke.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-22 — cv_key source: blob-parse, not a schema column'
+    chose: 'Recover cv_key during the sweep by reading each record''s envelope blob'
+    rationale: 'Zero migration risk; works on existing records (a backfill-less column can''t'
+    alternatives_rejected: ['Add a persisted `cv_key` column + an ALTER-TABLE migration (no existing']
+  - decision: '2026-06-22 — trigger: generic `channel.sweep` verb, not sweep-on-post'
+    chose: 'A single explicit `channel.sweep(topic)` RPC + CLI verb that enforces whatever'
+    rationale: 'Matches the substrate''s documented design (T-1155: the bus runs no background'
+    alternatives_rejected: ['Sweep-on-post (adds per-post cost; implicit; fights the explicit-sweep']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-bus/src/retention.rs'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2245-r2b-substrate-fitness-compact-to-latest-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-22T23:18:54"
+    action: "T-2245: per-cv_key compaction retention + channel.sweep trigger (R2b)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-substrate-fitness]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 10
+  lines_added: 587
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2245-r2b-substrate-fitness-compact-to-latest-.md
+generated_by: context-agent-hybrid

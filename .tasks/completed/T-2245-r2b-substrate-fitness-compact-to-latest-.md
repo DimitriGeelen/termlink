@@ -4,21 +4,21 @@ name: "R2b substrate-fitness: compact-to-latest-per-cv_key retention (close T-19
 description: >
   R2b substrate-fitness: compact-to-latest-per-cv_key retention (close T-1991 agent-count scaling)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:arc-substrate-fitness]
 arc_id: arc-substrate-fitness
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-bus/src/retention.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-2242, T-2244, T-2107]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-22T21:05:35Z
-last_update: 2026-06-22T21:05:35Z
-date_finished: null
+last_update: 2026-06-22T21:19:11Z
+date_finished: 2026-06-22T21:19:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -231,3 +231,6 @@ cargo build -p termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2245-r2b-substrate-fitness-compact-to-latest-.md
 - **Context:** Initial task creation
+
+### 2026-06-22T21:19:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
