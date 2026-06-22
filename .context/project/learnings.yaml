@@ -2330,3 +2330,10 @@ learnings:
   date: 2026-06-21
   context: Added via context agent
   application: TBD
+- id: PL-225
+  learning: "Retention policy without a sweep trigger is inert: setting Retention (create/set_retention) only PERSISTS a policy — nothing enforces it because the bus runs no background sweep thread (T-1155). Before T-2245, Bus::sweep had ZERO production callers, so agent-presence (and R2a's days:2) never actually shrank. Any new retention mode MUST ship with an explicit trigger (channel.sweep RPC/CLI + a periodic cron) or it does nothing in production."
+  source: P-001
+  task: T-2245
+  date: 2026-06-22
+  context: Added via context agent
+  application: TBD
