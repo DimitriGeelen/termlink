@@ -423,3 +423,17 @@ decisions:
     date: 2026-05-25
     task: T-1814
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-040
+    decision: "Recover cv_key during the sweep by reading each record's envelope blob"
+    scope: project
+    date: 2026-06-22
+    task: T-2245
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-041
+    decision: "A single explicit `channel.sweep(topic)` RPC + CLI verb that enforces whatever"
+    scope: project
+    date: 2026-06-22
+    task: T-2245
+    rationale: "Auto-captured from task file on completion"

@@ -1,22 +1,22 @@
 id: arc-002
 slug: arc-substrate-fitness
 name: "TermLink substrate fitness (remediation)"
-description: "Remediation arc from HANDOFF-termlink-remediation-2026-06-22 (built on T-2241 comms\
-  \ discovery). Restores the two load-bearing substrate properties the discovery found\
-  \ failing: coordination truth (presence as current-state, not a stale forever-log)\
-  \ and durable/observable governance delivery (no silent poison-drop). Ingestion\
-  \ + corrected slicing in docs/plans/T-2242-substrate-fitness-ingestion.md. Drivers\
-  \ are PROPOSED pending human approval; Q1-Q3 + the T-2025 NO-GO revisit are Sovereign\
-  \ and unresolved."
-status: draft
+description: "Remediation arc from HANDOFF-termlink-remediation-2026-06-22 (built
+  on T-2241 comms discovery). Restores the two load-bearing substrate properties the
+  discovery found failing: coordination truth (presence as current-state, not a stale
+  forever-log) and durable/observable governance delivery (no silent poison-drop).
+  Ingestion + corrected slicing in docs/plans/T-2242-substrate-fitness-ingestion.md.
+  Drivers are PROPOSED pending human approval; Q1-Q3 + the T-2025 NO-GO revisit are
+  Sovereign and unresolved."
+status: in-progress
 anchor_task: T-2242
-headline_mechanic: "An operator querying presence sees only LIVE agents (no multi-day-stale ghosts),\
-  \ and a worker's 'complete' is never silently lost \u2014 a discarded post surfaces\
-  \ in a recoverable dead-letter instead of vanishing"
-demo_evidence: null
+headline_mechanic: "An operator querying presence sees only LIVE agents (no multi-day-stale
+  ghosts), and a worker's 'complete' is never silently lost — a discarded post surfaces
+  in a recoverable dead-letter instead of vanishing"
+demo_evidence:
 created: 2026-06-22T10:36:21Z
-closed_at: null
-decision: null
+closed_at:
+decision:
 # ── RESOLVED DECISIONS (2026-06-22, human-decided via T-2242 walkthrough) ──
 # Q4 reopen T-2025? NO — `termlink agent find-idle` returns [] (derived LIVE view correctly
 #   excludes ~4.7d-stale heartbeats); correctness holds. Stale presence = volume (->R2) +
@@ -33,25 +33,16 @@ decision: null
 # T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
 # docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
 bvp_scores: {}
-scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+scoped_drivers:              # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
                              # INTENTIONALLY EMPTY — driver approval + weights are Sovereign (human-only).
                              # See proposed_scoped_drivers below + docs/plans/T-2242-substrate-fitness-ingestion.md §Drivers.
-proposed_scoped_drivers:     # PROPOSALS from HANDOFF-termlink-remediation-2026-06-22 (claude-primary). NOT approved.
   - name: AS_COORDINATION_TRUTH
-    rationale: "Discriminates tasks that make the coordination picture factually correct (live, not stale; no silent loss) from tasks that only make coordination cheaper or faster. D2 Reliability reads as uptime; this reads as accuracy-of-state."
-    poles: "5 = R4 (governance plane never silently loses a 'complete'); 0 = R7/R1 (cheaper/faster, same truthfulness). [re-anchored 2026-06-22 — original R3 anchor dropped per Q4=NO]"
-    suggested_weight: 6
-    suggested_at: 2026-06-22T00:00:00Z
-    suggested_by: claude-primary
+    weight: 6
+    approved_at: '2026-06-22T19:15:07Z'
   - name: AS_FAILURE_OBSERVABILITY
-    rationale: "Discriminates tasks that make a previously-silent failure visible/recordable from tasks that reduce failure frequency or cost. Orthogonal to D2 — a task can reduce failures without making them observable (R2) or make them observable without reducing them (R5)."
-    poles: "5 = R4 (silent discard becomes a durable dead-letter); 0 = R2 (fewer messages, no new visibility)."
-    suggested_weight: 5
-    suggested_at: 2026-06-22T00:00:00Z
-    suggested_by: claude-primary
+    weight: 5
+    approved_at: '2026-06-22T19:15:08Z'
   - name: AS_RESOURCE_FOOTPRINT
-    rationale: "Discriminates tasks that reduce the substrate's traffic/storage footprint from tasks that are footprint-neutral or footprint-ADDING. Creates deliberate tension with AS_FAILURE_OBSERVABILITY (telemetry adds footprint while improving observability) — exactly the within-arc discrimination arc-scoped drivers are for."
-    poles: "5 = R2/R7 (bounds a monotonic growth source); 0 = R5 (adds a durable telemetry store)."
-    suggested_weight: 4
-    suggested_at: 2026-06-22T00:00:00Z
-    suggested_by: claude-primary
+    weight: 4
+    approved_at: '2026-06-22T19:15:08Z'
+proposed_scoped_drivers: []  # PROPOSALS from HANDOFF-termlink-remediation-2026-06-22 (claude-primary). NOT approved.

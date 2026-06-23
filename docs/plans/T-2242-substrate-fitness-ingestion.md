@@ -114,6 +114,36 @@ learning event that can re-open a decision — but only the human re-opens it.)
 > mislabels its primitive number as "#4"; the design doc numbers it #7. Numbering is cosmetic;
 > the NO-GO and its rationale are what matter here. Flagged for tidy-up, not blocking.
 
+### 🚩 FLAG 3 (T-2249, 2026-06-23) — repo contradicts FLAG 1's R1 framing
+
+When R1 came up for build, source verification (T-2249) reversed FLAG 1's own
+re-scoping. FLAG 1 assumed `register` posts presence and R1 merely adds `cv_key`
+to it ("minor build"). **It does not.** The binary's `register` heartbeat is a
+**local JSON `touch_heartbeat` only** (`session.rs:294-307`, `registration.rs:325`,
+`--self` twin `endpoint.rs:175-190`) — zero `agent-presence`/channel-post
+references. `agent-presence` is fed **solely** by the opt-in `/be-reachable`
+producer (`listener-heartbeat.sh:173`, cv_key-wired T-2107) and the MCP
+`listener_heartbeat` tool.
+
+**Consequences:**
+- R1's "minor cv_key on the register path" task **does not exist** — there is no
+  presence post to add `cv_key` to.
+- The discovery's `cv_index count=0` was **operational** (`/be-reachable` not
+  running), not a register code gap. That folds into **R7** (operational), not a
+  build.
+- The genuine R1 question — *should `register` become a NEW `agent-presence`
+  producer?* — is a **substrate-semantics design decision** (presence shifts from
+  "opted-in agents" to "all registered sessions"; triple-producer overlap;
+  footprint cost). Modelled as inception **T-2249** (Sovereign — human decides),
+  agent recommendation **NO-GO** on always-on. See
+  `docs/reports/T-2249-r1-rescope-register-presence-producer.md`.
+
+**Surviving arc shape (updated):** R4 ✅ → R2 ✅ → R7 (hygiene, operational) →
+**R1 → T-2249 inception (was "minor build"; now Sovereign design decision)** →
+R5 (telemetry inception). The autonomously-buildable build line (R4 + R2) is
+**complete**; all remaining nodes require the human (decision) or operator (live
+host).
+
 ## 2. Corrected lock structure & task slicing (plan form — NOT minted)
 
 Locks per handoff §3 (one closed before the next opens). Slicing/sizing/AC remain the
