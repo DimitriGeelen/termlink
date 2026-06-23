@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2252: Topic-growth canary — detect presence/high-rate topic regrowth (R2 sweep-cron guard)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T08:58:05Z
+# ============================================================================
+
+task_id: T-2252
+task_name: "Topic-growth canary — detect presence/high-rate topic regrowth (R2 sweep-cron guard)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T08:50:40Z
+completed: 2026-06-23T08:58:00Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-23T10:57:06+02:00
+last_commit: 2026-06-23T10:57:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  topic-growth canary — detect presence/high-rate regrowth (arc-002 R2 sweep-cron guard)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-topic-growth-freshness.sh` reads `termlink channel list --json` and FIRES (exit 1, body printed even under `--quiet` so the cron log captures it) when a watched high-rate topic''s record `count` exceeds the threshold (default 5000, `--threshold N` tunable).'
+  - 'Watch-set = high-rate-pattern topics (`agent-presence`, `agent-listeners-*`, `agent-conv-*`, `dm:*`; tunable via `TERMLINK_GROWTH_WATCH_PATTERNS` csv). Operator-durable topics (`channel:learnings`, `policy-decisions`, `framework:pickup`, `broadcast:global`) are excluded — never fire (mirrors runbook §1 exclusions).'
+  - 'Each firing topic reports `count` + `retention.kind` + a remediation hint that distinguishes `forever` (run `set-retention latest-per-cv-key` + `sweep`) from a bounded-but-large policy (the sweep cron isn''t firing).'
+  - 'Flags: `--quiet` (cron), `--json` (envelope), `--threshold N`, `--hub ADDR`, `--no-heartbeat`, `-h/--help`. Exit 0 healthy / 1 firing / 2 tooling-error (hub unreachable). Writes `.context/working/.topic-growth-canary.heartbeat` first (T-1723) so `/canaries` can classify STALE.'
+  - 'Test hook `TERMLINK_GROWTH_TEST_JSON=<file>` bypasses the live hub call and reads canned `channel list` JSON — so firing logic is verifiable hub-independently (PL-213: assert the property).'
+  - '`.context/cron/topic-growth-canary.crontab` authored (USER-field syntax, daily at an offset time, `--quiet` >> `.context/working/.topic-growth-canary.log`).'
+  - 'CLAUDE.md canary section added (mirrors the existing four); `/canaries` auto-discovers the log via its existing `.*-canary.log` glob (no code change needed — verify the glob covers it).'
+  - 'Verification block (hub-independent) passes: `bash -n`, `--help` exit 0, canned-over-threshold JSON → exit 1 + topic named, canned-healthy JSON → exit 0, crontab references the script.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/topic-growth-canary.crontab'
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - 'scripts/check-topic-growth-freshness.sh'
+  - 'scripts/testdata/topic-growth-healthy.json'
+  - 'scripts/testdata/topic-growth-over.json'
+  - '.tasks/active/T-2252-topic-growth-canary--detect-presencehigh.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T10:57:06"
+    action: "T-2252: topic-growth canary — detect presence/high-rate regrowth (arc-002 R2 sweep-cron guard)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-substrate-fitness]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 8
+  lines_added: 513
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2252-topic-growth-canary--detect-presencehigh.md
+generated_by: context-agent-hybrid

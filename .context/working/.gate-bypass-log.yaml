@@ -1567,3 +1567,9 @@ git status --short | grep -i learning
 .agentic-framework/bin/fw context focus T-1166 >/dev/null 2>&1
 git add .context/project/learnings.yaml
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/f'
+- timestamp: '2026-06-23T08:58:29Z'
+  task: 'T-2250'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2252'
+  command: 'git add -A .tasks/ .context/episodic/T-2252.yaml .context/arcs/arc-substrate-fitness.yaml .context/working/ 2>/dev/null; FW_SWITCH_FOCUS=1 git commit -q -m "T-2252: completion — fix P-011 verificati'

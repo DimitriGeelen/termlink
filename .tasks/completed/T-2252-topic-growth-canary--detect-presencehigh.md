@@ -4,10 +4,10 @@ name: "Topic-growth canary — detect presence/high-rate topic regrowth (R2 swee
 description: >
   Topic-growth canary — detect presence/high-rate topic regrowth (R2 sweep-cron guard)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
 components: []
@@ -17,8 +17,8 @@ related_tasks: [T-2242, T-2245, T-2058, T-1991]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T08:50:40Z
-last_update: 2026-06-23T08:50:40Z
-date_finished: null
+last_update: 2026-06-23T08:58:00Z
+date_finished: 2026-06-23T08:58:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -124,8 +124,8 @@ _None — all acceptance criteria are agent-verifiable (script + canned-JSON tes
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 bash -n scripts/check-topic-growth-freshness.sh
 bash scripts/check-topic-growth-freshness.sh --help >/dev/null
-out=$(TERMLINK_GROWTH_TEST_JSON=scripts/testdata/topic-growth-over.json bash scripts/check-topic-growth-freshness.sh --threshold 100 --no-heartbeat 2>&1; echo "EXIT=$?"); echo "$out" | grep -q "EXIT=1"
-echo "$out" | grep -q 'agent-presence'
+# P-011 runs each line as a SEPARATE shell (set -u) — every line is self-contained.
+out=$(TERMLINK_GROWTH_TEST_JSON=scripts/testdata/topic-growth-over.json bash scripts/check-topic-growth-freshness.sh --threshold 100 --no-heartbeat 2>&1; echo "EXIT=$?"); echo "$out" | grep -q "EXIT=1" && echo "$out" | grep -q 'agent-presence'
 TERMLINK_GROWTH_TEST_JSON=scripts/testdata/topic-growth-healthy.json bash scripts/check-topic-growth-freshness.sh --threshold 100 --no-heartbeat --quiet
 out2=$(TERMLINK_GROWTH_TEST_JSON=scripts/testdata/topic-growth-over.json bash scripts/check-topic-growth-freshness.sh --threshold 100 --no-heartbeat --json 2>&1); echo "$out2" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False"
 grep -q check-topic-growth-freshness.sh .context/cron/topic-growth-canary.crontab
@@ -224,3 +224,6 @@ gap; `/canaries` makes it operator-visible.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2252-topic-growth-canary--detect-presencehigh.md
 - **Context:** Initial task creation
+
+### 2026-06-23T08:58:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
