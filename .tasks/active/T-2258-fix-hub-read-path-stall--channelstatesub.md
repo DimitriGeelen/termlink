@@ -4,7 +4,7 @@ name: "Fix hub read-path stall — channel.state/subscribe deadlock under concur
 description: >
   ring20-management major finding (framework:pickup offset 51, 2026-06-23) + corroborated this session: channel.state/subscribe blocks indefinitely on large/low-traffic topics while channel.post is unaffected; aggravated by a recent write to the same topic. Hypothesis: read-subscribe lock contention/deadlock in the hub. Investigate + fix.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T19:39:50Z
-last_update: 2026-06-23T19:39:50Z
+last_update: 2026-06-23T19:54:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,9 +74,11 @@ registry are out of scope (T-2259 / separate).
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Root cause localized to the specific blocking-walk sites in the read path (`channel.rs:851` subscribe, `:980` receipts), documented in `## RCA` — confirmed by Explore lock-map (no std-guard-across-`.await`, no lock-ordering deadlock); matches the symptom (read hangs under concurrent write, large-topic-only, writes fast).
+- [x] Regression test `channel_subscribe_no_hang_under_concurrent_walks_t2258` added — K genuinely-concurrent full-topic walks (`Arc<Bus>`) + concurrent writers under a bounded join, closing the sequential-only gap in the T-2013 test. Forward GUARD (passes post-fix; catches a future re-block of the worker pool). HONEST LIMITATION (RCA + Evolution): an in-process handler test cannot reproduce the reactor-starvation hang, so it does NOT fail pre-fix; definitive pre/post confirmation is the operator's live `.107` re-test (Human AC below).
+- [x] Fix applied: both large-topic read walks now run on tokio's blocking pool via `spawn_blocking` (not `block_in_place`), so no full-topic scan pins a worker thread / starves the I/O reactor. (The O(K) gated cv_index walk stays `block_in_place` — small, opt-in, not the field culprit.)
+- [x] `cargo test -p termlink-hub --lib` (368) + `cargo test -p termlink-bus` (79) pass, 0 failures (incl. both starvation tests).
+- [x] `cargo build -p termlink` succeeds (release-buildable fixed binary exists in repo).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -108,6 +110,13 @@ registry are out of scope (T-2259 / separate).
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
+- [ ] [REVIEW] Fixed binary deployed to the `.107` hub and the live repro no longer hangs (OPERATOR step — the `.107` hub is a live shared host; not agent-actionable).
+  **Steps:**
+  1. Build + deploy the fixed binary to the host running the `.107` hub and restart it (preserving runtime_dir per CLAUDE.md §volatile-runtime_dir).
+  2. From a client: `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100`
+  3. Post a note to the topic, then immediately re-read the same topic.
+  **Expected:** The read returns within the bound every time, including immediately after a post.
+  **If not:** Capture `.107` hub logs/metrics during the hang and reopen the task with the new evidence.
 
 ## Verification
 
@@ -142,7 +151,19 @@ registry are out of scope (T-2259 / separate).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-hub --lib
+cargo test -p termlink-bus
+cargo build -p termlink
+
 ## RCA
+
+**Symptom:** `channel.state`/`subscribe`/`receipts` reads block indefinitely (field: killed at 12s) on large/low-traffic topics while `channel.post` is unaffected; aggravated by a concurrent write to the same topic; large-topic-only. (ring20-management, framework:pickup offset 51.)
+
+**Root cause:** The hub read path walks the full topic (O(N) blocking `seek`+`read_exact` per record) inside `tokio::task::block_in_place` (`channel.rs:851` subscribe, `:980` receipts). `block_in_place` only converts the *calling* worker into a blocking thread — it does not move the work off the bounded worker pool. Under K concurrent large-topic walks (K > `worker_threads`), every worker parks in a walk and the tokio I/O reactor (which reads RPC request lines and writes responses over the socket) is starved, so in-flight and new reads hang. `channel.post` is O(1) at the SQLite index (`meta.rs::record_append`) and never enters the walk, so writes stay fast — and a concurrent post extends the window in which readers are mid-walk, aggravating the stall. Tiny topics finish the walk before the pool saturates, so they never hang. (`channel state` pages `channel.subscribe`, so the field `channel state` repro hits the subscribe walk.) No std-guard-across-`.await` and no lock-ordering deadlock exist — verified by Explore lock-map.
+
+**Why structurally allowed:** T-2013 already identified the blocking-walk-pins-worker class and added `block_in_place` as the mitigation — but its regression test (`channel_subscribe_no_worker_starvation_under_concurrent_writes`) ran the walks **sequentially** (the author dropped the concurrent writer, believing `Bus` couldn't be shared across threads). So the *concurrent-walk* case — the actual failure mode — was never exercised, and `block_in_place`'s insufficiency under concurrency went undetected until a peer hit it in production.
+
+**Prevention:** (1) `spawn_blocking` replaces `block_in_place` for both large-topic walks — blocking work runs on tokio's dedicated blocking pool, so worker threads and the reactor never starve regardless of walk count. (2) New regression test `channel_subscribe_no_hang_under_concurrent_walks_t2258` shares `Bus` via `Arc` and runs 8 genuinely-concurrent walks + 3 concurrent writers under a bounded join — closing the sequential-only gap in the T-2013 test. **Transparency note:** the in-process test cannot reproduce the *reactor-starvation hang* (no socket I/O in-process; the walk of small records is fast), so it is a forward regression GUARD, not a reproduction of the field hang. Definitive confirmation is the operator's live `.107` re-test (Human AC) after deploying the fixed binary.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -182,6 +203,11 @@ registry are out of scope (T-2259 / separate).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-23 — reproduce-first came back inconclusive; pivoted to evidence-based fix + guard
+- **What changed:** Plan was reproduce-first (failing test before fixing). The concurrent-walk test PASSES even pre-fix — an in-process handler test can't reproduce the hang because (a) the walk of ~1500 small records is fast and (b) the field hang is tokio I/O-reactor starvation over real sockets, which a direct-handler test never exercises. Root cause is nonetheless confirmed by code analysis (block_in_place is in the read path; T-2013's own comment documents this exact symptom; the field signature matches precisely).
+- **Plan impact:** The regression test is a forward GUARD (concurrent walks complete; catches a future regression to blocking-the-pool), not a pre-fix reproduction. A faithful socket-level repro was assessed (server.rs has the harness) but deemed expensive + likely timing-flaky (`block_in_place` spawns helper workers; server tests default to `current_thread` where it panics) — not worth the budget vs. the operator's live re-test.
+- **Triggered:** Human/operator AC for live `.107` confirmation (already in the task). No new sub-tasks.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -209,3 +235,6 @@ registry are out of scope (T-2259 / separate).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2258-fix-hub-read-path-stall--channelstatesub.md
 - **Context:** Initial task creation
+
+### 2026-06-23T19:54:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

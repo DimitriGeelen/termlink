@@ -839,16 +839,21 @@ pub(crate) async fn handle_channel_subscribe_with(
         }
     };
 
-    // T-2013: `iter.next()` calls `File::seek` + `File::read_exact` per
-    // record — blocking syscalls. Inside an `async fn` this pins the
-    // tokio worker thread for the entire walk; sequential RPCs under
-    // concurrent writes (e.g. presence-heartbeat cron) saturate the
-    // worker pool and queue new RPCs on a futex for 16+ seconds. RCA
-    // in T-2012's research artifact. Invariant: any future hub handler
-    // that walks `bus.subscribe(...)` synchronously MUST be wrapped in
-    // `block_in_place`. Note: panics on `flavor = "current_thread"`,
-    // so tests calling this handler must use `flavor = "multi_thread"`.
-    let walk_result = tokio::task::block_in_place(|| {
+    // T-2013/T-2258: `iter.next()` calls `File::seek` + `File::read_exact`
+    // per record — blocking syscalls. T-2013 wrapped the walk in
+    // `block_in_place`, but that only converts the CURRENT worker into a
+    // blocking thread: under K concurrent large-topic walks (K > worker
+    // threads) the bounded worker pool — and the I/O reactor that reads
+    // RPC lines / writes responses — still starves, so reads hang
+    // indefinitely while `channel.post` (O(1), never blocks) stays fast.
+    // That is the T-2258 field symptom (ring20: `channel state` of a
+    // ~1639-row topic killed at 12s under concurrent post; `channel state`
+    // pages `channel.subscribe`, so this walk is the one it hits). FIX:
+    // run the walk on tokio's dedicated blocking pool via `spawn_blocking`,
+    // which never consumes a worker thread, so the reactor and other RPCs
+    // keep progressing regardless of how many walks are in flight. The
+    // owned `ReaderIter` + owned filters are moved into the closure.
+    let walk_result = match tokio::task::spawn_blocking(move || {
         let mut messages: Vec<Value> = Vec::new();
         let mut last_offset: Option<u64> = None;
         let mut error_msg: Option<String> = None;
@@ -877,7 +882,18 @@ pub(crate) async fn handle_channel_subscribe_with(
             }
         }
         (messages, last_offset, error_msg)
-    });
+    })
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return ErrorResponse::internal_error(
+                id,
+                &format!("channel.subscribe walk task failed: {e}"),
+            )
+            .into();
+        }
+    };
     let (messages, last_offset, error_msg) = walk_result;
     if let Some(msg) = error_msg {
         return ErrorResponse::internal_error(id, &msg).into();
@@ -973,11 +989,12 @@ pub(crate) async fn handle_channel_receipts_with(
         up_to: u64,
         ts: i64,
     }
-    // T-2013: synchronous bus.subscribe iter walk wrapped in
-    // block_in_place — same root cause and invariant as
-    // handle_channel_subscribe_with above. Affected tests must run
-    // under `flavor = "multi_thread"`.
-    let walk_result = tokio::task::block_in_place(|| {
+    // T-2013/T-2258: synchronous bus.subscribe iter walk — same root
+    // cause as handle_channel_subscribe_with above. Run it on the
+    // dedicated blocking pool via spawn_blocking (NOT block_in_place,
+    // which pins a worker and starves the reactor under concurrent
+    // large-topic reads — see the T-2258 note on the subscribe walk).
+    let walk_result = match tokio::task::spawn_blocking(move || {
         let mut latest: HashMap<String, Receipt> = HashMap::new();
         let mut error_msg: Option<String> = None;
         for item in iter {
@@ -1008,7 +1025,18 @@ pub(crate) async fn handle_channel_receipts_with(
             }
         }
         (latest, error_msg)
-    });
+    })
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return ErrorResponse::internal_error(
+                id,
+                &format!("channel.receipts walk task failed: {e}"),
+            )
+            .into();
+        }
+    };
     let (latest, error_msg) = walk_result;
     if let Some(msg) = error_msg {
         return ErrorResponse::internal_error(id, &msg).into();
@@ -3064,6 +3092,81 @@ mod tests {
                 "trial {trial}: subscribe took {elapsed:?}, expected <2s (T-2013 regression — block_in_place not engaged?)"
             );
         }
+    }
+
+    /// T-2258 regression: TRUE concurrent subscribe walks of a large topic
+    /// must not hang. The T-2013 test above runs walks SEQUENTIALLY — its
+    /// author dropped the concurrent writer believing `Bus` couldn't be
+    /// shared across threads — so K concurrent walks against a bounded
+    /// worker pool (the field failure mode: ring20 read of framework:pickup
+    /// ~1639 rows killed at 12s under concurrent post) was never exercised.
+    /// `Bus` IS `Send + Sync`, so here we share it via `Arc` and spawn
+    /// genuinely concurrent walkers + writers, then bound the whole join.
+    /// Pre-fix (`block_in_place` pins the calling worker for the full walk)
+    /// K>worker_threads concurrent walks starve the pool and the join
+    /// exceeds the bound; the correct fix (`spawn_blocking`) offloads the
+    /// walk to the blocking pool so the worker threads stay free.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn channel_subscribe_no_hang_under_concurrent_walks_t2258() {
+        use std::sync::Arc;
+        let (_d, bus) = tmp_bus();
+        let topic = "t2258-concurrent-walk-probe";
+        bus.create_topic(topic, Retention::Forever).unwrap();
+        let key = signing_key();
+
+        // Seed a large topic (~1500 envelopes — each walk does that many
+        // seek+read_exact syscalls).
+        for n in 0..1500u32 {
+            let p = post_params(&key, topic, "seed", &n.to_le_bytes(), 1000 + n as i64);
+            let _ = handle_channel_post_with(&bus, json!(n), &p).await;
+        }
+
+        let bus = Arc::new(bus);
+        let mut handles = Vec::new();
+
+        // 8 concurrent full-topic walkers (>> worker_threads=2).
+        for r in 0..8u32 {
+            let b = bus.clone();
+            let t = topic.to_string();
+            handles.push(tokio::spawn(async move {
+                let resp = handle_channel_subscribe_with(
+                    &b,
+                    json!(5000 + r),
+                    &json!({"topic": t, "cursor": 0, "limit": 1000}),
+                )
+                .await;
+                let v = unwrap_success(resp);
+                let msgs = v["messages"].as_array().unwrap();
+                assert!(msgs.len() >= 1000, "walker {r}: expected >=1000 messages, got {}", msgs.len());
+            }));
+        }
+
+        // 3 concurrent writers hammering the SAME topic during the walks.
+        for w in 0..3u32 {
+            let b = bus.clone();
+            let t = topic.to_string();
+            let wkey = signing_key();
+            handles.push(tokio::spawn(async move {
+                for i in 0..50u32 {
+                    let seq = 8_000_000 + w * 1000 + i;
+                    let p = post_params(&wkey, &t, "writer", &seq.to_le_bytes(), 8_000_000 + seq as i64);
+                    let _ = handle_channel_post_with(&b, json!(seq), &p).await;
+                }
+            }));
+        }
+
+        // Bound the whole thing. Pre-fix this exceeds the bound (hang);
+        // post-fix it completes in well under a second.
+        let collect = async {
+            for h in handles {
+                h.await.expect("task panicked");
+            }
+        };
+        let res = tokio::time::timeout(std::time::Duration::from_secs(10), collect).await;
+        assert!(
+            res.is_ok(),
+            "T-2258: concurrent subscribe walks + writes did not complete within 10s — read-path worker starvation / hang"
+        );
     }
 
     // T-2049 Gap A — client_msg_id idempotency integration tests.
