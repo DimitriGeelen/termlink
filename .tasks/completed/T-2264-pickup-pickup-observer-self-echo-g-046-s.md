@@ -4,10 +4,10 @@ name: "Pickup: Pickup observer self-echo: G-046 self-filter only skips COMPLETED
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-2259. Type: bug-report.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T20:58:02Z
-last_update: 2026-06-23T20:58:02Z
-date_finished: null
+last_update: 2026-06-23T20:58:56Z
+date_finished: 2026-06-23T20:58:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -176,3 +176,11 @@ source_project_in_origin: "termlink"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2264-pickup-pickup-observer-self-echo-g-046-s.md
 - **Context:** Initial task creation
+
+### 2026-06-23T20:58:56Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-23T20:58:56Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Self-echo of P-050 (observer-fix report itself); human-authorized dedup
