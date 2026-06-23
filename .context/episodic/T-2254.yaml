@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2254: CLI↔MCP key-name parity in history verbs — align find-idle/claims-history summary keys to *_events
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T13:13:43Z
+# ============================================================================
+
+task_id: T-2254
+task_name: "CLI↔MCP key-name parity in history verbs — align find-idle/claims-history summary keys to *_events"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T13:09:37Z
+completed: 2026-06-23T13:13:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-23T15:13:04+02:00
+last_commit: 2026-06-23T15:13:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  CLI↔MCP key-name parity in history verbs — align summary keys to *_events
+
+# Key outcomes
+outcomes:
+  - '`find-idle-history` CLI `--json` emits `summary.per_agent.<id>` as `{new_events, removed_events}` (was `{new, removed}`) — matches the MCP `termlink_agent_find_idle_history` shape (`agent_find_idle.rs:686-687`)'
+  - '`claims-history` CLI `--json` emits `summary.per_topic.<t>` as `{transitions, new_events, removed_events}` (was `{transitions, new, removed}`) — matches the MCP `termlink_channel_claims_history` shape (`channel.rs:10754-10755`)'
+  - 'Per-entry `kind` values (`"new"`/`"removed"` `ClaimChangeKind` strings) and the human-readable (non-`--json`) footers are UNCHANGED — the rename is confined to the JSON summary-aggregate map keys (grep confirmed: 0 old summary-key emit sites remain; `ClaimChangeKind` string sites untouched)'
+  - '`cargo build -p termlink` compiles clean; no CLI test asserted the old summary keys (existing helper tests assert the `new_events`/`removed_events` struct fields, not rendered JSON keys); `cargo test -p termlink claims_history` (4) + `find_idle` (15) pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-2254-climcp-key-name-parity-in-history-verbs-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T15:13:04"
+    action: "T-2254: CLI↔MCP key-name parity in history verbs — align summary keys to *_events"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-substrate-fitness]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 210
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2254-climcp-key-name-parity-in-history-verbs-.md
+generated_by: context-agent-hybrid
