@@ -1573,3 +1573,19 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/f'
   caller: 'check-active-task focus-drift'
   target: 'T-2252'
   command: 'git add -A .tasks/ .context/episodic/T-2252.yaml .context/arcs/arc-substrate-fitness.yaml .context/working/ 2>/dev/null; FW_SWITCH_FOCUS=1 git commit -q -m "T-2252: completion — fix P-011 verificati'
+- timestamp: '2026-06-23T13:36:42Z'
+  task: 'T-2256'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2255'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic (worktree-bootstrap fix)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
+- timestamp: '2026-06-23T13:38:45Z'
+  task: 'T-2250'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2255'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic (worktree-bootstrap fix)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
