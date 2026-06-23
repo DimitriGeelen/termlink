@@ -150,6 +150,39 @@ terminate + `termlink deregister <id>`. `/canaries` auto-discovers the log. Pair
 with the mirror-drift, substrate-preflight, and framework-pickup canaries above —
 all four follow the same "empty-log = healthy" convention.
 
+### Topic-growth canary (T-2252, arc-002 R2 sweep-cron guard)
+
+R2 (T-2245) bounds high-rate topics like `agent-presence` via `channel
+set-retention latest-per-cv-key` + a periodic `channel sweep` — but the bus runs
+**no background sweep thread** (T-1155: enforcement is explicit, never implicit),
+so `sweep` depends on an operator **cron that may never fire**. If it doesn't, the
+topic regrows silently — a T-1991 recurrence (the original silent agent-presence
+bloat) with nothing to surface it. This is the same "framework relies on
+out-of-band hygiene that may never run" class T-2251 closed for the audit log
+(sibling to PL-168). A daily cron runs
+`scripts/check-topic-growth-freshness.sh --quiet` (see
+`.context/cron/topic-growth-canary.crontab`) and appends to
+`.context/working/.topic-growth-canary.log`. Empty log = healthy.
+
+The canary reads `termlink channel list --json` and FIRES (exit 1) when a
+**watched** high-rate topic (default `agent-presence`, `agent-listeners-*`,
+`agent-conv-*`, `dm:*` — tunable via `TERMLINK_GROWTH_WATCH_PATTERNS`) exceeds the
+threshold (default 5000, `--threshold N`). Operator-durable topics
+(`channel:learnings`, `policy-decisions`, `framework:pickup`, `broadcast:global`)
+are **excluded** — they are intentionally `Forever` (mirrors the T-2057 audit §5 /
+retention-reset runbook §1 exclusions). Each firing topic's `retention.kind`
+selects the remediation: `forever` ⇒ retention was never set (run `set-retention
+latest-per-cv-key` + `sweep` per `docs/operations/agent-presence-retention-reset.md`
+§3); a **bounded** policy with a large count ⇒ the periodic `sweep` cron itself is
+not firing (check it's installed). Ad-hoc check:
+`bash scripts/check-topic-growth-freshness.sh` (exit 0 = healthy / no firing,
+1 = a watched topic over threshold, 2 = tooling error / hub unreachable); add
+`--json` for scripting, `--hub ADDR` to target a specific hub. Test hook
+`TERMLINK_GROWTH_TEST_JSON=<file>` feeds canned `channel list` JSON for
+hub-independent verification (PL-213). `/canaries` auto-discovers the log. Pair
+with the mirror-drift, substrate-preflight, framework-pickup, and frozen-husk
+canaries above — all five follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

@@ -1,0 +1,27 @@
+# T-2252 — Topic-growth canary (arc-002 R2 sweep-cron guard; PL-168 / G-019 class)
+# Source of truth: /opt/termlink/.context/cron/topic-growth-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-topic-growth-canary (USER field syntax — do NOT load into a user crontab)
+#
+# R2 (T-2245) bounds high-rate topics like agent-presence via
+# `channel set-retention latest-per-cv-key` + a periodic `channel sweep`. But the
+# bus runs NO background sweep thread (T-1155: enforcement is explicit), so the
+# sweep depends on an operator cron. If that cron is never installed or silently
+# stops, the topic regrows — a T-1991 recurrence with nothing to surface it. This
+# daily canary reads `termlink channel list --json` and fires (exit 1) when a
+# watched high-rate topic (agent-presence, agent-listeners-*, agent-conv-*, dm:*)
+# exceeds the threshold (default 5000). Operator-durable topics (channel:learnings,
+# policy-decisions, framework:pickup, broadcast:global) are excluded. The firing
+# line's retention.kind selects the remediation: `forever` → set-retention+sweep;
+# a bounded policy with a large count → the sweep cron itself isn't firing.
+# /canaries auto-discovers this log.
+#
+# Operator action on firing: for a `forever` topic, run the §3 safe path in
+# docs/operations/agent-presence-retention-reset.md (set-retention latest-per-cv-key
+# + sweep); for a bounded-but-large topic, the periodic sweep cron stopped — check
+# the presence-sweep cron is installed and firing.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 05:11 UTC — offset from the :13 mirror, :37 framework-pickup, 06:43
+# frozen-husk canaries and the :23/:53 heartbeats.
+11 5 * * * root cd /opt/termlink && bash scripts/check-topic-growth-freshness.sh --quiet >> .context/working/.topic-growth-canary.log 2>&1

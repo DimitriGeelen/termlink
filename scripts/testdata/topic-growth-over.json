@@ -1,0 +1,9 @@
+{
+  "topics": [
+    { "name": "agent-presence", "count": 9999, "retention": { "kind": "forever", "value": 0 } },
+    { "name": "agent-listeners-ring20", "count": 6000, "retention": { "kind": "latest_per_cv_key", "value": 0 } },
+    { "name": "channel:learnings", "count": 50000, "retention": { "kind": "forever", "value": 0 } },
+    { "name": "framework:pickup", "count": 12000, "retention": { "kind": "forever", "value": 0 } },
+    { "name": "dm:aaaa:bbbb", "count": 12, "retention": { "kind": "messages", "value": 1000 } }
+  ]
+}
