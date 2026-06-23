@@ -1,22 +1,22 @@
 ---
-id: T-2262
-name: "Watchtower /review and /approvals 500 in vendored mode — blueprints insert PROJECT_ROOT/lib but dispatch_pause lives at FRAMEWORK_ROOT/lib"
+id: T-2264
+name: "Pickup: Pickup observer self-echo: G-046 self-filter only skips COMPLETED source tasks, so relaying in-flight work auto-creates duplicate inbound tasks (from termlink)"
 description: >
-  Watchtower /review and /approvals 500 in vendored mode — blueprints insert PROJECT_ROOT/lib but dispatch_pause lives at FRAMEWORK_ROOT/lib
+  Auto-created from pickup envelope. Source: termlink, task T-2259. Type: bug-report.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
-tags: []
+horizon: next
+tags: [pickup, bug-report]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-23T20:47:27Z
-last_update: 2026-06-23T20:47:27Z
+created: 2026-06-23T20:58:02Z
+last_update: 2026-06-23T20:58:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,47 +28,22 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+source_task_id_in_origin: T-2259
+source_project_in_origin: "termlink"
 ---
 
-# T-2262: Watchtower /review and /approvals 500 in vendored mode — blueprints insert PROJECT_ROOT/lib but dispatch_pause lives at FRAMEWORK_ROOT/lib
+# T-2264: Pickup: Pickup observer self-echo: G-046 self-filter only skips COMPLETED source tasks, so relaying in-flight work auto-creates duplicate inbound tasks (from termlink)
 
 ## Context
 
-Field-discovered 2026-06-23 when the human asked for a Watchtower link: every
-`/review/<task-id>` page returns **HTTP 500**. Root cause (confirmed): the review
-+ approvals blueprints insert the WRONG lib dir on `sys.path`.
-
-`.agentic-framework/web/blueprints/review.py:21` (and `approvals.py` identically) does:
-```python
-sys.path.insert(0, str(PROJECT_ROOT / "lib"))   # T-1810
-...
-from dispatch_pause import format_age, list_paused_dispatches_for_task, truncate
-```
-But `dispatch_pause.py` lives at **`FRAMEWORK_ROOT/lib/`**, not `PROJECT_ROOT/lib/`.
-In a **vendored install** (framework ≠ project, the normal consumer layout here),
-`PROJECT_ROOT/lib` = `/opt/termlink/lib` which does not exist → `ModuleNotFoundError:
-No module named 'dispatch_pause'` → 500 before any task logic runs (so EVERY
-`/review/<id>` and the Tier-0 `/approvals` flow are broken, regardless of task state).
-
-This is the **web-blueprint sibling of PL-222** (which was the inception-close
-`python3 -`/`__file__` path bug): framework code computing a lib path that is
-correct only when framework==project (the framework's own repo) and wrong in
-vendored/consumer mode.
-
-**Proper fix (one line, upstream — vendored, cannot patch locally per PL-022):**
-`web.shared` already exports `FRAMEWORK_ROOT = APP_DIR.parent` (shared.py:22).
-Both blueprints should `sys.path.insert(0, str(FRAMEWORK_ROOT / "lib"))`.
-**Local workaround (no patch):** start Watchtower with
-`PYTHONPATH=<project>/.agentic-framework/lib` so `dispatch_pause` resolves
-despite the wrong insert. Verified working.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Root cause confirmed: review.py:21 + approvals.py:25 insert `PROJECT_ROOT/lib`; `dispatch_pause.py` lives at `FRAMEWORK_ROOT/lib` (PROJECT_ROOT/lib absent in vendored install). Documented above.
-- [x] Local workaround applied: Watchtower restarted with `PYTHONPATH=.../.agentic-framework/lib`; `/review/<id>` returns HTTP 200 (was 500). Verified T-2258/T-2259/T-2262/T-2256 + /approvals all 200.
-- [x] Upstream fix relayed to AEF via `fw pickup send` → RCA bug-report **P-049** (priority high); verified landed on `framework:pickup` offset 55 (auto-bridge silent-failed per PL-227-adjacent gotcha, force-bridged manually).
-- [x] Learning registered: **PL-227** — web-blueprint sibling of PL-222 (vendored-mode lib-path resolution bug class).
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -102,9 +77,6 @@ despite the wrong insert. Verified working.
 -->
 
 ## Verification
-
-# T-2262: /review must return 200 (was 500). Reads live Watchtower URL from triple file.
-test "$(curl -s -o /dev/null -w '%{http_code}' "$(cat .context/working/watchtower.url)/review/T-2258")" = "200"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -153,14 +125,6 @@ test "$(curl -s -o /dev/null -w '%{http_code}' "$(cat .context/working/watchtowe
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** Every `GET /review/<task-id>` and the Tier-0 `/approvals` page return HTTP 500 (`ModuleNotFoundError: No module named 'dispatch_pause'`). Total outage of the human-review + approval UI on this (vendored) host — independent of task state.
-
-**Root cause:** `web/blueprints/review.py:21` and `approvals.py` do `sys.path.insert(0, str(PROJECT_ROOT / "lib"))` then `from dispatch_pause import …`, but `dispatch_pause.py` ships at `FRAMEWORK_ROOT/lib`, not `PROJECT_ROOT/lib`. In a vendored install (framework ≠ project) `PROJECT_ROOT/lib` (`/opt/termlink/lib`) does not exist, so the import never resolves.
-
-**Why structurally allowed:** The framework's own CI/dev runs from its OWN repo where `FRAMEWORK_ROOT == PROJECT_ROOT`, so the wrong path coincidentally resolves and the defect is invisible. No test boots the web app in a vendored layout (distinct roots). This is the web-blueprint sibling of PL-222 — the recurring "path correct only when framework==project" class.
-
-**Prevention (distinct from the fix):** (1) PL-227 registered. (2) Recommended upstream (in P-049): a smoke test that boots Watchtower with `PROJECT_ROOT` set to a temp dir distinct from `FRAMEWORK_ROOT` and asserts `/review/<seed>` returns 200; and/or an audit grep flagging `PROJECT_ROOT / "lib"` under `web/`. The fix itself (use `FRAMEWORK_ROOT/lib`) is upstream/vendored — relayed via P-049, not patched locally (PL-022).
-
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -208,7 +172,7 @@ test "$(curl -s -o /dev/null -w '%{http_code}' "$(cat .context/working/watchtowe
 
 ## Updates
 
-### 2026-06-23T20:47:27Z — task-created [task-create-agent]
+### 2026-06-23T20:58:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2262-watchtower-review-and-approvals-500-in-v.md
+- **Output:** /opt/termlink/.tasks/active/T-2264-pickup-pickup-observer-self-echo-g-046-s.md
 - **Context:** Initial task creation
