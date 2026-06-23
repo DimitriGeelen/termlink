@@ -140,9 +140,9 @@ producer (`listener-heartbeat.sh:173`, cv_key-wired T-2107) and the MCP
 
 **Surviving arc shape (updated):** R4 ✅ → R2 ✅ → R7 (hygiene, operational) →
 **R1 → T-2249 inception (was "minor build"; now Sovereign design decision)** →
-R5 (telemetry inception). The autonomously-buildable build line (R4 + R2) is
-**complete**; all remaining nodes require the human (decision) or operator (live
-host).
+**R5 → T-2250 inception (telemetry plane; agent rec DEFER)**. The
+autonomously-buildable build line (R4 + R2) is **complete**; all remaining nodes
+require the human (decision: T-2249, T-2250) or operator (live host: R7).
 
 ## 2. Corrected lock structure & task slicing (plan form — NOT minted)
 
