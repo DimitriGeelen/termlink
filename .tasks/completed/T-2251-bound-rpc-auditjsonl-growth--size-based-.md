@@ -4,21 +4,21 @@ name: "Bound rpc-audit.jsonl growth — size-based rotation in audit writer"
 description: >
   Bound rpc-audit.jsonl growth — size-based rotation in audit writer
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
-components: []
+components: [crates/termlink-hub/src/rpc_audit.rs]
 related_tasks: [T-2242, T-1304]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T08:03:38Z
-last_update: 2026-06-23T08:03:38Z
-date_finished: null
+last_update: 2026-06-23T08:08:31Z
+date_finished: 2026-06-23T08:08:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -45,11 +45,11 @@ the framework allowed unbounded growth, not just the symptom.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Audit writer rotates: when `rpc-audit.jsonl` reaches the cap, it is renamed to `rpc-audit.jsonl.1` (overwriting any prior `.1`) and a fresh file is started — at most one rotated backup; total on-disk bounded to ~2× cap.
-- [ ] Cap is configurable via `TERMLINK_AUDIT_MAX_BYTES` (read at hub `init`), default 100 MiB; `0` disables rotation (back-compat append-forever, the pre-T-2251 behavior).
-- [ ] Rotation logic is a pure, lock-free `append_line_capped(path, line, cap)`; the prod `append_line` wraps it in a write-lock so concurrent dispatches can't race the rotate.
-- [ ] Regression tests (PL-213 — assert the property): (a) over-cap writes produce a `.1` and keep the main file ≤ cap + one line; (b) `cap=0` never creates `.1` and grows past the cap; (c) `.1` is overwritten on a second rotation (not accumulated).
-- [ ] `cargo test -p termlink-hub` passes (existing + new).
+- [x] Audit writer rotates: when `rpc-audit.jsonl` reaches the cap, it is renamed to `rpc-audit.jsonl.1` (overwriting any prior `.1`) and a fresh file is started — at most one rotated backup; total on-disk bounded to ~2× cap.
+- [x] Cap is configurable via `TERMLINK_AUDIT_MAX_BYTES` (read at hub `init`), default 100 MiB; `0` disables rotation (back-compat append-forever, the pre-T-2251 behavior).
+- [x] Rotation logic is a pure, lock-free `append_line_capped(path, line, cap)`; the prod `append_line` wraps it in a write-lock so concurrent dispatches can't race the rotate.
+- [x] Regression tests (PL-213 — assert the property): (a) over-cap writes produce a `.1` and keep the main file ≤ cap + one line; (b) `cap=0` never creates `.1` and grows past the cap; (c) `.1` is overwritten on a second rotation (not accumulated).
+- [x] `cargo test -p termlink-hub` passes (existing + new).
 
 ### Human
 _None — all acceptance criteria are agent-verifiable (code + `cargo test`)._
@@ -227,3 +227,6 @@ file remains R7 (live host); this task ensures it can't recur.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2251-bound-rpc-auditjsonl-growth--size-based-.md
 - **Context:** Initial task creation
+
+### 2026-06-23T08:08:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

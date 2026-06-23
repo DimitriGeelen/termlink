@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2251: Bound rpc-audit.jsonl growth — size-based rotation in audit writer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T08:08:38Z
+# ============================================================================
+
+task_id: T-2251
+task_name: "Bound rpc-audit.jsonl growth — size-based rotation in audit writer"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T08:03:38Z
+completed: 2026-06-23T08:08:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-23T10:08:02+02:00
+last_commit: 2026-06-23T10:08:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound rpc-audit.jsonl growth — size cap + single-backup rotation (arc-002 R7 prevention)
+
+# Key outcomes
+outcomes:
+  - 'Audit writer rotates: when `rpc-audit.jsonl` reaches the cap, it is renamed to `rpc-audit.jsonl.1` (overwriting any prior `.1`) and a fresh file is started — at most one rotated backup; total on-disk bounded to ~2× cap.'
+  - 'Cap is configurable via `TERMLINK_AUDIT_MAX_BYTES` (read at hub `init`), default 100 MiB; `0` disables rotation (back-compat append-forever, the pre-T-2251 behavior).'
+  - 'Rotation logic is a pure, lock-free `append_line_capped(path, line, cap)`; the prod `append_line` wraps it in a write-lock so concurrent dispatches can''t race the rotate.'
+  - 'Regression tests (PL-213 — assert the property): (a) over-cap writes produce a `.1` and keep the main file ≤ cap + one line; (b) `cap=0` never creates `.1` and grows past the cap; (c) `.1` is overwritten on a second rotation (not accumulated).'
+  - '`cargo test -p termlink-hub` passes (existing + new).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-23 — single-backup rotation, default-on, 0-disables'
+    chose: 'size cap (default 100 MiB) + single rename-to-`.1` rotation, on by'
+    rationale: 'bounds the file to ~2× cap with no external deps or background thread'
+    alternatives_rejected: ['(a) multi-generation `.1`/`.2`/… rotation — more disk + bookkeeping']
+  - decision: '2026-06-23 — known trade-off: `summarize_legacy_usage` reads only the live file'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/focus.yaml'
+  - '.context/working/session.yaml'
+  - 'crates/termlink-hub/src/rpc_audit.rs'
+  - '.tasks/active/T-2251-bound-rpc-auditjsonl-growth--size-based-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T10:08:02"
+    action: "T-2251: bound rpc-audit.jsonl growth — size cap + single-backup rotation (arc-002 R7 prevention)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-substrate-fitness]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 4
+  lines_added: 390
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2251-bound-rpc-auditjsonl-growth--size-based-.md
+generated_by: context-agent-hybrid

@@ -1511,3 +1511,59 @@ ls -la .context/working/*.'
   flag: '--skip-rca'
   caller: 'check_rca_for_bugfix'
   reason: ''
+- timestamp: '2026-06-22T10:14:10Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2241'
+  command: 'cd /opt/termlink
+git add -A .tasks/active/T-2241-discovery-termlink-comms-patterns--failu.md .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md .context/episodic/T-2241.yaml
+FW_SWITCH'
+- timestamp: '2026-06-22T10:14:16Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2241'
+  command: 'cd /opt/termlink
+git add .context/episodic/T-2241.yaml
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2241: episodic summary" 2>&1 | tail -6
+echo "--- now push ---"
+git status --short | '
+- timestamp: '2026-06-22T10:14:23Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2241'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2241: completion Updates entry" 2>&1 | tail -4'
+- timestamp: '2026-06-22T11:48:58Z'
+  task: 'T-2243'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2242'
+  command: 'cd /opt/termlink
+git add .context/arcs/arc-substrate-fitness.yaml docs/plans/T-2242-substrate-fitness-ingestion.md .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md
+FW_SWITCH_FOCUS=1 .a'
+- timestamp: '2026-06-22T19:43:53Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2243'
+  command: 'git add -A .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md .tasks/completed/T-2243-r4-substrate-fitness-dead-letter-the-sil.md .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agen'
+- timestamp: '2026-06-22T19:43:59Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2243'
+  command: 'git add -A .tasks/ .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2243: completion — move to completed/ + episodic (R4 arc-substrate-fitness keystone)'
+- timestamp: '2026-06-22T21:34:50Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2245'
+  command: 'cd /opt/termlink
+git status --short | grep -i learning
+.agentic-framework/bin/fw context focus T-1166 >/dev/null 2>&1
+git add .context/project/learnings.yaml
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/f'
