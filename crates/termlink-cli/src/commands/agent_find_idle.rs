@@ -681,8 +681,10 @@ pub(crate) async fn cmd_agent_find_idle_history(
                 (
                     id.clone(),
                     serde_json::json!({
-                        "new": a.new_events,
-                        "removed": a.removed_events,
+                        // T-2254: `*_events` keys for CLI↔MCP parity (matches
+                        // termlink_agent_find_idle_history + sibling queue-history).
+                        "new_events": a.new_events,
+                        "removed_events": a.removed_events,
                     }),
                 )
             })

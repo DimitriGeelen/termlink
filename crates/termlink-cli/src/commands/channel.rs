@@ -10749,9 +10749,11 @@ pub(crate) async fn cmd_channel_claims_history(
                 (
                     t.clone(),
                     json!({
+                        // T-2254: `*_events` keys for CLI↔MCP parity (matches
+                        // termlink_channel_claims_history + sibling queue-history).
                         "transitions": a.transitions,
-                        "new": a.new_events,
-                        "removed": a.removed_events,
+                        "new_events": a.new_events,
+                        "removed_events": a.removed_events,
                     }),
                 )
             })
