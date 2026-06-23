@@ -2344,3 +2344,10 @@ learnings:
   date: 2026-06-23
   context: Added via context agent
   application: TBD
+- id: PL-227
+  learning: "Watchtower web blueprints (review.py:21, approvals.py) insert sys.path.insert(0, PROJECT_ROOT/'lib') but the helper dispatch_pause.py ships at FRAMEWORK_ROOT/lib — so /review/<id> + /approvals return HTTP 500 (ModuleNotFoundError: dispatch_pause) on EVERY vendored install (framework != project). Invisible in framework-dev where the two roots coincide. Web-blueprint sibling of PL-222 (inception-close __file__ variant): framework code computing a lib path correct only when framework==project. FIX (upstream, one line each): web.shared already exports FRAMEWORK_ROOT=APP_DIR.parent; use FRAMEWORK_ROOT/'lib'. WORKAROUND (no patch, PL-022): start Watchtower with PYTHONPATH=<project>/.agentic-framework/lib fw serve — flips 500->200. Relayed upstream as RCA bug-report P-049."
+  source: P-001
+  task: T-2262
+  date: 2026-06-23
+  context: Added via context agent
+  application: TBD
