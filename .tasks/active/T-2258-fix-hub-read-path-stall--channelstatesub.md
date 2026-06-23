@@ -238,3 +238,24 @@ cargo build -p termlink
 
 ### 2026-06-23T19:54:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-24 — independent repro from ring20 (corroborating evidence, via T-2266 sweep)
+- **Source:** ring20-management filed this on framework:pickup .107 offset 51 ("finding",
+  to framework-agent / termlink-agent (.107 hub owner)). It never reached anyone via the
+  dead topic (G-063/PL-228); surfaced during the T-2266 fleet-pickup sweep. NOT relayed to
+  AEF — it is a termlink hub bug already owned here (this task).
+- **Independent confirmation (ring20 client on .122, both ends 0.11.1367):**
+  - NOT auth/transport: posts ack instantly; many reads return ~90ms.
+  - NOT hub-down/hub-wide: `health:ring20-fedprobe` full-state served in 90ms every trial (5+).
+  - NOT version skew: ring20 CLI and .107 hub BOTH 0.11.1367.
+  - Reads intermittently HANG, concentrated on large/low-traffic topics (a big `dm:*`,
+    `framework:pickup` ~1639 rows). Tiny fedprobe topic never hangs.
+  - **Write-correlated:** cold `channel state framework:pickup --hub .107` → 1639 rows in 97ms;
+    the SAME read immediately after a `channel.post` to that topic HUNG (killed at 12s).
+- **Crisp external repro (operator can use to verify the fix after deploy):**
+  `timeout -s KILL 12 termlink channel state framework:pickup --hub 192.168.10.107:9100`
+  — fast cold; post a note to the topic then immediately re-read → hangs. fedprobe never repros.
+- **Why this matters here:** corroborates the RCA (large-topic full-canonical-state read blocks,
+  aggravated by a concurrent write to the same topic) from an INDEPENDENT client, and hands the
+  human AC a ready repro command for post-deploy verification on .107. ring20 tracks their side
+  under the read-path workaround (seek-to-tail reader); root fix is this task's spawn_blocking.
