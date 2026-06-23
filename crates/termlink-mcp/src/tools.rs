@@ -584,6 +584,58 @@ pub(crate) struct QueueHistoryAggMcp {
     pub drained_events: u64,
 }
 
+// T-2253 (R4 parity): build the exists=true `queue_status` JSON, including the
+// dead-letter backlog the CLI `channel queue-status` already shows (count +
+// up to 50 rows; channel.rs:8573). Extracted as a pure helper so the property
+// "an MCP caller is no longer blind to poison drops" is unit-testable without
+// the server. PL-167/PL-172 class: keep MCP and CLI field-shapes in lockstep.
+fn build_queue_status_exists_value(
+    queue: &termlink_session::offline_queue::OfflineQueue,
+    queue_path_display: String,
+) -> serde_json::Value {
+    const DEAD_LETTER_LIST_CAP: u64 = 50;
+    let size = queue.size().unwrap_or(0);
+    let head = queue.peek_oldest().ok().flatten();
+    let head_json = head.map(|(id, post)| {
+        serde_json::json!({
+            "queue_id": id.0,
+            "topic": post.topic,
+            "msg_type": post.msg_type,
+            "ts_unix_ms": post.ts_unix_ms,
+            "sender_id": post.sender_id,
+            "artifact_ref": post.artifact_ref,
+        })
+    });
+    let dead_count = queue.dead_letter_count().unwrap_or(0);
+    let dead_rows = queue
+        .list_dead_letters(DEAD_LETTER_LIST_CAP)
+        .unwrap_or_default();
+    let dead_json: Vec<serde_json::Value> = dead_rows
+        .iter()
+        .map(|d| {
+            serde_json::json!({
+                "id": d.id,
+                "topic": d.post.topic,
+                "msg_type": d.post.msg_type,
+                "sender_id": d.post.sender_id,
+                "reason": d.reason,
+                "attempts": d.attempts,
+                "enqueued_ms": d.enqueued_ms,
+                "dead_lettered_ms": d.dead_lettered_ms,
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "queue_path": queue_path_display,
+        "exists": true,
+        "cap": queue.cap(),
+        "pending": size,
+        "oldest": head_json,
+        "dead_letters": dead_count,
+        "dead_letter_rows": dead_json,
+    })
+}
+
 // T-2087: pure helper — parse queue.log NDJSON into (entries, malformed).
 // Mirror of T-2082's `parse_find_idle_log_mcp` (sans agent_id requirement
 // — queue is per-host so there's no per-entity identifier). Lines
@@ -886,7 +938,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         ]),
         ("channel_admin", vec![
             ("termlink_channel_members", "List members/subscribers on a topic"),
-            ("termlink_channel_queue_status", "Inspect topic queue state (post count, lag, last-offset)"),
+            ("termlink_channel_queue_status", "Inspect offline-queue state (pending count, cap, head post, + dead-letter backlog)"),
             ("termlink_channel_typing_emit", "Emit a typing indicator to a topic (UX signal)"),
             ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)"),
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
@@ -29027,7 +29079,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_queue_status",
-        description = "Read-only view of the local T-1161 offline-queue: pending-post count, cap, and head-of-line post metadata. Does not contact the hub."
+        description = "Read-only view of the local T-1161 offline-queue: pending-post count, cap, head-of-line post metadata, AND (T-2253 / R4 parity) the durable dead-letter backlog — `dead_letters` (exact count) + `dead_letter_rows` (up to 50, each carrying topic/msg_type/sender_id/reason/attempts/enqueued_ms/dead_lettered_ms). A poison-drop that crossed POISON_THRESHOLD is recoverable here, not silent. Does not contact the hub."
     )]
     async fn termlink_channel_queue_status(
         &self,
@@ -29050,26 +29102,12 @@ impl TermLinkTools {
             Ok(q) => q,
             Err(e) => return json_err(format!("Failed to open offline queue: {e}")),
         };
-        let size = queue.size().unwrap_or(0);
-        let head = queue.peek_oldest().ok().flatten();
-        let head_json = head.map(|(id, post)| {
-            serde_json::json!({
-                "queue_id": id.0,
-                "topic": post.topic,
-                "msg_type": post.msg_type,
-                "ts_unix_ms": post.ts_unix_ms,
-                "sender_id": post.sender_id,
-                "artifact_ref": post.artifact_ref,
-            })
-        });
-        serde_json::to_string_pretty(&serde_json::json!({
-            "queue_path": path.display().to_string(),
-            "exists": true,
-            "cap": queue.cap(),
-            "pending": size,
-            "oldest": head_json,
-        }))
-        .unwrap_or_else(json_err)
+        // T-2253 (R4 parity): the exists=true body — including the dead-letter
+        // backlog (count + up to 50 rows) the CLI already surfaces — is built by
+        // a pure helper so the "MCP caller sees dead-letters" property is unit-
+        // testable without spinning the server. See `build_queue_status_exists_value`.
+        let value = build_queue_status_exists_value(&queue, path.display().to_string());
+        serde_json::to_string_pretty(&value).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -42963,6 +43001,59 @@ YW\tJ
         let agg = aggregate_queue_entries_mcp(&entries);
         assert_eq!(agg.pending_events, 1);
         assert_eq!(agg.drained_events, 1);
+    }
+
+    // ---- T-2253 queue_status dead-letter parity (R4 / w5 observability) ----
+
+    #[test]
+    fn mcp_queue_status_surfaces_dead_letters() {
+        // PROPERTY (PL-213): an MCP caller is no longer blind to the poison
+        // backlog the CLI `channel queue-status` already shows. Build an
+        // in-memory queue, dead-letter one row, and assert the MCP exists-branch
+        // JSON carries a non-zero count AND the forensic reason — i.e. R4's
+        // "a poison-drop must not be silent" now holds for MCP callers too.
+        use termlink_session::offline_queue::{OfflineQueue, PendingPost};
+        let q = OfflineQueue::open_in_memory().unwrap();
+        let post = PendingPost {
+            topic: "governance-plane".to_string(),
+            msg_type: "complete".to_string(),
+            payload: b"ledger".to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: 123,
+            sender_id: "agent-x".to_string(),
+            sender_pubkey_hex: String::new(),
+            signature_hex: String::new(),
+            metadata: Default::default(),
+            client_msg_id: None,
+        };
+        let id = q.enqueue(&post).unwrap();
+        q.dead_letter(id, "hub rejected: unknown topic").unwrap();
+
+        let v = build_queue_status_exists_value(&q, "/tmp/test-queue.sqlite".to_string());
+        assert_eq!(v["dead_letters"], 1, "MCP caller sees the dead-letter count");
+        let rows = v["dead_letter_rows"]
+            .as_array()
+            .expect("dead_letter_rows is an array");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0]["reason"], "hub rejected: unknown topic",
+            "forensic reason surfaced to the agent"
+        );
+        assert_eq!(rows[0]["topic"], "governance-plane");
+        assert_eq!(v["exists"], true);
+        assert_eq!(v["pending"], 0, "the dead-lettered row left the live queue");
+    }
+
+    #[test]
+    fn mcp_queue_status_empty_queue_has_zero_dead_letters() {
+        // Back-compat: a healthy queue still emits the fields as 0/[] so callers
+        // can rely on their presence; callers ignoring them are unaffected.
+        use termlink_session::offline_queue::OfflineQueue;
+        let q = OfflineQueue::open_in_memory().unwrap();
+        let v = build_queue_status_exists_value(&q, "/tmp/empty.sqlite".to_string());
+        assert_eq!(v["dead_letters"], 0);
+        assert_eq!(v["dead_letter_rows"].as_array().unwrap().len(), 0);
+        assert_eq!(v["pending"], 0);
     }
 
     // ---- T-2077 claims_summary_all only_stuck predicate tests --------
