@@ -4,7 +4,7 @@ name: "Propagate no-federation-by-design correction into shared fleet operating 
 description: >
   ring20-management major systemic finding (framework:pickup offset 48, 2026-06-23), 3rd recurrence (T-1259/T-1264/T-1296): peers keep re-filing 'fix passive replication' because termlink's no-inter-hub-federation-by-design finding (T-2229, PL-176/G-060) never propagated into the SHARED fleet operating model. R1: land the correction in FRAMEWORK.md/fleet-comms so no agent re-files it; relay ack to ring20. R2 (fleet peer registry) + R3 (cross-agent delivery ACK) noted as larger related items, out of scope here.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: human
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T19:40:04Z
-last_update: 2026-06-23T19:40:04Z
+last_update: 2026-06-23T20:12:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,28 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Source:** ring20-management `pickup` on `framework:pickup` offset 48 (2026-06-23),
+3rd recurrence (T-1259/T-1264/T-1296). Peers keep re-filing "fix passive replication
+→ align hub versions" because termlink's finding — **TermLink has NO inter-hub
+federation by design** (T-2229, PL-176/G-060) — never propagated into the SHARED
+fleet operating model, so other agents operate on the invalid premise and re-hit the
+same wall.
+
+**Scope split (honest):** termlink's local model is already correct (CLAUDE.md
+§"Channel Topic Semantics — Per-Hub State (G-060)" + `docs/operations/channel-topic-semantics.md`).
+The SHARED model lives in `FRAMEWORK.md`, which is **vendored upstream (AEF)** — termlink
+does not edit it locally. So termlink's deliverable for R1 is to (a) confirm the local
+model is correct, (b) **relay** the correction upstream to AEF via `fw pickup send` so it
+lands in the shared `FRAMEWORK.md`, and (c) **ack** ring20 so the courier loop closes.
+The actual landing in `FRAMEWORK.md` is AEF's action (not agent-completable here).
+R2 (fleet peer registry) + R3 (cross-agent delivery ACK) are larger separate items.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Confirmed termlink's local docs correctly state no-inter-hub-federation-by-design: `docs/operations/channel-topic-semantics.md` (TL;DR + empirical grep-zero-matches proof) + CLAUDE.md §"Channel Topic Semantics — Per-Hub State (G-060 / T-1791 / T-1792)". `FRAMEWORK.md` (the shared model) is vendored/untracked here and has NO federation mention — confirming the exact propagation gap.
+- [x] Correction relayed upstream to AEF via `fw pickup send` → `P-048-feature-proposal` (priority high), bridged to `framework:pickup` (dedup.log 2026-06-23T20:15Z). Names the invalid "fix passive replication / align hub versions" premise explicitly and supplies canonical text for FRAMEWORK.md. R2/R3 scoped OUT.
+- [x] Acknowledgement posted to ring20 on `framework:pickup` (offset 53, msg-type `ack`) referencing their offset-48 finding; loop closed, R2/R3 flagged as separate, and cross-links the offset-51 finding → T-2258.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +188,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2259-propagate-no-federation-by-design-correc.md
 - **Context:** Initial task creation
+
+### 2026-06-23T20:12:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
