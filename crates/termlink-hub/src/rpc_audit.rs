@@ -3,8 +3,15 @@
 //! Each authenticated JSON-RPC dispatch records one line:
 //! `{"ts":<unix_ms>,"method":"<method>"}` to `<runtime_dir>/rpc-audit.jsonl`.
 //! Best-effort — write failures never fail the RPC. `fw metrics api-usage`
-//! reads the file and tallies. Single-file design (no rotation in v1) — the
-//! operator-runbook handles disk pressure via cron deletion >90d.
+//! reads the file and tallies.
+//!
+//! T-2251 (arc-002 R7 prevention): size-bounded with single-backup rotation.
+//! When the live file reaches `TERMLINK_AUDIT_MAX_BYTES` (default 100 MiB) it is
+//! renamed to `rpc-audit.jsonl.1` (overwriting any prior `.1`) and a fresh file
+//! is started — at most one rotated backup, total on-disk bounded to ~2× the cap.
+//! Set the env var to `0` to disable rotation (the pre-T-2251 append-forever v1
+//! behavior, where the operator-runbook handled disk pressure via cron deletion
+//! >90d). Closes the G-019 unbounded-growth gap behind the in-the-wild 1.36GB log.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -14,6 +21,22 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 static AUDIT_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
 pub const FILE_NAME: &str = "rpc-audit.jsonl";
+
+/// T-2251: default rotation cap (100 MiB) when `TERMLINK_AUDIT_MAX_BYTES` is
+/// unset or unparseable. A value of `0` disables rotation entirely.
+pub const DEFAULT_AUDIT_MAX_BYTES: u64 = 100 * 1024 * 1024;
+
+/// T-2251: rotation cap in bytes, resolved once at `init`. See `max_bytes()`.
+static AUDIT_MAX_BYTES: OnceLock<u64> = OnceLock::new();
+
+/// T-2251: serializes the size-check → rotate → append critical section so
+/// concurrent authenticated dispatches cannot race the rename. Audit writes are
+/// already per-call file opens; this lock's cost is negligible beside that I/O.
+static AUDIT_WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn audit_write_lock() -> &'static Mutex<()> {
+    AUDIT_WRITE_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 /// T-1307: Methods that are transport plumbing rather than user-meaningful
 /// API calls. These would otherwise dominate audit-log volume from long-poll
@@ -110,6 +133,22 @@ pub fn warn_if_legacy(
 pub fn init(runtime_dir: &Path) {
     let path = runtime_dir.join(FILE_NAME);
     let _ = AUDIT_PATH.set(Some(path));
+    let _ = AUDIT_MAX_BYTES.set(read_max_bytes_env());
+}
+
+/// T-2251: resolve the rotation cap from `TERMLINK_AUDIT_MAX_BYTES`. Unset or
+/// unparseable → `DEFAULT_AUDIT_MAX_BYTES`. `0` is honored (disables rotation).
+fn read_max_bytes_env() -> u64 {
+    std::env::var("TERMLINK_AUDIT_MAX_BYTES")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_AUDIT_MAX_BYTES)
+}
+
+/// T-2251: the resolved cap, or the default if `init` hasn't run (e.g. some
+/// unit tests that set only the path).
+fn max_bytes() -> u64 {
+    AUDIT_MAX_BYTES.get().copied().unwrap_or(DEFAULT_AUDIT_MAX_BYTES)
 }
 
 /// Test-only override so unit tests don't trample the prod path.
@@ -120,6 +159,14 @@ pub fn init_for_test(path: PathBuf) {
 
 fn current_path() -> Option<&'static Path> {
     AUDIT_PATH.get().and_then(|p| p.as_deref())
+}
+
+/// T-2251: the rotated-backup path for `path` — append `.1` to the file name
+/// (e.g. `rpc-audit.jsonl` → `rpc-audit.jsonl.1`). A single backup generation.
+fn rotated_path(path: &Path) -> PathBuf {
+    let mut os = path.as_os_str().to_os_string();
+    os.push(".1");
+    PathBuf::from(os)
 }
 
 fn now_ms() -> u128 {
@@ -373,9 +420,32 @@ fn effective_caller(v: &serde_json::Value) -> String {
     "(unknown)".to_string()
 }
 
+/// Prod entry: serialize the size-check + rotate + append behind the write lock
+/// (T-2251) so concurrent dispatches can't race the rename, then delegate to the
+/// pure capped writer with the resolved cap.
 fn append_line(path: &Path, line: &str) -> std::io::Result<()> {
+    let _guard = audit_write_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    append_line_capped(path, line, max_bytes())
+}
+
+/// T-2251: pure, lock-free capped append. If `max_bytes > 0` and the current
+/// file is already at/over the cap, rotate it (rename → `.1`, overwriting any
+/// prior backup) before appending to a fresh file. `max_bytes == 0` disables
+/// rotation (append-forever). Checking size BEFORE the write bounds the live
+/// file to `cap + one line` and the backup to the same — total ~2× cap.
+pub(crate) fn append_line_capped(path: &Path, line: &str, max_bytes: u64) -> std::io::Result<()> {
     use std::fs::OpenOptions;
     use std::io::Write;
+    if max_bytes > 0
+        && let Ok(meta) = std::fs::metadata(path)
+        && meta.len() >= max_bytes
+    {
+        // Best-effort rotate: a rename failure (e.g. the file vanished under us)
+        // must not lose the line — fall through and append to whatever exists.
+        let _ = std::fs::rename(path, rotated_path(path));
+    }
     let mut f = OpenOptions::new().create(true).append(true).open(path)?;
     f.write_all(line.as_bytes())?;
     f.write_all(b"\n")?;
@@ -399,6 +469,93 @@ mod tests {
         // run in-process and only the first one wins. We work around this by
         // calling append_line directly in the second/third tests.
         let _ = AUDIT_PATH.set(Some(path));
+    }
+
+    // ── T-2251: size-based rotation (append_line_capped, pure/lock-free) ──
+
+    #[test]
+    fn append_line_capped_rotates_when_over_cap_and_bounds_live_file() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rpc-audit.jsonl");
+        let backup = rotated_path(&path);
+        let line = "{\"ts\":1,\"method\":\"hub.auth\"}"; // 28 bytes + newline = 29
+        let line_len = line.len() as u64 + 1;
+        let cap: u64 = 100; // small cap so a handful of writes trips rotation
+
+        // Write enough lines to exceed the cap at least once.
+        let n = (cap / line_len) + 5;
+        for _ in 0..n {
+            append_line_capped(&path, line, cap).unwrap();
+        }
+
+        // Property (PL-213): rotation happened → backup exists, and the LIVE
+        // file is bounded to cap + one line (we rotate when size >= cap BEFORE
+        // appending, so post-write size ≤ (cap - 1) + line_len).
+        assert!(backup.exists(), "rotation should have produced a .1 backup");
+        let live_len = fs::metadata(&path).unwrap().len();
+        assert!(
+            live_len <= cap + line_len,
+            "live file {live_len} must stay bounded to cap+line ({})",
+            cap + line_len
+        );
+        // Total on disk bounded to ~2× cap (+ overshoot for the in-flight line).
+        let backup_len = fs::metadata(&backup).unwrap().len();
+        assert!(
+            live_len + backup_len <= 2 * (cap + line_len),
+            "total {} must stay bounded to ~2x cap",
+            live_len + backup_len
+        );
+    }
+
+    #[test]
+    fn append_line_capped_zero_disables_rotation() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rpc-audit.jsonl");
+        let backup = rotated_path(&path);
+        let line = "{\"ts\":1,\"method\":\"hub.auth\"}";
+        let cap: u64 = 0; // disabled → append-forever (pre-T-2251 v1 behavior)
+
+        for _ in 0..50 {
+            append_line_capped(&path, line, cap).unwrap();
+        }
+
+        assert!(!backup.exists(), "cap=0 must never rotate");
+        let live_len = fs::metadata(&path).unwrap().len();
+        // 50 lines vastly exceeds a would-be 100-byte cap → proof rotation is off.
+        assert!(
+            live_len > 100,
+            "cap=0 file should grow unbounded, got {live_len}"
+        );
+    }
+
+    #[test]
+    fn append_line_capped_second_rotation_overwrites_backup_not_accumulates() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rpc-audit.jsonl");
+        let backup = rotated_path(&path);
+        let line = "{\"ts\":1,\"method\":\"hub.auth\"}";
+        let line_len = line.len() as u64 + 1;
+        let cap: u64 = 60;
+
+        // Drive at least two rotations.
+        for _ in 0..((cap / line_len + 2) * 3) {
+            append_line_capped(&path, line, cap).unwrap();
+        }
+
+        // Single-backup invariant: only `.1` exists, never `.2` — and the backup
+        // itself is bounded (it is a rotated live file, ≤ cap + one line).
+        let backup2 = {
+            let mut os = path.as_os_str().to_os_string();
+            os.push(".2");
+            PathBuf::from(os)
+        };
+        assert!(backup.exists(), ".1 backup should exist after rotations");
+        assert!(!backup2.exists(), "no .2 — single backup generation only");
+        let backup_len = fs::metadata(&backup).unwrap().len();
+        assert!(
+            backup_len <= cap + line_len,
+            "rotated backup {backup_len} must be bounded to cap+line"
+        );
     }
 
     #[test]
