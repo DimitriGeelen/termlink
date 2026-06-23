@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2253: MCP queue-status dead-letter parity — surface R4 poison drops to agent callers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T11:27:42Z
+# ============================================================================
+
+task_id: T-2253
+task_name: "MCP queue-status dead-letter parity — surface R4 poison drops to agent callers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T11:17:58Z
+completed: 2026-06-23T11:27:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-23T13:27:05+02:00
+last_commit: 2026-06-23T13:27:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP queue-status dead-letter parity — surface R4 poison drops to agent callers
+
+# Key outcomes
+outcomes:
+  - '`termlink_channel_queue_status` MCP response includes `dead_letters` (exact count via `dead_letter_count()`) and `dead_letter_rows` (capped at 50 via `list_dead_letters()`), with the same per-row field shape as the CLI (`id, topic, msg_type, sender_id, reason, attempts, enqueued_ms, dead_lettered_ms`) — built by the shared pure helper `build_queue_status_exists_value`'
+  - 'The MCP tool description is updated to mention the dead-letter fields (no longer claims to surface only count/lag/last-offset) — both the registry one-liner (`tools.rs:889`) and the `#[tool(...)]` description'
+  - 'Regression test `mcp_queue_status_surfaces_dead_letters`: an in-memory queue with 1 dead-lettered row yields a response whose `dead_letters` count is 1 and whose `dead_letter_rows[0].reason` carries the forensic reason — proves an MCP caller is no longer blind to the poison backlog (PL-213: asserts the claimed property)'
+  - '`cargo test -p termlink-mcp` lib suite passes (869 + 2 new); empty *existing* queue returns `dead_letters: 0` / `[]` (`mcp_queue_status_empty_queue_has_zero_dead_letters`); the non-existent-queue path is unchanged from the CLI (minimal `exists:false` object). NOTE: 6 pre-existing hub-dependent integration failures in `tests/mcp_integration.rs` + a `tests/parity.rs` hub-hang are environmental (confirmed present on clean tree before this change) — NOT a regression'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2253-mcp-queue-status-dead-letter-parity--sur.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T13:27:05"
+    action: "T-2253: MCP queue-status dead-letter parity — surface R4 poison drops to agent callers"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:arc-substrate-fitness]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 310
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2253-mcp-queue-status-dead-letter-parity--sur.md
+generated_by: context-agent-hybrid

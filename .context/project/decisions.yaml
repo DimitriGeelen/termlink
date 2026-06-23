@@ -437,3 +437,10 @@ decisions:
     date: 2026-06-22
     task: T-2245
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-042
+    decision: "size cap (default 100 MiB) + single rename-to-`.1` rotation, on by"
+    scope: project
+    date: 2026-06-23
+    task: T-2251
+    rationale: "Auto-captured from task file on completion"

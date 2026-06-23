@@ -2337,3 +2337,10 @@ learnings:
   date: 2026-06-22
   context: Added via context agent
   application: TBD
+- id: PL-226
+  learning: "A plan's own re-scoping of a task (e.g. FLAG 1 narrowing R1) can itself be contradicted by source — verify the RE-SCOPED premise against code before building it, not just the original handoff claim. T-2249: arc-002 FLAG 1 re-scoped R1 to 'add cv_key to register's presence post', but register never posts to agent-presence at all (local touch_heartbeat only). A 'minor build' framing that assumes an existing code path must be confirmed the path exists."
+  source: P-001
+  task: T-2249
+  date: 2026-06-23
+  context: Added via context agent
+  application: TBD

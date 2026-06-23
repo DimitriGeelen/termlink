@@ -1,16 +1,11 @@
-error-watchdog=24
+audit-task-tools=1
+commit-cadence=61
 
-commit-cadence=49
-
-audit-task-tools=117
-check-tier0=60
-budget-gate=103
-check-project-boundary=103
-check-active-task=97
-loop-detect=118
-checkpoint=118
-error-watchdog=28
-check-human-ac-tick=43
-check-fabric-new-file=7
-check-agent-dispatch=1
-check-dispatch=1
+audit-task-tools=171
+check-tier0=99
+budget-gate=152
+check-human-ac-tick=10
+check-project-boundary=22
+check-active-task=22
+loop-detect=24
+checkpoint=24
