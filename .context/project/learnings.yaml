@@ -2351,3 +2351,10 @@ learnings:
   date: 2026-06-23
   context: Added via context agent
   application: TBD
+- id: PL-228
+  learning: "framework:pickup hub topic has NO inbound consumer at AEF — AEF consumes its local inbox/ via an every-minute 'fw pickup process' cron, NOT the topic; lib/pickup-channel-bridge.sh post is outbound-mirror only. So 'fw pickup send' never reaches AEF (verified root cause of G-063 zero-receipts). To relay to AEF: drop the envelope into /opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/ via termlink_run (T-559 blocks direct cross-project paths); run AEF's pickup process with CLAUDECODE unset so the T-679 agent-recommendation gate does not block task creation, and inject no recommendation (go/no-go is AEF-sovereign)."
+  source: P-001
+  task: T-2265
+  date: 2026-06-23
+  context: Added via context agent
+  application: TBD
