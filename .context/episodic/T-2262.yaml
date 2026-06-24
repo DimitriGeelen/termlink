@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2262: Watchtower /review and /approvals 500 in vendored mode — blueprints insert PROJECT_ROOT/lib but dispatch_pause lives at FRAMEWORK_ROOT/lib
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T20:51:41Z
+# ============================================================================
+
+task_id: T-2262
+task_name: "Watchtower /review and /approvals 500 in vendored mode — blueprints insert PROJECT_ROOT/lib but dispatch_pause lives at FRAMEWORK_ROOT/lib"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T20:47:27Z
+completed: 2026-06-23T20:51:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-23T22:51:29+02:00
+last_commit: 2026-06-23T22:51:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix Watchtower /review + /approvals 500 in vendored mode (workaround + upstream RCA)
+
+# Key outcomes
+outcomes:
+  - 'Root cause confirmed: review.py:21 + approvals.py:25 insert `PROJECT_ROOT/lib`; `dispatch_pause.py` lives at `FRAMEWORK_ROOT/lib` (PROJECT_ROOT/lib absent in vendored install). Documented above.'
+  - 'Local workaround applied: Watchtower restarted with `PYTHONPATH=.../.agentic-framework/lib`; `/review/<id>` returns HTTP 200 (was 500). Verified T-2258/T-2259/T-2262/T-2256 + /approvals all 200.'
+  - 'Upstream fix relayed to AEF via `fw pickup send` → RCA bug-report **P-049** (priority high); verified landed on `framework:pickup` offset 55 (auto-bridge silent-failed per PL-227-adjacent gotcha, force-bridged manually).'
+  - 'Learning registered: **PL-227** — web-blueprint sibling of PL-222 (vendored-mode lib-path resolution bug class).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Watchtower /review + /approvals 500 in vendored mode (workaround + upstream RCA)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/.bridge-posted/363b79d0676f8c15e1f1503cdcf73885c9180c1f6b9db4d8f5151ceed7f04b97'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-049-bug-report.yaml'
+  - '.context/project/learnings.yaml'
+  - '.tasks/active/T-2262-watchtower-review-and-approvals-500-in-v.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T22:51:29"
+    action: "T-2262: fix Watchtower /review + /approvals 500 in vendored mode (workaround + upstream RCA)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 5
+  lines_added: 276
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2262-watchtower-review-and-approvals-500-in-v.md
+generated_by: context-agent-hybrid

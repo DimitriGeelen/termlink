@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2267: Cross-hub comms stability: fix RPC scope mapping + actionable auth errors
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T07:53:04Z
+# ============================================================================
+
+task_id: T-2267
+task_name: "Cross-hub comms stability: fix RPC scope mapping + actionable auth errors"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T07:35:58Z
+completed: 2026-06-24T07:51:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-24T09:49:34+02:00
+last_commit: 2026-06-24T09:49:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix cross-hub scope mapping — channel.* + agent.find_idle were deny-by-default Execute
+
+# Key outcomes
+outcomes:
+  - 'Read-only `channel.*` methods (list, subscribe, receipts, claims, claims_summary, cv_keys) plus `agent.find_idle` are explicitly classified as `Observe` in `hub_method_scope` — verified by unit test `channel_surface_has_explicit_scopes`.'
+  - 'Append / own-lease mutations (post, claim, renew, release) + addressed delivery (event.emit_to) are `Interact`; topic-lifecycle / policy / operator-override / destructive ops (create, set_retention, transfer_claim, force_release, trim, sweep) are `Control` — verified by unit test. (See Decisions: own-lease=Interact, override/destructive=Control.)'
+  - 'A scope-matrix regression test asserts the classification for the full known `channel.*` surface, so a future method falling through to the `Execute` catch-all fails the test (closes the silent-drift gap).'
+  - 'The `-32010` permission-denied error message includes an actionable remediation hint (names the required scope, the `termlink token create --scope` command, and that it is a scope mismatch not a bad secret) — matching the actionability of the existing AUTH_REQUIRED hint.'
+  - '`cargo test -p termlink-session -p termlink-hub` passes (755 tests, 0 failures); `cargo build` is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix cross-hub scope mapping — channel.* + agent.find_idle were deny-by-default Execute'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-24 — claim-lifecycle scope split (Interact vs Control)'
+    chose: '`channel.claim`/`renew`/`release` → **Interact**; `channel.transfer_claim`/`force_release` → **Control**.'
+    rationale: 'claim/renew/release mutate only the caller''s OWN lease (self-scoped, low blast radius) — symmetric with `channel.post` appending one''s own message. transfer_claim and force_release reassign or override ANOTHER worker''s ownership, so they warrant the higher Control tier. Mirrors the audit recommendation.'
+    alternatives_rejected: ['Putting all claim-lifecycle at Control (my pre-audit AC draft) — would force ordinary workers to hold Control just to manage their own work units, defeating the least-privilege intent.']
+  - decision: '2026-06-24 — fix scope at hub_method_scope, keep deny-by-default'
+    chose: 'Add explicit arms to `hub_method_scope` (server.rs); leave the `_ => auth::method_scope` → `_ => Execute` deny-by-default intact.'
+    rationale: 'Genuinely unknown/future methods should still fail closed. The bug was never the default — it was that the known `channel.*` surface was never enumerated. Explicit classification preserves the security property while fixing the honest-caller breakage.'
+    alternatives_rejected: ['Flipping the catch-all to Observe — would silently expose any new method at the lowest tier.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - 'docs/reports/T-2267-comms-review.md'
+  - '.tasks/active/T-2267-cross-hub-comms-stability-fix-rpc-scope-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T09:49:34"
+    action: "T-2267: fix cross-hub scope mapping — channel.* + agent.find_idle were deny-by-default Execute"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 3
+  lines_added: 393
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2267-cross-hub-comms-stability-fix-rpc-scope-.md
+generated_by: context-agent-hybrid

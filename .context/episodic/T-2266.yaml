@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2266: Fleet-wide sweep — relay orphaned peer pickups (ring20/025/etc) stranded on dead framework:pickup topic into AEF inbox
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-23T23:49:32Z
+# ============================================================================
+
+task_id: T-2266
+task_name: "Fleet-wide sweep — relay orphaned peer pickups (ring20/025/etc) stranded on dead framework:pickup topic into AEF inbox"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T23:43:55Z
+completed: 2026-06-23T23:49:27Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-24T01:49:21+02:00
+last_commit: 2026-06-24T01:49:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet-pickup sweep — courier 2 stranded ring20 filings to AEF (T-2439 T-1296 systemic, T-2440 T-1300/G-158); skip pings/acks/termlink-addressed/handled; full disposition recorded
+
+# Key outcomes
+outcomes:
+  - 'Triaged all non-termlink filings on framework:pickup (.107) by from/to/type/content; classified each as relay / skip-duplicate / skip-not-AEF-bound / skip-ping (see Updates)'
+  - 'For each relay candidate, confirmed ABSENT from AEF inbox/processed before couriering (off48 unique tokens G-155/G-156/false-green = 0 files at AEF; off54 G-158/estate-version-currency = 0 files)'
+  - 'Couriered the confirmed AEF-bound absent filings into AEF inbox via termlink_run with original attribution preserved + courier annotation; AEF auto-created T-2439 (ring20 T-1296) + T-2440 (ring20 T-1300), both "(from ring20-management)", CLAUDECODE unset, no recommendation injected'
+  - 'Recorded the per-filing disposition (relayed→AEF T-NNNN, or skipped+reason) in this task''s Updates'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2266-fleet-wide-sweep--relay-orphaned-peer-pi.md'
+  - '.tasks/completed/T-2265-re-relay-orphaned-aef-pickups-via-inbox-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T01:49:21"
+    action: "T-2266: fleet-pickup sweep — courier 2 stranded ring20 filings to AEF (T-2439 T-1296 systemic, T-2440 T-1300/G-158); skip pings/acks/termlink-addressed/handled; full disposition recorded"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 205
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2266-fleet-wide-sweep--relay-orphaned-peer-pi.md
+generated_by: context-agent-hybrid

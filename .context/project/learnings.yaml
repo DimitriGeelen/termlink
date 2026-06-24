@@ -2358,3 +2358,10 @@ learnings:
   date: 2026-06-23
   context: Added via context agent
   application: TBD
+- id: PL-229
+  learning: "RPC method-scope misclassification via deny-by-default catch-all: when a hub method family (all channel.* + agent.find_idle) is never enumerated in hub_method_scope/method_scope, it silently inherits the '_ => Execute' deny-by-default arm, so read-only methods require the highest privilege. Symptom: a cross-hub caller denied on a plain read (-32010) misdiagnoses it as a missing-identity/signing problem. Fix: enumerate the surface explicitly (reads=Observe); guard with a scope-matrix test so future methods cannot silently fall through. Scope is self-asserted (any secret-holder mints execute), so misclassifying reads buys zero security and only breaks honest callers."
+  source: P-001
+  task: T-2267
+  date: 2026-06-24
+  context: Added via context agent
+  application: TBD
