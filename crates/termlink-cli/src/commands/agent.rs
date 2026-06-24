@@ -901,8 +901,8 @@ pub(crate) async fn cmd_agent_contact(
                 None => {
                     let msg = format!(
                         "Session '{target_name}' not found locally or as a LIVE peer on \
-                         any hub in hubs.toml: {e}. Run `termlink agent listeners --fleet` \
-                         (or /peers) to see who is reachable, or pass --target-fp <hex>."
+                         any hub in hubs.toml: {e}. Run `termlink agent find-idle` (or the \
+                         /peers skill) to see who is reachable, or pass --target-fp <hex>."
                     );
                     if json {
                         super::json_error_exit(serde_json::json!({
