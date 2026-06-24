@@ -202,3 +202,28 @@ still works) alongside any cross-hub path.
 ### 2026-06-24T10:23:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-24 — build complete, verification PENDING (session budget hit at 96%)
+- **Code done (committed):** `scripts/agent-send.sh` `--to` block rewritten +
+  `scripts/test-agent-send-auto-discover.sh` updated. Syntax-valid (`bash -n`),
+  `--help` renders.
+- **Design (resolves the OPEN cross-hub-doorbell nuance):** the doorbell `inject`
+  IS local-hub-only, BUT a cross-hub form exists — `termlink remote inject <hub>
+  <session> <text>` — so the doorbell did NOT need to be scoped out. Full cross-hub
+  shipped: mail post `--hub <peer_hub>`, doorbell via `remote inject <peer_hub>`,
+  receipt + reply polling `--hub <peer_hub>`. Each authenticates via T-2269's
+  bare-address secret reverse-resolution from hubs.toml (sequencing synergy).
+- **Locality:** discovery tries the LOCAL hub first (preserves the pre-T-2273
+  same-hub local transport — peer_hub empty), then falls back to the fleet variant
+  (`agent-listeners-fleet.sh`, the default cross-hub verb) whose row carries `hub`.
+  `LISTENERS_VERB` overrides the fleet verb; new `LISTENERS_LOCAL_VERB` the local.
+- **AC1 nuance (Evolution):** literal AC1 said "flip default verb to fleet"; the
+  shipped design is local-first + fleet-fallback, which satisfies the intent
+  (cross-hub discoverable) AND keeps same-hub on its original transport without
+  depending on remote-inject-to-self. Fleet IS the default cross-hub verb.
+- **AC2 done:** peer fp now from `identity_fingerprint` (T-2270); the fragile
+  `dm:*`-from-`listen_topics` scan is removed; topic via shared `--peer-fp` path.
+- **PENDING (next session):** re-run `bash scripts/test-agent-send-auto-discover.sh`
+  to confirm — T1-T6 (T6 = new canned cross-hub fixture asserting routing=remote).
+  Test launched but session budget (96%) hit before the result was captured. Do NOT
+  mark work-completed until T1-T6 pass. Then build T-2274 (MCP) + T-2275 (CLI).

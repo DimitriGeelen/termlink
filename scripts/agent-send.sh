@@ -33,10 +33,12 @@ Usage: agent-send.sh --to-session <name> (--topic <dm-topic> | --peer-fp <fp>)
 Required:
   --message <text>      the turn content (the "mail")
   exactly one routing form:
-    --to <agent-id>     auto-discover: resolve --to-session and --topic by
-                        looking up agent-id in agent-presence (T-1834).
-                        Requires listener to declare pty_session and a
-                        dm:* listen_topic.
+    --to <agent-id>     auto-discover: resolve session + dm topic + hub by
+                        looking up agent-id in fleet presence (T-1834/T-2273).
+                        Reaches peers on ANY hub in hubs.toml (cross-hub);
+                        prefers the local hub when the peer is there.
+                        Requires the listener to declare pty_session +
+                        identity_fingerprint.
     --to-session <name> + (--topic <dm-topic> | --peer-fp <fp>)
                         explicit routing (the pre-T-1834 form).
 
@@ -50,8 +52,9 @@ Optional:
                           turn (first msg_type=turn with offset > the posted turn
                           on this conversation_id) and print it. Turns
                           send+confirm into a full request->response round-trip.
-  --dry-run               with --to, print RESOLVED line and exit 0 without
-                          posting or injecting (test/preview seam).
+  --dry-run               with --to, print RESOLVED line (incl. resolved hub +
+                          routing=local|remote) and exit 0 without posting or
+                          injecting (test/preview seam).
 
 Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED)
       | 2 usage/precondition (incl. auto-discover resolution failures)
@@ -60,7 +63,7 @@ EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
-to_agent_id="" dry_run=0
+to_agent_id="" dry_run=0 peer_hub=""
 # Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
 # listener in read-only browse mode and it never acks; `/check-arc respond` tells
 # it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
@@ -93,15 +96,46 @@ if [ -n "$to_agent_id" ]; then
     if [ -n "$to_session" ] || [ -n "$topic" ] || [ -n "$peer_fp" ]; then
         die "--to is mutex with --to-session / --topic / --peer-fp; pick one routing form"
     fi
-    LISTENERS_VERB="${LISTENERS_VERB:-scripts/agent-listeners.sh}"
-    [ -x "$LISTENERS_VERB" ] || die "agent-listeners verb not executable: $LISTENERS_VERB"
-    resolved="$(bash "$LISTENERS_VERB" --filter-agent-id "$to_agent_id" --include-offline --json 2>/dev/null)"
-    [ -n "$resolved" ] || die "agent-listeners returned no output for agent-id=$to_agent_id"
-    total="$(printf '%s' "$resolved" | jq -r '.total_listeners // 0')"
-    if [ "$total" = "0" ]; then
-        die "no listener with agent_id=$to_agent_id (run 'agent-listeners.sh' to see who's live)"
+    # T-2273: discover across the whole fleet so peers on ANY hub in hubs.toml are
+    # reachable, not just the local hub. Try the LOCAL hub first (cheap; keeps
+    # same-hub sends on their original local transport — peer_hub stays empty), then
+    # fall back to the fleet variant for cross-hub peers. The fleet row carries `hub`
+    # (the address that saw the winning heartbeat) which we thread through the mail
+    # post, doorbell ring, and receipt/reply polling below. LISTENERS_VERB overrides
+    # the fleet (cross-hub) verb; LISTENERS_LOCAL_VERB the local one — both honored
+    # so tests/fixtures can feed canned presence JSON.
+    FLEET_VERB="${LISTENERS_VERB:-scripts/agent-listeners-fleet.sh}"
+    LOCAL_VERB="${LISTENERS_LOCAL_VERB:-scripts/agent-listeners.sh}"
+
+    # Resolve listener[0] for the agent via $1=verb; echoes the row JSON or nothing.
+    _resolve_listener() {
+        local verb="$1" out total
+        [ -x "$verb" ] || return 1
+        out="$(bash "$verb" --filter-agent-id "$to_agent_id" --include-offline --json 2>/dev/null)" || return 1
+        [ -n "$out" ] || return 1
+        total="$(printf '%s' "$out" | jq -r '.total_listeners // 0')"
+        [ "$total" != "0" ] || return 1
+        printf '%s' "$out" | jq -c '.listeners[0]'
+    }
+
+    listener=""
+    # 1) local hub first — only accept a LIVE local listener (preserves the
+    #    pre-T-2273 same-hub path: peer_hub empty → plain local transport).
+    if l="$(_resolve_listener "$LOCAL_VERB")" && [ -n "$l" ]; then
+        if [ "$(printf '%s' "$l" | jq -r '.status')" = "LIVE" ]; then
+            listener="$l"; peer_hub=""
+        fi
     fi
-    listener="$(printf '%s' "$resolved" | jq -c '.listeners[0]')"
+    # 2) fleet fallback — cross-hub. The hub field drives remote routing.
+    if [ -z "$listener" ]; then
+        if l="$(_resolve_listener "$FLEET_VERB")" && [ -n "$l" ]; then
+            listener="$l"
+            peer_hub="$(printf '%s' "$l" | jq -r '.hub // empty')"
+            [ "$peer_hub" = "null" ] && peer_hub=""
+        fi
+    fi
+    [ -n "$listener" ] || die "no listener with agent_id=$to_agent_id on the local hub or any fleet hub (run scripts/agent-listeners-fleet.sh to see who is live)"
+
     status="$(printf '%s' "$listener" | jq -r '.status')"
     if [ "$status" = "OFFLINE" ]; then
         age="$(printf '%s' "$listener" | jq -r '.age_secs')"
@@ -110,24 +144,14 @@ if [ -n "$to_agent_id" ]; then
     resolved_session="$(printf '%s' "$listener" | jq -r '.pty_session // empty')"
     [ -n "$resolved_session" ] && [ "$resolved_session" != "null" ] \
         || die "agent $to_agent_id heartbeat does not declare pty_session — sender cannot ring the doorbell"
-    listen_csv="$(printf '%s' "$listener" | jq -r '.listen_topics // empty')"
-    resolved_topic=""
-    IFS=',' read -ra parts <<< "$listen_csv"
-    for p in "${parts[@]}"; do
-        # Strip whitespace.
-        t="$(echo "$p" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-        if [[ "$t" == dm:* ]]; then
-            resolved_topic="$t"
-            break
-        fi
-    done
-    [ -n "$resolved_topic" ] || die "agent $to_agent_id has no dm:* listen_topic — sender cannot infer destination"
+    # T-2273: resolve the peer fingerprint from identity_fingerprint (T-2270) and let
+    # the shared --peer-fp path compute the dm topic below. The old scan for a dm:*
+    # entry in listen_topics failed for any LIVE peer that had no prior DM thread.
+    resolved_fp="$(printf '%s' "$listener" | jq -r '.identity_fingerprint // empty')"
+    [ -n "$resolved_fp" ] && [ "$resolved_fp" != "null" ] \
+        || die "agent $to_agent_id heartbeat carries no identity_fingerprint (peer needs termlink with T-2270) — cannot compute dm topic"
     to_session="$resolved_session"
-    topic="$resolved_topic"
-    if [ "$dry_run" -eq 1 ]; then
-        echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic"
-        exit 0
-    fi
+    peer_fp="$resolved_fp"   # topic computed by the --peer-fp block below
 elif [ "$dry_run" -eq 1 ]; then
     die "--dry-run requires --to <agent-id>"
 fi
@@ -161,12 +185,27 @@ else
     die "need --topic or --peer-fp"
 fi
 
+# T-2273: with --to + --dry-run, print the fully resolved routing (incl. hub) and
+# stop before any post/inject — the seam tests assert against for cross-hub.
+if [ "$dry_run" -eq 1 ]; then
+    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local)"
+    exit 0
+fi
+
 [ -n "$cid" ] || cid="cid-$(date +%s)-${RANDOM}"
+
+# T-2273: when the peer was resolved on a remote hub, every leg (mail post,
+# doorbell ring, receipt + reply polling) must target THAT hub, not the local one.
+# T-2269's bare-address secret reverse-resolution makes --hub / remote-inject auth
+# transparently from hubs.toml. Empty peer_hub → local transport (unchanged path).
+hub_args=()
+[ -n "$peer_hub" ] && hub_args=(--hub "$peer_hub")
 
 # 1. Post the turn (mail) once.
 post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$message" \
-                --metadata conversation_id="$cid" --ensure-topic --json)" \
-    || die "channel post failed for topic '$topic'"
+                --metadata conversation_id="$cid" --ensure-topic --json \
+                "${hub_args[@]+"${hub_args[@]}"}")" \
+    || die "channel post failed for topic '$topic'${peer_hub:+ on hub $peer_hub}"
 post_offset="$(printf '%s' "$post_json" | jq -r '.delivered.offset // empty')"
 [ -n "$post_offset" ] || die "post returned no offset: $post_json"
 echo "agent-send: posted turn to '$topic' (cid=$cid, offset=$post_offset)"
@@ -174,9 +213,17 @@ echo "agent-send: posted turn to '$topic' (cid=$cid, offset=$post_offset)"
 # 2. Ring the doorbell + wait for a receipt; re-ring up to the cap.
 deliver_offset=""
 for (( ring=1; ring<=max_rings; ring++ )); do
-    echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'"
-    if ! "$TERMLINK" inject "$to_session" "$doorbell_text" --enter >/dev/null 2>&1; then
-        echo "agent-send: WARN ring $ring — inject into '$to_session' failed (session missing?); turn already posted, still awaiting receipt" >&2
+    echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'${peer_hub:+ @ $peer_hub}"
+    # Local inject is local-hub-only; a peer on another hub is rung via
+    # `remote inject <hub> <session> <text>` (T-2273). Secret reverse-resolves
+    # from hubs.toml (T-2269). Inject failure stays non-fatal — the mail is posted.
+    if [ -n "$peer_hub" ]; then
+        ring_cmd=( "$TERMLINK" remote inject "$peer_hub" "$to_session" "$doorbell_text" --enter )
+    else
+        ring_cmd=( "$TERMLINK" inject "$to_session" "$doorbell_text" --enter )
+    fi
+    if ! "${ring_cmd[@]}" >/dev/null 2>&1; then
+        echo "agent-send: WARN ring $ring — inject into '$to_session'${peer_hub:+ @ $peer_hub} failed (session missing?); turn already posted, still awaiting receipt" >&2
     fi
     waited=0
     while (( waited < timeout )); do
@@ -185,7 +232,7 @@ for (( ring=1; ring<=max_rings; ring++ )); do
         # same conversation_id must NOT satisfy this wait — that was the T-1808
         # multi-turn false-DELIVERED bug.
         recv="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
-                       --cursor 0 --limit 1000 --json 2>/dev/null \
+                       --cursor 0 --limit 1000 --json "${hub_args[@]+"${hub_args[@]}"}" 2>/dev/null \
                    | jq -s --argjson po "$post_offset" \
                        '[ .[] | select(.msg_type=="receipt")
                               | select((.metadata.up_to|tonumber? // -1) >= $po) ]
@@ -212,7 +259,7 @@ if [ -n "$deliver_offset" ]; then
     reply_waited=0
     while (( reply_waited < await_reply )); do
         reply_json="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
-                            --cursor 0 --limit 1000 --json 2>/dev/null \
+                            --cursor 0 --limit 1000 --json "${hub_args[@]+"${hub_args[@]}"}" 2>/dev/null \
                         | jq -c -s --argjson po "$post_offset" \
                             '[ .[] | select(.msg_type=="turn")
                                    | select((.offset|tonumber? // -1) > $po) ]
