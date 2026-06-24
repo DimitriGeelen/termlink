@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [federation, chat-arc, G-060, inception]
 components: []
 related_tasks: [T-1166, PL-176]

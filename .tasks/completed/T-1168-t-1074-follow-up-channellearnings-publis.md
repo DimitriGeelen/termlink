@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1074, T-1155, bus, learnings-exchange]
 components: []
 related_tasks: [T-1074, T-1155, T-1158, T-1159, T-1160, T-1161]

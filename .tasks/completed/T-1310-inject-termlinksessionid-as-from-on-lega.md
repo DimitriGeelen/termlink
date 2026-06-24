@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1166, T-1309-followup, cli, hub, telemetry]
 components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1300, T-1304, T-1309, T-1166]

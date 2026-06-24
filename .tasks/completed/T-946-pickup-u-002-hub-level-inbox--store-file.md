@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [pickup, feature-proposal]
 components: []
 related_tasks: []

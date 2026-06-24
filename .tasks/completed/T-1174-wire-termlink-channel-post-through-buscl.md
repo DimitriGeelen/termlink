@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, cli, offline-queue]
 components: []
 related_tasks: []

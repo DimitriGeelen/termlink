@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [dispatch, orchestration, lifecycle, mcp]
 components: []
 related_tasks: [T-233, T-256, T-257]

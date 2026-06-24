@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, migration, audit]
 components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
 related_tasks: [T-1162, T-1166]

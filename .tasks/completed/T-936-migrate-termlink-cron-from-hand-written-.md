@@ -5,7 +5,7 @@ description: "Migrate termlink cron from hand-written crontab to registry-based 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]

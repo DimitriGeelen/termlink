@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-247, orchestration, testing, termlink]
 components: []
 related_tasks: [T-247, T-248, T-249, T-250, T-251, T-252, T-253, T-254, T-233]

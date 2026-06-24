@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [ci, rust, stub]
 components: []
 related_tasks: []

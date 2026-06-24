@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-hub/src/router.rs]
 related_tasks: []

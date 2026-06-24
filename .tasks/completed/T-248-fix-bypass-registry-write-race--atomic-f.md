@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-247, T-238, orchestration, bypass, bug]
 components: []
 related_tasks: [T-247, T-238, T-233]

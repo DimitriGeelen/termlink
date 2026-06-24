@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [infrastructure, vendor, upgrade, workflow]
 components: []
 related_tasks: []

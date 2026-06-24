@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [T-233, T-238, T-237, orchestration, bypass, testing]
 components: []
 related_tasks: [T-233, T-237, T-238, T-248, T-249, T-250, T-251, T-252, T-253, T-254, T-255]

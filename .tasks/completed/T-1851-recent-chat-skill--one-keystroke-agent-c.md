@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [doorbell-mail, skill, t-1849-followon, arc:t-1830]
 components: []
 related_tasks: []

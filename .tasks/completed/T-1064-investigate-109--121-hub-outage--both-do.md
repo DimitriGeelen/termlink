@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []

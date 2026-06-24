@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [auth, G-011, rotation-protocol, mcp, fleet]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1660, T-1659, T-1658]

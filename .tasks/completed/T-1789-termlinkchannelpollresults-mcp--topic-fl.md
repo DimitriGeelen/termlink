@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [mcp, T-1166, channel, poll]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1166, T-1788, T-1570, T-1355]

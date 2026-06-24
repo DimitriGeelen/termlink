@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, T-1438, hub-binary-swap, deploy-tooling]
 components: []
 related_tasks: [T-1632, T-1633, T-1438]

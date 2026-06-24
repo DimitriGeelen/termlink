@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: next
+horizon: null
 tags: [pickup, mcp]
 components: []
 related_tasks: []

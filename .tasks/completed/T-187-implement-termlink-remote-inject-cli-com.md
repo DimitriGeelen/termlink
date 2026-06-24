@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [cli, cross-machine, remote]
 components: []
 related_tasks: [T-186, T-182, T-183, T-184]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [infrastructure, symlink, vendor]
 components: []
 related_tasks: [T-288, T-908]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, routing, agent-discipline, hub, structural]
 components: []
 related_tasks: [T-1291, T-243]

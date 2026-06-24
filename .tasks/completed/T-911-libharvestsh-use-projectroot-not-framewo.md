@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [infrastructure, harvest, path-resolution]
 components: []
 related_tasks: []

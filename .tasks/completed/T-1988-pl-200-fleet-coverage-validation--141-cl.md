@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: [pl-200, doorbell-mail, ring20, fleet]
 components: []
 related_tasks: []

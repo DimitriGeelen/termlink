@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: human
-horizon: next
+horizon: null
 tags: []
 components: []
 related_tasks: []

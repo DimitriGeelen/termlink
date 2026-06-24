@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [jsonl, capture, skill, conversation-capture, session]
 components: []
 related_tasks: [T-101, T-094, T-095, T-096]

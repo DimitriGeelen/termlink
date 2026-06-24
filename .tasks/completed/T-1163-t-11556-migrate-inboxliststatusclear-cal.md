@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, migration]
 components: []
 related_tasks: [T-1155, T-1158]

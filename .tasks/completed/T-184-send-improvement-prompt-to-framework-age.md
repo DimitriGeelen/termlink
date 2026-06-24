@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [cross-machine, termlink, framework]
 components: []
 related_tasks: []

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/lib.rs]
 related_tasks: []

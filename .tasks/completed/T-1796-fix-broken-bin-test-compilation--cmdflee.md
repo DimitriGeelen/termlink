@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [chat-arc, fetch, T-1795]
 components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs]
 related_tasks: [T-1795]

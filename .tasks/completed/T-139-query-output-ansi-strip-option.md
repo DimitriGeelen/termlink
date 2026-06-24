@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [protocol, scrollback, ansi]
 components: []
 related_tasks: [T-136, T-137]

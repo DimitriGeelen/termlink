@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [agent-mesh, poc, termlink-core, spawning]
 components: []
 related_tasks: [T-009, T-100]

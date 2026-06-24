@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, governance, claude-md, session-capture]
 components: []
 related_tasks: [T-094]

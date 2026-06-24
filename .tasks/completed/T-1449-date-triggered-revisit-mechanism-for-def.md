@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, governance, deferred-decisions, sentinel, G-053]
 components: []
 related_tasks: [T-1425, T-1428, T-1448]

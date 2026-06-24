@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [auth, fleet, ergonomic, discoverability]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1650, T-1648, T-1649, T-1291]

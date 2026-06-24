@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/bus_client.rs]
 related_tasks: []

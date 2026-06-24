@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [docs, auth, claude-md]
 components: []
 related_tasks: [T-1290, T-935, T-1051]

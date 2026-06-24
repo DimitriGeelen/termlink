@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, routing, whoami, T-1297-child, hub-rpc]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/pty.rs]
 related_tasks: [T-1297]

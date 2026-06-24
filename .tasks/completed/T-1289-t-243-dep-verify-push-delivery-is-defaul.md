@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-243, transport, push]
 components: [crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []

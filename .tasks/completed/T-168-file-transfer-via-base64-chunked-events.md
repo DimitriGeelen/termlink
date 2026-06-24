@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [file-transfer, agent-comms]
 components: []
 related_tasks: []

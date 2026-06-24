@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [dispatch, lifecycle, T-280]
 components: []
 related_tasks: [T-280, T-257, T-256]

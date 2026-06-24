@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
 components: []
 related_tasks: []

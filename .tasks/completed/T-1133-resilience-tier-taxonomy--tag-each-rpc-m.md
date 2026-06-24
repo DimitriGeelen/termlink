@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, protocol, taxonomy, documentation, T-1071]
 components: [crates/termlink-protocol/src/control.rs]
 related_tasks: []

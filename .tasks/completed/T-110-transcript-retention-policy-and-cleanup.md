@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [transcripts, retention, cleanup, storage, maintenance]
 components: []
 related_tasks: [T-107]

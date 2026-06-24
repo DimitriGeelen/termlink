@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [homebrew, release, v0.9.1]
 components: [homebrew/Formula/termlink.rb]
 related_tasks: []

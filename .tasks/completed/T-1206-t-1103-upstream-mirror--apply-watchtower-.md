@@ -6,7 +6,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [framework, upstream-mirror, vendor-loss-recovery]
 components: []
 related_tasks: [T-1103, T-1114, T-1115, T-1116, T-1184, T-915]

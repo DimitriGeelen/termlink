@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [tcp, distributed, hub]
 components: []
 related_tasks: [T-133, T-011, T-142, T-079]

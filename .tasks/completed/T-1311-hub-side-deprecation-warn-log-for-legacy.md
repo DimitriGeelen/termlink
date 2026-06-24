@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1166, T-1304-followup, hub, observability, deprecation]
 components: [crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
 related_tasks: [T-1304, T-1309, T-1310, T-1166]

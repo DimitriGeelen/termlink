@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [fleet, federation, hub-relay, t-1166-followup]
 components: []
 related_tasks: []

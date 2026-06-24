@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [testability, simulation]
 components: []
 related_tasks: [T-124, T-126, T-156, T-178, T-192, T-193]

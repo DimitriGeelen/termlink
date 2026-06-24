@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [watchtower, bug, ux]
 components: []
 related_tasks: [T-1306, T-1343, T-1898, T-1899]

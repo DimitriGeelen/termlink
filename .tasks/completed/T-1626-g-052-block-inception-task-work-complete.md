@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [tests/test_g052_inception_decision_gate.sh]
 related_tasks: []

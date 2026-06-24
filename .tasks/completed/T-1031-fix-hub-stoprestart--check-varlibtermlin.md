@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-session/src/client.rs]
 related_tasks: []

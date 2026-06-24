@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [docs, readme]
 components: []
 related_tasks: []

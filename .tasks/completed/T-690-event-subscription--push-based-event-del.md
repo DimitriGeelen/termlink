@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: []
 components: [crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/events.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
 related_tasks: []

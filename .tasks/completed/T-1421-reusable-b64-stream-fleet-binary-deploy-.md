@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [agent-chat-arc, fleet-rollout, tooling, PL-095, PL-096]
 components: [scripts/fleet-deploy-binary.sh]
 related_tasks: [T-1418, T-1420]

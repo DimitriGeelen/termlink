@@ -15,7 +15,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [auth, infrastructure, ring20-management, G-011]
 components: []
 related_tasks: [T-1051, T-1284, T-1137, T-933, T-945, T-1028, T-1031, T-1291]

@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, governance, session-capture, antifragility]
 components: []
 related_tasks: [T-012, T-095, T-096, T-097, T-098, T-099, T-100, T-101, T-102]

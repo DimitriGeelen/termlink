@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [bug, file-transfer, events]
 components: []
 related_tasks: [T-197]

@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [agent-conversation, matrix, edits, channel-cli]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-1321, T-1322]

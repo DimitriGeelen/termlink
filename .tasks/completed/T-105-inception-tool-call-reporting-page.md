@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [observability, reporting, ui, tool-calls]
 components: []
 related_tasks: [T-104, T-103]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: [mcp, testing]
 components: []
 related_tasks: []

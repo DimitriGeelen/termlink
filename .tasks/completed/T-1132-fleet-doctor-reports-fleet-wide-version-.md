@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, fleet-doctor, diagnostics, T-1071]
 components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []

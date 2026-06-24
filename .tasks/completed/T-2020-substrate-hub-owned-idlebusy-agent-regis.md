@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]

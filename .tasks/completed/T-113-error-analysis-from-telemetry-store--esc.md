@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [antifragility, error-escalation, telemetry, healing]
 components: []
 related_tasks: [T-103, T-104, T-111, T-112]

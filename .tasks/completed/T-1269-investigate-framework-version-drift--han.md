@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [hooks, version, framework-drift]
 components: []
 related_tasks: [T-1252]

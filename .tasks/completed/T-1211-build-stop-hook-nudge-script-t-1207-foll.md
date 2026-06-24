@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [hook, governance, framework-bridge]
 components: []
 related_tasks: [T-1207, T-173]

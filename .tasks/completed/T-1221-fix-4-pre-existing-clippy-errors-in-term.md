@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [clippy, tech-debt, termlink-cli]
 components: []
 related_tasks: []

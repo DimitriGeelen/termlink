@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [ops, fleet-doctor, visibility, arc:queue-health]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []

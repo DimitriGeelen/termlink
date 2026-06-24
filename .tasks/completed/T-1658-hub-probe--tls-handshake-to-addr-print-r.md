@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [auth, G-011, rotation-protocol, cli, tls]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/tofu.rs]
 related_tasks: [T-1656, T-1657, T-1051, T-1052]

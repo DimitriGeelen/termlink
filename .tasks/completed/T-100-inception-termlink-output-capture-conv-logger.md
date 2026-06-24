@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, output-capture, conversation-logging, exploration]
 components: []
 related_tasks: [T-094, T-101, T-102, T-099]

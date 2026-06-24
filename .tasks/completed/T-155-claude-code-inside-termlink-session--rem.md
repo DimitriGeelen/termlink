@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [remote-access, claude-fw, observation]
 components: []
 related_tasks: [T-136, T-142, T-143, T-144]

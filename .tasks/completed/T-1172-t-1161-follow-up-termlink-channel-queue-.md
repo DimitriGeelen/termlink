@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, cli]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/offline_queue.rs]
 related_tasks: [T-1161]

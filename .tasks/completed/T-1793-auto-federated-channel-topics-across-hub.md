@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: later
+horizon: null
 tags: [federation, T-1791, G-060]
 components: []
 related_tasks: [T-1791, T-1166, T-1792]

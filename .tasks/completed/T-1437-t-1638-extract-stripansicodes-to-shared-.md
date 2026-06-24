@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-session/src/governance_subscriber.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs]
 related_tasks: []

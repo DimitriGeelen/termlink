@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [docs, G-060, T-1791]
 components: []
 related_tasks: [T-1791, T-1166]

@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: claude
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: [T-1103, T-1106]

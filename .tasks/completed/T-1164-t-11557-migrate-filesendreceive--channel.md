@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, migration]
 components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/artifact.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1155, T-1158]

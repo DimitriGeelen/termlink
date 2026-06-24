@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [g-008, batch-evidence, human-ac-review]
 components: [.tasks/active/T-1008*.md, .tasks/active/T-1009*.md, .tasks/active/T-1010*.md, .tasks/active/T-1011*.md, .tasks/active/T-1021*.md, .tasks/active/T-1034*.md, .tasks/active/T-1035*.md, .tasks/active/T-1038*.md, .tasks/active/T-1040*.md, .tasks/active/T-1102*.md]
 related_tasks: []

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [pickup, bug-report, arc:peer-consult, cross-repo]
 components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
 related_tasks: [T-1636, T-1820, T-1821, T-1166]

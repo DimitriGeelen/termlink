@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, watchtower, ui, structural-fix]
 components: []
 related_tasks: [T-939, T-1192, T-1194]

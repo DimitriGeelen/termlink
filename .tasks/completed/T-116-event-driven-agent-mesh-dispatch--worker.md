@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [agent-mesh, events, dispatch]
 components: []
 related_tasks: [T-114]

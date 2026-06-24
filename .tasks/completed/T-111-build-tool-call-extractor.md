@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [observability, tool-calls, telemetry, jsonl]
 components: []
 related_tasks: [T-104, T-103, T-105]

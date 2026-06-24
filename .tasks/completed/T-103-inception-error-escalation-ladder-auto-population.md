@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [antifragility, error-escalation, jsonl, patterns, healing]
 components: []
 related_tasks: [T-094, T-101, T-104]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1166, T-1304-followup, metrics, json, observability]
 components: [.agentic-framework/agents/metrics/api-usage.sh]
 related_tasks: [T-1304, T-1308, T-1309, T-1166]

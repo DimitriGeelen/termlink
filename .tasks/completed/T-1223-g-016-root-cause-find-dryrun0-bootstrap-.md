@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [G-016, T-1222-followup, framework-health]
 components: []
 related_tasks: []

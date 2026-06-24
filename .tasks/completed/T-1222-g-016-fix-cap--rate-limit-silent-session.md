@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [G-016, T-1212, framework-health, safety]
 components: []
 related_tasks: []

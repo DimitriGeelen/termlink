@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [docs, auth, G-011, T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1292]

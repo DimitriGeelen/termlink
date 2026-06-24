@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, governance, T-1449, T-1428, phase-1]
 components: []
 related_tasks: [T-1449, T-1428, T-1425]

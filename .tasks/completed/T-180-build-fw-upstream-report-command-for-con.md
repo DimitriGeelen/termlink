@@ -6,7 +6,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, cli, upstream]
 components: []
 related_tasks: []

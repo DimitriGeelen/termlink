@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [cli, session, orchestration]
 components: []
 related_tasks: [T-262, T-233]

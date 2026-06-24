@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [termlink, mcp, t-1166]
 components: []
 related_tasks: []

@@ -15,7 +15,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]

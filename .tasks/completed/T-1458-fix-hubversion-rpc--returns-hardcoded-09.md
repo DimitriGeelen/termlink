@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-hub/build.rs, scripts/check-vendored-arc-rollout.sh]
 related_tasks: []

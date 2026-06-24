@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/offline_queue.rs]
 related_tasks: []

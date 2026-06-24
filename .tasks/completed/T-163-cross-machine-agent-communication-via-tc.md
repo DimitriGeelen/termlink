@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [remote-access, tcp, security, cross-machine]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-145, T-146, T-147, T-155, T-157]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, hub, validation, topic, T-1297-spinoff]
 components: [crates/termlink-hub/src/router.rs]
 related_tasks: [T-1297]

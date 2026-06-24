@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [doorbell-mail, mcp, adoption, t-1843-followon]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []

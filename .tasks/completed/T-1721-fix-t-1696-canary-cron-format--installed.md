@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [release, cron, G-058, bug, silent-fail]
 components: []
 related_tasks: [T-1695, T-1696]

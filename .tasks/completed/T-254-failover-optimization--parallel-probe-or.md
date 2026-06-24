@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: next
+horizon: null
 tags: [T-247, orchestration, routing]
 components: []
 related_tasks: [T-247, T-237, T-233]

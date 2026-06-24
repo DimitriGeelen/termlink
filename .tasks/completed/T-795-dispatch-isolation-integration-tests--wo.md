@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/manifest.rs]
 related_tasks: [T-789, T-791, T-792]

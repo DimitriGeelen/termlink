@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [jsonl, transcript, conversation-capture, exploration]
 components: []
 related_tasks: [T-094, T-100, T-102, T-099]

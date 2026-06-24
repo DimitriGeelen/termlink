@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, macos-compat, portability]
 components: []
 related_tasks: [T-160]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [hook, dispatch, bus, framework-bridge]
 components: []
 related_tasks: [T-1209, T-175]

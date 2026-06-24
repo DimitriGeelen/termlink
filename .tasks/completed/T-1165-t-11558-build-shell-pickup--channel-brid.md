@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, pickup, framework-bridge]
 components: []
 related_tasks: [T-1155, T-1158]

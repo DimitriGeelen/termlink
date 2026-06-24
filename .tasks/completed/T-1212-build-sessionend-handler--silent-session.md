@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [hook, handover, framework-bridge, antifragility]
 components: []
 related_tasks: [T-1208, T-174]

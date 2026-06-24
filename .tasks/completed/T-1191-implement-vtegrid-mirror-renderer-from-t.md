@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, mirror, rendering, vte]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-235, T-234, T-236]

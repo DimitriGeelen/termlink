@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [ux, cli, T-245]
 components: []
 related_tasks: [T-245, T-244]

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [doorbell-mail, adoption, t-1843-followon]
 components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []

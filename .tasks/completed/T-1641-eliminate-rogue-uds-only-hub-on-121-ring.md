@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, ring20-dashboard, dual-hub, fleet-hygiene, T-1633]
 components: []
 related_tasks: [T-1632, T-1633, T-1640]

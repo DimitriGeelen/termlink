@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [framework, upstream-mirror, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188, T-1189]

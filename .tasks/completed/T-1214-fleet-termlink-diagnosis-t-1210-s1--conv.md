@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [fleet, install, capability-probe]
 components: []
 related_tasks: [T-1210, T-1165, T-1168]

@@ -5,7 +5,7 @@ description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: next
+horizon: null
 tags: [termlink, systemd, runtime-dir, cross-host, rca]
 components: []
 related_tasks: [T-931, T-933, T-936]

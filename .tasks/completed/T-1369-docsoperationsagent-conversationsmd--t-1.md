@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [docs, agent-conversation, channel-cli]
 components: []
 related_tasks: [T-1365, T-1366, T-1367, T-1368, T-1364]

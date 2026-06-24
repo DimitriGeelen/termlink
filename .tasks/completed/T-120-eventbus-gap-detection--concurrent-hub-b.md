@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [concurrency, eventbus, hub, backpressure]
 components: []
 related_tasks: [T-009]

@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, liveness, pty]
 components: []
 related_tasks: [T-192, T-193]

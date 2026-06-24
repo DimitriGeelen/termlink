@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [cross-machine, framework, improvements]
 components: []
 related_tasks: []

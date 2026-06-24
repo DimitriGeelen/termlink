@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [remote-access, claude-fw]
 components: []
 related_tasks: [T-155, T-157, T-158]

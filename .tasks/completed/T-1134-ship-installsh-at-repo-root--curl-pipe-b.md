@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [install, ux, T-1070, distribution]
 components: [install.sh]
 related_tasks: []

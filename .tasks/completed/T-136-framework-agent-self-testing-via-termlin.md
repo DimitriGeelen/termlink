@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, self-test, agent-autonomy]
 components: []
 related_tasks: [T-121, T-011, T-100]

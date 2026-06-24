@@ -8,7 +8,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [agent-mesh, enforcement, bug]
 components: []
 related_tasks: [T-114, T-116]

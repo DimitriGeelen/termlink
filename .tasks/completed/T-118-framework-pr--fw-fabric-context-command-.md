@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [framework-pr, fabric, llm-context]
 components: []
 related_tasks: [T-109, T-117]

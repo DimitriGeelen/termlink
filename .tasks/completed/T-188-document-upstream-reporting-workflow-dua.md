@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [docs, upstream, workflow]
 components: []
 related_tasks: [T-180, T-186, T-187]

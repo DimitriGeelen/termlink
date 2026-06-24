@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []

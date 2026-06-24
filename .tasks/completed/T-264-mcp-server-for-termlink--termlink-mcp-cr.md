@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [mcp, cli, orchestration]
 components: []
 related_tasks: [T-261, T-233]

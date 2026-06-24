@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [verification, housekeeping]
 components: []
 related_tasks: []

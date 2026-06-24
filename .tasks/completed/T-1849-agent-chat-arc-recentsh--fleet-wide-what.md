@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [doorbell-mail, discovery, t-1830-arc]
 components: [scripts/agent-chat-arc-recent.sh, scripts/test-agent-chat-arc-recent.sh]
 related_tasks: []

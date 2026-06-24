@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [mcp, fleet-doctor, T-1666, G-057, PL-167]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1666, T-1707, T-1692, T-1706]

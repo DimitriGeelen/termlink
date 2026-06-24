@@ -5,7 +5,7 @@ description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (sym
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]

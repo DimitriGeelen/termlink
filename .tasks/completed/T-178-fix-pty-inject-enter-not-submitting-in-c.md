@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [bug, cli, inject, pty]
 components: []
 related_tasks: [T-137, T-156, T-163, T-177]

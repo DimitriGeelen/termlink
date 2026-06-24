@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [identity, T-1693, T-1159, per-agent-keys]
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/agent_identity.rs, crates/termlink-session/src/registration.rs]
 related_tasks: [T-1693, T-1159, T-1436, T-1427]

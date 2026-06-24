@@ -6,7 +6,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [cli, cross-machine, ux]
 components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-182, T-183, T-184, T-185]

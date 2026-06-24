@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, routing, relay, T-1297-child, config]
 components: [crates/termlink-hub/src/router.rs, crates/termlink-hub/src/topic_lint.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1297]

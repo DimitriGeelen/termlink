@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-session/src/discovery.rs, crates/termlink-session/src/lifecycle.rs]
 related_tasks: []

@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: [T-1870, T-1871, T-1851]

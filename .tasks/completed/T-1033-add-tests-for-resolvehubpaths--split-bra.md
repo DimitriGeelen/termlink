@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: test
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs, crates/termlink-session/src/client.rs]
 related_tasks: []

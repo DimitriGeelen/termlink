@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [termlink, routing, whoami, T-1299-followup, pty]
 components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-session/src/pty.rs]
 related_tasks: [T-1299, T-1297]

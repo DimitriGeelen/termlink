@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [context, framework, critical]
 components: []
 related_tasks: [T-233, T-247, T-239, T-240, T-241, T-242, T-256]

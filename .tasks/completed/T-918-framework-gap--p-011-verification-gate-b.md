@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: [framework, upstream, governance, P-011]
 components: []
 related_tasks: [T-904, T-906, T-907]

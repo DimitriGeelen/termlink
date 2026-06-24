@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [termlink, dispatch, bug, semantics, observability]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: [T-914, T-916]

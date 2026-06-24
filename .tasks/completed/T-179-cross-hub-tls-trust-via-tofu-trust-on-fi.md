@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [security, tls, hub, cross-machine]
 components: []
 related_tasks: []

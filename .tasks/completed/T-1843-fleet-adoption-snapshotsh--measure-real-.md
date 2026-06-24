@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [scripts/fleet-adoption-snapshot.sh, scripts/test-fleet-adoption-snapshot.sh]
 related_tasks: []

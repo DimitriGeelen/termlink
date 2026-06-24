@@ -9,7 +9,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [pickup, framework]
 components: []
 related_tasks: [T-160]

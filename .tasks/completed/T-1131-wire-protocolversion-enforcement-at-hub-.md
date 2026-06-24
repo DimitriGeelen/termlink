@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [protocol, termlink, version-skew, T-1071]
 components: [crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []

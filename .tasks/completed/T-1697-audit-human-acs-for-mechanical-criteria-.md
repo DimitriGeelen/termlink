@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [audit, framework-discipline, G-059, PL-169]
 components: [scripts/t1697-human-ac-audit.py]
 related_tasks: [T-1480, T-1481]

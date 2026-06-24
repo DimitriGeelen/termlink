@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1229, T-1155, bus, channel, session]
 components: [crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []

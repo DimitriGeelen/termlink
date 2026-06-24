@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, skills, session-capture, tooling]
 components: []
 related_tasks: [T-094, T-095]

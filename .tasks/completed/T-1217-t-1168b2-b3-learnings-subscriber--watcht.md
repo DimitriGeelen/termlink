@@ -11,7 +11,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [T-1155, T-1168, bus, learnings]
 components: []
 related_tasks: [T-1168, T-1218, T-1155, T-1214]

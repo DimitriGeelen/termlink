@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [sub-agents, transcript, persistence, ephemeral, sidechain]
 components: []
 related_tasks: [T-094, T-101, T-104]

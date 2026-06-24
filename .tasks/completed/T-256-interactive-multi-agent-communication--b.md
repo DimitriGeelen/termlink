@@ -11,7 +11,7 @@ status: work-completed
 workflow_type: build
 build_phase: true
 owner: agent
-horizon: now
+horizon: null
 tags: [orchestration, protocol, events]
 components: []
 related_tasks: [T-257, T-233, T-247]

@@ -10,7 +10,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [orchestration, dispatch, events, T-256]
 components: []
 related_tasks: [T-256, T-233, T-247]

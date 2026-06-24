@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []

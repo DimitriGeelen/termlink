@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/circuit_breaker.rs, crates/termlink-hub/src/route_cache.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/template_cache.rs, crates/termlink-hub/src/trust.rs, crates/termlink-mcp/src/server.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []

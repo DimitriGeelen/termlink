@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: next
+horizon: null
 tags: [termlink, dispatch, bug, observability, error-handling]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: [T-914, T-282]

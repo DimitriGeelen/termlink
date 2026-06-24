@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [framework, governance, inception, structural-gap]
 components: []
 related_tasks: [T-1192, T-068, T-679, T-1259]

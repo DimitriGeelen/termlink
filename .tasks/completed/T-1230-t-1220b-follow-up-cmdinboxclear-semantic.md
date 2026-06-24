@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, migration, T-1220, wedge-b-followup, inception]
 components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1220, T-1225, T-1231, T-1226, T-1227, T-1228, T-1232]

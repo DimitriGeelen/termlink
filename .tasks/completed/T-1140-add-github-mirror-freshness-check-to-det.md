@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [framework, ci, mirror-drift, G-007]
 components: [scripts/check-mirror-freshness.sh]
 related_tasks: []

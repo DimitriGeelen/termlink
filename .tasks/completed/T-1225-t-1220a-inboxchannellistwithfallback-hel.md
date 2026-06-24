@@ -7,7 +7,7 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, migration, T-1220, wedge-a]
 components: [crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1215, T-1163]
