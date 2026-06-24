@@ -6846,10 +6846,11 @@ async fn connect_remote_hub_mcp(
     {
         Ok(c) => c,
         Err(e) => {
-            return Err(json_err(format!(
-                "Cannot connect to {} — is the hub running? ({})",
-                hub, e
-            )));
+            // T-2268: a TOFU/cert-drift rejection is NOT "hub down" — the hub
+            // IS running, its cert rotated. render_connect_error surfaces the
+            // TofuVerifier message (which already names `termlink tofu clear`)
+            // verbatim instead of masking it behind "is the hub running?".
+            return Err(json_err(render_connect_error(hub, &e.to_string())));
         }
     };
 
@@ -6863,11 +6864,89 @@ async fn connect_remote_hub_mcp(
         .await
     {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => Ok(rpc_client),
+        // T-2268: hub.auth rejecting the token is a CREDENTIAL failure (wrong or
+        // STALE secret — e.g. the hub restarted with a new secret), distinct from
+        // an insufficient-SCOPE denial on a later method call. Name the difference
+        // and the remediation so the caller stops guessing.
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => Err(json_err(format!(
-            "Authentication failed: {} {}",
-            e.error.code, e.error.message
+            "Authentication failed on {} ({} {}). The hub rejected the token: the shared secret is \
+             likely wrong or STALE (hub restarted with a new secret). Refresh it with \
+             `termlink fleet reauth <profile>` then verify with `termlink fleet doctor`. \
+             This is a CREDENTIAL problem, not a scope problem.",
+            hub, e.error.code, e.error.message
         ))),
         Err(e) => Err(json_err(format!("Authentication error: {}", e))),
+    }
+}
+
+/// T-2268: classify a cross-hub TLS connect failure. A TOFU/cert-drift
+/// rejection (the hub is up but its cert rotated) is surfaced verbatim — it
+/// already carries the `termlink tofu clear` remediation — rather than being
+/// masked behind "is the hub running?", which sends the caller down a dead
+/// connectivity path. Pure → unit-testable without a live TLS handshake.
+fn render_connect_error(hub: &str, err: &str) -> String {
+    if err.contains("TOFU VIOLATION") {
+        err.to_string()
+    } else {
+        format!("Cannot connect to {} — is the hub running? ({})", hub, err)
+    }
+}
+
+/// T-2268: render a cross-hub RPC error actionably so callers stop
+/// misdiagnosing scope/version failures as connectivity or identity problems.
+/// Pure (no network) → unit-testable. Covers the three high-confusion codes
+/// from the T-2267 comms review (Layer 3): insufficient-scope (-32010),
+/// protocol-version-skew (-32011), and method-not-found-vs-typo (-32601).
+fn render_cross_hub_rpc_error(
+    method: &str,
+    hub: &str,
+    code: i64,
+    message: &str,
+    data: Option<&serde_json::Value>,
+) -> String {
+    use termlink_protocol::control::error_code as ec;
+    use termlink_protocol::jsonrpc::standard_error;
+
+    match code {
+        ec::AUTH_DENIED => format!(
+            "Permission denied on {hub} for '{method}' ({code}): {message}\n\
+             → This is a SCOPE mismatch, NOT a bad secret. Re-call with a higher \
+             scope (observe < interact < control < execute) sufficient for '{method}'.",
+            hub = hub, method = method, code = code, message = message
+        ),
+        ec::AUTH_REQUIRED => format!(
+            "Not authenticated on {hub} for '{method}' ({code}): {message}\n\
+             → The connection is not authenticated; retry. If it persists the secret \
+             may be stale: `termlink fleet reauth <profile>`.",
+            hub = hub, method = method, code = code, message = message
+        ),
+        ec::PROTOCOL_VERSION_TOO_OLD => {
+            let detail = data
+                .map(|d| {
+                    let g = |k: &str| {
+                        d.get(k)
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "?".to_string())
+                    };
+                    format!(" (declared={}, required={})", g("declared"), g("required"))
+                })
+                .unwrap_or_default();
+            format!(
+                "Protocol version too old on {hub} for '{method}' ({code}): {message}{detail}\n\
+                 → The REMOTE hub is an older build than '{method}' requires. Upgrade/restart \
+                 the remote hub binary.",
+                hub = hub, method = method, code = code, message = message, detail = detail
+            )
+        }
+        standard_error::METHOD_NOT_FOUND => format!(
+            "Method '{method}' not found on {hub} ({code}): {message}\n\
+             → Either the method name is wrong OR the remote hub predates it (version skew). \
+             Check the remote build by calling 'hub.version' on {hub}; if the hub is old, \
+             upgrade/restart it.",
+            hub = hub, method = method, code = code, message = message
+        ),
+        _ => format!("RPC error on {method} (hub {hub}): {code} {message}",
+            method = method, hub = hub, code = code, message = message),
     }
 }
 
@@ -14584,10 +14663,15 @@ impl TermLinkTools {
                     }))
                     .unwrap_or_else(json_err)
                 }
-                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => json_err(format!(
-                    "RPC error on {}: {} {}",
-                    p.method, e.error.code, e.error.message
-                )),
+                Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => json_err(
+                    render_cross_hub_rpc_error(
+                        &p.method,
+                        &p.hub,
+                        e.error.code,
+                        &e.error.message,
+                        e.error.data.as_ref(),
+                    ),
+                ),
                 Err(e) => json_err(format!("RPC transport error on {}: {}", p.method, e)),
             }
         };
@@ -30167,6 +30251,77 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2268: cross-hub diagnostics honesty ===
+
+    #[test]
+    fn connect_error_surfaces_tofu_violation_verbatim() {
+        // A drifted-pin rejection must NOT be masked behind "is the hub running?".
+        let tofu = "TOFU VIOLATION: Hub 192.168.10.122:9100 fingerprint changed!\n  \
+                    Expected: sha256:aaa\n  Got: sha256:bbb\n  \
+                    To accept the new cert: termlink tofu clear 192.168.10.122:9100";
+        let out = render_connect_error("192.168.10.122:9100", tofu);
+        assert!(out.contains("TOFU VIOLATION"), "must surface the drift: {out}");
+        assert!(out.contains("termlink tofu clear"), "must keep remediation: {out}");
+        assert!(
+            !out.contains("is the hub running"),
+            "must NOT mask cert-drift as connectivity: {out}"
+        );
+    }
+
+    #[test]
+    fn connect_error_keeps_connectivity_framing_for_real_down_hub() {
+        let out = render_connect_error(
+            "192.168.10.99:9100",
+            "Connection refused (os error 111)",
+        );
+        assert!(out.contains("is the hub running"), "genuine down → connectivity: {out}");
+        assert!(out.contains("Connection refused"));
+    }
+
+    #[test]
+    fn rpc_error_scope_denied_says_scope_not_secret() {
+        use termlink_protocol::control::error_code as ec;
+        let out = render_cross_hub_rpc_error(
+            "channel.list",
+            "ring20-management",
+            ec::AUTH_DENIED,
+            "Permission denied: 'channel.list' requires 'observe' scope, connection has 'observe'",
+            None,
+        );
+        assert!(out.contains("SCOPE mismatch"), "must name scope: {out}");
+        assert!(out.contains("NOT a bad secret"), "must rule out secret: {out}");
+    }
+
+    #[test]
+    fn rpc_error_method_not_found_flags_version_skew() {
+        use termlink_protocol::jsonrpc::standard_error;
+        let out = render_cross_hub_rpc_error(
+            "channel.claim",
+            "old-hub",
+            standard_error::METHOD_NOT_FOUND,
+            "Method not found",
+            None,
+        );
+        assert!(out.contains("version skew"), "must flag skew-vs-typo: {out}");
+        assert!(out.contains("hub.version"), "must point at version probe: {out}");
+    }
+
+    #[test]
+    fn rpc_error_version_too_old_surfaces_data_fields() {
+        use termlink_protocol::control::error_code as ec;
+        let data = serde_json::json!({"declared": 2, "required": 3, "method": "channel.cv_keys"});
+        let out = render_cross_hub_rpc_error(
+            "channel.cv_keys",
+            "old-hub",
+            ec::PROTOCOL_VERSION_TOO_OLD,
+            "protocol version too old",
+            Some(&data),
+        );
+        assert!(out.contains("declared=2"), "must surface declared: {out}");
+        assert!(out.contains("required=3"), "must surface required: {out}");
+        assert!(out.contains("REMOTE hub"), "must point at remote upgrade: {out}");
+    }
 
     // === T-1715: agent_contact helper tests ===
 

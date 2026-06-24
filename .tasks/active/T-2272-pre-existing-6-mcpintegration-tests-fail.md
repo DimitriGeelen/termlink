@@ -1,13 +1,13 @@
 ---
-id: T-2268
-name: "Cross-hub diagnostics honesty: TOFU drift + version-skew + scope-vs-secret error surfacing"
+id: T-2272
+name: "Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics"
 description: >
-  T-2267 review item 2. Surface TOFU cert-drift verbatim (currently swallowed into 'is the hub running?'); on -32601 probe remote version and annotate skew-vs-typo (use -32011 PROTOCOL_VERSION_TOO_OLD data); split -32010 bad-credential vs insufficient-scope. See docs/reports/T-2267-comms-review.md Layer 3.
+  Discovered during T-2268. On clean main (verified by stashing unrelated edits), 6 tests in crates/termlink-mcp/tests/mcp_integration.rs fail with 'invalid type: map, expected a sequence' at line 97: test_list_sessions_empty/_with_session/_filtered_by_role, test_discover_by_role_and_name, test_topics_specific_session/_with_events. Likely the tool output shape changed array->object OR they need a live hub fixture absent in sandbox. Investigate env-dependence vs genuine breakage; the suite is red either way. Not caused by T-2268 (error-rendering only).
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-24T07:50:48Z
-last_update: 2026-06-24T07:55:46Z
+created: 2026-06-24T08:32:00Z
+last_update: 2026-06-24T08:32:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2268: Cross-hub diagnostics honesty: TOFU drift + version-skew + scope-vs-secret error surfacing
+# T-2272: Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics
 
 ## Context
 
-T-2267 review item 2 (docs/reports/T-2267-comms-review.md, Layer 3). The cross-hub
-transport works; failures fail by lying. Three misleading error surfaces send
-callers down wrong diagnostic paths: (8) TOFU cert-drift is swallowed into "is the
-hub running?" (`client.rs:91`, `tools.rs:6849-6852`); (9) `-32601 Method not found`
-is indistinguishable from old-hub-version even though `-32011 PROTOCOL_VERSION_TOO_OLD
-{declared,required,method}` exists and is unused (`tools.rs:14587-14590`,
-`control.rs:366-369`); (10) `-32010` cannot distinguish bad-secret / stale-secret /
-insufficient-scope (`tools.rs:6866-6868`).
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] A TOFU/cert-drift connect failure surfaces the "TOFU VIOLATION … run `termlink tofu clear`" remediation verbatim, NOT the generic "is the hub running?" message — `render_connect_error` helper + tests `connect_error_surfaces_tofu_violation_verbatim` / `connect_error_keeps_connectivity_framing_for_real_down_hub`.
-- [x] On a remote `-32601 Method not found`, the caller annotates version-skew (remote hub predates the method) vs typo and points at a `hub.version` probe; `-32011 PROTOCOL_VERSION_TOO_OLD` surfaces its `declared`/`required` data fields — `render_cross_hub_rpc_error` + tests `rpc_error_method_not_found_flags_version_skew` / `rpc_error_version_too_old_surfaces_data_fields`.
-- [x] `-32010` distinguishes insufficient-SCOPE on a method call ("SCOPE mismatch, NOT a bad secret") from a CREDENTIAL failure at `hub.auth` ("secret wrong or STALE → fleet reauth") — `render_cross_hub_rpc_error` AUTH_DENIED arm + the connect auth-failed message + test `rpc_error_scope_denied_says_scope_not_secret`.
-- [x] `cargo test -p termlink-mcp --lib` passes (874, incl. the 5 new helper tests); `cargo test -p termlink-session` passes (20); `cargo build` clean. NOTE: the full `--test mcp_integration` binary has 6 PRE-EXISTING failures (map-vs-sequence) unrelated to this change — confirmed by stashing the edits and re-running on clean main; tracked as T-2272.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,11 +106,6 @@ insufficient-scope (`tools.rs:6866-6868`).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-# NOTE: full `cargo test -p termlink-mcp` has 6 PRE-EXISTING mcp_integration
-# failures unrelated to this change (tracked T-2272); verify via --lib instead.
-cargo test -p termlink-mcp --lib 2>&1 | tail -5
-cargo test -p termlink-session 2>&1 | tail -5
-cargo build 2>&1 | tail -3
 
 ## RCA
 
@@ -136,14 +122,6 @@ cargo build 2>&1 | tail -3
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
-
-**Symptom:** Cross-hub callers hit failures whose error messages pointed at the wrong cause — a cert rotation read as "is the hub running?", an insufficient-scope denial read as a bad secret or missing identity, an old-hub method gap read as a typo. Capable agents repeatedly misdiagnosed and gave up (the T-2267 trigger).
-
-**Root cause:** The MCP cross-hub layer collapsed distinct failure classes into generic strings: `connect_remote_hub_mcp` wrapped ALL TLS connect errors (including the TofuVerifier's "TOFU VIOLATION … tofu clear" message) as "Cannot connect — is the hub running?"; `termlink_remote_call` rendered every RPC error as a flat `code message` with no class-specific remediation, even though the codes (-32010 / -32011 / -32601) and `-32011` data fields carried enough signal to disambiguate.
-
-**Why structurally allowed:** Error rendering was written for the happy path; the failure strings were never treated as a UX surface, so signal present in the error code/data was discarded at the display layer. No test asserted what a caller actually sees on each failure class.
-
-**Prevention:** Two pure, unit-tested helpers (`render_connect_error`, `render_cross_hub_rpc_error`) own the rendering, with tests asserting the surfaced string per class (TOFU-verbatim, scope-not-secret, version-skew, -32011 data). Future regressions in the messages fail those tests. Companion to PL-229.
 
 ## Evolution
 
@@ -192,11 +170,7 @@ cargo build 2>&1 | tail -3
 
 ## Updates
 
-### 2026-06-24T07:50:48Z — task-created [task-create-agent]
+### 2026-06-24T08:32:00Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2268-cross-hub-diagnostics-honesty-tofu-drift.md
+- **Output:** /opt/termlink/.tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md
 - **Context:** Initial task creation
-
-### 2026-06-24T07:53:56Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
