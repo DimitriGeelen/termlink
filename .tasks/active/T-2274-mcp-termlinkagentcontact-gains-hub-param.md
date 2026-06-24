@@ -235,3 +235,16 @@ cargo check -p termlink-mcp
 - **Field-test (operator):** from an MCP client, `termlink_agent_contact
   {target: "<peer-on-another-hub>", message: "...", dry_run: true}` should return
   `routing: "remote"` + the resolved `hub`; a non-dry-run delivers cross-hub.
+
+### 2026-06-24 — DEPLOY done on disk; MCP server reconnect pending (operator)
+- The MCP server is `termlink mcp serve` — the **same binary** as the CLI, now
+  installed at `0.11.20` (clean rebuild from HEAD). So the T-2274 MCP code is on
+  disk and active for any freshly-spawned `mcp serve`.
+- **Confirmed the running server is still stale:** the live MCP tool schema for
+  `termlink_agent_contact` has **no `hub` parameter** (the new code adds it) —
+  proof the in-memory server predates the install. Picking up the new code needs
+  an **MCP-server reconnect**, a harness/operator action (Claude Code `/mcp`
+  reconnect or session restart). Auto-reconnect is tracked separately as T-2276.
+- Did NOT kill the session's own `mcp serve` process (risky live mutation) and
+  did NOT post to a remote shared hub (operator field-test only). After reconnect,
+  the `hub` param appears in the schema and `dry_run` returns `routing`.

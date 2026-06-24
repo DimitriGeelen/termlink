@@ -239,3 +239,14 @@ cargo check -p termlink
   (mirror to peers via `scripts/fleet-deploy-binary.sh` if fleet-wide). The CLI
   change takes effect on the next `termlink agent contact` invocation.
 - Closing this task records code-completion; the binary swap is a deploy step.
+
+### 2026-06-24 — DEPLOY done (CLI live)
+- Clean `cargo build --release` from HEAD (fce28982) exit 0; installed
+  `target/release/termlink` → `~/.cargo/bin/termlink`. `termlink --version`
+  now `0.11.20` (matches VERSION; no more `/preflight` Check-4 stale-binary
+  WARN). Fleet-fallback string present in the shipped binary (verified via
+  `strings`). **The CLI change is live** — `termlink agent contact <peer>`
+  now resolves cross-hub peers by name via the fleet walk.
+- A first build had baked a cosmetic-stale `0.11.15` version string (built
+  mid-arc before the doc commits); rebuilt from committed HEAD for a
+  reproducible, version-matched artifact rather than shipping the ambiguous one.
