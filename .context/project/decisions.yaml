@@ -444,3 +444,17 @@ decisions:
     date: 2026-06-23
     task: T-2251
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-043
+    decision: "`channel.claim`/`renew`/`release` → **Interact**; `channel.transfer_claim`/`force_release` → **Control**."
+    scope: project
+    date: 2026-06-24
+    task: T-2267
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-044
+    decision: "Add explicit arms to `hub_method_scope` (server.rs); leave the `_ => auth::method_scope` → `_ => Execute` deny-by-default intact."
+    scope: project
+    date: 2026-06-24
+    task: T-2267
+    rationale: "Auto-captured from task file on completion"

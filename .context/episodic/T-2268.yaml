@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2268: Cross-hub diagnostics honesty: TOFU drift + version-skew + scope-vs-secret error surfacing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T08:35:16Z
+# ============================================================================
+
+task_id: T-2268
+task_name: "Cross-hub diagnostics honesty: TOFU drift + version-skew + scope-vs-secret error surfacing"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T07:50:48Z
+completed: 2026-06-24T08:34:20Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-24T09:55:23+02:00
+last_commit: 2026-06-24T10:34:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file diagnostics-honesty task + close T-2267 scope fix + PL-229. register follow-up tasks T-2268..T-2271 + PL-229 + episodics. cross-hub diagnostics honesty — stop misleading errors on TLS/scope/version failures
+
+# Key outcomes
+outcomes:
+  - 'A TOFU/cert-drift connect failure surfaces the "TOFU VIOLATION … run `termlink tofu clear`" remediation verbatim, NOT the generic "is the hub running?" message — `render_connect_error` helper + tests `connect_error_surfaces_tofu_violation_verbatim` / `connect_error_keeps_connectivity_framing_for_real_down_hub`.'
+  - 'On a remote `-32601 Method not found`, the caller annotates version-skew (remote hub predates the method) vs typo and points at a `hub.version` probe; `-32011 PROTOCOL_VERSION_TOO_OLD` surfaces its `declared`/`required` data fields — `render_cross_hub_rpc_error` + tests `rpc_error_method_not_found_flags_version_skew` / `rpc_error_version_too_old_surfaces_data_fields`.'
+  - '`-32010` distinguishes insufficient-SCOPE on a method call ("SCOPE mismatch, NOT a bad secret") from a CREDENTIAL failure at `hub.auth` ("secret wrong or STALE → fleet reauth") — `render_cross_hub_rpc_error` AUTH_DENIED arm + the connect auth-failed message + test `rpc_error_scope_denied_says_scope_not_secret`.'
+  - '`cargo test -p termlink-mcp --lib` passes (874, incl. the 5 new helper tests); `cargo test -p termlink-session` passes (20); `cargo build` clean. NOTE: the full `--test mcp_integration` binary has 6 PRE-EXISTING failures (map-vs-sequence) unrelated to this change — confirmed by stashing the edits and re-running on clean main; tracked as T-2272.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'cross-hub diagnostics honesty — stop misleading errors on TLS/scope/version failures'
+    source: git-mined
+  - description: 'file diagnostics-honesty task + close T-2267 scope fix + PL-229'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2262.yaml'
+  - '.context/episodic/T-2263.yaml'
+  - '.context/episodic/T-2264.yaml'
+  - '.context/episodic/T-2265.yaml'
+  - '.context/episodic/T-2266.yaml'
+  - '.context/episodic/T-2267.yaml'
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2268-cross-hub-diagnostics-honesty-tofu-drift.md'
+  - '.tasks/active/T-2269-bare-hostport-reverse-resolves-hub-secre.md'
+  - '.tasks/active/T-2270-cross-hub-message-agent-by-name-verb--ch.md'
+  - '.tasks/active/T-2271-hub-scope-token-ceiling--bind-max-scope-.md'
+  - '.tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md'
+  - '.tasks/completed/T-2267-cross-hub-comms-stability-fix-rpc-scope-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T09:55:23"
+    action: "T-2268: file diagnostics-honesty task + close T-2267 scope fix + PL-229"
+  - time: "2026-06-24T09:55:46"
+    action: "T-2268: register follow-up tasks T-2268..T-2271 + PL-229 + episodics"
+  - time: "2026-06-24T10:34:12"
+    action: "T-2268: cross-hub diagnostics honesty — stop misleading errors on TLS/scope/version failures"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 43 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 43
+  commits: 3
+  files_changed: 14
+  lines_added: 1545
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2268-cross-hub-diagnostics-honesty-tofu-drift.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "Re-relay orphaned AEF pickups via inbox + record framework-pickup inbound
 description: >
   Re-relay orphaned AEF pickups via inbox + record framework-pickup inbound-channel-dead (G-063 root cause)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T23:19:28Z
-last_update: 2026-06-23T23:19:28Z
-date_finished: null
+last_update: 2026-06-23T23:24:51Z
+date_finished: 2026-06-23T23:24:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -211,3 +211,6 @@ path in memory + learnings so future relays use the inbox-drop, not the topic.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2265-re-relay-orphaned-aef-pickups-via-inbox-.md
 - **Context:** Initial task creation
+
+### 2026-06-23T23:24:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
