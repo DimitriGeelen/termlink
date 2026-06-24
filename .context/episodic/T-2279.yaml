@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2279: Fix agent contact no-match hint references non-existent agent listeners subcommand
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T21:01:43Z
+# ============================================================================
+
+task_id: T-2279
+task_name: "Fix agent contact no-match hint references non-existent agent listeners subcommand"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T20:48:34Z
+completed: 2026-06-24T21:01:24Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-24T22:50:22+02:00
+last_commit: 2026-06-24T22:50:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix agent contact no-match hint — point at agent find-idle//peers not non-existent agent listeners
+
+# Key outcomes
+outcomes:
+  - 'agent.rs:904 no-match hint no longer references the non-existent `agent listeners` subcommand; it points at `termlink agent find-idle` (real CLI verb) and `/peers` (skill), plus the existing `--target-fp` fallback.'
+  - 'No runnable-command source string references `agent listeners` (space-form) — the only remaining `agent-listeners` reference is the hyphenated script name `agent-listeners-fleet.sh` in a comment (legitimate).'
+  - '`cargo check -p termlink` clean; binary rebuilt + installed; `termlink --version` matches VERSION; `strings` on the installed binary shows the corrected hint and NOT `agent listeners --fleet`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix agent contact no-match hint — point at `agent find-idle`/`/peers` not non-existent `agent listeners`'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent.rs'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T22:50:22"
+    action: "T-2279: fix agent contact no-match hint — point at `agent find-idle`/`/peers` not non-existent `agent listeners`"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 1
+  lines_added: 2
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2279-fix-agent-contact-no-match-hint-referenc.md
+generated_by: context-agent-hybrid
