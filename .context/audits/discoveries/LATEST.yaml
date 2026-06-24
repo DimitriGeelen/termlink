@@ -1,24 +1,40 @@
-timestamp: 2026-06-24T10:00:01Z
+timestamp: 2026-06-24T11:00:01Z
 findings:
-  - id: D1
+  - id: D4
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/1914)"
-  - id: D2
-    level: FAIL
-    check: "D2: Human review queue — 43 task(s) waiting >30d: T-1417(55d) T-1419(55d) T-1435(53d) T-1442(53d) T-1482(50d) T-1483(50d) T-1484(50d) T-1485(50d) T-1486(50d) T-1487(50d) T-1488(50d) T-1489(50d) T-1490(50d) T-1491(50d) T-1492(50d) T-1493(50d) T-1494(50d) T-1495(50d) T-1496(50d) T-1498(50d) T-1499(50d) T-1500(50d) T-1501(50d) T-1502(50d) T-1506(50d) T-1529(50d) T-1530(50d) T-1531(50d) T-1532(50d) T-1533(50d) T-1534(50d) T-1535(50d) T-1536(50d) T-1537(50d) T-1557(49d) T-1558(49d) T-1559(49d) T-1570(49d) T-1635(39d) T-1673(37d) T-1691(37d) T-1696(36d) T-1722(28d) T-1723(28d) T-1795(33d)"
-    mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
-  - id: D8
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - id: D5
+    level: WARN
+    check: "D5: Task lifecycle — 43 anomaly(s): T-1137(66d-active) T-1166(64d-active) T-1291(58d-active) T-1294(58d-active) T-1296(58d-active) T-1415(55d-active) T-1420(55d-active) T-1423(54d-active) T-1426(54d-active) T-1427(54d-active) (+33 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - id: D13
+    level: WARN
+    check: "D13: Inception limbo — 5 task(s): A=1/B=4 T-1635(A:1hu) T-1898(B) T-2025(B) T-2028(B) T-2229(B)"
+    mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
+  - id: D3
     level: PASS
-    check: "D8: Handover quality — no [TODO] in LATEST.md"
-  - id: D10
+    check: "D3: Commit velocity — normal (PASS today=19 avg=39 ratio=0.5x)"
+  - id: D7
     level: PASS
-    check: "D10: Decision-without-dialogue — none detected"
-  - id: D11
+    check: "D7: Commit bunching — none (PASS 37_commits_24h_no_bunching)"
+  - id: D6
     level: PASS
-    check: "D11: Gap register staleness — all gaps fresh"
+    check: "D6: Completion velocity — normal (PASS recent=7.7 earlier=1.3)"
+  - id: D12
+    level: PASS
+    check: "D12: Bypass log — no log file"
+  - id: D9
+    level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
+  - id: D14
+    level: PASS
+    check: "D14: Empty inception Recommendation — none (PASS no_empty_recommendations)"
+  - id: D15
+    level: PASS
+    check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 4
-  warn: 0
-  fail: 1
-  total: 5
+  pass: 8
+  warn: 2
+  fail: 0
+  total: 10
