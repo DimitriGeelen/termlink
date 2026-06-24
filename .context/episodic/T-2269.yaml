@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2269: Bare host:port reverse-resolves hub secret from hubs.toml
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T10:09:49Z
+# ============================================================================
+
+task_id: T-2269
+task_name: "Bare host:port reverse-resolves hub secret from hubs.toml"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T07:50:55Z
+completed: 2026-06-24T10:08:50Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-24T12:08:41+02:00
+last_commit: 2026-06-24T12:08:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bare host:port reverse-resolves hub secret from hubs.toml
+
+# Key outcomes
+outcomes:
+  - 'MCP `resolve_hub_profile` (tools.rs): when arg contains `:`, reverse-resolves the secret by matching a hubs.toml profile''s `address` field (returns its secret_file/secret), instead of unconditionally returning None. (via extracted pure helper `match_profile_by_address`)'
+  - 'CLI `resolve_hub_profile_with_config` (config.rs): when arg contains `:` and the caller passed no explicit secret, falls through to an address-field lookup against the supplied config; explicit `--secret-file`/`--secret` still override.'
+  - 'No-match behaviour preserved: a bare address with no matching profile and no explicit secret still resolves to address-only (caller must supply a secret) — no regression to the existing direct-address path.'
+  - 'Regression tests added covering address-match-resolves-secret, explicit-secret-overrides, and no-match-stays-bare; CLI `config::` (11 tests) + MCP `match_profile_by_address` (3 tests) pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/audits/2026-06-23.yaml'
+  - '.context/audits/2026-06-24.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pickup-bridge.log'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.context/working/watchtower.port'
+  - '.context/working/watchtower.url'
+  - 'crates/termlink-cli/src/config.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2269-bare-hostport-reverse-resolves-hub-secre.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T12:08:41"
+    action: "T-2269: bare host:port reverse-resolves hub secret from hubs.toml"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 137 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 137
+  commits: 1
+  files_changed: 28
+  lines_added: 2702
+  lines_removed: 2302
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2269-bare-hostport-reverse-resolves-hub-secre.md
+generated_by: context-agent-hybrid

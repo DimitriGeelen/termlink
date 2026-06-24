@@ -1,13 +1,13 @@
 ---
-id: T-2269
-name: "Bare host:port reverse-resolves hub secret from hubs.toml"
+id: T-2273
+name: "agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)"
 description: >
-  T-2267 review item 3. MCP/CLI-remote bail when arg contains ':' so bare host:port skips hubs.toml and dies with 'secret required', while channel post --hub DOES match the address field. Make resolve_hub_profile fall through to an address-field lookup. See review Layer 2 finding 6.
+  T-2267 review item 4, slice 2. Flip agent-send.sh:96 LISTENERS_VERB default from local agent-listeners.sh to agent-listeners-fleet.sh, resolve peer fp from the row's identity_fingerprint (T-2270 foundation) instead of parsing dm:* out of listen_topics, and honor the row's hub field for routing. Depends on T-2270.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-24T07:50:55Z
-last_update: 2026-06-24T10:04:42Z
+created: 2026-06-24T10:21:13Z
+last_update: 2026-06-24T10:21:13Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2269: Bare host:port reverse-resolves hub secret from hubs.toml
+# T-2273: agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)
 
 ## Context
 
-T-2267 review Layer 2, finding 6. When the hub arg is a bare `host:port`, both the
-MCP `resolve_hub_profile` (tools.rs:6687) and the CLI `resolve_hub_profile_with_config`
-(config.rs) bail the instant they see `:` and skip hubs.toml entirely — so the call
-dies "secret required" even though a profile with that exact `address` exists. Meanwhile
-`channel post --hub`'s `resolve_hub_secret_hex` (channel.rs:247) DOES match the address
-field and auto-loads the secret. Same hub: works by profile-name, fails by raw address.
-This was the footgun that opened the .122 investigation. Fix: make the two bailing paths
-fall through to an address-field reverse lookup (no explicit secret supplied), mirroring
-`resolve_hub_secret_hex`.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] MCP `resolve_hub_profile` (tools.rs): when arg contains `:`, reverse-resolves the secret by matching a hubs.toml profile's `address` field (returns its secret_file/secret), instead of unconditionally returning None. (via extracted pure helper `match_profile_by_address`)
-- [x] CLI `resolve_hub_profile_with_config` (config.rs): when arg contains `:` and the caller passed no explicit secret, falls through to an address-field lookup against the supplied config; explicit `--secret-file`/`--secret` still override.
-- [x] No-match behaviour preserved: a bare address with no matching profile and no explicit secret still resolves to address-only (caller must supply a secret) — no regression to the existing direct-address path.
-- [x] Regression tests added covering address-match-resolves-secret, explicit-secret-overrides, and no-match-stays-bare; CLI `config::` (11 tests) + MCP `match_profile_by_address` (3 tests) pass.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -115,32 +106,8 @@ fall through to an address-field reverse lookup (no explicit secret supplied), m
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-out=$(cargo test -p termlink --bin termlink config:: 2>&1); echo "$out" | grep -q "test result: ok"
-out=$(cargo test -p termlink-mcp --lib match_profile_by_address 2>&1); echo "$out" | grep -q "test result: ok"
 
 ## RCA
-
-**Symptom:** A bare `host:port` (e.g. `192.168.10.122:9100`) passed to MCP/CLI-remote
-verbs dies "secret required" / "Either secret_file or secret is required", even when a
-hubs.toml profile with that exact `address` exists. The same hub works when referenced
-by profile name. This misled agents into "I have no TermLink identity, I can't sign a
-cross-hub DM" — a misdiagnosis that recurred across cycles (the .122 investigation).
-
-**Root cause:** Both `resolve_hub_profile` (MCP, tools.rs:6687) and
-`resolve_hub_profile_with_config` (CLI, config.rs) treated a `:` in the arg as
-"direct address, no profile resolution needed" and returned/built an address-only
-result — never consulting hubs.toml. Meanwhile `channel post --hub`'s
-`resolve_hub_secret_hex` (channel.rs:247) DID match the `address` field. Three
-resolution paths, two of which silently skipped the secret lookup.
-
-**Why structurally allowed:** Three independent resolution implementations with no
-shared contract; the address-match path existed in exactly one of them, so the
-inconsistency was invisible until an operator hit the bare-address path.
-
-**Prevention:** Regression tests in config.rs assert bare-address reverse-resolution,
-explicit-secret override, and no-match-stays-bare. The MCP path reuses
-`list_all_hub_profiles()` (the same source `channel post --hub` reads), aligning the
-three paths on one address-match semantics.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -203,11 +170,7 @@ three paths on one address-match semantics.
 
 ## Updates
 
-### 2026-06-24T07:50:55Z — task-created [task-create-agent]
+### 2026-06-24T10:21:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2269-bare-hostport-reverse-resolves-hub-secre.md
+- **Output:** /opt/termlink/.tasks/active/T-2273-agent-sendsh---to-uses-fleet-presence--i.md
 - **Context:** Initial task creation
-
-### 2026-06-24T10:04:42Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)

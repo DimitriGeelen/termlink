@@ -160,6 +160,14 @@ trap 'rm -f "$stderr_file"' EXIT
 # — this is the entire point of the cache.
 if [ -z "$rollup" ]; then
 
+# T-2270: hub-independent test seam (mirror of T-2058 TERMLINK_GROWTH_TEST_JSON,
+# PL-213). When set, feed canned `channel subscribe` JSON and skip the live hub
+# probe entirely — lets the identity_fingerprint projection (below) be verified
+# without a running hub.
+if [ -n "${TERMLINK_LISTENERS_TEST_JSON:-}" ]; then
+    raw="$(cat "$TERMLINK_LISTENERS_TEST_JSON" 2>/dev/null || true)"
+else
+
 # T-1844: seek to tail before scanning. Default subscribe is cursor=0
 # which returns the OLDEST `--limit` envelopes; on busy topics the most-
 # recent heartbeats are NEVER scanned and total_listeners reads 0
@@ -213,6 +221,7 @@ if [ "${info_skip:-0}" -ne 1 ]; then
         fi
     fi
 fi
+fi  # T-2270: close TERMLINK_LISTENERS_TEST_JSON else-branch (probe path)
 
 # Now compute the rollup via jq. Steps:
 # 1. Take all heartbeat envelopes from --limit-most-recent scan.
@@ -261,7 +270,14 @@ rollup="$(printf '%s' "$raw" | jq -s \
             # --with-capabilities. Filter via --filter-capability uses exact
             # csv-token equality (no substring match — so "deploy" does not
             # match "auto-deploy").
-            capabilities: (.metadata.capabilities // "")
+            capabilities: (.metadata.capabilities // ""),
+            # T-2270: surface the verified identity fingerprint. T-1427 enforces
+            # the envelope top-level sender_id == the poster fingerprint at
+            # channel.post time, so this is authoritative; it lets callers
+            # resolve agent_id to (hub, fp) for cross-hub contact-by-name without
+            # parsing dm:* out of listen_topics (which fails for peers with no
+            # prior DM). Always included (backward-compat, mirror of capabilities).
+            identity_fingerprint: (.sender_id // "")
           }
       )
     | map(select(
