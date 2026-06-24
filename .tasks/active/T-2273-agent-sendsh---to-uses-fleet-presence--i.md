@@ -4,10 +4,10 @@ name: "agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)
 description: >
   T-2267 review item 4, slice 2. Flip agent-send.sh:96 LISTENERS_VERB default from local agent-listeners.sh to agent-listeners-fleet.sh, resolve peer fp from the row's identity_fingerprint (T-2270 foundation) instead of parsing dm:* out of listen_topics, and honor the row's hub field for routing. Depends on T-2270.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:13Z
-last_update: 2026-06-24T10:21:13Z
+last_update: 2026-06-24T10:23:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,38 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2267 review item 4, slice 2 — consumer of the T-2270 foundation
+(`identity_fingerprint` now on every fleet presence row). The `--to <agent-id>`
+auto-discover block (agent-send.sh:92-133) today: (1) resolves the listener via
+the LOCAL `scripts/agent-listeners.sh` (line 96), so a peer on another hub yields
+"no listener" — looks like "agent offline" when it's "agent on another hub"; and
+(2) recovers the dm topic by parsing a `dm:*` entry out of `listen_topics`
+(113-124), which **fails for any LIVE peer with no prior DM**.
+
+**Design (build-ready):** flip the default verb to `scripts/agent-listeners-fleet.sh`
+and resolve the peer fingerprint from the row's `identity_fingerprint` (T-2270),
+then compute the dm topic via the same `dm:<sorted(self_fp, peer_fp)>` logic the
+existing `--peer-fp` path uses (agent-send.sh:145-154+) — NOT the listen_topics
+parse. Set `peer_fp="$row_identity_fingerprint"` and let the existing peer-fp
+topic-resolution run, deleting the dm:* scan.
+
+**OPEN cross-hub nuance to resolve while building (do NOT skip):** the `--to` path
+resolves BOTH the mail topic AND the doorbell (`pty_session` → `to_session`). The
+mail post can target the peer's hub via `--hub <row.hub>`, but the **doorbell ring
+must also reach the peer's hub** — verify whether the downstream doorbell transport
+(agent-respond.sh / the ring mechanism) honors a hub argument, and thread
+`row.hub` through if it does. If the doorbell is local-hub-only, scope this slice
+to the MAIL path cross-hub and file a separate task for cross-hub doorbell rather
+than shipping a half-working ring. Keep a local-hub regression (same-hub `--to`
+still works) alongside any cross-hub path.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `--to` default `LISTENERS_VERB` is `scripts/agent-listeners-fleet.sh` (was local `agent-listeners.sh`), so peers on any hub in hubs.toml are discoverable; `LISTENERS_VERB` env override still honored.
+- [ ] Peer fingerprint resolved from `listener.identity_fingerprint` (T-2270); the fragile `dm:*`-from-`listen_topics` scan (current lines 113-124) is removed; dm topic computed via the shared `dm:<sorted(self_fp,peer_fp)>` logic.
+- [ ] Cross-hub routing: mail post targets the resolved peer's hub (`--hub <row.hub>` when non-local). Doorbell nuance resolved per Context — either threaded through or explicitly deferred with a filed follow-up task (no silent half-fix).
+- [ ] Same-hub `--to <agent-id>` still resolves and delivers (local regression) — verified via `--dry-run` against a canned fleet-presence fixture (extend the T-2270 test-seam pattern) OR documented manual evidence.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +198,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2273-agent-sendsh---to-uses-fleet-presence--i.md
 - **Context:** Initial task creation
+
+### 2026-06-24T10:23:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

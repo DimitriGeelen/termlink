@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2270: Surface identity_fingerprint in fleet presence rows (foundation for cross-hub contact-by-name)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T10:22:11Z
+# ============================================================================
+
+task_id: T-2270
+task_name: "Surface identity_fingerprint in fleet presence rows (foundation for cross-hub contact-by-name)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T07:51:01Z
+completed: 2026-06-24T10:22:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-24T12:21:55+02:00
+last_commit: 2026-06-24T12:21:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface identity_fingerprint in fleet presence rows
+
+# Key outcomes
+outcomes:
+  - '`agent-listeners.sh` jq projection emits `identity_fingerprint` from the heartbeat envelope''s top-level `sender_id` (T-1427 verified fingerprint), empty string when absent — always-included field (backward-compat, mirror of T-2091 capabilities).'
+  - '`agent-listeners.sh` honors a `TERMLINK_LISTENERS_TEST_JSON=<file>` seam that feeds canned subscribe JSON and skips the live hub probe (mirror of T-2058 `TERMLINK_GROWTH_TEST_JSON`, PL-213) — enables hub-independent verification.'
+  - 'Fleet passthrough preserved: `agent-listeners-fleet.sh` merge carries `identity_fingerprint` per row (whole-object `group_by(.agent_id)|sort_by|last` merge + `map(.+{hub})` decoration, no field-allowlist drop — verified by reading agent-listeners-fleet.sh:225-247).'
+  - 'Self-contained test `tests/agent-listeners-identity-fp.sh`: canned heartbeat with `sender_id=<fp>` yields a row whose `identity_fingerprint == <fp>`; exits 0 on match, 1 otherwise. PASS.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2269.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/agent-listeners.sh'
+  - '.tasks/active/T-2270-cross-hub-message-agent-by-name-verb--ch.md'
+  - '.tasks/active/T-2273-agent-sendsh---to-uses-fleet-presence--i.md'
+  - '.tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md'
+  - '.tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md'
+  - '.tasks/completed/T-2269-bare-hostport-reverse-resolves-hub-secre.md'
+  - '.termlink-task'
+  - 'tests/agent-listeners-identity-fp.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T12:21:55"
+    action: "T-2270: surface identity_fingerprint in fleet presence rows"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 151 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 151
+  commits: 1
+  files_changed: 17
+  lines_added: 782
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2270-cross-hub-message-agent-by-name-verb--ch.md
+generated_by: context-agent-hybrid

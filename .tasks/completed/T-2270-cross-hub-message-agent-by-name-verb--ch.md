@@ -4,10 +4,10 @@ name: "Surface identity_fingerprint in fleet presence rows (foundation for cross
 description: >
   T-2267 review item 4, slice 1 (foundation). Fleet presence rows carry agent_id->hub but NOT identity_fingerprint, so name->fp resolution falls back to parsing dm:* out of listen_topics (fails for any peer with no prior DM). The heartbeat envelope already carries a top-level sender_id = the T-1427 verified fingerprint; agent-listeners.sh just never projects it. Surface it as identity_fingerprint (+ a hub-independent test seam) so the resolver gets name->(hub,fp) reliably. Consumer slices (shell --to, MCP hub param, CLI fallback) are follow-ups T-2273/2274/2275.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T07:51:01Z
-last_update: 2026-06-24T10:17:02Z
-date_finished: null
+last_update: 2026-06-24T10:22:07Z
+date_finished: 2026-06-24T10:22:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -221,3 +221,6 @@ parsing topics.
 ### 2026-06-24T10:17:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-24T10:22:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
