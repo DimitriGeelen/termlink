@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2274: MCP termlink_agent_contact gains hub param + fleet fallback resolution
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T19:47:40Z
+# ============================================================================
+
+task_id: T-2274
+task_name: "MCP termlink_agent_contact gains hub param + fleet fallback resolution"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T10:21:32Z
+completed: 2026-06-24T19:47:28Z
+duration_days: 0
+updates_count: 6
+first_commit: 2026-06-24T21:08:08+02:00
+last_commit: 2026-06-24T21:08:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP termlink_agent_contact gains hub param + cross-hub fleet fallback (shared parser, ContactHub transport)
+
+# Key outcomes
+outcomes:
+  - '`AgentContactParams` gains `hub: Option<String>` (documented JsonSchema doc-comment). When set, the dm post routes to that hub via the new `ContactHub::Remote` (`connect_remote_hub_mcp` + authed `channel.post`) instead of the local `hub_socket_path()` UDS path. Explicit `hub` wins over the auto-resolved fleet hub.'
+  - '`termlink_agent_contact`: when `target` is given, `target_fp` is NOT set, and `manager::find_session` misses, falls back to `resolve_contact_via_fleet_mcp` — `list_all_hub_profiles()` → per hub `connect_remote_hub_mcp(observe)` + `ContactHub::fetch_recent("agent-presence")` → the SHARED `termlink_session::fleet_presence::resolve_agent_presence` parser (same fn T-2275 added — no second parse) → freshest LIVE match. Resolves `{identity_fingerprint, hub}` and posts to that hub. Per-hub failures `continue` (down hub never aborts).'
+  - 'No-match + regression: local `find_session` hit and `target_fp` bypass leave `fleet_hub=None` → `ContactHub::Local` (unauthenticated UDS, unchanged path); the fleet walk is entered only on a local Err; no-match returns `json_err` naming both local + fleet + pointing at `termlink_agent_listeners_fleet`. `cargo check -p termlink-mcp` clean. The whole create/post/probe/ack path now routes through one `ContactHub` so local + remote share logic.'
+  - 'The new `hub` property is in the tool input-schema by construction (`#[derive(JsonSchema)]` on `AgentContactParams` auto-includes the `pub hub` field with its doc-comment). Dry-run response now also echoes `hub` + `routing` (`local`/`remote`) for caller transparency.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T21:08:08"
+    action: "T-2274: MCP termlink_agent_contact gains hub param + cross-hub fleet fallback (shared parser, ContactHub transport)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 565 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 565
+  commits: 1
+  files_changed: 2
+  lines_added: 240
+  lines_removed: 44
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2274-mcp-termlinkagentcontact-gains-hub-param.md
+generated_by: context-agent-hybrid

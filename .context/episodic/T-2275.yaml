@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2275: CLI agent contact falls back to fleet presence when local find_session misses
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T19:47:21Z
+# ============================================================================
+
+task_id: T-2275
+task_name: "CLI agent contact falls back to fleet presence when local find_session misses"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T10:21:39Z
+completed: 2026-06-24T19:46:43Z
+duration_days: 0
+updates_count: 6
+first_commit: 2026-06-24T20:59:13+02:00
+last_commit: 2026-06-24T20:59:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  native cross-hub agent-contact-by-name — shared fleet_presence parser + CLI fallback
+
+# Key outcomes
+outcomes:
+  - 'Shared pure parser added to `termlink-session` (`fleet_presence.rs`, new module): given `&[serde_json::Value]` agent-presence heartbeats + `agent_id` + `now_ms`, returns the newest matching heartbeat''s `{identity_fingerprint (=sender_id), pty_session, status, age_secs}` or `None`. Status classification matches agent-listeners.sh (`2×interval`→LIVE, `5×interval`→STALE, else OFFLINE; default interval 30). Unit-tested: LIVE/STALE/OFFLINE bands, no-match→None, newest-wins-on-duplicate, non-heartbeat-ignored, default-interval. (7 tests pass.)'
+  - '`cmd_agent_contact` (agent.rs): when positional `<target>` is given, `--target-fp` is NOT set, and `manager::find_session` returns Err, falls back to a fleet walk — `load_hubs_config()` → per hub `fetch_topic_msgs("agent-presence", Some(addr))` (T-2269 secret reverse-resolution) → shared parser → freshest LIVE match across hubs (dedup by address). Sets `peer_fp = identity_fingerprint` and routes the dm post to the matched hub via `hub = hub.or(fleet_hub)` (explicit `--hub` wins). Per-hub failures `continue` (down hub never aborts the walk).'
+  - 'No-match path: when neither local `find_session` nor any fleet hub yields a LIVE agent_id, the error names both ("not found locally or as a LIVE peer on any hub in hubs.toml") + points at `agent listeners --fleet`/`/peers`/`--target-fp`; empty/missing hubs.toml → `resolve_contact_via_fleet` returns None early (no panic).'
+  - 'Regression preserved: `--target-fp <hex>` bypass and a successful local `find_session` hit both leave `fleet_hub = None` (walk only entered on local Err), so routing is unchanged. `cargo check -p termlink` succeeds; `cargo test -p termlink-session fleet_presence` passes (7/7).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-session/src/fleet_presence.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - '.tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md'
+  - '.tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md'
+  - '.tasks/completed/T-2273-agent-sendsh---to-uses-fleet-presence--i.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T20:59:13"
+    action: "T-2275: native cross-hub agent-contact-by-name — shared fleet_presence parser + CLI fallback"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 565 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 565
+  commits: 3
+  files_changed: 6
+  lines_added: 457
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md
+generated_by: context-agent-hybrid

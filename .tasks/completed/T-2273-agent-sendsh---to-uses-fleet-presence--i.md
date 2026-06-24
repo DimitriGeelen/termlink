@@ -4,10 +4,10 @@ name: "agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)
 description: >
   T-2267 review item 4, slice 2. Flip agent-send.sh:96 LISTENERS_VERB default from local agent-listeners.sh to agent-listeners-fleet.sh, resolve peer fp from the row's identity_fingerprint (T-2270 foundation) instead of parsing dm:* out of listen_topics, and honor the row's hub field for routing. Depends on T-2270.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:13Z
-last_update: 2026-06-24T15:13:00Z
-date_finished: null
+last_update: 2026-06-24T16:38:11Z
+date_finished: 2026-06-24T16:38:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -248,3 +248,6 @@ bash scripts/test-agent-send-auto-discover.sh
 - **Verification commands added** to `## Verification` (P-011 now gates on the test, not just bash -n).
 - **Next:** T-2274 (MCP `termlink_agent_contact` hub param + fleet fallback) + T-2275 (CLI
   `cmd_agent_contact` fleet fallback) — the Rust parity for this shell-layer cross-hub resolution.
+
+### 2026-06-24T16:38:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

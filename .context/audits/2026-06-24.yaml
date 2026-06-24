@@ -1,9 +1,9 @@
-# Audit Results - 2026-06-24-1330
-timestamp: 2026-06-24T11:30:47Z
+# Audit Results - 2026-06-24-2108
+timestamp: 2026-06-24T19:08:19Z
 sections: "structure"
 summary:
-  pass: 27
-  warn: 1
+  pass: 26
+  warn: 2
   fail: 0
 findings:
   - level: PASS
@@ -35,8 +35,9 @@ findings:
   - level: WARN
     check: "Fabric: 32/142 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: PASS
-    check: "Fabric drift: All watched source files registered (154 cards)"
+  - level: WARN
+    check: "Fabric drift: 1 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
   - level: PASS

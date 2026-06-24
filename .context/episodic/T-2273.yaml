@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2273: agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-24T16:38:37Z
+# ============================================================================
+
+task_id: T-2273
+task_name: "agent-send.sh --to uses fleet presence + identity_fingerprint (cross-hub)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T10:21:13Z
+completed: 2026-06-24T16:38:11Z
+duration_days: 0
+updates_count: 5
+first_commit: 2026-06-24T12:30:17+02:00
+last_commit: 2026-06-24T18:38:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope build-ready ACs + cross-hub-doorbell design notes. cross-hub --to via fleet presence + identity_fp + remote-inject doorbell (verification pending). fix fleet fan-out missing per-probe timeout (>2min hang →11.6s); verify cross-hub --to (T1-T6 pass)
+
+# Key outcomes
+outcomes:
+  - '`--to` default `LISTENERS_VERB` is `scripts/agent-listeners-fleet.sh` (was local `agent-listeners.sh`), so peers on any hub in hubs.toml are discoverable; `LISTENERS_VERB` env override still honored. (local-first + fleet-fallback design; T6 fixture overrides `LISTENERS_VERB`, proving the override is honored.)'
+  - 'Peer fingerprint resolved from `listener.identity_fingerprint` (T-2270); the fragile `dm:*`-from-`listen_topics` scan (current lines 113-124) is removed; dm topic computed via the shared `dm:<sorted(self_fp,peer_fp)>` logic. (T3/T5 assert `topic=dm:` computed from identity_fp, not listen_topics.)'
+  - 'Cross-hub routing: mail post targets the resolved peer''s hub (`--hub <row.hub>` when non-local). Doorbell threaded through via `remote inject <hub>` (NOT deferred — full cross-hub shipped). (T6 asserts `hub=192.168.10.199:9100` + `routing=remote`.)'
+  - 'Same-hub `--to <agent-id>` still resolves and delivers (local regression) — verified via `--dry-run` against a canned fleet-presence fixture (extend the T-2270 test-seam pattern). (T3 asserts `routing=local` for a same-hub LIVE peer.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix fleet fan-out missing per-probe timeout (>2min hang →11.6s); verify cross-hub --to (T1-T6 pass)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-24.yaml'
+  - '.context/episodic/T-2270.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/agent-listeners-fleet.sh'
+  - 'scripts/agent-send.sh'
+  - 'scripts/test-agent-send-auto-discover.sh'
+  - '.tasks/active/T-2273-agent-sendsh---to-uses-fleet-presence--i.md'
+  - '.tasks/completed/T-2270-cross-hub-message-agent-by-name-verb--ch.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T12:30:17"
+    action: "T-2273: scope build-ready ACs + cross-hub-doorbell design notes"
+  - time: "2026-06-24T17:12:59"
+    action: "T-2273: cross-hub --to via fleet presence + identity_fp + remote-inject doorbell (verification pending)"
+  - time: "2026-06-24T18:38:05"
+    action: "T-2273: fix fleet fan-out missing per-probe timeout (>2min hang →11.6s); verify cross-hub --to (T1-T6 pass)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 376 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 376
+  commits: 3
+  files_changed: 17
+  lines_added: 357
+  lines_removed: 86
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2273-agent-sendsh---to-uses-fleet-presence--i.md
+generated_by: context-agent-hybrid

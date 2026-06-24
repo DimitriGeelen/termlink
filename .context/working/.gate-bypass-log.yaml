@@ -1745,3 +1745,17 @@ echo ""
 echo "=== commit T-2264 closure ==="
 git add -A .tasks/active/ .tasks/completed/ 2>&1 | head -2
 FW_SWITCH_FOCUS=1 .agentic-f'
+- timestamp: '2026-06-24T19:14:08Z'
+  task: 'T-2274'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2275'
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -m "T-2274/T-2275: record code-complete + deploy-pending state (context gate)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -4'
+- timestamp: '2026-06-24T19:15:49Z'
+  task: 'T-2274'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2275'
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 bash -c git add .tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md .tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md && git commit -m '
