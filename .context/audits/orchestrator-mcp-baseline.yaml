@@ -1,0 +1,356 @@
+# MCP-tool task_id enforcement baseline
+# T-1646 (Arc C drift defense from T-1641)
+# Source of truth for orchestrator-mcp-scan.sh
+#
+# Categories:
+#   gated            — MUST call check_task_governance() — mutators that already do
+#   mutators_ungated — Mutators with side effects that SHOULD gate but currently don't (ratchet target)
+#   readonly_exempt  — Passive/read-only tools — gating optional
+#
+# Drift detection rules:
+#   1. Any tool listed under `gated` losing its check_task_governance call → FAIL
+#   2. Any tool in `mutators_ungated` GAINING a check_task_governance call → CONGRATS, move it to `gated` and update baseline (ratchet)
+#   3. New tool not in any list → WARN, requires manual classification
+#   4. `gated` count must not drop below baseline_count
+#
+# Source code reference: /opt/termlink/crates/termlink-mcp/src/tools.rs
+# Provenance: snapshot 2026-05-01 from T-1641 W03 + this scan.
+# Update 2026-05-06 (T-1755): added 59 termlink_agent_* tools (chat/threads/reactions
+# primitives) classified by naming convention (action verb → mutator; read suffix → readonly).
+# /opt/termlink is outside PROJECT_ROOT and unreadable from here, so handler-level
+# verification is deferred — human can correct miscategorisations on review.
+# Update 2026-05-06 (T-1760): added 18 more termlink_agent_* analytics primitives
+# (stats/rates/depths/volumes — all read-shaped names). Same convention-based
+# classification rule. Baseline 136 → 154.
+# Update 2026-05-15 (T-1867): added 14 more termlink_agent_* analytics primitives
+# (presence/streaks/silences/top-N — all read-shaped names). Same convention-based
+# classification rule. Baseline 154 → 168.
+# Update 2026-05-28 (T-2073): added 74 more tools spanning termlink_agent_*,
+# termlink_channel_*, termlink_fleet_*, termlink_hub_*, termlink_tofu_*.
+# 14 mutators (action-verb names: channel_ack/edit/forward/pin/poll_start/poll_end/
+# poll_vote/quote/react/redact/reply/star/typing_emit; fleet_reauth) classified
+# to mutators_ungated. 60 read-shape tools (analytics, snapshots, threads, members,
+# probes, verifications) to readonly_exempt. Same convention-based classification;
+# handler-level verification deferred (/opt/termlink outside PROJECT_ROOT, strict
+# path isolation). Baseline 168 → 242.
+# Update 2026-05-28 (T-2073 follow-on): re-run revealed 4 additional listener/
+# auto-discover primitives (cadence issue — same one T-1761 inception captured).
+# agent_send_auto_discover → mutator (verb "send"); listener_heartbeat /
+# agent_listeners / agent_listeners_fleet → readonly (status/list shapes).
+# Baseline 242 → 246.
+# Update 2026-05-31 (T-2150): 5 more primitives surfaced — chat_arc / fleet_doorbell
+# / fleet_adoption / recent_dm primitives. 1 mutator (chat_arc_broadcast — action verb
+# "broadcast" → sends a message to all subscribers) + 4 readonly (chat_arc_recent /
+# check_fleet_doorbell_mail_health / fleet_adoption_snapshot / recent_dm — all read-
+# shape suffixes). Same convention-based classification; handler-level review deferred.
+# Baseline 246 → 251. T-2150 Evolution captures 5th-batch cadence as updated evidence
+# for T-1761 inception (the marginal-leverage assumption is increasingly tenuous).
+# Update 2026-06-01 (T-2154 — T-1761 GO build slice): convention auto-classification
+# now lives in agents/audit/orchestrator-mcp-scan.sh (classify_by_convention). When
+# new termlink_agent_* / termlink_channel_* tools appear, the convention partitions
+# them into mutators_ungated (action-verb suffix) or readonly_exempt (read-shape
+# suffix) automatically. Default mode emits findings.auto_classified as advisory;
+# --apply rewrites this file in-place (with .bak backup) and bumps baseline_count.
+# Verb whitelist canonical: post, send, broadcast, edit, react, pin, quote, redact,
+# reply, star, typing_emit, ack, forward, poll_start, poll_end, poll_vote, reauth.
+# Tools outside the two namespaces still require manual classification (bounded
+# blast radius per T-1761 §Implementation shapes line 89).
+
+# Update 2026-06-09 (T-2154): convention auto-classification applied via --apply. +5 mutators, +7 readonly. Baseline 251 → 263. T-1761 verb whitelist canonical (see orchestrator-mcp-scan.sh classify_by_convention).
+# Update 2026-06-24 (T-2278): baseline restored into termlink (was missing — T-1646
+# fixture never landed here). Reconciled vs current tools.rs: +2 mutators
+# (channel_set_retention, channel_sweep — convention mis-filed these as readonly;
+# corrected on review per header invariant), +7 readonly (channel_cv_keys + 6
+# out-of-namespace read/status/history verbs: fleet/hub governor, substrate, whoami).
+# Baseline 263 -> 272.
+baseline_count: 272
+last_verified: '2026-06-24'
+gated:
+  description: "Enforces check_task_governance() \u2014 TERMLINK_TASK_GOVERNANCE=1\
+    \ requires task_id"
+  count: 4
+  tools:
+  - termlink_exec
+  - termlink_spawn
+  - termlink_interact
+  - termlink_dispatch
+mutators_ungated:
+  description: "Tools with side effects that bypass governance. Gating-target list\
+    \ \u2014 every entry\nhere is a candidate for moving to `gated` (handled by T-1643/Arc\
+    \ B framework wiring\n+ /opt/termlink-side handler edits). FAIL if list grows;\
+    \ ratchet down as items move.\n"
+  count: 65
+  tools:
+  - termlink_agent_ack
+  - termlink_agent_edit
+  - termlink_agent_pin
+  - termlink_agent_poll_end
+  - termlink_agent_poll_start
+  - termlink_agent_poll_vote
+  - termlink_agent_post
+  - termlink_agent_quote
+  - termlink_agent_react
+  - termlink_agent_redact
+  - termlink_agent_reply
+  - termlink_agent_send_auto_discover
+  - termlink_agent_star
+  - termlink_agent_typing
+  - termlink_batch_exec
+  - termlink_batch_run
+  - termlink_batch_tag
+  - termlink_broadcast
+  - termlink_channel_ack
+  - termlink_channel_claim
+  - termlink_channel_claim_force_release
+  - termlink_channel_claim_transfer
+  - termlink_channel_create
+  - termlink_channel_edit
+  - termlink_channel_forward
+  - termlink_channel_pin
+  - termlink_channel_poll_end
+  - termlink_channel_poll_start
+  - termlink_channel_poll_vote
+  - termlink_channel_post
+  - termlink_channel_quote
+  - termlink_channel_react
+  - termlink_channel_redact
+  - termlink_channel_release
+  - termlink_channel_renew
+  - termlink_channel_reply
+  - termlink_channel_set_retention
+  - termlink_channel_star
+  - termlink_channel_subscribe
+  - termlink_channel_sweep
+  - termlink_channel_typing_emit
+  - termlink_chat_arc_broadcast
+  - termlink_clean
+  - termlink_emit
+  - termlink_emit_to
+  - termlink_file_receive
+  - termlink_file_send
+  - termlink_fleet_reauth
+  - termlink_hub_restart
+  - termlink_hub_start
+  - termlink_hub_stop
+  - termlink_inbox_clear
+  - termlink_inject
+  - termlink_kv_del
+  - termlink_kv_set
+  - termlink_remote_call
+  - termlink_remote_exec
+  - termlink_remote_inbox_clear
+  - termlink_remote_inject
+  - termlink_run
+  - termlink_send
+  - termlink_signal
+  - termlink_tag
+  - termlink_tofu_clear
+  - termlink_token_create
+readonly_exempt:
+  description: "Passive/observational \u2014 gating optional. Adding new entries here\
+    \ requires an explicit reason in the commit body."
+  count: 203
+  tools:
+  - termlink_agent_ack_history
+  - termlink_agent_ack_status
+  - termlink_agent_active_in_thread
+  - termlink_agent_active_now
+  - termlink_agent_activity_rhythm
+  - termlink_agent_age_distribution
+  - termlink_agent_ancestors
+  - termlink_agent_ask
+  - termlink_agent_burst_detect
+  - termlink_agent_busiest_threads
+  - termlink_agent_chat_arc_recent
+  - termlink_agent_co_posters
+  - termlink_agent_contact
+  - termlink_agent_daily_volume
+  - termlink_agent_describe
+  - termlink_agent_digest
+  - termlink_agent_dms
+  - termlink_agent_edits_of
+  - termlink_agent_emoji_stats
+  - termlink_agent_emoji_users
+  - termlink_agent_engagement_rate
+  - termlink_agent_envelope
+  - termlink_agent_find_idle
+  - termlink_agent_find_idle_history
+  - termlink_agent_first_post_by
+  - termlink_agent_first_responders
+  - termlink_agent_followups
+  - termlink_agent_followups_to
+  - termlink_agent_forwards_of
+  - termlink_agent_help
+  - termlink_agent_history
+  - termlink_agent_identity
+  - termlink_agent_idle_threads
+  - termlink_agent_inbox
+  - termlink_agent_info
+  - termlink_agent_listen
+  - termlink_agent_listeners
+  - termlink_agent_listeners_fleet
+  - termlink_agent_mentions
+  - termlink_agent_msg_growth_rate
+  - termlink_agent_on_thread
+  - termlink_agent_orphan_replies
+  - termlink_agent_overview
+  - termlink_agent_peer_engagement
+  - termlink_agent_peers
+  - termlink_agent_pin_history
+  - termlink_agent_ping
+  - termlink_agent_pinned
+  - termlink_agent_pinned_by
+  - termlink_agent_pinned_history
+  - termlink_agent_post_streak
+  - termlink_agent_presence_now
+  - termlink_agent_quiet_threads
+  - termlink_agent_reaction_rate
+  - termlink_agent_reaction_summary
+  - termlink_agent_reactions
+  - termlink_agent_reactions_by
+  - termlink_agent_reactions_of
+  - termlink_agent_recent
+  - termlink_agent_recent_decisions
+  - termlink_agent_recent_threads
+  - termlink_agent_recent_window
+  - termlink_agent_redactions
+  - termlink_agent_relations
+  - termlink_agent_replies_of
+  - termlink_agent_response_latency
+  - termlink_agent_response_received
+  - termlink_agent_search
+  - termlink_agent_search_by
+  - termlink_agent_search_thread
+  - termlink_agent_self_replies
+  - termlink_agent_silence_gap
+  - termlink_agent_silent_senders
+  - termlink_agent_snippet
+  - termlink_agent_starred
+  - termlink_agent_starred_by
+  - termlink_agent_starred_history
+  - termlink_agent_state
+  - termlink_agent_stats
+  - termlink_agent_thread
+  - termlink_agent_thread_authors
+  - termlink_agent_thread_depth
+  - termlink_agent_thread_health
+  - termlink_agent_thread_path
+  - termlink_agent_thread_size_dist
+  - termlink_agent_thread_summary
+  - termlink_agent_threads
+  - termlink_agent_threads_by
+  - termlink_agent_timeline
+  - termlink_agent_top_pinners
+  - termlink_agent_top_reacted
+  - termlink_agent_top_replied
+  - termlink_agent_top_repliers
+  - termlink_agent_top_starrers
+  - termlink_agent_top_thread_starters
+  - termlink_agent_topic_metadata_history
+  - termlink_agent_topic_stats
+  - termlink_agent_topic_summary
+  - termlink_agent_typers
+  - termlink_agent_unanswered
+  - termlink_agent_unread
+  - termlink_agent_user_summary
+  - termlink_agent_who_is
+  - termlink_batch_ping
+  - termlink_channel_ack_history
+  - termlink_channel_ack_status
+  - termlink_channel_ancestors
+  - termlink_channel_claims
+  - termlink_channel_claims_history
+  - termlink_channel_claims_summary
+  - termlink_channel_claims_summary_all
+  - termlink_channel_cv_keys
+  - termlink_channel_describe
+  - termlink_channel_digest
+  - termlink_channel_edit_stats
+  - termlink_channel_edits_of
+  - termlink_channel_emoji_stats
+  - termlink_channel_forwards_of
+  - termlink_channel_info
+  - termlink_channel_list
+  - termlink_channel_members
+  - termlink_channel_mentions
+  - termlink_channel_mentions_of
+  - termlink_channel_pin_history
+  - termlink_channel_pinned
+  - termlink_channel_poll_results
+  - termlink_channel_queue_history
+  - termlink_channel_queue_status
+  - termlink_channel_quote_stats
+  - termlink_channel_reactions_of
+  - termlink_channel_reactions_on
+  - termlink_channel_receipts
+  - termlink_channel_redactions
+  - termlink_channel_relations
+  - termlink_channel_replies_of
+  - termlink_channel_search
+  - termlink_channel_snapshot
+  - termlink_channel_snapshot_diff
+  - termlink_channel_snippet
+  - termlink_channel_starred
+  - termlink_channel_state
+  - termlink_channel_state_since
+  - termlink_channel_thread
+  - termlink_channel_threads
+  - termlink_channel_topic_stats
+  - termlink_channel_typing_list
+  - termlink_channel_unread
+  - termlink_check_fleet_doorbell_mail_health
+  - termlink_collect
+  - termlink_deregister
+  - termlink_discover
+  - termlink_dispatch_status
+  - termlink_doctor
+  - termlink_event_poll
+  - termlink_event_subscribe
+  - termlink_events
+  - termlink_fleet_adoption_snapshot
+  - termlink_fleet_bootstrap_check
+  - termlink_fleet_doctor
+  - termlink_fleet_governor_history
+  - termlink_fleet_governor_status
+  - termlink_fleet_history
+  - termlink_fleet_secrets_audit
+  - termlink_fleet_status
+  - termlink_fleet_verify
+  - termlink_help
+  - termlink_hub_export_secret
+  - termlink_hub_fingerprint
+  - termlink_hub_governor_status
+  - termlink_hub_probe
+  - termlink_hub_status
+  - termlink_inbox_list
+  - termlink_inbox_status
+  - termlink_info
+  - termlink_kv_get
+  - termlink_kv_list
+  - termlink_kv_watch
+  - termlink_list_sessions
+  - termlink_listener_heartbeat
+  - termlink_net_test
+  - termlink_output
+  - termlink_overview
+  - termlink_ping
+  - termlink_pty_mode
+  - termlink_recent_dm
+  - termlink_register
+  - termlink_remote_doctor
+  - termlink_remote_inbox_list
+  - termlink_remote_inbox_status
+  - termlink_remote_list
+  - termlink_remote_ping
+  - termlink_request
+  - termlink_resize
+  - termlink_status
+  - termlink_substrate_history
+  - termlink_substrate_status
+  - termlink_tofu_list
+  - termlink_tofu_verify
+  - termlink_token_inspect
+  - termlink_topics
+  - termlink_version
+  - termlink_wait
+  - termlink_whoami
