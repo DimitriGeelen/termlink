@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:13Z
-last_update: 2026-06-24T10:30:18Z
+last_update: 2026-06-24T15:13:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,10 +62,10 @@ still works) alongside any cross-hub path.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `--to` default `LISTENERS_VERB` is `scripts/agent-listeners-fleet.sh` (was local `agent-listeners.sh`), so peers on any hub in hubs.toml are discoverable; `LISTENERS_VERB` env override still honored.
-- [ ] Peer fingerprint resolved from `listener.identity_fingerprint` (T-2270); the fragile `dm:*`-from-`listen_topics` scan (current lines 113-124) is removed; dm topic computed via the shared `dm:<sorted(self_fp,peer_fp)>` logic.
-- [ ] Cross-hub routing: mail post targets the resolved peer's hub (`--hub <row.hub>` when non-local). Doorbell nuance resolved per Context — either threaded through or explicitly deferred with a filed follow-up task (no silent half-fix).
-- [ ] Same-hub `--to <agent-id>` still resolves and delivers (local regression) — verified via `--dry-run` against a canned fleet-presence fixture (extend the T-2270 test-seam pattern) OR documented manual evidence.
+- [x] `--to` default `LISTENERS_VERB` is `scripts/agent-listeners-fleet.sh` (was local `agent-listeners.sh`), so peers on any hub in hubs.toml are discoverable; `LISTENERS_VERB` env override still honored. (local-first + fleet-fallback design; T6 fixture overrides `LISTENERS_VERB`, proving the override is honored.)
+- [x] Peer fingerprint resolved from `listener.identity_fingerprint` (T-2270); the fragile `dm:*`-from-`listen_topics` scan (current lines 113-124) is removed; dm topic computed via the shared `dm:<sorted(self_fp,peer_fp)>` logic. (T3/T5 assert `topic=dm:` computed from identity_fp, not listen_topics.)
+- [x] Cross-hub routing: mail post targets the resolved peer's hub (`--hub <row.hub>` when non-local). Doorbell threaded through via `remote inject <hub>` (NOT deferred — full cross-hub shipped). (T6 asserts `hub=192.168.10.199:9100` + `routing=remote`.)
+- [x] Same-hub `--to <agent-id>` still resolves and delivers (local regression) — verified via `--dry-run` against a canned fleet-presence fixture (extend the T-2270 test-seam pattern). (T3 asserts `routing=local` for a same-hub LIVE peer.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,6 +130,10 @@ still works) alongside any cross-hub path.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n scripts/agent-send.sh
+bash -n scripts/agent-listeners-fleet.sh
+bash scripts/test-agent-send-auto-discover.sh
 
 ## RCA
 
@@ -227,3 +231,20 @@ still works) alongside any cross-hub path.
   to confirm — T1-T6 (T6 = new canned cross-hub fixture asserting routing=remote).
   Test launched but session budget (96%) hit before the result was captured. Do NOT
   mark work-completed until T1-T6 pass. Then build T-2274 (MCP) + T-2275 (CLI).
+
+### 2026-06-24 — VERIFIED + closed (fresh session)
+- **All 6 tests pass:** `bash scripts/test-agent-send-auto-discover.sh` → `6 pass / 0 fail / 0 skip`.
+  T6 (cross-hub fixture) confirms `hub=192.168.10.199:9100` + `routing=remote`; T3 confirms
+  same-hub `routing=local` regression intact. All 4 Agent ACs ticked with per-AC evidence.
+- **Discovered + fixed a blocking dependency bug** (`scripts/agent-listeners-fleet.sh`):
+  the parallel fan-out probe loop had NO per-probe timeout (only the dedup phase did,
+  PL-189 `timeout 8`). The `wait` blocked on a black-holed TCP connect to an unreachable
+  remote hub — observed **>2min hang** on the `--to <unknown>` not-found path (T2). T-2273
+  EXPOSED this latent bug by being the first caller to drive the fleet walk from agent-send's
+  not-found path. Fix: wrapped the fan-out `bash $AGENT_LISTENERS_BIN` call in `$TIMEOUT_CMD`,
+  so the bound caps the WHOLE parallel walk at ~8s. Re-measured: **>120s → 11.6s**. Comment on
+  the `TIMEOUT_CMD` definition updated ("dedup AND fan-out"). This also speeds up every other
+  fleet verb (`/peers`, `/find-idle`, etc.) when a remote hub is down.
+- **Verification commands added** to `## Verification` (P-011 now gates on the test, not just bash -n).
+- **Next:** T-2274 (MCP `termlink_agent_contact` hub param + fleet fallback) + T-2275 (CLI
+  `cmd_agent_contact` fleet fallback) — the Rust parity for this shell-layer cross-hub resolution.

@@ -141,7 +141,7 @@ _self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
 # shellcheck source=/dev/null
 . "$_self_libdir/hubs-toml-walk.sh"
 if command -v timeout >/dev/null 2>&1; then
-    TIMEOUT_CMD="timeout 8"   # PL-189 — per-probe bound for dedup only
+    TIMEOUT_CMD="timeout 8"   # PL-189 — per-probe bound (dedup AND fan-out)
 else
     TIMEOUT_CMD=""
 fi
@@ -191,7 +191,12 @@ while [ "$i" -lt "$n_profiles" ]; do
     err_file="$workdir/$i.err"
 
     (
-        bash "$AGENT_LISTENERS_BIN" --hub "$addr" "${fwd_args[@]}" >"$out_file" 2>"$err_file"
+        # PL-189 — per-probe timeout bound. The fan-out runs in parallel, so the
+        # bound caps the WHOLE walk at ~8s: an unreachable remote hub whose TCP
+        # connect black-holes (no route / firewalled) would otherwise hang the
+        # `wait` below indefinitely (observed: >2min). T-2273 exposed this by
+        # calling the fleet walk from agent-send.sh's --to not-found path.
+        $TIMEOUT_CMD bash "$AGENT_LISTENERS_BIN" --hub "$addr" "${fwd_args[@]}" >"$out_file" 2>"$err_file"
         rc=$?
         printf '%d' "$rc" > "$workdir/$i.rc"
     ) &
