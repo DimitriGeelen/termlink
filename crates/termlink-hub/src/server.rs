@@ -378,13 +378,45 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | "hub.bus_state"
         | "hub.governor_status" => PermissionScope::Observe,
 
-        // Interact: mutates hub state or fan-out operations
-        control::method::EVENT_BROADCAST
+        // Observe: read-only channel/bus + agent introspection (T-2267).
+        // Before this arm existed the entire channel.* surface fell through
+        // to the `_ => Execute` deny-by-default below (via auth::method_scope),
+        // so honest read-only cross-hub callers were forced to mint
+        // execute-scope tokens just to LIST a topic — the root cause of
+        // recurring "I can't reach the hub" misdiagnoses. These are pure reads
+        // with no side effects and must require only Observe.
+        control::method::CHANNEL_LIST
+        | control::method::CHANNEL_SUBSCRIBE
+        | control::method::CHANNEL_RECEIPTS
+        | control::method::CHANNEL_CLAIMS
+        | control::method::CHANNEL_CLAIMS_SUMMARY
+        | control::method::CHANNEL_CV_KEYS
+        | control::method::AGENT_FIND_IDLE => PermissionScope::Observe,
+
+        // Interact: append / own-lease mutations + addressed/fan-out delivery.
+        // channel.claim/renew/release mutate only the caller's own lease (T-2267).
+        control::method::CHANNEL_POST
+        | control::method::CHANNEL_CLAIM
+        | control::method::CHANNEL_RENEW
+        | control::method::CHANNEL_RELEASE
+        | control::method::EVENT_EMIT_TO
+        | control::method::EVENT_BROADCAST
         | "session.register_remote"
         | "session.heartbeat"
         | "session.deregister_remote" => PermissionScope::Interact,
 
-        // Forwarded methods: use per-method scope from the session auth model
+        // Control: topic lifecycle, retention policy, operator claim overrides,
+        // and destructive bulk operations (T-2267). These affect other
+        // subscribers or override another worker's ownership.
+        control::method::CHANNEL_CREATE
+        | control::method::CHANNEL_SET_RETENTION
+        | control::method::CHANNEL_TRANSFER_CLAIM
+        | control::method::CHANNEL_FORCE_RELEASE
+        | control::method::CHANNEL_TRIM
+        | control::method::CHANNEL_SWEEP => PermissionScope::Control,
+
+        // Forwarded methods: use per-method scope from the session auth model.
+        // Genuinely unknown methods still deny-by-default to Execute there.
         _ => auth::method_scope(method),
     }
 }
@@ -846,8 +878,11 @@ async fn handle_connection<S>(
                                         id,
                                         control::error_code::AUTH_DENIED,
                                         &format!(
-                                            "Permission denied: '{}' requires '{}' scope, connection has '{}'",
-                                            req.method, required, scope
+                                            "Permission denied: '{}' requires '{}' scope, connection has '{}'. \
+                                             Re-authenticate with a token minted at '{}' scope or higher \
+                                             (e.g. `termlink token create --scope {}`), or pass `--scope {}` \
+                                             on the remote call. This is a SCOPE mismatch, not a bad secret.",
+                                            req.method, required, scope, required, required, required
                                         ),
                                     )
                                     .into(),
@@ -905,6 +940,59 @@ mod tests {
     use crate::test_util::ENV_LOCK;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    /// T-2267 regression guard. The full known `channel.*` surface (plus
+    /// `agent.find_idle` and `event.emit_to`) must resolve to an EXPLICIT
+    /// scope in `hub_method_scope` — never the deny-by-default `Execute`
+    /// catch-all. A newly-added channel method that falls through to Execute
+    /// fails this test, closing the silent-drift gap that forced read-only
+    /// cross-hub callers to mint execute-scope tokens just to list a topic
+    /// (the root cause of recurring cross-hub comms failures).
+    #[test]
+    fn channel_surface_has_explicit_scopes() {
+        use control::method as m;
+        use PermissionScope::{Control, Interact, Observe};
+
+        let expected: &[(&str, PermissionScope)] = &[
+            // Observe — pure reads, no side effects
+            (m::CHANNEL_LIST, Observe),
+            (m::CHANNEL_SUBSCRIBE, Observe),
+            (m::CHANNEL_RECEIPTS, Observe),
+            (m::CHANNEL_CLAIMS, Observe),
+            (m::CHANNEL_CLAIMS_SUMMARY, Observe),
+            (m::CHANNEL_CV_KEYS, Observe),
+            (m::AGENT_FIND_IDLE, Observe),
+            // Interact — append / own-lease mutation / addressed delivery
+            (m::CHANNEL_POST, Interact),
+            (m::CHANNEL_CLAIM, Interact),
+            (m::CHANNEL_RENEW, Interact),
+            (m::CHANNEL_RELEASE, Interact),
+            (m::EVENT_EMIT_TO, Interact),
+            // Control — lifecycle / policy / operator override / destructive
+            (m::CHANNEL_CREATE, Control),
+            (m::CHANNEL_SET_RETENTION, Control),
+            (m::CHANNEL_TRANSFER_CLAIM, Control),
+            (m::CHANNEL_FORCE_RELEASE, Control),
+            (m::CHANNEL_TRIM, Control),
+            (m::CHANNEL_SWEEP, Control),
+        ];
+
+        for (method, want) in expected {
+            let got = hub_method_scope(method);
+            assert_eq!(
+                got, *want,
+                "scope for '{}' should be {:?}, got {:?}",
+                method, want, got
+            );
+            assert_ne!(
+                got,
+                PermissionScope::Execute,
+                "'{}' resolved to Execute (deny-by-default catch-all leaked back in) — \
+                 add an explicit scope arm in hub_method_scope",
+                method
+            );
+        }
+    }
 
     fn test_dir() -> PathBuf {
         let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
