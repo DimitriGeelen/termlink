@@ -6686,7 +6686,13 @@ async fn curator_top(
 /// If hub contains ':', treat as direct address. Otherwise look up in ~/.termlink/hubs.toml.
 fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<String>)> {
     if hub.contains(':') {
-        return None; // Direct address, no profile resolution needed
+        // T-2269: bare host:port — reverse-resolve the secret by matching the
+        // `address` field of any hubs.toml profile (mirrors the CLI
+        // `channel post --hub` resolve_hub_secret_hex path). Without this a
+        // bare address skips hubs.toml entirely and dies "secret required",
+        // even though the same hub works fine when referenced by profile name.
+        // No match → None (caller supplies the secret), preserving prior behaviour.
+        return match_profile_by_address(list_all_hub_profiles(), hub);
     }
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
@@ -6718,6 +6724,21 @@ fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<Stri
     }
 
     address.map(|addr| (addr, secret_file, secret))
+}
+
+/// T-2269: Pure address-field reverse lookup — given the full profile list and a
+/// bare `host:port`, return the first profile whose `address` matches, as the
+/// `(address, secret_file, secret)` triple `resolve_hub_profile` yields. Extracted
+/// from the `:` branch so the match semantics are unit-testable without touching
+/// HOME/the real hubs.toml (env mutation in tests is racy).
+fn match_profile_by_address(
+    profiles: Vec<(String, String, Option<String>, Option<String>)>,
+    hub: &str,
+) -> Option<(String, Option<String>, Option<String>)> {
+    profiles
+        .into_iter()
+        .find(|(_name, addr, _sf, _sec)| addr == hub)
+        .map(|(_name, addr, sf, sec)| (addr, sf, sec))
 }
 
 /// T-1039: List all hub profiles from ~/.termlink/hubs.toml.
@@ -30321,6 +30342,36 @@ mod tests {
         assert!(out.contains("declared=2"), "must surface declared: {out}");
         assert!(out.contains("required=3"), "must surface required: {out}");
         assert!(out.contains("REMOTE hub"), "must point at remote upgrade: {out}");
+    }
+
+    // === T-2269: bare host:port reverse-resolution tests ===
+
+    #[test]
+    fn match_profile_by_address_resolves_secret() {
+        let profiles = vec![
+            ("ring20-management".to_string(), "192.168.10.122:9100".to_string(),
+             Some("/root/.termlink/secrets/ring20-management.hex".to_string()), None),
+            ("laptop-141".to_string(), "192.168.10.141:9100".to_string(),
+             None, Some("inline".to_string())),
+        ];
+        let got = match_profile_by_address(profiles, "192.168.10.122:9100").unwrap();
+        assert_eq!(got.0, "192.168.10.122:9100");
+        assert_eq!(got.1.as_deref(), Some("/root/.termlink/secrets/ring20-management.hex"));
+        assert!(got.2.is_none());
+    }
+
+    #[test]
+    fn match_profile_by_address_no_match_returns_none() {
+        let profiles = vec![
+            ("other".to_string(), "10.0.0.1:9100".to_string(),
+             Some("/other/key".to_string()), None),
+        ];
+        assert!(match_profile_by_address(profiles, "192.168.10.122:9100").is_none());
+    }
+
+    #[test]
+    fn match_profile_by_address_empty_list_returns_none() {
+        assert!(match_profile_by_address(Vec::new(), "192.168.10.122:9100").is_none());
     }
 
     // === T-1715: agent_contact helper tests ===

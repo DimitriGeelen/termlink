@@ -525,7 +525,11 @@
       "mcp__termlink__termlink_channel_post",
       "mcp__termlink__termlink_channel_queue_status",
       "mcp__termlink__termlink_channel_list",
-      "mcp__termlink__termlink_info"
+      "mcp__termlink__termlink_info",
+      "mcp__termlink__termlink_whoami",
+      "mcp__termlink__termlink_hub_probe",
+      "mcp__termlink__termlink_tofu_verify",
+      "mcp__termlink__termlink_agent_listeners_fleet"
     ]
   },
   "enabledMcpjsonServers": [

@@ -3,3 +3,10 @@
 2026-06-13T20:08:07Z posted via=channel.post topic=framework:pickup msg_type=pickup-bug-report sha=0363f545014948a38d428aa053c940ef0149a5caee68ed4a2c295ca2546a12b8
 2026-06-21T10:39:07Z posted via=channel.post topic=framework:pickup msg_type=pickup-bug-report sha=a1e7ae078fd0ee866a337ffc044d7f6d46b3ccd48b09a8fd27e8e2822fd191a3
 2026-06-21T11:51:57Z posted via=channel.post topic=framework:pickup msg_type=pickup-feature-proposal sha=44a5337c0d43cd8dfba04bbe1ccaf980a541d08ad792726d7487a289258fd3ae
+2026-06-23T16:05:08Z posted via=channel.post topic=framework:pickup msg_type=pickup-feature-proposal sha=f4563fc2b4a8cb9982e9d0766dc760783fef74c864b85a810e2a1905e929907c
+2026-06-23T20:15:09Z posted via=channel.post topic=framework:pickup msg_type=pickup-feature-proposal sha=486778eb10792c01a1e0312d50db0d89e5c75db896cdeb412ab4365b190be686
+2026-06-23T20:15:16Z dedup envelope=P-048-feature-proposal.yaml sha=486778eb10792c01a1e0312d50db0d89e5c75db896cdeb412ab4365b190be686
+2026-06-23T20:49:22Z posted via=channel.post topic=framework:pickup msg_type=pickup-bug-report sha=363b79d0676f8c15e1f1503cdcf73885c9180c1f6b9db4d8f5151ceed7f04b97
+2026-06-23T20:50:05Z dedup envelope=P-049-bug-report.yaml sha=363b79d0676f8c15e1f1503cdcf73885c9180c1f6b9db4d8f5151ceed7f04b97
+2026-06-23T20:57:26Z posted via=channel.post topic=framework:pickup msg_type=pickup-bug-report sha=4e52fb114e5c5085269322628ceaa50037586b223787402cfc20140c7fd53c0d
+2026-06-23T20:58:05Z dedup envelope=P-050-bug-report.yaml sha=4e52fb114e5c5085269322628ceaa50037586b223787402cfc20140c7fd53c0d

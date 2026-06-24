@@ -79,11 +79,24 @@ fn resolve_hub_profile_with_config(
     config: &HubsConfig,
 ) -> Result<HubProfile> {
     if hub_arg.contains(':') {
-        // Direct address
+        // Direct address. T-2269: if the caller passed no explicit secret,
+        // reverse-resolve it by matching the `address` field of a hubs.toml
+        // profile — mirrors `channel post --hub`'s resolve_hub_secret_hex so a
+        // bare host:port works exactly like the profile name for the same hub.
+        // An explicit --secret-file/--secret still wins; a no-match stays
+        // address-only (caller must supply a secret).
+        let mut secret_file = cli_secret_file.map(String::from);
+        let mut secret = cli_secret.map(String::from);
+        if secret_file.is_none() && secret.is_none() {
+            if let Some(entry) = config.hubs.values().find(|e| e.address == hub_arg) {
+                secret_file = entry.secret_file.clone();
+                secret = entry.secret.clone();
+            }
+        }
         return Ok(HubProfile {
             address: hub_arg.to_string(),
-            secret_file: cli_secret_file.map(String::from),
-            secret: cli_secret.map(String::from),
+            secret_file,
+            secret,
             scope: Some(cli_scope.to_string()),
         });
     }
@@ -178,6 +191,71 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("not found"), "Expected 'not found' in: {}", err);
+    }
+
+    // T-2269: bare host:port reverse-resolves the secret from a matching profile.
+    #[test]
+    fn resolve_bare_address_reverse_resolves_secret() {
+        let mut config = HubsConfig::default();
+        config.hubs.insert("ring20-management".to_string(), HubEntry {
+            address: "192.168.10.122:9100".to_string(),
+            secret_file: Some("/root/.termlink/secrets/ring20-management.hex".to_string()),
+            secret: None,
+            scope: Some("observe".to_string()),
+            bootstrap_from: None,
+        });
+
+        // Passing the raw address (with ':') now resolves the same secret the
+        // profile name would, instead of dying "secret required".
+        let p = resolve_hub_profile_with_config(
+            "192.168.10.122:9100", None, None, "observe", &config,
+        ).unwrap();
+        assert_eq!(p.address, "192.168.10.122:9100");
+        assert_eq!(
+            p.secret_file.as_deref(),
+            Some("/root/.termlink/secrets/ring20-management.hex"),
+            "bare address should reverse-resolve the profile's secret_file"
+        );
+        assert_eq!(p.scope.as_deref(), Some("observe"));
+    }
+
+    // T-2269: an explicit CLI secret still wins over the reverse-resolved one.
+    #[test]
+    fn resolve_bare_address_explicit_secret_overrides() {
+        let mut config = HubsConfig::default();
+        config.hubs.insert("ring20-management".to_string(), HubEntry {
+            address: "192.168.10.122:9100".to_string(),
+            secret_file: Some("/profile/key".to_string()),
+            secret: None,
+            scope: Some("observe".to_string()),
+            bootstrap_from: None,
+        });
+
+        let p = resolve_hub_profile_with_config(
+            "192.168.10.122:9100", Some("/cli/override"), None, "control", &config,
+        ).unwrap();
+        assert_eq!(p.secret_file.as_deref(), Some("/cli/override"));
+    }
+
+    // T-2269: a bare address with no matching profile stays address-only
+    // (no regression to the prior direct-address path).
+    #[test]
+    fn resolve_bare_address_no_match_stays_bare() {
+        let mut config = HubsConfig::default();
+        config.hubs.insert("other".to_string(), HubEntry {
+            address: "10.0.0.1:9100".to_string(),
+            secret_file: Some("/other/key".to_string()),
+            secret: None,
+            scope: None,
+            bootstrap_from: None,
+        });
+
+        let p = resolve_hub_profile_with_config(
+            "192.168.10.122:9100", None, None, "observe", &config,
+        ).unwrap();
+        assert_eq!(p.address, "192.168.10.122:9100");
+        assert!(p.secret_file.is_none(), "no matching profile → no secret");
+        assert!(p.secret.is_none());
     }
 
     #[test]
