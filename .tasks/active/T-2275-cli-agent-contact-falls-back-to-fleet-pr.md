@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:39Z
-last_update: 2026-06-24T18:52:05Z
+last_update: 2026-06-24T18:59:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -229,3 +229,13 @@ cargo check -p termlink
 - **Build:** `cargo check -p termlink` clean.
 - **Next:** T-2274 (MCP parity, reuses this same shared parser) → one release
   build + deploy covers both.
+
+### 2026-06-24 — code complete + pushed; DEPLOY pending
+- Commit `fb31f978` (CLI + shared parser) pushed to OneDev. ACs ticked; parser
+  7/7; `cargo check -p termlink` clean.
+- **DEPLOY pending (operational, next session):** a `cargo build --release` was
+  running when the context-window budget gate fired at ~95%. To activate:
+  `cargo build --release && install -m755 target/release/termlink ~/.cargo/bin/termlink`
+  (mirror to peers via `scripts/fleet-deploy-binary.sh` if fleet-wide). The CLI
+  change takes effect on the next `termlink agent contact` invocation.
+- Closing this task records code-completion; the binary swap is a deploy step.

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:32Z
-last_update: 2026-06-24T18:59:45Z
+last_update: 2026-06-24T19:08:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -222,3 +222,16 @@ cargo check -p termlink-mcp
   (cannot safely post to a remote shared hub from this session).
 - **Deploy:** one `cargo build --release` covers CLI + MCP; install + MCP
   reconnect is the operational step.
+
+### 2026-06-24 — code complete + pushed; DEPLOY pending
+- Commit `4546f412` (MCP) pushed to OneDev. ACs ticked; `cargo check -p
+  termlink-mcp` clean; shared parser 7/7.
+- **DEPLOY pending (operational, next session):** release build was running when
+  the context-window gate fired at ~95%. To activate the MCP change:
+  `cargo build --release && install -m755 target/release/termlink ~/.cargo/bin/termlink`,
+  then **reconnect the termlink MCP server** (the running server holds the old
+  binary in memory until restarted). After reconnect, `termlink_agent_contact`
+  with a cross-hub `target` (or explicit `hub`) routes correctly.
+- **Field-test (operator):** from an MCP client, `termlink_agent_contact
+  {target: "<peer-on-another-hub>", message: "...", dry_run: true}` should return
+  `routing: "remote"` + the resolved `hub`; a non-dry-run delivers cross-hub.
