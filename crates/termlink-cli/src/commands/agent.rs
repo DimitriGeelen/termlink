@@ -722,6 +722,76 @@ pub(crate) fn resolve_contact_message(
     }
 }
 
+/// T-2275: a peer resolved via fleet `agent-presence` (cross-hub contact-by-name).
+pub(crate) struct FleetContactResolution {
+    pub identity_fingerprint: String,
+    pub hub_address: String,
+}
+
+/// T-2275: resolve `<agent_id>` to `{identity_fingerprint, hub}` by walking every
+/// hub in `hubs.toml` and reading its `agent-presence` heartbeats. This is the
+/// native parity of the shell `agent-listeners-fleet.sh` path (used by
+/// `agent-send.sh --to`, T-2273) — it lets `agent contact <name>` reach a peer on
+/// another hub without depending on repo scripts being deployed on the host.
+///
+/// Reuses the shared `termlink_session::fleet_presence` parser so the CLI and MCP
+/// resolvers cannot drift on the heartbeat contract. Picks the freshest LIVE
+/// match across hubs; per-hub failures (unreachable / auth) are skipped so a down
+/// hub never aborts the walk. Returns `None` when no hub has a LIVE heartbeat for
+/// the agent_id (or `hubs.toml` is empty/missing) — the caller then surfaces the
+/// not-found error.
+async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolution> {
+    use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        return None;
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    // Dedup hubs by address — multiple profiles can point at one physical hub
+    // (e.g. workstation-107-public + local-test → same bind).
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut best: Option<(FleetContactResolution, i64)> = None;
+    for entry in config.hubs.values() {
+        if !seen.insert(entry.address.clone()) {
+            continue;
+        }
+        // agent-presence heartbeats are small + frequent; a 500-envelope slice
+        // covers a generous window for any reasonably-sized fleet.
+        let msgs =
+            match super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500)
+                .await
+            {
+                Ok(m) => m,
+                Err(_) => continue, // down / auth-fail hub never aborts the walk
+            };
+        let Some(m) = resolve_agent_presence(&msgs, agent_id, now_ms) else {
+            continue;
+        };
+        // Only LIVE peers are contactable destinations — a doorbell to a STALE/
+        // OFFLINE pty is wasted.
+        if m.status != PresenceStatus::Live {
+            continue;
+        }
+        let Some(fp) = m.identity_fingerprint else {
+            continue;
+        };
+        let fresher = best.as_ref().map(|(_, ts)| m.last_ts_ms > *ts).unwrap_or(true);
+        if fresher {
+            best = Some((
+                FleetContactResolution {
+                    identity_fingerprint: fp,
+                    hub_address: entry.address.clone(),
+                },
+                m.last_ts_ms,
+            ));
+        }
+    }
+    best.map(|(r, _)| r)
+}
+
 /// T-1429: contact a peer agent on the canonical `dm:<a>:<b>` topic.
 ///
 /// Resolves `<target>` to a local session via `manager::find_session`, reads
@@ -801,6 +871,10 @@ pub(crate) async fn cmd_agent_contact(
             (None, None)
         };
 
+    // T-2275: set when the peer was resolved via fleet presence on a (possibly
+    // remote) hub — used below to route the dm post to that hub when the
+    // operator did not pass an explicit --hub.
+    let mut fleet_hub: Option<String> = None;
     let peer_fp_owned: String = if let Some(fp) = target_fp {
         // Trust the operator-supplied fingerprint. Light validation: must be
         // hex, at least 8 chars (canonical short fp is 16 chars).
@@ -814,18 +888,33 @@ pub(crate) async fn cmd_agent_contact(
         fp.to_string()
     } else {
         let target_name = target_name_owned.as_deref().expect("checked above");
-        let reg = manager::find_session(target_name).map_err(|e| {
-            if json {
-                super::json_error_exit(serde_json::json!({
-                    "ok": false,
-                    "target": target_name,
-                    "error": format!("Session '{target_name}' not found: {e}"),
-                }));
-            }
-            anyhow::anyhow!("Session '{target_name}' not found: {e}")
-        })?;
-
-        reg.metadata.identity_fingerprint.clone().ok_or_else(|| {
+        match manager::find_session(target_name) {
+            // T-2275: peer is not a local session — fall back to fleet presence
+            // (agent-presence across every hub in hubs.toml). Native parity of
+            // agent-send.sh --to (T-2273); a peer on another hub is now reachable
+            // by name instead of yielding a misleading "not found".
+            Err(e) => match resolve_contact_via_fleet(target_name).await {
+                Some(r) => {
+                    fleet_hub = Some(r.hub_address);
+                    r.identity_fingerprint
+                }
+                None => {
+                    let msg = format!(
+                        "Session '{target_name}' not found locally or as a LIVE peer on \
+                         any hub in hubs.toml: {e}. Run `termlink agent listeners --fleet` \
+                         (or /peers) to see who is reachable, or pass --target-fp <hex>."
+                    );
+                    if json {
+                        super::json_error_exit(serde_json::json!({
+                            "ok": false,
+                            "target": target_name,
+                            "error": msg,
+                        }));
+                    }
+                    anyhow::bail!(msg);
+                }
+            },
+            Ok(reg) => reg.metadata.identity_fingerprint.clone().ok_or_else(|| {
             let msg = format!(
                 "Peer '{target_name}' has no identity_fingerprint in metadata — \
                  likely registered before T-1436. Three recovery paths: \
@@ -846,9 +935,13 @@ pub(crate) async fn cmd_agent_contact(
             }
             eprintln!("error: {msg}");
             std::process::exit(8);
-        })?
+            })?,
+        }
     };
     let peer_fp = peer_fp_owned.as_str();
+    // T-2275: route the dm post to the hub where the peer was found via fleet
+    // presence, unless the operator passed an explicit --hub (which wins).
+    let hub: Option<&str> = hub.or(fleet_hub.as_deref());
 
     // T-1429 Phase-2 partial: --thread routes via `metadata._thread`
     // (agent-chat-arc protocol canon). T-1448 (b): also auto-attach

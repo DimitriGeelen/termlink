@@ -18,6 +18,7 @@ pub mod offline_queue;
 pub mod data_server;
 pub mod events;
 pub mod executor;
+pub mod fleet_presence;
 pub mod governance_subscriber;
 pub mod handler;
 pub mod hub_capabilities;

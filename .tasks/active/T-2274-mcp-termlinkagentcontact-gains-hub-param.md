@@ -34,14 +34,28 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2267 review item 4, slice 4 — MCP parity for T-2275. The MCP handler
+`termlink_agent_contact` (tools.rs:17569) resolves the target name via
+`manager::find_session` IN-PROCESS (tools.rs:17621, local-only) and posts to the
+LOCAL hub via `hub_socket_path()` (tools.rs:17596). `AgentContactParams`
+(tools.rs:7388) has NO `hub` field. So an agent calling `termlink_agent_contact`
+cannot reach a peer on another hub. This task adds the `hub` param + the same
+cross-hub fleet fallback T-2275 adds to the CLI, reusing the shared
+`termlink-session` parser (no second parse implementation). MCP already has its
+own `connect_remote_hub_mcp` (tools.rs:6770) mirroring the CLI's, so the
+per-crate transport pattern is already established here.
+
+**Depends on T-2275** (the shared parser lands there). This task is the MCP
+transport walker + param wiring.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `AgentContactParams` (tools.rs:7388) gains `hub: Option<String>` (documented in the schema). When set, the dm post is routed to that hub via `connect_remote_hub_mcp` + remote `channel.post` instead of the local `hub_socket_path()` path.
+- [ ] `termlink_agent_contact` (tools.rs:17569): when `target` is given, `target_fp` is NOT set, and `manager::find_session` misses, falls back to a fleet walk — MCP's hubs.toml enumeration → per hub `connect_remote_hub_mcp` + `channel.subscribe agent-presence` → the SHARED `termlink-session` parser (same fn T-2275 added) → freshest LIVE match. Resolves `{identity_fingerprint, hub}` and posts to that hub. Per-hub failures don't abort the walk.
+- [ ] No-match + regression: local `find_session` hit and `target_fp` bypass still post to the local hub unchanged; the fleet walk is entered only on a local miss; no-match returns a structured `{ok:false, error}` naming both local + fleet. `cargo build -p termlink-mcp` succeeds.
+- [ ] The tool's input-schema JSON (as surfaced by the MCP tool list) includes the new `hub` property; verified via `cargo build` + a schema-presence check or the tools.rs schema test.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

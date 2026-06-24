@@ -4,10 +4,10 @@ name: "CLI agent contact falls back to fleet presence when local find_session mi
 description: >
   T-2267 review item 4, slice 4 (findings 11,16). CLI cmd_agent_contact (agent.rs:804-850) resolves target name via local manager::find_session only (817); a peer on another hub is invisible -> 'Session not found'. Add a fleet-presence fallback resolving name->(hub,fp) via identity_fingerprint (T-2270 foundation), use the resolved hub for the dm post, and on not-found steer toward fleet presence rather than broadcast. Depends on T-2270.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:39Z
-last_update: 2026-06-24T10:21:39Z
+last_update: 2026-06-24T18:52:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,40 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2267 review item 4, slice 3 (Rust parity for T-2273's shell work). PL-107 /
+T-1429 Phase-2 gap: `termlink agent contact <name>` resolves `<target>` via
+`manager::find_session` (agent.rs:817) which is LOCAL-ONLY — a peer on another
+hub yields "not found", indistinguishable from "offline". The shell layer
+(agent-send.sh `--to`, T-2273) already does cross-hub contact-by-name by walking
+`agent-listeners-fleet.sh` (agent-presence per hub) for the peer's
+`identity_fingerprint` + `hub`. This task brings the SAME fallback natively into
+`cmd_agent_contact` so the binary works cross-hub without depending on repo
+scripts being present on the deployed host (the professional/reliable solution
+chosen over shell-out, 2026-06-24).
+
+**Design (confirmed via code map):** the native post path already supports remote
+hubs — `cmd_channel_dm` takes `hub: Option<&str>`, and `parse_hub_addr` +
+`resolve_hub_secret_hex` (T-1385/T-2269) reverse-resolve the secret from
+`hubs.toml`. `cmd_agent_contact` already threads `hub` into `cmd_channel_dm`. The
+ONLY gap is the name→{fp,hub} RESOLUTION when `find_session` misses. The
+agent_id→{fp,hub,pty_session} resolver does NOT exist in Rust (only in
+agent-listeners-fleet.sh). Factoring: a **shared pure parser** in
+`termlink-session` (heartbeat-envelope → match, zero drift) + a **per-crate fleet
+walker** (transport, mirroring the existing connect_remote_hub/_mcp duplication).
+Parse contract (from agent-listeners.sh): filter `msg_type=="heartbeat" &&
+metadata.agent_id!=""`, newest per agent_id by ts, `identity_fingerprint =
+sender_id` (envelope top-level), `pty_session = metadata.pty_session`, status from
+age vs `2×interval` (LIVE) / `5×interval` (STALE) using `metadata.interval_secs`
+(default 30).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Shared pure parser added to `termlink-session` (`fleet_presence.rs`, new module): given `&[serde_json::Value]` agent-presence heartbeats + `agent_id` + `now_ms`, returns the newest matching heartbeat's `{identity_fingerprint (=sender_id), pty_session, status, age_secs}` or `None`. Status classification matches agent-listeners.sh (`2×interval`→LIVE, `5×interval`→STALE, else OFFLINE; default interval 30). Unit-tested: LIVE/STALE/OFFLINE bands, no-match→None, newest-wins-on-duplicate, non-heartbeat-ignored, default-interval. (7 tests pass.)
+- [x] `cmd_agent_contact` (agent.rs): when positional `<target>` is given, `--target-fp` is NOT set, and `manager::find_session` returns Err, falls back to a fleet walk — `load_hubs_config()` → per hub `fetch_topic_msgs("agent-presence", Some(addr))` (T-2269 secret reverse-resolution) → shared parser → freshest LIVE match across hubs (dedup by address). Sets `peer_fp = identity_fingerprint` and routes the dm post to the matched hub via `hub = hub.or(fleet_hub)` (explicit `--hub` wins). Per-hub failures `continue` (down hub never aborts the walk).
+- [x] No-match path: when neither local `find_session` nor any fleet hub yields a LIVE agent_id, the error names both ("not found locally or as a LIVE peer on any hub in hubs.toml") + points at `agent listeners --fleet`/`/peers`/`--target-fp`; empty/missing hubs.toml → `resolve_contact_via_fleet` returns None early (no panic).
+- [x] Regression preserved: `--target-fp <hex>` bypass and a successful local `find_session` hit both leave `fleet_hub = None` (walk only entered on local Err), so routing is unchanged. `cargo check -p termlink` succeeds; `cargo test -p termlink-session fleet_presence` passes (7/7).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +132,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink-session fleet_presence
+cargo check -p termlink
 
 ## RCA
 
@@ -174,3 +203,29 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md
 - **Context:** Initial task creation
+
+### 2026-06-24T18:52:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-24 — implemented (native Rust cross-hub resolver)
+- **Shared parser:** new `crates/termlink-session/src/fleet_presence.rs` —
+  `resolve_agent_presence(msgs, agent_id, now_ms) -> Option<PresenceMatch>` +
+  `PresenceStatus`. Pure; mirrors agent-listeners.sh classification. 7 unit tests
+  pass (`cargo test -p termlink-session fleet_presence`). Registered in lib.rs.
+- **CLI walker:** `resolve_contact_via_fleet(agent_id)` in agent.rs — walks
+  `load_hubs_config()`, dedups by address, `fetch_topic_msgs("agent-presence",
+  Some(addr), 500)` per hub (reuses T-2269 secret reverse-resolution), runs the
+  shared parser, returns the freshest LIVE `{identity_fingerprint, hub_address}`.
+  Per-hub Err → `continue` (down hub never aborts).
+- **Wiring:** `cmd_agent_contact` find_session-Err arm now calls the walker; on a
+  hit sets `fleet_hub` + peer_fp; routing shadow `let hub = hub.or(fleet_hub)`
+  threads the resolved hub through the dry-run preview, require-online probe, dm
+  post, and ack-wait. `--target-fp` + local-hit paths untouched (fleet_hub stays
+  None). No-match error names local + fleet.
+- **Why native over shell-out:** chosen as the professional/reliable solution
+  (2026-06-24) — a shipped binary must not depend on repo scripts being present
+  on the deployed host.
+- **Build:** `cargo check -p termlink` clean.
+- **Next:** T-2274 (MCP parity, reuses this same shared parser) → one release
+  build + deploy covers both.
