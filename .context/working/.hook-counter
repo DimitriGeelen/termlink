@@ -1,15 +1,15 @@
-checkpoint=40
+checkpoint=46
 e=2
 
 checkpoint=87
-loop-detect=126
-budget-gate=103
-check-active-task=102
+loop-detect=132
+budget-gate=108
+check-active-task=107
 commit-cadence=28
-check-tier0=71
+check-tier0=76
 check-fabric-new-file=2
-check-project-boundary=49
-error-watchdog=35
-audit-task-tools=50
+check-project-boundary=54
+error-watchdog=40
+audit-task-tools=56
 pre-compact=1
 check-human-ac-tick=8

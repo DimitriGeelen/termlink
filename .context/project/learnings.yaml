@@ -2365,3 +2365,10 @@ learnings:
   date: 2026-06-24
   context: Added via context agent
   application: TBD
+- id: PL-230
+  learning: "Error/hint strings that name CLI commands (e.g. a recovery hint saying 'Run `termlink agent listeners --fleet`') are not validated against the actual clap subcommand tree — they compile fine while pointing at a non-existent command. When writing a hint that names a command, verify the verb exists (`termlink <group> --help`) or grep the clap definitions. Prevention idea: a lint extracting back-ticked `termlink <verb>` strings from source and checking them against the command tree."
+  source: P-001
+  task: T-2279
+  date: 2026-06-24
+  context: Added via context agent
+  application: TBD
