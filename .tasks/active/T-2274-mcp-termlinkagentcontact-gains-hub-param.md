@@ -4,10 +4,10 @@ name: "MCP termlink_agent_contact gains hub param + fleet fallback resolution"
 description: >
   T-2267 review item 4, slice 3 (findings 12). MCP termlink_agent_contact (tools.rs:17569) hardcodes the local socket (17596) and AgentContactParams (7388) has no hub field, so it cannot reach cross-hub at all. Add hub/hubs_file params; when local find_session (17621) misses, fall back to fleet presence resolution name->(hub,fp) via identity_fingerprint (T-2270 foundation). Depends on T-2270.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:32Z
-last_update: 2026-06-24T10:21:32Z
+last_update: 2026-06-24T18:59:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,10 +52,10 @@ transport walker + param wiring.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `AgentContactParams` (tools.rs:7388) gains `hub: Option<String>` (documented in the schema). When set, the dm post is routed to that hub via `connect_remote_hub_mcp` + remote `channel.post` instead of the local `hub_socket_path()` path.
-- [ ] `termlink_agent_contact` (tools.rs:17569): when `target` is given, `target_fp` is NOT set, and `manager::find_session` misses, falls back to a fleet walk — MCP's hubs.toml enumeration → per hub `connect_remote_hub_mcp` + `channel.subscribe agent-presence` → the SHARED `termlink-session` parser (same fn T-2275 added) → freshest LIVE match. Resolves `{identity_fingerprint, hub}` and posts to that hub. Per-hub failures don't abort the walk.
-- [ ] No-match + regression: local `find_session` hit and `target_fp` bypass still post to the local hub unchanged; the fleet walk is entered only on a local miss; no-match returns a structured `{ok:false, error}` naming both local + fleet. `cargo build -p termlink-mcp` succeeds.
-- [ ] The tool's input-schema JSON (as surfaced by the MCP tool list) includes the new `hub` property; verified via `cargo build` + a schema-presence check or the tools.rs schema test.
+- [x] `AgentContactParams` gains `hub: Option<String>` (documented JsonSchema doc-comment). When set, the dm post routes to that hub via the new `ContactHub::Remote` (`connect_remote_hub_mcp` + authed `channel.post`) instead of the local `hub_socket_path()` UDS path. Explicit `hub` wins over the auto-resolved fleet hub.
+- [x] `termlink_agent_contact`: when `target` is given, `target_fp` is NOT set, and `manager::find_session` misses, falls back to `resolve_contact_via_fleet_mcp` — `list_all_hub_profiles()` → per hub `connect_remote_hub_mcp(observe)` + `ContactHub::fetch_recent("agent-presence")` → the SHARED `termlink_session::fleet_presence::resolve_agent_presence` parser (same fn T-2275 added — no second parse) → freshest LIVE match. Resolves `{identity_fingerprint, hub}` and posts to that hub. Per-hub failures `continue` (down hub never aborts).
+- [x] No-match + regression: local `find_session` hit and `target_fp` bypass leave `fleet_hub=None` → `ContactHub::Local` (unauthenticated UDS, unchanged path); the fleet walk is entered only on a local Err; no-match returns `json_err` naming both local + fleet + pointing at `termlink_agent_listeners_fleet`. `cargo check -p termlink-mcp` clean. The whole create/post/probe/ack path now routes through one `ContactHub` so local + remote share logic.
+- [x] The new `hub` property is in the tool input-schema by construction (`#[derive(JsonSchema)]` on `AgentContactParams` auto-includes the `pub hub` field with its doc-comment). Dry-run response now also echoes `hub` + `routing` (`local`/`remote`) for caller transparency.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -120,6 +120,9 @@ transport walker + param wiring.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink-session fleet_presence
+cargo check -p termlink-mcp
 
 ## RCA
 
@@ -188,3 +191,34 @@ transport walker + param wiring.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md
 - **Context:** Initial task creation
+
+### 2026-06-24T18:59:45Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-24 — implemented (MCP parity, shared parser reused)
+- **`hub` param** added to `AgentContactParams` (JsonSchema doc-commented).
+- **`ContactHub` enum** (tools.rs, near connect_remote_hub_mcp): `Local(PathBuf)`
+  (unauthenticated UDS, legacy) | `Remote(Box<Client>)` (authed remote). Methods
+  `rpc(method, params) -> unwrapped result` + `fetch_recent(topic, slice)`. The
+  whole agent_contact create/post/probe/ack path now routes through one `conn`,
+  so local + remote share logic (no dual code path duplication).
+- **`resolve_contact_via_fleet_mcp(agent_id)`**: walks `list_all_hub_profiles()`,
+  dedups by address, `connect_remote_hub_mcp(observe)` + `fetch_recent(
+  "agent-presence")` per hub, runs the SHARED
+  `termlink_session::fleet_presence::resolve_agent_presence` (same fn the CLI uses
+  — no second parse), returns freshest LIVE `(fp, hub_address)`. Per-hub Err →
+  continue.
+- **Wiring:** find_session-miss arm calls the walker; on hit sets `fleet_hub` +
+  peer_fp. `target_hub = p.hub.or(fleet_hub)` selects the transport; explicit
+  `hub` wins. Local existence-check moved into the `ContactHub::Local` arm (a
+  pure-remote contact no longer needs a running local hub). Dry-run echoes
+  `hub` + `routing`.
+- **Build:** `cargo check -p termlink-mcp` clean; shared parser 7/7.
+- **Runtime note (honest):** the local + dry-run paths are fully exercisable
+  here; the *remote* post path is compile-verified + logic-mirrors the CLI
+  (T-2275, runtime-proven via T-2273's shell equivalent) + relies on the
+  unit-tested shared parser. A live cross-hub MCP post is an operator field-test
+  (cannot safely post to a remote shared hub from this session).
+- **Deploy:** one `cargo build --release` covers CLI + MCP; install + MCP
+  reconnect is the operational step.

@@ -6900,6 +6900,132 @@ async fn connect_remote_hub_mcp(
     }
 }
 
+/// T-2274: a resolved transport for `termlink_agent_contact` — either the local
+/// hub UDS (unauthenticated, the legacy path) or an authenticated remote-hub
+/// client (cross-hub contact-by-name). Unifies create / post / fetch so the
+/// handler routes every RPC through one abstraction regardless of locality.
+enum ContactHub {
+    Local(std::path::PathBuf),
+    Remote(Box<client::Client>),
+}
+
+impl ContactHub {
+    /// Unwrapped RPC: returns the hub's `result` value or a formatted error.
+    async fn rpc(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        match self {
+            ContactHub::Local(sock) => {
+                let resp = termlink_session::client::rpc_call(sock, method, params)
+                    .await
+                    .map_err(|e| format!("{method} transport: {e}"))?;
+                termlink_session::client::unwrap_result(resp)
+                    .map_err(|e| format!("{method} error: {e}"))
+            }
+            ContactHub::Remote(c) => {
+                let req_id = serde_json::json!(format!("mcp-{}", std::process::id()));
+                match c.call(method, req_id, params).await {
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => Ok(r.result),
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                        Err(format!("{method} error: {}", e.error.message))
+                    }
+                    Err(e) => Err(format!("{method} transport: {e}")),
+                }
+            }
+        }
+    }
+
+    /// Fetch the most-recent `slice_size` envelopes on `topic` (list to learn
+    /// count, then subscribe from the tail cursor). Transport-agnostic mirror
+    /// of `fetch_topic_msgs_mcp`.
+    async fn fetch_recent(
+        &mut self,
+        topic: &str,
+        slice_size: u64,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let list_result = self
+            .rpc(
+                termlink_protocol::control::method::CHANNEL_LIST,
+                serde_json::json!({"prefix": topic}),
+            )
+            .await?;
+        let topics = list_result["topics"].as_array().cloned().unwrap_or_default();
+        let count = topics
+            .iter()
+            .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
+            .and_then(|t| t.get("count").and_then(|v| v.as_u64()))
+            .unwrap_or(0);
+        if count == 0 {
+            return Ok(Vec::new());
+        }
+        let cursor = count.saturating_sub(slice_size);
+        let sub_result = self
+            .rpc(
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({"topic": topic, "cursor": cursor, "limit": slice_size}),
+            )
+            .await?;
+        Ok(sub_result["messages"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default())
+    }
+}
+
+/// T-2274: MCP parity of the CLI `resolve_contact_via_fleet` (T-2275). Walks
+/// every hub profile in `hubs.toml`, reads its `agent-presence` heartbeats via
+/// an authenticated client, and returns the freshest LIVE
+/// `(identity_fingerprint, hub_address)` for `agent_id`. Reuses the SAME shared
+/// `termlink_session::fleet_presence` parser the CLI uses — no second parse.
+/// Per-hub failures are skipped (a down hub never aborts the walk). Returns
+/// `None` when no hub has a LIVE heartbeat (or no profiles configured).
+async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String)> {
+    use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
+    let profiles = list_all_hub_profiles();
+    if profiles.is_empty() {
+        return None;
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut best: Option<(String, String, i64)> = None; // (fp, hub_address, ts)
+    for (_name, address, _sf, _sec) in &profiles {
+        if !seen.insert(address.clone()) {
+            continue;
+        }
+        let client = match connect_remote_hub_mcp(address, None, None, "observe").await {
+            Ok(c) => c,
+            Err(_) => continue, // down / auth-fail hub never aborts the walk
+        };
+        let mut conn = ContactHub::Remote(Box::new(client));
+        let msgs = match conn.fetch_recent("agent-presence", 500).await {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let Some(m) = resolve_agent_presence(&msgs, agent_id, now_ms) else {
+            continue;
+        };
+        if m.status != PresenceStatus::Live {
+            continue;
+        }
+        let Some(fp) = m.identity_fingerprint else {
+            continue;
+        };
+        let fresher = best
+            .as_ref()
+            .map(|(_, _, ts)| m.last_ts_ms > *ts)
+            .unwrap_or(true);
+        if fresher {
+            best = Some((fp, address.clone(), m.last_ts_ms));
+        }
+    }
+    best.map(|(fp, hub, _)| (fp, hub))
+}
+
 /// T-2268: classify a cross-hub TLS connect failure. A TOFU/cert-drift
 /// rejection (the hub is up but its cert rotated) is surfaced verbatim — it
 /// already carries the `termlink tofu clear` remediation — rather than being
@@ -7440,6 +7566,14 @@ pub struct AgentContactParams {
     /// T-1716: timeout (seconds) for `ack_required` poll. Clamped to [5, 600];
     /// default 60. Ignored when `ack_required` is false or unset.
     pub ack_timeout_secs: Option<u64>,
+    /// T-2274: hub address (or profile name) to post the dm to. When set,
+    /// the post is routed to that hub instead of the local hub. When unset
+    /// AND `target` resolves only via cross-hub fleet presence (the peer is
+    /// not a local session), the hub where the peer's LIVE `agent-presence`
+    /// heartbeat was found is used automatically (native parity of
+    /// `agent-send.sh --to`, T-2273). An explicit `hub` wins over the
+    /// auto-resolved one.
+    pub hub: Option<String>,
 }
 
 /// T-1719: parameters for `termlink_agent_dms` — DM topic directory.
@@ -17593,10 +17727,11 @@ impl TermLinkTools {
             Err(e) => return json_err(format!("T-1717: {e}")),
         };
 
+        // T-2274: local hub socket — only required when the post routes locally
+        // (no `hub` param and no cross-hub fleet resolution). The existence check
+        // moves into the Local transport arm below so a pure-remote contact does
+        // not require a running local hub.
         let hub_socket = termlink_hub::server::hub_socket_path();
-        if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
-        }
 
         // Parse positional target for `:project` suffix (T-1448 (b)).
         // Mirrors `commands::agent::parse_contact_target` semantics.
@@ -17609,8 +17744,12 @@ impl TermLinkTools {
             (None, None)
         };
 
-        // Resolve peer_fp: either trust target_fp directly (after hex
-        // validation), or look up via session.discover (local-only).
+        // T-2274: set when the peer was resolved via cross-hub fleet presence —
+        // routes the post to that hub when the caller did not pass `hub`.
+        let mut fleet_hub: Option<String> = None;
+        // Resolve peer_fp: trust target_fp directly (after hex validation), look
+        // up via session.discover (local), or — on a local miss — fall back to
+        // fleet presence across hubs.toml (T-2274 parity of T-2275 / T-2273).
         let peer_fp: String = if let Some(fp) = &p.target_fp {
             if fp.len() < 8 || !fp.chars().all(|c| c.is_ascii_hexdigit()) {
                 return json_err(format!("target_fp must be hex (got {fp:?})"));
@@ -17618,15 +17757,22 @@ impl TermLinkTools {
             fp.clone()
         } else {
             let name = target_name.as_deref().expect("checked above");
-            let reg = match manager::find_session(name) {
-                Ok(r) => r,
-                Err(e) => return json_err(format!("session '{name}' not found: {e}")),
-            };
-            match reg.metadata.identity_fingerprint.clone() {
-                Some(fp) => fp,
-                None => return json_err(format!(
-                    "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Three recovery paths: (1) upgrade the peer's termlink binary and restart the session; (2) pass 'target_fp' (hex) directly; (3) use `termlink_channel_post` against agent-chat-arc with --mention to reach the peer broadcast-style."
-                )),
+            match manager::find_session(name) {
+                Ok(reg) => match reg.metadata.identity_fingerprint.clone() {
+                    Some(fp) => fp,
+                    None => return json_err(format!(
+                        "peer '{name}' has no identity_fingerprint in metadata — likely registered before T-1436. Three recovery paths: (1) upgrade the peer's termlink binary and restart the session; (2) pass 'target_fp' (hex) directly; (3) use `termlink_channel_post` against agent-chat-arc with --mention to reach the peer broadcast-style."
+                    )),
+                },
+                Err(e) => match resolve_contact_via_fleet_mcp(name).await {
+                    Some((fp, hub)) => {
+                        fleet_hub = Some(hub);
+                        fp
+                    }
+                    None => return json_err(format!(
+                        "session '{name}' not found locally or as a LIVE peer on any hub in hubs.toml: {e}. Use `termlink_agent_listeners_fleet` to see who is reachable, or pass 'target_fp' (hex)."
+                    )),
+                },
             }
         };
 
@@ -17654,6 +17800,10 @@ impl TermLinkTools {
             metadata.insert("to_project".to_string(), serde_json::Value::String(proj.clone()));
         }
 
+        // T-2274: the hub the post will route to — an explicit `hub` param wins
+        // over a cross-hub fleet-resolved hub; both override the local default.
+        let target_hub: Option<String> = p.hub.clone().or(fleet_hub);
+
         // Dry-run path: render preview JSON, no hub round-trip.
         if p.dry_run.unwrap_or(false) {
             return serde_json::to_string_pretty(&serde_json::json!({
@@ -17663,6 +17813,8 @@ impl TermLinkTools {
                 "peer_fp": peer_fp,
                 "my_fp": my_fp,
                 "metadata": metadata,
+                "hub": target_hub,
+                "routing": if target_hub.is_some() { "remote" } else { "local" },
                 "would_post": {
                     "msg_type": "chat",
                     "body_preview": preview_body(&body, 80),
@@ -17672,12 +17824,28 @@ impl TermLinkTools {
             .unwrap_or_else(json_err);
         }
 
+        // T-2274: resolve the transport — local UDS (legacy, unauthenticated) or
+        // an authenticated remote-hub client (explicit `hub`, or the hub where
+        // fleet presence found the peer). All create / post / probe / ack RPCs
+        // below route through this one abstraction.
+        let mut conn = match &target_hub {
+            None => {
+                if !hub_socket.exists() {
+                    return json_err("Hub is not running (no socket found)");
+                }
+                ContactHub::Local(hub_socket.clone())
+            }
+            Some(h) => match connect_remote_hub_mcp(h, None, None, "control").await {
+                Ok(c) => ContactHub::Remote(Box::new(c)),
+                Err(e) => return e,
+            },
+        };
+
         // T-1716: pre-flight presence probe when require_online is set.
         // Mirrors CLI exit-9 semantics (T-1480) — fail-fast without posting.
         if p.require_online.unwrap_or(false) {
             let window_secs = p.online_window_secs.unwrap_or(300).clamp(10, 86_400);
-            let chat_arc_msgs = match fetch_topic_msgs_mcp(&hub_socket, "agent-chat-arc", 500).await
-            {
+            let chat_arc_msgs = match conn.fetch_recent("agent-chat-arc", 500).await {
                 Ok(m) => m,
                 Err(e) => return json_err(format!("require_online: agent-chat-arc probe failed: {e}")),
             };
@@ -17721,15 +17889,15 @@ impl TermLinkTools {
             .unwrap_or(0);
 
         // Ensure dm topic exists (idempotent, retention=forever).
-        let create_result = termlink_session::client::rpc_call(
-            &hub_socket,
-            termlink_protocol::control::method::CHANNEL_CREATE,
-            serde_json::json!({"name": topic, "retention": {"kind": "forever"}}),
-        )
-        .await;
-        if let Err(e) = create_result {
-            return json_err(format!("channel.create transport: {e}"));
-        }
+        // Ensure dm topic exists (idempotent, retention=forever). Best-effort —
+        // an "already exists" is fine; a real transport/auth failure surfaces at
+        // the post below.
+        let _ = conn
+            .rpc(
+                termlink_protocol::control::method::CHANNEL_CREATE,
+                serde_json::json!({"name": topic, "retention": {"kind": "forever"}}),
+            )
+            .await;
 
         // Sign + post.
         let msg_type = "chat";
@@ -17766,18 +17934,12 @@ impl TermLinkTools {
         {
             obj.insert("metadata".to_string(), serde_json::Value::Object(metadata));
         }
-        let post_result = match termlink_session::client::rpc_call(
-            &hub_socket,
-            termlink_protocol::control::method::CHANNEL_POST,
-            post_params,
-        )
-        .await
+        let post_result = match conn
+            .rpc(termlink_protocol::control::method::CHANNEL_POST, post_params)
+            .await
         {
-            Ok(resp) => match termlink_session::client::unwrap_result(resp) {
-                Ok(result) => result,
-                Err(e) => return json_err(format!("agent contact: channel.post error: {e}")),
-            },
-            Err(e) => return json_err(format!("agent contact: RPC failed: {e}")),
+            Ok(result) => result,
+            Err(e) => return json_err(format!("agent contact: channel.post {e}")),
         };
 
         // Decorate hub's reply with topic + peer_fp for caller convenience.
@@ -17803,7 +17965,7 @@ impl TermLinkTools {
             let start = std::time::Instant::now();
             let mut ack_ts: Option<i64> = None;
             loop {
-                match fetch_topic_msgs_mcp(&hub_socket, &topic, 200).await {
+                match conn.fetch_recent(&topic, 200).await {
                     Ok(msgs) => {
                         if let Some(ts) = detect_ack_in_msgs_mcp(&msgs, &peer_fp, send_ts_ms_for_ack)
                         {
