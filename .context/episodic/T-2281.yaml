@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2281: Fix stale termlink command refs in operator docs + extend hint-lint to CLAUDE.md/skills
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T09:50:52Z
+# ============================================================================
+
+task_id: T-2281
+task_name: "Fix stale termlink command refs in operator docs + extend hint-lint to CLAUDE.md/skills"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T08:47:37Z
+completed: 2026-06-25T09:50:45Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-25T11:29:34+02:00
+last_commit: 2026-06-25T11:50:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix stale command refs in 2 skills (fleet add -> remote profile add; inbox push); CLAUDE.md + lint refinement remain (300k ceiling). complete — CLAUDE.md ref fixes (remote call->MCP tool; fleet add->remote profile add) + lint HAS_SUBCOMMANDS refinement + extend scan to CLAUDE.md/.claude/commands. add RCA (doc-rot in auto-loaded surfaces; lint scoped to crates only)
+
+# Key outcomes
+outcomes:
+  - 'Stale refs fixed in current operator surfaces: `termlink fleet add` →'
+  - '`scripts/lint-command-hints.sh` refined: only validates groups that actually'
+  - 'Lint scan extended to `CLAUDE.md` + `.claude/commands/` (HINT_DIRS accepts'
+  - '`bash scripts/lint-command-hints.sh` exits 0 and `--self-test` still passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'complete — CLAUDE.md ref fixes (remote call->MCP tool; fleet add->remote profile add) + lint HAS_SUBCOMMANDS refinement + extend scan to CLAUDE.md/.claude/commands'
+    source: git-mined
+  - description: 'fix stale command refs in 2 skills (fleet add -> remote profile add; inbox push); CLAUDE.md + lint refinement remain (300k ceiling)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/agent-handoff.md'
+  - '.claude/commands/preflight.md'
+  - 'CLAUDE.md'
+  - 'scripts/lint-command-hints.sh'
+  - '.tasks/active/T-2281-fix-stale-termlink-command-refs-in-opera.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-25T11:29:34"
+    action: "T-2281: fix stale command refs in 2 skills (fleet add -> remote profile add; inbox push); CLAUDE.md + lint refinement remain (300k ceiling)"
+  - time: "2026-06-25T11:49:21"
+    action: "T-2281: complete — CLAUDE.md ref fixes (remote call->MCP tool; fleet add->remote profile add) + lint HAS_SUBCOMMANDS refinement + extend scan to CLAUDE.md/.claude/commands"
+  - time: "2026-06-25T11:50:45"
+    action: "T-2281: add RCA (doc-rot in auto-loaded surfaces; lint scoped to crates only)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 63 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 63
+  commits: 3
+  files_changed: 5
+  lines_added: 289
+  lines_removed: 38
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2281-fix-stale-termlink-command-refs-in-opera.md
+generated_by: context-agent-hybrid

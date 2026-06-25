@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2282: Rebuild + install local termlink binary 0.11.23 to 0.11.42
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T10:32:30Z
+# ============================================================================
+
+task_id: T-2282
+task_name: "Rebuild + install local termlink binary 0.11.23 to 0.11.42"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T10:21:06Z
+completed: 2026-06-25T10:32:27Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-25T12:32:26+02:00
+last_commit: 2026-06-25T12:32:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  rebuild + install local termlink 0.11.23 -> 0.11.42 (clears substrate-preflight stale-binary WARN)
+
+# Key outcomes
+outcomes:
+  - '`cargo build --release --bin termlink` succeeds (exit 0). Built in 9m33s.'
+  - 'Freshly built `target/release/termlink --version` reports `0.11.42`'
+  - 'Built binary installed to `~/.cargo/bin/termlink` (chmod 755) and'
+  - '`bash scripts/substrate-preflight.sh` no longer emits the `[WARN] binary`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2282-rebuild--install-local-termlink-binary-0.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-25T12:32:26"
+    action: "T-2282: rebuild + install local termlink 0.11.23 -> 0.11.42 (clears substrate-preflight stale-binary WARN)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 1
+  lines_added: 190
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2282-rebuild--install-local-termlink-binary-0.md
+generated_by: context-agent-hybrid
