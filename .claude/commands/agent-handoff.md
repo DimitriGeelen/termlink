@@ -159,7 +159,7 @@ Print a 4-line summary:
 
 - **NEVER** use `termlink remote push` for agent-to-agent contact (T-1166
   retired the corresponding inbox.push primitive).
-- **NEVER** use `termlink inbox push`, `event.broadcast --target`, or post
+- **NEVER** use the retired `inbox.push` primitive, `event.broadcast --target`, or post
   to invented topics like `agent.reply`. The canonical contact channel is
   the `dm:<a>:<b>` topic the verb computes from identity fingerprints.
 - **NEVER** improvise the sender label by passing `--metadata-from <x>` or

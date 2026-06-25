@@ -117,7 +117,7 @@ contextual pointers depending on which check tripped:
 - Diagnostic: `mount | grep ' /tmp '` + `cat /usr/lib/tmpfiles.d/tmp.conf`
 
 **Check 2 (hubs.toml) failed:** No declared profiles. Point at:
-- `termlink fleet add <name> <addr>` to declare a hub
+- `termlink remote profile add <name> <addr>` to declare a hub
 - Or copy from a peer host's `~/.termlink/hubs.toml`
 
 **Check 3 (be-reachable) failed:** Listener dead. Point at:
