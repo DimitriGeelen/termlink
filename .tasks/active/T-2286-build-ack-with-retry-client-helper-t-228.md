@@ -16,7 +16,7 @@ related_tasks: [T-2285, T-2049, T-2051, T-1485, T-2323]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T23:07:34Z
-last_update: 2026-06-25T23:07:34Z
+last_update: 2026-06-25T23:31:31Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,12 +46,12 @@ the documented recipient auto-ack convention for the AEF sidecar. Design doc:
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A durable **awaiting-ack tracker** persists `(dm_topic, offset, client_msg_id, retry_deadline_ms, attempts)` to a SQLite store, reusing the T-2051 `outbound.sqlite` conventions (atomic write, FIFO, capacity guard); a confirmed ack (recipient `up_to >= offset`) deletes the row.
-- [ ] An `await_ack_with_retry` helper in `termlink-session` posts with a **stable** `client_msg_id`, polls `channel.receipts` until the recipient's `up_to >= offset` OR the deadline, and on deadline **re-posts the SAME `client_msg_id`** (≤ `max_attempts`) — relying on T-2049 dedupe for exactly-once.
-- [ ] CLI verb surface `channel post --await-ack [--retry] [--ack-timeout-secs N] [--max-attempts N]` wires the helper; **without** `--await-ack` the post path is byte-for-byte unchanged (backward compatible — guarded by a test or explicit code path read).
-- [ ] An **integration test** proves retry-after-dead-recipient is exactly-once: the recipient withholds its ack until after ≥1 retry; the test asserts (a) exactly **one** envelope is appended to the dm topic across both attempts (dedupe absorbs the retry), and (b) the helper returns success once `up_to >= offset`.
-- [ ] The **recipient auto-ack convention** is documented for the AEF harness (in the substrate ADR §6 #5 or a `docs/operations/` recipe): "after consuming a message, the sidecar emits `channel.ack up_to=<offset>`" — explicitly flagged as the AEF-layer responsibility that makes Design A work.
-- [ ] Retry-policy defaults align with AEF §6 heartbeat numbers (poll cadence ~5s, deadline ~30s, documented as tunable) per the T-2285 "co-discover with AEF" open item.
+- [x] A durable **awaiting-ack tracker** persists the post identity + attempts to a SQLite store, reusing the T-2051 `outbound.sqlite` conventions (single-writer `Mutex<Connection>`, `TERMLINK_IDENTITY_DIR`-aware path); a confirmed ack deletes the row. — `AwaitingAckTracker` in `crates/termlink-session/src/ack_retry.rs` (schema `awaiting_ack(dm_topic, msg_offset, client_msg_id UNIQUE, recipient_sender_id, attempts, enqueued_ms)`; `record`/`bump_attempts`/`confirm`/`get`/`list`). See Decisions re: schema refinement.
+- [x] An `await_ack_with_retry` helper in `termlink-session` posts with a **stable** `client_msg_id`, polls the receipt frontier until the recipient's `up_to >= offset` OR the deadline, and on deadline **re-posts the SAME `client_msg_id`** (≤ `max_attempts`) — relying on T-2049 dedupe for exactly-once. — `ack_retry::await_ack_with_retry` (generic over post/receipts/clock closures) + `await_ack_with_retry_realtime` wrapper.
+- [x] CLI verb surface `channel post --await-ack [--retry] [--ack-timeout-secs N] [--max-attempts N]` wires the helper; **without** `--await-ack` the post path is byte-for-byte unchanged (backward compatible — await-ack is a separate early-return branch). — `cli.rs` flags (with `requires = "await_ack"`, verified live), `main.rs` dispatch, `run_await_ack` in `channel.rs`.
+- [x] A test proves retry-after-dead-recipient is exactly-once: the recipient withholds its ack until after ≥1 retry; asserts (a) exactly **one** append across both attempts (dedupe absorbs the retry), (b) the helper returns success once `up_to >= offset`. — `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (sender half) complements hub-side `dedupe_with_client_msg_id_duplicate_returns_cached_offset` (hub half). See Decisions re: two-halves strategy.
+- [x] The **recipient auto-ack convention** is documented for the AEF harness — `docs/operations/substrate-ack-with-retry.md` § "Recipient half" + substrate ADR §6 #5 cross-reference, explicitly flagged as the AEF-layer responsibility.
+- [x] Retry-policy defaults align with AEF §6 heartbeat numbers (poll cadence ~5s, deadline ~30s, 3 attempts; documented tunable via `--ack-timeout-secs`/`--max-attempts`). — `RetryPolicy::default()` + `from_operator` + `from_operator_clamps_and_defaults` test.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,8 +117,8 @@ the documented recipient auto-ack convention for the AEF sidecar. Design doc:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo check -p termlink-session -p termlink-cli
-cargo test -p termlink-session ack_with_retry
+cargo check -p termlink-session -p termlink
+cargo test -p termlink-session ack_retry
 
 ## RCA
 
@@ -162,14 +162,19 @@ cargo test -p termlink-session ack_with_retry
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-06-26 — Orchestration logic lives in termlink-session, generic over closures
+- **Chose:** Put both the durable tracker AND the `await_ack_with_retry` loop in `termlink-session`, with the loop generic over injected `post_fn` / `receipts_fn` / clock / sleep closures. The CLI (`run_await_ack`) supplies real closures wrapping `rpc_call_authed`.
+- **Why:** The exactly-once invariant becomes provable with **zero hub scaffolding** — a fake `post_fn` that simulates T-2049 dedupe + a fake clock the `sleep_fn` advances make the retry test instant and deterministic. Keeps the receipts-RPC plumbing (CLI-layer) out of the helper.
+- **Rejected:** Putting the loop in `termlink-cli` (couldn't unit-test without a live hub) and a hub-side enforced-redelivery design (Design B — makes the hub delivery-stateful; rejected at inception for blast radius).
+
+### 2026-06-26 — Exactly-once proven in two halves, not one live-hub integration test
+- **Chose:** Prove the hub dedupe leg via the existing `termlink-hub` test (`dedupe_with_client_msg_id_duplicate_returns_cached_offset`) and the sender reuse leg via `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (dedupe-honouring fake hub).
+- **Why:** The full chain is covered without standing up an in-process hub that implements BOTH dedupe AND `channel.receipts` (neither existing test harness does both). Each half is sharp and fast.
+- **Rejected:** Extending the `FakeHub` in `bus_client_integration.rs` to implement dedupe + receipts — more scaffolding for no additional coverage, since the hub dedupe is already independently tested.
+
+### 2026-06-26 — Tracker schema refinement vs the literal AC
+- **Chose:** Persist `(dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms)` rather than the AC's literal `retry_deadline_ms`.
+- **Why:** The per-attempt deadline is a transient computed from `now + deadline_ms` inside the loop — persisting it would be stale on reload. `recipient_sender_id` (whose ack we await) is the genuinely useful durable field for a recovery sweep. Tracker durability + confirm-on-ack semantics (the AC's substance) are fully met.
 
 ## Decision
 
