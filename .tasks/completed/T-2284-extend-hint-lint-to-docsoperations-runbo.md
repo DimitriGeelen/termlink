@@ -4,10 +4,10 @@ name: "Extend hint-lint to docs/operations runbooks + fix stale agent listeners 
 description: >
   Extend lint-command-hints.sh scan to docs/operations/ (operator runbooks — highest-stakes surface, read under incident pressure). Probe found one real stale ref: docs/operations/agent-find-idle.md:162 termlink agent listeners (no such verb — it is listen / the termlink_agent_listeners MCP tool / scripts/agent-listeners.sh). Fix it, add docs/operations to HINT_DIRS + MCP_SURFACES, and harden extract_mcp_refs to skip trailing-underscore fragments (brace-expansion shorthand like termlink_channel_{claim,release,renew} captures termlink_channel_). Ensure all surfaces green exit 0.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T12:58:57Z
-last_update: 2026-06-25T13:00:47Z
-date_finished: null
+last_update: 2026-06-25T13:01:43Z
+date_finished: 2026-06-25T13:01:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -204,3 +204,6 @@ fragments so the broadened scan stays false-positive-free.-->
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2284-extend-hint-lint-to-docsoperations-runbo.md
 - **Context:** Initial task creation
+
+### 2026-06-25T13:01:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

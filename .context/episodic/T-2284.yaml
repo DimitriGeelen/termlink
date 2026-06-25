@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2284: Extend hint-lint to docs/operations runbooks + fix stale agent listeners ref
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T13:01:51Z
+# ============================================================================
+
+task_id: T-2284
+task_name: "Extend hint-lint to docs/operations runbooks + fix stale agent listeners ref"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T12:58:57Z
+completed: 2026-06-25T13:01:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-25T15:00:47+02:00
+last_commit: 2026-06-25T15:01:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  extend hint-lint to docs/operations runbooks + fix stale 'agent listeners' ref + skip brace-expansion fragments. add RCA (runbook surface omitted from dead-ref lint)
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/agent-find-idle.md:162` stale `termlink agent listeners`'
+  - '`lint-command-hints.sh` HINT_DIRS + MCP_SURFACES both include'
+  - '`extract_mcp_refs` skips trailing-underscore fragments (so the'
+  - '`bash scripts/lint-command-hints.sh` exits 0 across all surfaces and'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'extend hint-lint to docs/operations runbooks + fix stale ''agent listeners'' ref + skip brace-expansion fragments'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/agent-find-idle.md'
+  - 'scripts/lint-command-hints.sh'
+  - '.tasks/active/T-2284-extend-hint-lint-to-docsoperations-runbo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-25T15:00:47"
+    action: "T-2284: extend hint-lint to docs/operations runbooks + fix stale 'agent listeners' ref + skip brace-expansion fragments"
+  - time: "2026-06-25T15:01:43"
+    action: "T-2284: add RCA (runbook surface omitted from dead-ref lint)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 3
+  lines_added: 230
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2284-extend-hint-lint-to-docsoperations-runbo.md
+generated_by: context-agent-hybrid
