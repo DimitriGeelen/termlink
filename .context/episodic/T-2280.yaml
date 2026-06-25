@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2280: Lint: validate back-ticked termlink command hints against the clap command tree
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T07:04:51Z
+# ============================================================================
+
+task_id: T-2280
+task_name: "Lint: validate back-ticked termlink command hints against the clap command tree"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T21:06:21Z
+completed: 2026-06-25T07:04:45Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-24T23:06:40+02:00
+last_commit: 2026-06-25T09:04:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  create backlog task — lint termlink command hints vs clap tree (PL-230 prevention). task-file metadata. settle task-file last_update. lint back-ticked termlink command hints vs clap tree (PL-230 prevention) + fix 3 live offenders
+
+# Key outcomes
+outcomes:
+  - '`scripts/lint-command-hints.sh` exists: walks the live clap command tree'
+  - 'Exit codes: 0 = no bad hints, 1 = one or more invalid hints found (with'
+  - 'The lint passes clean on the current tree — after fixing the 3 *additional*'
+  - 'A self-test proves the lint CATCHES a known-bad hint: a fixture line'
+  - 'Wired into CI (`.github/workflows/install-check.yml`, the job that already'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'lint back-ticked termlink command hints vs clap tree (PL-230 prevention) + fix 3 live offenders'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.github/workflows/install-check.yml'
+  - 'scripts/lint-command-hints.sh'
+  - '.tasks/active/T-2280-lint-validate-back-ticked-termlink-comma.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-24T23:06:40"
+    action: "T-2280: create backlog task — lint termlink command hints vs clap tree (PL-230 prevention)"
+  - time: "2026-06-24T23:07:36"
+    action: "T-2280: task-file metadata"
+  - time: "2026-06-24T23:07:45"
+    action: "T-2280: settle task-file last_update"
+  - time: "2026-06-25T09:04:32"
+    action: "T-2280: lint back-ticked termlink command hints vs clap tree (PL-230 prevention) + fix 3 live offenders"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 598 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 598
+  commits: 4
+  files_changed: 14
+  lines_added: 502
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2280-lint-validate-back-ticked-termlink-comma.md
+generated_by: context-agent-hybrid

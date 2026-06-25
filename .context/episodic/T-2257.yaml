@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2257: Pickup: Worktree-aware fw resolution: partially-tracked vendored framework breaks fw inside git worktrees (finalize/reviewer/merge) (from termlink)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T06:31:06Z
+# ============================================================================
+
+task_id: T-2257
+task_name: "Pickup: Worktree-aware fw resolution: partially-tracked vendored framework breaks fw inside git worktrees (finalize/reviewer/merge) (from termlink)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-23T16:05:01Z
+completed: 2026-06-23T20:36:15Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-23T22:36:15+02:00
+last_commit: 2026-06-23T22:36:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dedup — close as duplicate of T-2256 (P-047 self-echo into own pickup inbox)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/.bridge-posted/486778eb10792c01a1e0312d50db0d89e5c75db896cdeb412ab4365b190be686'
+  - '.context/pickup/.bridge-posted/f4563fc2b4a8cb9982e9d0766dc760783fef74c864b85a810e2a1905e929907c'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-047-feature-proposal.yaml'
+  - '.context/pickup/processed/P-048-feature-proposal.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.tasks/active/T-2256-upstream-worktree-aware-fw-resolution---.md'
+  - '.tasks/active/T-2257-pickup-worktree-aware-fw-resolution-part.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-23T22:36:15"
+    action: "T-2257: dedup — close as duplicate of T-2256 (P-047 self-echo into own pickup inbox)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 271 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [pickup, feature-proposal]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 271
+  commits: 1
+  files_changed: 8
+  lines_added: 332
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2257-pickup-worktree-aware-fw-resolution-part.md
+generated_by: context-agent-hybrid

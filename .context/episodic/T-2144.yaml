@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2144: Substrate primitive review — identify next ship-ready slice
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T06:32:02Z
+# ============================================================================
+
+task_id: T-2144
+task_name: "Substrate primitive review — identify next ship-ready slice"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-10T20:18:20Z
+completed: 2026-06-25T06:31:59Z
+duration_days: 15
+updates_count: 5
+first_commit: 2026-06-10T22:20:30+02:00
+last_commit: 2026-06-10T22:20:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  substrate primitive review — no ship-ready slice for autonomous agent
+
+# Key outcomes
+outcomes:
+  - 'Enumerate substrate-task statuses (T-2128..T-2143 range) — distinguish shipped vs inception-pending vs ship-ready. T-2128..T-2138 all closed as work-completed; T-2141/42/43 shipped this session.'
+  - 'Identify one ship-ready slice consistent with framework governance (not human-owned inception). Surveyed: open substrate inceptions (T-2022/24/25/26/90) are all `owner: human` — DEFER per autonomous-mode boundary. T-2017 (.141 WSL wedge) is operator-bound (requires action on the WSL host). T-2126 already shipped the CLI ensure_topic auto-pick. No remaining substrate primitive has a ship-ready code slice that doesn''t depend on human inception decisions or operator host access.'
+  - 'Either file a follow-up build task with real ACs OR conclude no ship-ready slice exists and hand back to user. Conclusion: hand back. Three slices shipped this session (T-2141 docs, T-2142 Retention::Latest, T-2143 master recipe doc); substrate at a clean ship state.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2144-substrate-primitive-review--identify-nex.md'
+  - '.tasks/completed/T-2143-document-retentionlatest-in-substrate-or.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-10T22:20:30"
+    action: "T-2144: substrate primitive review — no ship-ready slice for autonomous agent"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20773 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20773
+  commits: 1
+  files_changed: 2
+  lines_added: 190
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2144-substrate-primitive-review--identify-nex.md
+generated_by: context-agent-hybrid
