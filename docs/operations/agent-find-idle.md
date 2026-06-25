@@ -159,8 +159,9 @@ Per the T-2020 inception (§5.4 "What's NOT in this primitive"):
   orchestrator re-assign a held claim to a different idle agent).
 - T-1832 — `scripts/listener-heartbeat.sh` (the producer side).
 - T-1841 — `/be-reachable` skill (one-keystroke session presence).
-- T-1833 — `termlink agent listeners` (read presence directly; `find_idle`
-  is presence + claims anti-join on top of it).
+- T-1833 — `termlink_agent_listeners` MCP tool / `scripts/agent-listeners.sh`
+  (read presence directly; `find_idle` is presence + claims anti-join on top
+  of it).
 - T-2020 — inception docs/reports/T-2020-idle-busy-registry-inception.md.
 - T-2018 — arc-parallel-substrate ADR; the umbrella for the substrate.
 - T-2091 — `/peers` capabilities surface. Read-side complement: same

@@ -117,6 +117,7 @@ HINT_DIRS=(
   "crates/termlink-mcp/src"
   "CLAUDE.md"
   ".claude/commands"
+  "docs/operations"
 )
 
 extract_hints() {
@@ -154,7 +155,7 @@ extract_hints() {
 # Operator-facing surfaces an agent reads to pick an MCP tool. Scoped to the
 # docs (NOT the termlink-mcp source, which contains the 272 definitions
 # themselves) — the dead-ref-an-agent-will-call risk lives in the docs.
-MCP_SURFACES=("CLAUDE.md" ".claude/commands")
+MCP_SURFACES=("CLAUDE.md" ".claude/commands" "docs/operations")
 
 extract_mcp_refs() {
   # Emits "file:line<TAB>name" per `termlink_<...>` MCP-tool reference.
@@ -174,7 +175,11 @@ extract_mcp_refs() {
       # crate paths can be distinguished from bare tool-name references.
       while IFS= read -r tok; do
         [ -n "$tok" ] || continue
-        case "$tok" in *::) continue ;; esac          # crate path → skip
+        case "$tok" in
+          *::) continue ;;                             # crate path → skip
+          *_) continue ;;                              # trailing-underscore fragment
+        esac                                           #   (brace-expansion shorthand
+                                                       #    termlink_channel_{a,b,c}) → skip
         [ -n "${CRATE_NAME["$tok"]:-}" ] && continue   # bare crate name → skip
         printf '%s\t%s\n' "$loc" "$tok"
       done < <(printf '%s\n' "$content" | grep -oE 'termlink_[a-z0-9_]+(::)?')
