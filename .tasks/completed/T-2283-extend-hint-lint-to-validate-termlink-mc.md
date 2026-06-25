@@ -4,10 +4,10 @@ name: "Extend hint-lint to validate termlink_* MCP tool-name refs (close PL-230 
 description: >
   Extend lint-command-hints.sh to also validate back-ticked termlink_* MCP tool-name references in CLAUDE.md + .claude/commands against the registered MCP tool set (grep "termlink_*" from crates/termlink-mcp/src). Closes the other half of the T-2279/PL-230 dead-reference class — CLI hints are guarded (T-2281), MCP tool names are not. Must exclude Rust crate paths (termlink_session::...) to avoid false positives.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T12:50:14Z
-last_update: 2026-06-25T12:50:14Z
-date_finished: null
+last_update: 2026-06-25T12:56:11Z
+date_finished: 2026-06-25T12:56:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -205,3 +205,6 @@ bash scripts/lint-command-hints.sh --self-test
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2283-extend-hint-lint-to-validate-termlink-mc.md
 - **Context:** Initial task creation
+
+### 2026-06-25T12:56:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

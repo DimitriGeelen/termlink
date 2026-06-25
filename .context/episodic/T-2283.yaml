@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2283: Extend hint-lint to validate termlink_* MCP tool-name refs (close PL-230 other half)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T12:56:18Z
+# ============================================================================
+
+task_id: T-2283
+task_name: "Extend hint-lint to validate termlink_* MCP tool-name refs (close PL-230 other half)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T12:50:14Z
+completed: 2026-06-25T12:56:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-25T14:56:11+02:00
+last_commit: 2026-06-25T14:56:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  extend hint-lint with MCP tool-name validation (close PL-230 other half) — VALID_MCP from async-fn idents, crate-path exclusion, bad_mcp report+exit, self-test
+
+# Key outcomes
+outcomes:
+  - '`lint-command-hints.sh` builds a `VALID_MCP` set from the registered tool'
+  - 'A new pass (`extract_mcp_refs` over `MCP_SURFACES` = CLAUDE.md +'
+  - 'No false positive on the known crate-path ref `termlink_session::tofu::…`'
+  - '`--self-test` extended: proves the bogus `termlink_does_not_exist` ref is'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/lint-command-hints.sh'
+  - '.tasks/active/T-2283-extend-hint-lint-to-validate-termlink-mc.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-25T14:56:11"
+    action: "T-2283: extend hint-lint with MCP tool-name validation (close PL-230 other half) — VALID_MCP from async-fn idents, crate-path exclusion, bad_mcp report+exit, self-test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 312
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2283-extend-hint-lint-to-validate-termlink-mc.md
+generated_by: context-agent-hybrid
