@@ -777,6 +777,10 @@ async fn main() -> Result<()> {
                 hub,
                 json,
                 client_msg_id,
+                await_ack,
+                retry,
+                ack_timeout_secs,
+                max_attempts,
             } => {
                 let mut metadata = metadata;
                 if !mentions.is_empty() {
@@ -794,6 +798,12 @@ async fn main() -> Result<()> {
                     hub.as_deref(),
                     json,
                     client_msg_id.clone(),
+                    commands::channel::AwaitAckOpts {
+                        await_ack,
+                        retry,
+                        ack_timeout_secs,
+                        max_attempts,
+                    },
                 )
                 .await
             }

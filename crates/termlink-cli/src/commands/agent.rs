@@ -2253,7 +2253,8 @@ pub(crate) async fn cmd_agent_post(
         hub,
         json,
         None, // T-2049 client_msg_id (auto-mint)
-    ).await
+    super::channel::AwaitAckOpts::default(),
+        ).await
 }
 
 /// T-1508: full-arc substring search — unbounded by window. Walks the
@@ -2366,7 +2367,8 @@ pub(crate) async fn cmd_agent_reply(
         hub,
         json,
         None, // T-2049 client_msg_id (auto-mint)
-    ).await
+    super::channel::AwaitAckOpts::default(),
+        ).await
 }
 
 /// T-1500: timeline body renderer. Like `render_recent_body` but

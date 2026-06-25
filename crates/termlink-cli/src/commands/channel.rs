@@ -423,6 +423,24 @@ pub(crate) async fn cmd_channel_sweep(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// T-2286: ack-with-retry options for `channel post --await-ack`. Grouped
+/// into a struct to keep `cmd_channel_post`'s arity in check. All fields are
+/// inert unless `await_ack` is set, so the default-constructed value
+/// preserves the legacy post path byte-for-byte.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AwaitAckOpts {
+    pub await_ack: bool,
+    pub retry: bool,
+    pub ack_timeout_secs: u64,
+    pub max_attempts: u32,
+}
+
+impl Default for AwaitAckOpts {
+    fn default() -> Self {
+        Self { await_ack: false, retry: false, ack_timeout_secs: 30, max_attempts: 3 }
+    }
+}
+
 pub(crate) async fn cmd_channel_post(
     topic: &str,
     msg_type: &str,
@@ -435,6 +453,7 @@ pub(crate) async fn cmd_channel_post(
     hub: Option<&str>,
     json_output: bool,
     client_msg_id: Option<String>,
+    await_ack_opts: AwaitAckOpts,
 ) -> Result<()> {
     let payload_bytes = match payload {
         Some(p) => p.as_bytes().to_vec(),
@@ -524,6 +543,14 @@ pub(crate) async fn cmd_channel_post(
             );
         }
     }
+    // T-2286: ack-with-retry path. Diverts BEFORE the normal post so the
+    // retry loop owns all posting (its first re-post reuses client_msg_id, so
+    // T-2049 dedupe keeps it exactly-once). The legacy path below is reached
+    // only when --await-ack is absent, keeping it byte-for-byte unchanged.
+    if await_ack_opts.await_ack {
+        return run_await_ack(sock, pending, json_output, await_ack_opts).await;
+    }
+
     // T-1385: TCP cross-hub posts bypass the offline queue (BusClient is
     // Unix-only at the wire level). Direct authed RPC; no queueing on failure.
     let outcome = if sock.is_tcp() {
@@ -608,6 +635,196 @@ pub(crate) async fn cmd_channel_post(
         }
     }
     Ok(())
+}
+
+/// T-2286: build the `channel.post` JSON-RPC params from a `PendingPost`,
+/// matching the wire shape the hub's signature canonical-bytes recompute
+/// expects (mirror of the TCP inline path in `cmd_channel_post`). Used by the
+/// ack-with-retry loop to re-post with the SAME `client_msg_id` so T-2049
+/// dedupe absorbs the duplicate (exactly-once).
+fn channel_post_params(pending: &PendingPost) -> Value {
+    let mut params = json!({
+        "topic": pending.topic,
+        "msg_type": pending.msg_type,
+        "payload_b64": base64::engine::general_purpose::STANDARD.encode(&pending.payload),
+        "artifact_ref": pending.artifact_ref,
+        "ts": pending.ts_unix_ms,
+        "sender_id": pending.sender_id,
+        "sender_pubkey_hex": pending.sender_pubkey_hex,
+        "signature_hex": pending.signature_hex,
+    });
+    if let Some(obj) = params.as_object_mut() {
+        if !pending.metadata.is_empty() {
+            obj.insert(
+                "metadata".to_string(),
+                serde_json::to_value(&pending.metadata).unwrap_or(Value::Null),
+            );
+        }
+        if let Some(ref cid) = pending.client_msg_id {
+            obj.insert("client_msg_id".to_string(), Value::String(cid.clone()));
+        }
+    }
+    params
+}
+
+/// T-2286: derive the recipient fingerprint from a `dm:<a>:<b>` topic — the
+/// side that is not `self_sender`. Returns `None` for non-dm topics or when
+/// `self_sender` is not one of the two parties (the caller then can't know
+/// whose ack to wait for). dm topics carry sorted fingerprints (T-1319).
+fn derive_dm_recipient(topic: &str, self_sender: &str) -> Option<String> {
+    let rest = topic.strip_prefix("dm:")?;
+    let (a, b) = rest.split_once(':')?;
+    if a == self_sender {
+        Some(b.to_string())
+    } else if b == self_sender {
+        Some(a.to_string())
+    } else {
+        None
+    }
+}
+
+/// T-2286: read the `channel.receipts` frontier as `(sender_id, up_to)` rows
+/// for the ack-with-retry poll. A recipient that has never acked has NO row
+/// (the hub returns one row per sender that acked) — that absence is what the
+/// retry loop reads as "still deaf". An old hub lacking the aggregation verb
+/// (-32601) degrades to "no receipts" so the await exhausts/retries rather
+/// than wedging; harness hubs are current.
+async fn read_receipt_rows(
+    sock: &TransportAddr,
+    topic: &str,
+) -> std::result::Result<Vec<termlink_session::ack_retry::ReceiptRow>, String> {
+    use termlink_session::ack_retry::ReceiptRow;
+    let resp = rpc_call_authed(sock, method::CHANNEL_RECEIPTS, json!({ "topic": topic }))
+        .await
+        .map_err(|e| format!("channel.receipts failed: {e}"))?;
+    match resp {
+        termlink_protocol::jsonrpc::RpcResponse::Success(r) => {
+            let mut out = Vec::new();
+            for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
+                let Some(sender) = entry.get("sender_id").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                let up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                out.push(ReceiptRow { sender_id: sender.to_string(), up_to });
+            }
+            Ok(out)
+        }
+        // Old hub — no receipts aggregation. Treat as no ack signal available.
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) if e.error.code == -32601 => Ok(Vec::new()),
+        termlink_protocol::jsonrpc::RpcResponse::Error(e) => Err(format!(
+            "hub error on channel.receipts {}: {}",
+            e.error.code, e.error.message
+        )),
+    }
+}
+
+/// T-2286: ack-with-retry post path (Design A of T-2285). Posts `pending`
+/// (reusing its stable `client_msg_id`), then polls the recipient's receipt
+/// frontier until they ack through the offset or the per-attempt deadline
+/// elapses; on deadline, re-posts the SAME id (≤ max attempts). The hub-side
+/// T-2049 dedupe makes every re-post exactly-once. A durable
+/// `AwaitingAckTracker` row records the obligation so a crash mid-await is
+/// recoverable; it is confirmed on ack and retained on exhaustion.
+async fn run_await_ack(
+    sock: TransportAddr,
+    pending: PendingPost,
+    json_output: bool,
+    opts: AwaitAckOpts,
+) -> Result<()> {
+    use termlink_session::ack_retry::{
+        await_ack_with_retry_realtime, default_tracker_path, AckOutcome, AwaitingAckTracker,
+        RetryPolicy,
+    };
+
+    let topic = pending.topic.clone();
+    let self_sender = pending.sender_id.clone();
+    let client_msg_id = pending
+        .client_msg_id
+        .clone()
+        .ok_or_else(|| anyhow!("--await-ack requires a client_msg_id (internal: none minted)"))?;
+
+    let recipient = derive_dm_recipient(&topic, &self_sender).ok_or_else(|| {
+        anyhow!(
+            "--await-ack needs to know whose ack to wait for, but topic '{topic}' is not a \
+             'dm:<you>:<peer>' topic you are part of. Use a dm topic (or post without --await-ack)."
+        )
+    })?;
+
+    let tracker = AwaitingAckTracker::open(default_tracker_path())
+        .map_err(|e| anyhow!("open awaiting-ack tracker: {e}"))?;
+    let effective_attempts = if opts.retry { opts.max_attempts.max(1) } else { 1 };
+    let policy = RetryPolicy::from_operator(opts.ack_timeout_secs, effective_attempts);
+
+    let params = channel_post_params(&pending);
+    let sock_post = sock.clone();
+    let post_fn = move |_cmid: String| {
+        let sock = sock_post.clone();
+        let params = params.clone();
+        async move {
+            let resp = rpc_call_authed(&sock, method::CHANNEL_POST, params)
+                .await
+                .map_err(|e| format!("channel.post failed: {e}"))?;
+            let r = client::unwrap_result(resp)
+                .map_err(|e| format!("hub error on channel.post: {e}"))?;
+            Ok(r.get("offset").and_then(|v| v.as_i64()).unwrap_or(0).max(0) as u64)
+        }
+    };
+    let sock_recv = sock.clone();
+    let receipts_fn = move || {
+        let sock = sock_recv.clone();
+        let topic = topic.clone();
+        async move { read_receipt_rows(&sock, &topic).await }
+    };
+
+    let outcome = await_ack_with_retry_realtime(
+        &tracker,
+        &pending.topic,
+        &recipient,
+        &client_msg_id,
+        &policy,
+        post_fn,
+        receipts_fn,
+    )
+    .await
+    .map_err(|e| anyhow!("await-ack: {e}"))?;
+
+    match outcome {
+        AckOutcome::Acked { offset, attempts } => {
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "acked": {"offset": offset, "attempts": attempts, "recipient": recipient}
+                    }))?
+                );
+            } else {
+                println!(
+                    "Posted to {} — offset={offset}, acked by {recipient} (attempts={attempts})",
+                    pending.topic
+                );
+            }
+            Ok(())
+        }
+        AckOutcome::Exhausted { offset, attempts } => {
+            // Non-delivery is loud: emit structured output (JSON mode) on
+            // stdout, then return an error so the process exits non-zero. The
+            // post itself is durable; the awaiting-ack row is retained for a
+            // recovery sweep.
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "exhausted": {"offset": offset, "attempts": attempts, "recipient": recipient}
+                    }))?
+                );
+            }
+            Err(anyhow!(
+                "Posted to {} (offset={offset}) but {recipient} did not ack after {attempts} \
+                 attempt(s); awaiting-ack row retained for retry/recovery.",
+                pending.topic
+            ))
+        }
+    }
 }
 
 /// T-1318: per-(topic, identity_fingerprint) persistent cursor store.
@@ -1984,7 +2201,8 @@ pub(crate) async fn cmd_channel_dm(
                 hub,
                 json_output,
                 None, // T-2049 client_msg_id (auto-mint)
-            )
+            AwaitAckOpts::default(),
+                        )
             .await
         }
         None => {
@@ -2309,7 +2527,8 @@ pub(crate) async fn cmd_channel_ack(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -2458,7 +2677,8 @@ pub(crate) async fn cmd_channel_react(
             hub,
             json_output,
             None, // T-2049 client_msg_id (auto-mint)
-        )
+        AwaitAckOpts::default(),
+                )
         .await;
     }
     // T-1330: removal path. Walk the topic, find the latest reaction this
@@ -3362,7 +3582,8 @@ pub(crate) async fn cmd_channel_reply(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3511,7 +3732,8 @@ pub(crate) async fn cmd_channel_describe(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3600,7 +3822,8 @@ pub(crate) async fn cmd_channel_redact(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3627,7 +3850,8 @@ pub(crate) async fn cmd_channel_edit(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3658,7 +3882,8 @@ pub(crate) async fn cmd_channel_typing_emit(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3835,7 +4060,8 @@ pub(crate) async fn cmd_channel_forward(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -3867,7 +4093,8 @@ pub(crate) async fn cmd_channel_pin(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -4035,7 +4262,8 @@ pub(crate) async fn cmd_channel_star(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -4224,7 +4452,8 @@ pub(crate) async fn cmd_channel_poll_start(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -4252,7 +4481,8 @@ pub(crate) async fn cmd_channel_poll_vote(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 
@@ -4277,7 +4507,8 @@ pub(crate) async fn cmd_channel_poll_end(
         hub,
         json_output,
         None, // T-2049 client_msg_id (auto-mint)
-    )
+    AwaitAckOpts::default(),
+        )
     .await
 }
 

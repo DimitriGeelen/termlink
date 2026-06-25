@@ -1925,6 +1925,33 @@ pub(crate) enum ChannelAction {
         /// override (e.g. content-hash idempotency for scripts).
         #[arg(long = "client-msg-id", value_name = "ID")]
         client_msg_id: Option<String>,
+
+        /// Wait for the recipient to ack this post (T-2286, ack-with-retry).
+        /// Only valid on a `dm:<you>:<peer>` topic: after posting, poll the
+        /// recipient's `channel.receipts` frontier until they ack through
+        /// this offset or the deadline elapses. The recipient must emit
+        /// `channel.ack` after consuming (an AEF-harness sidecar convention).
+        /// Exits non-zero if no ack arrives. Pair with --retry to re-send.
+        #[arg(long = "await-ack")]
+        await_ack: bool,
+
+        /// With --await-ack: on each deadline, re-post (reusing the same
+        /// client_msg_id, so T-2049 dedupe absorbs the duplicate — exactly
+        /// once) up to --max-attempts times before giving up. Without
+        /// --retry, --await-ack posts once and waits a single deadline.
+        #[arg(long = "retry", requires = "await_ack")]
+        retry: bool,
+
+        /// With --await-ack: per-attempt seconds to wait for the recipient
+        /// ack before retrying/giving up. Default 30 (aligns with the AEF §6
+        /// heartbeat staleness threshold). 0 → default.
+        #[arg(long = "ack-timeout-secs", default_value_t = 30, requires = "await_ack")]
+        ack_timeout_secs: u64,
+
+        /// With --await-ack --retry: total post attempts including the
+        /// first. Default 3. Clamped to >= 1.
+        #[arg(long = "max-attempts", default_value_t = 3, requires = "await_ack")]
+        max_attempts: u32,
     },
     /// Direct-message a peer agent on the canonical `dm:<a>:<b>` topic (T-1319).
     /// Topic name is auto-resolved from your identity fingerprint plus the
