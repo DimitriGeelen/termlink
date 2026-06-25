@@ -7,16 +7,16 @@ description: >
 status: started-work
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
 components: []
 related_tasks: [T-2242, T-2243, T-2245]
 created: 2026-06-23T07:53:59Z
-last_update: 2026-06-23T07:54:22Z
+last_update: 2026-06-25T06:31:02Z
 date_finished: null
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-07-25          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+revisit_evidence_needed: "R7 hygiene cleanup landed (measurement surface de-noised) + R4 daily-aggregated-push transport validated live"  # T-1451
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -99,15 +99,15 @@ live-host hygiene.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -170,7 +170,23 @@ R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+<!-- CORRECTED 2026-06-25: was erroneously recorded NO-GO via Watchtower (misclick);
+     the recommendation was DEFER and the recorded rationale itself read as a DEFER
+     rationale. Reopened to started-work; awaiting formal re-record via
+     `fw inception decide T-2250 defer`. revisit_at + revisit_evidence_needed set
+     per T-1451/G-053. -->
+
+**Rationale**: DEFER (per the recommendation below).
+
+Rationale:
+
+R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). Q2 already set direction (local-first capture+aggregate; daily AGGREGATED push riding R4's durable queue; tiered retention). This inception fleshes the design at decision-depth and reconciles an internal plan tension (R5 one-liner says 'NOT-over-TermLink' while Q2 resolved to a daily aggregated push OVER TermLink). DEFER pending the design write-up + the human's GO/NO-GO on transport and on whether to open the build now vs after R7 hygiene de-noises the measurement surface.
+
+Evidence:
+
+**Date**: 2026-06-25T06:31:02Z
 
 ## Updates
 
@@ -179,3 +195,28 @@ R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). 
 
 ### 2026-06-23T07:54:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-25T06:31:02Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: DEFER
+
+Rationale:
+
+R5 is the arc-002 observable-governance design node (Lock 2, after R4 shipped). Q2 already set direction (local-first capture+aggregate; daily AGGREGATED push riding R4's durable queue; tiered retention). This inception fleshes the design at decision-depth and reconciles an internal plan tension (R5 one-liner says 'NOT-over-TermLink' while Q2 resolved to a daily aggregated push OVER TermLink). DEFER pending the design write-up + the human's GO/NO-GO on transport and on whether to open the build now vs after R7 hygiene de-noises the measurement surface.
+
+Evidence:
+
+### 2026-06-25T06:31:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO
+
+### 2026-06-25 — decision-correction [human-directed]
+- **Change:** reopened work-completed → started-work; corrected decision NO-GO → DEFER
+- **Reason:** The NO-GO above was an accidental Watchtower misclick. The agent
+  recommendation was DEFER, and the recorded NO-GO rationale itself read as a
+  DEFER rationale (it ended "DEFER pending the design write-up…"). Human directed
+  the correction.
+- **Follow-up:** `revisit_at: 2026-07-25` + `revisit_evidence_needed` set per
+  T-1451 so the G-053 daily scan resurfaces it. Awaiting formal re-record:
+  `fw inception decide T-2250 defer --rationale "…"` (human Tier-0 action).
