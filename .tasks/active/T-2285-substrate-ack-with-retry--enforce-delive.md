@@ -4,7 +4,7 @@ name: "Substrate ack-with-retry — enforce delivery receipts for parallel-exec 
 description: >
   Inception: Substrate ack-with-retry — enforce delivery receipts for parallel-exec harness (§9 hard-dep #5)
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-2018, T-2051, T-1485, T-2049]
 tags_note: arc-parallel-substrate, collaboration-seam, harness, ack-retry
 created: 2026-06-25T14:16:59Z
-last_update: 2026-06-25T14:16:59Z
+last_update: 2026-06-25T14:19:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,28 +80,33 @@ as rising consultation volume (the §9 "re-contract, not grind" smell).
   enforced delivery (sender blocks/retries until ack or dead-letter), or stay
   advisory with an opt-in sender-side retry loop built on existing
   `channel.receipts`?**
-  confidence: 1
+  confidence: 2
   disposition: deferred
-  rationale: awaiting human spike dialogue; lean advisory+wrapper (smaller blast
-  radius, preserves the strict-star/append-log invariants) but unverified.
+  rationale: spike (docs/reports/T-2285-ack-with-retry-inception.md) confirms
+  advisory+wrapper (Design A) — receipts/dedupe/queue already exist; hub stays
+  delivery-stateless. Disposition deferred: GO decision is human's.
 
 - **IW-2: At what layer does retry live — hub-side redelivery, client-side
   outbound-queue replay (extend T-2051), or a sender poll-loop on the receipt
   topic?**
-  confidence: 1
+  confidence: 2
   disposition: deferred
-  rationale: T-2051 already owns client-side durable replay; extending it is the
-  cheapest path, but the dead-recipient-detection trigger (no ack within window)
-  is new. Unverified.
+  rationale: spike — CLIENT-side (sender retry helper polling receipt frontier +
+  recipient auto-ack convention), NOT hub-side. T-2051 drains on hub-reachable
+  (bus_client.rs:189) so it can't back recipient-ack as-is; new small durable
+  awaiting-ack tracker borrows its pattern. Hub-side redelivery (Design B) rejected
+  as heavier/invariant-pressing.
 
 - **IW-3: How does retry compose with T-2049 idempotency dedupe so a retried
   send is exactly-once, and what is the retry policy (backoff, max attempts,
   dead-letter sink)?**
-  confidence: 1
+  confidence: 3
   disposition: deferred
-  rationale: dedupe LRU is keyed on `(sender_id, client_msg_id)`; a retry must
-  reuse the same id. Policy numbers (window, attempts) co-discovered with AEF
-  §6 heartbeat tick/threshold. Unverified.
+  rationale: exactly-once leg VERIFIED in code — dedupe LRU keyed
+  (sender_id, client_msg_id), 5-min TTL (dedupe.rs:19,39); duplicate returns
+  cached envelope, no re-append (channel.rs:639); offline queue replays the same
+  client_msg_id (offline_queue.rs:51). Retry policy numbers remain deferred —
+  co-discover with AEF §6 (lean 5s/30s).
 
 ## Exploration Plan
 
@@ -192,13 +197,30 @@ unrelated).
 
 **Rationale:**
 
-AEF ADR §5 names ack-with-retry as the one open substrate dependency ('TermLink receipts advisory today'); substrate ADR §6 #5 calls it 'the substrate half of the sender-side retry the AEF layer relies on'. AEF agent flagged it back via pickup P-051 (2026-06-25). No existing substrate task captures the sender-detects-missing-ack-and-retries semantic — T-1485 was synchronous send-ack (done), T-2051 shipped receiver-side outbound queue. Recommend scoping the enforced-receipt + retry design as the producer-side closure of the §9 seam.
+GO — build **Design A** (client-side retry helper + recipient auto-ack
+convention), NOT hub-side enforced redelivery. The exploration spike
+(`docs/reports/T-2285-ack-with-retry-inception.md`) shows ack-with-retry needs
+**no hub-side delivery state**: the exactly-once leg already exists (T-2049
+dedupe), the durability pattern already exists (T-2051), and the ack signal
+already exists (the `channel.receipts` frontier `up_to >= offset`) — it only
+needs a recipient that emits a receipt after consuming, which is a one-line
+AEF-harness convention, not a substrate feature. The substrate's contribution is
+a small, reversible, invariant-preserving client-side awaiting-ack/retry tracker
+(+ possibly a `post --await-ack --retry` CLI verb). Design B (hub-side enforced
+redelivery) is rejected as heavier and invariant-pressing. This is the
+producer-side closure of §9 hard-dep #5 with the smallest viable footprint.
 
 **Evidence:**
-
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- Receipts are advisory: `channel.ack` only appends a `receipt` envelope
+  (`termlink-cli/.../channel.rs:2259`); hub never acts on a missing one
+  (`termlink-hub/.../channel.rs:662` returns success on offset-commit).
+- T-1485 `--ack-required` blocks but does NOT retry and ignores receipt
+  envelopes (`agent.rs:1097`, `channel.rs:1015`).
+- T-2051 queue drains on hub-reachable, not recipient-ack (`bus_client.rs:189`)
+  — Gap B (can't back recipient-ack as-is).
+- T-2049 dedupe gives exactly-once: key `(sender_id, client_msg_id)`, 5-min TTL,
+  duplicate returns cached, no re-append (`dedupe.rs:19,39`; `channel.rs:639`).
+- Spike report + two-design comparison: `docs/reports/T-2285-ack-with-retry-inception.md`.
 
 ## Decisions
 
@@ -219,3 +241,6 @@ AEF ADR §5 names ack-with-retry as the one open substrate dependency ('TermLink
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-06-25T14:19:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
