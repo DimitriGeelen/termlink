@@ -2379,3 +2379,10 @@ learnings:
   date: 2026-06-25
   context: Added via context agent
   application: TBD
+- id: PL-232
+  learning: "Authoritative source for the full set of MCP tool names is the 'async fn termlink_*' identifiers in crates/termlink-mcp/src (the rmcp #[tool(name=...)] attribute equals the fn identifier), NOT quoted string literals. Grepping '\"termlink_*\"' returns an incomplete, noisy set (157 with format-fragments, missing many real tools); 'grep async fn termlink_' yields the complete 272-name set matching the runtime tool list. Use the fn-identifier grep whenever you need to enumerate MCP tools statically."
+  source: P-001
+  task: T-2283
+  date: 2026-06-25
+  context: Added via context agent
+  application: TBD
