@@ -12,7 +12,7 @@ tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-06-23T20:15:01Z
-last_update: 2026-06-23T20:55:49Z
+last_update: 2026-06-25T06:30:54Z
 date_finished: 2026-06-23T20:55:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,15 +56,15 @@ source_project_in_origin: "termlink"
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -116,7 +116,15 @@ source_project_in_origin: "termlink"
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO (close as duplicate)
+Rationale: Self-echo of termlink's own outbound pickup, not independent work. Live thread is T-2259. Tracking twice splits the decision and clutters the review queue.
+Evidence:
+- Frontmatter `source_project_in_origin: termlink`, `source_task_id_in_origin: T-2259` — self-authored.
+- no-inter-hub-federation correction (P-048 self-echo).
+
+**Date**: 2026-06-25T06:30:53Z
 
 ## Updates
 
@@ -130,3 +138,12 @@ source_project_in_origin: "termlink"
 ### 2026-06-23T20:55:49Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
+
+### 2026-06-25T06:30:53Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO (close as duplicate)
+Rationale: Self-echo of termlink's own outbound pickup, not independent work. Live thread is T-2259. Tracking twice splits the decision and clutters the review queue.
+Evidence:
+- Frontmatter `source_project_in_origin: termlink`, `source_task_id_in_origin: T-2259` — self-authored.
+- no-inter-hub-federation correction (P-048 self-echo).
