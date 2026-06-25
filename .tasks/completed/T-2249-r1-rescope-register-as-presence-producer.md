@@ -4,17 +4,17 @@ name: "R1 rescope register-as-presence-producer design decision"
 description: >
   Inception: R1 rescope register-as-presence-producer design decision
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 arc_id: arc-substrate-fitness
 tags: [arc:arc-substrate-fitness]
 components: []
 related_tasks: [T-2242, T-2245, T-2107, T-2239]
 created: 2026-06-23T07:39:06Z
-last_update: 2026-06-23T07:40:03Z
-date_finished: null
+last_update: 2026-06-25T06:31:50Z
+date_finished: 2026-06-25T06:31:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -90,15 +90,15 @@ GO/NO-GO decision (Sovereign — human only); live-host operational steps (R7).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -157,7 +157,17 @@ Source verification (session.rs:294-307 + registration.rs:325) reverses the plan
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO
+
+Rationale:
+
+Source verification (session.rs:294-307 + registration.rs:325) reverses the plan's FLAG-1 R1 framing: termlink register NEVER posts to agent-presence — its heartbeat is a local JSON touch_heartbeat only. agent-presence is fed solely by the opt-in /be-reachable producer (listener-heartbeat.sh, cv_key-wired T-2107) and the MCP listener_heartbeat tool. So R1 'add cv_key to the register presence post' does not exist as a minor edit; the genuine change is giving register a NEW presence-publishing role, which alters substrate semantics (presence would become 'every registered session' vs today's 'agents that opted in'). The cv_index count=0 the discovery saw was OPERATIONAL (/be-reachable not running), not a register code gap. Recommend NO-GO on auto-publishing from register; keep presence opt-in (dedicated producer owns it). Human may instead choose an explicit opt-in flag variant. Re-scopes R1 from minor-build to operational (run /be-reachable) — folds into R7.
+
+Evidence:
+
+**Date**: 2026-06-25T06:31:50Z
 
 ## Updates
 
@@ -166,3 +176,18 @@ Source verification (session.rs:294-307 + registration.rs:325) reverses the plan
 
 ### 2026-06-23T07:40:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-25T06:31:50Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO
+
+Rationale:
+
+Source verification (session.rs:294-307 + registration.rs:325) reverses the plan's FLAG-1 R1 framing: termlink register NEVER posts to agent-presence — its heartbeat is a local JSON touch_heartbeat only. agent-presence is fed solely by the opt-in /be-reachable producer (listener-heartbeat.sh, cv_key-wired T-2107) and the MCP listener_heartbeat tool. So R1 'add cv_key to the register presence post' does not exist as a minor edit; the genuine change is giving register a NEW presence-publishing role, which alters substrate semantics (presence would become 'every registered session' vs today's 'agents that opted in'). The cv_index count=0 the discovery saw was OPERATIONAL (/be-reachable not running), not a register code gap. Recommend NO-GO on auto-publishing from register; keep presence opt-in (dedicated producer owns it). Human may instead choose an explicit opt-in flag variant. Re-scopes R1 from minor-build to operational (run /be-reachable) — folds into R7.
+
+Evidence:
+
+### 2026-06-25T06:31:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO

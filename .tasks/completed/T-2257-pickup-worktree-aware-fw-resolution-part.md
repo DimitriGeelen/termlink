@@ -12,7 +12,7 @@ tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
 created: 2026-06-23T16:05:01Z
-last_update: 2026-06-23T20:36:15Z
+last_update: 2026-06-25T06:31:05Z
 date_finished: 2026-06-23T20:33:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,15 +65,15 @@ thread.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -131,7 +131,22 @@ queue). No spikes warranted.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO (close as duplicate)
+Rationale: This task is not an independent exploration — it is the
+`fw pickup process` auto-ingestion of termlink's own outbound envelope P-047
+(framework:pickup offset 49) round-tripping back into termlink's pickup inbox
+via the channel-bridge mirror. The question it raises is already owned and live
+under T-2256. Tracking it separately splits one decision across two task IDs and
+adds noise to the inception/review queue (T-2194 is actively draining that
+queue). No spikes warranted.
+Evidence:
+- framework:pickup offset 49 = P-047, `source.task_id: T-2256`, `source.project: termlink` (self-authored, not a peer filing).
+- T-2257 frontmatter `source_task_id_in_origin: T-2256`, `source_project_in_origin: termlink` — confirms the self-echo.
+- T-2256 (captured/later) holds the live thread, awaiting AEF reply to P-047 (no reply as of framework:pickup offset 53).
+
+**Date**: 2026-06-25T06:31:05Z
 
 ## Updates
 
@@ -145,3 +160,19 @@ queue). No spikes warranted.
 ### 2026-06-23T20:33:03Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
 - **Reason:** Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256
+
+### 2026-06-25T06:31:05Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO (close as duplicate)
+Rationale: This task is not an independent exploration — it is the
+`fw pickup process` auto-ingestion of termlink's own outbound envelope P-047
+(framework:pickup offset 49) round-tripping back into termlink's pickup inbox
+via the channel-bridge mirror. The question it raises is already owned and live
+under T-2256. Tracking it separately splits one decision across two task IDs and
+adds noise to the inception/review queue (T-2194 is actively draining that
+queue). No spikes warranted.
+Evidence:
+- framework:pickup offset 49 = P-047, `source.task_id: T-2256`, `source.project: termlink` (self-authored, not a peer filing).
+- T-2257 frontmatter `source_task_id_in_origin: T-2256`, `source_project_in_origin: termlink` — confirms the self-echo.
+- T-2256 (captured/later) holds the live thread, awaiting AEF reply to P-047 (no reply as of framework:pickup offset 53).

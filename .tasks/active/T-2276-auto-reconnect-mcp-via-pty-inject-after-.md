@@ -4,15 +4,15 @@ name: "auto-reconnect MCP via PTY-inject after binary upgrade"
 description: >
   Inception: auto-reconnect MCP via PTY-inject after binary upgrade
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-24T11:39:09Z
-last_update: 2026-06-24T11:44:30Z
+last_update: 2026-06-25T06:31:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -104,15 +104,15 @@ last mile. Awaiting human confirmation via `fw task review T-2276`.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -169,7 +169,17 @@ Pending exploration of three assumptions: (A1) the Claude Code session is a regi
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER
+
+Rationale:
+
+Pending exploration of three assumptions: (A1) the Claude Code session is a registered/injectable termlink PTY; (A2) Claude Code supports a non-interactive /mcp reconnect that a single injected line can trigger (vs an interactive menu); (A3) injecting a slash command into the TUI PTY actually submits without disrupting the live turn. No evidence gathered yet.
+
+Evidence:
+
+**Date**: 2026-06-25T06:31:17Z
 
 ## Updates
 
@@ -178,3 +188,19 @@ Pending exploration of three assumptions: (A1) the Claude Code session is a regi
 
 ### 2026-06-24T11:39:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-25T06:31:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER
+
+Rationale:
+
+Pending exploration of three assumptions: (A1) the Claude Code session is a registered/injectable termlink PTY; (A2) Claude Code supports a non-interactive /mcp reconnect that a single injected line can trigger (vs an interactive menu); (A3) injecting a slash command into the TUI PTY actually submits without disrupting the live turn. No evidence gathered yet.
+
+Evidence:
+
+### 2026-06-25T06:31:17Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task

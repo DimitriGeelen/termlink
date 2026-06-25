@@ -13,7 +13,7 @@ tags: [arc:arc-substrate-fitness]
 components: []
 related_tasks: [T-2242, T-2243, T-2245]
 created: 2026-06-23T07:53:59Z
-last_update: 2026-06-25T06:31:02Z
+last_update: 2026-06-25T06:35:08Z
 date_finished: null
 revisit_at: 2026-07-25          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 revisit_evidence_needed: "R7 hygiene cleanup landed (measurement surface de-noised) + R4 daily-aggregated-push transport validated live"  # T-1451

@@ -4,15 +4,15 @@ name: "Typed agent-launch surface — substrate primitive 8"
 description: >
   Inception: Typed agent-launch surface — substrate primitive 8
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-09T14:51:17Z
-last_update: 2026-06-09T14:51:27Z
+last_update: 2026-06-25T06:32:31Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -96,15 +96,15 @@ No code spike. The existing `dispatch.rs:36-200` is the reference implementation
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -183,7 +183,34 @@ DEFER preserves the ADR §6 #8 requirement (vs NO-GO which would contradict it),
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER (with concrete revisit trigger)
+
+Rationale:
+
+Research artifact at `docs/reports/T-2090-typed-agent-launch-surface-inception.md` analyzed four designs (A: thin CLI wrappers, B: substrate-tracked branch-claim, C: MCP-only, D: documentation-only) and recommends DEFER. The existing `dispatch --isolate` + `--auto-merge` surface (`crates/termlink-cli/src/commands/dispatch.rs:36`, `crate::manifest::create_worktree` at manifest.rs:182, `merge_branch` at manifest.rs:287) already covers the orchestrator's checkout→work→merge happy path. There is no measured pain today and no identified load-bearing consumer demanding the typed contract. Adding typed verbs without a consumer is speculative scaffolding; adding substrate-tracked branch-claim state (Design B) is substantial work without a concrete invariant requirement.
+
+DEFER preserves the ADR §6 #8 requirement (vs NO-GO which would contradict it), time-boxes the decision, and ties reopening to a concrete trigger: a real orchestrator (AEF Workflow agent, parallel-build dispatcher, or other) that uses `dispatch --isolate` at a scale where the untyped shell-string interface is measured friction. At that point, Design A is the natural starting point.
+
+#9 (cv_index, T-2089) has measurably higher ROI for the same engineering attention (real `/peers` O(N_heartbeats) pain), and should be funded first.
+
+Evidence:
+
+- ADR §6 #8 explicit primitive requirement: `docs/architecture/parallel-execution-substrate.md:251-255`
+- Existing dispatch surface (covers happy path today): `crates/termlink-cli/src/commands/dispatch.rs:36-200`
+- Existing worktree machinery (analog of agent.checkout): `crates/termlink-cli/src/manifest.rs:182`
+- Existing merge-back machinery (analog of agent.publish): `crates/termlink-cli/src/manifest.rs:287`
+- Sibling inception with higher ROI: T-2089 (substrate #9, GO-recommended)
+- No incident or consumer task identified as needing the typed contract today
+
+Revisit trigger: Reopen when a consumer task is filed that specifies "needs typed agent-launch verbs" — typically when an orchestrator hits the 5+ parallel-worker scale and shell-string composition becomes brittle.
+
+revisit_at: Not set (no calendar trigger — trigger is consumer-demand-based, not date-based).
+
+Evidence:
+
+**Date**: 2026-06-25T06:32:31Z
 
 ## Updates
 
@@ -202,3 +229,36 @@ DEFER preserves the ADR §6 #8 requirement (vs NO-GO which would contradict it),
   not re-smokable here — needs human review of exploration findings + Watchtower go/no-go decision
   ```
 - **Note:** Human AC remains UNCHECKED — sovereignty; evidence for batch-confirm.
+
+### 2026-06-25T06:32:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER (with concrete revisit trigger)
+
+Rationale:
+
+Research artifact at `docs/reports/T-2090-typed-agent-launch-surface-inception.md` analyzed four designs (A: thin CLI wrappers, B: substrate-tracked branch-claim, C: MCP-only, D: documentation-only) and recommends DEFER. The existing `dispatch --isolate` + `--auto-merge` surface (`crates/termlink-cli/src/commands/dispatch.rs:36`, `crate::manifest::create_worktree` at manifest.rs:182, `merge_branch` at manifest.rs:287) already covers the orchestrator's checkout→work→merge happy path. There is no measured pain today and no identified load-bearing consumer demanding the typed contract. Adding typed verbs without a consumer is speculative scaffolding; adding substrate-tracked branch-claim state (Design B) is substantial work without a concrete invariant requirement.
+
+DEFER preserves the ADR §6 #8 requirement (vs NO-GO which would contradict it), time-boxes the decision, and ties reopening to a concrete trigger: a real orchestrator (AEF Workflow agent, parallel-build dispatcher, or other) that uses `dispatch --isolate` at a scale where the untyped shell-string interface is measured friction. At that point, Design A is the natural starting point.
+
+#9 (cv_index, T-2089) has measurably higher ROI for the same engineering attention (real `/peers` O(N_heartbeats) pain), and should be funded first.
+
+Evidence:
+
+- ADR §6 #8 explicit primitive requirement: `docs/architecture/parallel-execution-substrate.md:251-255`
+- Existing dispatch surface (covers happy path today): `crates/termlink-cli/src/commands/dispatch.rs:36-200`
+- Existing worktree machinery (analog of agent.checkout): `crates/termlink-cli/src/manifest.rs:182`
+- Existing merge-back machinery (analog of agent.publish): `crates/termlink-cli/src/manifest.rs:287`
+- Sibling inception with higher ROI: T-2089 (substrate #9, GO-recommended)
+- No incident or consumer task identified as needing the typed contract today
+
+Revisit trigger: Reopen when a consumer task is filed that specifies "needs typed agent-launch verbs" — typically when an orchestrator hits the 5+ parallel-worker scale and shell-string composition becomes brittle.
+
+revisit_at: Not set (no calendar trigger — trigger is consumer-demand-based, not date-based).
+
+Evidence:
+
+### 2026-06-25T06:32:31Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Change:** status: started-work → captured (auto-sync)
+- **Reason:** Inception decision: DEFER — parking task

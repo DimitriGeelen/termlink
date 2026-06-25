@@ -4,10 +4,10 @@ name: "Substrate primitive review — identify next ship-ready slice"
 description: >
   Substrate primitive review — identify next ship-ready slice
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T20:18:20Z
-last_update: 2026-06-10T20:20:30Z
-date_finished: null
+last_update: 2026-06-25T06:31:59Z
+date_finished: 2026-06-25T06:31:59Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -177,13 +177,26 @@ T-1166 cut-readiness still blocked on ring20-management-agent action
 
 ## Decision
 
-<!-- Filled at completion of inception tasks via:
-     fw inception decide T-XXX go|no-go|defer --rationale "..."
+**Decision**: NO-GO
 
-     For non-inception tasks this section is ignored. Kept in template
-     so `fw inception decide` (lib/inception.sh) finds the anchor heading
-     without auto-creating; T-1832 added auto-create as fallback for
-     legacy tasks lacking this section. -->
+**Rationale**: Recommendation: NO-GO on additional substrate-arc primitives within current autonomous scope.
+
+Rationale: Substrate is at clean ship state — all 11 primitives in
+T-2018 §6 are either shipped (1, 2, 3, 5, 9, 10, 11) or DEFERRED per
+ADR design (4, 6, 7, 8). Forward motion on the deferred set needs
+human input on one or more of: T-2090 (#8 typed agent-launch) GO/NO-GO,
+T-2025 (#4 persistent presence) GO/NO-GO, T-2022/24/26 inception
+decisions. Or operator action on T-2017 (.141 WSL binary placement
+test). The cross-link / doc / observability arc continues to deliver
+autonomous-scope value (T-2190 shipped, T-2191/2192/2193 pre-scoped).
+
+T-1166 cut-readiness still blocked on ring20-management-agent action
+(7-day window reflip 2026-06-13 natural; or earlier if `.122` runs
+`fw upgrade`).
+
+### Human
+
+**Date**: 2026-06-25T06:31:59Z
 
 ## Updates
 
@@ -194,3 +207,27 @@ T-1166 cut-readiness still blocked on ring20-management-agent action
 
 ### 2026-06-10T20:19:08Z — status-update [task-update-agent]
 - **Change:** workflow_type: build → inception
+
+### 2026-06-25T06:31:59Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO on additional substrate-arc primitives within current autonomous scope.
+
+Rationale: Substrate is at clean ship state — all 11 primitives in
+T-2018 §6 are either shipped (1, 2, 3, 5, 9, 10, 11) or DEFERRED per
+ADR design (4, 6, 7, 8). Forward motion on the deferred set needs
+human input on one or more of: T-2090 (#8 typed agent-launch) GO/NO-GO,
+T-2025 (#4 persistent presence) GO/NO-GO, T-2022/24/26 inception
+decisions. Or operator action on T-2017 (.141 WSL binary placement
+test). The cross-link / doc / observability arc continues to deliver
+autonomous-scope value (T-2190 shipped, T-2191/2192/2193 pre-scoped).
+
+T-1166 cut-readiness still blocked on ring20-management-agent action
+(7-day window reflip 2026-06-13 natural; or earlier if `.122` runs
+`fw upgrade`).
+
+### Human
+
+### 2026-06-25T06:31:59Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO

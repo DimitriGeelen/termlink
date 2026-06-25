@@ -4,10 +4,10 @@ name: "Fix stale termlink command refs in operator docs + extend hint-lint to CL
 description: >
   Fix stale termlink command refs in operator docs + extend hint-lint to CLAUDE.md/skills
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T08:47:37Z
-last_update: 2026-06-25T09:49:22Z
-date_finished: null
+last_update: 2026-06-25T09:50:45Z
+date_finished: 2026-06-25T09:50:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -226,3 +226,6 @@ false-positive class before it could mask real failures.
 - **Lint refinement:** added `HAS_SUBCOMMANDS` set — only groups owning a Commands: block get 2nd-token validation; leaf commands (ping/spawn/mirror/signal) skip (positional arg, not verb). Extended `HINT_DIRS` to `CLAUDE.md` + `.claude/commands/` (`-d` guard → `-e` to accept files)
 - **Verification:** `lint-command-hints.sh` exit 0 (default + `--strict` + `--self-test`); 65 hints scanned in CLAUDE.md + all skill files, all name real commands
 - **Context:** No leaf-command 2-token hints exist in current sources, so the refinement is defensive prevention (eliminates the false-positive class for future hints)
+
+### 2026-06-25T09:50:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
