@@ -232,6 +232,12 @@ the model above.
    worker that finishes and reports "complete" during a blip loses that report. Needed
    so the governance plane does not silently drop completion/ledger messages, and as the
    substrate half of the sender-side retry the AEF layer relies on.
+   **Producer-side closed (T-2285 GO → T-2286):** `channel post --await-ack [--retry]`
+   posts, polls the recipient's `channel.receipts` frontier, and re-posts the same
+   `client_msg_id` (T-2049 dedupe → exactly-once) until ack or deadline. No hub-side
+   delivery state — reuses dedupe + the receipt frontier + a client-side awaiting-ack
+   tracker. The recipient auto-ack is an AEF-sidecar convention, not a substrate
+   feature. See [docs/operations/substrate-ack-with-retry.md](../operations/substrate-ack-with-retry.md).
 7. *Hub-persistent presence + circuit-breaker state.* Per the T-2025 inception (NO-GO,
    2026-06-08): the captured "in-memory, fragile across restart" framing turned out not
    to match the running system, and the primitive was re-scoped to documentation-only.
