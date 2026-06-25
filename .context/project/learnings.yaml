@@ -2372,3 +2372,10 @@ learnings:
   date: 2026-06-24
   context: Added via context agent
   application: TBD
+- id: PL-231
+  learning: "A command-hint lint must cover the most-read surfaces, not just source: T-2280 scoped it to crates/ while the auto-loaded CLAUDE.md + .claude/commands/ skills drifted invisibly (fleet add, remote call, inbox push all dead-ended). Point HINT_DIRS at every surface an agent reads and wire it into CI. Also: only validate the 2nd token of commands that own a Commands: block (HAS_SUBCOMMANDS) — leaf commands take a positional arg there, else false positives."
+  source: P-001
+  task: T-2281
+  date: 2026-06-25
+  context: Added via context agent
+  application: TBD
