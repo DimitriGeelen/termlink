@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T08:47:37Z
-last_update: 2026-06-25T08:47:37Z
+last_update: 2026-06-25T09:29:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,22 +48,26 @@ argument, not a verb, and must not be flagged.
 ## Acceptance Criteria
 
 ### Agent
-- [~] Stale refs fixed in current operator surfaces: `termlink fleet add` →
+- [x] Stale refs fixed in current operator surfaces: `termlink fleet add` →
       `termlink remote profile add` (CLAUDE.md + `.claude/commands/preflight.md`);
       the bogus `remote call` alternative in CLAUDE.md corrected/removed; `inbox push`
       corrected. (Archival `docs/reports/T-*` are out of scope — point-in-time.)
-      **PARTIAL (300k ceiling):** DONE — `.claude/commands/preflight.md` (`fleet add`
-      → `remote profile add`) + `.claude/commands/agent-handoff.md` (`termlink inbox
-      push` → `the retired inbox.push primitive`). REMAINING (blocked by wrap-up gate
-      — root CLAUDE.md is a "source file"): CLAUDE.md:1304 `fleet add` → `remote
-      profile add`; CLAUDE.md:489 `or \`termlink remote call <peer> channel.post\`` →
-      `(or the \`termlink_remote_call\` MCP tool for arbitrary peer RPC)`.
-- [ ] `scripts/lint-command-hints.sh` refined: only validates groups that actually
+      DONE — `.claude/commands/preflight.md` (`fleet add` → `remote profile add`,
+      committed fc6f5a79) + `.claude/commands/agent-handoff.md` (`termlink inbox push`
+      → `the retired inbox.push primitive`, fc6f5a79) + CLAUDE.md:489 (`remote call
+      <peer> channel.post` → `the \`termlink_remote_call\` MCP tool`) + CLAUDE.md:1304
+      (`fleet add` → `remote profile add`). The wrap-up gate that blocked the CLAUDE.md
+      edits last session cleared on compaction (fresh budget).
+- [x] `scripts/lint-command-hints.sh` refined: only validates groups that actually
       have subcommands (a `HAS_SUBCOMMANDS` set), eliminating the positional-arg
-      false-positive class (ping/spawn/mirror/signal `<arg>`).
-- [ ] Lint scan extended to `CLAUDE.md` + `.claude/commands/` (HINT_DIRS accepts
-      files and dirs). `crates/` scan still green; all surfaces green after fixes.
-- [ ] `bash scripts/lint-command-hints.sh` exits 0 and `--self-test` still passes.
+      false-positive class (ping/spawn/mirror/signal `<arg>`). Leaf top-level commands
+      (in `IS_GROUP` but not `HAS_SUBCOMMANDS`) now skip 2nd-token validation — that
+      token is a positional argument, not a verb.
+- [x] Lint scan extended to `CLAUDE.md` + `.claude/commands/` (HINT_DIRS accepts
+      files and dirs; `-d` guard → `-e`). `crates/` scan still green; all surfaces
+      green after fixes (65 hints scanned in CLAUDE.md, plus every skill file).
+- [x] `bash scripts/lint-command-hints.sh` exits 0 and `--self-test` still passes
+      (also `--strict` exit 0 — no unknown-group hints).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +132,10 @@ argument, not a verb, and must not be flagged.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test -x scripts/lint-command-hints.sh
+bash scripts/lint-command-hints.sh
+bash scripts/lint-command-hints.sh --self-test
 
 ## RCA
 
@@ -196,3 +204,10 @@ argument, not a verb, and must not be flagged.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2281-fix-stale-termlink-command-refs-in-opera.md
 - **Context:** Initial task creation
+
+### 2026-06-25T09:40:00Z — completion [agent]
+- **Action:** Completed remaining T-2281 items after compaction cleared the 300k wrap-up gate
+- **CLAUDE.md fixes:** line 489 `remote call <peer> channel.post` → `the \`termlink_remote_call\` MCP tool`; line 1304 (/preflight catalog Step-5 hint) `fleet add` → `remote profile add`
+- **Lint refinement:** added `HAS_SUBCOMMANDS` set — only groups owning a Commands: block get 2nd-token validation; leaf commands (ping/spawn/mirror/signal) skip (positional arg, not verb). Extended `HINT_DIRS` to `CLAUDE.md` + `.claude/commands/` (`-d` guard → `-e` to accept files)
+- **Verification:** `lint-command-hints.sh` exit 0 (default + `--strict` + `--self-test`); 65 hints scanned in CLAUDE.md + all skill files, all name real commands
+- **Context:** No leaf-command 2-token hints exist in current sources, so the refinement is defensive prevention (eliminates the false-positive class for future hints)

@@ -63,21 +63,39 @@ if [ -z "$TL_GROUPS" ]; then
   exit 2
 fi
 
-# valid_pairs: newline-delimited "group verb" set; group_set: group names.
+# VALID_PAIR: "group verb" set. IS_GROUP: every top-level command name.
+# HAS_SUBCOMMANDS: only the groups that actually own a "Commands:" block.
+# The distinction matters: leaf commands (ping/spawn/mirror/signal) take a
+# positional argument, so a hint like `termlink ping <session>` has a 2nd token
+# that is an ARGUMENT, not a verb — validating it would be a false positive. We
+# therefore only flag bad verbs for groups in HAS_SUBCOMMANDS.
 declare -A VALID_PAIR
 declare -A IS_GROUP
+declare -A HAS_SUBCOMMANDS
 for g in $TL_GROUPS; do
   IS_GROUP["$g"]=1
-  for v in $(parse_subcommands "$g"); do
-    VALID_PAIR["$g $v"]=1
-  done
+  subs="$(parse_subcommands "$g")"
+  if [ -n "$subs" ]; then
+    HAS_SUBCOMMANDS["$g"]=1
+    for v in $subs; do
+      VALID_PAIR["$g $v"]=1
+    done
+  fi
 done
 
 # --- Extract hints ---------------------------------------------------------
 # Back-ticked `termlink <group> <verb>` occurrences in CLI + MCP source.
 # Token charset [a-z0-9-] excludes flags (--foo), placeholders (<id>, ARG), and
 # punctuation — so we only test real group+verb word pairs.
-HINT_DIRS=("crates/termlink-cli/src" "crates/termlink-mcp/src")
+# Each entry may be a directory (scanned recursively) OR a single file. The
+# operator-facing surfaces (auto-loaded CLAUDE.md + the .claude/commands/ skill
+# files) are the most-read hint sources, so they are linted alongside source.
+HINT_DIRS=(
+  "crates/termlink-cli/src"
+  "crates/termlink-mcp/src"
+  "CLAUDE.md"
+  ".claude/commands"
+)
 
 extract_hints() {
   # Emits "file:line<TAB>group<TAB>verb" per hint occurrence.
@@ -89,7 +107,7 @@ extract_hints() {
   # paths have no colon so the first two colon-fields are the location.
   local d rawline loc content trimmed m group verb
   for d in "${HINT_DIRS[@]}"; do
-    [ -d "$ROOT/$d" ] || continue
+    [ -e "$ROOT/$d" ] || continue          # accept both files and directories
     while IFS= read -r rawline; do
       [ -n "$rawline" ] || continue
       loc="${rawline%%:*}"                       # path
@@ -145,9 +163,14 @@ while IFS=$'\t' read -r loc group verb; do
   if [ -n "${VALID_PAIR["$group $verb"]:-}" ]; then
     continue                              # valid hint
   fi
-  if [ -n "${IS_GROUP["$group"]:-}" ]; then
+  if [ -n "${HAS_SUBCOMMANDS["$group"]:-}" ]; then
+    # Real group that owns subcommands, but the verb is not one of them.
     sug="$(nearest_verb "$group" "$verb")"
     BAD_VERB+=("$loc|$group|$verb|$sug")
+  elif [ -n "${IS_GROUP["$group"]:-}" ]; then
+    # Real top-level command with NO subcommands (leaf, e.g. ping/spawn): the
+    # 2nd token is a positional argument, not a verb — not a hint to validate.
+    continue
   else
     UNKNOWN_GROUP+=("$loc|$group|$verb")
   fi
