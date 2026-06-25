@@ -1,0 +1,104 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2285: Substrate ack-with-retry — enforce delivery receipts for parallel-exec harness (§9 hard-dep #5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T22:54:22Z
+# ============================================================================
+
+task_id: T-2285
+task_name: "Substrate ack-with-retry — enforce delivery receipts for parallel-exec harness (§9 hard-dep #5)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T14:16:59Z
+completed: 2026-06-25T22:54:19Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-25T16:19:26+02:00
+last_commit: 2026-06-25T17:57:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope substrate ack-with-retry inception — §9 hard-dep #5 closure (symmetric to AEF P-051 flag). exploration spike complete — ack-with-retry needs no hub-side state (Design A); receipts advisory + T-2049 exactly-once verified in code
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-24.yaml'
+  - '.context/audits/2026-06-25.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/orchestrator-LATEST.yaml'
+  - '.context/episodic/T-2281.yaml'
+  - '.context/episodic/T-2282.yaml'
+  - '.context/handovers/S-2026-0625-1133.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/T-2285-ack-with-retry-inception.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2285-substrate-ack-with-retry--enforce-delive.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-25T16:19:26"
+    action: "T-2285: scope substrate ack-with-retry inception — §9 hard-dep #5 closure (symmetric to AEF P-051 flag)"
+  - time: "2026-06-25T17:57:26"
+    action: "T-2285: exploration spike complete — ack-with-retry needs no hub-side state (Design A); receipts advisory + T-2049 exactly-once verified in code"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 517 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 517
+  commits: 2
+  files_changed: 27
+  lines_added: 4334
+  lines_removed: 2942
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2285-substrate-ack-with-retry--enforce-delive.md
+generated_by: context-agent-hybrid

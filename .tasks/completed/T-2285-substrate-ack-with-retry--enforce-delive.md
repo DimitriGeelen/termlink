@@ -4,17 +4,17 @@ name: "Substrate ack-with-retry — enforce delivery receipts for parallel-exec 
 description: >
   Inception: Substrate ack-with-retry — enforce delivery receipts for parallel-exec harness (§9 hard-dep #5)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: [T-2018, T-2051, T-1485, T-2049]
 tags_note: arc-parallel-substrate, collaboration-seam, harness, ack-retry
 created: 2026-06-25T14:16:59Z
-last_update: 2026-06-25T14:19:57Z
-date_finished: null
+last_update: 2026-06-25T22:54:19Z
+date_finished: 2026-06-25T22:54:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -147,15 +147,15 @@ unrelated).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -235,7 +235,38 @@ producer-side closure of §9 hard-dep #5 with the smallest viable footprint.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO — build Design A (client-side retry helper + recipient auto-ack
+convention), NOT hub-side enforced redelivery. The exploration spike
+(`docs/reports/T-2285-ack-with-retry-inception.md`) shows ack-with-retry needs
+no hub-side delivery state: the exactly-once leg already exists (T-2049
+dedupe), the durability pattern already exists (T-2051), and the ack signal
+already exists (the `channel.receipts` frontier `up_to >= offset`) — it only
+needs a recipient that emits a receipt after consuming, which is a one-line
+AEF-harness convention, not a substrate feature. The substrate's contribution is
+a small, reversible, invariant-preserving client-side awaiting-ack/retry tracker
+(+ possibly a `post --await-ack --retry` CLI verb). Design B (hub-side enforced
+redelivery) is rejected as heavier and invariant-pressing. This is the
+producer-side closure of §9 hard-dep #5 with the smallest viable footprint.
+
+Evidence:
+- Receipts are advisory: `channel.ack` only appends a `receipt` envelope
+  (`termlink-cli/.../channel.rs:2259`); hub never acts on a missing one
+  (`termlink-hub/.../channel.rs:662` returns success on offset-commit).
+- T-1485 `--ack-required` blocks but does NOT retry and ignores receipt
+  envelopes (`agent.rs:1097`, `channel.rs:1015`).
+- T-2051 queue drains on hub-reachable, not recipient-ack (`bus_client.rs:189`)
+  — Gap B (can't back recipient-ack as-is).
+- T-2049 dedupe gives exactly-once: key `(sender_id, client_msg_id)`, 5-min TTL,
+  duplicate returns cached, no re-append (`dedupe.rs:19,39`; `channel.rs:639`).
+- Spike report + two-design comparison: `docs/reports/T-2285-ack-with-retry-inception.md`.
+
+**Date**: 2026-06-25T22:54:18Z
 
 ## Updates
 
@@ -244,3 +275,39 @@ producer-side closure of §9 hard-dep #5 with the smallest viable footprint.
 
 ### 2026-06-25T14:19:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-25T22:54:18Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO — build Design A (client-side retry helper + recipient auto-ack
+convention), NOT hub-side enforced redelivery. The exploration spike
+(`docs/reports/T-2285-ack-with-retry-inception.md`) shows ack-with-retry needs
+no hub-side delivery state: the exactly-once leg already exists (T-2049
+dedupe), the durability pattern already exists (T-2051), and the ack signal
+already exists (the `channel.receipts` frontier `up_to >= offset`) — it only
+needs a recipient that emits a receipt after consuming, which is a one-line
+AEF-harness convention, not a substrate feature. The substrate's contribution is
+a small, reversible, invariant-preserving client-side awaiting-ack/retry tracker
+(+ possibly a `post --await-ack --retry` CLI verb). Design B (hub-side enforced
+redelivery) is rejected as heavier and invariant-pressing. This is the
+producer-side closure of §9 hard-dep #5 with the smallest viable footprint.
+
+Evidence:
+- Receipts are advisory: `channel.ack` only appends a `receipt` envelope
+  (`termlink-cli/.../channel.rs:2259`); hub never acts on a missing one
+  (`termlink-hub/.../channel.rs:662` returns success on offset-commit).
+- T-1485 `--ack-required` blocks but does NOT retry and ignores receipt
+  envelopes (`agent.rs:1097`, `channel.rs:1015`).
+- T-2051 queue drains on hub-reachable, not recipient-ack (`bus_client.rs:189`)
+  — Gap B (can't back recipient-ack as-is).
+- T-2049 dedupe gives exactly-once: key `(sender_id, client_msg_id)`, 5-min TTL,
+  duplicate returns cached, no re-append (`dedupe.rs:19,39`; `channel.rs:639`).
+- Spike report + two-design comparison: `docs/reports/T-2285-ack-with-retry-inception.md`.
+
+### 2026-06-25T22:54:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
