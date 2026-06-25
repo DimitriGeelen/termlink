@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T08:47:37Z
-last_update: 2026-06-25T09:29:35Z
+last_update: 2026-06-25T09:49:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -139,19 +139,34 @@ bash scripts/lint-command-hints.sh --self-test
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The auto-loaded `CLAUDE.md` and `.claude/commands/` skill files —
+the most-read operator surfaces, injected into every session — contained
+back-ticked `termlink <group> <verb>` strings that name commands clap does not
+recognise (`termlink fleet add` → `unrecognized subcommand`; `termlink remote
+call <peer> channel.post` → no such CLI verb; `termlink inbox push` → retired).
+An agent following the hint hits a dead end.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The command-hint lint shipped in T-2280 scanned only `crates/`
+source. The operator-doc surfaces — read *more* than the source strings — were
+never validated, so doc-rot accumulated invisibly as commands were
+renamed/retired (fleet/remote split, inbox primitive retirement under T-1166).
+A second latent gap: the lint validated the 2nd token of *every* top-level
+command, but leaf commands (ping/spawn/mirror/signal) take a positional
+argument there, not a verb — so extending the scan as-is would have produced
+false positives.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** T-2280's lint was scoped to source-tree hint
+strings only; nothing asserted the same correctness property held for the
+auto-loaded docs. CI ran the lint against `crates/` and stayed green while the
+docs drifted. The leaf-vs-group distinction was never modelled because no
+source hint exercised it.
+
+**Prevention:** (1) `HINT_DIRS` now includes `CLAUDE.md` + `.claude/commands/`
+(files and dirs both accepted), so the existing install-check CI job validates
+the operator surfaces on every push — the rot cannot silently recur. (2) Added
+a `HAS_SUBCOMMANDS` set so only groups owning a `Commands:` block get 2nd-token
+validation; leaf commands skip it — eliminating the positional-arg
+false-positive class before it could mask real failures.
 
 ## Evolution
 
