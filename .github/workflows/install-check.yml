@@ -60,3 +60,13 @@ jobs:
           # compile-clean source tree.
           termlink --version
           termlink --help > /dev/null
+
+      - name: Lint command hints against the live command tree
+        run: |
+          # T-2280 / PL-230: every back-ticked `termlink <group> <verb>` hint in
+          # user-facing CLI + MCP strings must name a real subcommand. The
+          # installed binary above gives us the authoritative command tree to
+          # validate against (prevents the T-2279 `agent listeners --fleet`
+          # dead-end-hint class). Runs here, not in doc-lint.yml, because it
+          # needs a built binary.
+          bash scripts/lint-command-hints.sh

@@ -20137,7 +20137,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_list",
-        description = "List active typers on an arbitrary topic — MCP parity for `termlink channel typing-list <topic>` CLI verb (T-1773 of T-1166). Topic-flexible variant of `termlink_agent_typers` (hardcoded chat-arc). Reuses `compute_active_typers_mcp`: keeps the LATEST `msg_type=typing` envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Use case: typing-presence dashboards for DM channels (`dm:*`) or project topics — answers 'is anyone typing in this DM right now?'. Sort: `ts` descending (most-recently-active first); `sender_id` alpha tiebreak. Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic, now_ms, typers: [{sender_id, expires_at_ms, ts}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List active typers on an arbitrary topic — MCP parity for `termlink channel typing <topic>` CLI verb (T-1773 of T-1166). Topic-flexible variant of `termlink_agent_typers` (hardcoded chat-arc). Reuses `compute_active_typers_mcp`: keeps the LATEST `msg_type=typing` envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Use case: typing-presence dashboards for DM channels (`dm:*`) or project topics — answers 'is anyone typing in this DM right now?'. Sort: `ts` descending (most-recently-active first); `sender_id` alpha tiebreak. Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic, now_ms, typers: [{sender_id, expires_at_ms, ts}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
     )]
     async fn termlink_channel_typing_list(
         &self,
@@ -20177,7 +20177,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_emit",
-        description = "Emit a typing indicator on an arbitrary topic — MCP parity for `termlink channel typing-emit <topic>` CLI verb (T-1775 of T-1166). Topic-flexible variant of `termlink_agent_typing` (hardcoded chat-arc). Write companion to T-1773 (`termlink_channel_typing_list` read side) — closes the typing read+write loop at the channel-flex layer. Use case: signal 'I'm composing' to peers in a DM channel (`dm:a:b`) or project topic. Builds a `msg_type=typing` envelope with empty payload, `metadata.expires_at_ms = now_ms + ttl_ms` (default 5000ms), signs via local identity, POSTs via `channel.post` RPC. Peers reading `channel typing-list` filter expired indicators automatically. Returns the raw `channel.post` result envelope on success."
+        description = "Emit a typing indicator on an arbitrary topic — MCP parity for `termlink channel typing --emit <topic>` CLI verb (T-1775 of T-1166). Topic-flexible variant of `termlink_agent_typing` (hardcoded chat-arc). Write companion to T-1773 (`termlink_channel_typing_list` read side) — closes the typing read+write loop at the channel-flex layer. Use case: signal 'I'm composing' to peers in a DM channel (`dm:a:b`) or project topic. Builds a `msg_type=typing` envelope with empty payload, `metadata.expires_at_ms = now_ms + ttl_ms` (default 5000ms), signs via local identity, POSTs via `channel.post` RPC. Peers reading `channel typing` filter expired indicators automatically. Returns the raw `channel.post` result envelope on success."
     )]
     async fn termlink_channel_typing_emit(
         &self,

@@ -4,10 +4,10 @@ name: "Lint: validate back-ticked termlink command hints against the clap comman
 description: >
   Prevention for T-2279/PL-230: a build-time check that extracts back-ticked `termlink <group> <verb>` strings from source and verifies each names a real clap subcommand. Catches hints that point users at non-existent commands (e.g. the `agent listeners --fleet` bug). Backlog — the agent group is currently audited clean.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T21:06:21Z
-last_update: 2026-06-24T21:07:36Z
+last_update: 2026-06-25T06:51:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,35 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Prevention for T-2279 / PL-230: the T-2275 no-match error hint pointed users at
+`termlink agent listeners --fleet`, which is not a real clap subcommand. CLI hint
+strings naming `termlink <group> <verb>` commands are never validated against the
+actual command tree, so a typo'd or stale hint ships silently and sends users to
+an "unrecognized subcommand" dead end. This task adds a static lint that extracts
+back-ticked `termlink <group> <verb>` strings from source and verifies each names
+a real command, catching the bug class at build/audit time.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/lint-command-hints.sh` exists: walks the live clap command tree
+      (`termlink --help` + per-group `termlink <group> --help`) to build the set
+      of valid `group verb` paths, extracts back-ticked `termlink <group> <verb>`
+      hints from `crates/termlink-cli/src` + `crates/termlink-mcp/src`, and reports
+      every hint whose group is real but verb is NOT a subcommand of that group.
+- [x] Exit codes: 0 = no bad hints, 1 = one or more invalid hints found (with
+      file:line + the offending hint + nearest-match suggestion), 2 = tooling
+      error (binary not found / help unparseable). `--json` emits a scriptable
+      envelope.
+- [x] The lint passes clean on the current tree — after fixing the 3 *additional*
+      offenders it found (see Evolution). Comment lines are excluded and
+      `termlink help <cmd>` is special-cased so no false positives remain.
+- [x] A self-test proves the lint CATCHES a known-bad hint: a fixture line
+      containing `` `termlink agent listeners` `` is flagged (proves no false
+      negatives).
+- [x] Wired into CI (`.github/workflows/install-check.yml`, the job that already
+      builds + installs the binary the lint needs) so it is not dormant tooling
+      (PL-168).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +127,9 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -x scripts/lint-command-hints.sh
+bash scripts/lint-command-hints.sh
+bash scripts/lint-command-hints.sh --self-test
 
 ## RCA
 
@@ -147,6 +171,32 @@ date_finished: null
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-25 — the lint immediately found 3 more live offenders
+
+- **What changed:** filing assumed the tree was already clean (T-2279 removed the
+  one *known* bad hint). On first run the lint flagged 3 additional genuine
+  user-facing offenders that had shipped silently:
+  1. `crates/termlink-cli/src/commands/channel.rs:273` — an error message told
+     users to `termlink fleet profile add`; `fleet` has no `profile` subcommand.
+     Fixed → `termlink remote profile add` (the real command).
+  2. `crates/termlink-mcp/src/tools.rs:20140` — MCP tool description cited
+     `termlink channel typing-list <topic>`; the real verb is `channel typing`.
+  3. `crates/termlink-mcp/src/tools.rs:20180` — cited `termlink channel
+     typing-emit <topic>`; real verb is `channel typing --emit` (plus a second
+     `channel typing-list` prose reference on the same line).
+  This is the T-2279/PL-230 class recurring exactly as predicted — the lint paid
+  for itself on first run.
+- **Plan impact:** added a 5th AC (CI wiring) — a lint nobody runs is dormant
+  tooling (PL-168). Scoped the lint to user-facing strings (excludes `//`/`///`
+  comment lines, which carry deliberate typo-examples and `help <cmd>` notes) and
+  special-cased `termlink help <cmd>` (valid for any real command). These removed
+  4 comment-only false positives, leaving only the 3 real bugs.
+- **Triggered:** no new tasks; the 3 fixes landed under this task.
+- **Gotcha captured:** the validator first mis-classified every group as unknown
+  because the build array was named `GROUPS` — a *reserved bash variable* (the
+  user's supplementary GIDs). Assigning to it is coerced, so `$GROUPS` expanded to
+  a gid. Renamed `TL_GROUPS`. (Candidate learning if it recurs.)
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -174,3 +224,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2280-lint-validate-back-ticked-termlink-comma.md
 - **Context:** Initial task creation
+
+### 2026-06-25T06:51:57Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

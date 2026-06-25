@@ -270,7 +270,7 @@ fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
         }
     }
     anyhow::bail!(
-        "no hubs.toml profile matches TCP address {want} — add one with `termlink fleet profile add` or pass --hub <unix-path>"
+        "no hubs.toml profile matches TCP address {want} — add one with `termlink remote profile add` or pass --hub <unix-path>"
     );
 }
 
