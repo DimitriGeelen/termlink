@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-25T12:58:57Z
-last_update: 2026-06-25T12:58:57Z
+last_update: 2026-06-25T13:00:47Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -132,19 +132,26 @@ bash scripts/lint-command-hints.sh --self-test
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The operator runbook `docs/operations/agent-find-idle.md` cited
+`termlink agent listeners` — a verb that does not exist (`agent` has `listen`;
+presence-read is the `termlink_agent_listeners` MCP tool / `scripts/agent-listeners.sh`).
+An operator following it during an incident hits "unrecognized subcommand".
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The dead-reference lint (T-2281, T-2283) covered CLAUDE.md +
+`.claude/commands` but not `docs/operations/`. The ref drifted when the agent
+command surface changed (a `listeners` verb was renamed/removed) and nothing
+re-validated the runbooks. Same class as T-2279/PL-230, different surface.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the lint's HINT_DIRS/MCP_SURFACES enumerated the
+auto-loaded surfaces but omitted the operator-runbook directory — so runbook
+command refs were never checked against the live command tree or tool registry.
+
+**Prevention:** `docs/operations` is now in both HINT_DIRS and MCP_SURFACES, so
+the existing `install-check.yml` CI step validates every runbook command ref on
+each push (confirmed: re-injecting the bad ref flags + exit 1). Distinct from
+the fix: the fix corrected one line; the prevention re-checks all runbooks
+forever. Also hardened `extract_mcp_refs` to skip brace-expansion shorthand
+fragments so the broadened scan stays false-positive-free.-->
 
 ## Evolution
 
