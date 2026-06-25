@@ -83,6 +83,28 @@ for g in $TL_GROUPS; do
   fi
 done
 
+# --- Build the valid MCP tool-name set (T-2283) ----------------------------
+# The OTHER half of the PL-230 dead-reference class: `termlink_<group>_<verb>`
+# MCP tool names referenced in operator docs. Authoritative source is the rmcp
+# registration in termlink-mcp — the `#[tool(name = "termlink_X")]` attribute
+# equals the `async fn termlink_X` identifier (per the tools.rs Phase-1 comment),
+# so the fn identifiers are a complete, greppable name set (~272 tools). The
+# quoted-string grep is NOT used — many names are only present as fn identifiers.
+declare -A VALID_MCP
+while IFS= read -r name; do
+  [ -n "$name" ] && VALID_MCP["$name"]=1
+done < <(grep -rhoE 'async fn termlink_[a-z0-9_]+' "$ROOT/crates/termlink-mcp/src" 2>/dev/null \
+          | sed 's/^async fn //' | sort -u)
+
+# Rust crate paths (termlink_session::tofu::…) are NOT MCP tools. They are always
+# followed by `::`, and their leading token is one of these crate names — both
+# signals are used to exclude them from MCP-ref validation (false-positive guard).
+declare -A CRATE_NAME
+for c in termlink_bus termlink_cli termlink_hub termlink_mcp termlink_protocol \
+         termlink_session termlink_test_utils; do
+  CRATE_NAME["$c"]=1
+done
+
 # --- Extract hints ---------------------------------------------------------
 # Back-ticked `termlink <group> <verb>` occurrences in CLI + MCP source.
 # Token charset [a-z0-9-] excludes flags (--foo), placeholders (<id>, ARG), and
@@ -129,9 +151,41 @@ extract_hints() {
   done
 }
 
+# Operator-facing surfaces an agent reads to pick an MCP tool. Scoped to the
+# docs (NOT the termlink-mcp source, which contains the 272 definitions
+# themselves) — the dead-ref-an-agent-will-call risk lives in the docs.
+MCP_SURFACES=("CLAUDE.md" ".claude/commands")
+
+extract_mcp_refs() {
+  # Emits "file:line<TAB>name" per `termlink_<...>` MCP-tool reference.
+  # Excludes Rust crate paths: a token immediately followed by `::`, or whose
+  # name is in the CRATE_NAME set (termlink_session, termlink_hub, …).
+  local d rawline loc content tok next
+  for d in "${MCP_SURFACES[@]}"; do
+    [ -e "$ROOT/$d" ] || continue
+    while IFS= read -r rawline; do
+      [ -n "$rawline" ] || continue
+      loc="${rawline%%:*}"
+      content="${rawline#*:}"
+      loc="$loc:${content%%:*}"
+      loc="${loc#"$ROOT"/}"
+      content="${content#*:}"
+      # Capture each termlink_ token plus an optional trailing "::" marker so
+      # crate paths can be distinguished from bare tool-name references.
+      while IFS= read -r tok; do
+        [ -n "$tok" ] || continue
+        case "$tok" in *::) continue ;; esac          # crate path → skip
+        [ -n "${CRATE_NAME["$tok"]:-}" ] && continue   # bare crate name → skip
+        printf '%s\t%s\n' "$loc" "$tok"
+      done < <(printf '%s\n' "$content" | grep -oE 'termlink_[a-z0-9_]+(::)?')
+    done < <(grep -rnE 'termlink_[a-z0-9_]+' "$ROOT/$d" 2>/dev/null)
+  done
+}
+
 # --- Classify --------------------------------------------------------------
 BAD_VERB=()      # real group, unknown verb (the T-2279 class) — always fails
 UNKNOWN_GROUP=() # group not in tree — warns (fails only with --strict)
+BAD_MCP=()       # real-looking termlink_* ref, not a registered tool (T-2283)
 
 nearest_verb() {
   # Suggest the closest valid verb of a group by shared-prefix length.
@@ -176,6 +230,14 @@ while IFS=$'\t' read -r loc group verb; do
   fi
 done < <(extract_hints)
 
+# Classify MCP-tool references (T-2283): a real-looking termlink_* ref in the
+# docs that is not a registered tool name is a dead reference an agent will call.
+while IFS=$'\t' read -r loc name; do
+  [ -n "${name:-}" ] || continue
+  [ -n "${VALID_MCP["$name"]:-}" ] && continue   # registered tool → valid
+  BAD_MCP+=("$loc|$name")
+done < <(extract_mcp_refs)
+
 # --- Self-test -------------------------------------------------------------
 # Prove the extractor + classifier catch a known-bad hint (no false negatives).
 if [ "$SELFTEST" -eq 1 ]; then
@@ -192,13 +254,36 @@ if [ "$SELFTEST" -eq 1 ]; then
     echo "self-test FAIL: 'agent listeners' unexpectedly present in command tree" >&2
     exit 2
   fi
-  echo "self-test PASS: 'termlink agent listeners' is extracted AND flagged as invalid (real group 'agent', no verb 'listeners')."
+  # MCP half (T-2283): a bogus termlink_* ref must be extracted AND not in VALID_MCP,
+  # while a real crate path must be excluded.
+  if [ "${#VALID_MCP[@]}" -lt 100 ]; then
+    echo "self-test FAIL: VALID_MCP set looks too small (${#VALID_MCP[@]}) — async-fn extraction broke" >&2
+    exit 2
+  fi
+  if [ -n "${VALID_MCP["termlink_does_not_exist"]:-}" ]; then
+    echo "self-test FAIL: bogus 'termlink_does_not_exist' unexpectedly registered" >&2
+    exit 2
+  fi
+  mcp_fix="$(mktemp)"
+  printf 'See `termlink_does_not_exist` and the `termlink_session::tofu` crate path.\n' > "$mcp_fix"
+  mcp_got="$(grep -oE 'termlink_[a-z0-9_]+(::)?' "$mcp_fix")"
+  rm -f "$mcp_fix"
+  case "$mcp_got" in
+    *termlink_does_not_exist*) : ;;
+    *) echo "self-test FAIL: MCP extractor did not capture bogus ref (got: '$mcp_got')" >&2; exit 2 ;;
+  esac
+  case "$mcp_got" in
+    *"termlink_session::"*) : ;;
+    *) echo "self-test FAIL: MCP extractor did not mark crate path with '::' (got: '$mcp_got')" >&2; exit 2 ;;
+  esac
+  echo "self-test PASS: CLI half — 'termlink agent listeners' extracted AND flagged invalid;"
+  echo "                MCP half — VALID_MCP=${#VALID_MCP[@]} tools; bogus 'termlink_does_not_exist' flagged, crate path 'termlink_session::' excluded."
   exit 0
 fi
 
 # --- Report ----------------------------------------------------------------
 if [ "$JSON" -eq 1 ]; then
-  printf '{"ok":%s,"bad_verb":[' "$([ ${#BAD_VERB[@]} -eq 0 ] && echo true || echo false)"
+  printf '{"ok":%s,"bad_verb":[' "$([ ${#BAD_VERB[@]} -eq 0 ] && [ ${#BAD_MCP[@]} -eq 0 ] && echo true || echo false)"
   first=1
   for e in "${BAD_VERB[@]:-}"; do
     [ -n "$e" ] || continue
@@ -213,6 +298,14 @@ if [ "$JSON" -eq 1 ]; then
     IFS='|' read -r loc g v <<< "$e"
     [ $first -eq 1 ] || printf ','; first=0
     printf '{"loc":"%s","group":"%s","verb":"%s"}' "$loc" "$g" "$v"
+  done
+  printf '],"bad_mcp":['
+  first=1
+  for e in "${BAD_MCP[@]:-}"; do
+    [ -n "$e" ] || continue
+    IFS='|' read -r loc name <<< "$e"
+    [ $first -eq 1 ] || printf ','; first=0
+    printf '{"loc":"%s","tool":"%s"}' "$loc" "$name"
   done
   printf ']}\n'
 else
@@ -234,12 +327,20 @@ else
       echo "  $loc: \`termlink $g $v\` — '$g' is not a known command group."
     done
   fi
-  if [ ${#BAD_VERB[@]} -eq 0 ] && { [ "$STRICT" -eq 0 ] || [ ${#UNKNOWN_GROUP[@]} -eq 0 ]; }; then
-    echo "lint-command-hints: OK — all back-ticked \`termlink <group> <verb>\` hints name real commands."
+  if [ ${#BAD_MCP[@]} -gt 0 ]; then
+    echo "lint-command-hints: ${#BAD_MCP[@]} invalid MCP-tool reference(s) — termlink_* name not registered (T-2283):"
+    for e in "${BAD_MCP[@]}"; do
+      IFS='|' read -r loc name <<< "$e"
+      echo "  $loc: \`$name\` — not a registered MCP tool (async fn termlink_* in crates/termlink-mcp/src)."
+    done
+  fi
+  if [ ${#BAD_VERB[@]} -eq 0 ] && [ ${#BAD_MCP[@]} -eq 0 ] && { [ "$STRICT" -eq 0 ] || [ ${#UNKNOWN_GROUP[@]} -eq 0 ]; }; then
+    echo "lint-command-hints: OK — all \`termlink <group> <verb>\` CLI hints and termlink_* MCP tool refs name real commands."
   fi
 fi
 
 # --- Exit ------------------------------------------------------------------
 [ ${#BAD_VERB[@]} -gt 0 ] && exit 1
+[ ${#BAD_MCP[@]} -gt 0 ] && exit 1
 [ "$STRICT" -eq 1 ] && [ ${#UNKNOWN_GROUP[@]} -gt 0 ] && exit 1
 exit 0
