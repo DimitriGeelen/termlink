@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2287: awaiting-ack status read verb — surface durable T-2286 recovery rows
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-26T09:39:20Z
+# ============================================================================
+
+task_id: T-2287
+task_name: "awaiting-ack status read verb — surface durable T-2286 recovery rows"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-26T09:32:49Z
+completed: 2026-06-26T09:38:33Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-26T11:38:28+02:00
+last_commit: 2026-06-26T11:38:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel awaiting-ack read verb — surface durable T-2286 recovery rows
+
+# Key outcomes
+outcomes:
+  - '`termlink channel awaiting-ack` subcommand exists (cli.rs `ChannelAction::AwaitingAck` + main.rs dispatch + `cmd_channel_awaiting_ack` in channel.rs), reading the tracker via `AwaitingAckTracker::list()` — no new tracker code'
+  - 'Handler resolves the tracker path (default `default_tracker_path()`, override `--tracker-path`), treats a missing file as the healthy empty state (pending 0, not an error), mirroring `cmd_channel_queue_status`'
+  - '`--json` emits envelope `{tracker_path, exists, pending, rows:[{dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms}...]}`; human mode renders one line per row + a pending count'
+  - '`cargo check -p termlink` passes; CLI integration tests `cli_channel_awaiting_ack_empty_path_ok` + `_json_ok` exercise the empty-tracker path (human + JSON); verb added to `cli_channel_help_lists_four_verbs`'
+  - 'No change to the existing `run_await_ack` write path (byte-for-byte) — verb is read-only (only additive code: new enum variant, dispatch arm, handler fn)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-26 — read-only verb scope (no watch/notify/log arc)'
+    chose: 'ship `channel awaiting-ack` as a single read verb (human + `--json`), no `--watch`/`--notify`/`--log` slices.'
+    rationale: 'the awaiting-ack tracker is a low-frequency *recovery-sweep* surface (rows appear only when a peer is dead long enough to exhaust the retry loop), not a high-rate state worth a continuous monitor. The sibling observability arcs (queue-status, claims-summary, find-idle) earned watch/notify/log because they track live, fast-changing state; this one does not. Matching that scope would be over-engineering against a slow-moving table.'
+    alternatives_rejected: ['a full 5-slice obs arc (watch→notify→log→history→MCP) like queue-status got — disproportionate to the access pattern; can be added later if a real recovery-automation need emerges.']
+  - decision: '2026-06-26 — mirror `cmd_channel_queue_status` exactly'
+    chose: 'copy the queue-status handler''s missing-file-is-healthy-empty-state contract, JSON-envelope shape, and path-resolution pattern.'
+    rationale: 'operators already know the queue-status idiom; symmetry across the substrate read verbs lowers the learning surface. `AwaitingAckTracker::list()` was already public (T-2286), so the verb is pure glue.'
+    alternatives_rejected: ['erroring on a missing tracker file — a never-used tracker is the healthy default, not a fault (same reasoning as queue-status).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-cli/tests/cli_integration.rs'
+  - 'docs/operations/substrate-ack-with-retry.md'
+  - '.tasks/active/T-2287-awaiting-ack-status-read-verb--surface-d.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-26T11:38:28"
+    action: "T-2287: channel awaiting-ack read verb — surface durable T-2286 recovery rows"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 6
+  lines_added: 360
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2287-awaiting-ack-status-read-verb--surface-d.md
+generated_by: context-agent-hybrid
