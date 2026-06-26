@@ -108,7 +108,20 @@ under test isolation), mirroring the offline-queue conventions:
 - **retained** on exhaustion — so a client that crashes mid-await, or gives up,
   leaves a durable row a recovery sweep can act on (`AwaitingAckTracker::list`).
 
-Inspect it directly:
+Surface the outstanding obligations with the native read verb (T-2287) — the
+read-side companion to `channel post --await-ack`:
+
+```bash
+termlink channel awaiting-ack           # human: one line per outstanding row + pending count
+termlink channel awaiting-ack --json    # {tracker_path, exists, pending, rows:[...]}
+```
+
+A missing tracker file is the healthy empty state (`pending: 0`), not an error —
+mirroring `channel queue-status`. Each row carries `dm_topic`, `msg_offset`,
+`attempts`, `recipient_sender_id`, `client_msg_id`, and `enqueued_ms`, so an
+exhausted await (`attempts == --max-attempts`) is distinguishable from one still
+mid-retry. Override the path with `--tracker-path`. Or inspect the SQLite
+directly:
 
 ```bash
 sqlite3 ~/.termlink/awaiting_ack.sqlite 'SELECT dm_topic, msg_offset, attempts FROM awaiting_ack'

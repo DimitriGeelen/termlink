@@ -1588,6 +1588,9 @@ async fn main() -> Result<()> {
                     json,
                 )
             }
+            ChannelAction::AwaitingAck { tracker_path, json } => {
+                commands::channel::cmd_channel_awaiting_ack(tracker_path.as_deref(), json)
+            }
             ChannelAction::Claim {
                 topic,
                 offset,

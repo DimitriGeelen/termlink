@@ -2792,6 +2792,26 @@ pub(crate) enum ChannelAction {
         #[arg(long, value_name = "PATH", requires = "watch")]
         log: Option<String>,
     },
+    /// T-2287: surface the durable awaiting-ack tracker (T-2286
+    /// recovery-sweep view). Reads `~/.termlink/awaiting_ack.sqlite`
+    /// (or `$TERMLINK_IDENTITY_DIR/awaiting_ack.sqlite`) and lists every
+    /// post still awaiting a recipient ack — including rows *retained on
+    /// exhaustion* for a recovery sweep. The read-side companion to
+    /// `channel post --await-ack`: that verb writes obligations, this one
+    /// surfaces the ones that outlived their retry loop. Pure read; no
+    /// auth; no network. A missing tracker file is the healthy empty
+    /// state (pending 0), not an error — mirror of `queue-status`.
+    AwaitingAck {
+        /// Path to the awaiting-ack sqlite file (default:
+        /// ~/.termlink/awaiting_ack.sqlite, or
+        /// $TERMLINK_IDENTITY_DIR/awaiting_ack.sqlite if set).
+        #[arg(long)]
+        tracker_path: Option<String>,
+
+        /// Output as JSON envelope instead of human text.
+        #[arg(long)]
+        json: bool,
+    },
     /// T-2086 (substrate primitive #5 obs arc Slice 4, mirror of T-2074
     /// `claims-history` / T-2081 `find-idle-history`): retrospective
     /// CLI verb that walks the queue audit log (default

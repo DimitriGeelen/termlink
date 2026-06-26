@@ -4098,8 +4098,8 @@ fn cli_channel_help_lists_four_verbs() {
         .expect("channel --help");
     assert!(output.status.success(), "channel --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Four original verbs (T-1160) + queue-status (T-1172).
-    for verb in ["create", "post", "subscribe", "list", "queue-status"] {
+    // Four original verbs (T-1160) + queue-status (T-1172) + awaiting-ack (T-2287).
+    for verb in ["create", "post", "subscribe", "list", "queue-status", "awaiting-ack"] {
         assert!(stdout.contains(verb), "channel --help missing verb '{verb}':\n{stdout}");
     }
 }
@@ -4125,6 +4125,56 @@ fn cli_channel_queue_status_empty_path_ok() {
         stdout.contains("pending: 0"),
         "expected pending: 0, got: {stdout}"
     );
+}
+
+#[test]
+fn cli_channel_awaiting_ack_empty_path_ok() {
+    // T-2287: running against a non-existent tracker path prints a count-0
+    // line and exits 0 (the healthy empty state), regardless of hub status.
+    let dir = TestDir::new("channel-awaiting-ack");
+    let tracker_path = dir.path.join("nonexistent-awaiting.sqlite");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "channel",
+            "awaiting-ack",
+            "--tracker-path",
+            &tracker_path.display().to_string(),
+        ])
+        .output()
+        .expect("channel awaiting-ack");
+    assert!(
+        output.status.success(),
+        "awaiting-ack should exit 0 on missing file"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("pending: 0"),
+        "expected pending: 0, got: {stdout}"
+    );
+}
+
+#[test]
+fn cli_channel_awaiting_ack_empty_path_json_ok() {
+    // T-2287: --json on a missing tracker emits a parseable envelope with
+    // exists:false and pending:0.
+    let dir = TestDir::new("channel-awaiting-ack-json");
+    let tracker_path = dir.path.join("nonexistent-awaiting.sqlite");
+    let output = termlink_cmd(&dir.path)
+        .args([
+            "channel",
+            "awaiting-ack",
+            "--tracker-path",
+            &tracker_path.display().to_string(),
+            "--json",
+        ])
+        .output()
+        .expect("channel awaiting-ack --json");
+    assert!(output.status.success(), "awaiting-ack --json should exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let v: serde_json::Value =
+        serde_json::from_str(&stdout).expect("awaiting-ack --json must emit valid JSON");
+    assert_eq!(v["exists"], serde_json::json!(false));
+    assert_eq!(v["pending"], serde_json::json!(0));
 }
 
 #[test]

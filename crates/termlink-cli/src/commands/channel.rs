@@ -8878,6 +8878,88 @@ pub(crate) fn cmd_channel_queue_status(queue_path: Option<&str>, json_output: bo
     Ok(())
 }
 
+/// T-2287: surface the durable awaiting-ack tracker (T-2286 recovery-sweep
+/// view). The read-side companion to `channel post --await-ack`: that verb
+/// records an obligation per outstanding post and *retains* the row on
+/// exhaustion so a client crash mid-await leaves a durable trace; this verb
+/// lists those rows. Pure read; no auth; no network; no mutation of the
+/// write path. A missing tracker file is the healthy empty state (pending 0),
+/// not an error — mirror of [`cmd_channel_queue_status`].
+pub(crate) fn cmd_channel_awaiting_ack(tracker_path: Option<&str>, json_output: bool) -> Result<()> {
+    use termlink_session::ack_retry::{default_tracker_path, AwaitingAckTracker};
+
+    let path = match tracker_path {
+        Some(p) => PathBuf::from(p),
+        None => default_tracker_path(),
+    };
+
+    if !path.exists() {
+        if json_output {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "tracker_path": path.display().to_string(),
+                    "exists": false,
+                    "pending": 0,
+                    "rows": [],
+                }))?
+            );
+        } else {
+            println!(
+                "pending: 0 (awaiting-ack tracker not created yet: {})",
+                path.display()
+            );
+        }
+        return Ok(());
+    }
+
+    let tracker = AwaitingAckTracker::open(&path)
+        .map_err(|e| anyhow!("open awaiting-ack tracker at {}: {e}", path.display()))?;
+    let rows = tracker
+        .list()
+        .map_err(|e| anyhow!("read awaiting-ack rows: {e}"))?;
+
+    if json_output {
+        let rows_json: Vec<_> = rows
+            .iter()
+            .map(|r| {
+                json!({
+                    "dm_topic": r.dm_topic,
+                    "msg_offset": r.msg_offset,
+                    "client_msg_id": r.client_msg_id,
+                    "recipient_sender_id": r.recipient_sender_id,
+                    "attempts": r.attempts,
+                    "enqueued_ms": r.enqueued_ms,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "tracker_path": path.display().to_string(),
+                "exists": true,
+                "pending": rows.len(),
+                "rows": rows_json,
+            }))?
+        );
+    } else {
+        println!("tracker:  {}", path.display());
+        println!("pending:  {}", rows.len());
+        for r in &rows {
+            println!(
+                "  topic={} offset={} attempts={} recipient={} cmid={} enqueued_ms={}",
+                r.dm_topic,
+                r.msg_offset,
+                r.attempts,
+                r.recipient_sender_id,
+                r.client_msg_id,
+                r.enqueued_ms
+            );
+        }
+    }
+    Ok(())
+}
+
 // ───────────────────────────────────────────────────────────────────
 // T-2083: queue-status --watch — substrate primitive #5 RESILIENCE
 // observability arc Slice 1. Mirror of T-2078 (find-idle --watch) and
