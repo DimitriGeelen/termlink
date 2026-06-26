@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2288: Is AEF T-2324 reviewer-guard GO'd and unblocked for a termlink-driven build
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-26T10:01:20Z
+# ============================================================================
+
+task_id: T-2288
+task_name: "Is AEF T-2324 reviewer-guard GO'd and unblocked for a termlink-driven build"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-26T09:45:01Z
+completed: 2026-06-26T10:01:16Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-26T11:48:11+02:00
+last_commit: 2026-06-26T11:48:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  verify AEF T-2324/T-2323 GO status — both DEFER of record, build not unblocked (NO-GO recommendation)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/focus.yaml'
+  - '.tasks/active/T-2288-is-aef-t-2324-reviewer-guard-god-and-unb.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-26T11:48:11"
+    action: "T-2288: verify AEF T-2324/T-2323 GO status — both DEFER of record, build not unblocked (NO-GO recommendation)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 1
+  files_changed: 2
+  lines_added: 207
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2288-is-aef-t-2324-reviewer-guard-god-and-unb.md
+generated_by: context-agent-hybrid
