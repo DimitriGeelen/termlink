@@ -1,22 +1,22 @@
 ---
-id: T-2293
-name: "V2: fleet discovery registry"
+id: T-2297
+name: "V2b: hub-stamped observed source address"
 description: >
-  RC2 fix. Resolve agent_id -> {host:port (hub-stamped observed addr, self-report fallback), hub, topics-read, liveness}. remote_store.rs RemoteEntry{host,port,TTL=300s,last_heartbeat} supplies the schema — populate + add fleet-rollup reader over hubs.toml with short TTL. Symmetric (both directions: recipient resolves sender too). Tier-2 only; Tier-1 LAN-broadcast/mDNS DEFERRED (T-006 already rejected mDNS). ACs: registry resolves agent_id->host:port+topics-read; addr is hub-stamped (self-report fallback); rollup walks hubs.toml; reverse lookup works; G-155 false-green probe fixed to test the intended correspondent.
+  Arc-003 V2 follow-up (sliced from T-2293). Hub stamps the OBSERVED TCP source address it saw onto agent-presence heartbeats / registrations, so the discovery registry can prefer a hub-attested host:port over the agent's self-report (defeats stale/spoofed self-reported hostnames). peer_addr is already available at server.rs:640/670 and threaded into process_request; the work is to thread it through route_request -> handle_channel_post and inject observed_addr into the stored envelope, then have fleet_presence/agent-resolve prefer it. Consumed by V6 (T-2296) direct transport, which needs the agent's real host. Self-report addr (the AC2 fallback) already ships in T-2293.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: [arc:reliable-comms]
 components: []
-related_tasks: [T-2291, T-2292, T-2297]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-27T17:06:08Z
-last_update: 2026-06-27T17:39:15Z
+created: 2026-06-27T17:52:01Z
+last_update: 2026-06-27T17:52:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,21 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2293: V2: fleet discovery registry
+# T-2297: V2b: hub-stamped observed source address
 
 ## Context
 
-Arc-003 (reliable-comms) slice. RC2 from the T-2291 inception RCA: there is no registry mapping agent_id → hub, and hubs don't federate, so a sender can't resolve which hub a peer reads. `crates/termlink-hub/src/remote_store.rs` `RemoteEntry{host,port,TTL=300s,last_heartbeat}` already supplies the schema. Depends on T-2292 (per-agent identity is the registry key). Design trail: `docs/reports/T-2291-cross-agent-comms-inception.md`.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Registry resolves `agent_id` → `{host:port, hub, topics-read, liveness}` for a registered peer — `termlink agent resolve <agent_id> [--json]` (new) via `resolve_agent_registry_via_fleet`. Live proof: resolved `v2-selftest` → LIVE, hub `192.168.10.107:9100`, topics `dm:v2-selftest:*, agent-chat-arc`, fingerprint+host+role.
-- [x] Observed address is self-reported by the agent (`metadata.addr`), with the resolver falling back to the hub it read the heartbeat from when absent — **self-report baseline shipped** (heartbeat now emits `addr=<hub>`; resolver prefers it, else stamps the found-on hub). The stronger **hub-stamped observed source addr** (hub attests the addr it saw, defeating self-report staleness/spoofing) is sliced to **T-2297 (V2b)**, which V6 (direct transport) consumes — see Decision below.
-- [x] A fleet-rollup reader walks `hubs.toml` and merges per-hub registries with a short TTL — the resolver walks all hubs (dedup by address), bounded by an 8s per-hub timeout so a dead hub never stalls the walk; liveness TTL via the `agent-presence` 2x/5x interval bands (`fleet_presence`).
-- [x] Reverse lookup works: a recipient can resolve the SENDER's address (symmetric, both directions) — `agent resolve` works for ANY agent_id including the caller's own; symmetric by construction (same code path).
-- [x] The G-155 false-green probe is fixed: `agent resolve` returns "found" only when the intended correspondent actually has a heartbeat (LIVE/STALE/OFFLINE) on a hub — NOT when a configured hub's TLS merely handshakes (exit 4 on truly-absent). Unlike `fleet verify`/`fleet doctor`, a configured-but-empty hub yields not-found here.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,9 +106,6 @@ Arc-003 (reliable-comms) slice. RC2 from the T-2291 inception RCA: there is no r
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-cargo build -p termlink
-cargo test -p termlink-session --lib fleet_presence
-out=$(target/debug/termlink agent resolve __definitely_not_an_agent__ --json 2>&1); echo "$out" | grep -q '"ok": false'
 
 ## RCA
 
@@ -153,55 +147,7 @@ out=$(target/debug/termlink agent resolve __definitely_not_an_agent__ --json 2>&
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-06-27 — the "hub" answer is resolver-stamped, not self-reported
-
-- **What changed:** Realized the registry's `hub` field (which hub a peer reads,
-  for routing a DM) doesn't need self-reporting at all — when the resolver FINDS
-  agent X's heartbeat on hub H, then H *is* the hub X reads. The resolver stamps
-  it. Self-reported `metadata.addr` is only an override/refinement (e.g. an
-  agent on the default local hub that knows its external addr).
-- **Plan impact:** Simplified AC1 — `host:port/hub` is mostly resolver-derived;
-  the heartbeat only needed to ADD `addr` for the cases where the agent reads a
-  hub by an address the resolver should prefer.
-- **Triggered:** Decision below on the self-report-vs-hub-stamp split.
-
-### 2026-06-27 — dead hub stalled the walk (Antifragility fix)
-
-- **What changed:** Live testing surfaced that one unreachable hub in `hubs.toml`
-  hung the entire `agent resolve` walk — `fetch_topic_msgs` has no internal
-  bound, and the prior-art `resolve_contact_via_fleet` shares this latent risk.
-- **Plan impact:** Added an 8s `tokio::time::timeout` per hub (matching the
-  T-2062 fleet-governor convention) so a stalled hub is skipped, not fatal —
-  "per-hub failures never abort the walk" now holds for hangs, not just errors.
-- **Triggered:** Noted the same latent hang in `resolve_contact_via_fleet`
-  (contact path) — a candidate follow-up hardening, not fixed here (out of scope).
-
-### 2026-06-27 — AC2 hub-stamping sliced to T-2297
-
-- **What changed:** AC2's "hub records the source addr it saw" requires threading
-  `peer_addr` through `route_request` → `handle_channel_post` → envelope storage
-  (multi-signature hub change). The self-report baseline (which AC2 names as the
-  fallback) fully satisfies the routing need today.
-- **Plan impact:** V2 ships the complete self-report registry (AC1/3/4/5 + the
-  fallback half of AC2). The hub-attested-addr upgrade is **T-2297 (V2b)**.
-- **Triggered:** Filed T-2297; V6 (T-2296 direct transport) is its primary
-  consumer (it needs the agent's real host, hub-attested to defeat spoofing).
-
 ## Decisions
-
-### 2026-06-27 — split observed-addr into self-report (now) + hub-stamp (T-2297)
-
-- **Chose:** Ship the self-reported `metadata.addr` + resolver-stamped `hub` as
-  V2's address answer; slice the hub-attested observed source addr to T-2297.
-- **Why:** Self-report is the working baseline AC2 itself names as the fallback;
-  it unblocks the resolver, V3 (notify needs to know which hub), and most of V6
-  immediately. Hub-stamping is an authoritative *upgrade* whose primary consumer
-  (V6 direct transport) is still `later` — sequencing it as its own small task
-  keeps V2 a clean, shippable slice (Task Sizing: decompose when too big) instead
-  of bundling a multi-signature hub change that risks a half-built V2.
-- **Rejected:** (a) Blocking V2 on the full hub-stamp — would balloon one task
-  into two deliverables. (b) Dropping AC2 silently — instead it's re-scoped to
-  the delivered baseline with the upgrade tracked in T-2297.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
@@ -224,10 +170,7 @@ out=$(target/debug/termlink agent resolve __definitely_not_an_agent__ --json 2>&
 
 ## Updates
 
-### 2026-06-27T17:06:08Z — task-created [task-create-agent]
+### 2026-06-27T17:52:01Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2293-v2-fleet-discovery-registry.md
+- **Output:** /opt/termlink/.tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md
 - **Context:** Initial task creation
-
-### 2026-06-27T17:39:15Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

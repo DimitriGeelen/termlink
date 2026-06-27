@@ -792,6 +792,175 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
     best.map(|(r, _)| r)
 }
 
+/// T-2293 (V2 discovery registry): a fully-resolved registry record for an
+/// `agent_id` — the `{host:port, hub, topics-read, liveness}` shape of AC1.
+pub(crate) struct FleetAgentRecord {
+    pub agent_id: String,
+    pub identity_fingerprint: Option<String>,
+    /// The reachable hub address a peer posts to in order to reach this agent.
+    /// Prefers the agent's self-reported `metadata.addr`; falls back to the hub
+    /// the heartbeat was actually read from (resolver-stamped — this is the
+    /// authoritative routing answer even when the agent self-reports nothing).
+    pub hub: String,
+    /// The hub the resolver actually read this heartbeat from (resolver-stamped).
+    pub hub_found_on: String,
+    /// The agent's self-reported `metadata.addr` (None on the default local hub).
+    pub self_reported_addr: Option<String>,
+    pub host: Option<String>,
+    pub role: Option<String>,
+    pub listen_topics: Vec<String>,
+    pub status: termlink_session::fleet_presence::PresenceStatus,
+    pub age_secs: i64,
+}
+
+/// T-2293: resolve `<agent_id>` to its full registry record by walking every hub
+/// in `hubs.toml` and reading each hub's `agent-presence` heartbeats. This is the
+/// discovery-registry core (RC2 of the T-2291 reliable-comms inception): it
+/// answers "where is agent X, and is it live?" for ANY agent_id — including the
+/// caller's own (reverse/symmetric lookup, AC4).
+///
+/// Distinct from `resolve_contact_via_fleet` (which only returns the freshest
+/// LIVE match's fingerprint+hub for the contact path): this keeps the freshest
+/// match REGARDLESS of liveness and reports its LIVE/STALE/OFFLINE status, so a
+/// "found" result means "this agent is actually present on a hub" — the G-155
+/// false-green fix (AC5). A configured-but-empty hub yields `None` here, not a
+/// green "reachable".
+///
+/// Reuses the shared `fleet_presence` parser so CLI/MCP cannot drift on the
+/// heartbeat contract. Per-hub failures (down / auth) are skipped — a dead hub
+/// never aborts the walk. Returns `None` only when NO hub carries a heartbeat
+/// for the agent_id (or `hubs.toml` is empty/missing).
+pub(crate) async fn resolve_agent_registry_via_fleet(
+    agent_id: &str,
+) -> Option<FleetAgentRecord> {
+    use termlink_session::fleet_presence::resolve_agent_presence;
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        return None;
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut best: Option<(FleetAgentRecord, i64)> = None;
+    for entry in config.hubs.values() {
+        if !seen.insert(entry.address.clone()) {
+            continue;
+        }
+        // T-2293: bound each per-hub fetch (8s, matching the T-2062 fleet
+        // per-hub timeout). A stalled/dead hub then contributes at most 8s and
+        // is skipped — it never hangs the whole walk (the symptom that surfaced
+        // in live testing: one unreachable hub in hubs.toml stalled `resolve`).
+        let fetch =
+            super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500);
+        let msgs = match tokio::time::timeout(std::time::Duration::from_secs(8), fetch).await {
+            Ok(Ok(m)) => m,
+            Ok(Err(_)) => continue, // down / auth-fail hub
+            Err(_) => continue,     // per-hub timeout — never stalls the walk
+        };
+        let Some(m) = resolve_agent_presence(&msgs, agent_id, now_ms) else {
+            continue;
+        };
+        let fresher = best.as_ref().map(|(_, ts)| m.last_ts_ms > *ts).unwrap_or(true);
+        if fresher {
+            let hub = m.addr.clone().unwrap_or_else(|| entry.address.clone());
+            best = Some((
+                FleetAgentRecord {
+                    agent_id: agent_id.to_string(),
+                    identity_fingerprint: m.identity_fingerprint.clone(),
+                    hub,
+                    hub_found_on: entry.address.clone(),
+                    self_reported_addr: m.addr.clone(),
+                    host: m.host.clone(),
+                    role: m.role.clone(),
+                    listen_topics: m.listen_topics.clone(),
+                    status: m.status,
+                    age_secs: m.age_secs,
+                },
+                m.last_ts_ms,
+            ));
+        }
+    }
+    best.map(|(r, _)| r)
+}
+
+/// T-2293: `termlink agent resolve <agent_id> [--json]` — print the discovery
+/// registry record for an agent. The operator/agent-facing surface of
+/// `resolve_agent_registry_via_fleet`. Exit 0 on found, exit 4 on not-found
+/// (distinct from transport/usage errors), so scripts can branch on presence.
+pub(crate) async fn cmd_agent_resolve(agent_id: &str, json: bool) -> Result<()> {
+    let rec = resolve_agent_registry_via_fleet(agent_id).await;
+    match rec {
+        Some(r) => {
+            if json {
+                let out = serde_json::json!({
+                    "ok": true,
+                    "agent_id": r.agent_id,
+                    "identity_fingerprint": r.identity_fingerprint,
+                    "hub": r.hub,
+                    "hub_found_on": r.hub_found_on,
+                    "self_reported_addr": r.self_reported_addr,
+                    "host": r.host,
+                    "role": r.role,
+                    "listen_topics": r.listen_topics,
+                    "liveness": r.status.as_str(),
+                    "age_secs": r.age_secs,
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                println!("agent:      {}", r.agent_id);
+                println!("liveness:   {} ({}s ago)", r.status.as_str(), r.age_secs);
+                println!("hub:        {}", r.hub);
+                if r.self_reported_addr.is_none() {
+                    println!("            (resolver-stamped — agent self-reported no addr)");
+                }
+                println!(
+                    "fingerprint:{}",
+                    r.identity_fingerprint
+                        .as_deref()
+                        .map(|f| format!(" {f}"))
+                        .unwrap_or_else(|| " <none>".to_string())
+                );
+                if let Some(h) = &r.host {
+                    println!("host:       {h}");
+                }
+                if let Some(role) = &r.role {
+                    println!("role:       {role}");
+                }
+                println!(
+                    "topics:     {}",
+                    if r.listen_topics.is_empty() {
+                        "<none>".to_string()
+                    } else {
+                        r.listen_topics.join(", ")
+                    }
+                );
+            }
+            Ok(())
+        }
+        None => {
+            if json {
+                let out = serde_json::json!({
+                    "ok": false,
+                    "agent_id": agent_id,
+                    "error": "not-found",
+                    "hint": "no hub in hubs.toml carries an agent-presence heartbeat for this agent_id",
+                });
+                println!("{}", serde_json::to_string_pretty(&out)?);
+            } else {
+                eprintln!(
+                    "agent resolve: '{agent_id}' not found on any hub in hubs.toml.\n  \
+                     The agent is not advertising presence (not LIVE/STALE/OFFLINE anywhere).\n  \
+                     If it should be reachable, have it run `/be-reachable` (and check the\n  \
+                     right hub is in ~/.termlink/hubs.toml)."
+                );
+            }
+            std::process::exit(4);
+        }
+    }
+}
+
 /// T-1429: contact a peer agent on the canonical `dm:<a>:<b>` topic.
 ///
 /// Resolves `<target>` to a local session via `manager::find_session`, reads

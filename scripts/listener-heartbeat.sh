@@ -176,6 +176,12 @@ post_one() {
     # T-2045: declare capabilities only when provided. Hub's find_idle
     # treats absent metadata.capabilities as the empty set (backward-compat).
     [ -n "$capabilities" ] && post_args+=(--metadata "capabilities=$capabilities")
+    # T-2293 (V2 discovery registry): self-report the reachable hub address so
+    # the fleet resolver can answer "where do I post to reach this agent?". Only
+    # emitted when --hub was given (an explicit, routable addr); on the default
+    # local hub the agent has no reliable view of its own external address, so we
+    # omit it and the resolver falls back to the hub it read the heartbeat from.
+    [ -n "$hub" ] && post_args+=(--metadata "addr=$hub")
     # T-2107: broadcast-with-replay tagging. cv_key=$agent_id by default
     # so the hub's cv_index records (agent-presence, $agent_id) -> latest
     # offset. Late-joiners read it via channel.cv_keys or channel.subscribe

@@ -4,20 +4,20 @@ name: "V1: per-agent identity by default"
 description: >
   RC1 fix. Make per-agent identity the DEFAULT (crypto already shipped T-1693/G-056; this is defaults wiring). register/be-reachable/listener-heartbeat set a stable per-agent-id key ~/.termlink/identities/<agent_id>.key instead of shared $HOME/.termlink/identity.key. Clean cutover, no DM-history migration. ACs: register defaults to per-agent key keyed on agent_id; be-reachable + heartbeat set it; whoami shows DISTINCT fingerprint per co-resident agent; DM-topic discontinuity documented; transport trust (hub.secret/TLS) untouched. Foundation for V2/V6 (identity auths the direct socket).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:reliable-comms]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-session/src/agent_identity.rs, crates/termlink-session/src/registration.rs, scripts/be-reachable.sh]
 related_tasks: [T-2291]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:05:54Z
-last_update: 2026-06-27T17:09:58Z
-date_finished: null
+last_update: 2026-06-27T17:38:04Z
+date_finished: 2026-06-27T17:38:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -228,3 +228,6 @@ test -f docs/operations/per-agent-identity.md
 
 ### 2026-06-27T17:08:03Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-27T17:38:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

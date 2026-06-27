@@ -4395,6 +4395,25 @@ pub(crate) enum AgentAction {
         json: bool,
     },
 
+    /// Resolve an agent_id to its discovery-registry record (T-2293, arc-003
+    /// reliable-comms V2): `{hub, host, listen_topics, liveness}` by walking
+    /// every hub in `hubs.toml` and reading `agent-presence` heartbeats.
+    ///
+    /// Answers "where is agent X, and is it live?" — RC2 of the T-2291
+    /// reliable-comms inception (no registry mapping agent_id -> hub). Works for
+    /// ANY agent_id, including the caller's own (reverse/symmetric lookup).
+    /// Unlike `fleet verify`/`fleet doctor` (which probe a configured hub's TLS
+    /// and pass green even if the intended correspondent is absent — the G-155
+    /// false-green), a "found" result here means the agent is ACTUALLY present
+    /// (LIVE/STALE/OFFLINE) on a hub. Exit 0 = found, exit 4 = not found.
+    Resolve {
+        /// The agent_id to resolve (e.g. `claude-alpha`).
+        agent_id: String,
+        /// Emit a JSON record instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Contact a peer agent on its canonical `dm:<a>:<b>` topic (T-1429
     /// Phase-1 + Phase-2 mostly shipped).
     ///

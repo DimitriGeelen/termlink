@@ -50,6 +50,19 @@ pub struct PresenceMatch {
     pub status: PresenceStatus,
     pub age_secs: i64,
     pub last_ts_ms: i64,
+    /// T-2293 (V2 discovery registry): the agent's self-reported reachable hub
+    /// address (`metadata.addr`, e.g. `192.168.10.107:9100`) — where a peer
+    /// posts to reach this agent. `None` for pre-T-2293 heartbeats; the resolver
+    /// then falls back to the hub it read the heartbeat from.
+    pub addr: Option<String>,
+    /// T-2293: self-reported `metadata.host` (hostname — who, not where-to-post).
+    pub host: Option<String>,
+    /// T-2293: the agent's read topics (`metadata.listen_topics`, csv-split).
+    /// Empty when absent. Part of the `{host:port, hub, topics-read, liveness}`
+    /// registry record (AC1).
+    pub listen_topics: Vec<String>,
+    /// T-2293: self-reported `metadata.role`.
+    pub role: Option<String>,
 }
 
 fn msg_ts_ms(m: &Value) -> i64 {
@@ -120,6 +133,26 @@ pub fn resolve_agent_presence(
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(String::from);
+    // T-2293: pull a metadata string field, treating empty as absent.
+    let md_str = |key: &str| {
+        m.get("metadata")
+            .and_then(|md| md.get(key))
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+    };
+    let addr = md_str("addr");
+    let host = md_str("host");
+    let role = md_str("role");
+    let listen_topics = md_str("listen_topics")
+        .map(|csv| {
+            csv.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     Some(PresenceMatch {
         agent_id: agent_id.to_string(),
         identity_fingerprint,
@@ -127,6 +160,10 @@ pub fn resolve_agent_presence(
         status,
         age_secs,
         last_ts_ms: best_ts,
+        addr,
+        host,
+        listen_topics,
+        role,
     })
 }
 
@@ -157,6 +194,43 @@ mod tests {
         assert_eq!(m.identity_fingerprint.as_deref(), Some("deadbeef"));
         assert_eq!(m.pty_session.as_deref(), Some("pty-1"));
         assert!(m.age_secs >= 9 && m.age_secs <= 11);
+    }
+
+    // T-2293 (V2): the resolver surfaces addr/host/listen_topics/role from
+    // heartbeat metadata; absent fields default to None / empty (back-compat).
+    #[test]
+    fn surfaces_registry_fields_when_present() {
+        let now = 1_000_000_000_000i64;
+        let msg = json!({
+            "msg_type": "heartbeat",
+            "sender_id": "deadbeef",
+            "ts_unix_ms": now - 10_000,
+            "metadata": {
+                "agent_id": "alice",
+                "role": "claude-code",
+                "host": "ring20-107",
+                "addr": "192.168.10.107:9100",
+                "listen_topics": "dm:alice:*, agent-chat-arc ,",
+                "interval_secs": "30",
+            }
+        });
+        let m = resolve_agent_presence(&[msg], "alice", now).expect("match");
+        assert_eq!(m.addr.as_deref(), Some("192.168.10.107:9100"));
+        assert_eq!(m.host.as_deref(), Some("ring20-107"));
+        assert_eq!(m.role.as_deref(), Some("claude-code"));
+        // csv split, trimmed, empties dropped.
+        assert_eq!(m.listen_topics, vec!["dm:alice:*", "agent-chat-arc"]);
+    }
+
+    #[test]
+    fn registry_fields_absent_default_empty() {
+        let now = 1_000_000_000_000i64;
+        let msgs = vec![hb("alice", "deadbeef", "pty-1", now - 10_000, 30)];
+        let m = resolve_agent_presence(&msgs, "alice", now).expect("match");
+        assert!(m.addr.is_none());
+        assert!(m.host.is_none());
+        assert!(m.role.is_none());
+        assert!(m.listen_topics.is_empty());
     }
 
     #[test]
