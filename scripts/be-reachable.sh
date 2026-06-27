@@ -194,6 +194,16 @@ cmd_start() {
 
     # Apply defaults.
     [ -n "$agent_id" ] || agent_id="$(default_agent_id)"
+
+    # T-2292: per-agent identity by default. Bind the resolved agent_id to the
+    # crypto identity for this start flow and the spawned heartbeat, so posts
+    # SIGN with ~/.termlink/identities/<agent_id>.key rather than the shared
+    # host key — co-resident agents get DISTINCT fingerprints (RC1, T-2291).
+    # Inherited by the backgrounded listener-heartbeat.sh (which also exports
+    # it defensively). Explicit TERMLINK_IDENTITY_FILE/DIR still wins via the
+    # resolver precedence (FILE > DIR > AGENT_ID > shared default).
+    export TERMLINK_AGENT_ID="$agent_id"
+
     if [ "$pty_session_set" -eq 0 ]; then
         pty_session="$(default_pty_session)"
     fi

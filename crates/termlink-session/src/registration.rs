@@ -41,7 +41,13 @@ fn load_identity_fingerprint_best_effort() -> Option<String> {
 ///
 ///   1. `TERMLINK_IDENTITY_FILE` — explicit file path (T-1700).
 ///   2. `TERMLINK_IDENTITY_DIR/identity.key` — base-dir override (T-1159).
-///   3. `$HOME/.termlink/identity.key` — host default.
+///   3. `TERMLINK_AGENT_ID` → `$HOME/.termlink/identities/<agent_id>.key` —
+///      per-agent default (T-2292). When a session declares a logical agent
+///      id, this is its stable per-agent key, so co-resident agents on a
+///      shared host get DISTINCT fingerprints instead of collapsing onto one
+///      shared host key (RC1 of the T-2291 reliable-comms inception).
+///   4. `$HOME/.termlink/identity.key` — shared host default. Preserved for
+///      single-agent hosts that declare no agent id (backward compatible).
 ///
 /// Returns `None` if none of the above can be resolved (e.g. `HOME` unset
 /// in a sandboxed test process).
@@ -56,9 +62,16 @@ where
         return Some(crate::agent_identity::identity_path(Path::new(&dir)));
     }
     let home = get_env("HOME")?;
-    Some(crate::agent_identity::identity_path(
-        &PathBuf::from(home).join(".termlink"),
-    ))
+    let base = PathBuf::from(home).join(".termlink");
+    // T-2292: per-agent default keyed on the declared logical agent id. A blank
+    // value is treated as absent so an exported-but-empty env var does not
+    // silently divert every session to `identities/_.key`.
+    if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty()) {
+        return Some(crate::agent_identity::per_agent_identity_path(
+            &base, &agent_id,
+        ));
+    }
+    Some(crate::agent_identity::identity_path(&base))
 }
 
 /// Registration entry written as a JSON sidecar file alongside the session socket.
@@ -428,6 +441,68 @@ mod tests {
     fn resolve_identity_key_path_none_without_home() {
         let path = resolve_identity_key_path(|_| None);
         assert!(path.is_none());
+    }
+
+    // T-2292: per-agent default keyed on TERMLINK_AGENT_ID.
+    #[test]
+    fn resolve_identity_key_path_per_agent_default() {
+        let path = resolve_identity_key_path(|k| match k {
+            "TERMLINK_AGENT_ID" => Some("claude-alpha".to_string()),
+            "HOME" => Some("/root".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(
+            path,
+            PathBuf::from("/root/.termlink/identities/claude-alpha.key")
+        );
+    }
+
+    // T-2292: two co-resident agents (same HOME) resolve to DISTINCT keys.
+    #[test]
+    fn resolve_identity_key_path_co_resident_agents_distinct() {
+        let a = resolve_identity_key_path(|k| match k {
+            "TERMLINK_AGENT_ID" => Some("agent-a".to_string()),
+            "HOME" => Some("/home/shared".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        let b = resolve_identity_key_path(|k| match k {
+            "TERMLINK_AGENT_ID" => Some("agent-b".to_string()),
+            "HOME" => Some("/home/shared".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_ne!(a, b);
+        assert_eq!(a, PathBuf::from("/home/shared/.termlink/identities/agent-a.key"));
+        assert_eq!(b, PathBuf::from("/home/shared/.termlink/identities/agent-b.key"));
+    }
+
+    // T-2292: explicit TERMLINK_IDENTITY_DIR override still wins over the
+    // per-agent default (precedence FILE > DIR > AGENT_ID > shared default).
+    #[test]
+    fn resolve_identity_key_path_dir_beats_agent_id() {
+        let path = resolve_identity_key_path(|k| match k {
+            "TERMLINK_IDENTITY_DIR" => Some("/etc/termlink".to_string()),
+            "TERMLINK_AGENT_ID" => Some("agent-a".to_string()),
+            "HOME" => Some("/root".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(path, PathBuf::from("/etc/termlink/identity.key"));
+    }
+
+    // T-2292: a blank agent id is treated as absent — falls through to the
+    // shared host default rather than diverting to identities/_.key.
+    #[test]
+    fn resolve_identity_key_path_blank_agent_id_falls_back_to_shared() {
+        let path = resolve_identity_key_path(|k| match k {
+            "TERMLINK_AGENT_ID" => Some("   ".to_string()),
+            "HOME" => Some("/root".to_string()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(path, PathBuf::from("/root/.termlink/identity.key"));
     }
 
     #[test]

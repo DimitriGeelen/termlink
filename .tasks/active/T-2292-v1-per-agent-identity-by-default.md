@@ -16,7 +16,7 @@ related_tasks: [T-2291]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:05:54Z
-last_update: 2026-06-27T17:08:03Z
+last_update: 2026-06-27T17:09:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,11 +40,11 @@ Arc-003 (reliable-comms) foundation slice. RC1 from the T-2291 inception RCA: co
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `register` (and `register --self`) defaults to a stable per-agent key at `~/.termlink/identities/<agent_id>.key`, derived from agent_id, instead of the shared `$HOME/.termlink/identity.key`
-- [ ] `/be-reachable` and `listener-heartbeat.sh` set/use the same per-agent key path
-- [ ] `termlink whoami --json` shows a DISTINCT `identity_fingerprint` for two co-resident agents on the same host
-- [ ] Clean cutover: the DM-topic naming discontinuity (old shared-fp topics vs new per-agent topics) is documented; no history migration attempted
-- [ ] Transport trust (`hub.secret` HMAC + TLS cert pinning) is untouched — verified by a passing `fleet doctor` against an existing hub after the change
+- [x] `register` (and `register --self`) defaults to a stable per-agent key at `~/.termlink/identities/<agent_id>.key`, derived from agent_id, instead of the shared `$HOME/.termlink/identity.key` — `TERMLINK_AGENT_ID` branch added to `resolve_identity_key_path` (registration.rs) + `load_identity_or_create` (channel.rs, lockstep) + `bind_per_agent_identity_default` (session.rs, creates+pins on register). Live proof: two co-resident agents under one $HOME got distinct 32-byte seeds `bc747640…` / `aea5baa4…`.
+- [x] `/be-reachable` and `listener-heartbeat.sh` set/use the same per-agent key path — both now `export TERMLINK_AGENT_ID="$agent_id"` so heartbeat/DM posts sign with the per-agent key.
+- [x] `termlink whoami --json` shows a DISTINCT `identity_fingerprint` for two co-resident agents on the same host — register bakes the per-agent fingerprint into SessionMetadata (which whoami reads); distinct keys → distinct fingerprints, proven by `per_agent_paths_produce_distinct_fingerprints` + live distinct seeds.
+- [x] Clean cutover: the DM-topic naming discontinuity (old shared-fp topics vs new per-agent topics) is documented; no history migration attempted — `docs/operations/per-agent-identity.md`.
+- [x] Transport trust (`hub.secret` HMAC + TLS cert pinning) is untouched — verified by a passing `fleet doctor` against an existing hub after the change — only client signing-key selection changed; `fleet doctor` connects + auths against live hubs (all reachable hubs `[PASS]`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,6 +109,11 @@ Arc-003 (reliable-comms) foundation slice. RC1 from the T-2291 inception RCA: co
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-session --lib agent_identity::
+cargo test -p termlink-session --lib resolve_identity_key_path
+bash -n scripts/listener-heartbeat.sh
+bash -n scripts/be-reachable.sh
+test -f docs/operations/per-agent-identity.md
 
 ## RCA
 
@@ -150,7 +155,50 @@ Arc-003 (reliable-comms) foundation slice. RC1 from the T-2291 inception RCA: co
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-27 — two resolvers, not one
+
+- **What changed:** The inception named one resolver (`registration.rs:48`), but
+  there are actually **two** identity-key resolvers that must agree: the
+  fingerprint path (`registration.rs::resolve_identity_key_path`) AND the
+  post-signing path (`channel.rs::load_identity_or_create`). They are explicitly
+  documented as "in lockstep" (the wire `sender_id` must equal the SessionMetadata
+  fingerprint). Both got the identical `TERMLINK_AGENT_ID` branch.
+- **Plan impact:** None to scope — still "defaults wiring" — but the change
+  touched 3 Rust files (+2 scripts) instead of 1.
+- **Triggered:** Precedence decision locked as **FILE > DIR > AGENT_ID > shared
+  default** (agent_id is a smart default below explicit operator overrides, not
+  above them). `register` had to actively *create* the key (via a new
+  `bind_per_agent_identity_default` helper) because the fingerprint resolver is
+  read-only by design; without creation, `whoami` would show no fingerprint
+  until first post.
+
+### 2026-06-27 — agent_id was never plumbed into identity
+
+- **What changed:** Discovered `resolve_identity_key_path` took **no agent_id
+  input** at all — resolution was purely env-driven, and the heartbeat
+  `metadata.agent_id` was explicitly a free-form *label, not identity*. V1's
+  essence is **unifying** the logical agent_id with the crypto identity via a new
+  `TERMLINK_AGENT_ID` env var, which the scripts now export.
+- **Plan impact:** Confirmed the crypto was done (T-1693/G-056); the gap was a
+  missing env→key-path binding, exactly as the RCA predicted.
+- **Triggered:** `sanitize_agent_id` added (filesystem-safety: a logical id with
+  `/`, `:`, or `..` must not escape `identities/`).
+
 ## Decisions
+
+### 2026-06-27 — per-agent default via TERMLINK_AGENT_ID env, additive branch
+
+- **Chose:** A new `TERMLINK_AGENT_ID` env var that, when set, diverts the key
+  path to `~/.termlink/identities/<agent_id>.key`; unset → unchanged shared
+  default. Slotted below `TERMLINK_IDENTITY_DIR` in precedence.
+- **Why:** Purely additive and backward compatible — single-agent hosts and all
+  existing `--identity-key`/`TERMLINK_IDENTITY_DIR` deployments are unaffected.
+  Co-resident agents opt in simply by declaring their agent_id (which
+  `/be-reachable` + heartbeat already know).
+- **Rejected:** (a) Changing the *shared* default unconditionally — would break
+  single-agent hosts and force a fleet-wide re-pin with no opt-out. (b) Deriving
+  the key deterministically from agent_id without a file — loses the chmod-600
+  on-disk key the rest of the system expects.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

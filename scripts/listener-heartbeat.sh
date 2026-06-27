@@ -135,6 +135,17 @@ case "$interval" in
 esac
 [ "$interval" -ge 5 ] || die_usage "--interval must be >= 5 seconds (got: $interval)"
 
+# T-2292: per-agent identity by default. Bind this listener's logical agent_id
+# to its crypto identity so every `termlink channel post` below SIGNS with the
+# per-agent key (~/.termlink/identities/<agent_id>.key) instead of the shared
+# host key. Co-resident agents on a shared host therefore get DISTINCT
+# fingerprints (RC1 of the T-2291 reliable-comms inception) — without this, all
+# agents under one $HOME collapse onto one identity and their DMs collide.
+# An explicit TERMLINK_IDENTITY_FILE / TERMLINK_IDENTITY_DIR override still wins
+# (resolver precedence FILE > DIR > AGENT_ID > shared default), so we only set
+# TERMLINK_AGENT_ID and never clobber a deliberate key override.
+export TERMLINK_AGENT_ID="$agent_id"
+
 # Comma-join listen_topics (empty string if none).
 listen_csv=""
 if [ "${#listen_topics[@]}" -gt 0 ]; then

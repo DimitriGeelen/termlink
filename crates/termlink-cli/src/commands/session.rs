@@ -75,6 +75,63 @@ pub(crate) struct RegisterOpts {
     pub identity_key: Option<std::path::PathBuf>,
 }
 
+/// T-2292: adopt a per-agent identity by DEFAULT when the session declares a
+/// logical agent id (`TERMLINK_AGENT_ID`) and no explicit `--identity-key`
+/// already pinned `TERMLINK_IDENTITY_FILE`. Resolves + creates a stable key at
+/// `~/.termlink/identities/<agent_id>.key` and pins it via
+/// `TERMLINK_IDENTITY_FILE` so the SessionMetadata fingerprint and downstream
+/// `channel.post` signing both resolve to the same per-agent key. Co-resident
+/// agents on a shared host therefore get DISTINCT fingerprints (RC1 of the
+/// T-2291 reliable-comms inception) instead of collapsing onto one shared key.
+///
+/// No-op when `--identity-key` already set `TERMLINK_IDENTITY_FILE`, when
+/// `TERMLINK_AGENT_ID` is unset/blank (single-agent host → unchanged shared
+/// default), or when `HOME` is unresolvable. Non-fatal on key-create failure:
+/// the resolver still attempts the per-agent path, so registration is never
+/// blocked by an identity-binding hiccup.
+fn bind_per_agent_identity_default(verbose: bool) {
+    if std::env::var("TERMLINK_IDENTITY_FILE").is_ok() {
+        return; // explicit --identity-key (or preset) wins.
+    }
+    let agent_id = match std::env::var("TERMLINK_AGENT_ID") {
+        Ok(s) if !s.trim().is_empty() => s,
+        _ => return,
+    };
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => return,
+    };
+    use termlink_session::agent_identity::{Identity, per_agent_identity_path};
+    let base = std::path::PathBuf::from(home).join(".termlink");
+    let key_path = per_agent_identity_path(&base, &agent_id);
+    match Identity::load_or_create_from_file(&key_path) {
+        Ok(ident) => {
+            // SAFETY: same single-threaded startup reasoning as the
+            // --identity-key path above — no task reads TERMLINK_IDENTITY_FILE
+            // until Session::register / Endpoint::start runs sequentially below.
+            unsafe {
+                std::env::set_var("TERMLINK_IDENTITY_FILE", &key_path);
+            }
+            if verbose {
+                println!(
+                    "Identity (T-2292 per-agent '{}'): {} ({})",
+                    agent_id,
+                    key_path.display(),
+                    ident.fingerprint()
+                );
+            }
+        }
+        Err(e) => {
+            if verbose {
+                eprintln!(
+                    "warning: could not bind per-agent identity for '{agent_id}': {e}; \
+                     falling back to shared host default"
+                );
+            }
+        }
+    }
+}
+
 pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
     let RegisterOpts { name, roles, tags, cap, shell, enable_token_secret, allowed_commands, json, quiet, identity_key } = opts;
     let verbose = !json && !quiet;
@@ -105,6 +162,10 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
             );
         }
     }
+
+    // T-2292: per-agent identity by default (no-op when --identity-key above
+    // already pinned TERMLINK_IDENTITY_FILE, or when TERMLINK_AGENT_ID is unset).
+    bind_per_agent_identity_default(verbose);
 
     let mut config = SessionConfig {
         display_name: name,
@@ -369,6 +430,9 @@ pub(crate) async fn cmd_register_self(
             );
         }
     }
+
+    // T-2292: per-agent identity by default (parity with cmd_register).
+    bind_per_agent_identity_default(verbose);
 
     let config = SessionConfig {
         display_name: name,

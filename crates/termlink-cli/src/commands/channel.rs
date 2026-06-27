@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use termlink_protocol::control::{channel::canonical_sign_bytes, method};
 use termlink_protocol::transport::TransportAddr;
-use termlink_session::agent_identity::{Identity, identity_path};
+use termlink_session::agent_identity::{Identity, identity_path, per_agent_identity_path};
 use termlink_session::bus_client::{BusClient, PostOutcome};
 use termlink_session::client;
 use termlink_session::offline_queue::{PendingPost, default_queue_path};
@@ -33,6 +33,27 @@ pub(crate) fn load_identity_or_create() -> Result<Identity> {
         let path = PathBuf::from(file);
         return Identity::load_or_create_from_file(&path)
             .map_err(|e| anyhow!("Failed to load identity from TERMLINK_IDENTITY_FILE: {e}"));
+    }
+    // T-2292: per-agent default keyed on TERMLINK_AGENT_ID, fired only when no
+    // explicit base-dir override (TERMLINK_IDENTITY_DIR) is in play. This keeps
+    // the signing-identity precedence in lockstep with
+    // registration.rs::resolve_identity_key_path (FILE > DIR > AGENT_ID >
+    // shared host default) so the wire-envelope sender_id and the
+    // SessionMetadata fingerprint agree. Co-resident agents on a shared host
+    // thus sign with DISTINCT per-agent keys (RC1, T-2291).
+    if std::env::var("TERMLINK_IDENTITY_DIR").is_err() {
+        if let Some(agent_id) = std::env::var("TERMLINK_AGENT_ID")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+        {
+            if let Ok(home) = std::env::var("HOME") {
+                let base = PathBuf::from(home).join(".termlink");
+                let path = per_agent_identity_path(&base, &agent_id);
+                return Identity::load_or_create_from_file(&path).map_err(|e| {
+                    anyhow!("Failed to load per-agent identity ({agent_id}): {e}")
+                });
+            }
+        }
     }
     let base = identity_base_dir()?;
     let path = identity_path(&base);

@@ -184,6 +184,42 @@ pub fn identity_path(base: &Path) -> PathBuf {
     base.join("identity.key")
 }
 
+/// T-2292: resolve the per-agent identity key path `<base>/identities/<id>.key`
+/// for a logical `agent_id`. This is the default key location for a session
+/// that declares an `agent_id` (via `TERMLINK_AGENT_ID`), so co-resident agents
+/// on a shared host get DISTINCT keys — and therefore distinct fingerprints and
+/// distinct `dm:` topics — instead of collapsing onto one shared host key
+/// (RC1 of the T-2291 reliable-comms inception). `agent_id` is sanitized to a
+/// filesystem-safe slug so a logical id containing path separators or other
+/// unsafe characters cannot escape the `identities/` directory.
+pub fn per_agent_identity_path(base: &Path, agent_id: &str) -> PathBuf {
+    base.join("identities")
+        .join(format!("{}.key", sanitize_agent_id(agent_id)))
+}
+
+/// Sanitize a logical agent id into a single filesystem-safe filename
+/// component: any character that is not ASCII alphanumeric, '-', '_', or '.'
+/// is replaced with '_'. An empty result (or one that would be a bare '.'/'..'
+/// traversal token) collapses to "_". The caller appends a `.key` suffix, so
+/// the returned slug is never interpreted as a path itself.
+pub fn sanitize_agent_id(agent_id: &str) -> String {
+    let slug: String = agent_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if slug.is_empty() || slug == "." || slug == ".." {
+        "_".to_string()
+    } else {
+        slug
+    }
+}
+
 fn write_seed_atomic(path: &Path, seed: &[u8; SEED_LEN]) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -354,5 +390,65 @@ mod tests {
     fn short_seed_rejected() {
         let err = Identity::from_seed_bytes(&[0u8; 10]).unwrap_err();
         assert!(matches!(err, IdentityError::InvalidSeedLen { .. }));
+    }
+
+    // T-2292: per-agent path layout under <base>/identities/<id>.key.
+    #[test]
+    fn per_agent_identity_path_layout() {
+        let base = PathBuf::from("/home/x/.termlink");
+        assert_eq!(
+            per_agent_identity_path(&base, "claude-alpha"),
+            PathBuf::from("/home/x/.termlink/identities/claude-alpha.key")
+        );
+    }
+
+    // T-2292: distinct agent ids → distinct key paths under a shared base.
+    #[test]
+    fn per_agent_identity_path_distinct_per_agent() {
+        let base = PathBuf::from("/shared/.termlink");
+        assert_ne!(
+            per_agent_identity_path(&base, "agent-a"),
+            per_agent_identity_path(&base, "agent-b")
+        );
+    }
+
+    // T-2292: unsafe characters (path separators, ':') cannot escape the
+    // identities/ directory — they are slugged to '_'.
+    #[test]
+    fn sanitize_agent_id_neutralizes_path_traversal() {
+        // Separators slugged to '_'; the leading dots are harmless inside a
+        // single filename component (a '.key' suffix is appended by the caller).
+        assert_eq!(sanitize_agent_id("../../etc/passwd"), ".._.._etc_passwd");
+        assert_eq!(sanitize_agent_id("a/b"), "a_b");
+        assert_eq!(sanitize_agent_id("host:9100"), "host_9100");
+        // A resulting path always has exactly one component beyond identities/.
+        let p = per_agent_identity_path(Path::new("/b/.termlink"), "../../x");
+        assert_eq!(p.parent().unwrap(), Path::new("/b/.termlink/identities"));
+    }
+
+    // T-2292: empty / bare-dot ids collapse to '_' (never a traversal token).
+    #[test]
+    fn sanitize_agent_id_edge_cases() {
+        assert_eq!(sanitize_agent_id(""), "_");
+        assert_eq!(sanitize_agent_id("."), "_");
+        assert_eq!(sanitize_agent_id(".."), "_");
+        assert_eq!(sanitize_agent_id("ok.name"), "ok.name");
+    }
+
+    // T-2292: two distinct per-agent paths create genuinely distinct
+    // identities (distinct fingerprints) — the RC1 antidote.
+    #[test]
+    fn per_agent_paths_produce_distinct_fingerprints() {
+        let dir = std::env::temp_dir().join(format!(
+            "tl-peragent-{}",
+            std::process::id()
+        ));
+        let base = dir.join(".termlink");
+        let pa = per_agent_identity_path(&base, "agent-a");
+        let pb = per_agent_identity_path(&base, "agent-b");
+        let a = Identity::load_or_create_from_file(&pa).unwrap();
+        let b = Identity::load_or_create_from_file(&pb).unwrap();
+        assert_ne!(a.fingerprint(), b.fingerprint());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
