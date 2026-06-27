@@ -9,10 +9,10 @@ concerns:
   spec_reference: "T-2203 (CTL-028 symptom fix, 444a7e9b); CLAUDE.md §Post-Fix Root Cause Escalation (G-019 — fix the reason the framework couldn't detect it, not just the mess); sibling class to G-008 (work-completed tasks stuck in active/)"
   severity: medium
   what_works_now: "T-2203 repaired the 157 existing files; an audit check (no duplicate task IDs, all YAML parses) passes. The corruption is latent only on FUTURE bulk moves."
-  what_remains: "(1) git log the move commits of the 157 (--diff-filter=A on completed/ paths), cluster by timestamp/author/message to identify the mover (bulk script, manual git mv, or a framework path such as update-task.sh / handover / a migration). (2) Confirm whether any code path moves files into completed/ without calling the finalize routine. (3) Prevent: either (a) a guard/canary that flags completed/ tasks with status != work-completed (cheap audit check, pairs with the existing duplicate-ID audit), or (b) make every code path that lands a task in completed/ go through the finalize routine."
+  what_remains: "(1) DONE — git log of the move commits (--diff-filter=A) shows the 157 first appear in completed/ under SESSION HANDOVER commits (e.g. T-1889/T-1890 both landed in 9a05131d 'T-1452: Session handover S-2026-0531-1734'), NOT under fw task update --status work-completed commits. (2) MECHANISM IDENTIFIED — the handover flow (vendored .agentic-framework/agents/handover/) commits task files that were moved into completed/ outside the finalize routine; the finalize routine (update-task.sh, sets status+date_finished) is the only path that finalizes, so any move not going through it leaves the bypass. (3) Prevent: (a) DONE — T-2290 shipped scripts/check-task-finalization-freshness.sh + daily cron (project-level canary, flags completed/ tasks with status != work-completed; auto-discovered by /canaries; empty-log = healthy). This is the in-repo defense. (b) UPSTREAM (AEF) — make every code path that lands a task in completed/ go through finalize, OR have handover refuse to commit a completed/ task whose status != work-completed. Lives in vendored framework → relay as an AEF task to /opt/999-Agentic-Engineering-Framework; do NOT patch the vendored copy locally (fw upgrade would regress it — G-055)."
   status: watching
   created: 2026-06-13
-  related_tasks: [T-2203, G-008]
+  related_tasks: [T-2203, G-008, T-2290]
 
 - id: G-065
   type: gap
