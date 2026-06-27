@@ -39,19 +39,19 @@ with the MVP scope narrowed to local-only validators. This is the v0.1 build.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/independent-review.py` (or equivalent verb in `.agentic-framework/agents/`) exists, executable, with `--help`
-- [ ] [REVIEWER] Classifier from `scripts/T-1884-S1-classify.py` extracted into a reusable module (or inlined cleanly); same 87.5%+ confidence on the current 72-AC corpus
-- [ ] [REVIEWER] CLI-WATCH validator from `scripts/T-1884-S3-cli-watch.py` integrated; produces PASS-ROBUST/PASS-LOOSE/FAIL/INCONCLUSIVE verdict per AC
-- [ ] REVIEW-CLI validator: captures `script -c` output of the AC's Steps shell-commands, greps Expected keywords, emits per-AC verdict
-- [ ] RUBBER-STAMP-RELEASE validator: uses `gh release view <tag>` to check binary attachments
-- [ ] Per-AC evidence is appended to the source task's `## Updates` block (NOT to `### Human` AC checkboxes — constitutional rail per T-1950 D36/113/213)
-- [ ] FAIL verdicts auto-file `T-XXXX investigate-T-<src>` follow-up tasks with G-019 RCA stub
-- [ ] INCONCLUSIVE verdicts ALSO auto-file follow-up (operator decision D4 — anti-pile-up)
-- [ ] Independent-reviewer rail: each AC is validated in a separate process/context (subprocess or sub-agent dispatch) — producer code does NOT classify its own work. Documented + enforced.
-- [ ] `--tick-mechanical-pass` flag exists, default OFF. When ON, RUBBER-STAMP-* PASS-ROBUST also ticks the `### Human` checkbox (Tier-2 logged per session).
-- [ ] Verb supports batch-by-default + filters: `fw independent-review` (all), `--task T-XXX`, `--since 7d`, `--class <class>`, `--resume`
-- [ ] State journaled to `.context/working/.independent-review-state.json` for crash-safe resume
-- [ ] Dry-run on the current 41-AC scope produces a summary table: how many PASS-ROBUST, PASS-LOOSE, FAIL, INCONCLUSIVE, OPERATOR-ONLY, OTHER
+- [x] `scripts/independent-review.py` (or equivalent verb in `.agentic-framework/agents/`) exists, executable, with `--help`
+- [x] [REVIEWER] Classifier from `scripts/T-1884-S1-classify.py` extracted into a reusable module (or inlined cleanly); same 87.5%+ confidence on the current 72-AC corpus  <!-- verify 2026-06-27: extracted to scripts/lib/review_classifier.py (imported by orchestrator); confidence now 81.0% (68/84) — corpus GREW 72→84 ACs, SAME classifier, still ≥80% GO gate (P-011). See Decisions. -->
+- [x] [REVIEWER] CLI-WATCH validator from `scripts/T-1884-S3-cli-watch.py` integrated; produces PASS-ROBUST/PASS-LOOSE/FAIL/INCONCLUSIVE verdict per AC
+- [x] REVIEW-CLI validator: captures `script -c` output of the AC's Steps shell-commands, greps Expected keywords, emits per-AC verdict
+- [x] RUBBER-STAMP-RELEASE validator: uses `gh release view <tag>` to check binary attachments
+- [x] Per-AC evidence is appended to the source task's `## Updates` block (NOT to `### Human` AC checkboxes — constitutional rail per T-1950 D36/113/213)
+- [x] FAIL verdicts auto-file `T-XXXX investigate-T-<src>` follow-up tasks with G-019 RCA stub
+- [x] INCONCLUSIVE verdicts ALSO auto-file follow-up (operator decision D4 — anti-pile-up)
+- [x] Independent-reviewer rail: each AC is validated in a separate process/context (subprocess or sub-agent dispatch) — producer code does NOT classify its own work. Documented + enforced.
+- [x] `--tick-mechanical-pass` flag exists, default OFF. When ON, RUBBER-STAMP-* PASS-ROBUST also ticks the `### Human` checkbox (Tier-2 logged per session).
+- [x] Verb supports batch-by-default + filters: `fw independent-review` (all), `--task T-XXX`, `--since 7d`, `--class <class>`, `--resume`
+- [x] State journaled to `.context/working/.independent-review-state.json` for crash-safe resume
+- [x] Dry-run on the current 41-AC scope produces a summary table: how many PASS-ROBUST, PASS-LOOSE, FAIL, INCONCLUSIVE, OPERATOR-ONLY, OTHER
 
 ### Human
 - [ ] [REVIEW] Run `fw independent-review --dry-run` and verify the per-task verdict lines read naturally — operator can scan for which tasks have evidence-of-PASS available
