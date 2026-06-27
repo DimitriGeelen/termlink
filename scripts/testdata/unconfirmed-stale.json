@@ -1,0 +1,1 @@
+{"exists":true,"pending":1,"rows":[{"attempts":3,"client_msg_id":"abc","dm_topic":"dm:aa:bb","enqueued_ms":1782592257000,"msg_offset":0,"recipient_sender_id":"bb"}]}
