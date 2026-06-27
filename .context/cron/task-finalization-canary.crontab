@@ -1,0 +1,23 @@
+# T-2290 — Finalization-bypass canary (G-066 prevention)
+# Source of truth: /opt/termlink/.context/cron/task-finalization-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-task-finalization-canary (USER field syntax — do NOT load into a user crontab)
+#
+# G-066: T-2203 (CTL-028) found 157 tasks in .tasks/completed/ whose status still
+# said started-work with empty date_finished — archived without going through the
+# finalize routine (fw task update --status work-completed). T-2203 repaired the
+# 157 existing files but the MECHANISM (bulk git mv / migration moves that skip
+# finalize) is unaddressed and will recur. This daily canary scans completed/ and
+# fires (exit 1) if any task has status != work-completed — surfacing a
+# finalization bypass the day it happens instead of weeks later via manual
+# archaeology. Pairs with the existing duplicate-task-ID audit check.
+# Empty log = healthy. /canaries auto-discovers this log.
+#
+# Operator action on firing: repair each flagged task
+# (fw task update <id> --status work-completed), then root-cause the move path
+# that skipped finalize. Ad-hoc check: bash scripts/check-task-finalization-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 06:47 UTC — offset from the :13 mirror, :37 framework-pickup,
+# :43 frozen-husk canaries and the :23/:53 heartbeats.
+47 6 * * * root cd /opt/termlink && bash scripts/check-task-finalization-freshness.sh --quiet >> .context/working/.task-finalization-canary.log 2>&1

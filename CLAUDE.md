@@ -183,6 +183,37 @@ hub-independent verification (PL-213). `/canaries` auto-discovers the log. Pair
 with the mirror-drift, substrate-preflight, framework-pickup, and frozen-husk
 canaries above — all five follow the same "empty-log = healthy" convention.
 
+### Task-finalization canary (T-2290, G-066 prevention)
+
+G-066: T-2203 (CTL-028) found **157 tasks** in `.tasks/completed/` whose
+frontmatter `status` still said `started-work` with empty `date_finished` —
+they were archived into `completed/` WITHOUT going through the finalize routine
+(`fw task update --status work-completed`, which sets BOTH `status` and
+`date_finished`). Several shared identical move-commit timestamps, the signature
+of a bulk `git mv` / migration that skipped finalization. T-2203 repaired the
+157 existing files, but the MECHANISM that lands tasks in `completed/` without
+finalizing them is unaddressed and **will recur on the next bulk move** — and
+the framework was blind to it (the duplicate-ID audit check passes regardless of
+`status`). A daily cron runs `scripts/check-task-finalization-freshness.sh
+--quiet` (see `.context/cron/task-finalization-canary.crontab`) and appends to
+`.context/working/.task-finalization-canary.log`. Empty log = healthy.
+
+The canary scans every `completed/*.md` and FIRES (exit 1) on any task whose
+`status != work-completed` — the finalization-bypass class. A **softer**,
+non-firing class is a task that IS `work-completed` but has empty
+`date_finished` (the finalize routine half-ran, e.g. the PL-134
+inception-auto-finalize path); these print as informational by default and fold
+into the firing set with `--strict`. Ad-hoc check:
+`bash scripts/check-task-finalization-freshness.sh` (exit 0 = healthy,
+1 = a bypass detected, 2 = tooling error); add `--json` for scripting,
+`--strict` to also fire on empty `date_finished`, `--tasks-dir P` to point at a
+different `.tasks` root. Operator action on firing: repair each flagged task
+(`fw task update <id> --status work-completed`), then root-cause the move path
+that skipped finalize. `/canaries` auto-discovers the log. Pair with the
+mirror-drift, substrate-preflight, framework-pickup, frozen-husk, and
+topic-growth canaries above — all six follow the same "empty-log = healthy"
+convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
