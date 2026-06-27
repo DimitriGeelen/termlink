@@ -2,6 +2,21 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-067
+  type: gap
+  title: "Pre-push audit T-2067 frontmatter check spawns one python per task (1937+) — ~80-100s, intermittently blocks every push as completed/ grows"
+  description: "The pre-push hook's 'fast subset' audit (T-862, --section structure) includes the T-2067 task-frontmatter parse check (.agentic-framework/agents/audit/audit.sh ~:603) which loops over EVERY file in .tasks/active/ + .tasks/completed/ (1937 today) and spawns a SEPARATE python3 subprocess per file (each importing web.shared.parse_frontmatter). That is O(N) interpreter startups — ~80-100s wall — defeating T-862's explicit 'fast subset for pre-push' intent and growing unbounded with completed/. Symptom: a foreground `git push` (or any bash tool call) hits the 120s harness cap and is killed mid-audit -> 'failed to push some refs', origin not advanced; pushes only succeed when run detached (no cap). Discovered 2026-06-27 while pushing T-2290: 4 push attempts failed/timed out before the cause (this slowness + a separate cron-install FAIL) was isolated. Concurrent background pushes compound it — each fires its own audit, contending on the flock and littering watchdog `sleep 600` procs."
+  spec_reference: "T-862 (fast pre-push subset intent); T-2067/T-2069 (the per-task frontmatter check); .agentic-framework/agents/audit/audit.sh:603-660 — VENDORED, fix must go upstream (AEF), do not patch locally (fw upgrade regresses it, G-055 class)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-06-27: T-2290 canary push blocked across 4 attempts; structure audit timed out at the T-2067 check (1937 python spawns) under the 120s foreground cap."
+  detection_lag_days: 0
+  what_works_now: "Pushing in the background (run_in_background, no 120s cap) lets the ~80-100s audit complete, then git pushes — verified (1f0a94f7..f2217f4d landed this way). One push at a time (concurrent pushes contend on the audit flock)."
+  what_remains: "Upstream AEF fix to audit.sh: batch the T-2067 frontmatter check into ONE python invocation that walks all task files in-process (import parse_frontmatter once, loop in python) instead of fork-exec per file. Expected ~1937x fewer process spawns -> sub-second. Regression target: structure audit completes < 10s on a 2000-task corpus. Relay as an AEF task to /opt/999-Agentic-Engineering-Framework. Workaround until then: push detached, one at a time (documented in memory canary-cron-install-and-slow-audit)."
+  status: watching
+  created: 2026-06-27
+  related_tasks: [T-2290, T-862, T-2067]
+
 - id: G-066
   type: gap
   title: "157 tasks reached .tasks/completed/ with status:started-work + null date_finished — finalization was bypassed by whatever moved them"
