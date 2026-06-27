@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-27T08:50:06Z
-last_update: 2026-06-27T08:50:54Z
+last_update: 2026-06-27T08:54:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -154,17 +154,41 @@ beyond relay unless separately authorized.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO — composite **V3 + V2 + V1**, sequenced V3 → V2 → V1.
 
 **Rationale:**
 
-Two compounding structural root causes are well-documented and recurring (shared host fingerprint on .107 collapsing per-agent DM addressability — T-1693; and no inter-hub federation by design — G-060/T-2229, where posts on hub A never reach readers on hub B so 'sent' != 'delivered'). A permanent fix is clearly warranted, but the SELECTION among 5 structural remediation variants (per-agent keys / peer registry / mandatory delivery-confirm / opt-in cross-hub relay / single-hub convergence) requires directive-scoring evidence this inception will produce via 5 research agents. Deferring the GO + variant choice to the human pending that RCA + scored-variant matrix.
+5 research agents found the comms failures decompose into THREE orthogonal axes,
+and — critically — **the fix mechanism for each is already SHIPPED**; the gap is
+defaults + observability, not greenfield code:
+- **RC3 delivery (V3, cost S, score 18 — strongest):** T-2286 `--await-ack` +
+  T-2049 dedupe + T-2051 queue already do exactly-once, loud-on-failure delivery
+  confirmation. Work = flip it to DEFAULT for `/agent-handoff`,`/reply`,
+  `agent-send.sh`. Turns silent "sent-but-lost" into a loud timeout fleet-wide.
+- **RC2 routing (V2, cost S→M, score 15):** agent-presence + cv_index already
+  carry a stable-`agent_id` roster (~80% of a peer registry). Work = add
+  `addr:port` to the heartbeat + a fleet-rollup reader so senders resolve the
+  RIGHT hub. (NOT `kv` — per-session, wrong scope.)
+- **RC1 identity (V1, cost S→M, score 15):** per-agent keys SHIPPED (T-1693/
+  G-056) but never set by default → every co-resident agent collapses to one
+  fingerprint. Work = make per-agent identity the default in register/
+  be-reachable/heartbeat.
+
+V3 makes failure loud, V2 routes it to the right hub, V1 de-collides identities —
+they compose; none solves comms alone. **Reject V5** (SPOF, violates
+Portability). **Hold V4** (explicit relay) unless a hard cross-hub need survives
+V2. On GO, file 3 separate build tasks (one per leg). Variant/composite selection
++ GO is the human's (sovereignty).
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- Full RCA + directive-scored matrix: `docs/reports/T-2291-cross-agent-comms-inception.md` §4–§6
+- Agent findings on disk: `.context/working/T-2291-A{1..5}.md`
+- V1 identity model: `crates/termlink-session/src/agent_identity.rs:174`, `registration.rs:48`; T-1693/G-056 shipped 2026-05-19
+- V2 substrate: agent-presence heartbeat + cv_index (`scripts/listener-heartbeat.sh`, `channel cv-keys agent-presence`)
+- V3 mechanism: T-2286 `channel post --await-ack` (work-completed 2026-06-25) + T-2049 + T-2051
+- No-federation by design: G-060 / T-1791 / T-1793 / T-2229; recurrence ring20 T-1259/T-1264/T-1296 (×3), G-155 (false-green probe), G-156 (no registry), G-063 (write-only pickup sink)
+- Live fleet snapshot 2026-06-27: 0/8 listeners LIVE, all `.107` share fp `d1993c2c3ec44c94` (collision reproduced)
 
 ## Decisions
 
