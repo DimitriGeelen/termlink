@@ -4,16 +4,16 @@ name: "Permanent cross-agent comms fix — identity + delivery"
 description: >
   Inception: Permanent cross-agent comms fix — identity + delivery
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-27T08:50:06Z
-last_update: 2026-06-27T08:54:56Z
-date_finished: null
+last_update: 2026-06-27T16:40:17Z
+date_finished: 2026-06-27T16:40:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -114,15 +114,15 @@ beyond relay unless separately authorized.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -203,7 +203,13 @@ V2. On GO, file 3 separate build tasks (one per leg). Variant/composite selectio
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: 5 research agents found the comms failures decompose into THREE orthogonal axes,
+and — critically — **the fix mechanism for each is already SHIPPED**; the gap is
+defaults + observability, not greenfield code:
+
+**Date**: 2026-06-27T16:40:17Z
 
 ## Updates
 
@@ -212,3 +218,14 @@ V2. On GO, file 3 separate build tasks (one per leg). Variant/composite selectio
 
 ### 2026-06-27T08:50:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-27T16:40:17Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** 5 research agents found the comms failures decompose into THREE orthogonal axes,
+and — critically — **the fix mechanism for each is already SHIPPED**; the gap is
+defaults + observability, not greenfield code:
+
+### 2026-06-27T16:40:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
