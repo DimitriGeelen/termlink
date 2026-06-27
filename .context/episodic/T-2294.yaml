@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2294: V3a: deterministic notify (sidecar wake)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-27T20:32:50Z
+# ============================================================================
+
+task_id: T-2294
+task_name: "V3a: deterministic notify (sidecar wake)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-27T17:06:22Z
+completed: 2026-06-27T20:32:45Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-27T22:32:25+02:00
+last_commit: 2026-06-27T22:32:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V3a deterministic notify sidecar (arc-003 reliable-comms)
+
+# Key outcomes
+outcomes:
+  - 'An idle turn-based agent is woken deterministically on new mail by polling the local flag/KV at a yield point (no LLM in the sidecar)'
+  - 'The notify carries a heartbeat timestamp; a stale timestamped-delta is detectable as "listener is deaf"'
+  - 'Self-check-ears: an agent whose listener died halts before acting on a stale flag rather than proceeding blind'
+  - 'No preemptive mid-turn injection occurs (the flag is a file/KV, read cooperatively — not a keystroke)'
+  - 'A missing ack from the recipient triggers a sender retry'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-27 — local FILE for the flag, not `termlink kv`'
+    chose: 'flag + heartbeat as plain files under `~/.termlink/notify/`.'
+    rationale: '`kv` is session-scoped, in-memory, and hub-mediated (per-session'
+    alternatives_rejected: ['session-KV (hub dependency defeats the antifragile property).']
+  - decision: '2026-06-27 — no `kv watch` / event stream; cooperative poll only'
+    chose: 'the agent polls the local flag at its own yield points.'
+    rationale: 'the §5 design is explicitly "neither bus-polling nor preemptive." A'
+    alternatives_rejected: ['adding `KvAction::Watch` consuming the hub''s `kv.change` event']
+  - decision: '2026-06-27 — AC5 reuses T-2286, no new retry code'
+    chose: 'missing-ack→retry = `channel post --await-ack --retry` verbatim.'
+    rationale: 'T-2286 already ships durable await-ack-with-retry (SQLite tracker,'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/deterministic-notify-sidecar.md'
+  - 'scripts/notify-check.sh'
+  - 'scripts/notify-sidecar.sh'
+  - 'scripts/test-notify-sidecar.sh'
+  - '.tasks/active/T-2294-v3a-deterministic-notify-sidecar-wake.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-27T22:32:25"
+    action: "T-2294: V3a deterministic notify sidecar (arc-003 reliable-comms)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 206 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 206
+  commits: 1
+  files_changed: 5
+  lines_added: 732
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2294-v3a-deterministic-notify-sidecar-wake.md
+generated_by: context-agent-hybrid

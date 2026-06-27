@@ -4,10 +4,10 @@ name: "V3b: delivery-confirm by default + canary"
 description: >
   RC3b fix. Flip T-2286 --await-ack to the DEFAULT for /agent-handoff, /reply, agent-send.sh; recipient sidecar (V3a) auto-acks, advancing the channel.receipts frontier. Add an unconfirmed-delivery canary: local sent-but-unconfirmed mirror made observable (kills the write-only-sink class, e.g. framework:pickup 36-sent/0-recv per G-063). ACs: default send confirms or fails LOUD (never silent 'sent'); recipient auto-ack wired; canary surfaces unconfirmed sends; /check-arc read emits a receipt.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [arc:reliable-comms]
 components: []
 related_tasks: [T-2291, T-2294]
@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2294]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:39Z
-last_update: 2026-06-27T17:06:39Z
+last_update: 2026-06-27T20:33:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -150,16 +150,63 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-27 — AC3 (sidecar auto-ack) collides with V3a's wake flag — receipt must be on READ, not on detect
+- **What changed:** Implementing AC3 naively ("the recipient sidecar auto-acks,
+  advancing channel.receipts") would BREAK V3a. Proven empirically: V3a's
+  `notify-sidecar.sh` detects mail via `channel unread --sender <self>`, and
+  `channel ack` advances that SAME `<self>` receipt frontier. Live test on a real
+  DM: recipient unread `2 → 0` immediately after the recipient acks. So a sidecar
+  that auto-acks on *detection* erases the very flag it just raised — the agent
+  would never be woken. AC3 as literally worded is self-defeating against V3a.
+- **Plan impact (the resolution for next session):** Emit the receipt on **READ**,
+  not on detect. The sidecar raises the flag (V3a) and does NOT ack; the ack is
+  emitted when the agent actually reads (the `/check-arc respond` path / AC5's
+  receipt-on-read). This collapses AC3 into AC5: a single "consumed" receipt
+  serves the sender's `--await-ack` confirmation. The "delivered-but-not-yet-read"
+  intermediate level (sidecar-journaled receipt) is the inception's **3-level
+  confirm ladder**, which is explicitly **V6 (T-2296) scope** (build-tasks §V6,
+  inception report §confirm-ladder) — do NOT build a second receipt namespace in
+  V3b. Net: re-scope AC3 → "recipient acks on read (not silent), advancing
+  channel.receipts" and implement it together with AC5.
+- **Triggered:** Re-scope AC3 (above) before implementing; the delivered-vs-read
+  two-level receipt is deferred to V6's ladder, not V3b.
+
+### 2026-06-27 — V3b build order + budget-bounded handoff
+- **What changed:** Surface map (Explore) shows V3b spans 5 surfaces:
+  `agent-send.sh` (swap manual receipt-poll loop L213-246 for `--await-ack
+  --retry`, add `--no-await-ack` opt-out at L72-88), `agent contact` + `agent-
+  respond.sh` (the /agent-handoff and /reply transports — AC1 must cover these too,
+  not just agent-send.sh), `notify-sidecar.sh` (ack-on-read per the decision above),
+  `check-arc.md` (scoped receipt-on-read exception vs its hard "NEVER auto-ack"
+  rule L287-288), and a NEW `check-unconfirmed-delivery-freshness.sh` canary
+  (reads `termlink channel awaiting-ack --json`; tracker = `~/.termlink/
+  awaiting_ack.sqlite`; MUST install crontab to /etc/cron.d/termlink-...-canary or
+  the T-1722 pre-push audit lint FAILS — audit.sh L1392-1447).
+- **Plan impact:** This session reached the budget ceiling for arc-003 with V3a
+  shipped + V3b design-unblocked. V3b not started in code (the AC3 tension needed
+  resolving first; agent-send.sh is load-bearing and needs careful live testing).
+- **Triggered:** Next-session build order (smallest→largest, all independent
+  except AC3+AC5 which share the receipt policy): (1) canary [additive, standalone
+  G-063 value], (2) agent-send.sh await-ack default + opt-out, (3) agent contact /
+  agent-respond.sh await-ack default, (4) sidecar+check-arc ack-on-read (AC3+AC5
+  together per decision above).
+
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+<!-- Record decisions ONLY when choosing between alternatives. -->
+
+### 2026-06-27 — receipt emitted on READ, not on sidecar detection
+- **Chose:** the recipient ack (the delivery confirmation the sender's
+  `--await-ack` waits for) is emitted when the agent READS the mail, not when the
+  V3a sidecar detects it.
+- **Why:** `channel ack` advances the `<self>` receipt frontier that V3a's
+  `channel unread --sender <self>` reads; acking on detection zeros V3a's own wake
+  flag (proven live: unread 2→0). One "consumed" frontier serves both the wake
+  signal (before read) and the sender confirmation (after read).
+- **Rejected:** (a) sidecar auto-ack on detection — breaks V3a's wake. (b) a
+  second "delivered" receipt namespace distinct from "read" — that is V6's 3-level
+  confirm ladder, out of scope for V3b (would duplicate V6 and add protocol
+  surface here).
 
 ## Decision
 
@@ -177,3 +224,7 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2295-v3b-delivery-confirm-by-default--canary.md
 - **Context:** Initial task creation
+
+### 2026-06-27T20:33:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

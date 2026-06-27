@@ -4,10 +4,10 @@ name: "V3a: deterministic notify (sidecar wake)"
 description: >
   RC3a fix. No-LLM sidecar listener (AEF ADR §5): remote-write -> local flag/KV + heartbeat timestamp; turn-based agent cooperatively polls local flag at its yield points; stale timestamped-delta => deaf => stop before acting (self-check-ears); sender missing-ack => retry. The flag is a file/KV, not a keystroke; determinism = the timestamp (absent fresh delta IS the signal). Replaces the preemptive PTY doorbell (T-1800, miss-mid-turn = T-2285 gap). Homes: kv, agent-presence, T-2051 offline-queue. ACs: idle turn-based agent woken deterministically on new mail; stale-delta self-check halts an agent whose listener died; NO preemptive mid-turn injection; missing-ack triggers retry.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:reliable-comms]
 components: []
 related_tasks: [T-2291, T-2292, T-2293]
@@ -16,8 +16,8 @@ related_tasks: [T-2291, T-2292, T-2293]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:22Z
-last_update: 2026-06-27T17:57:41Z
-date_finished: null
+last_update: 2026-06-27T20:32:45Z
+date_finished: 2026-06-27T20:32:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -263,3 +263,6 @@ test -x scripts/notify-sidecar.sh && test -x scripts/notify-check.sh
 ### 2026-06-27T17:57:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-27T20:32:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
