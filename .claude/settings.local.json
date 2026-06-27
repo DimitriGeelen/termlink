@@ -529,7 +529,8 @@
       "mcp__termlink__termlink_whoami",
       "mcp__termlink__termlink_hub_probe",
       "mcp__termlink__termlink_tofu_verify",
-      "mcp__termlink__termlink_agent_listeners_fleet"
+      "mcp__termlink__termlink_agent_listeners_fleet",
+      "mcp__termlink__termlink_agent_chat_arc_recent"
     ]
   },
   "enabledMcpjsonServers": [

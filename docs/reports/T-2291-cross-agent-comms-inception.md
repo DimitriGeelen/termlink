@@ -133,9 +133,30 @@ Cross-agent comms fail along **three orthogonal structural axes**, plus a
   topics-read` registry; a sender cannot resolve *which hub a peer reads*, and
   hubs never federate (by design). *Fix substrate ~80% SHIPPED (agent-presence +
   cv_index); gap = no `addr:port` field + no fleet-rollup reader.*
-- **RC3 — Delivery (confirmation).** Default sends record "sent" with no proof of
-  receipt; "sent ≠ delivered." *Fix mechanism SHIPPED (T-2286 await-ack); gap =
-  opt-in, DM-only, recipient-ack unenforced.*
+- **RC3 — Delivery, which is TWO coupled sub-problems (notify + confirm).**
+  - **RC3a — Notification/wake (the load-bearing one).** A harness-driven agent
+    is turn-based and idle between turns; it does not watch the bus. If nothing
+    *wakes* it, the message sits unread, no receipt is ever written, and the
+    confirm chain is plumbing on a tap that never opens. Poll-to-discover is
+    structurally impossible for harness agents (§5 rejection). The shipped
+    epoch-1 mechanism (T-1800 PTY doorbell) is *preemptive* and can be **missed
+    mid-turn** (the open T-2285-class gap). **Mechanism of choice = the epoch-2
+    §5 deterministic-sidecar listener:** a no-LLM sidecar does a **remote-write →
+    local flag/KV + heartbeat timestamp** on the recipient host; the agent
+    **cooperatively polls the local flag at its own yield points**; a **stale
+    timestamped delta ⇒ "deaf" ⇒ stop before acting** (self-check-ears) so a
+    broken listener is *self-detected*, never silently missed; sender
+    missing-ack ⇒ retry. "The flag is a file/KV, not a keystroke." Determinism
+    comes from the timestamp (absence of a fresh delta is itself the signal),
+    not from the transport. Source: AEF ADR §5 / `docs/architecture/parallel-
+    execution-substrate.md`; substrate homes shipped (`kv` flag, `agent-presence`
+    timestamp, T-2051 queue).
+  - **RC3b — Confirmation.** Once read, "sent ≠ delivered" is closed by the
+    recipient-ack advancing the `channel.receipts` frontier; the sender's
+    await-ack retry reads it. *Mechanism SHIPPED (T-2286 `--await-ack`,
+    `e67ded8f`); gap = opt-in, DM-only, recipient auto-ack is an unenforced
+    sidecar convention.* The §5 sidecar is also the natural home for the
+    recipient auto-ack (it emits `channel.ack` after materializing the mail).
 - **META — Discoverability.** No-federation is a deliberate design choice that is
   not surfaced *at the moment of failure*, so peers (ring20 T-1259/T-1264/T-1296
   ×3, and the manager in the triggering incident) keep re-diagnosing it as "the
@@ -159,7 +180,7 @@ cost basis where a mechanism turned out already-shipped).
 |---|---|---|---|---|---|---|---|---|
 | **V1** per-agent identity keys | RC1 | 3 | 4 | 4 | 4 | 15 | **S→M** | Crypto SHIPPED (T-1693/G-056); work = make per-agent key the **default** in register/`be-reachable`/heartbeat. Blast: DM-topic discontinuity, fp churn, TOFU re-pin (reversible). |
 | **V2** fleet peer registry | RC2 | 3 | 4 | **5** | 3 | 15 | **S→M** | ~80% SHIPPED on agent-presence + cv_index (A4); add `addr:port` to heartbeat + fleet-rollup reader. **NOT `kv`** (per-session, wrong scope). Biggest "stop knowing topology by hand" win. New fleet state = staleness risk. |
-| **V3** delivery-confirm default | RC3 | **5** | **5** | 4 | 4 | **18** | **S** | **Strongest + cheapest.** Mechanism SHIPPED (T-2286 + T-2049 + T-2051); work = flip `--await-ack` to **default** for `/agent-handoff`,`/reply`,`agent-send.sh` + enforce recipient-ack. Turns every silent "sent-but-lost" into a loud timeout. Serves G-019 + PL-011 directly. |
+| **V3** delivery (notify + confirm) | RC3a+b | **5** | **5** | 4 | 4 | **18** | **S→M** | **Strongest.** Confirm half SHIPPED (T-2286 `--await-ack` + T-2049 + T-2051) — flip to default + enforce recipient auto-ack. **Notify half = the §5 deterministic-sidecar listener** (remote-write→local flag/KV + heartbeat timestamp; cooperative yield-point poll; stale-delta self-check; missing-ack retry) — designed (AEF epoch 2), not yet built for comms → the real cost. Replaces the preemptive PTY doorbell (T-2285 miss-gap). Turns silent "sent-but-lost" into deterministic, self-detecting delivery. Serves G-019 + PL-011 directly. |
 | **V4** opt-in cross-hub relay | RC2(alt) | 3 | 4 | 3 | 3 | 13 | L | A deliberate, loud cross-post bridge (NOT passive replication, which G-060/T-2229 reject). Net-new hub surface = new failure mode. Only if a hard cross-hub need emerges that V2 routing can't serve. |
 | **V5** single-hub convergence | RC2(alt) | 2 | 4 | 4 | **1** | 11 | XL | Simplest delivery story but **violates Portability** (SPOF — one hub down = whole fleet dark, contra A1's observed darkness) + low Antifragility. XL migration. Lowest score. |
 
@@ -174,9 +195,14 @@ fully solves comms alone.
 **Going-in recommendation was DEFER; after the RCA it is GO on a composite of
 V3 + V2 + V1, sequenced V3 → V2 → V1.** Rationale:
 
-1. **V3 first** (cost S) — flip ack-with-retry to default. Near-zero build,
-   immediately converts silent loss into loud timeout fleet-wide. Highest
-   directive sum (18). Standalone value even before V2/V1.
+1. **V3 first** (cost S→M) — TWO halves. (a) *Confirm*: flip T-2286 await-ack to
+   default (near-zero, shipped). (b) *Notify*: stand up the §5 deterministic-
+   sidecar listener (remote-write → local flag/KV + heartbeat timestamp;
+   cooperative yield-point poll; **stale-delta self-check ⇒ deaf ⇒ stop**;
+   missing-ack retry) as the cross-agent wake substrate — *replacing* the
+   preemptive PTY doorbell (T-2285 miss-gap). The notify half is the real build;
+   homes exist (`kv`, `agent-presence`, T-2051). Determinism is the timestamp,
+   not the transport. Highest directive sum (18); standalone value before V2/V1.
 2. **V2 second** (cost S→M) — add `addr:port` to the agent-presence heartbeat +
    a fleet-rollup registry reader. Gives senders the *right hub*, so V3's
    await-ack lands where the peer actually reads. Builds on shipped substrate.
@@ -205,6 +231,88 @@ human's. Record via `fw task review T-2291` (Watchtower).
 - Operator authorized the inception (5 variants, directive-scored, 5 research
   agents, ~8 turns). Filed T-2291 with going-in recommendation DEFER. This
   artifact created before research (C-001).
+
+### 2026-06-27 — refinement dialogue with operator (step-by-step)
+- **Step 1 — RCA decomposition: ACCEPTED.** Operator confirmed the three
+  orthogonal axes (RC1 identity / RC2 routing / RC3 delivery) + META
+  discoverability; no RC4 raised, not over-split.
+- **Step 2 — RC1 identity / V1: keying model = (a) stable per-agent-id key**
+  (`~/.termlink/identities/<agent_id>.key`, reused across sessions; identity =
+  logical role, keeps DM history continuous while agent_id stable). **Clean
+  cutover accepted** — no DM-history migration/alias needed (fleet is dark; old
+  shared-key threads may orphan). This is also what keys RC2's registry correctly.
+- **Step 3 — RC2 routing / V2:** registry built on agent-presence + cv_index
+  (NOT kv). Two additive deltas: (1) `addr:port` in heartbeat, (2) client-side
+  fleet-rollup reader over `hubs.toml`. **Decisions:** `addr:port` source of
+  truth = **hub-stamped observed address**, self-report as fallback (renumber-
+  proof — ring20 churn lesson). **Fleet rollup = client-side fan-out** (respects
+  G-060 no-federation), **hubs.toml bootstrap dependency accepted for v1**
+  (self-discovery deferred as a separate, larger problem).
+- **Step 4 — RC3 delivery / V3: SPLIT into RC3a notify + RC3b confirm.** Operator
+  flagged the missing tier: confirmation is plumbing on a tap that never opens
+  unless the recipient is *woken*. Confirm half (RC3b) = T-2286 await-ack
+  (shipped). **Async-tracked chosen (1b)** but with a DETERMINISTIC notify
+  mechanism, NOT a poll/preemptive doorbell. **Mechanism = the epoch-2 AEF §5
+  deterministic-sidecar listener** ("remote file write through a listener +
+  timestamped delta"): no-LLM sidecar does remote-write → local flag/KV +
+  heartbeat timestamp; agent cooperatively polls the local flag at its yield
+  points; stale-delta ⇒ deaf ⇒ stop (self-check-ears); missing-ack ⇒ retry.
+  Determinism = the timestamp (absent fresh delta is itself the signal), not the
+  transport. This **answers two challenges I (agent) raised**: a local file CAN
+  cross hosts because the listener runs on the recipient host and owns the hop;
+  and it is neither bus-polling (cheap local flag read) nor preemptive (no
+  mid-turn miss; replaces the T-2285-gapped PTY doorbell). V3 cost revised S →
+  **S→M** (the notify listener is the real, not-yet-built-for-comms delta;
+  homes exist: `kv`, `agent-presence`, T-2051). Source: AEF ADR §5 /
+  `docs/architecture/parallel-execution-substrate.md`; [[reference_wakeup_two_epochs]].
+- **Step 5 — META discoverability: NO standalone variant — folds into V2/V3.**
+  V2 removes the *need* to know hub topology by hand; V3 removes the *silence*.
+  Residual META = 3 cheap riders: (1) loud in-the-moment "this hub does not
+  federate — peer reads `<hub>`" hint (rides V2); (2) **delivery canary = the
+  unconfirmed-set made observable — MUST-HAVE**, falls out of V3 async-tracked
+  for free, kills the write-only-sink class (`framework:pickup` 36-sent/0-recv);
+  (3) **false-green probe fix (G-155) IN SCOPE as a small V2 follow-on** (probe
+  the intended correspondent on the hub they read, not configured peers — needs
+  the registry to know who/where).
+- **Step 6 — V4/V5 + the V6 pivot.** V5 single-hub **REJECTED** (Portability=1,
+  SPOF — A1 saw the fleet dark live; XL). V4 continuous-relay **HOLD/lean-reject**
+  (V2 + explicit `--hub` cover per-message cross-hub; V4's standing bridge ≈ the
+  passive replication G-060 rejects). **Operator pivot:** critically re-evaluate
+  the "comms over hub" principle → **V6: direct host-to-host transport-first +
+  discovery service + hub-as-fallback.** Critical reframe (agent): V6 does NOT
+  escape V1/V2/V3 — identity (auth the socket + gate discovery), discovery-
+  registry (V2 re-pointed to `host:port`), and §5-notify (wake needed on any
+  transport) are the shared foundation. V6 adds a transport plane on top. Cost
+  **L→XL**; gated on a reachability spike (dispatched).
+  - **Bidirectionality (operator catch):** V2 registry is SYMMETRIC (any agent
+    resolves any agent both directions); V1 is the prerequisite that makes the
+    *sender* nameable for the reply. Both ends must be registered; envelope
+    carries self-reported return-address as fallback (hub-stamped = source of
+    truth, mirrors Step-3). Conversation locus: **(a) split/registry-resolved**
+    chosen for v1 ((b) home-hub later if thread-locality hurts; (b) gives V4's
+    shared-locus benefit without the blind mirror).
+  - **Audit (operator inversion — CORRECT):** the single hub-firehose IS the
+    obfuscation problem, not the audit asset — 31,527 heartbeats = 70.5% of the
+    store, ~30k stale, O(N≈30k) join walk (comms-analysis 2026-06-22). **Decision:
+    durable 1-to-1 messages move OFF the firehose** → per-conversation/per-agent
+    append-only journal (T-2250 Tier-0 pattern + offline-queue/ack-retry SQLite);
+    fleet forensic = aggregate-on-demand across journals (the `/recent-dm`-walks-
+    hubs pattern, re-pointed). Hub keeps presence/discovery, broadcast, store-and-
+    forward fallback. Makes messages MORE findable.
+  - **Discovery (operator decision): TWO-TIER.** Tier 1 = LAN broadcast (CSMA/CD-
+    style, hub-optional, renumber-proof — antidote to ring20 churn, same-broadcast-
+    domain only). Tier 2 = hub registry (primary/initial/bootstrap + cross-VLAN +
+    fallback). Guardrail: broadcast is a HINT not trust — V1 keypair (T-2024
+    symmetric auth) is the gate; discovery resolves *where*, identity proves *who*.
+  - **Confirm ladder (3 levels, operator: elaborate→accepted):** (1) TCP ACK =
+    weak, ignore as delivery; (2) sidecar "journaled" receipt on the open socket =
+    strong synchronous "delivered to mailbox," no hub/poll, AND makes the direct
+    path store-and-forward (survives recipient restart); (3) read-receipt =
+    async "consumed" at the agent's yield point. Direct path confirms via (2)+(3);
+    **hub receipts-frontier (T-2286) = FALLBACK-path confirm ONLY.** One sender-API
+    confirm contract across both transports; §5 sidecar is the common receipt
+    producer. Hub fallback now triggers only when the recipient HOST is unreachable
+    (not merely agent-busy — the sidecar journal covers that).
 
 ### 2026-06-27 — 5 agents landed, RCA synthesized
 - All 5 research agents returned and independently converged. Two corrections to

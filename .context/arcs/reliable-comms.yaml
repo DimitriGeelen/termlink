@@ -1,0 +1,23 @@
+id: arc-003
+slug: reliable-comms
+name: "Reliable cross-agent communication"
+description: "Permanent fix for recurring cross-agent comms failures (RC1 identity / RC2 routing\
+  \ / RC3 delivery). Sequenced arc V1 to V6 from inception T-2291. Foundation (V1\
+  \ identity, V2 discovery registry, V3 deterministic notify+confirm) fixes observed\
+  \ failures by promoting shipped primitives; V6 apex pivots to direct host-to-host\
+  \ transport with hub fallback (reachability GO \u2014 flat LAN). Tier-1 mDNS deferred\
+  \ (T-006). V4/V5 rejected."
+status: draft
+anchor_task: T-2291
+headline_mechanic: "An agent sends a message to a peer by identity and receives a confirmed delivery\
+  \ receipt \u2014 delivered direct host-to-host on the LAN with hub fallback \u2014\
+  \ instead of seeing it silently lost across non-federating hubs."
+demo_evidence: null
+created: 2026-06-27T16:25:39Z
+closed_at: null
+decision: null
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.

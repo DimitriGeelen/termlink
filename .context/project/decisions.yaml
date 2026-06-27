@@ -458,3 +458,45 @@ decisions:
     date: 2026-06-24
     task: T-2267
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-045
+    decision: "Put both the durable tracker AND the `await_ack_with_retry` loop in `termlink-session`, with the loop generic over injected `post_fn` / `receipts_fn` / clock / sleep closures. The CLI (`run_await_ack`) supplies real closures wrapping `rpc_call_authed`."
+    scope: project
+    date: 2026-06-25
+    task: T-2286
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-046
+    decision: "Prove the hub dedupe leg via the existing `termlink-hub` test (`dedupe_with_client_msg_id_duplicate_returns_cached_offset`) and the sender reuse leg via `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (dedupe-honouring fake hub)."
+    scope: project
+    date: 2026-06-25
+    task: T-2286
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-047
+    decision: "Persist `(dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms)` rather than the AC's literal `retry_deadline_ms`."
+    scope: project
+    date: 2026-06-25
+    task: T-2286
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-048
+    decision: "ship `channel awaiting-ack` as a single read verb (human + `--json`), no `--watch`/`--notify`/`--log` slices."
+    scope: project
+    date: 2026-06-26
+    task: T-2287
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-049
+    decision: "copy the queue-status handler's missing-file-is-healthy-empty-state contract, JSON-envelope shape, and path-resolution pattern."
+    scope: project
+    date: 2026-06-26
+    task: T-2287
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-050
+    decision: "Fire (exit 1) ONLY on `status != work-completed` (the true finalization"
+    scope: project
+    date: 2026-06-27
+    task: T-2290
+    rationale: "Auto-captured from task file on completion"

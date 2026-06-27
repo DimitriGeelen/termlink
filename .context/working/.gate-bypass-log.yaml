@@ -1769,3 +1769,45 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -4'
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Inception decision: NO-GO'
+- timestamp: '2026-06-25T22:54:19Z'
+  task: 'T-2285'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
+- timestamp: '2026-06-26T10:01:16Z'
+  task: 'T-2288'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
+- timestamp: '2026-06-27T06:38:31Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2290'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2290-finalization-bypass-canary--flag-complet.md .context/episodic/T-2290.yaml
+git status --short | grep T-2290
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw '
+- timestamp: '2026-06-27T06:41:20Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2290'
+  command: 'cd /opt/termlink
+python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml)); print(concerns.yaml parses OK)"
+git add .context/project/concerns.yaml
+FW_SWITCH_FOCUS=1 .agentic-fr'
+- timestamp: '2026-06-27T07:06:37Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2290'
+  command: 'cd /opt/termlink
+python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml)); print(concerns.yaml parses OK)"
+git add .context/project/concerns.yaml
+FW_SWITCH_FOCUS=1 .agentic-fr'
+- timestamp: '2026-06-27T16:40:17Z'
+  task: 'T-2291'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

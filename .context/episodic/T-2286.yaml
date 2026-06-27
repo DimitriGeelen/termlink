@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2286: Build ack-with-retry client helper (T-2285 Design A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-25T23:33:37Z
+# ============================================================================
+
+task_id: T-2286
+task_name: "Build ack-with-retry client helper (T-2285 Design A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-25T23:07:34Z
+completed: 2026-06-25T23:33:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-06-26T01:08:52+02:00
+last_commit: 2026-06-26T01:33:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  scope ack-with-retry client helper build (T-2285 Design A GO follow-up). ack_retry module — durable AwaitingAckTracker + exactly-once retry loop (Design A core). wire channel post --await-ack/--retry CLI verb to ack_retry helper. document ack-with-retry — recipient auto-ack convention + sender recipe + ADR cross-ref. tick ACs + record decisions (layering, two-halves test, schema) + fabric card
+
+# Key outcomes
+outcomes:
+  - 'A durable **awaiting-ack tracker** persists the post identity + attempts to a SQLite store, reusing the T-2051 `outbound.sqlite` conventions (single-writer `Mutex<Connection>`, `TERMLINK_IDENTITY_DIR`-aware path); a confirmed ack deletes the row. — `AwaitingAckTracker` in `crates/termlink-session/src/ack_retry.rs` (schema `awaiting_ack(dm_topic, msg_offset, client_msg_id UNIQUE, recipient_sender_id, attempts, enqueued_ms)`; `record`/`bump_attempts`/`confirm`/`get`/`list`). See Decisions re: schema refinement.'
+  - 'An `await_ack_with_retry` helper in `termlink-session` posts with a **stable** `client_msg_id`, polls the receipt frontier until the recipient''s `up_to >= offset` OR the deadline, and on deadline **re-posts the SAME `client_msg_id`** (≤ `max_attempts`) — relying on T-2049 dedupe for exactly-once. — `ack_retry::await_ack_with_retry` (generic over post/receipts/clock closures) + `await_ack_with_retry_realtime` wrapper.'
+  - 'CLI verb surface `channel post --await-ack [--retry] [--ack-timeout-secs N] [--max-attempts N]` wires the helper; **without** `--await-ack` the post path is byte-for-byte unchanged (backward compatible — await-ack is a separate early-return branch). — `cli.rs` flags (with `requires = "await_ack"`, verified live), `main.rs` dispatch, `run_await_ack` in `channel.rs`.'
+  - 'A test proves retry-after-dead-recipient is exactly-once: the recipient withholds its ack until after ≥1 retry; asserts (a) exactly **one** append across both attempts (dedupe absorbs the retry), (b) the helper returns success once `up_to >= offset`. — `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (sender half) complements hub-side `dedupe_with_client_msg_id_duplicate_returns_cached_offset` (hub half). See Decisions re: two-halves strategy.'
+  - 'The **recipient auto-ack convention** is documented for the AEF harness — `docs/operations/substrate-ack-with-retry.md` § "Recipient half" + substrate ADR §6 #5 cross-reference, explicitly flagged as the AEF-layer responsibility.'
+  - 'Retry-policy defaults align with AEF §6 heartbeat numbers (poll cadence ~5s, deadline ~30s, 3 attempts; documented tunable via `--ack-timeout-secs`/`--max-attempts`). — `RetryPolicy::default()` + `from_operator` + `from_operator_clamps_and_defaults` test.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-26 — Orchestration logic lives in termlink-session, generic over closures'
+    chose: 'Put both the durable tracker AND the `await_ack_with_retry` loop in `termlink-session`, with the loop generic over injected `post_fn` / `receipts_fn` / clock / sleep closures. The CLI (`run_await_ack`) supplies real closures wrapping `rpc_call_authed`.'
+    rationale: 'The exactly-once invariant becomes provable with **zero hub scaffolding** — a fake `post_fn` that simulates T-2049 dedupe + a fake clock the `sleep_fn` advances make the retry test instant and deterministic. Keeps the receipts-RPC plumbing (CLI-layer) out of the helper.'
+    alternatives_rejected: ['Putting the loop in `termlink-cli` (couldn''t unit-test without a live hub) and a hub-side enforced-redelivery design (Design B — makes the hub delivery-stateful; rejected at inception for blast radius).']
+  - decision: '2026-06-26 — Exactly-once proven in two halves, not one live-hub integration test'
+    chose: 'Prove the hub dedupe leg via the existing `termlink-hub` test (`dedupe_with_client_msg_id_duplicate_returns_cached_offset`) and the sender reuse leg via `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (dedupe-honouring fake hub).'
+    rationale: 'The full chain is covered without standing up an in-process hub that implements BOTH dedupe AND `channel.receipts` (neither existing test harness does both). Each half is sharp and fast.'
+    alternatives_rejected: ['Extending the `FakeHub` in `bus_client_integration.rs` to implement dedupe + receipts — more scaffolding for no additional coverage, since the hub dedupe is already independently tested.']
+  - decision: '2026-06-26 — Tracker schema refinement vs the literal AC'
+    chose: 'Persist `(dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms)` rather than the AC''s literal `retry_deadline_ms`.'
+    rationale: 'The per-attempt deadline is a transient computed from `now + deadline_ms` inside the loop — persisting it would be stale on reload. `recipient_sender_id` (whose ack we await) is the genuinely useful durable field for a recovery sweep. Tracker durability + confirm-on-ack semantics (the AC''s substance) are fully met.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-session/src/ack_retry.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'docs/architecture/parallel-execution-substrate.md'
+  - 'docs/operations/substrate-ack-with-retry.md'
+  - '.fabric/components/crates-termlink-session-src-ack_retry.yaml'
+  - '.tasks/active/T-2286-build-ack-with-retry-client-helper-t-228.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-26T01:08:52"
+    action: "T-2286: scope ack-with-retry client helper build (T-2285 Design A GO follow-up)"
+  - time: "2026-06-26T01:22:58"
+    action: "T-2286: ack_retry module — durable AwaitingAckTracker + exactly-once retry loop (Design A core)"
+  - time: "2026-06-26T01:30:20"
+    action: "T-2286: wire channel post --await-ack/--retry CLI verb to ack_retry helper"
+  - time: "2026-06-26T01:31:31"
+    action: "T-2286: document ack-with-retry — recipient auto-ack convention + sender recipe + ADR cross-ref"
+  - time: "2026-06-26T01:33:12"
+    action: "T-2286: tick ACs + record decisions (layering, two-halves test, schema) + fabric card"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 5 commit(s), 25 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 25
+  commits: 5
+  files_changed: 10
+  lines_added: 1356
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2286-build-ack-with-retry-client-helper-t-228.md
+generated_by: context-agent-hybrid
