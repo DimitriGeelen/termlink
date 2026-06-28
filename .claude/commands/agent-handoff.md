@@ -1,8 +1,11 @@
-# /agent-handoff - Cross-Host Agent Contact (T-1429 wrapper)
+# /agent-handoff - Cross-Host Agent Contact (T-1429 wrapper; T-2295 confirm-default)
 
-Wraps `termlink agent contact` so vendored Claude Code agents can hand off
-context to a peer agent in one command. Replaces the legacy `remote push`
-+ inbox.push improv pattern (T-1166 retired).
+Hands off context to a peer agent in one command. As of T-2295 (arc-003
+reliable-comms V3b) the DEFAULT path is delivery-confirming (`agent-send.sh`
+doorbell+receipt — confirms or fails LOUD), with a `--no-await-ack` fire-and-forget
+opt-out and a fire-and-forget `agent contact` fallback for the legacy display_name
+namespace. Replaces the legacy `remote push` + inbox.push improv pattern (T-1166
+retired).
 
 **Invocation:** `/agent-handoff <target> <task-id> "<message>"`
 
@@ -67,27 +70,58 @@ agent on this host until T-1693 (per-agent identity keys) ships.
 Sufficient for handoff audit; ambiguous if you need to attribute a
 handoff to a specific agent vs another agent on the same host.
 
-## Step 3: Post to the peer
+## Step 3: Hand off to the peer — delivery-confirming by DEFAULT (T-2295/V3b)
 
-Run:
+Arc-003 reliable-comms RC3b: a handoff must **confirm delivery or fail LOUD** —
+never silently record "sent" when the peer never received it. The default path
+therefore uses the doorbell+mail transport (`agent-send.sh`), which wakes the
+peer's listener and waits for a delivery receipt, exiting non-zero if no receipt
+arrives.
+
+**Default (confirming) — use this unless you have a reason not to:**
+
+```
+scripts/agent-send.sh --to "<target>" --message "[<task-id>] <message>"
+```
+
+Here `<target>` is the peer's **agent_id** as advertised on `agent-presence`
+(what `/be-reachable`, `/peers`, and `/find-idle` show — NOT a display_name).
+agent-send.sh resolves the peer across the fleet, rings its doorbell, and waits
+for a receipt:
+- **exit 0 + `DELIVERED`** — the peer received it (receipt observed). The line
+  carries the cid + receipt offset.
+- **exit 3 + `FAILED`** — no receipt after N rings (peer unreachable / not
+  running a listener). This is the RC3b fail-loud — do NOT report success.
+- **exit 2** — usage / resolution failure (peer not on any hub; see stderr).
+
+If you want the peer's reply in the same call, add `--await-reply <secs>`
+(exit 4 = delivered but no reply within the window).
+
+**Opt-out (fire-and-forget) — only when you explicitly do NOT need confirmation:**
+
+```
+scripts/agent-send.sh --to "<target>" --message "[<task-id>] <message>" --no-await-ack
+```
+
+Prints `POSTED` and exits 0 without ringing the doorbell or waiting — delivery is
+NOT confirmed. Use only for advisory/broadcast-style notes where a lost message
+is acceptable.
+
+**Fallback (legacy display_name namespace / no live listener):** if `<target>`
+is a display_name (resolvable only via `session.discover`) rather than an
+agent_id, or the peer is not running a listener to doorbell, use the original
+fire-and-forget verb:
 
 ```
 termlink agent contact "<target>" --message "[<task-id>] <message>" --json
 ```
 
-Capture stdout. The actual JSON shape (T-1429 Phase-1, verified live
-2026-05-01):
-
-```json
-{
-  "delivered": { "offset": <integer>, "ts": <ms-since-epoch> }
-}
-```
-
-If exit code is non-zero or `delivered` is missing: **stop**. Print the
-verb's stderr and exit non-zero. The verb already prints actionable
-errors (peer offline, missing identity_fingerprint, etc.) — do not
-swallow them.
+This posts to the dm topic and returns `{"delivered": {"offset", "ts"}}` — but
+`delivered` here means **hub-accepted, not peer-received** (the PL-011 gap RC3b
+closes). Treat it as best-effort. If exit code is non-zero or `delivered` is
+missing: **stop**, print the verb's stderr, exit non-zero (its errors are
+actionable — do not swallow them). For peers lacking `identity_fingerprint`
+(exit code 8), see Step 3.5.
 
 ### Step 3.5: Fallback when peer lacks identity_fingerprint (T-1644)
 
@@ -134,22 +168,42 @@ Append to the `## Updates` section of `.tasks/active/<task-id>-*.md`:
 
 ```
 ### {ISO-8601 UTC now} — handoff-posted [agent-handoff-skill]
-- **Action:** Cross-host handoff via `termlink agent contact`
+- **Action:** Cross-host handoff via `agent-send.sh` (delivery-confirming) — or
+  `agent contact` (fire-and-forget fallback); name which path was used
 - **Target:** <target>
 - **Self:** <self sender_id> (or `unknown` if whoami was ambiguous)
 - **Offset:** <offset>
 - **Message:** [<task-id>] <first 80 chars of message>...
-- **Status hint:** awaiting-reply
+- **Delivery:** CONFIRMED (receipt @ offset=<recv>) | POSTED (--no-await-ack) |
+  HUB-ACCEPTED (agent contact fallback — peer-receipt not confirmed)
 ```
 
 Use `>>` append, not full-file rewrite.
 
 ## Step 5: Report to user
 
-Print a 4-line summary:
+Print a summary keyed to which path ran:
+
+**Confirming default (DELIVERED):**
 
 ```
-✓ Handed off to <target> on dm:<a>:<b> @ offset=<offset>
+✓ Delivered to <target> (receipt @ offset=<recv>, cid=<cid>)
+  Self: <self sender_id>
+  Task <task-id> updated with handoff entry
+```
+
+**Confirming default FAILED (exit 3) — do NOT claim success:**
+
+```
+✗ Handoff to <target> NOT confirmed — no receipt after N rings (peer
+  unreachable or not running a listener). Turn was posted but delivery is
+  unconfirmed. Retry when the peer is LIVE (check /peers --all).
+```
+
+**Fire-and-forget (--no-await-ack) or agent contact fallback:**
+
+```
+~ Posted to <target> @ offset=<offset> (delivery NOT confirmed)
   Self: <self sender_id>
   Task <task-id> updated with handoff entry
   Reply via: termlink channel subscribe dm:<a>:<b> --cursor <offset+1>
@@ -190,7 +244,17 @@ Expected: offset returned, T-1429 task file gets an Update entry with
 
 - `/check-arc` (`T-1810` + `T-1874`) — RECEIVE side; T-1874 closed the
   same `whoami` self-fp gap there. Step 2 in this skill applies the
-  same fix to the SEND side for log audit consistency.
+  same fix to the SEND side for log audit consistency. The RESPOND path
+  (`/check-arc respond`) is what emits the delivery receipt this skill's
+  confirming default waits for (T-2295/V3b).
+- **T-2295** (arc-003 reliable-comms V3b) — flipped this skill's default
+  to delivery-confirming via `scripts/agent-send.sh` (confirm-or-fail-loud,
+  `--no-await-ack` opt-out). The receipt mechanism is the `msg_type=receipt`
+  envelope (posted by the receiver on read via `/check-arc respond` /
+  `agent-respond.sh`), which does NOT touch the `channel.receipts` frontier
+  and so is V3a-wake-safe. Round-trip is self-validated by
+  `scripts/test-agent-send.sh` (paths A–G); live cross-host validation needs
+  a peer running `/be-reachable`.
 - `/be-reachable` (`T-1841`) — establishes presence on `agent-presence`,
   which is what Step 2 reads to resolve self-fp.
 - **PL-195** — `whoami` self-fp resolution is structurally broken

@@ -134,5 +134,32 @@ else
     echo "FAIL E: expected rc=4 + 'no reply' (got rc=$rcE)"; sed 's/^/  E| /' "$tmp/E.out"; fail=1
 fi
 
+# --- Path F (T-2295/V3b): --no-await-ack -> POSTED, exit 0, NO doorbell rings,
+#     NO receipt wait (fire-and-forget opt-out). ---
+cidF="cidF-$$"
+set +e
+"$SEND" --to-session "$nosess" --topic "$topic" --message "fire-and-forget F" \
+        --conversation-id "$cidF" --no-await-ack >"$tmp/F.out" 2>&1
+rcF=$?
+set -e
+ringsF="$(grep -cE "ring [0-9]+/" "$tmp/F.out" || true)"
+if [ "$rcF" = "0" ] && grep -q "POSTED" "$tmp/F.out" && [ "$ringsF" = "0" ]; then
+    echo "PASS F: --no-await-ack -> POSTED rc=0, 0 rings (fire-and-forget)"
+else
+    echo "FAIL F: expected rc=0 + POSTED + 0 rings (got rc=$rcF, rings=$ringsF)"; sed 's/^/  F| /' "$tmp/F.out"; fail=1
+fi
+
+# --- Path G (T-2295/V3b): --no-await-ack is mutex with --await-reply -> exit 2. ---
+set +e
+"$SEND" --to-session "$nosess" --topic "$topic" --message "bad G" \
+        --no-await-ack --await-reply 3 >"$tmp/G.out" 2>&1
+rcG=$?
+set -e
+if [ "$rcG" = "2" ] && grep -q "mutex with --await-reply" "$tmp/G.out"; then
+    echo "PASS G: --no-await-ack + --await-reply rejected (rc=2)"
+else
+    echo "FAIL G: expected rc=2 + mutex message (got rc=$rcG)"; sed 's/^/  G| /' "$tmp/G.out"; fail=1
+fi
+
 if [ "$fail" = "0" ]; then echo "test-agent-send: ALL PASS"; else echo "test-agent-send: FAILURES"; fi
 exit "$fail"

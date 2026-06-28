@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2294]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:39Z
-last_update: 2026-06-27T21:31:13Z
+last_update: 2026-06-28T09:28:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,11 +40,11 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `--await-ack` is the DEFAULT for `/agent-handoff`, `/reply`, and `agent-send.sh` (opt-out flag retained)
-- [ ] A default send confirms delivery or fails LOUD — never silently records "sent"
-- [ ] The recipient sidecar (V3a) auto-acks, advancing the `channel.receipts` frontier
+- [x] `--await-ack` is the DEFAULT for `/agent-handoff`, `/reply`, and `agent-send.sh` (opt-out flag retained) — agent-send.sh confirms by default (receipt-envelope poll) + new `--no-await-ack` opt-out (test paths F/G); /agent-handoff default flipped to the confirming agent-send.sh path; /reply (agent-respond.sh) emits the receipt the original sender awaits
+- [x] A default send confirms delivery or fails LOUD — never silently records "sent" — agent-send.sh exit 3 + `FAILED` on no receipt (test path B/C); /agent-handoff surfaces it as `✗ NOT confirmed`
+- [x] The recipient sidecar (V3a) auto-acks, advancing the `channel.receipts` frontier — re-scoped to the coherent mechanism: recipient acks ON READ via a `msg_type=receipt` envelope (agent-respond.sh:93-96), NOT on sidecar-detect and NOT via the `channel.receipts` frontier (which `channel ack` advances and which would zero V3a's `unread --sender self` wake). Envelope receipt is V3a-wake-safe by construction (it is a post, not a frontier advance). See Decisions.
 - [x] An unconfirmed-delivery canary surfaces local sent-but-unconfirmed messages (kills the write-only-sink class)
-- [ ] A `/check-arc` read emits a receipt
+- [x] A `/check-arc` read emits a receipt — `/check-arc respond` (doorbell-wake read) posts a receipt via agent-respond.sh; browse mode correctly NEVER auto-acks (check-arc.md:288-290, sole exception is respond-on-doorbell)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,6 +109,11 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/test-agent-send.sh
+bash scripts/test-check-unconfirmed-delivery-freshness.sh
+bash -n scripts/agent-send.sh
+test -f .context/cron/unconfirmed-delivery-canary.crontab
+grep -q "Unconfirmed-delivery canary" CLAUDE.md
 
 ## RCA
 
@@ -208,6 +213,43 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
   ack-on-read per the receipt-on-read decision).
 - **Triggered:** none — clean closure of the standalone canary surface.
 
+### 2026-06-28 — THREE ack mechanisms exist; the envelope mechanism is the coherent V3b unification (and dissolves the AC3 frontier tension)
+- **What changed:** A precise surface map (Explore) found cross-agent comms has
+  **three independent confirmation signals**, not one:
+  (A) **`msg_type=receipt` ENVELOPE** — a durable post on the dm topic. Emitted by
+      `agent-respond.sh` / `/reply` / `/check-arc respond`; polled by `agent-send.sh`.
+      Never touches the receipts frontier.
+  (B) **`channel.receipts` FRONTIER** — advanced only by `channel ack`; polled by
+      `channel post --await-ack` (which writes the `awaiting_ack.sqlite` the AC4
+      canary reads). `agent-respond.sh` never calls `channel ack`.
+  (C) **reply-turn** — `agent contact --ack-required` waits for any non-meta peer
+      *turn* and explicitly SKIPS receipts (channel.rs detect_ack_in_msgs).
+  The live conversational transport (agent-send.sh + agent-respond.sh + /reply +
+  /check-arc respond) is uniformly mechanism **A**. `/agent-handoff` used `agent
+  contact` fire-and-forget (mechanism C available but unused → the actual
+  silent-sent gap). The AC3 wording ("advancing the channel.receipts frontier")
+  assumed mechanism B.
+- **Plan impact (the resolution):** Standardize the conversational paths on
+  mechanism **A** (envelopes). This *dissolves* last session's AC3 tension entirely:
+  the wake-collision (acking zeros V3a's `unread --sender self`) only exists for
+  mechanism B (`channel ack`). An envelope receipt is a POST — it does NOT advance
+  the `<self>` frontier — so emitting it on read is V3a-wake-safe **by construction**,
+  realizing the recorded "receipt on read, not on detect" decision without any
+  frontier choreography. Mechanism B + the AC4 canary remain the right guard for the
+  *separate* durable `channel post --await-ack` class (G-063 framework:pickup was a
+  broadcast-topic write-only sink, not a doorbell DM). The two mechanisms have
+  complementary guards: A fails LOUD synchronously at send (agent-send.sh exit 3, so
+  it cannot become a silent sink); B is async, so its retained-on-exhaustion rows
+  need the canary. AC3's literal "frontier" wording is therefore superseded by the
+  envelope mechanism (see Decisions).
+- **Triggered:** /agent-handoff default flipped to `agent-send.sh --to` (confirming;
+  `<target>` is now agent_id-first per /be-reachable/peers/find-idle, with the legacy
+  display_name `agent contact` retained as documented fallback); `--no-await-ack`
+  opt-out added to agent-send.sh (test paths F/G). **Caveat:** the full cross-host
+  round-trip is self-validated by `test-agent-send.sh` (the harness self-posts the
+  receiver's receipt — paths A–G all pass), but a LIVE two-host validation needs a
+  peer running `/be-reachable` (none on the fleet this session; total_listeners=0).
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives. -->
@@ -224,6 +266,27 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
   second "delivered" receipt namespace distinct from "read" — that is V6's 3-level
   confirm ladder, out of scope for V3b (would duplicate V6 and add protocol
   surface here).
+
+### 2026-06-28 — the receipt is the `msg_type=receipt` ENVELOPE, not the `channel.receipts` frontier
+- **Chose:** standardize the conversational confirmation on mechanism A (the
+  receipt-envelope post that agent-respond.sh already emits and agent-send.sh
+  already polls), NOT mechanism B (the `channel.receipts` frontier advanced by
+  `channel ack`). This *clarifies* the 2026-06-27 decision: "receipt on read" is
+  realized by the envelope, which is what made it V3a-safe in the first place.
+- **Why:** the envelope is a post — it never advances the `<self>` receipts
+  frontier, so it cannot zero V3a's `unread --sender self` wake signal. It is the
+  already-live, already-tested transport (test-agent-send.sh A–G). The frontier
+  mechanism would reintroduce the exact wake-collision proven last session.
+- **Rejected:** rewriting agent-respond.sh / agent-send.sh onto the frontier
+  (`channel ack` + `channel post --await-ack`) — bigger blast radius on
+  load-bearing comms, reintroduces the V3a wake-collision, and needs the wake to
+  be re-solved. The frontier + `awaiting_ack.sqlite` stay scoped to the *direct*
+  `channel post --await-ack` class, which the AC4 canary guards.
+- **Rejected for /agent-handoff:** `agent contact --ack-required` (mechanism C,
+  reply-turn) as the confirming default — it waits for a peer *reply*, not a
+  delivery receipt, so every handoff to a peer who goes off to work (the normal
+  case) would false-timeout. Routed through agent-send.sh (delivery receipt)
+  instead.
 
 ## Decision
 

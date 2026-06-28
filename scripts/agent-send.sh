@@ -52,18 +52,26 @@ Optional:
                           turn (first msg_type=turn with offset > the posted turn
                           on this conversation_id) and print it. Turns
                           send+confirm into a full request->response round-trip.
+  --no-await-ack          OPT OUT of delivery confirmation (T-2295/V3b). Post the
+                          turn and exit 0 immediately WITHOUT ringing the doorbell
+                          or waiting for a receipt — fire-and-forget. By default
+                          (this flag absent) the send confirms delivery or fails
+                          LOUD (exit 3), per arc-003 reliable-comms RC3b. Mutex
+                          with --await-reply (cannot await a reply without first
+                          confirming delivery).
   --dry-run               with --to, print RESOLVED line (incl. resolved hub +
                           routing=local|remote) and exit 0 without posting or
                           injecting (test/preview seam).
 
-Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED)
+Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED,
+            or POSTED if --no-await-ack)
       | 2 usage/precondition (incl. auto-discover resolution failures)
       | 3 not acked after N rings | 4 delivered but no reply within --await-reply
 EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
-to_agent_id="" dry_run=0 peer_hub=""
+to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0
 # Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
 # listener in read-only browse mode and it never acks; `/check-arc respond` tells
 # it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
@@ -81,6 +89,7 @@ while [ $# -gt 0 ]; do
         --max-rings)      max_rings="${2:-}"; shift 2 ;;
         --doorbell-text)  doorbell_text="${2:-}"; shift 2 ;;
         --await-reply)    await_reply="${2:-}"; shift 2 ;;
+        --no-await-ack)   no_await_ack=1; shift ;;
         --dry-run)        dry_run=1; shift ;;
         -h|--help)        usage; exit 0 ;;
         *)                die "unknown arg: $1 (try --help)" ;;
@@ -162,6 +171,12 @@ fi
 if [ -n "$await_reply" ]; then
     [[ "$await_reply" =~ ^[0-9]+$ && "$await_reply" -ge 1 ]] || die "--await-reply must be a positive integer"
 fi
+# T-2295/V3b: --no-await-ack is the explicit fire-and-forget opt-out. It cannot
+# coexist with --await-reply (you cannot await a reply without first confirming
+# the turn was delivered).
+if [ "$no_await_ack" -eq 1 ] && [ -n "$await_reply" ]; then
+    die "--no-await-ack is mutex with --await-reply (cannot await a reply without confirming delivery)"
+fi
 
 # Resolve the destination topic.
 if [ -n "$topic" ]; then
@@ -209,6 +224,16 @@ post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$messa
 post_offset="$(printf '%s' "$post_json" | jq -r '.delivered.offset // empty')"
 [ -n "$post_offset" ] || die "post returned no offset: $post_json"
 echo "agent-send: posted turn to '$topic' (cid=$cid, offset=$post_offset)"
+
+# T-2295/V3b: --no-await-ack opt-out — fire-and-forget. The turn is on the hub;
+# we do NOT ring the doorbell or wait for a receipt. Exit 0 with an explicit
+# POSTED line so the caller knows delivery was NOT confirmed (vs the default
+# DELIVERED path which proves a receipt). RC3b: a confirming send is the default;
+# silence is opt-in, never accidental.
+if [ "$no_await_ack" -eq 1 ]; then
+    echo "agent-send: POSTED (--no-await-ack; fire-and-forget, delivery NOT confirmed) — cid=$cid offset=$post_offset"
+    exit 0
+fi
 
 # 2. Ring the doorbell + wait for a receipt; re-ring up to the cap.
 deliver_offset=""
