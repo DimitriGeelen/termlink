@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2294]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:39Z
-last_update: 2026-06-27T20:33:27Z
+last_update: 2026-06-27T21:31:13Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +43,7 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
 - [ ] `--await-ack` is the DEFAULT for `/agent-handoff`, `/reply`, and `agent-send.sh` (opt-out flag retained)
 - [ ] A default send confirms delivery or fails LOUD — never silently records "sent"
 - [ ] The recipient sidecar (V3a) auto-acks, advancing the `channel.receipts` frontier
-- [ ] An unconfirmed-delivery canary surfaces local sent-but-unconfirmed messages (kills the write-only-sink class)
+- [x] An unconfirmed-delivery canary surfaces local sent-but-unconfirmed messages (kills the write-only-sink class)
 - [ ] A `/check-arc` read emits a receipt
 
 ### Human
@@ -190,6 +190,23 @@ Arc-003 (reliable-comms) slice. RC3b from the T-2291 inception RCA: "sent" ≠ "
   G-063 value], (2) agent-send.sh await-ack default + opt-out, (3) agent contact /
   agent-respond.sh await-ack default, (4) sidecar+check-arc ack-on-read (AC3+AC5
   together per decision above).
+
+### 2026-06-28 — canary cron-wired + LIVE-fired on a real stale obligation (AC4 closed)
+- **What changed:** The canary script + 9/9 test landed last session (detection
+  only). This session closed AC4: created `.context/cron/unconfirmed-delivery-canary.crontab`
+  (07:17 UTC, offset from all existing canaries), installed it to
+  `/etc/cron.d/termlink-unconfirmed-delivery-canary` (T-1722 lint matches the
+  `termlink-$base` candidate → PASS, not dormant), and added the CLAUDE.md canary
+  section (seventh "empty-log = healthy" canary). On first live run the canary
+  **fired (exit 1) on a genuine stale row** — a `dm:6af566c0…:ffffffffffffffff`
+  obligation ~13h old (attempts=2), a leftover T-2286 test artifact (all-`f`
+  recipient). This is real AC4 proof: the write-only-sink class (G-063) surfaced.
+  Per the canary's own remediation, dropped the dead obligation from
+  `~/.termlink/awaiting_ack.sqlite`; canary returned to healthy (exit 0, empty log).
+- **Plan impact:** AC4 done end-to-end. Remaining V3b: AC1/AC2 (agent-send.sh +
+  agent contact + agent-respond.sh await-ack default), AC3+AC5 (sidecar+check-arc
+  ack-on-read per the receipt-on-read decision).
+- **Triggered:** none — clean closure of the standalone canary surface.
 
 ## Decisions
 

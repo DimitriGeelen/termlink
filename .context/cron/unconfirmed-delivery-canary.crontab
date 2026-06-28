@@ -1,0 +1,23 @@
+# T-2295 (arc-003 reliable-comms, V3b) — Unconfirmed-delivery canary (G-063 prevention)
+# Source of truth: /opt/termlink/.context/cron/unconfirmed-delivery-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-unconfirmed-delivery-canary (USER field syntax — do NOT load into a user crontab)
+#
+# G-063 / RC3b: a `channel post --await-ack` writes a durable obligation row to
+# ~/.termlink/awaiting_ack.sqlite (T-2286); `channel awaiting-ack` (T-2287)
+# surfaces every send still waiting for a recipient ack — INCLUDING rows retained
+# after their retry loop was exhausted. Those exhausted rows are the
+# "sent-but-never-confirmed" class: the exact failure G-063 named (framework:pickup
+# at 36-sent / 0-received — a write-only sink nobody noticed). Nothing surfaces them
+# on its own. This daily canary fires (exit 1) when any awaiting-ack row has been
+# outstanding longer than --threshold-secs (default 600), turning a silent lost
+# handoff into a daily alert. Empty log = healthy. /canaries auto-discovers this log.
+#
+# Operator action on firing: the recipient never acked — confirm the peer is LIVE
+# (/peers --all), re-send via /agent-handoff, or drop the stale obligation if the
+# thread is dead. Ad-hoc check: bash scripts/check-unconfirmed-delivery-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:17 UTC — offset from the :13 mirror, :37 framework-pickup,
+# :43 frozen-husk, :47 task-finalization canaries and the :23/:53 heartbeats.
+17 7 * * * root cd /opt/termlink && bash scripts/check-unconfirmed-delivery-freshness.sh --quiet >> .context/working/.unconfirmed-delivery-canary.log 2>&1

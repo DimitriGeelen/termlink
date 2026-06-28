@@ -214,6 +214,35 @@ mirror-drift, substrate-preflight, framework-pickup, frozen-husk, and
 topic-growth canaries above — all six follow the same "empty-log = healthy"
 convention.
 
+### Unconfirmed-delivery canary (T-2295, arc-003 reliable-comms V3b, G-063 prevention)
+
+RC3b made delivery-confirmation observable: `channel post --await-ack` (T-2286)
+writes a durable obligation row to `~/.termlink/awaiting_ack.sqlite`, and
+`channel awaiting-ack` (T-2287) surfaces every send still waiting for a recipient
+ack — INCLUDING rows retained after their retry loop was exhausted. Those
+exhausted rows are the **"sent-but-never-confirmed"** class: the exact failure
+G-063 named (`framework:pickup` at 36-sent / 0-received — a write-only sink nobody
+noticed). Nothing surfaces them on its own. A daily cron runs
+`scripts/check-unconfirmed-delivery-freshness.sh --quiet` (see
+`.context/cron/unconfirmed-delivery-canary.crontab`) and appends to
+`.context/working/.unconfirmed-delivery-canary.log`. Empty log = healthy.
+
+The canary reads `channel awaiting-ack --json` and FIRES (exit 1) when any
+awaiting-ack row has been outstanding longer than `--threshold-secs` (default 600
+= 10 min: a send unacked this long is a stuck delivery). Each firing row names the
+`dm_topic`, recipient, age, and attempt count. Ad-hoc check:
+`bash scripts/check-unconfirmed-delivery-freshness.sh` (exit 0 = healthy,
+1 = firing, 2 = tooling error); add `--json` for scripting, `--threshold-secs N`
+to tune staleness, `--tracker-path P` to point at a non-default sqlite. Test hook
+`TERMLINK_UNCONFIRMED_TEST_JSON=<file>` feeds canned `channel awaiting-ack --json`
+for hub-independent verification. Operator action on firing: the recipient never
+acked — confirm the peer is LIVE (`/peers --all`), re-send via `/agent-handoff`,
+or drop the stale obligation if the thread is dead (delete the row from
+`~/.termlink/awaiting_ack.sqlite`). `/canaries` auto-discovers the log. Pair with
+the mirror-drift, substrate-preflight, framework-pickup, frozen-husk,
+topic-growth, and task-finalization canaries above — all seven follow the same
+"empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
