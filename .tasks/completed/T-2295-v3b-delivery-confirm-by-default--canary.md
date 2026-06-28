@@ -4,10 +4,10 @@ name: "V3b: delivery-confirm by default + canary"
 description: >
   RC3b fix. Flip T-2286 --await-ack to the DEFAULT for /agent-handoff, /reply, agent-send.sh; recipient sidecar (V3a) auto-acks, advancing the channel.receipts frontier. Add an unconfirmed-delivery canary: local sent-but-unconfirmed mirror made observable (kills the write-only-sink class, e.g. framework:pickup 36-sent/0-recv per G-063). ACs: default send confirms or fails LOUD (never silent 'sent'); recipient auto-ack wired; canary surfaces unconfirmed sends; /check-arc read emits a receipt.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:reliable-comms]
 components: []
 related_tasks: [T-2291, T-2294]
@@ -16,8 +16,8 @@ related_tasks: [T-2291, T-2294]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:39Z
-last_update: 2026-06-28T09:28:18Z
-date_finished: null
+last_update: 2026-06-28T09:41:05Z
+date_finished: 2026-06-28T09:41:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -308,3 +308,6 @@ grep -q "Unconfirmed-delivery canary" CLAUDE.md
 ### 2026-06-27T20:33:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-06-28T09:41:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

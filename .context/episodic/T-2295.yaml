@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2295: V3b: delivery-confirm by default + canary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-28T09:41:26Z
+# ============================================================================
+
+task_id: T-2295
+task_name: "V3b: delivery-confirm by default + canary"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-27T17:06:39Z
+completed: 2026-06-28T09:41:05Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-06-27T22:39:55+02:00
+last_commit: 2026-06-28T11:40:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V3b design — resolve AC3↔V3a receipt tension (+ T-2294 closure). V3b unconfirmed-delivery canary script + test (AC4 detection). V3b canary cron-wiring + CLAUDE.md section (AC4 closed, live-fired on real stale row). V3b confirm-default (AC1/2/3/5) — agent-send --no-await-ack opt-out + /agent-handoff confirm-default; envelope receipt-on-read (V3a-safe)
+
+# Key outcomes
+outcomes:
+  - '`--await-ack` is the DEFAULT for `/agent-handoff`, `/reply`, and `agent-send.sh` (opt-out flag retained) — agent-send.sh confirms by default (receipt-envelope poll) + new `--no-await-ack` opt-out (test paths F/G); /agent-handoff default flipped to the confirming agent-send.sh path; /reply (agent-respond.sh) emits the receipt the original sender awaits'
+  - 'A default send confirms delivery or fails LOUD — never silently records "sent" — agent-send.sh exit 3 + `FAILED` on no receipt (test path B/C); /agent-handoff surfaces it as `✗ NOT confirmed`'
+  - 'The recipient sidecar (V3a) auto-acks, advancing the `channel.receipts` frontier — re-scoped to the coherent mechanism: recipient acks ON READ via a `msg_type=receipt` envelope (agent-respond.sh:93-96), NOT on sidecar-detect and NOT via the `channel.receipts` frontier (which `channel ack` advances and which would zero V3a''s `unread --sender self` wake). Envelope receipt is V3a-wake-safe by construction (it is a post, not a frontier advance). See Decisions.'
+  - 'An unconfirmed-delivery canary surfaces local sent-but-unconfirmed messages (kills the write-only-sink class)'
+  - 'A `/check-arc` read emits a receipt — `/check-arc respond` (doorbell-wake read) posts a receipt via agent-respond.sh; browse mode correctly NEVER auto-acks (check-arc.md:288-290, sole exception is respond-on-doorbell)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-27 — receipt emitted on READ, not on sidecar detection'
+    chose: 'the recipient ack (the delivery confirmation the sender''s'
+    rationale: '`channel ack` advances the `<self>` receipt frontier that V3a''s'
+    alternatives_rejected: ['(a) sidecar auto-ack on detection — breaks V3a''s wake. (b) a']
+  - decision: '2026-06-28 — the receipt is the `msg_type=receipt` ENVELOPE, not the `channel.receipts` frontier'
+    chose: 'standardize the conversational confirmation on mechanism A (the'
+    rationale: 'the envelope is a post — it never advances the `<self>` receipts'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/agent-handoff.md'
+  - 'CLAUDE.md'
+  - '.context/cron/unconfirmed-delivery-canary.crontab'
+  - '.context/episodic/T-2294.yaml'
+  - 'scripts/agent-send.sh'
+  - 'scripts/check-unconfirmed-delivery-freshness.sh'
+  - 'scripts/test-agent-send.sh'
+  - 'scripts/test-check-unconfirmed-delivery-freshness.sh'
+  - 'scripts/testdata/unconfirmed-empty.json'
+  - 'scripts/testdata/unconfirmed-fresh.json'
+  - 'scripts/testdata/unconfirmed-stale.json'
+  - '.tasks/active/T-2295-v3b-delivery-confirm-by-default--canary.md'
+  - '.tasks/completed/T-2294-v3a-deterministic-notify-sidecar-wake.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-27T22:39:55"
+    action: "T-2295: V3b design — resolve AC3↔V3a receipt tension (+ T-2294 closure)"
+  - time: "2026-06-27T23:31:11"
+    action: "T-2295: V3b unconfirmed-delivery canary script + test (AC4 detection)"
+  - time: "2026-06-28T11:28:17"
+    action: "T-2295: V3b canary cron-wiring + CLAUDE.md section (AC4 closed, live-fired on real stale row)"
+  - time: "2026-06-28T11:40:56"
+    action: "T-2295: V3b confirm-default (AC1/2/3/5) — agent-send --no-await-ack opt-out + /agent-handoff confirm-default; envelope receipt-on-read (V3a-safe)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 994 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 994
+  commits: 4
+  files_changed: 13
+  lines_added: 644
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2295-v3b-delivery-confirm-by-default--canary.md
+generated_by: context-agent-hybrid

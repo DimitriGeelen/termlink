@@ -4,20 +4,20 @@ name: "V2: fleet discovery registry"
 description: >
   RC2 fix. Resolve agent_id -> {host:port (hub-stamped observed addr, self-report fallback), hub, topics-read, liveness}. remote_store.rs RemoteEntry{host,port,TTL=300s,last_heartbeat} supplies the schema — populate + add fleet-rollup reader over hubs.toml with short TTL. Symmetric (both directions: recipient resolves sender too). Tier-2 only; Tier-1 LAN-broadcast/mDNS DEFERRED (T-006 already rejected mDNS). ACs: registry resolves agent_id->host:port+topics-read; addr is hub-stamped (self-report fallback); rollup walks hubs.toml; reverse lookup works; G-155 false-green probe fixed to test the intended correspondent.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:reliable-comms]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-2291, T-2292, T-2297]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:08Z
-last_update: 2026-06-27T17:39:15Z
-date_finished: null
+last_update: 2026-06-27T17:55:07Z
+date_finished: 2026-06-27T17:55:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -231,3 +231,6 @@ out=$(target/debug/termlink agent resolve __definitely_not_an_agent__ --json 2>&
 
 ### 2026-06-27T17:39:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-06-27T17:55:07Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

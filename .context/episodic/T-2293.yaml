@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2293: V2: fleet discovery registry
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-06-27T17:55:51Z
+# ============================================================================
+
+task_id: T-2293
+task_name: "V2: fleet discovery registry"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-27T17:06:08Z
+completed: 2026-06-27T17:55:07Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-06-27T19:54:39+02:00
+last_commit: 2026-06-27T19:54:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V2 fleet discovery registry (arc-003 reliable-comms)
+
+# Key outcomes
+outcomes:
+  - 'Registry resolves `agent_id` → `{host:port, hub, topics-read, liveness}` for a registered peer — `termlink agent resolve <agent_id> [--json]` (new) via `resolve_agent_registry_via_fleet`. Live proof: resolved `v2-selftest` → LIVE, hub `192.168.10.107:9100`, topics `dm:v2-selftest:*, agent-chat-arc`, fingerprint+host+role.'
+  - 'Observed address is self-reported by the agent (`metadata.addr`), with the resolver falling back to the hub it read the heartbeat from when absent — **self-report baseline shipped** (heartbeat now emits `addr=<hub>`; resolver prefers it, else stamps the found-on hub). The stronger **hub-stamped observed source addr** (hub attests the addr it saw, defeating self-report staleness/spoofing) is sliced to **T-2297 (V2b)**, which V6 (direct transport) consumes — see Decision below.'
+  - 'A fleet-rollup reader walks `hubs.toml` and merges per-hub registries with a short TTL — the resolver walks all hubs (dedup by address), bounded by an 8s per-hub timeout so a dead hub never stalls the walk; liveness TTL via the `agent-presence` 2x/5x interval bands (`fleet_presence`).'
+  - 'Reverse lookup works: a recipient can resolve the SENDER''s address (symmetric, both directions) — `agent resolve` works for ANY agent_id including the caller''s own; symmetric by construction (same code path).'
+  - 'The G-155 false-green probe is fixed: `agent resolve` returns "found" only when the intended correspondent actually has a heartbeat (LIVE/STALE/OFFLINE) on a hub — NOT when a configured hub''s TLS merely handshakes (exit 4 on truly-absent). Unlike `fleet verify`/`fleet doctor`, a configured-but-empty hub yields not-found here.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-06-27 — split observed-addr into self-report (now) + hub-stamp (T-2297)'
+    chose: 'Ship the self-reported `metadata.addr` + resolver-stamped `hub` as'
+    rationale: 'Self-report is the working baseline AC2 itself names as the fallback;'
+    alternatives_rejected: ['(a) Blocking V2 on the full hub-stamp — would balloon one task']
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2292.yaml'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-session/src/fleet_presence.rs'
+  - 'scripts/listener-heartbeat.sh'
+  - '.tasks/active/T-2293-v2-fleet-discovery-registry.md'
+  - '.tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md'
+  - '.tasks/completed/T-2292-v1-per-agent-identity-by-default.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-27T19:54:39"
+    action: "T-2293: V2 fleet discovery registry (arc-003 reliable-comms)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 48 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 48
+  commits: 1
+  files_changed: 9
+  lines_added: 612
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2293-v2-fleet-discovery-registry.md
+generated_by: context-agent-hybrid

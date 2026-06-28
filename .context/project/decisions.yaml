@@ -500,3 +500,59 @@ decisions:
     date: 2026-06-27
     task: T-2290
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-051
+    decision: "A new `TERMLINK_AGENT_ID` env var that, when set, diverts the key"
+    scope: project
+    date: 2026-06-27
+    task: T-2292
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-052
+    decision: "Ship the self-reported `metadata.addr` + resolver-stamped `hub` as"
+    scope: project
+    date: 2026-06-27
+    task: T-2293
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-053
+    decision: "flag + heartbeat as plain files under `~/.termlink/notify/`."
+    scope: project
+    date: 2026-06-27
+    task: T-2294
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-054
+    decision: "the agent polls the local flag at its own yield points."
+    scope: project
+    date: 2026-06-27
+    task: T-2294
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-055
+    decision: "missing-ack→retry = `channel post --await-ack --retry` verbatim."
+    scope: project
+    date: 2026-06-27
+    task: T-2294
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-056
+    decision: "add the sidecar as the deterministic *alternative*; leave"
+    scope: project
+    date: 2026-06-27
+    task: T-2294
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-057
+    decision: "the recipient ack (the delivery confirmation the sender's"
+    scope: project
+    date: 2026-06-28
+    task: T-2295
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-058
+    decision: "standardize the conversational confirmation on mechanism A (the"
+    scope: project
+    date: 2026-06-28
+    task: T-2295
+    rationale: "Auto-captured from task file on completion"
