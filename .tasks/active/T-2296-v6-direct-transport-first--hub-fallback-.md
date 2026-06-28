@@ -4,10 +4,10 @@ name: "V6: direct transport-first + hub fallback + per-conversation journaling"
 description: >
   ARC APEX (highest directive score). Dependency-gated on V1(identity auths socket)+V2(discovery resolves host:port)+V3(notify wakes recipient) — promote to 'now' the moment those land; 'later' is sequencing, NOT backlog. remote_call/remote_exec already direct P2P (TCP+TLS+HMAC, remote.rs:719); reachability spike GO (flat LAN 192.168.10.0/24, no NAT, 3/4 hubs directly reachable). Build: try-direct/fall-back-to-hub orchestration; 3-level confirm ladder (TCP-ack IGNORED as delivery / sidecar-journaled = delivered / read-receipt = consumed) — direct path confirms via sidecar journaled-receipt, hub receipts-frontier (T-2286) is FALLBACK-path only; durable messages move OFF the hub firehose into per-conversation journals (fixes 70.5%-heartbeat obfuscation, T-2250 Tier-0 pattern). ACs: 1:1 msg goes direct when peer reachable, falls back to hub when not; direct delivery confirmed via sidecar journaled-receipt (no hub frontier on direct path); durable msgs do NOT land in hub firehose; per-conversation journal is mineable; cross-host auth uniform (no T-2024 dependency for cross-host path).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:reliable-comms, arc-apex]
 components: []
 related_tasks: [T-2291, T-2292, T-2293, T-2294, T-2295]
@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2292, T-2293, T-2294, T-2295]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:56Z
-last_update: 2026-06-27T17:06:56Z
+last_update: 2026-06-28T09:42:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -150,6 +150,30 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-06-28 — implementation design produced (started; not yet built)
+- **What changed:** With V1/V2/V3a/V3b all shipped (V6's dependency gate is now
+  open), produced a sliced implementation design:
+  `docs/plans/T-2296-v6-direct-transport-first-design.md`. KEY FINDING: V6 is NOT
+  greenfield — direct host-to-host transport already ships (a "direct" 1:1 message
+  is just `channel.post` issued against the **peer's own hub** :9100 instead of the
+  local one; `connect_remote_hub` remote.rs:719, TCP+TLS+HMAC all exist). The
+  transport-select decision belongs in `agent-send.sh`, which already threads
+  `--hub <peer_hub>` through every leg (lines 216-249).
+- **Plan impact:** V6 sliced into 5 dependency-ordered sub-slices (one session can't
+  do L→XL): **S1** per-conversation journal (read-side SQLite mirror, S→M, smallest
+  safe first step, no peer needed) → **S2** reachability-probe + `--transport
+  auto|direct|hub` seam (S; reuses `remote ping`) → **S3** direct confirm via sidecar
+  journaled receipt (M) → **S4** try-direct/fall-back-to-hub orchestration (M,
+  default) → **S5** firehose suppression for `dm:` (M→L, the "off the firehose"
+  move; client-side journal-authoritative recommended over hub-side hot-path change).
+  The 3-level ladder (delivered/read/acted) maps onto the 3 existing ack signals via
+  ONE new `stage=` metadata key on the mechanism-A envelope — no new namespace
+  (honors V3b's mechanism-A decision). Mechanism B stays fallback-only.
+- **Triggered:** next session implements S1 first (committable, peer-free). Open
+  questions for human in the design doc §Risks: (1) S2 on T-2293 self-report addr
+  now vs block on T-2297; (2) S5 end-state hub-side vs client-side; (3) sidecar
+  auto-ack "delivered" ≠ "cognitively present" — acceptable?
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -177,3 +201,7 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2296-v6-direct-transport-first--hub-fallback-.md
 - **Context:** Initial task creation
+
+### 2026-06-28T09:42:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
