@@ -8,15 +8,15 @@ status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: []
+tags: [arc:reliable-comms]
 components: []
-related_tasks: []
+related_tasks: [T-2291, T-2296, T-2298]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-01T20:16:59Z
-last_update: 2026-07-01T20:16:59Z
+last_update: 2026-07-01T20:19:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
