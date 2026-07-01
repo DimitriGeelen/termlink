@@ -59,9 +59,21 @@ Optional:
                           LOUD (exit 3), per arc-003 reliable-comms RC3b. Mutex
                           with --await-reply (cannot await a reply without first
                           confirming delivery).
+  --transport auto|direct|hub
+                          transport-select seam (arc-003 V6-S2, default hub).
+                            hub    = today's behavior — post via the local hub
+                                     (or the peer's hub when --to resolved a
+                                     remote peer). Byte-for-byte unchanged.
+                            direct = intent to send straight to the peer's OWN
+                                     hub; auto = prefer direct, fall back to hub.
+                          S2 computes the chosen plan + probes the peer hub's
+                          reachability and surfaces it (dry-run RESOLVED line /
+                          a stderr plan line on live sends) but does NOT yet
+                          change live routing — the actual try-direct/fall-back
+                          ORCHESTRATION is S4. See docs/operations/agent-send-transport.md.
   --dry-run               with --to, print RESOLVED line (incl. resolved hub +
-                          routing=local|remote) and exit 0 without posting or
-                          injecting (test/preview seam).
+                          routing=local|remote + transport plan) and exit 0
+                          without posting or injecting (test/preview seam).
 
 Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED,
             or POSTED if --no-await-ack)
@@ -71,7 +83,30 @@ EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
-to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0
+to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="hub"
+
+# T-2299/V6-S2: bounded reachability probe. Wraps `termlink remote ping <addr>`
+# (cmd_remote_ping) under a short timeout so a wedged/unreachable peer hub can
+# never hang the send. Echoes `yes` (reachable) or `no`. Test seam:
+#   REMOTE_PING_VERB   overrides the ping command (space-split) so tests can feed
+#                      a canned pass/fail without a second host.
+#   TERMLINK_PROBE_TIMEOUT  overrides the per-probe timeout (default 5s).
+# Loopback (127.0.0.1:<hub-port> up vs a closed port down) exercises both
+# branches against a real hub without a second host.
+_probe_reachable() {
+    local addr="$1" verb
+    if [ -n "${REMOTE_PING_VERB:-}" ]; then
+        # shellcheck disable=SC2206
+        verb=( ${REMOTE_PING_VERB} )
+    else
+        verb=( "$TERMLINK" remote ping )
+    fi
+    if timeout "${TERMLINK_PROBE_TIMEOUT:-5}" "${verb[@]}" "$addr" >/dev/null 2>&1; then
+        echo yes
+    else
+        echo no
+    fi
+}
 # Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
 # listener in read-only browse mode and it never acks; `/check-arc respond` tells
 # it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
@@ -90,6 +125,7 @@ while [ $# -gt 0 ]; do
         --doorbell-text)  doorbell_text="${2:-}"; shift 2 ;;
         --await-reply)    await_reply="${2:-}"; shift 2 ;;
         --no-await-ack)   no_await_ack=1; shift ;;
+        --transport)      transport="${2:-}"; shift 2 ;;
         --dry-run)        dry_run=1; shift ;;
         -h|--help)        usage; exit 0 ;;
         *)                die "unknown arg: $1 (try --help)" ;;
@@ -97,6 +133,8 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$message" ]    || die "missing --message"
+# T-2299/V6-S2: validate transport up front (invalid → exit 2, per die()).
+[[ "$transport" =~ ^(auto|direct|hub)$ ]] || die "--transport must be auto|direct|hub (got '$transport')"
 
 # T-1834: --to <agent-id> auto-discover. Mutually exclusive with explicit
 # routing flags (--to-session/--topic/--peer-fp). If --to is set, resolve
@@ -200,14 +238,38 @@ else
     die "need --topic or --peer-fp"
 fi
 
+# T-2299/V6-S2: compute the transport plan (used by both dry-run and the live
+# stderr plan line). `direct_addr` is the peer's own hub (the direct target) when
+# --to resolved a remote peer, else `local` (the peer is on our hub — direct and
+# hub coincide, nothing remote to probe). `reachable` is probed ONLY for
+# direct/auto against a remote peer hub; `hub` transport and local peers print
+# `skip`. The probe is bounded (never hangs the send) and only runs when the
+# operator explicitly opts into direct/auto, so the default `hub` path adds no
+# network call and no output change.
+direct_addr="${peer_hub:-local}"
+reachable="skip"
+if [ "$transport" != "hub" ] && [ -n "$peer_hub" ]; then
+    reachable="$(_probe_reachable "$peer_hub")"
+fi
+
 # T-2273: with --to + --dry-run, print the fully resolved routing (incl. hub) and
 # stop before any post/inject — the seam tests assert against for cross-hub.
+# T-2299/V6-S2 extends the line with the transport plan.
 if [ "$dry_run" -eq 1 ]; then
-    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local)"
+    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local) transport=$transport direct_addr=$direct_addr reachable=$reachable"
     exit 0
 fi
 
 [ -n "$cid" ] || cid="cid-$(date +%s)-${RANDOM}"
+
+# T-2299/V6-S2: when a non-default transport is requested, record the chosen plan
+# to stderr for observability. This is intent only — live routing still goes via
+# the local/peer hub exactly as before (hub_args below). The actual
+# try-direct/fall-back branch is deferred to S4. The default `hub` transport
+# prints nothing here, so today's behavior is byte-for-byte unchanged.
+if [ "$transport" != "hub" ]; then
+    echo "agent-send: transport-plan: transport=$transport direct_addr=$direct_addr reachable=$reachable — S2 records intent only; live routing still via ${peer_hub:+hub $peer_hub}${peer_hub:-local hub} (direct/fall-back is S4)" >&2
+fi
 
 # T-2273: when the peer was resolved on a remote hub, every leg (mail post,
 # doorbell ring, receipt + reply polling) must target THAT hub, not the local one.
