@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2301: V6-S4 try-direct/fall-back orchestration
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-01T21:49:19Z
+# ============================================================================
+
+task_id: T-2301
+task_name: "V6-S4 try-direct/fall-back orchestration"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-01T21:15:50Z
+completed: 2026-07-01T21:49:04Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-01T23:17:17+02:00
+last_commit: 2026-07-01T23:49:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6-S4 scoped — try-direct/fall-back orchestration (real ACs + design anchors; build-ready for next session). V6-S4 try-direct/fall-back orchestration — default=auto, loud fallback to local-hub store-and-forward (5/5 ACs, orch 5/5 + transport 7/7 + A-G + S3 green). fix orchestration test race — poll for 'posted turn' line before self-ack (fixed sleep raced subprocess under P-011 gate contention)
+
+# Key outcomes
+outcomes:
+  - '`agent-send.sh` default transport flips to `auto`; `auto` runs the S2 reachability probe against the resolved peer addr and branches direct-vs-fallback per design §4. `--transport hub` still forces today''s hub leg byte-for-byte (back-compat escape hatch); `--transport direct` does direct-only'
+  - 'DIRECT branch (peer reachable): posts to the peer''s own hub and confirms via mechanism A (the S3 `stage=delivered` receipt); the doorbell-ring is optional on this path (a running sidecar acks without a woken interactive agent). DELIVERED line surfaces the stage (S3)'
+  - 'FALLBACK branch (`auto`, peer host unreachable): emits a LOUD `agent-send: FALLBACK host <addr> unreachable → hub store-and-forward` line (never a silent downgrade), then runs the hub leg — local store-and-forward (offline queue) + mechanism A/frontier confirm. `--transport direct` on an unreachable host FAILS loud instead of falling back. **(Confirm-source note: build resolved to mechanism A on the fallback leg too, not the design''s mechanism B — see Evolution.)**'
+  - 'The single sender-API confirm contract is preserved (V3b): the caller still learns DELIVERED-or-FAILED loud; only the receipt SOURCE differs by transport (peer-hub sidecar on direct, local-hub+federation on fallback). Existing `agent-send.sh` A–G tests still pass (no observable-contract regression)'
+  - 'Tests prove both branches hub-independently (peer-free, loopback): loopback-up peer → DIRECT branch (DELIVERED via mechanism A); simulated-down peer (closed port / probe seam) → FALLBACK branch (loud FALLBACK line + DELIVERED via the hub leg); `--transport direct` on down host → loud FAIL; A–G + S1/S2/S3 test suites all still pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix orchestration test race — poll for ''posted turn'' line before self-ack (fixed sleep raced subprocess under P-011 gate contention)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/agent-send-transport.md'
+  - 'scripts/agent-send.sh'
+  - 'scripts/test-agent-send-orchestration.sh'
+  - 'scripts/test-agent-send-transport.sh'
+  - '.tasks/active/T-2301-v6-s4-try-directfall-back-orchestration.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-01T23:17:17"
+    action: "T-2301: V6-S4 scoped — try-direct/fall-back orchestration (real ACs + design anchors; build-ready for next session)"
+  - time: "2026-07-01T23:46:59"
+    action: "T-2301: V6-S4 try-direct/fall-back orchestration — default=auto, loud fallback to local-hub store-and-forward (5/5 ACs, orch 5/5 + transport 7/7 + A-G + S3 green)"
+  - time: "2026-07-01T23:49:03"
+    action: "T-2301: fix orchestration test race — poll for 'posted turn' line before self-ack (fixed sleep raced subprocess under P-011 gate contention)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 33 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 33
+  commits: 3
+  files_changed: 5
+  lines_added: 627
+  lines_removed: 76
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2301-v6-s4-try-directfall-back-orchestration.md
+generated_by: context-agent-hybrid
