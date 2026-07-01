@@ -52,6 +52,16 @@ EOF
 # Parse the "posted turn to 'TOPIC' (cid=CID, offset=OFF)" line agent-send emits.
 topic_of()  { sed -n "s/.*posted turn to '\([^']*\)'.*/\1/p" "$1" | head -1; }
 offset_of() { sed -n "s/.*offset=\([0-9][0-9]*\).*/\1/p" "$1" | head -1; }
+# Wait (up to ~12s) for the background send to WRITE its "posted turn" line before
+# parsing — a fixed sleep races the subprocess under load (P-011 gate contention).
+wait_for_post() {
+    local f="$1" i=0
+    while [ "$i" -lt 60 ]; do
+        [ -n "$(topic_of "$f")" ] && return 0
+        sleep 0.2; i=$((i + 1))
+    done
+    return 1
+}
 
 # -------- O1: DIRECT branch (reachable peer) → DELIVERED via mechanism A --------
 # default transport (auto) + reachable loopback hub → direct; self-ack a receipt
@@ -65,7 +75,7 @@ cidO1="cid-o1-$run_tag"
         --conversation-id "$cidO1" --timeout 8 --max-rings 2 >"$tmp/o1.out" 2>&1
     echo $? >"$tmp/o1.rc"
 ) &
-bg=$!; sleep 2
+bg=$!; wait_for_post "$tmp/o1.out"
 t1="$(topic_of "$tmp/o1.out")"; o1off="$(offset_of "$tmp/o1.out")"
 if [ -n "$t1" ]; then
     "$TERMLINK" channel post "$t1" --hub 127.0.0.1:9100 --msg-type receipt \
@@ -93,7 +103,7 @@ cidO2="cid-o2-$run_tag"
         --conversation-id "$cidO2" --timeout 8 --max-rings 2 >"$tmp/o2.out" 2>&1
     echo $? >"$tmp/o2.rc"
 ) &
-bg=$!; sleep 2
+bg=$!; wait_for_post "$tmp/o2.out"
 t2="$(topic_of "$tmp/o2.out")"; o2off="$(offset_of "$tmp/o2.out")"
 if [ -n "$t2" ]; then
     # fallback posted to the LOCAL hub → ack locally (no --hub).
