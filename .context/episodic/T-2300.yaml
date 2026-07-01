@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2300: V6-S3 sidecar journaled-receipt + stage-aware confirm
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-01T21:14:27Z
+# ============================================================================
+
+task_id: T-2300
+task_name: "V6-S3 sidecar journaled-receipt + stage-aware confirm"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-01T21:03:51Z
+completed: 2026-07-01T21:14:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-01T23:14:14+02:00
+last_commit: 2026-07-01T23:14:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6-S3 sidecar journaled-receipt + stage-aware confirm (5/5 ACs; 5/5 S3 tests + A-G/S1/S2 regressions green)
+
+# Key outcomes
+outcomes:
+  - '`notify-sidecar.sh` accepts `--auto-confirm` (default OFF → V3a behavior byte-for-byte: no receipt posted, no journal write). Invalid combinations rejected with exit 2. `--help` documents the flag and its store-and-forward semantics — flag parsed (`--auto-confirm` case), gated behind `[ "$auto_confirm" -eq 1 ]` in the unread loop; T1 proves default-off is a no-op (receipts=0 journal=0); `--help` block added'
+  - 'With `--auto-confirm`, each cycle: for every `dm:<self>:*` topic carrying unread mail, the sidecar (a) mirrors the topic into the S1 journal (`journal-mirror.sh`) and (b) posts a mechanism-A receipt `--msg-type receipt --metadata stage=delivered --metadata up_to=<latest_offset>` to that topic — verified live against a loopback self-posted dm: turn — `_auto_confirm_topic` calls `journal-mirror.sh --topic` + `channel post --msg-type receipt --metadata stage=delivered --metadata up_to=<content-watermark>`; T2 journal rows=3, T3 one stage=delivered receipt up_to=2'
+  - 'Re-post guard: the sidecar records the last-acked offset per topic in a durable local state file under `notify_dir` and posts a NEW receipt only when the latest offset advances — a second `--once` on an unchanged topic posts NO duplicate receipt (no ack spam; survives restart) — guard file `.$agent_id.<topic>.acked`; watermark computed over CONTENT offsets only (meta excluded) so our own receipt does not bump it; T4 second `--once` posts no dup (receipts still 1)'
+  - '`agent-send.sh` receipt poll is stage-aware: it surfaces the receipt''s `stage` (e.g. `DELIVERED (stage=delivered)`) when present, and an un-tagged receipt (pre-S3/V3b shape) still counts as DELIVERED — backward compatible (A–G tests still pass) — poll now captures the whole receipt (`recv_json`), extracts `.metadata.stage`; DELIVERED line = `DELIVERED${stage:+ (stage=$stage)}`; T5 surfaces `(stage=delivered)`; A–G ALL PASS (un-tagged → plain DELIVERED)'
+  - 'Tests prove all of the above hub-independently (peer-free, loopback): `scripts/test-sidecar-auto-confirm.sh` (default-off no-op, journal row written, `stage=delivered` receipt posted, offset-guard no-dup, agent-send reads the receipt as DELIVERED with stage surfaced); existing `scripts/test-agent-send.sh` (A–G) and `scripts/test-journal-mirror.sh` still pass — `test-sidecar-auto-confirm.sh` 5/5; `test-agent-send.sh` A–G ALL PASS; `test-journal-mirror.sh` 8/8; `test-agent-send-transport.sh` 7/7; both `bash -n` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/deterministic-notify-sidecar.md'
+  - 'scripts/agent-send.sh'
+  - 'scripts/notify-sidecar.sh'
+  - 'scripts/test-sidecar-auto-confirm.sh'
+  - '.tasks/active/T-2300-v6-s3-sidecar-journaled-receipt--stage-a.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-01T23:14:14"
+    action: "T-2300: V6-S3 sidecar journaled-receipt + stage-aware confirm (5/5 ACs; 5/5 S3 tests + A-G/S1/S2 regressions green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 5
+  lines_added: 489
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2300-v6-s3-sidecar-journaled-receipt--stage-a.md
+generated_by: context-agent-hybrid
