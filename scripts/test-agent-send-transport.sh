@@ -102,21 +102,22 @@ if [ "$hub_up" -ne 1 ]; then skip "T4: local hub not up"; else
     rm -rf "$dir"
 fi
 
-# -------- T5: default (no --transport) → transport=hub reachable=skip --------
-# A LIVE LOCAL peer keeps peer_hub empty (routing=local), so direct_addr=local
-# and the default hub transport never probes. Proves the default is preserved.
-echo "T5: no --transport, local peer → transport=hub direct_addr=local reachable=skip routing=local"
+# -------- T5: default (no --transport) → transport=auto reachable=skip --------
+# S4 (T-2301) flipped the default to `auto`. A LIVE LOCAL peer keeps peer_hub
+# empty (routing=local), so there is no remote leg to probe — direct_addr=local,
+# reachable=skip — proving auto degenerates to the local path with no probe.
+echo "T5: no --transport → transport=auto (S4 default), local peer → direct_addr=local reachable=skip routing=local"
 if [ "$hub_up" -ne 1 ]; then skip "T5: local hub not up"; else
     aid="t5-local-$run_tag"
     bash "$HEARTBEAT" --agent-id "$aid" --pty-session "pty-$aid" --listen-topic "agent-chat-arc" --once >/dev/null 2>&1
     sleep 1
     out="$(bash "$SCRIPT" --to "$aid" --message m --dry-run 2>&1)"; rc=$?
     if [ "$rc" -eq 0 ] \
-        && printf '%s' "$out" | grep -qF "transport=hub" \
+        && printf '%s' "$out" | grep -qF "transport=auto" \
         && printf '%s' "$out" | grep -qF "direct_addr=local" \
         && printf '%s' "$out" | grep -qF "reachable=skip" \
         && printf '%s' "$out" | grep -qF "routing=local"; then
-        pass "T5: default transport=hub, local degenerate probes nothing"
+        pass "T5: S4 default is auto; local degenerate probes nothing"
     else
         fail "T5: rc=$rc out=$out"
     fi
@@ -140,17 +141,19 @@ if [ "$hub_up" -ne 1 ]; then skip "T6: local hub not up"; else
     fi
 fi
 
-# -------- T7: live send, default hub → NO plan line (byte-for-byte preserved) --------
-echo "T7: live default (hub) → NO transport-plan line (byte-for-byte)"
+# -------- T7: live --transport hub → NO plan line (byte-for-byte escape hatch) --------
+# S4 moved the byte-for-byte-silent contract from the default to the explicit
+# `--transport hub` escape hatch (the default is now auto → emits a plan line).
+echo "T7: live --transport hub → NO transport-plan line (byte-for-byte escape hatch)"
 if [ "$hub_up" -ne 1 ]; then skip "T7: local hub not up"; else
     ltopic="agent-send-transport-test-$$"
     out="$(bash "$SCRIPT" --to-session "no-such-$$" --topic "$ltopic" --message "hub live" \
-              --no-await-ack 2>/tmp/.t7err.$$)"; rc=$?
+              --transport hub --no-await-ack 2>/tmp/.t7err.$$)"; rc=$?
     err="$(cat /tmp/.t7err.$$ 2>/dev/null)"; rm -f /tmp/.t7err.$$
     if [ "$rc" -eq 0 ] \
         && printf '%s' "$out" | grep -qF "POSTED" \
         && ! printf '%s' "$err" | grep -qF "transport-plan"; then
-        pass "T7: default hub emits no plan line (unchanged)"
+        pass "T7: --transport hub emits no plan line (unchanged)"
     else
         fail "T7: rc=$rc out=$out err=$err"
     fi

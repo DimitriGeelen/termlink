@@ -1,4 +1,4 @@
-# agent-send transport-select seam (V6 slice S2)
+# agent-send transport select (V6 slices S2 seam → S4 orchestration)
 
 arc-003 reliable-comms V6 (apex, T-2296) **slice S2**. Adds a `--transport`
 flag + a bounded reachability probe to `scripts/agent-send.sh` (the existing
@@ -21,14 +21,18 @@ direct-path confirm-source change (a journaled `stage=delivered` receipt) is
 
 ## `--transport auto|direct|hub`
 
-| Value | Meaning | S2 behavior |
-|-------|---------|-------------|
-| `hub` (default) | Post via the local hub (or the peer's hub when `--to` resolved a remote peer). | Today's behavior, unchanged. Never probes (`reachable=skip`). No stderr plan line. |
-| `direct` | Intent: send straight to the peer's OWN hub. | Probes the peer hub's reachability; records the plan. Live routing still via hub (S4 will branch). |
-| `auto` | Prefer direct, fall back to hub. | Same as `direct` in S2 (probe + record). S4 wires the actual fallback. |
+**Default flipped to `auto` in S4 (T-2301).** The table below is the shipped
+S4 behavior; the S2-era "records intent only" note above describes the
+intermediate rail.
 
-An invalid value exits `2` with a clear message. The default `hub` reproduces
-today's send path exactly — no probe, no extra output.
+| Value | Meaning | Shipped behavior (S4) |
+|-------|---------|-----------------------|
+| `auto` (default) | Prefer direct; fall back to hub store-and-forward if the remote host is unreachable. | Probes the remote peer hub. Reachable → **direct**. Unreachable → **LOUD fallback** to the local hub (offline-queue-backed, federates to the peer). A local peer has no remote leg → local path. |
+| `direct` | Post straight to the peer's OWN hub; confirm via mechanism A (the S3 `stage=delivered` receipt). | Probes; reachable → post to the peer hub. Unreachable remote host → **FAILS loud** (exit 3), never falls back. |
+| `hub` | Escape hatch — today's pre-V6 path. | Post via the local hub (or the peer's hub when `--to` resolved a remote peer). Never probes (`reachable=skip`), never falls back, no plan line. Byte-for-byte unchanged. |
+
+An invalid value exits `2` with a clear message. `--transport hub` reproduces the
+pre-V6 send path exactly — no probe, no extra output, no fallback.
 
 ## The reachability probe
 
@@ -61,29 +65,66 @@ RESOLVED: agent_id=... status=LIVE ... hub=127.0.0.1:9100 routing=remote \
           transport=direct direct_addr=127.0.0.1:9100 reachable=yes
 ```
 
-**Live send** — when a non-default transport is requested, one line to **stderr**:
+**Live send** — for any non-`hub` transport, one plan line to **stderr**:
 
 ```
 agent-send: transport-plan: transport=direct direct_addr=127.0.0.1:9100 \
-            reachable=yes — S2 records intent only; live routing still via \
-            hub 127.0.0.1:9100 (direct/fall-back is S4)
+            reachable=yes → direct (confirm via mechanism A / S3 receipt)
 ```
 
-The default `hub` transport prints no such line — stdout and stderr are
-byte-for-byte what they were before S2.
+`--transport hub` prints no such line — stdout and stderr are byte-for-byte
+what they were before V6.
+
+## S4 — the orchestration (shipped, T-2301)
+
+S4 turns the seam into the actual routing decision. After the probe, `auto`
+resolves to an **effective transport**:
+
+- **direct** (remote peer reachable, or a local peer): post to the peer's own
+  hub (`--hub <peer>`; a local peer posts to the local hub). The doorbell ring
+  is best-effort — a running S3 sidecar posts the `stage=delivered` receipt with
+  no woken agent, so an inject failure is non-fatal. Confirm = **mechanism A**
+  (the receipt envelope the poll already surfaces, S3-stage-aware).
+- **fallback** (`auto`, remote host unreachable): emit the LOUD line
+
+  ```
+  agent-send: FALLBACK host 192.168.10.141:9100 unreachable → hub store-and-forward
+  ```
+
+  then post to the **local** hub. This is deliberate: a TCP cross-hub post to the
+  down peer would hard-fail — that path bypasses the offline queue
+  (`channel.rs` T-1385). Only the local unix path is queue-backed, so posting
+  locally is the genuine STORE half of store-and-forward; the DM topic federates
+  to the peer's hub with sync lag, and the sidecar/federated receipt lands the
+  confirm when the host recovers. No live listener to wake (host down) → the
+  doorbell is skipped. If no receipt arrives in the window, the send FAILs loud
+  but names that the turn is durably stored and the T-2295 unconfirmed-delivery
+  canary tracks it.
+
+`--transport direct` against an unreachable remote host **fails loud** (exit 3)
+instead of falling back. `--transport hub` never probes and never falls back.
+
+The single sender-API confirm contract (V3b: DELIVERED-or-FAILED loud) is
+unchanged — only the receipt SOURCE differs by transport (A on direct; A via the
+local hub + federation on fallback). One contract, two producers.
 
 ## Test
 
-`bash scripts/test-agent-send-transport.sh` — 7 hub-independent checks: flag
-validation (exit 2), hub/direct/auto dry-run `RESOLVED` lines from a canned
-fleet fixture, probe reachable-vs-unreachable via loopback, default-preserved,
-and the live-path stderr plan line (present for `direct`, absent for `hub`).
-SKIPs cleanly with no hub. The existing `bash scripts/test-agent-send.sh` (A–G)
-still passes — S2 adds no regression to the send/confirm paths.
+`bash scripts/test-agent-send-transport.sh` — 7 hub-independent checks (S2 seam:
+flag validation, dry-run `RESOLVED` lines, probe reachable-vs-unreachable via
+loopback, default-is-auto, live-path plan line present for non-`hub` / absent for
+`hub`).
 
-## Next slices
+`bash scripts/test-agent-send-orchestration.sh` — 5 hub-independent checks (S4
+branch: reachable peer → DIRECT + DELIVERED; unreachable host → LOUD fallback +
+DELIVERED via the hub leg; `--transport direct` on a down host → loud FAIL, no
+post; `--transport hub` never falls back; default is auto). Loopback
+`127.0.0.1:9100` (up) / `127.0.0.1:1` (closed) + a canned fleet fixture drive
+both branches with no second host.
 
-- **S3** direct-path sidecar journaled-receipt (writes to the S1 journal).
-- **S4** try-direct/fall-back orchestration (the actual routing branch this seam
-  enables).
-- **S5** journal-authoritative + firehose suppression.
+Both SKIP cleanly with no hub. `bash scripts/test-agent-send.sh` (A–G) still
+passes — the default flip to `auto` preserves the local send/confirm paths.
+
+## Next slice
+
+- **S5** journal-authoritative + firehose suppression for `dm:` (the last slice).

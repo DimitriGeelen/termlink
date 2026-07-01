@@ -60,17 +60,24 @@ Optional:
                           with --await-reply (cannot await a reply without first
                           confirming delivery).
   --transport auto|direct|hub
-                          transport-select seam (arc-003 V6-S2, default hub).
-                            hub    = today's behavior — post via the local hub
-                                     (or the peer's hub when --to resolved a
-                                     remote peer). Byte-for-byte unchanged.
-                            direct = intent to send straight to the peer's OWN
-                                     hub; auto = prefer direct, fall back to hub.
-                          S2 computes the chosen plan + probes the peer hub's
-                          reachability and surfaces it (dry-run RESOLVED line /
-                          a stderr plan line on live sends) but does NOT yet
-                          change live routing — the actual try-direct/fall-back
-                          ORCHESTRATION is S4. See docs/operations/agent-send-transport.md.
+                          transport select (arc-003 V6-S4, default auto).
+                            auto   = DEFAULT. Prefer direct; if --to resolved a
+                                     remote peer whose host the S2 probe finds
+                                     UNREACHABLE, fall back LOUD to local-hub
+                                     store-and-forward (offline-queue-backed,
+                                     federates to the peer with sync lag). Never
+                                     a silent downgrade. A local peer has no
+                                     remote leg → behaves as the local path.
+                            direct = post straight to the peer's OWN hub; confirm
+                                     via mechanism A (the S3 sidecar
+                                     stage=delivered receipt). A remote peer the
+                                     probe finds unreachable FAILS loud (exit 3),
+                                     never falls back.
+                            hub    = escape hatch: today's behavior byte-for-byte
+                                     — post via the local hub (or the peer's hub
+                                     when --to resolved a remote peer), no probe,
+                                     no fallback. Use to force the pre-V6 path.
+                          See docs/operations/agent-send-transport.md.
   --dry-run               with --to, print RESOLVED line (incl. resolved hub +
                           routing=local|remote + transport plan) and exit 0
                           without posting or injecting (test/preview seam).
@@ -83,7 +90,7 @@ EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
-to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="hub"
+to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="auto"
 
 # T-2299/V6-S2: bounded reachability probe. Wraps `termlink remote ping <addr>`
 # (cmd_remote_ping) under a short timeout so a wedged/unreachable peer hub can
@@ -262,21 +269,62 @@ fi
 
 [ -n "$cid" ] || cid="cid-$(date +%s)-${RANDOM}"
 
-# T-2299/V6-S2: when a non-default transport is requested, record the chosen plan
-# to stderr for observability. This is intent only — live routing still goes via
-# the local/peer hub exactly as before (hub_args below). The actual
-# try-direct/fall-back branch is deferred to S4. The default `hub` transport
-# prints nothing here, so today's behavior is byte-for-byte unchanged.
-if [ "$transport" != "hub" ]; then
-    echo "agent-send: transport-plan: transport=$transport direct_addr=$direct_addr reachable=$reachable — S2 records intent only; live routing still via ${peer_hub:+hub $peer_hub}${peer_hub:-local hub} (direct/fall-back is S4)" >&2
+# ── Transport branch (T-2301/V6-S4). ─────────────────────────────────────────
+# S2 laid the seam (flag + bounded probe → $reachable); S4 turns it into the
+# actual routing decision. Resolve the EFFECTIVE transport, announce the plan,
+# and set the post-target hub (hub_args) + whether a remote doorbell is worth
+# ringing (ring_remote). T-2273's bare-address secret reverse-resolution makes
+# --hub / remote-inject auth transparently from hubs.toml.
+#
+#   hub      → escape hatch: today's behavior byte-for-byte. Post to the peer's
+#              hub if --to resolved a remote peer, else the local hub. No probe,
+#              no plan line, no fallback — back-compat callers see zero change.
+#   direct   → post straight to the peer's OWN hub; confirm via mechanism A (the
+#              S3 sidecar stage=delivered receipt). A remote peer the probe found
+#              UNREACHABLE fails LOUD (exit 3) — never falls back.
+#   auto     → prefer direct; if the remote peer host is unreachable, FALL BACK
+#              to local-hub store-and-forward with a LOUD announcement.
+#   (local peer, peer_hub empty: direct/auto degenerate to the local path — there
+#    is no remote leg to reach, so nothing is probed and nothing falls back.)
+eff_transport="$transport"
+if [ "$transport" = "auto" ]; then
+    if [ -n "$peer_hub" ] && [ "$reachable" = "no" ]; then
+        eff_transport="fallback"
+    else
+        eff_transport="direct"   # remote-reachable, or local (no remote leg)
+    fi
 fi
 
-# T-2273: when the peer was resolved on a remote hub, every leg (mail post,
-# doorbell ring, receipt + reply polling) must target THAT hub, not the local one.
-# T-2269's bare-address secret reverse-resolution makes --hub / remote-inject auth
-# transparently from hubs.toml. Empty peer_hub → local transport (unchanged path).
+# --transport direct against an unreachable REMOTE peer: fail loud, never fall back.
+if [ "$transport" = "direct" ] && [ -n "$peer_hub" ] && [ "$reachable" = "no" ]; then
+    echo "agent-send: FAILED — --transport direct to $peer_hub but host is unreachable (probe=no); no fallback under direct (use --transport auto for hub store-and-forward)" >&2
+    exit 3
+fi
+
+# Observability: announce the plan for any non-default transport intent. `hub`
+# stays silent (byte-for-byte). The FALLBACK case emits its own LOUD line below.
+if [ "$transport" != "hub" ] && [ "$eff_transport" != "fallback" ]; then
+    echo "agent-send: transport-plan: transport=$transport direct_addr=$direct_addr reachable=$reachable → $eff_transport (confirm via mechanism A / S3 receipt)" >&2
+fi
+
+# Post target hub + remote-doorbell gate per branch.
+#   direct/hub + remote peer → post to peer_hub, ring via `remote inject`.
+#   direct/hub + local peer  → post to the local hub, ring via local `inject`.
+#   fallback                 → post to the LOCAL hub (clear hub_args). A TCP post
+#     to the down peer_hub would hard-fail — the cross-hub path bypasses the
+#     offline queue (channel.rs T-1385); only the local unix path is queue-backed,
+#     so posting locally is the genuine STORE half of store-and-forward (the turn
+#     federates to the peer's hub with sync lag). The peer host is down, so there
+#     is no live listener to ring — skip the doorbell and let the S3 sidecar / DM
+#     federation produce the (mechanism-A) receipt once the host recovers.
 hub_args=()
-[ -n "$peer_hub" ] && hub_args=(--hub "$peer_hub")
+ring_remote=0
+if [ "$eff_transport" = "fallback" ]; then
+    echo "agent-send: FALLBACK host $peer_hub unreachable → hub store-and-forward" >&2
+elif [ -n "$peer_hub" ]; then
+    hub_args=(--hub "$peer_hub")
+    ring_remote=1
+fi
 
 # 1. Post the turn (mail) once.
 post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$message" \
@@ -300,17 +348,26 @@ fi
 # 2. Ring the doorbell + wait for a receipt; re-ring up to the cap.
 deliver_offset="" deliver_stage=""
 for (( ring=1; ring<=max_rings; ring++ )); do
-    echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'${peer_hub:+ @ $peer_hub}"
+    # Ring the doorbell to wake an interactive listener. On the DIRECT path this
+    # is best-effort (AC2/V6-S4): a running S3 sidecar produces the stage=delivered
+    # receipt with no woken agent, so an inject failure is non-fatal. On the
+    # FALLBACK path the peer host is down — nothing to wake — so skip the doorbell
+    # entirely and simply poll for the deferred (federated/sidecar) receipt.
     # Local inject is local-hub-only; a peer on another hub is rung via
-    # `remote inject <hub> <session> <text>` (T-2273). Secret reverse-resolves
-    # from hubs.toml (T-2269). Inject failure stays non-fatal — the mail is posted.
-    if [ -n "$peer_hub" ]; then
-        ring_cmd=( "$TERMLINK" remote inject "$peer_hub" "$to_session" "$doorbell_text" --enter )
+    # `remote inject <hub> <session> <text>` (T-2273); secret reverse-resolves from
+    # hubs.toml (T-2269).
+    if [ "$eff_transport" = "fallback" ]; then
+        [ "$ring" -eq 1 ] && echo "agent-send: fallback — no doorbell (host $peer_hub down); awaiting sidecar/federated receipt for cid=$cid" >&2
     else
-        ring_cmd=( "$TERMLINK" inject "$to_session" "$doorbell_text" --enter )
-    fi
-    if ! "${ring_cmd[@]}" >/dev/null 2>&1; then
-        echo "agent-send: WARN ring $ring — inject into '$to_session'${peer_hub:+ @ $peer_hub} failed (session missing?); turn already posted, still awaiting receipt" >&2
+        echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'${peer_hub:+ @ $peer_hub}"
+        if [ "$ring_remote" -eq 1 ]; then
+            ring_cmd=( "$TERMLINK" remote inject "$peer_hub" "$to_session" "$doorbell_text" --enter )
+        else
+            ring_cmd=( "$TERMLINK" inject "$to_session" "$doorbell_text" --enter )
+        fi
+        if ! "${ring_cmd[@]}" >/dev/null 2>&1; then
+            echo "agent-send: WARN ring $ring — inject into '$to_session'${peer_hub:+ @ $peer_hub} failed (session missing?); turn already posted, still awaiting receipt" >&2
+        fi
     fi
     waited=0
     while (( waited < timeout )); do
@@ -372,5 +429,9 @@ if [ -n "$deliver_offset" ]; then
     exit 4
 fi
 
-echo "agent-send: FAILED — no receipt for cid=$cid after $max_rings ring(s) (turn posted at offset=$post_offset; receiver never acked)" >&2
+if [ "$eff_transport" = "fallback" ]; then
+    echo "agent-send: FAILED — stored to the local hub (store-and-forward, offset=$post_offset) but no receipt for cid=$cid within $((max_rings*timeout))s; the turn will federate to $peer_hub and the unconfirmed-delivery canary (T-2295) tracks it until acked" >&2
+else
+    echo "agent-send: FAILED — no receipt for cid=$cid after $max_rings ring(s) (turn posted at offset=$post_offset; receiver never acked)" >&2
+fi
 exit 3

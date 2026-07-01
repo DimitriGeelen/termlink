@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2296, T-2298, T-2299, T-2300]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-01T21:15:50Z
-last_update: 2026-07-01T21:15:50Z
+last_update: 2026-07-01T21:17:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -84,11 +84,11 @@ agent-send detect unreachable-and-enqueue?) before wiring the fallback leg.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `agent-send.sh` default transport flips to `auto`; `auto` runs the S2 reachability probe against the resolved peer addr and branches direct-vs-fallback per design §4. `--transport hub` still forces today's hub leg byte-for-byte (back-compat escape hatch); `--transport direct` does direct-only
-- [ ] DIRECT branch (peer reachable): posts to the peer's own hub and confirms via mechanism A (the S3 `stage=delivered` receipt); the doorbell-ring is optional on this path (a running sidecar acks without a woken interactive agent). DELIVERED line surfaces the stage (S3)
-- [ ] FALLBACK branch (`auto`, peer host unreachable): emits a LOUD `agent-send: FALLBACK host <addr> unreachable → hub store-and-forward` line (never a silent downgrade), then runs the hub leg — local store-and-forward (offline queue) + mechanism B frontier confirm. `--transport direct` on an unreachable host FAILS loud instead of falling back
-- [ ] The single sender-API confirm contract is preserved (V3b): the caller still learns DELIVERED-or-FAILED loud; only the receipt SOURCE differs by transport (A on direct, B on fallback). Existing `agent-send.sh` A–G tests still pass (no observable-contract regression)
-- [ ] Tests prove both branches hub-independently (peer-free, loopback): loopback-up peer → DIRECT branch (DELIVERED via mechanism A); simulated-down peer (closed port / probe seam) → FALLBACK branch (loud FALLBACK line + DELIVERED via the hub leg); `--transport direct` on down host → loud FAIL; A–G + S1/S2/S3 test suites all still pass
+- [x] `agent-send.sh` default transport flips to `auto`; `auto` runs the S2 reachability probe against the resolved peer addr and branches direct-vs-fallback per design §4. `--transport hub` still forces today's hub leg byte-for-byte (back-compat escape hatch); `--transport direct` does direct-only
+- [x] DIRECT branch (peer reachable): posts to the peer's own hub and confirms via mechanism A (the S3 `stage=delivered` receipt); the doorbell-ring is optional on this path (a running sidecar acks without a woken interactive agent). DELIVERED line surfaces the stage (S3)
+- [x] FALLBACK branch (`auto`, peer host unreachable): emits a LOUD `agent-send: FALLBACK host <addr> unreachable → hub store-and-forward` line (never a silent downgrade), then runs the hub leg — local store-and-forward (offline queue) + mechanism A/frontier confirm. `--transport direct` on an unreachable host FAILS loud instead of falling back. **(Confirm-source note: build resolved to mechanism A on the fallback leg too, not the design's mechanism B — see Evolution.)**
+- [x] The single sender-API confirm contract is preserved (V3b): the caller still learns DELIVERED-or-FAILED loud; only the receipt SOURCE differs by transport (peer-hub sidecar on direct, local-hub+federation on fallback). Existing `agent-send.sh` A–G tests still pass (no observable-contract regression)
+- [x] Tests prove both branches hub-independently (peer-free, loopback): loopback-up peer → DIRECT branch (DELIVERED via mechanism A); simulated-down peer (closed port / probe seam) → FALLBACK branch (loud FALLBACK line + DELIVERED via the hub leg); `--transport direct` on down host → loud FAIL; A–G + S1/S2/S3 test suites all still pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -199,6 +199,47 @@ bash -n scripts/agent-send.sh
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-07-01 — fallback confirm is mechanism A, not the design's mechanism B
+- **What changed:** The design (§S4, written before S3 shipped) specified the
+  fallback leg confirm via **mechanism B** (`channel.receipts` frontier through
+  `--await-ack`). By build time S3 (T-2300) had made the **journaled `stage=delivered`
+  receipt envelope (mechanism A)** the durable store-and-forward confirm — and
+  `agent-send.sh`'s whole confirm path already polls for a mechanism-A receipt.
+  Wiring a parallel `--await-ack` invocation on the fallback leg would post the turn
+  **twice** (once via the script's `channel post`, once inside `--await-ack`'s own
+  post loop), breaking the script's load-bearing "post the turn exactly once up
+  front" invariant. So the fallback reuses the SAME mechanism-A poll, retargeted to
+  the local hub.
+- **Plan impact:** AC3/AC4's "mechanism B on fallback" is superseded by "mechanism A
+  on both transports; the receipt SOURCE differs (peer-hub sidecar on direct vs
+  local-hub + DM federation on fallback)." AC4's "one confirm contract, receipt
+  source differs by transport" holds — just with A/A, not A/B. This is exactly the
+  spec-vs-build evolution the section exists to capture (T-1717).
+- **Triggered:** No new sub-task. Documented in `docs/operations/agent-send-transport.md`
+  §S4 and in the AC3 note above.
+
+### 2026-07-01 — the real direct-vs-fallback difference is the POST TARGET, surfaced by the offline-queue topology
+- **What changed:** Investigating "how does `channel post` + the offline queue
+  behave when the target hub is down" (the task's flagged build-time subtlety)
+  revealed the crux: **TCP cross-hub posts bypass the offline queue and hard-fail on
+  an unreachable hub** (`crates/termlink-cli/src/commands/channel.rs:575` T-1385 —
+  `BusClient` is Unix-only; only the local unix-socket path yields
+  `PostOutcome::Queued`). So "hub store-and-forward" on fallback **cannot** mean
+  "post to the down peer_hub" (that just dies). It must mean **clear `hub_args` and
+  post to the LOCAL hub** — the genuine queue-backed store — and let DM federation
+  carry it to the peer. The honest per-branch difference collapses to: *which hub
+  the turn is posted to* (peer's vs local) + the LOUD fallback announcement + skip
+  the (pointless) doorbell when the host is down.
+- **Plan impact:** Confirms the design's "local store-and-forward" wording but pins
+  down the mechanism (clear `hub_args`, not post-to-peer-then-queue). The `hub`
+  escape hatch keeps the old hard-fail-at-post behavior for a down remote (proven by
+  orchestration test O4, rc=2) — a useful contrast that makes the fallback value
+  explicit.
+- **Triggered:** No new sub-task. TOCTOU note: `auto` branches on the PROBE, so a
+  peer that dies between probe and post (narrow ≤3s window) is a loud die on the
+  direct leg rather than a fallback — acceptable for this slice; a probe-plus-post-
+  failure fallback could be an S5-era hardening if it ever bites.
 
 ## Decisions
 
