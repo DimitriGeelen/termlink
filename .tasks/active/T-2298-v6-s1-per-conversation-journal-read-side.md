@@ -1,22 +1,22 @@
 ---
-id: T-2296
-name: "V6: direct transport-first + hub fallback + per-conversation journaling"
+id: T-2298
+name: "V6-S1 per-conversation journal read-side mirror"
 description: >
-  ARC APEX (highest directive score). Dependency-gated on V1(identity auths socket)+V2(discovery resolves host:port)+V3(notify wakes recipient) — promote to 'now' the moment those land; 'later' is sequencing, NOT backlog. remote_call/remote_exec already direct P2P (TCP+TLS+HMAC, remote.rs:719); reachability spike GO (flat LAN 192.168.10.0/24, no NAT, 3/4 hubs directly reachable). Build: try-direct/fall-back-to-hub orchestration; 3-level confirm ladder (TCP-ack IGNORED as delivery / sidecar-journaled = delivered / read-receipt = consumed) — direct path confirms via sidecar journaled-receipt, hub receipts-frontier (T-2286) is FALLBACK-path only; durable messages move OFF the hub firehose into per-conversation journals (fixes 70.5%-heartbeat obfuscation, T-2250 Tier-0 pattern). ACs: 1:1 msg goes direct when peer reachable, falls back to hub when not; direct delivery confirmed via sidecar journaled-receipt (no hub frontier on direct path); durable msgs do NOT land in hub firehose; per-conversation journal is mineable; cross-host auth uniform (no T-2024 dependency for cross-host path).
+  V6-S1 per-conversation journal read-side mirror
 
 status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: [arc:reliable-comms, arc-apex]
+tags: [arc:reliable-comms]
 components: []
-related_tasks: [T-2291, T-2292, T-2293, T-2294, T-2295]
+related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-06-27T17:06:56Z
-last_update: 2026-06-28T09:49:34Z
+created: 2026-07-01T11:41:58Z
+last_update: 2026-07-01T11:42:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,21 +30,28 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2296: V6: direct transport-first + hub fallback + per-conversation journaling
+# T-2298: V6-S1 per-conversation journal read-side mirror
 
 ## Context
 
-Arc-003 (reliable-comms) APEX — highest directive score; the destination of the arc. Horizon `later` is sequencing ONLY (dependency-gated on T-2292 identity / T-2293 discovery / T-2294-5 notify+confirm) — promote to `now` the moment those land; it is NOT backlog. `remote_call`/`remote_exec` are already direct P2P (TCP+TLS+HMAC, `crates/termlink-cli/src/commands/remote.rs:719`); the T-2291 V6 reachability spike returned GO (flat LAN 192.168.10.0/24, no NAT, 3/4 hubs directly reachable). Design trail: `docs/reports/T-2291-cross-agent-comms-inception.md` + `T-2291-V6-spike.md`.
+arc-003 reliable-comms V6 (apex, T-2296) **slice S1** — the smallest-safe-first,
+peer-free step of the apex. Design: `docs/plans/T-2296-v6-direct-transport-first-design.md`
+§S1. Ships **script-first** (no Rust rebuild for v1, mirroring the V3a sidecar
+precedent). Pure-additive read-side mirror: `dm:*` turns are copied into a durable
+per-conversation SQLite journal under `~/.termlink/journals/`; the hub firehose stays
+authoritative and untouched (moving dm: OFF the firehose is S5, out of scope here).
+Delivers T-2296 AC4 ("per-conversation journal is mineable") standalone and de-risks
+the journal schema + query surface before S3/S5 build on it.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A 1:1 message goes DIRECT host-to-host when the peer is reachable, and falls back to the hub when it is not (try-direct/fall-back orchestration)
-- [ ] Direct delivery is confirmed via a sidecar journaled-receipt (3-level ladder: TCP-ack ignored as delivery / sidecar-journaled = delivered / read-receipt = consumed); no hub receipts-frontier on the direct path
-- [ ] Durable messages do NOT land in the hub firehose — they go to per-conversation journals (fixes the 70.5%-heartbeat obfuscation; T-2250 Tier-0 pattern)
-- [ ] The per-conversation journal is mineable (queryable history per conversation)
-- [ ] Cross-host auth is uniform — the direct path needs no T-2024 dependency
+- [x] `scripts/journal-mirror.sh` subscribes to `dm:*` topics on a hub and appends new envelopes to `~/.termlink/journals/journal.sqlite` (`messages` table keyed by `(topic, offset)`, columns: topic, offset, conversation_id, sender_id, msg_type, ts, payload, observed_addr); reuses the `dm:*` enumeration pattern from `notify-sidecar.sh` — LIVE: 135 dm topics scanned, 1939 real rows journaled
+- [x] The mirror is **idempotent** — re-running over the same range adds no duplicate rows (`INSERT OR IGNORE` on the `(topic, offset)` unique key) — test T4 (reinsert=0, total unchanged)
+- [x] `scripts/agent-journal.sh <conversation> [--since-offset N] [--json]` queries the journal (NOT the firehose) and returns that conversation's mirrored messages, newest-relevant first, with a `--json` envelope — proven live on a real 3-msg conversation + tests T3/T5/T6
+- [x] The firehose is untouched — the mirror only reads (`channel subscribe`) and writes its own sqlite; it never acks, trims, or posts (S5 does suppression) — no `channel ack`/`post`/`--await-ack` in journal-mirror.sh
+- [x] `scripts/test-journal-mirror.sh` proves end-to-end on a local hub (self-post to a `dm:` topic → mirror → journal row exists → `agent-journal.sh` returns it → idempotent re-run adds 0 rows); SKIPs cleanly with no hub — 8/8 pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,6 +116,9 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/test-journal-mirror.sh
+bash -n scripts/journal-mirror.sh
+bash -n scripts/agent-journal.sh
 
 ## RCA
 
@@ -150,29 +160,26 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-06-28 — implementation design produced (started; not yet built)
-- **What changed:** With V1/V2/V3a/V3b all shipped (V6's dependency gate is now
-  open), produced a sliced implementation design:
-  `docs/plans/T-2296-v6-direct-transport-first-design.md`. KEY FINDING: V6 is NOT
-  greenfield — direct host-to-host transport already ships (a "direct" 1:1 message
-  is just `channel.post` issued against the **peer's own hub** :9100 instead of the
-  local one; `connect_remote_hub` remote.rs:719, TCP+TLS+HMAC all exist). The
-  transport-select decision belongs in `agent-send.sh`, which already threads
-  `--hub <peer_hub>` through every leg (lines 216-249).
-- **Plan impact:** V6 sliced into 5 dependency-ordered sub-slices (one session can't
-  do L→XL): **S1** per-conversation journal (read-side SQLite mirror, S→M, smallest
-  safe first step, no peer needed) → **S2** reachability-probe + `--transport
-  auto|direct|hub` seam (S; reuses `remote ping`) → **S3** direct confirm via sidecar
-  journaled receipt (M) → **S4** try-direct/fall-back-to-hub orchestration (M,
-  default) → **S5** firehose suppression for `dm:` (M→L, the "off the firehose"
-  move; client-side journal-authoritative recommended over hub-side hot-path change).
-  The 3-level ladder (delivered/read/acted) maps onto the 3 existing ack signals via
-  ONE new `stage=` metadata key on the mechanism-A envelope — no new namespace
-  (honors V3b's mechanism-A decision). Mechanism B stays fallback-only.
-- **Triggered:** next session implements S1 first (committable, peer-free). Open
-  questions for human in the design doc §Risks: (1) S2 on T-2293 self-report addr
-  now vs block on T-2297; (2) S5 end-state hub-side vs client-side; (3) sidecar
-  auto-ack "delivered" ≠ "cognitively present" — acceptable?
+### 2026-07-01 — S1 shipped script-first; journal keyed by (topic, offset), queryable by topic OR conversation_id
+- **What changed:** Built the V6-S1 journal as SHELL SCRIPTS (per the design's
+  script-first v1: no Rust rebuild, mirrors the V3a sidecar precedent) rather than
+  the `conversation_journal.rs` Rust module the design also sketched. Insert/query
+  use an inline `python3` step (a framework hard-dep) with parameterized SQL —
+  robust for arbitrary payloads (newlines/quotes/unicode) without shell-escaping or
+  the ~10min cargo rebuild. If a later slice needs the journal in-process (hub-side
+  S5 option a), the Rust module becomes a follow-up.
+- **Plan impact:** Partition key resolved to **`(topic, offset)`** (a `dm:a:b` topic
+  IS the peer-pair conversation, and offset is the natural idempotency key), with
+  `conversation_id` stored as an indexed column so `agent-journal.sh` resolves by
+  EITHER peer-pair topic OR thread cid. The design left `<convo_id>.sqlite`
+  vs one-DB open; chose **one DB** (`journal.sqlite`) — simpler, one connection, and
+  cross-conversation forensic (S5's aggregate-on-demand) is a single query.
+- **Triggered:** T-2296 AC4 ("per-conversation journal is mineable") is now met
+  standalone by S1 (live: 1939 real dm rows across 134 topics). Next V6 slice = S2
+  (transport-select seam in agent-send.sh) then S3 (sidecar writes here + posts the
+  journaled receipt). Deferred: journal retention/compaction (design §5 Q6) — the
+  store grows unbounded; a reaper mirroring offline-queue `dead_letters` is a
+  follow-up, not S1 scope.
 
 ## Decisions
 
@@ -197,11 +204,10 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
 
 ## Updates
 
-### 2026-06-27T17:06:56Z — task-created [task-create-agent]
+### 2026-07-01T11:41:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2296-v6-direct-transport-first--hub-fallback-.md
+- **Output:** /opt/termlink/.tasks/active/T-2298-v6-s1-per-conversation-journal-read-side.md
 - **Context:** Initial task creation
 
-### 2026-06-28T09:42:28Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: later → now (auto-sync)
+### 2026-07-01T11:42:16Z — status-update [task-update-agent]
+- **Change:** tags: +arc:reliable-comms
