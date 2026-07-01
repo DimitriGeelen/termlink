@@ -4,10 +4,10 @@ name: "V6-S1 per-conversation journal read-side mirror"
 description: >
   V6-S1 per-conversation journal read-side mirror
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:reliable-comms]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-01T11:41:58Z
-last_update: 2026-07-01T11:42:16Z
-date_finished: null
+last_update: 2026-07-01T11:48:28Z
+date_finished: 2026-07-01T11:48:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -211,3 +211,6 @@ bash -n scripts/agent-journal.sh
 
 ### 2026-07-01T11:42:16Z — status-update [task-update-agent]
 - **Change:** tags: +arc:reliable-comms
+
+### 2026-07-01T11:48:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2298: V6-S1 per-conversation journal read-side mirror
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-01T11:48:33Z
+# ============================================================================
+
+task_id: T-2298
+task_name: "V6-S1 per-conversation journal read-side mirror"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-01T11:41:58Z
+completed: 2026-07-01T11:48:28Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-01T13:48:21+02:00
+last_commit: 2026-07-01T13:48:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6-S1 per-conversation journal mirror + query verb (5/5 ACs; 1939 real dm rows journaled live)
+
+# Key outcomes
+outcomes:
+  - '`scripts/journal-mirror.sh` subscribes to `dm:*` topics on a hub and appends new envelopes to `~/.termlink/journals/journal.sqlite` (`messages` table keyed by `(topic, offset)`, columns: topic, offset, conversation_id, sender_id, msg_type, ts, payload, observed_addr); reuses the `dm:*` enumeration pattern from `notify-sidecar.sh` — LIVE: 135 dm topics scanned, 1939 real rows journaled'
+  - 'The mirror is **idempotent** — re-running over the same range adds no duplicate rows (`INSERT OR IGNORE` on the `(topic, offset)` unique key) — test T4 (reinsert=0, total unchanged)'
+  - '`scripts/agent-journal.sh <conversation> [--since-offset N] [--json]` queries the journal (NOT the firehose) and returns that conversation''s mirrored messages, newest-relevant first, with a `--json` envelope — proven live on a real 3-msg conversation + tests T3/T5/T6'
+  - 'The firehose is untouched — the mirror only reads (`channel subscribe`) and writes its own sqlite; it never acks, trims, or posts (S5 does suppression) — no `channel ack`/`post`/`--await-ack` in journal-mirror.sh'
+  - '`scripts/test-journal-mirror.sh` proves end-to-end on a local hub (self-post to a `dm:` topic → mirror → journal row exists → `agent-journal.sh` returns it → idempotent re-run adds 0 rows); SKIPs cleanly with no hub — 8/8 pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/conversation-journal.md'
+  - 'scripts/agent-journal.sh'
+  - 'scripts/journal-mirror.sh'
+  - 'scripts/test-journal-mirror.sh'
+  - '.tasks/active/T-2296-v6-direct-transport-first--hub-fallback-.md'
+  - '.tasks/active/T-2298-v6-s1-per-conversation-journal-read-side.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-01T13:48:21"
+    action: "T-2298: V6-S1 per-conversation journal mirror + query verb (5/5 ACs; 1939 real dm rows journaled live)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 6
+  lines_added: 608
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2298-v6-s1-per-conversation-journal-read-side.md
+generated_by: context-agent-hybrid
