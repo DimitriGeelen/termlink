@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2299: V6-S2 transport-select seam + reachability probe
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-01T21:01:38Z
+# ============================================================================
+
+task_id: T-2299
+task_name: "V6-S2 transport-select seam + reachability probe"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-01T20:16:59Z
+completed: 2026-07-01T21:01:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-01T22:19:55+02:00
+last_commit: 2026-07-01T23:00:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6-S2 task scoped — real ACs + context (build deferred; fresh session hit budget gate at start). arc-tag + related_tasks (arc:reliable-comms, links V6 apex+S1). V6-S2 transport-select seam + reachability probe (5/5 ACs; 7/7 transport tests + A-G regression green)
+
+# Key outcomes
+outcomes:
+  - '`scripts/agent-send.sh` accepts `--transport auto|direct|hub` (default `hub`); an invalid value exits 2 with a clear message; default `hub` reproduces today''s behavior byte-for-byte (no send-path change) — flag parsed (agent-send.sh case `--transport`), validated up front (`must be auto|direct|hub`, T1 exit 2), `hub` prints no stderr plan line (T7 byte-for-byte)'
+  - 'A bounded reachability probe helper (wrapping `termlink remote ping <addr>`) computes `reachable=yes|no` for the resolved peer addr, with a test seam (e.g. `REMOTE_PING_VERB` / `TERMLINK_PROBE_TEST_*`) so both branches are assertable without a second host — `_probe_reachable` wraps `termlink remote ping` under `timeout` (`TERMLINK_PROBE_TIMEOUT`, default 5s); seams `REMOTE_PING_VERB` + real loopback; T3 yes (127.0.0.1:9100), T4 no (127.0.0.1:1)'
+  - '`--dry-run` `RESOLVED` line is extended with `transport=<mode> direct_addr=<addr|local> reachable=<yes|no|skip>` reflecting the computed plan (probe only runs for `direct`/`auto`; `hub` prints `reachable=skip`) — T2 (hub→skip), T3 (direct→yes), T4 (auto→no), T5 (local degenerate→direct_addr=local reachable=skip)'
+  - 'The live (non-dry-run) send path is UNCHANGED in S2 — the flag records intent + prints the chosen-plan line to stderr for observability; the actual direct-vs-fallback branch is explicitly deferred to S4 (documented in `--help` and the ops doc) — T6 (live `direct`: POSTED on stdout unchanged + `transport-plan` line on stderr); hub_args routing untouched; documented in `usage()` + `docs/operations/agent-send-transport.md`'
+  - 'Tests prove: flag validation (bad value → exit 2), `hub`/`direct`/`auto` dry-run RESOLVED lines from canned presence (fixture seam), and probe reachable-vs-unreachable via loopback (127.0.0.1:9100 up, closed port down); existing agent-send tests A–G still pass (no regression) — `scripts/test-agent-send-transport.sh` 7/7 PASS; `scripts/test-agent-send.sh` A–G ALL PASS; `bash -n` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/agent-send-transport.md'
+  - 'scripts/agent-send.sh'
+  - 'scripts/test-agent-send-transport.sh'
+  - '.tasks/active/T-2299-v6-s2-transport-select-seam--reachabilit.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-01T22:19:55"
+    action: "T-2299: V6-S2 task scoped — real ACs + context (build deferred; fresh session hit budget gate at start)"
+  - time: "2026-07-01T22:20:10"
+    action: "T-2299: arc-tag + related_tasks (arc:reliable-comms, links V6 apex+S1)"
+  - time: "2026-07-01T23:00:50"
+    action: "T-2299: V6-S2 transport-select seam + reachability probe (5/5 ACs; 7/7 transport tests + A-G regression green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 44 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 44
+  commits: 3
+  files_changed: 4
+  lines_added: 547
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2299-v6-s2-transport-select-seam--reachabilit.md
+generated_by: context-agent-hybrid
