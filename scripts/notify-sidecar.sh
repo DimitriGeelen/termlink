@@ -34,6 +34,7 @@
 set -u
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die_usage() {
     echo "notify-sidecar: $*" >&2
@@ -64,6 +65,18 @@ Optional:
   --interval N         Probe period in seconds (default: 15; min: 5).
   --hub addr           Target hub (default: local).
   --include-broadcast  Also count unread agent-chat-arc broadcasts as mail.
+  --auto-confirm       arc-003 V6-S3: on each cycle, for every dm:<self>:* topic
+                       with unread mail, (a) mirror the topic into the S1 journal
+                       (journal-mirror.sh) and (b) auto-post a mechanism-A receipt
+                       (--msg-type receipt --metadata stage=delivered --metadata
+                       up_to=<latest_offset>). This makes the direct path
+                       store-and-forward: the recipient confirms L2-delivered with
+                       NO LLM turn, and the journal+receipt survive a restart. A
+                       durable per-topic offset guard (under --notify-dir) prevents
+                       ack spam — a receipt is posted only when the offset advances.
+                       Default OFF: without this flag the sidecar behaves exactly as
+                       V3a (no post, no journal write). The doorbell-optional-on-
+                       direct sender change is S4, not this slice.
   --once               Probe once, write flag+heartbeat, exit 0.
   --json               Emit one JSON status line per cycle.
   -h, --help           Print this help and exit 0.
@@ -75,6 +88,9 @@ Files written each cycle (NOTIFY_DIR/<agent_id>.*):
 Test hook (hub-independent, mirrors TERMLINK_GROWTH_TEST_JSON convention):
   TERMLINK_NOTIFY_TEST_UNREAD=<N>          force the unread count to N
   TERMLINK_NOTIFY_TEST_LATEST_TOPIC=<T>    force the latest-topic label
+  TERMLINK_NOTIFY_TEST_TOPICS=<t1 t2 ...>  scope the dm-topic enumeration to an
+                                           explicit list (isolates --auto-confirm
+                                           tests from production dm: topics)
 
 Exit codes: 0 normal/--once  2 usage error  3 runtime (no self identity)
 
@@ -90,6 +106,7 @@ notify_dir="${TERMLINK_NOTIFY_DIR:-$HOME/.termlink/notify}"
 interval=15
 hub=""
 include_broadcast=0
+auto_confirm=0
 once=0
 json=0
 
@@ -101,6 +118,7 @@ while [ $# -gt 0 ]; do
         --interval)         interval="${2:-}"; shift 2 ;;
         --hub)              hub="${2:-}"; shift 2 ;;
         --include-broadcast) include_broadcast=1; shift ;;
+        --auto-confirm)     auto_confirm=1; shift ;;
         --once)             once=1; shift ;;
         --json)             json=1; shift ;;
         -h|--help)          usage; exit 0 ;;
@@ -140,6 +158,49 @@ resolve_self_fp() {
     return 1
 }
 
+# arc-003 V6-S3: recipient-side auto-confirm for one dm: topic. Mirrors the topic
+# into the S1 journal and posts a mechanism-A `stage=delivered` receipt acking the
+# topic's latest offset — no LLM turn. Idempotent via a durable per-topic offset
+# guard under notify_dir: a receipt is posted only when the latest offset advances,
+# so a steady unread state does not spam receipts (and the guard survives restart).
+# Best-effort: any failure is non-fatal (the heartbeat/flag cycle still completes).
+_auto_confirm_topic() {
+    local topic="$1" fp="$2" latest_off guard prev
+    # Watermark to ack = the latest CONTENT offset on the topic. `channel unread
+    # --json`'s latest_offset is unreliable (null even when unread>0), so read the
+    # topic tail directly and take the max offset over content envelopes only —
+    # excluding meta types (receipt/reaction/redaction/edit/topic_metadata) exactly
+    # as `channel unread` does. Excluding receipts is load-bearing for the offset
+    # guard: our OWN posted receipt must not bump the watermark, else every re-run
+    # re-acks (the offset-guard failure mode).
+    latest_off="$("$TERMLINK" channel subscribe "$topic" "${hub_args[@]}" \
+                    --cursor 0 --limit 1000 --json 2>/dev/null \
+        | jq -s '[ .[]
+                   | select(.msg_type != "receipt" and .msg_type != "reaction"
+                            and .msg_type != "redaction" and .msg_type != "edit"
+                            and .msg_type != "topic_metadata")
+                   | .offset ] | (max // empty)' 2>/dev/null)"
+    case "$latest_off" in ''|*[!0-9]*) return 0 ;; esac   # no content to ack
+
+    # Per-topic guard file: sanitize the topic into a filename-safe token.
+    guard="$notify_dir/.$agent_id.$(printf '%s' "$topic" | tr -c 'A-Za-z0-9' '_').acked"
+    prev=-1
+    [ -f "$guard" ] && prev="$(cat "$guard" 2>/dev/null)"
+    case "$prev" in ''|*[!0-9-]*) prev=-1 ;; esac
+    [ "$latest_off" -le "$prev" ] && return 0             # already acked this offset (or newer)
+
+    # (a) journal the topic (S1 read-side mirror) — best-effort, inherits
+    #     TERMLINK_JOURNAL_PATH so a test can isolate the store.
+    bash "$HERE/journal-mirror.sh" --topic "$topic" "${hub_args[@]}" >/dev/null 2>&1 || true
+
+    # (b) post the mechanism-A stage=delivered receipt (the L2-delivered producer).
+    if "$TERMLINK" channel post "$topic" "${hub_args[@]}" --msg-type receipt \
+            --metadata stage=delivered --metadata up_to="$latest_off" --json >/dev/null 2>&1; then
+        printf '%s\n' "$latest_off" > "$guard.tmp" 2>/dev/null \
+            && mv -f "$guard.tmp" "$guard" 2>/dev/null || true
+    fi
+}
+
 # Probe unread mail. Echoes "<count>\t<latest_topic>". Honors the test hook for
 # hub-independent unit testing; otherwise sums unread across dm:<self>:* topics.
 probe_mail() {
@@ -154,12 +215,20 @@ probe_mail() {
     local total=0 latest=""
     # dm:<sorted_a>:<sorted_b> — self appears in either slot.
     local topics
-    # `channel list --json` returns {"topics":[{"name":...}]} (object), but tolerate
-    # a bare array shape too: (.topics // .) handles both. A naive `.[]?.name`
-    # errors on the object form and silently yields zero topics (the V3a probe bug
-    # found in the AC1 live proof).
-    topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "dm:" --json 2>/dev/null \
-        | jq -r --arg fp "$fp" '(.topics // .)[]?.name // empty | select(contains($fp))' 2>/dev/null)"
+    if [ -n "${TERMLINK_NOTIFY_TEST_TOPICS:-}" ]; then
+        # Test hook: use an explicit topic list (whitespace/newline separated)
+        # instead of live enumeration — scopes a test to its own topic so the real
+        # enumeration (which would match every dm: topic this fp participates in)
+        # does not touch production conversations. Mirrors TERMLINK_NOTIFY_TEST_UNREAD.
+        topics="$(printf '%s\n' $TERMLINK_NOTIFY_TEST_TOPICS)"
+    else
+        # `channel list --json` returns {"topics":[{"name":...}]} (object), but tolerate
+        # a bare array shape too: (.topics // .) handles both. A naive `.[]?.name`
+        # errors on the object form and silently yields zero topics (the V3a probe bug
+        # found in the AC1 live proof).
+        topics="$("$TERMLINK" channel list "${hub_args[@]}" --prefix "dm:" --json 2>/dev/null \
+            | jq -r --arg fp "$fp" '(.topics // .)[]?.name // empty | select(contains($fp))' 2>/dev/null)"
+    fi
 
     local t n
     while IFS= read -r t; do
@@ -170,6 +239,8 @@ probe_mail() {
         if [ "$n" -gt 0 ]; then
             total=$((total + n))
             latest="$t"
+            # V6-S3: recipient auto-confirm (journal + stage=delivered receipt).
+            [ "$auto_confirm" -eq 1 ] && _auto_confirm_topic "$t" "$fp"
         fi
     done <<EOF
 $topics

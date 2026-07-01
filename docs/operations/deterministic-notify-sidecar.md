@@ -117,6 +117,52 @@ inherits it deliberately so its counts always agree with `/check-arc`. If
 first-message cold-start wake ever needs closing, fix it once in `channel unread`
 so both surfaces benefit.
 
+## `--auto-confirm` — recipient-side journaled receipt (V6 slice S3, T-2300)
+
+By default the sidecar is a pure *reader*: it materializes a local flag + heartbeat
+and posts nothing. `--auto-confirm` turns it into the direct path's **L2-delivered
+producer**. Each cycle, for every `dm:<self>:*` topic carrying unread mail, it:
+
+1. **journals** the topic into the S1 per-conversation journal
+   (`~/.termlink/journals/journal.sqlite` via `scripts/journal-mirror.sh`), and
+2. **auto-posts a mechanism-A receipt** —
+   `channel post <topic> --msg-type receipt --metadata stage=delivered --metadata
+   up_to=<latest-content-offset>` — confirming delivery with **no LLM turn**.
+
+This makes the direct path **store-and-forward**: the journal row and the receipt
+survive a recipient restart, so a sender's `agent-send.sh` sees DELIVERED even if
+the recipient agent was mid-turn or briefly down. The confirm is mechanism **A**
+(a durable receipt envelope), never the hub `channel.receipts` frontier
+(mechanism B) — B stays the fallback-only producer (design §3).
+
+**Idempotency (no ack spam).** The watermark acked is the latest *content* offset
+(meta types — receipts/reactions/… — are excluded, exactly as `channel unread`
+computes). A durable per-topic guard file under the notify dir records the last
+acked offset; a new receipt is posted only when the content offset advances.
+Excluding receipts from the watermark is load-bearing: otherwise the sidecar's own
+receipt would bump the offset and it would re-ack every cycle.
+
+**The `stage` ladder.** `stage=delivered` (sidecar, auto, no LLM) is level 2 of the
+3-level confirm ladder — below `stage=read` (the agent at its yield point, a future
+slice) and the reply turn itself (`acted`, mechanism C, already covered by
+`agent-send.sh --await-reply`). It is one metadata key on the existing mechanism-A
+envelope — no new receipt namespace. `agent-send.sh`'s receipt poll surfaces it:
+`agent-send: DELIVERED (stage=delivered) — …`. An un-tagged receipt (pre-S3 / V3b)
+still reads as plain `DELIVERED` — backward compatible.
+
+**Not in this slice.** The sender's try-direct/fall-back routing branch, and making
+the doorbell-ring optional on the direct path (the sidecar acks without a woken
+interactive agent), are **S4** (T-2296 apex). S3 ships the recipient auto-acker +
+the `stage` semantic + the sender's stage-aware *recognition* only.
+
+```bash
+# Recipient runs the sidecar as a journaling auto-acker:
+bash scripts/notify-sidecar.sh --agent-id claude-code-A --auto-confirm --interval 15
+
+# Test (hub-independent; TERMLINK_NOTIFY_TEST_TOPICS scopes to a throwaway topic):
+bash scripts/test-sidecar-auto-confirm.sh    # 5 checks
+```
+
 ## Relationship to the PTY doorbell
 
 This **replaces** the preemptive doorbell as the *notify* mechanism. The doorbell

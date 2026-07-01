@@ -298,7 +298,7 @@ if [ "$no_await_ack" -eq 1 ]; then
 fi
 
 # 2. Ring the doorbell + wait for a receipt; re-ring up to the cap.
-deliver_offset=""
+deliver_offset="" deliver_stage=""
 for (( ring=1; ring<=max_rings; ring++ )); do
     echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'${peer_hub:+ @ $peer_hub}"
     # Local inject is local-hub-only; a peer on another hub is rung via
@@ -318,14 +318,21 @@ for (( ring=1; ring<=max_rings; ring++ )); do
         # offset we just posted). A stale receipt from an earlier turn on the
         # same conversation_id must NOT satisfy this wait — that was the T-1808
         # multi-turn false-DELIVERED bug.
-        recv="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
+        # T-2300/V6-S3: capture the whole receipt (not just its offset) so we can
+        # surface its `stage` (delivered|read) when present. A pre-S3/V3b receipt
+        # carries no stage — deliver_stage stays empty and the DELIVERED line reads
+        # exactly as before (backward compatible).
+        recv_json="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
                        --cursor 0 --limit 1000 --json "${hub_args[@]+"${hub_args[@]}"}" 2>/dev/null \
-                   | jq -s --argjson po "$post_offset" \
+                   | jq -c -s --argjson po "$post_offset" \
                        '[ .[] | select(.msg_type=="receipt")
                               | select((.metadata.up_to|tonumber? // -1) >= $po) ]
-                        | (.[0].offset // empty)' ; } || true )"
-        if [ -n "$recv" ] && [ "$recv" != "null" ]; then
-            deliver_offset="$recv"; break
+                        | (.[0] // empty)' ; } || true )"
+        if [ -n "$recv_json" ] && [ "$recv_json" != "null" ]; then
+            deliver_offset="$(printf '%s' "$recv_json" | jq -r '.offset // empty')"
+            deliver_stage="$(printf '%s' "$recv_json" | jq -r '.metadata.stage // empty')"
+            [ "$deliver_stage" = "null" ] && deliver_stage=""
+            break
         fi
         sleep 1; waited=$((waited+1))
     done
@@ -333,7 +340,7 @@ for (( ring=1; ring<=max_rings; ring++ )); do
 done
 
 if [ -n "$deliver_offset" ]; then
-    echo "agent-send: DELIVERED — receipt for cid=$cid at offset=$deliver_offset"
+    echo "agent-send: DELIVERED${deliver_stage:+ (stage=$deliver_stage)} — receipt for cid=$cid at offset=$deliver_offset"
     [ -n "$await_reply" ] || exit 0
 
     # --await-reply: poll for the peer's reply turn — the first msg_type=turn on
