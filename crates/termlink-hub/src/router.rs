@@ -56,7 +56,7 @@ pub(crate) fn remote_store() -> Option<&'static RemoteStore> {
 ///
 /// Hub-local methods (session.discover) are handled directly.
 /// All other methods are forwarded to the target session specified in params.target.
-pub async fn route(req: &Request) -> Option<RpcResponse> {
+pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse> {
     if req.is_notification() {
         tracing::debug!(method = %req.method, "Hub received notification (ignoring)");
         return None;
@@ -91,7 +91,9 @@ pub async fn route(req: &Request) -> Option<RpcResponse> {
             crate::channel::handle_channel_sweep(id, &req.params).await
         }
         control::method::CHANNEL_POST => {
-            crate::channel::handle_channel_post(id, &req.params).await
+            // T-2297: forward the hub-observed TCP source address so the handler
+            // can stamp an attested `observed_addr` on the stored envelope.
+            crate::channel::handle_channel_post(id, &req.params, peer_addr).await
         }
         control::method::CHANNEL_SUBSCRIBE => {
             crate::channel::handle_channel_subscribe(id, &req.params).await
@@ -1932,7 +1934,7 @@ mod tests {
             json!({"target": "nonexistent-session"}),
         );
 
-        let resp = route(&req).await.unwrap();
+        let resp = route(&req, None).await.unwrap();
         if let RpcResponse::Error(err) = resp {
             assert_eq!(err.error.code, control::error_code::SESSION_NOT_FOUND);
         } else {
@@ -2229,7 +2231,7 @@ mod tests {
             json!({}), // no target
         );
 
-        let resp = route(&req).await.unwrap();
+        let resp = route(&req, None).await.unwrap();
         if let RpcResponse::Error(err) = resp {
             assert_eq!(err.error.code, control::error_code::SESSION_NOT_FOUND);
             assert!(err.error.message.contains("Missing"));
@@ -2578,7 +2580,7 @@ mod tests {
             json!("fwd-tcp-1"),
             json!({"target": &remote_id}),
         );
-        let resp = super::route(&req).await.unwrap();
+        let resp = super::route(&req, None).await.unwrap();
         if let RpcResponse::Success(r) = resp {
             assert_eq!(r.result["display_name"], "tcp-target");
             assert_eq!(r.result["state"], "ready");
@@ -2592,7 +2594,7 @@ mod tests {
             json!("fwd-tcp-2"),
             json!({"target": "tcp-target"}),
         );
-        let resp = super::route(&req).await.unwrap();
+        let resp = super::route(&req, None).await.unwrap();
         // This might resolve to local or remote — either is fine for this test
         assert!(matches!(resp, RpcResponse::Success(_)));
 

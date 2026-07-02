@@ -55,6 +55,12 @@ pub struct PresenceMatch {
     /// posts to reach this agent. `None` for pre-T-2293 heartbeats; the resolver
     /// then falls back to the hub it read the heartbeat from.
     pub addr: Option<String>,
+    /// T-2297 (V2b): the HUB-ATTESTED observed TCP source address
+    /// (`metadata.observed_addr`), stamped server-side from the connection's
+    /// `peer_addr`. Cannot be forged by the client. `None` for Unix-socket posts
+    /// and pre-T-2297 hubs. The resolver PREFERS this over the self-reported
+    /// `addr` when present (defeats stale/spoofed self-reports).
+    pub observed_addr: Option<String>,
     /// T-2293: self-reported `metadata.host` (hostname — who, not where-to-post).
     pub host: Option<String>,
     /// T-2293: the agent's read topics (`metadata.listen_topics`, csv-split).
@@ -142,6 +148,7 @@ pub fn resolve_agent_presence(
             .map(String::from)
     };
     let addr = md_str("addr");
+    let observed_addr = md_str("observed_addr"); // T-2297: hub-attested, prefer over addr
     let host = md_str("host");
     let role = md_str("role");
     let listen_topics = md_str("listen_topics")
@@ -161,6 +168,7 @@ pub fn resolve_agent_presence(
         age_secs,
         last_ts_ms: best_ts,
         addr,
+        observed_addr,
         host,
         listen_topics,
         role,

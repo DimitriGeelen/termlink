@@ -498,20 +498,61 @@ pub(crate) async fn handle_channel_sweep_with(
     }
 }
 
+/// T-2297: enforce the hub-attestation invariant on the `observed_addr` metadata key.
+///
+/// The hub-observed TCP source address (`peer_addr`) is authoritative:
+///   - `Some(addr)` (a TCP connection) → OVERWRITE any client-supplied `observed_addr`
+///     with the attested value, so a client cannot forge where it connected from.
+///   - `None` (Unix-socket / local caller, not attestable) → STRIP any client-supplied
+///     `observed_addr` so an un-attested value can never masquerade as attested.
+///
+/// Net invariant: after this runs, `metadata["observed_addr"]` is present ONLY when it
+/// is the hub's own observation. Metadata is not part of the signed canonical bytes
+/// (see `canonical_sign_bytes`), so this mutation never affects signature verification.
+pub(crate) fn apply_observed_addr(
+    metadata: &mut std::collections::BTreeMap<String, String>,
+    peer_addr: Option<&str>,
+) {
+    match peer_addr {
+        Some(addr) => {
+            metadata.insert("observed_addr".to_string(), addr.to_string());
+        }
+        None => {
+            metadata.remove("observed_addr");
+        }
+    }
+}
+
 /// `channel.post(topic, msg_type, payload_b64, artifact_ref?, ts, sender_id,
 /// sender_pubkey_hex, signature_hex)` — verifies signature then appends.
-pub async fn handle_channel_post(id: Value, params: &Value) -> RpcResponse {
+pub async fn handle_channel_post(
+    id: Value,
+    params: &Value,
+    peer_addr: Option<&str>,
+) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
         Ok(b) => b,
         Err(r) => return r,
     };
-    handle_channel_post_with(bus, id, params).await
+    handle_channel_post_with_peer(bus, id, params, peer_addr).await
 }
 
+/// T-2297: back-compat wrapper for callers with no hub-attested peer address
+/// (Unix-socket posts, and the test suite). Delegates with `peer_addr = None`,
+/// which STRIPS any client-supplied `observed_addr` (never client-forgeable).
 pub(crate) async fn handle_channel_post_with(
     bus: &Bus,
     id: Value,
     params: &Value,
+) -> RpcResponse {
+    handle_channel_post_with_peer(bus, id, params, None).await
+}
+
+pub(crate) async fn handle_channel_post_with_peer(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+    peer_addr: Option<&str>,
 ) -> RpcResponse {
     let topic = match param_str(params, "topic") {
         Some(t) if !t.is_empty() => t.to_string(),
@@ -612,7 +653,7 @@ pub(crate) async fn handle_channel_post_with(
     // T-1287: optional metadata routing-hint map. NOT included in canonical
     // signed bytes — trusted-mesh threat model treats it as routing only.
     // Well-known keys: conversation_id, event_type (per T-1288 catalog).
-    let metadata: std::collections::BTreeMap<String, String> = params
+    let mut metadata: std::collections::BTreeMap<String, String> = params
         .get("metadata")
         .and_then(|v| v.as_object())
         .map(|obj| {
@@ -621,6 +662,11 @@ pub(crate) async fn handle_channel_post_with(
                 .collect()
         })
         .unwrap_or_default();
+
+    // T-2297: stamp the hub-attested observed source address onto the envelope
+    // metadata (or strip any client-supplied value when not attestable). MUST run
+    // after the client metadata is parsed so the attested value wins.
+    apply_observed_addr(&mut metadata, peer_addr);
 
     // T-2049 Gap A — idempotency via optional client_msg_id. Verified
     // sender_id (T-1427) namespaces the dedupe so the cache cannot be
@@ -3513,5 +3559,45 @@ mod tests {
             }
             _ => panic!("expected CHANNEL_TOPIC_UNKNOWN error response"),
         }
+    }
+}
+
+#[cfg(test)]
+mod observed_addr_tests {
+    use super::apply_observed_addr;
+    use std::collections::BTreeMap;
+
+    // TCP caller (peer_addr = Some): the attested address is stamped in.
+    #[test]
+    fn observed_addr_stamped_when_attested() {
+        let mut md: BTreeMap<String, String> = BTreeMap::new();
+        apply_observed_addr(&mut md, Some("192.168.10.141:51234"));
+        assert_eq!(md.get("observed_addr").map(String::as_str), Some("192.168.10.141:51234"));
+    }
+
+    // TCP caller that tries to FORGE observed_addr: the attested value overwrites it.
+    #[test]
+    fn observed_addr_overwrites_client_forged_value() {
+        let mut md: BTreeMap<String, String> = BTreeMap::new();
+        md.insert("observed_addr".to_string(), "10.0.0.1:9999".to_string()); // forged
+        md.insert("conversation_id".to_string(), "cid-1".to_string());
+        apply_observed_addr(&mut md, Some("192.168.10.141:51234"));
+        // attested wins…
+        assert_eq!(md.get("observed_addr").map(String::as_str), Some("192.168.10.141:51234"));
+        // …and unrelated metadata is untouched.
+        assert_eq!(md.get("conversation_id").map(String::as_str), Some("cid-1"));
+    }
+
+    // Unix-socket / local caller (peer_addr = None): any client value is STRIPPED,
+    // so an un-attested observed_addr can never masquerade as attested.
+    #[test]
+    fn observed_addr_stripped_when_not_attestable() {
+        let mut md: BTreeMap<String, String> = BTreeMap::new();
+        md.insert("observed_addr".to_string(), "10.0.0.1:9999".to_string()); // client-supplied
+        md.insert("addr".to_string(), "self-reported:9100".to_string());
+        apply_observed_addr(&mut md, None);
+        assert!(md.get("observed_addr").is_none(), "un-attested observed_addr must be stripped");
+        // self-reported addr (T-2293) is a different key and stays.
+        assert_eq!(md.get("addr").map(String::as_str), Some("self-reported:9100"));
     }
 }

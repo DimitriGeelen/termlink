@@ -843,7 +843,7 @@ async fn handle_connection<S>(
                     handle_hub_auth_token(&req, &token_secret, &mut granted_scope, id)
                 } else if req.is_notification() {
                     // Notifications don't get responses
-                    router::route(&req).await
+                    router::route(&req, peer_addr_ref).await
                 } else {
                     match granted_scope {
                         None => {
@@ -888,7 +888,7 @@ async fn handle_connection<S>(
                                     .into(),
                                 )
                             } else {
-                                router::route(&req).await
+                                router::route(&req, peer_addr_ref).await
                             }
                         }
                     }

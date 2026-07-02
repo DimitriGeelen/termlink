@@ -806,6 +806,9 @@ pub(crate) struct FleetAgentRecord {
     pub hub_found_on: String,
     /// The agent's self-reported `metadata.addr` (None on the default local hub).
     pub self_reported_addr: Option<String>,
+    /// T-2297 (V2b): the HUB-ATTESTED observed source address (`metadata.observed_addr`).
+    /// When present, `hub` is resolved from THIS in preference to `self_reported_addr`.
+    pub observed_addr: Option<String>,
     pub host: Option<String>,
     pub role: Option<String>,
     pub listen_topics: Vec<String>,
@@ -864,7 +867,13 @@ pub(crate) async fn resolve_agent_registry_via_fleet(
         };
         let fresher = best.as_ref().map(|(_, ts)| m.last_ts_ms > *ts).unwrap_or(true);
         if fresher {
-            let hub = m.addr.clone().unwrap_or_else(|| entry.address.clone());
+            // T-2297: prefer the hub-attested observed_addr over the self-reported
+            // addr, falling back to the hub the heartbeat was read from.
+            let hub = m
+                .observed_addr
+                .clone()
+                .or_else(|| m.addr.clone())
+                .unwrap_or_else(|| entry.address.clone());
             best = Some((
                 FleetAgentRecord {
                     agent_id: agent_id.to_string(),
@@ -872,6 +881,7 @@ pub(crate) async fn resolve_agent_registry_via_fleet(
                     hub,
                     hub_found_on: entry.address.clone(),
                     self_reported_addr: m.addr.clone(),
+                    observed_addr: m.observed_addr.clone(),
                     host: m.host.clone(),
                     role: m.role.clone(),
                     listen_topics: m.listen_topics.clone(),
@@ -901,6 +911,7 @@ pub(crate) async fn cmd_agent_resolve(agent_id: &str, json: bool) -> Result<()> 
                     "hub": r.hub,
                     "hub_found_on": r.hub_found_on,
                     "self_reported_addr": r.self_reported_addr,
+                    "observed_addr": r.observed_addr,
                     "host": r.host,
                     "role": r.role,
                     "listen_topics": r.listen_topics,
@@ -912,7 +923,9 @@ pub(crate) async fn cmd_agent_resolve(agent_id: &str, json: bool) -> Result<()> 
                 println!("agent:      {}", r.agent_id);
                 println!("liveness:   {} ({}s ago)", r.status.as_str(), r.age_secs);
                 println!("hub:        {}", r.hub);
-                if r.self_reported_addr.is_none() {
+                if let Some(oa) = &r.observed_addr {
+                    println!("            (hub-attested observed_addr: {oa} — T-2297)");
+                } else if r.self_reported_addr.is_none() {
                     println!("            (resolver-stamped — agent self-reported no addr)");
                 }
                 println!(
