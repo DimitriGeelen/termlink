@@ -4,16 +4,16 @@ name: "arc-004 WS-over-Unix push for co-located agents — should --push work ov
 description: >
   Inception: arc-004 WS-over-Unix push for co-located agents — should --push work over the Unix socket, not just TCP?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-02T18:58:13Z
-last_update: 2026-07-02T18:58:28Z
-date_finished: null
+last_update: 2026-07-02T19:14:11Z
+date_finished: 2026-07-02T19:14:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -117,15 +117,15 @@ Exploration is a hub-side code-read to determine one/two-sidedness (done):
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -198,7 +198,11 @@ Investigation found the HUB SIDE ALREADY SUPPORTS WS-over-Unix: handle_connectio
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Investigation found the HUB SIDE ALREADY SUPPORTS WS-over-Unix: handle_connection (called by BOTH the Unix and TCP-after-TLS accept paths) runs the T-2305 first-byte sniff, so a Unix client sending 'GET ...' routes to the generic handle_ws_connection (which is generic over AsyncRead+AsyncWrite — no TLS assumption); and Unix connections start at PermissionScope::Execute, which satisfies the Observe requirement for hub.ws_subscribe — so NO hub.auth is needed. The ONLY blocker is the CLIENT: connect_tls_stream explicitly rejects Unix and always does TLS. WS-over-Unix is therefore a bounded CLIENT-ONLY change: add a connect_ws_unix (Unix connect + client_async over the raw UDS, no TLS), route --push through it for Unix addrs (skipping the token mint), and drop the Unsupported rejection. Value: co-located agents on shared hosts (e.g. .107 multi-agent) get the same ~90ms push instead of forced poll. Low effort, no hub/protocol change. GO to scope; final decision is the human's.
+
+**Date**: 2026-07-02T19:14:11Z
 
 ## Updates
 
@@ -207,3 +211,12 @@ Investigation found the HUB SIDE ALREADY SUPPORTS WS-over-Unix: handle_connectio
 
 ### 2026-07-02T18:58:28Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-02T19:14:11Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Investigation found the HUB SIDE ALREADY SUPPORTS WS-over-Unix: handle_connection (called by BOTH the Unix and TCP-after-TLS accept paths) runs the T-2305 first-byte sniff, so a Unix client sending 'GET ...' routes to the generic handle_ws_connection (which is generic over AsyncRead+AsyncWrite — no TLS assumption); and Unix connections start at PermissionScope::Execute, which satisfies the Observe requirement for hub.ws_subscribe — so NO hub.auth is needed. The ONLY blocker is the CLIENT: connect_tls_stream explicitly rejects Unix and always does TLS. WS-over-Unix is therefore a bounded CLIENT-ONLY change: add a connect_ws_unix (Unix connect + client_async over the raw UDS, no TLS), route --push through it for Unix addrs (skipping the token mint), and drop the Unsupported rejection. Value: co-located agents on shared hosts (e.g. .107 multi-agent) get the same ~90ms push instead of forced poll. Low effort, no hub/protocol change. GO to scope; final decision is the human's.
+
+### 2026-07-02T19:14:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
