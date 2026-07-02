@@ -20,6 +20,8 @@ regex = { workspace = true }
 tokio-rustls = { workspace = true }
 rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 toml = "0.8"

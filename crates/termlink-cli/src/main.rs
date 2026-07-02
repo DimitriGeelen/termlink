@@ -1013,6 +1013,7 @@ async fn main() -> Result<()> {
                 from_latest,
                 once,
                 then_live,
+                push,
             } => {
                 // T-2047: validate --from-latest sub-mode (clap conflicts_with handles
                 // most pairs but cannot express "if A then exactly one of B|C").
@@ -1051,6 +1052,7 @@ async fn main() -> Result<()> {
                     json,
                     from_latest,
                     then_live,
+                    push,
                 )
                 .await
             }

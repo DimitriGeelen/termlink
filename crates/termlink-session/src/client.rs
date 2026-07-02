@@ -99,6 +99,53 @@ impl Client {
         }
     }
 
+    /// Connect to a TCP hub and return the **unsplit** TLS stream (T-2309,
+    /// arc-004 push-transport S3b).
+    ///
+    /// [`connect_addr`] splits the TLS stream into trait-object reader/writer
+    /// halves for the newline-JSON-RPC line protocol, which makes the raw
+    /// stream unrecoverable for a WebSocket upgrade. The WS consumer needs the
+    /// whole `TlsStream` to hand to `tokio_tungstenite::client_async`, so this
+    /// runs the same local-pinned-vs-TOFU connector selection as `connect_addr`
+    /// (lines above) but returns the stream intact. Unix targets are rejected —
+    /// WS-over-Unix (co-located agent) is the documented S3b follow-on.
+    pub async fn connect_tls_stream(
+        addr: &TransportAddr,
+    ) -> std::io::Result<tokio_rustls::client::TlsStream<tokio::net::TcpStream>> {
+        let (host, port) = match addr {
+            TransportAddr::Tcp { host, port } => (host.clone(), *port),
+            TransportAddr::Unix { .. } => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "connect_tls_stream supports TCP hubs only (WS-over-Unix is a follow-on)",
+                ));
+            }
+        };
+        let stream = tokio::net::TcpStream::connect((host.as_str(), port)).await?;
+        stream.set_nodelay(true)?;
+
+        // Mirror connect_addr's selection: local pinned cert vs remote TOFU.
+        let cert_path = crate::discovery::runtime_dir().join("hub.cert.pem");
+        let is_local = host == "127.0.0.1" || host == "localhost" || host == "::1";
+        let effective_cert = if is_local && cert_path.exists() {
+            Some(cert_path)
+        } else if is_local && std::env::var("TERMLINK_RUNTIME_DIR").is_err() {
+            let alt = std::path::PathBuf::from("/var/lib/termlink/hub.cert.pem");
+            if alt.exists() { Some(alt) } else { None }
+        } else {
+            None
+        };
+
+        let connector = if let Some(cert) = effective_cert {
+            build_tls_connector(&cert)?
+        } else {
+            crate::tofu::build_tofu_connector(&format!("{host}:{port}"))
+        };
+        let server_name = rustls::pki_types::ServerName::try_from(host.clone())
+            .unwrap_or_else(|_| rustls::pki_types::ServerName::try_from("localhost".to_string()).unwrap());
+        connector.connect(server_name, stream).await
+    }
+
     /// Connect to a transport address without TLS (plain TCP for internal forwarding).
     ///
     /// Used by the hub router for internal session-to-session forwarding where the

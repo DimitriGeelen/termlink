@@ -29,6 +29,7 @@ pub mod scrollback;
 pub mod server;
 pub mod tofu;
 pub mod transport;
+pub mod ws_consumer;
 
 pub use identity::SessionId;
 pub use lifecycle::SessionState;

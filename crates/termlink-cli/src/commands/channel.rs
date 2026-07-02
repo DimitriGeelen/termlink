@@ -361,6 +361,79 @@ fn hex_of(bytes: &[u8]) -> String {
     s
 }
 
+/// T-2309 (arc-004 push-transport S3b): mint an Execute-scope auth token for a
+/// TCP hub, reusing the same secret-resolution + token logic as
+/// `rpc_call_authed`. Returns the raw token string for `hub.auth` over the WS.
+fn mint_tcp_hub_token(addr: &TransportAddr) -> Result<String> {
+    use termlink_session::auth::{self, PermissionScope};
+    let hex = resolve_hub_secret_hex(addr)?;
+    if hex.len() != 64 {
+        anyhow::bail!("hub secret must be 64 hex chars, got {}", hex.len());
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            .context("invalid hex in hub secret")?;
+    }
+    let secret: auth::TokenSecret = bytes;
+    let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+    Ok(token.raw)
+}
+
+/// T-2309: outcome of the WS push attempt, so the caller knows whether to
+/// print a plain "ended" notice or the "needs a TCP hub" hint before degrading
+/// to poll.
+enum WsPushOutcome {
+    /// The WS stream ran and then ended/closed (or the receiver was dropped).
+    Ended,
+    /// The target is a Unix socket — WS-over-Unix is a follow-on; poll instead.
+    Unsupported,
+}
+
+/// T-2309 (arc-004 push-transport S3b): drive the live WS push consumer for
+/// `topic` against a TCP hub. Spawns the session-crate WS helper into a task
+/// and renders each pushed `hub.event`'s `params` as it arrives. Returns when
+/// the stream ends or fails — the caller degrades to the poll loop.
+async fn run_ws_push(
+    addr: &TransportAddr,
+    topic: &str,
+    json_output: bool,
+) -> Result<WsPushOutcome> {
+    use termlink_session::ws_consumer::{stream_ws_events, WsConsumerError};
+
+    if addr.is_unix() {
+        return Ok(WsPushOutcome::Unsupported);
+    }
+    let token_raw = mint_tcp_hub_token(addr)?;
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(256);
+    let topics = vec![topic.to_string()];
+    let addr_owned = addr.clone();
+    let ws_task =
+        tokio::spawn(async move { stream_ws_events(&addr_owned, &token_raw, &topics, tx).await });
+
+    // Render pushed events until the helper drops the sender (stream ended/failed).
+    while let Some(params) = rx.recv().await {
+        if json_output {
+            println!("{params}");
+        } else {
+            let ev_topic = params.get("topic").and_then(|t| t.as_str()).unwrap_or("?");
+            let seq = params.get("seq").and_then(|s| s.as_u64()).unwrap_or(0);
+            let payload = params
+                .get("payload")
+                .cloned()
+                .unwrap_or(Value::Null);
+            println!("[push] {ev_topic} seq={seq}: {payload}");
+        }
+    }
+
+    match ws_task.await {
+        Ok(Ok(())) => Ok(WsPushOutcome::Ended),
+        Ok(Err(WsConsumerError::UnsupportedTransport)) => Ok(WsPushOutcome::Unsupported),
+        Ok(Err(e)) => Err(anyhow!("{e}")),
+        Err(join_err) => Err(anyhow!("ws consumer task failed: {join_err}")),
+    }
+}
+
 pub(crate) async fn cmd_channel_create(
     name: &str,
     retention: &str,
@@ -2236,6 +2309,7 @@ pub(crate) async fn cmd_channel_dm(
                        // dm-resume path; the cv_index snapshot is opt-in only)
                 hub, json_output,
                 false, false, // T-2047: from_latest, then_live (default off)
+                false, // T-2309: push (dm-resume path uses poll, not WS)
             )
             .await
         }
@@ -8317,6 +8391,10 @@ pub(crate) async fn cmd_channel_subscribe(
     // (cursor, limit, follow) — see early-return block below.
     from_latest: bool,
     then_live: bool,
+    // T-2309 (arc-004 S3b): live WS push transport. When set (and the target is
+    // a TCP hub), stream pushed `hub.event` frames before falling into the poll
+    // loop. Degrades to poll on any WS failure — never a hard error.
+    push: bool,
 ) -> Result<()> {
     use std::fmt::Write as _;
     let tail_mode = tail.is_some();
@@ -8400,6 +8478,29 @@ pub(crate) async fn cmd_channel_subscribe(
     // batches so a parent that arrived in batch N can be hidden when its
     // redaction arrives in batch N+1.
     let mut redacted: std::collections::HashSet<u64> = Default::default();
+    // T-2309 (arc-004 push-transport S3b): live WS push transport. Attempt the
+    // WebSocket path first; when it ends or fails, degrade to the poll loop
+    // below (the durable substrate stays authoritative — WS is a faster
+    // transport, never a new source of truth). Meaningful only for a TCP hub; a
+    // Unix target degrades immediately with a hint. The poll loop then resumes
+    // from `cursor` — some overlap with already-pushed events is acceptable on a
+    // degrade (correctness over dedup); active reconnect-to-WS is a follow-on.
+    if push {
+        match run_ws_push(&sock, topic, json_output).await {
+            Ok(WsPushOutcome::Ended) => {
+                eprintln!("[push] WS stream ended — degrading to poll");
+            }
+            Ok(WsPushOutcome::Unsupported) => {
+                eprintln!(
+                    "[push] --push needs a remote TCP hub (--hub host:port); \
+                     WS-over-Unix is a follow-on — using poll"
+                );
+            }
+            Err(e) => {
+                eprintln!("[push] WS unavailable ({e}) — degrading to poll");
+            }
+        }
+    }
     // T-2105: one-shot snapshot — request cv_index only on the first hub call.
     // Set false after the first response is rendered so paginated fetches
     // don't re-ship the same snapshot.

@@ -2569,6 +2569,15 @@ pub(crate) enum ChannelAction {
         #[arg(long, conflicts_with = "once")]
         then_live: bool,
 
+        /// Live push transport (arc-004 S3b, T-2309): open a WebSocket to a
+        /// remote hub and print pushed `hub.event` frames the instant they
+        /// arrive, instead of the 1s poll floor. Requires a TCP `--hub
+        /// host:port` with a known secret. If the WS path is unavailable or
+        /// drops, degrades to the normal poll loop (durable substrate stays
+        /// authoritative). WS-over-Unix (co-located agent) is a follow-on.
+        #[arg(long)]
+        push: bool,
+
         /// Drop envelopes whose `ts > <ms>` from the printed output (T-1352).
         /// Closing pair to `--since`. Combine for an arbitrary
         /// `[since, until]` window. Same render-side semantics — pagination
