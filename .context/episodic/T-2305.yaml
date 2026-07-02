@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2305: V1 WS-S1 hub WebSocket upgrade endpoint — dep + Upgrade handshake + auth reuse
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T16:00:13Z
+# ============================================================================
+
+task_id: T-2305
+task_name: "V1 WS-S1 hub WebSocket upgrade endpoint — dep + Upgrade handshake + auth reuse"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T15:47:34Z
+completed: 2026-07-02T15:59:43Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T17:49:40+02:00
+last_commit: 2026-07-02T17:59:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open arc-004 push-transport (WS live transport, GO output of T-2303); scope S1 hub WS upgrade endpoint with real ACs. WS-S1 hub WebSocket upgrade endpoint — sniff+handshake+auth-reuse over shared dispatch (arc-004)
+
+# Key outcomes
+outcomes:
+  - 'A WebSocket dependency (`tokio-tungstenite`, TLS-feature-free since the WS runs over the already-TLS-terminated stream) is added to the hub crate''s `Cargo.toml`, and `cargo build --release -p termlink-hub` succeeds. *(server.rs / Cargo.toml — release build green.)*'
+  - 'The hub accept path detects an inbound HTTP WebSocket upgrade (first-byte sniff `G` of `GET ` vs `{` of a JSON-RPC line, replayed via `PeekedStream` so no byte is lost) and completes the RFC6455 handshake via `tokio_tungstenite::accept_async`, yielding a WS stream over the same generic `AsyncRead+AsyncWrite` connection type used today. *(Test drives a real `client_async` upgrade to completion.)*'
+  - 'Back-compat: a connection that speaks the existing newline-delimited JSON-RPC line protocol (first byte `{`) is routed to `handle_line_connection` — the extracted-verbatim old body — so the plain path is unchanged. Proven by all 373 hub unit tests + 4 integration tests still passing.'
+  - 'The upgraded WS connection is authenticated by **reusing** the existing HMAC scope-verification path: `hub.auth` flows through the *same* `process_request_message` dispatch as the line transport, so an invalid/absent token yields the identical refusal (unauthenticated calls → `AUTH_REQUIRED -32009`; a bad `hub.auth` does not authenticate and does not drop the socket), and a valid token caches the authenticated scope (`granted_scope`) for the connection lifetime — no new/forked auth scheme.'
+  - 'A unit test (`server::tests::ws_upgrade_auth_and_reuse`) exercises both outcomes over a real WS client: (a) valid token authenticates and the connection stays open for a subsequent authed call that returns a result; (b) unauthenticated call rejected with `AUTH_REQUIRED` and an invalid token fails to authenticate. Passes in CI.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'Cargo.toml'
+  - '.context/arcs/push-transport.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-hub/Cargo.toml'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2305-v1-ws-s1-hub-websocket-upgrade-endpoint-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T17:49:40"
+    action: "T-2305: open arc-004 push-transport (WS live transport, GO output of T-2303); scope S1 hub WS upgrade endpoint with real ACs"
+  - time: "2026-07-02T17:59:35"
+    action: "T-2305: WS-S1 hub WebSocket upgrade endpoint — sniff+handshake+auth-reuse over shared dispatch (arc-004)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 2
+  files_changed: 14
+  lines_added: 695
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2305-v1-ws-s1-hub-websocket-upgrade-endpoint-.md
+generated_by: context-agent-hybrid

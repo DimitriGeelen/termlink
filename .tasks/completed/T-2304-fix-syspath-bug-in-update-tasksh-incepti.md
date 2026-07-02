@@ -4,10 +4,10 @@ name: "Fix sys.path bug in update-task.sh inception-scope-trace — __file__ is 
 description: >
   Fix sys.path bug in update-task.sh inception-scope-trace — __file__ is <stdin> in heredoc, breaks lib.inception_decisions import
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T14:21:20Z
-last_update: 2026-07-02T14:25:41Z
-date_finished: null
+last_update: 2026-07-02T15:41:55Z
+date_finished: 2026-07-02T15:41:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -214,3 +214,6 @@ is present in source — so a regression re-breaks the gate loudly. Candidate le
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2304-fix-syspath-bug-in-update-tasksh-incepti.md
 - **Context:** Initial task creation
+
+### 2026-07-02T15:41:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,112 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2304: Fix sys.path bug in update-task.sh inception-scope-trace — __file__ is <stdin> in heredoc, breaks lib.inception_decisions import
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T15:41:58Z
+# ============================================================================
+
+task_id: T-2304
+task_name: "Fix sys.path bug in update-task.sh inception-scope-trace — __file__ is <stdin> in heredoc, breaks lib.inception_decisions import"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T14:21:20Z
+completed: 2026-07-02T15:41:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T16:24:12+02:00
+last_commit: 2026-07-02T17:41:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix sys.path in update-task.sh inception-scope-trace — __file__ is '<stdin>' in heredoc, pass FRAMEWORK_ROOT env so lib.inception_decisions imports (was breaking fw inception decide finalization). RCA + pending-state capture — fix applied on-disk+verified, needs AEF upstream commit + 'fw inception sweep' to finalize T-2303 GO (budget-blocked at 97%). tick 3 Agent ACs — fix verified (import-ok + grep), T-2303 finalized via sweep (GO honored end-to-end)
+
+# Key outcomes
+outcomes:
+  - 'The `check_inception_scope_trace` heredoc in `update-task.sh` (~line 578) no longer relies on `__file__` for its sys.path root: it passes `FRAMEWORK_ROOT` via env and `sys.path.insert`s that (falling back to the `__file__` chain only when run as a real file), so `from lib.inception_decisions import …` resolves under a `python3 -` stdin invocation.'
+  - 'Regression proof: running the same heredoc shape from `cd /opt/termlink` with `FRAMEWORK_ROOT` set imports `lib.inception_decisions` successfully (no `ModuleNotFoundError`); verification command below exits 0.'
+  - 'T-2303''s stuck finalization is completed (status `work-completed`, archived to `completed/`) via `fw inception sweep` after the fix — the GO decision is honored end-to-end.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick 3 Agent ACs — fix verified (import-ok + grep), T-2303 finalized via sweep (GO honored end-to-end)'
+    source: git-mined
+  - description: 'RCA + pending-state capture — fix applied on-disk+verified, needs AEF upstream commit + ''fw inception sweep'' to finalize T-2303 GO (budget-blocked at 97%)'
+    source: git-mined
+  - description: 'fix sys.path in update-task.sh inception-scope-trace — __file__ is ''<stdin>'' in heredoc, pass FRAMEWORK_ROOT env so lib.inception_decisions imports (was breaking fw inception decide finalization)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/task-create/update-task.sh'
+  - '.context/audits/2026-07-02.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0702-1628.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-1898-vendored-agent-runner-phase-1--minimum-v.md'
+  - '.tasks/active/T-2250-r5-telemetry-plane-design--local-first-p.md'
+  - '.tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md'
+  - '.tasks/active/T-2304-fix-syspath-bug-in-update-tasksh-incepti.md'
+  - '.tasks/completed/T-2025-substrate-hub-persistent-presence--circu.md'
+  - '.tasks/completed/T-2028-substrate-throughputconnection-budget--r.md'
+  - '.tasks/completed/T-2229-triage-ring20-cross-hub-federation--hear.md'
+  - '.tasks/completed/T-2303-push-based-transport-for-reliable-comms-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T16:24:12"
+    action: "T-2304: fix sys.path in update-task.sh inception-scope-trace — __file__ is '<stdin>' in heredoc, pass FRAMEWORK_ROOT env so lib.inception_decisions imports (was breaking fw inception decide finalization)"
+  - time: "2026-07-02T16:25:41"
+    action: "T-2304: RCA + pending-state capture — fix applied on-disk+verified, needs AEF upstream commit + 'fw inception sweep' to finalize T-2303 GO (budget-blocked at 97%)"
+  - time: "2026-07-02T17:41:50"
+    action: "T-2304: tick 3 Agent ACs — fix verified (import-ok + grep), T-2303 finalized via sweep (GO honored end-to-end)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 80 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 80
+  commits: 3
+  files_changed: 26
+  lines_added: 1848
+  lines_removed: 864
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2304-fix-syspath-bug-in-update-tasksh-incepti.md
+generated_by: context-agent-hybrid
