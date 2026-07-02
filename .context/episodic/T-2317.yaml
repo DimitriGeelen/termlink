@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2317: arc-004 WP2: push-waker degrade-to-poll + no-double-wake under WS drop (T-2315 GO, Option A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T21:44:50Z
+# ============================================================================
+
+task_id: T-2317
+task_name: "arc-004 WP2: push-waker degrade-to-poll + no-double-wake under WS drop (T-2315 GO, Option A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T21:37:20Z
+completed: 2026-07-02T21:44:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T23:44:22+02:00
+last_commit: 2026-07-02T23:44:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 WP2 push-waker blip/reconnect demo — waker resumes after hub drop, exactly-once ring, no double-wake (inherits T-2314)
+
+# Key outcomes
+outcomes:
+  - 'A blip demo (`scripts/demo-pushwaker-blip.sh`, isolated hub + HOME, stub-inject) starts the waker, kills the hub mid-stream, and restarts it on the same runtime_dir + port (clearing stale `hub.sock`/`hub.pid`). — `start_hub()` clears sock/pid; kill+restart wired'
+  - 'After the restart, a fresh deposit to `inbox:<self>` rings the PTY — proving the waker resumed (did not permanently die on the drop). — demo: rings before=0 → after=1'
+  - 'The post-blip deposit rings **exactly once** for its offset (no double-wake): the per-offset dedup holds across the reconnect. — demo: exactly 1 ring; +unit test `pushwaker_dedup_ok`'
+  - 'No lost DM: the post-blip deposit produces a ring (not silently dropped); report line `RESULT: PASS`. — RESULT: PASS'
+  - 'The demo/script header documents the cap-degrade floor (prolonged outage → durable `/check-arc` + sender-ring path), so the scope boundary is explicit and not read as a bug. — documented in script header + report §"Honest scope boundary"'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/push-transport.yaml'
+  - 'docs/reports/T-2317-arc-004-pushwaker-blip-demo.md'
+  - 'scripts/demo-pushwaker-blip.sh'
+  - '.tasks/active/T-2317-arc-004-wp2-push-waker-degrade-to-poll--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T23:44:22"
+    action: "T-2317: arc-004 WP2 push-waker blip/reconnect demo — waker resumes after hub drop, exactly-once ring, no double-wake (inherits T-2314)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:push-transport"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 4
+  lines_added: 417
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2317-arc-004-wp2-push-waker-degrade-to-poll--.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "arc-004 WP2: push-waker degrade-to-poll + no-double-wake under WS drop (T
 description: >
   Loopback wire evidence that the push-waker survives a WS drop: subscribe reconnects (inherits T-2314), an inbound deposit during/after the blip rings the PTY exactly once (no double-wake, no lost DM), and the durable path remains the floor.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: ["arc:push-transport"]
 components: []
 related_tasks: ["T-2316", "T-2315", "T-2314"]
@@ -17,8 +17,8 @@ arc_id: push-transport
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T21:37:20Z
-last_update: 2026-07-02T21:37:20Z
-date_finished: null
+last_update: 2026-07-02T21:44:28Z
+date_finished: 2026-07-02T21:44:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -179,3 +179,6 @@ out=$(bash scripts/demo-pushwaker-blip.sh 2>&1); echo "$out" | grep -q "RESULT: 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2317-arc-004-wp2-push-waker-degrade-to-poll--.md
 - **Context:** Initial task creation
+
+### 2026-07-02T21:44:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
