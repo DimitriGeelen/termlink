@@ -7,7 +7,7 @@ description: >
   coordination/announcement pattern AEF wants generates exactly that traffic class,
   so retention/compaction must be designed in from the start, not bolted on.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
 horizon: now
@@ -15,7 +15,7 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:55Z
-last_update: 2026-06-10T15:47:18Z
+last_update: 2026-07-02T15:40:51Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable

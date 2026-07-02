@@ -4,15 +4,15 @@ name: "Vendored Agent Runner — inception (autonomous claude-code-as-service fo
 description: >
   Inception: TermLink ships the presence half of the doorbell+mail conversation arc (T-1832/T-1840 listener-heartbeat as systemd service) but NOT the agent half — there is no service that holds an attached claude-code session, reads its dm:<self>:* topics, and replies. Result: ring20-manager-vendored (and .141 per T-1457) emit hourly presence beats but nothing ever reads inbound DMs. Outbound mailboxes accumulate indefinitely; the conversation arc is one-directional in practice. T-1898 explores: what is the right primitive shape for "vendored agent" — should it be a long-running attached claude-code service, a per-message claude -p doorbell-bridge, or something else? Decision feeds Phase-1 build task downstream.
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-06-06T20:00:11Z
+last_update: 2026-07-02T15:40:51Z
 date_finished: null
 revisit_at: 2026-07-06
 revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class incident), making the cost of NOT having a vendored agent runner immediately quantifiable."
@@ -195,3 +195,8 @@ grep -q "## Go/No-Go Criteria" .tasks/active/T-1898-*.md
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** No spike has been run. The recommendation cannot honestly be GO or NO-GO because the Go/No-Go Criteria require empirical evidence for A1, A2, A4, A7 — and that evidence comes from S1-S8, none of which has executed. The dialogue log records the operator paused before spike-go because S1 alone needs a 24h observation window plus ~5h agent-side investigation, and the operator wants explicit budget authorization before that spend lands. Until either (a) operator authorizes the spike budget or (b) a triggering event (e.g. ring20-management goes silent >24h for a second time within 7d) makes the cost of NOT having a runner immediately quantifiable, DEFER is the truthful state.
+
+### 2026-07-02T15:40:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: now → later
+- **Reason:** T-1865 sweep: DEFER limbo recovery

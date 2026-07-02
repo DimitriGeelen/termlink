@@ -4,20 +4,20 @@ name: "V2b: hub-stamped observed source address"
 description: >
   Arc-003 V2 follow-up (sliced from T-2293). Hub stamps the OBSERVED TCP source address it saw onto agent-presence heartbeats / registrations, so the discovery registry can prefer a hub-attested host:port over the agent's self-report (defeats stale/spoofed self-reported hostnames). peer_addr is already available at server.rs:640/670 and threaded into process_request; the work is to thread it through route_request -> handle_channel_post and inject observed_addr into the stored envelope, then have fleet_presence/agent-resolve prefer it. Consumed by V6 (T-2296) direct transport, which needs the agent's real host. Self-report addr (the AC2 fallback) already ships in T-2293.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [arc:reliable-comms]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-07-02T08:14:11Z
-date_finished: null
+last_update: 2026-07-02T08:15:05Z
+date_finished: 2026-07-02T08:15:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -274,3 +274,6 @@ confirmation, not a blocker (V6 direct transport already ships on the self-repor
 ### 2026-07-02T07:40:34Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-07-02T08:15:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

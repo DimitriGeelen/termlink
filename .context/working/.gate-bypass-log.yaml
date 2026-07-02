@@ -1860,3 +1860,32 @@ echo "=== budget ==="; cat .context/'
   command: 'cd /opt/termlink
 git add -A
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2302: finalize V6-S5 — archive task + episodic (work-completed)" 2>&1 | tail -8'
+- timestamp: '2026-07-02T07:40:49Z'
+  task: 'T-2297'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2296'
+  command: 'cd /opt/termlink
+# Commit 1: apex finalize (references T-2296, current focus is T-2297 → FW_SWITCH_FOCUS)
+git add .tasks/completed/T-2296*.md .context/episodic/T-2296.yaml .context/arcs/reliable-com'
+- timestamp: '2026-07-02T09:17:03Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2291'
+  command: 'cd /opt/termlink
+git add docs/reports/arc-003-reliable-comms-close-demo.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2291: arc-003 close demo evidence — wire-level e2e (transport '
+- timestamp: '2026-07-02T09:18:50Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2291'
+  command: 'cd /opt/termlink
+git add .context/arcs/reliable-comms.yaml
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2291: close arc-003 reliable-comms registry — GO, demo evidence attached, clos'
+- timestamp: '2026-07-02T14:17:32Z'
+  task: 'T-2303'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

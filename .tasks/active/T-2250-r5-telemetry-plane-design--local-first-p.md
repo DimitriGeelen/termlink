@@ -4,7 +4,7 @@ name: "R5 telemetry plane design — local-first per-agent failure telemetry"
 description: >
   Inception: R5 telemetry plane design — local-first per-agent failure telemetry
 
-status: started-work
+status: captured
 workflow_type: inception
 owner: human
 horizon: later
@@ -13,7 +13,7 @@ tags: [arc:arc-substrate-fitness]
 components: []
 related_tasks: [T-2242, T-2243, T-2245]
 created: 2026-06-23T07:53:59Z
-last_update: 2026-06-25T06:35:08Z
+last_update: 2026-07-02T15:40:51Z
 date_finished: null
 revisit_at: 2026-07-25          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 revisit_evidence_needed: "R7 hygiene cleanup landed (measurement surface de-noised) + R4 daily-aggregated-push transport validated live"  # T-1451
@@ -220,3 +220,8 @@ Evidence:
 - **Follow-up:** `revisit_at: 2026-07-25` + `revisit_evidence_needed` set per
   T-1451 so the G-053 daily scan resurfaces it. Awaiting formal re-record:
   `fw inception decide T-2250 defer --rationale "…"` (human Tier-0 action).
+
+### 2026-07-02T15:40:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: later → later
+- **Reason:** T-1865 sweep: DEFER limbo recovery

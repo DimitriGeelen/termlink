@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T14:21:20Z
-last_update: 2026-07-02T14:24:12Z
+last_update: 2026-07-02T14:25:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,9 +40,9 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The `check_inception_scope_trace` heredoc in `update-task.sh` (~line 578) no longer relies on `__file__` for its sys.path root: it passes `FRAMEWORK_ROOT` via env and `sys.path.insert`s that (falling back to the `__file__` chain only when run as a real file), so `from lib.inception_decisions import …` resolves under a `python3 -` stdin invocation.
-- [ ] Regression proof: running the same heredoc shape from `cd /opt/termlink` with `FRAMEWORK_ROOT` set imports `lib.inception_decisions` successfully (no `ModuleNotFoundError`); verification command below exits 0.
-- [ ] T-2303's stuck finalization is completed (status `work-completed`, archived to `completed/`) via `fw inception sweep` after the fix — the GO decision is honored end-to-end.
+- [x] The `check_inception_scope_trace` heredoc in `update-task.sh` (~line 578) no longer relies on `__file__` for its sys.path root: it passes `FRAMEWORK_ROOT` via env and `sys.path.insert`s that (falling back to the `__file__` chain only when run as a real file), so `from lib.inception_decisions import …` resolves under a `python3 -` stdin invocation.
+- [x] Regression proof: running the same heredoc shape from `cd /opt/termlink` with `FRAMEWORK_ROOT` set imports `lib.inception_decisions` successfully (no `ModuleNotFoundError`); verification command below exits 0.
+- [x] T-2303's stuck finalization is completed (status `work-completed`, archived to `completed/`) via `fw inception sweep` after the fix — the GO decision is honored end-to-end.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
