@@ -13,7 +13,7 @@ components: []
 related_tasks: [T-2316, T-2317, T-2315]
 arc_id: push-transport
 created: 2026-07-02T22:26:34Z
-last_update: 2026-07-02T22:26:34Z
+last_update: 2026-07-02T22:36:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,17 +47,17 @@ feature — strengthens the arc-close evidence for the human's sovereignty-gated
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/demo-pushwaker-e2e.sh` exists, is executable, and passes `bash -n`
-- [ ] Demo drives the **real** operator path: `be-reachable.sh start` spawns the
+- [x] `scripts/demo-pushwaker-e2e.sh` exists, is executable, and passes `bash -n`
+- [x] Demo drives the **real** operator path: `be-reachable.sh start` spawns the
       waker; the state file records a non-null `pushwaker_pid` whose process is alive
-- [ ] Demo uses a **real** `termlink spawn` PTY session and the **real** waker (NO
+- [x] Demo uses a **real** `termlink spawn` PTY session and the **real** waker (NO
       stub inject); a deposit to `inbox:<self>` produces a real inject observable in
       the spawned session's own output (verified via `termlink output`, not a log stub)
-- [ ] A deposit to a **different** inbox does NOT ring the spawned session (no false wake)
-- [ ] `be-reachable.sh stop` terminates the recorded `pushwaker_pid` (process gone after stop)
-- [ ] Demo is hermetic: isolated `TERMLINK_RUNTIME_DIR` + `HOME` + loopback hub port,
+- [x] A deposit to a **different** inbox does NOT ring the spawned session (no false wake)
+- [x] `be-reachable.sh stop` terminates the recorded `pushwaker_pid` (process gone after stop)
+- [x] Demo is hermetic: isolated `TERMLINK_RUNTIME_DIR` + `HOME` + loopback hub port,
       no writes to the real fleet/agent-presence; prints `RESULT: PASS` on success
-- [ ] Evidence report `docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md` captures the
+- [x] Evidence report `docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md` captures the
       run transcript and states the honest scope (what this adds over T-2316/T-2317)
 
 ### Human
