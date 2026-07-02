@@ -21,6 +21,11 @@ demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
 #   T-2317 push-waker blip (WP2):    docs/reports/T-2317-arc-004-pushwaker-blip-demo.md     (built; waker resumes after hub blip, exactly-once, no double-wake)
 #   T-2318 live E2E (real spawn):    docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md      (verified; real be-reachable start→spawn→inject→filter→stop, no stub — surfaced T-2319)
 #   T-2319 stop-reap leak fix:       .tasks/completed/T-2319-*.md                            (built; cmd_stop process-group kill reaps the subscribe child — no orphan on /be-reachable stop; PL-234)
+# Post-close verification + documentation (arc already closed=shipped; these firm up + consolidate, no reopen):
+#   T-2320 latency benchmark:        docs/reports/T-2320-arc-004-pushwake-latency-benchmark.md (verified; 85-111ms median full-wake vs ~15s floor — retires the T-2303 §10 "reason to DEFER" gap; scripts/bench-pushwake-latency.sh; PL-235)
+#   T-2321 operator recipe:          docs/operations/push-transport-recipe.md                  (doc; consolidates the shipped push-wake path into one master operator recipe)
+# Decision-ready follow-on (NOT built — awaiting human inception GO):
+#   T-2322 dm-rail push-wake:        .tasks/active/T-2322-*.md                                 (captured inception; verified gap — direct dm: posts by a non-live-sender don't push-wake the receiver; channel.rs:752)
 created: 2026-07-02T15:47:28Z
 closed_at: 2026-07-02T23:13:52Z
 decision: "shipped"
