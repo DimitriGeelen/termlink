@@ -16,7 +16,7 @@ related_tasks: [T-2291, T-2296, T-2298, T-2299, T-2300, T-2301]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-01T21:53:14Z
-last_update: 2026-07-01T21:53:14Z
+last_update: 2026-07-01T21:56:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -76,11 +76,11 @@ are UNTOUCHED — only `dm:` turn/receipt envelopes already in the journal are t
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A journal reaper (`scripts/journal-reaper.sh`, script-first — no Rust rebuild, per the S1–S4 pattern) trims already-journaled `dm:` turn/receipt envelopes from the firehose using the primitive confirmed in build-subtlety #1 (retention+sweep / redaction). Idempotent (safe to re-run); honors `TERMLINK_JOURNAL_PATH` + a `--hub` arg like the sibling scripts
-- [ ] Message-loss safety: the reaper trims a `dm:` offset ONLY when its `(topic,offset)` row exists in `journal.sqlite`, and leaves a store-and-forward window of recent/un-journaled turns on the firehose. A guard makes trimming-ahead-of-journal structurally impossible (not just convention)
-- [ ] The durable read path is re-pointed to the journal: `/recent-dm` (`scripts/recent-dm.sh`) and/or `agent journal` read `dm:` history from `journal.sqlite`, so history survives a firehose trim — the user-visible `/recent-dm` output is unchanged after reaping
-- [ ] Non-`dm:` topics are untouched: `agent-presence` heartbeats, `agent-chat-arc` broadcasts, and other topics are never trimmed by the reaper (asserted, not assumed)
-- [ ] Tests prove it hub-independently on loopback (`scripts/test-journal-reaper.sh`): post N `dm:` turns + M `agent-presence` heartbeats to `127.0.0.1:9100`; journal-mirror then reap; assert the `dm:` turns are ABSENT from `channel subscribe <dm-topic>` but PRESENT in `agent journal <topic>`; assert heartbeats untouched; assert an un-journaled turn is NOT trimmed (safety). S1 journal-mirror + agent-send A–G/S2/S3/S4 suites all still pass
+- [x] A journal reaper (`scripts/journal-reaper.sh`, script-first — no Rust rebuild, per the S1–S4 pattern) trims already-journaled `dm:` turn/receipt envelopes from the firehose using the primitive confirmed in build-subtlety #1 (retention+sweep / redaction). Idempotent (safe to re-run); honors `TERMLINK_JOURNAL_PATH` + a `--hub` arg like the sibling scripts
+- [x] Message-loss safety: the reaper trims a `dm:` offset ONLY when its `(topic,offset)` row exists in `journal.sqlite`, and leaves a store-and-forward window of recent/un-journaled turns on the firehose. A guard makes trimming-ahead-of-journal structurally impossible (not just convention)
+- [x] The durable read path is re-pointed to the journal: `/recent-dm` (`scripts/recent-dm.sh`) and/or `agent journal` read `dm:` history from `journal.sqlite`, so history survives a firehose trim — the user-visible `/recent-dm` output is unchanged after reaping
+- [x] Non-`dm:` topics are untouched: `agent-presence` heartbeats, `agent-chat-arc` broadcasts, and other topics are never trimmed by the reaper (asserted, not assumed)
+- [x] Tests prove it hub-independently on loopback (`scripts/test-journal-reaper.sh`): post N `dm:` turns + M `agent-presence` heartbeats to `127.0.0.1:9100`; journal-mirror then reap; assert the `dm:` turns are ABSENT from `channel subscribe <dm-topic>` but PRESENT in `agent journal <topic>`; assert heartbeats untouched; assert an un-journaled turn is NOT trimmed (safety). S1 journal-mirror + agent-send A–G/S2/S3/S4 suites all still pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -192,7 +192,27 @@ bash -n scripts/journal-reaper.sh
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-07-02 — build-subtlety #1: the trim primitive is set-retention+sweep, not redact
+- **What changed:** Confirmed empirically on loopback (posted 6 → offsets 0-5, `set-retention messages:2` + `sweep` → `pruned:4`, remaining `4 5`). `channel redact` is APPEND-ONLY (emits a `msg_type=redaction` envelope, keeps the original in the store) — it hides, it does not trim. `set-retention messages:N` keeps the newest N by COUNT and `sweep` prunes the oldest (total-N) NOW (the bus runs no background sweep thread — T-1155/T-2245). `sweep --json` returns `{ok, pruned:K}`.
+- **Plan impact:** The reaper's trim step is `set-retention messages:$WINDOW` then `sweep`; the WINDOW doubles as the store-and-forward buffer (newest N always kept, so an in-flight direct/fallback send at the newest offset is never in the prune-range). The topic's retention policy becomes permanently bounded — which IS the S5 end-state (dm: firehose reverts to a short buffer, journal authoritative), not a side effect.
+- **Triggered:** none — matched the design's option-(b) recommendation.
+
+### 2026-07-02 — build-subtlety #2: count-based retention makes the guard load-bearing (two layers)
+- **What changed:** Because `messages:N` prunes by live COUNT at sweep time (not by explicit offset), a naive "keep newest N" could drop an un-journaled offset if the journal was incomplete. Made trim-ahead-of-journal structurally impossible with TWO layers: LAYER 1 runs `journal-mirror` for the topic immediately before sweep (journal ⊇ firehose by construction); LAYER 2 is a GUARD that queries `journal.sqlite` and REFUSES to sweep unless every prune-range offset is present. LAYER 2 is the real protection — proven by adding `--no-mirror` (skips LAYER 1) and testing the guard alone (R2: partial journal → SKIP-UNSAFE, offset 0 survives). LAYER 1 is freshness/convenience, safe to skip because the guard stands.
+- **Plan impact:** Added `--no-mirror` (not in the original scope) — operationally lets a cron/sidecar own mirroring while the reaper stays safe; also the only way to test the guard in isolation. The guard verdict taxonomy (`SKIP-WINDOW` / `SKIP-UNSAFE` / `SKIP-MIRROR-FAIL` / `REAPED` / `DRY-RUN`) is the observable surface.
+- **Triggered:** none.
+
+### 2026-07-02 — build-subtlety #3 (read-path): dedup key must drop sender, not payload
+- **What changed:** Re-pointing `/recent-dm` at the journal is a MERGE (firehose newest-window + journal full-history), not a swap — so live un-mirrored turns still show. But the firehose read resolves `sender = metadata.agent_id // ._from // sender_id` while `journal-mirror` stores only the envelope `sender_id`; the pre-S5 dedup key `[.ts, .sender, .payload_preview]` would therefore leave two copies of the SAME envelope un-collapsed. Changed the recent-dm dedup key to `[._topic, .ts, .payload_preview]` (identical across both sources; `.ts` is the same hub value read by both paths). Journal rows are windowed + msg-type-filtered to match the firehose read exactly, so `/recent-dm` output is byte-identical before/after a reap (R4 asserts this, with a `--no-journal` control proving the firehose really was trimmed).
+- **Plan impact:** The read-path change is scoped to `recent-dm.sh` only (not the shared `agent-chat-arc-recent.sh`), so `/recent-chat` (broadcast, non-journaled) is untouched — smallest blast radius. `agent journal` already read the journal (S1), so it needed no change.
+- **Triggered:** Follow-up worth filing: option-(a) hub-side dm: suppression (cleaner end-state, deferred by design) and a periodic reaper cron (mechanism shipped; scheduling is operator-side — deliberately NOT added here to avoid the `*-canary.crontab` audit gate and scope creep).
+
 ## Decisions
+
+### 2026-07-02 — option (b) client-side reaper over option (a) hub-side suppression
+- **Chose:** Client-side script (`journal-reaper.sh`) that trims via the existing `set-retention`+`sweep` primitives, plus a journal-merge in `recent-dm.sh`.
+- **Why:** Smaller blast radius (no Rust rebuild, no hot-post-path change), reversible (stop running the reaper → topics regrow), and matches the S1–S4 script-first precedent.
+- **Rejected:** Option (a) hub-side suppression (routing `dm:` posts to a journal table in `channel.rs`) — the cleaner end-state but touches the hot path and is a larger, harder-to-revert change. Deferred (or behind a flag) per the design.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.

@@ -76,6 +76,12 @@ Options:
                        check-arc output).
   --all-msg-types      Include receipts / heartbeats / etc. (default: turn
                        and chat msg_types only)
+  --journal PATH       durable journal to merge (default: ~/.termlink/journals/
+                       journal.sqlite, or $TERMLINK_JOURNAL_PATH). T-2302 (V6-S5):
+                       journal rows are folded into the read so dm: history
+                       survives a firehose trim (journal-reaper.sh).
+  --no-journal         firehose-only read (pre-S5 behaviour) — history trimmed
+                       off the firehose will not appear
   --json               Emit JSON envelope
   -h, --help           Print this help and exit 0
 
@@ -105,6 +111,12 @@ FILTER_MSG_TYPE=""
 ALL_MSG_TYPES=0
 FORMAT=text
 HUBS_FILE="$HUBS_FILE_DEFAULT"
+# T-2302 (V6-S5): the journal (~/.termlink/journals/journal.sqlite) is the AUTHORITATIVE
+# durable dm: record once the reaper trims old turns off the firehose. Merge journal rows
+# into the read so history survives a trim (the /recent-dm output is unchanged after reaping).
+# On by default; --no-journal restores the pre-S5 firehose-only behaviour.
+USE_JOURNAL=1
+JOURNAL="${TERMLINK_JOURNAL_PATH:-${HOME}/.termlink/journals/journal.sqlite}"
 
 # Parse positional + flags.
 while [ $# -gt 0 ]; do
@@ -117,6 +129,8 @@ while [ $# -gt 0 ]; do
         --hubs-file)        HUBS_FILE="${2:-}"; shift 2 ;;
         --filter-msg-type)  FILTER_MSG_TYPE="${2:-}"; shift 2 ;;
         --all-msg-types)    ALL_MSG_TYPES=1; shift ;;
+        --journal)          JOURNAL="${2:-}"; shift 2 ;;
+        --no-journal)       USE_JOURNAL=0; shift ;;
         --json)             FORMAT=json; shift ;;
         -h|--help)          usage; exit 0 ;;
         --) shift; break ;;
@@ -184,6 +198,34 @@ read_one_topic() {
         args+=(--all-msg-types)
     fi
     bash "$(dirname "$0")/agent-chat-arc-recent.sh" "${args[@]}"
+}
+
+# T-2302 (V6-S5): read the durable journal for one topic and normalize each row into
+# the SAME post shape agent-chat-arc-recent.sh emits, so a merge dedups cleanly and
+# trimmed-but-journaled history survives a firehose reap. Windowed + msg-type-filtered
+# to match the firehose read exactly (so /recent-dm output is unchanged after reaping).
+# Best-effort: any failure (no journal, no sqlite3) yields no rows, not an error.
+read_journal_topic() {
+    local topic="$1"
+    [ "$USE_JOURNAL" -eq 1 ] || return 0
+    [ -f "$JOURNAL" ] || return 0
+    command -v sqlite3 >/dev/null 2>&1 || return 0
+    bash "$(dirname "$0")/agent-journal.sh" "$topic" --journal "$JOURNAL" --json 2>/dev/null \
+      | jq -c --argjson cutoff "$cutoff_ms" --arg mtype "$FILTER_MSG_TYPE" '
+          (.messages // [])
+          | map(select(.ts >= $cutoff))
+          | (if $mtype != "" then map(select(.msg_type == $mtype)) else . end)
+          | map({
+              ts: .ts,
+              ts_iso: (.ts/1000 | strftime("%Y-%m-%dT%H:%M:%SZ")),
+              hub: "journal",
+              sender: (.sender_id // ""),
+              msg_type: .msg_type,
+              conversation_id: ((.conversation_id // "") | if . == "" then null else . end),
+              payload_preview: ((.payload // "") | if length > 80 then (.[0:80] + "…") else . end | gsub("\n"; "\\n")),
+              _topic: .topic
+            })
+          | .[]' 2>/dev/null || true
 }
 
 # --- Topic discovery ---
@@ -258,15 +300,20 @@ if [ "${#topics[@]}" -eq 0 ]; then
 fi
 
 # --- Scan each matched topic, collect JSON output, merge ---
+# Time cutoff (ms) matching the firehose engine's --since window, applied to journal rows.
+cutoff_ms=$(( ( $(date +%s) - SINCE_HOURS * 3600 ) * 1000 ))
 tmp_merged="$(mktemp -t recent-dm.XXXXXX)"
 trap 'rm -f "$tmp_merged"' EXIT
 
 for topic in "${topics[@]}"; do
     out="$(read_one_topic "$topic" 2>/dev/null || echo '')"
-    [ -z "$out" ] && continue
-    # Annotate each post with its source topic.
-    printf '%s' "$out" | jq -c --arg topic "$topic" \
-        '(.posts // []) | map(. + {_topic: $topic}) | .[]' >> "$tmp_merged" 2>/dev/null || true
+    if [ -n "$out" ]; then
+        # Annotate each firehose post with its source topic.
+        printf '%s' "$out" | jq -c --arg topic "$topic" \
+            '(.posts // []) | map(. + {_topic: $topic}) | .[]' >> "$tmp_merged" 2>/dev/null || true
+    fi
+    # T-2302: also fold in durable journal rows so trimmed history survives.
+    read_journal_topic "$topic" >> "$tmp_merged" 2>/dev/null || true
 done
 
 # Build the merged view.
@@ -274,8 +321,12 @@ done
 # identical (ts, sender, payload_preview) — collapse to one row. (G-060 /
 # PL-176: chat-arc-like topics may not federate, but DM topics that DO
 # federate produce visible duplicates without this dedup.)
+# T-2302: dedup key is (._topic, .ts, .payload_preview) — NOT .sender. The firehose
+# read resolves sender as metadata.agent_id//._from//sender_id, while the journal stores
+# the envelope sender_id only; keying on sender would leave firehose+journal copies of
+# the SAME envelope un-collapsed. (topic, ts, preview) is identical across both sources.
 merged_posts="$(jq -s -c --argjson limit "$LIMIT" \
-    'unique_by([.ts, .sender, .payload_preview]) | sort_by(-.ts) | .[:$limit]' \
+    'unique_by([._topic, .ts, .payload_preview]) | sort_by(-.ts) | .[:$limit]' \
     "$tmp_merged" 2>/dev/null || echo '[]')"
 [ -z "$merged_posts" ] && merged_posts="[]"
 
