@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-02T09:24:21Z
-last_update: 2026-07-02T09:27:13Z
+last_update: 2026-07-02T09:28:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,25 +62,25 @@ fresh and mapped.
 ## Open Questions
 
 - **IW-1: Can a live agent session receive a webhook (host an inbound HTTP endpoint)?**
-  confidence: 1
-  disposition: deferred
-  rationale: Strong prior that agents are PTY processes reachable only via hub+doorbell (see [[reference_shared_host_identity]]); needs enumeration spike to confirm no agent hosts an endpoint.
+  confidence: 3
+  disposition: answered
+  rationale: No. Live agents are PTY processes behind hub+doorbell with no listening HTTP server; no inbound webhook receiver exists anywhere (only outbound Slack examples). Watchtower Flask (:3003) CAN host. Webhooks = external-only. See report §8.3.
 - **IW-2: What is the measured baseline latency + rpc_audit cost of doorbell-then-poll today?**
-  confidence: 0
-  disposition: deferred
-  rationale: No measurement yet; Spike 1 establishes the status-quo number the whole go/no-go hinges on (value = beating this).
+  confidence: 2
+  disposition: answered
+  rationale: DM wake latency floor = 15 s sidecar poll interval (`notify-sidecar.sh`) + 1 s receipt granularity; no sub-second path. PL-089's ~13K audit/sec is the `event.collect` aggregator path (skip-listed), NOT DM delivery. Code-grounded, not a live end-to-end measurement (residual — see recommendation DEFER caveat). Report §8.1.
 - **IW-3: Does the hub auth model (HMAC + TLS pin, T-1427) extend cleanly to a WS upgrade handshake?**
-  confidence: 1
-  disposition: deferred
-  rationale: TLS terminates the same; open question is where HMAC verification sits in a long-lived WS vs per-RPC; Spike 2.
+  confidence: 3
+  disposition: answered
+  rationale: Yes. HMAC is verified once-per-connection and scope cached for the connection lifetime (`server.rs:508`); a WS authenticates at upgrade and reuses it. A3 confirmed. Report §8.2.
 - **IW-4: Is push a REPLACEMENT (primary path) or an AUGMENTATION (opt-in transport)?**
-  confidence: 1
-  disposition: deferred
-  rationale: Leaning augment-for-external (webhooks) + replace-poll-for-live (WS), but this is the core scoping decision the human owns; evidence from Spikes 1-3 informs it.
+  confidence: 2
+  disposition: answered
+  rationale: Both, split by path — REPLACE the poll wake/read for the LIVE path (WS), AUGMENT external fan-out (webhooks). Durability layer is NEITHER replaced nor augmented — it stays. Final split is the human's via `fw inception decide`; evidence supports scoped GO. Report §10.
 - **IW-5: How does push compose with offline-queue (T-2051), post-idempotency (T-2049), delivery-confirm + journal (arc-003)?**
-  confidence: 1
-  disposition: deferred
-  rationale: These are the reliability floor; push must not weaken them. Integration analysis (Spike 4).
+  confidence: 3
+  disposition: answered
+  rationale: Push rides ON TOP of the substrate as a faster wake/read transport; queue/idempotency/confirm/journal stay as the durability + exactly-once layer. A dropped WS degrades to the current poll path (substrate authoritative) — latency optimization with safe fallback. Report §8.4.
 
 ## Exploration Plan
 
@@ -186,17 +186,19 @@ webhooks is unconfirmed.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (scoped) — WebSockets for the live agent path; webhooks as a separate, later, external-only augmentation; keep the arc-003 durability layer underneath.
 
 **Rationale:**
 
-Explores whether arc-003 reliable-comms should adopt push-based delivery (WebSockets for live agent sessions, webhooks for external/non-interactive consumers) to REPLACE or AUGMENT the current direct-TCP channel.post + doorbell-then-poll + hub-fallback model. No spikes run yet, so there is no evidence to justify GO or NO-GO; DEFER is the correct filing state per T-1715 pending the exploration this task exists to perform (current-state RCA, WS-vs-webhook candidate analysis, scoring against the 4 Constitutional Directives, reachability/portability constraints).
+Code-grounded spikes (see `docs/reports/T-2303-push-transport-inception.md` §8–10) confirm all three load-bearing findings: (1) the current DM wake has a **15 s latency floor** (`notify-sidecar.sh` poll interval) with no sub-second path, continuous per-topic poll traffic, and a fragile legacy PTY-inject doorbell (T-2285 miss-gap) — a real, quantified pain, not just ergonomics; (2) a hub WebSocket upgrade is **LOW–MEDIUM effort** because HMAC auth is already verified once-per-connection and reusable at upgrade (`server.rs:508`), events already fan out over `tokio::broadcast` channels (`aggregator.rs:60`), and `handle_connection` is generic over the stream — the only new work is a `tokio-tungstenite` dep + Upgrade handshake + a second concurrent write path; (3) webhooks are **external-only** (Watchtower/Slack/CI can host endpoints; live PTY agents cannot), so they augment external fan-out and cannot replace agent-to-agent delivery. Directive scoring: WS 15 / both 15 / webhooks 14 / keep-current 12 — push wins on Usability (D3) + Reliability (D2) while the durable substrate (journal/receipts/queue/idempotency) stays and provides graceful degradation to polling. GO is scoped to the WS live path; the durability layer is explicitly out of scope for replacement.
+
+**DEFER caveat (the honest reviewer's alternative):** the 15 s floor is read from code constants, not a live end-to-end measurement — a 30-min live baseline against a running hub would firm up the 15 s→sub-second value before committing build effort.
 
 **Evidence:**
-
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- §8.1 current-path cost — `notify-sidecar.sh` (15 s interval), `agent-send.sh:373-395` (receipt re-poll), PL-089 is the `event.collect` path (skip-listed `rpc_audit.rs:46`), NOT DM delivery.
+- §8.2 WS feasibility — `server.rs:508` (per-connection HMAC reuse), `aggregator.rs:60` (broadcast fan-out), generic `handle_connection`; no existing WS dep.
+- §8.3 webhook consumers — no inbound receiver today; Watchtower Flask `.agentic-framework/web/app.py`:3003 can host; live agents cannot (A1 confirmed).
+- §9 directive scoring table; §10 scoped GO + build-arc decomposition (S1–S4).
 
 ## Decisions
 
