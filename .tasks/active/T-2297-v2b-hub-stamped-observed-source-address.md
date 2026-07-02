@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-07-02T07:48:54Z
+last_update: 2026-07-02T08:14:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -219,6 +219,29 @@ cargo check -p termlink-session -p termlink
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** All 4 Agent ACs are met and machine-verified (P-011 green). The change
+is PL-122-safe by construction — envelope `metadata` is NOT in the signed canonical
+bytes (`channel.rs:579`), so server-stamping `observed_addr` needs no schema/serde
+change and cannot break signature verification. The attestation invariant
+(overwrite-on-TCP / strip-on-`None`, never client-forgeable) is enforced by the pure
+`apply_observed_addr` helper and proven by 3 unit tests. Read-side prefers the attested
+address with correct fallback (`observed_addr ?? self_reported ?? profile`), and old
+clients / Unix posts are byte-for-byte unaffected. This closes arc-003 reliable-comms
+(V2b was the last open arc task). The single Human [RUBBER-STAMP] AC is a live
+end-to-end confirmation that requires a hub rebuild+restart — it is a hardening
+confirmation, not a blocker (V6 direct transport already ships on the self-report addr).
+
+**Evidence:**
+- `apply_observed_addr` helper + `mod observed_addr_tests` — `cargo test -p termlink-hub observed_addr` = **3/3 pass** (overwrite-when-attested, forged-value-overwritten, strip-when-none).
+- Threading: `peer_addr: Option<&str>` from `server.rs` accept site → `router::route` → `handle_channel_post_with_peer`; `handle_channel_post_with` now `#[cfg(test)]` (all ~40 callers are in test modules — grep-confirmed).
+- Read side: `PresenceMatch.observed_addr` (fleet_presence.rs) + `agent resolve` host = `observed_addr.or(addr).or(profile)` (agent.rs), JSON + human output carry `observed_addr`.
+- Compile: `cargo check -p termlink-session -p termlink` = **exit 0**; full `cargo build` = **exit 0**; no dead-code warnings.
+- Commit `43457420` (source + task); prior WIP `fcf18a44`.
 
 ## Decisions
 
