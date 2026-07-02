@@ -385,9 +385,9 @@ fn mint_tcp_hub_token(addr: &TransportAddr) -> Result<String> {
 /// to poll.
 enum WsPushOutcome {
     /// The WS stream ran and then ended/closed (or the receiver was dropped).
+    /// T-2313: both TCP and Unix hubs are supported now; a genuinely unreachable
+    /// hub surfaces as `Err` (Connect), handled by the caller's degrade path.
     Ended,
-    /// The target is a Unix socket — WS-over-Unix is a follow-on; poll instead.
-    Unsupported,
 }
 
 /// T-2309 (arc-004 push-transport S3b): drive the live WS push consumer for
@@ -399,12 +399,16 @@ async fn run_ws_push(
     topic: &str,
     json_output: bool,
 ) -> Result<WsPushOutcome> {
-    use termlink_session::ws_consumer::{stream_ws_events, WsConsumerError};
+    use termlink_session::ws_consumer::stream_ws_events;
 
-    if addr.is_unix() {
-        return Ok(WsPushOutcome::Unsupported);
-    }
-    let token_raw = mint_tcp_hub_token(addr)?;
+    // T-2313 (arc-004 WS-over-Unix): TCP hubs need a minted auth token; Unix hubs
+    // are peer-cred-trusted and need none (stream_ws_events ignores the token for
+    // Unix). Passing an empty string keeps the &str signature.
+    let token_raw = if addr.is_unix() {
+        String::new()
+    } else {
+        mint_tcp_hub_token(addr)?
+    };
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Value>(256);
     let topics = vec![topic.to_string()];
     let addr_owned = addr.clone();
@@ -428,7 +432,6 @@ async fn run_ws_push(
 
     match ws_task.await {
         Ok(Ok(())) => Ok(WsPushOutcome::Ended),
-        Ok(Err(WsConsumerError::UnsupportedTransport)) => Ok(WsPushOutcome::Unsupported),
         Ok(Err(e)) => Err(anyhow!("{e}")),
         Err(join_err) => Err(anyhow!("ws consumer task failed: {join_err}")),
     }
@@ -8489,12 +8492,6 @@ pub(crate) async fn cmd_channel_subscribe(
         match run_ws_push(&sock, topic, json_output).await {
             Ok(WsPushOutcome::Ended) => {
                 eprintln!("[push] WS stream ended — degrading to poll");
-            }
-            Ok(WsPushOutcome::Unsupported) => {
-                eprintln!(
-                    "[push] --push needs a remote TCP hub (--hub host:port); \
-                     WS-over-Unix is a follow-on — using poll"
-                );
             }
             Err(e) => {
                 eprintln!("[push] WS unavailable ({e}) — degrading to poll");

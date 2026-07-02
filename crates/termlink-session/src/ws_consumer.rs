@@ -21,9 +21,7 @@ use termlink_protocol::TransportAddr;
 /// degrade to poll", so they are informational rather than fatal.
 #[derive(Debug, thiserror::Error)]
 pub enum WsConsumerError {
-    #[error("WS consumer supports TCP hubs only (WS-over-Unix is a follow-on)")]
-    UnsupportedTransport,
-    #[error("TCP/TLS connect failed: {0}")]
+    #[error("hub connect failed: {0}")]
     Connect(std::io::Error),
     #[error("WebSocket handshake failed: {0}")]
     Handshake(tokio_tungstenite::tungstenite::Error),
@@ -79,9 +77,25 @@ pub fn auth_ack_ok(frame: &serde_json::Value) -> bool {
         .unwrap_or(false)
 }
 
-/// Connect to a TCP hub over WebSocket (TLS already terminated), authenticate,
-/// subscribe to `topics`, and forward each pushed `hub.event`'s `params` into
-/// `tx` until the socket closes or errors.
+/// Whether the WS session must authenticate before subscribing (T-2313). TCP
+/// hubs require a `hub.auth` token; Unix hubs are peer-cred-trusted (the hub
+/// pre-grants `Execute` scope, which already satisfies `hub.ws_subscribe`) and
+/// therefore skip auth entirely. `stream_ws_events` uses this to decide the
+/// `token` passed to `run_ws_session`. Pure — unit-tested.
+pub fn ws_auth_required(addr: &TransportAddr) -> bool {
+    matches!(addr, TransportAddr::Tcp { .. })
+}
+
+/// Connect to a hub over WebSocket, subscribe to `topics`, and forward each
+/// pushed `hub.event`'s `params` into `tx` until the socket closes or errors.
+///
+/// Transport-adaptive (T-2313, arc-004 WS-over-Unix):
+/// - **TCP hub:** TLS-terminate first, then upgrade over the TLS stream, and
+///   authenticate with `token_raw` (a `hub.auth` handshake).
+/// - **Unix hub:** upgrade directly over the raw Unix socket (no TLS — the UDS is
+///   peer-cred-trusted) and **skip auth** — Unix connections are pre-granted
+///   `Execute` scope by the hub, which already satisfies `hub.ws_subscribe`.
+///   `token_raw` is ignored for Unix.
 ///
 /// Returns `Ok(())` on a clean close and `Err(_)` on any failure — the caller
 /// (CLI) degrades to the poll loop in either case. Returns early (Ok) if the
@@ -92,32 +106,72 @@ pub async fn stream_ws_events(
     topics: &[String],
     tx: mpsc::Sender<serde_json::Value>,
 ) -> Result<(), WsConsumerError> {
-    let (host, port) = match addr {
-        TransportAddr::Tcp { host, port } => (host.clone(), *port),
-        TransportAddr::Unix { .. } => return Err(WsConsumerError::UnsupportedTransport),
+    // Single source of truth for the auth decision — None for Unix (peer-cred
+    // trust), Some(token) for TCP. Keeps the two transport arms consistent.
+    let token = if ws_auth_required(addr) {
+        Some(token_raw)
+    } else {
+        None
     };
+    match addr {
+        TransportAddr::Tcp { host, port } => {
+            // TLS-terminate first, then upgrade over the plaintext-to-us TLS stream.
+            let tls = crate::client::Client::connect_tls_stream(addr)
+                .await
+                .map_err(WsConsumerError::Connect)?;
+            // TLS is already done — use client_async (NOT client_async_tls). The
+            // URL scheme is cosmetic here; the host authority is what tungstenite
+            // needs.
+            let url = format!("wss://{host}:{port}/");
+            let (ws, _resp) = tokio_tungstenite::client_async(url, tls)
+                .await
+                .map_err(WsConsumerError::Handshake)?;
+            // TCP hubs require auth: `token` is Some(minted token).
+            run_ws_session(ws, token, topics, tx).await
+        }
+        TransportAddr::Unix { path } => {
+            let stream = tokio::net::UnixStream::connect(path)
+                .await
+                .map_err(WsConsumerError::Connect)?;
+            // Raw WS over the Unix socket — no TLS. The URL host is cosmetic.
+            let (ws, _resp) = tokio_tungstenite::client_async("ws://localhost/", stream)
+                .await
+                .map_err(WsConsumerError::Handshake)?;
+            // Unix is peer-cred-trusted and pre-granted Execute scope → `token`
+            // is None → run_ws_session skips the auth handshake.
+            run_ws_session(ws, token, topics, tx).await
+        }
+    }
+}
 
-    // TLS-terminate first, then upgrade over the plaintext-to-us TLS stream.
-    let tls = crate::client::Client::connect_tls_stream(addr)
-        .await
-        .map_err(WsConsumerError::Connect)?;
-    // TLS is already done — use client_async (NOT client_async_tls). The URL
-    // scheme is cosmetic here; the host authority is what tungstenite needs.
-    let url = format!("wss://{host}:{port}/");
-    let (ws, _resp) = tokio_tungstenite::client_async(url, tls)
-        .await
-        .map_err(WsConsumerError::Handshake)?;
+/// Shared post-connect session: (optionally) authenticate, subscribe, then stream
+/// pushed `hub.event` params into `tx`. Generic over the underlying transport so
+/// the TLS-wrapped TCP stream and the raw Unix stream share one loop.
+///
+/// `token`: `Some(raw)` → send a `hub.auth` handshake and require an ok ack;
+/// `None` → skip auth entirely (Unix peer-cred trust).
+async fn run_ws_session<S>(
+    ws: tokio_tungstenite::WebSocketStream<S>,
+    token: Option<&str>,
+    topics: &[String],
+    tx: mpsc::Sender<serde_json::Value>,
+) -> Result<(), WsConsumerError>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let (mut sink, mut source) = ws.split();
 
-    // --- authenticate ---
-    sink.send(Message::Text(build_ws_auth_request(token_raw).into()))
-        .await
-        .map_err(WsConsumerError::Stream)?;
-    let auth_ack = next_text_frame(&mut source)
-        .await?
-        .ok_or(WsConsumerError::ClosedEarly("auth"))?;
-    if !auth_ack_ok(&auth_ack) {
-        return Err(WsConsumerError::AuthRejected);
+    // --- authenticate (TCP only) ---
+    if let Some(token_raw) = token {
+        sink.send(Message::Text(build_ws_auth_request(token_raw).into()))
+            .await
+            .map_err(WsConsumerError::Stream)?;
+        let auth_ack = next_text_frame(&mut source)
+            .await?
+            .ok_or(WsConsumerError::ClosedEarly("auth"))?;
+        if !auth_ack_ok(&auth_ack) {
+            return Err(WsConsumerError::AuthRejected);
+        }
     }
 
     // --- subscribe ---
@@ -211,6 +265,15 @@ mod tests {
         assert!(hub_event_params(&ack).is_none());
         let other = serde_json::json!({"jsonrpc":"2.0","method":"hub.other","params":{}});
         assert!(hub_event_params(&other).is_none());
+    }
+
+    #[test]
+    fn ws_auth_required_by_transport() {
+        // T-2313: TCP requires a hub.auth handshake; Unix skips it (peer-cred trust).
+        assert!(ws_auth_required(&TransportAddr::tcp("127.0.0.1", 9100)));
+        assert!(!ws_auth_required(&TransportAddr::unix(
+            std::path::PathBuf::from("/tmp/termlink-0/hub.sock")
+        )));
     }
 
     #[test]
