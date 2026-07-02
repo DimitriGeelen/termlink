@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-07-02T07:40:34Z
+last_update: 2026-07-02T07:46:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,10 +62,10 @@ attestable).
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A pure, unit-tested helper enforces the attestation invariant on envelope metadata: `observed_addr` is set to the hub-observed TCP `peer_addr` when present; any client-supplied `observed_addr` is OVERWRITTEN (TCP) or STRIPPED (Unix/`None`). Unit test covers all three cases (attested-overwrite, forged-value-overwritten, strip-when-none)
-- [ ] `peer_addr` is threaded from the accept site through `router::route` → `handle_channel_post(_with)`, the helper is applied before the envelope is stored, and the workspace compiles (`cargo build`)
-- [ ] Read side prefers the attested address: `PresenceMatch` carries `observed_addr` (parsed from `metadata.observed_addr`), and `agent resolve` resolves host as `observed_addr ?? self-reported addr ?? profile address` (verified by unit test or targeted read-path assertion)
-- [ ] Backward-compatible: envelopes with no `observed_addr` (Unix posts, old clients) behave exactly as before — no new envelope field, metadata stays out of the signed bytes, signature verification unaffected (asserted)
+- [x] A pure, unit-tested helper enforces the attestation invariant on envelope metadata: `observed_addr` is set to the hub-observed TCP `peer_addr` when present; any client-supplied `observed_addr` is OVERWRITTEN (TCP) or STRIPPED (Unix/`None`). Unit test covers all three cases (attested-overwrite, forged-value-overwritten, strip-when-none) — **`apply_observed_addr` (channel.rs); `cargo test -p termlink-hub observed_addr` = 3/3 pass** (commit fcf18a44).
+- [ ] `peer_addr` is threaded from the accept site through `router::route` → `handle_channel_post(_with)`, the helper is applied before the envelope is stored, and the workspace compiles (`cargo build`) — threading DONE + hub test-build exit 0; **remaining before tick: (a) mark `handle_channel_post_with` `#[cfg(test)]` to clear a dead-code warning (edit was blocked by the budget gate this session), (b) confirm full-workspace `cargo build`.**
+- [ ] Read side prefers the attested address: `PresenceMatch` carries `observed_addr` (parsed from `metadata.observed_addr`), and `agent resolve` resolves host as `observed_addr ?? self-reported addr ?? profile address` — CODE DONE (fleet_presence.rs + agent.rs `hub = observed_addr.or(addr).or(profile)`, JSON+human output carry `observed_addr`); **remaining: `cargo check -p termlink-session -p termlink` (the CLI package is `termlink`, NOT `termlink-cli`).**
+- [ ] Backward-compatible: envelopes with no `observed_addr` (Unix posts, old clients) behave exactly as before — structurally done (metadata is unsigned; strip-on-`None` proven by unit test); confirm on final compile.
 
 ### Human
 - [ ] [RUBBER-STAMP] Live end-to-end after installing the rebuilt hub binary
@@ -111,7 +111,7 @@ attestable).
 
 # The pure attestation helper's unit test (proves overwrite/strip invariant) + read-side compile.
 cargo test -p termlink-hub observed_addr
-cargo check -p termlink-session -p termlink-cli
+cargo check -p termlink-session -p termlink
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -161,6 +161,28 @@ cargo check -p termlink-session -p termlink-cli
 -->
 
 ## Evolution
+
+### 2026-07-02 — implemented; stopped at budget gate one step from close
+- **What changed:** The Explore map was exact — the change is small and PL-122-safe
+  because envelope `metadata` is NOT in the signed canonical bytes (`channel.rs:579`),
+  so a server-stamped `observed_addr` needs no schema/serde change and cannot break
+  signature verification. Threaded `peer_addr: Option<&str>` through `router::route`
+  (+2 server.rs call sites, +4 router test call sites → `None`) into a new
+  `handle_channel_post_with_peer`; kept `handle_channel_post_with` as a wrapper so the
+  ~40 existing test callers stay green (no test churn). Stamping is a pure helper
+  `apply_observed_addr` (overwrite-on-TCP / strip-on-None) with 3 unit tests (all pass).
+  Read side: `PresenceMatch.observed_addr` + `agent resolve` prefers
+  `observed_addr ?? self_reported ?? profile`.
+- **Plan impact:** `handle_channel_post_with` became test-only (production Unix path goes
+  through `_with_peer(None)` directly) → a dead-code warning; the `#[cfg(test)]` cleanup
+  edit was BLOCKED when the budget gate hit critical (~96%). Also caught the recurring
+  package-name gotcha: the CLI crate is `termlink`, not `termlink-cli` — Verification
+  corrected. Code compiles (hub test-build exit 0, 3/3 helper tests); the read-side
+  `cargo check -p termlink-session -p termlink` was not run with the corrected name.
+- **Triggered:** NEXT SESSION (all bankable, ~10 min): (1) add `#[cfg(test)]` to
+  `handle_channel_post_with`; (2) `cargo check -p termlink-session -p termlink` (read
+  side) + full `cargo build`; (3) tick AC2–AC4 + close T-2297 → **arc-003 fully
+  complete**; (4) the Human [RUBBER-STAMP] live proof needs a hub rebuild+restart.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
