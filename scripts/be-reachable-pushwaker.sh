@@ -84,9 +84,26 @@ run_waker() {
 
     declare -A seen   # message_offset -> epoch last rung
 
+    # T-2319: reap the `channel subscribe … --push` child so it is not orphaned.
+    # This trap is DEFENSE-IN-DEPTH: it fires on a foreground Ctrl-C (INT) or when
+    # the subscribe stream dies and we are between iterations (EXIT), reaping our
+    # direct children (the subscribe). It CANNOT be relied on for `be-reachable
+    # stop`, because bash defers a trapped signal while blocked in `read` on the
+    # idle push stream — so the PRIMARY reaper is cmd_stop killing this waker's
+    # whole process group (we are a setsid group leader). Keep both.
+    _pw_stopping=0
+    _pw_reap_children() {
+        local kids
+        kids="$(pgrep -P $$ 2>/dev/null)" || kids=""
+        [ -n "$kids" ] && kill $kids 2>/dev/null || true
+    }
+    _pw_on_stop() { _pw_stopping=1; _pw_reap_children; exit 0; }
+    trap '_pw_on_stop' TERM INT
+    trap '_pw_reap_children' EXIT
+
     echo "pushwaker: watching inbox.queued for inbox '$inbox_id' -> ring '$pty_session'${hub:+ @ $hub}" >&2
 
-    while true; do
+    while [ "$_pw_stopping" = 0 ]; do
         while IFS= read -r line; do
             case "$line" in
                 '[push] inbox.queued '*) : ;;

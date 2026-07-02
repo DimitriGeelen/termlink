@@ -329,14 +329,35 @@ cmd_stop() {
     pushwaker_pid="$(read_state_field pushwaker_pid)"
 
     # T-2316 (arc-004 WP1): tear down the push-waker alongside the heartbeat.
+    # T-2319: the waker holds a `channel subscribe … --push` child via process
+    # substitution. A bare `kill <pushwaker_pid>` ORPHANS that child — the waker's
+    # own SIGTERM trap cannot fire while it is blocked in `read` on the (idle) push
+    # stream, so the child survives and loops against the hub forever (T-2314
+    # reconnect). cmd_start spawns the waker under `setsid`, making it its own
+    # process-group leader (pgid == pid); kill the WHOLE group to reap the waker AND
+    # its subscribe child atomically. Fall back to a plain pid-kill if (no setsid)
+    # it is not a group leader, so we never signal an unrelated group.
     if pid_alive "$pushwaker_pid"; then
-        kill -TERM "$pushwaker_pid" 2>/dev/null || true
+        local pw_pgid pw_is_leader=0
+        pw_pgid="$(ps -o pgid= -p "$pushwaker_pid" 2>/dev/null | tr -d ' ')"
+        [ -n "$pw_pgid" ] && [ "$pw_pgid" = "$pushwaker_pid" ] && pw_is_leader=1
+        if [ "$pw_is_leader" -eq 1 ]; then
+            kill -TERM "-${pw_pgid}" 2>/dev/null || true
+        else
+            kill -TERM "$pushwaker_pid" 2>/dev/null || true
+        fi
         local j
         for j in 1 2 3; do
             sleep 1
             pid_alive "$pushwaker_pid" || break
         done
-        pid_alive "$pushwaker_pid" && kill -KILL "$pushwaker_pid" 2>/dev/null || true
+        if pid_alive "$pushwaker_pid"; then
+            if [ "$pw_is_leader" -eq 1 ]; then
+                kill -KILL "-${pw_pgid}" 2>/dev/null || true
+            else
+                kill -KILL "$pushwaker_pid" 2>/dev/null || true
+            fi
+        fi
         echo "be-reachable: stopped push-waker (pid ${pushwaker_pid})."
     fi
 
