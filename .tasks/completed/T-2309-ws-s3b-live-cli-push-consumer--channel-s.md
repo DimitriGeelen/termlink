@@ -4,17 +4,17 @@ name: "WS-S3b live CLI push consumer — channel subscribe --push with WS-connec
 description: >
   WS-S3b live CLI push consumer — channel subscribe --push with WS-connect + degrade-to-poll
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: [crates/termlink-session/src/ws_consumer.rs, crates/termlink-cli/src/commands/channel.rs]
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/client.rs, crates/termlink-session/src/lib.rs]
 related_tasks: [T-2305, T-2306, T-2307, T-2308, T-2303]
 arc_id: push-transport            # arc-004 — WS live-transport build arc (GO output of T-2303); S3b consumer
 created: 2026-07-02T17:04:22Z
-last_update: 2026-07-02T17:04:22Z
-date_finished: null
+last_update: 2026-07-02T17:27:25Z
+date_finished: 2026-07-02T17:27:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -221,3 +221,6 @@ cargo build --release -p termlink 2>&1 | tail -3
   DM doorbell carrying the durable `message_offset` (the S4-verified pointer)
   instantly to a WebSocket-connected CLI. Cleanup verified (hub down, profile
   removed, runtime dir cleaned).
+
+### 2026-07-02T17:27:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

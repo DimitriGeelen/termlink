@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2309: WS-S3b live CLI push consumer — channel subscribe --push with WS-connect + degrade-to-poll
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T17:37:59Z
+# ============================================================================
+
+task_id: T-2309
+task_name: "WS-S3b live CLI push consumer — channel subscribe --push with WS-connect + degrade-to-poll"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T17:04:22Z
+completed: 2026-07-02T17:27:25Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-02T19:27:16+02:00
+last_commit: 2026-07-02T19:27:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  WS-S3b live CLI push consumer — channel subscribe --push (WS-connect + degrade-to-poll); ws_consumer session module; live smoke green (arc-004)
+
+# Key outcomes
+outcomes:
+  - '`termlink-session` gains a `ws_consumer` module with a helper that, given a `TransportAddr` (TCP), an auth token, and a topic list, connects TCP+TLS (unsplit `TlsStream` via new `Client::connect_tls_stream`), upgrades via `tokio_tungstenite::client_async`, sends `hub.auth` + `hub.ws_subscribe`, and forwards each `hub.event` `params` value into an `mpsc::Sender`. Returns cleanly (Ok/Err) when the socket closes or errors. `cargo build -p termlink-session` succeeds; 4 unit tests (`ws_auth_request_shape`, `ws_subscribe_request_shape`, `ws_hub_event_mapping`, `ws_auth_ack_ok_detection`) cover frame construction + the `hub.event`→forward mapping. **All 4 pass.**'
+  - '`channel subscribe` gains a `--push` flag (clap, `cli.rs`) threaded through the dispatch (`main.rs`, both call sites) into `cmd_channel_subscribe`. `termlink channel subscribe --help` lists `--push` (verified). `cargo build --release -p termlink` succeeds.'
+  - 'With `--push` against a remote hub target, the handler mints a token via the existing remote-auth path (`mint_tcp_hub_token` reusing `resolve_hub_secret_hex` + `auth::create_token`, same logic as `rpc_call_authed`) and streams pushed events live from the WS helper''s channel, rendering each readably — `[push] <topic> seq=<n>: <payload>` in human mode, the raw `params` JSON line under `--json`. If the WS path errors at any stage (unix target, connect, TLS, handshake, auth) OR the stream ends, it prints a one-line stderr degrade notice (`[push] WS … — degrading to poll`) and falls through to the existing poll loop — never a hard failure (degrade-to-poll invariant).'
+  - 'End-to-end smoke against a live hub (isolated test hub on `127.0.0.1:9199`, fresh binary): `channel subscribe inbox.queued --push --follow` received the doorbell **the instant** a `channel post inbox:smoke` landed — `[push] inbox.queued seq=0: {"channel":"inbox:smoke","message_offset":0,...}` — no poll tick. Evidence in Updates below. *(Smoke uses `inbox.queued`, not an arbitrary topic — see Evolution: the WS carries aggregator-injected events, and only `inbox:*` posts inject one. This is the arc''s live-DM-doorbell path, exactly what S4 verified.)*'
+  - 'No regression: `cargo test -p termlink-session` green (WS additions isolated); the release CLI builds; the poll path (`--follow` without `--push`) is unchanged (the `--push` branch runs *before* the untouched poll loop and only when the flag is set).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-session/Cargo.toml'
+  - 'crates/termlink-session/src/client.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/ws_consumer.rs'
+  - '.tasks/active/T-2309-ws-s3b-live-cli-push-consumer--channel-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T19:27:16"
+    action: "T-2309: WS-S3b live CLI push consumer — channel subscribe --push (WS-connect + degrade-to-poll); ws_consumer session module; live smoke green (arc-004)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 23 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 23
+  commits: 1
+  files_changed: 9
+  lines_added: 612
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2309-ws-s3b-live-cli-push-consumer--channel-s.md
+generated_by: context-agent-hybrid
