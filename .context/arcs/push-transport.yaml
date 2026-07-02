@@ -6,13 +6,13 @@ description: "GO(scoped) output of the T-2303 inception. WS for the live agent p
   \ layer (queue/idempotency/confirm/journal) unchanged. Build slices S1 hub WS upgrade\
   \ endpoint, S2 broadcast\u2192client concurrent write path, S3 client WS subscribe\
   \ + degrade-to-poll, S4 wire delivery-confirm/journal through WS unchanged."
-status: in-progress
+status: closed
 anchor_task: T-2303
 headline_mechanic: "A live agent receives a DM the instant it is posted via a hub\u2192client WebSocket\
   \ push stream (sub-second), replacing the 15s doorbell-then-poll wake/read floor,\
   \ and cleanly degrades back to polling if the socket drops \u2014 the durable dm:\
   \ topics, receipts, journal and offline queue stay authoritative underneath."
-demo_evidence: docs/reports/T-2310-arc-004-ws-push-demo.md   # T-2310: staged; human confirms at `fw arc close --demo <path>` (sovereignty-gated)
+demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
 # Follow-on wire evidence (past the GO(scoped) surface, both T-2311/T-2312 GO'd + built):
 #   T-2313 WS-over-Unix push:        docs/reports/T-2313-arc-004-ws-over-unix-inception.md (built; 31ms Unix push)
 #   T-2314 active reconnect-to-WS:   docs/reports/T-2314-arc-004-active-reconnect-demo.md  (built; resumes push after blip)
@@ -22,8 +22,8 @@ demo_evidence: docs/reports/T-2310-arc-004-ws-push-demo.md   # T-2310: staged; h
 #   T-2318 live E2E (real spawn):    docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md      (verified; real be-reachable start→spawn→inject→filter→stop, no stub — surfaced T-2319)
 #   T-2319 stop-reap leak fix:       .tasks/completed/T-2319-*.md                            (built; cmd_stop process-group kill reaps the subscribe child — no orphan on /be-reachable stop; PL-234)
 created: 2026-07-02T15:47:28Z
-closed_at: null
-decision: null
+closed_at: 2026-07-02T23:13:52Z
+decision: "shipped"
 # T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
 # docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
 bvp_scores: {}
