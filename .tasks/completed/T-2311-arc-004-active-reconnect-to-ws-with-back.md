@@ -4,16 +4,16 @@ name: "arc-004 active reconnect-to-WS with backoff — should --push retry the s
 description: >
   Inception: arc-004 active reconnect-to-WS with backoff — should --push retry the socket after a drop instead of staying on poll?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-02T18:48:51Z
-last_update: 2026-07-02T18:52:31Z
-date_finished: null
+last_update: 2026-07-02T19:14:36Z
+date_finished: 2026-07-02T19:14:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -117,15 +117,15 @@ already exist and compose):
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -193,7 +193,11 @@ The --push feature exists to give long-lived live agents a sub-second DM path; a
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The --push feature exists to give long-lived live agents a sub-second DM path; a long-lived agent is precisely the one most likely to hit a transient network blip. Today (S3b/T-2309) a single WS drop degrades to the poll loop and STAYS there until process restart — the agent is permanently kneecapped to the 1s poll floor by one blip. Correctness is already safe (the poll loop reads from the durable cursor and never misses), so this is a latency-robustness gap, not a data gap. A bounded reconnect loop (run_ws_push -> on drop do one poll catch-up pass from cursor to drain gap events -> exponential backoff -> retry WS; cap retries then settle to poll) restores the fast path after a blip while preserving the existing no-miss guarantee, and is feasible as one build slice. GO to explore/scope; final decision is the human's.
+
+**Date**: 2026-07-02T19:14:35Z
 
 ## Updates
 
@@ -202,3 +206,12 @@ The --push feature exists to give long-lived live agents a sub-second DM path; a
 
 ### 2026-07-02T18:49:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-02T19:14:35Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The --push feature exists to give long-lived live agents a sub-second DM path; a long-lived agent is precisely the one most likely to hit a transient network blip. Today (S3b/T-2309) a single WS drop degrades to the poll loop and STAYS there until process restart — the agent is permanently kneecapped to the 1s poll floor by one blip. Correctness is already safe (the poll loop reads from the durable cursor and never misses), so this is a latency-robustness gap, not a data gap. A bounded reconnect loop (run_ws_push -> on drop do one poll catch-up pass from cursor to drain gap events -> exponential backoff -> retry WS; cap retries then settle to poll) restores the fast path after a blip while preserving the existing no-miss guarantee, and is feasible as one build slice. GO to explore/scope; final decision is the human's.
+
+### 2026-07-02T19:14:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
