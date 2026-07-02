@@ -538,8 +538,10 @@ pub async fn handle_channel_post(
 }
 
 /// T-2297: back-compat wrapper for callers with no hub-attested peer address
-/// (Unix-socket posts, and the test suite). Delegates with `peer_addr = None`,
-/// which STRIPS any client-supplied `observed_addr` (never client-forgeable).
+/// (the test suite). Delegates with `peer_addr = None`, which STRIPS any
+/// client-supplied `observed_addr` (never client-forgeable). Production posts
+/// route through `handle_channel_post_with_peer`, so this is `#[cfg(test)]`.
+#[cfg(test)]
 pub(crate) async fn handle_channel_post_with(
     bus: &Bus,
     id: Value,

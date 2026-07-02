@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-07-02T07:46:33Z
+last_update: 2026-07-02T07:48:54Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -63,9 +63,9 @@ attestable).
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] A pure, unit-tested helper enforces the attestation invariant on envelope metadata: `observed_addr` is set to the hub-observed TCP `peer_addr` when present; any client-supplied `observed_addr` is OVERWRITTEN (TCP) or STRIPPED (Unix/`None`). Unit test covers all three cases (attested-overwrite, forged-value-overwritten, strip-when-none) — **`apply_observed_addr` (channel.rs); `cargo test -p termlink-hub observed_addr` = 3/3 pass** (commit fcf18a44).
-- [ ] `peer_addr` is threaded from the accept site through `router::route` → `handle_channel_post(_with)`, the helper is applied before the envelope is stored, and the workspace compiles (`cargo build`) — threading DONE + hub test-build exit 0; **remaining before tick: (a) mark `handle_channel_post_with` `#[cfg(test)]` to clear a dead-code warning (edit was blocked by the budget gate this session), (b) confirm full-workspace `cargo build`.**
-- [ ] Read side prefers the attested address: `PresenceMatch` carries `observed_addr` (parsed from `metadata.observed_addr`), and `agent resolve` resolves host as `observed_addr ?? self-reported addr ?? profile address` — CODE DONE (fleet_presence.rs + agent.rs `hub = observed_addr.or(addr).or(profile)`, JSON+human output carry `observed_addr`); **remaining: `cargo check -p termlink-session -p termlink` (the CLI package is `termlink`, NOT `termlink-cli`).**
-- [ ] Backward-compatible: envelopes with no `observed_addr` (Unix posts, old clients) behave exactly as before — structurally done (metadata is unsigned; strip-on-`None` proven by unit test); confirm on final compile.
+- [x] `peer_addr` is threaded from the accept site through `router::route` → `handle_channel_post(_with)`, the helper is applied before the envelope is stored, and the workspace compiles (`cargo build`) — threading DONE; `handle_channel_post_with` marked `#[cfg(test)]` (production Unix path goes through `_with_peer(None)`), dead-code warning cleared; **full-workspace `cargo build` = exit 0**.
+- [x] Read side prefers the attested address: `PresenceMatch` carries `observed_addr` (parsed from `metadata.observed_addr`), and `agent resolve` resolves host as `observed_addr ?? self-reported addr ?? profile address` (fleet_presence.rs + agent.rs `hub = observed_addr.or(addr).or(profile)`, JSON+human output carry `observed_addr`); **`cargo check -p termlink-session -p termlink` = exit 0** (CLI package is `termlink`).
+- [x] Backward-compatible: envelopes with no `observed_addr` (Unix posts, old clients) behave exactly as before — metadata is unsigned; strip-on-`None` proven by unit test (`observed_addr_stripped_when_not_attestable`); confirmed on final workspace build.
 
 ### Human
 - [ ] [RUBBER-STAMP] Live end-to-end after installing the rebuilt hub binary
@@ -161,6 +161,20 @@ cargo check -p termlink-session -p termlink
 -->
 
 ## Evolution
+
+### 2026-07-02 (cont.) — closed; the four Agent ACs met, arc-003 complete
+- **What changed:** Fresh-budget session finished the three bankable steps left by the
+  budget gate: (1) `handle_channel_post_with` marked `#[cfg(test)]` — grep confirmed ALL
+  ~40 callers live in `#[cfg(test)]` modules and production posts route through
+  `handle_channel_post_with_peer`, so the dead-code warning fired only in the non-test lib
+  compilation; the attribute clears it cleanly. (2) `cargo check -p termlink-session -p termlink`
+  = exit 0 (read side compiles under the corrected package name). (3) full `cargo build`
+  = exit 0; `cargo test -p termlink-hub observed_addr` = 3/3, no warnings.
+- **Plan impact:** none — the Explore map held end-to-end. This closes arc-003 (V2b was the
+  last open arc task: V1/V2/V2b/V3a/V3b + V6 apex S1–S5 all now work-completed).
+- **Triggered:** Human [RUBBER-STAMP] live end-to-end (needs hub rebuild+restart) remains
+  the one operator-gated item; it is a hardening-confirmation, not a blocker (V6 already
+  ships on the self-report addr).
 
 ### 2026-07-02 — implemented; stopped at budget gate one step from close
 - **What changed:** The Explore map was exact — the change is small and PL-122-safe
