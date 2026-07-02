@@ -1,24 +1,41 @@
-timestamp: 2026-06-27T15:30:01Z
+timestamp: 2026-07-02T07:00:01Z
 findings:
-  - id: D1
+  - id: D4
     level: PASS
-    check: "D1: Episodic quality — 0% [TODO] (10/1939)"
-  - id: D2
-    level: FAIL
-    check: "D2: Human review queue — 45 task(s) waiting >30d: T-1417(58d) T-1419(58d) T-1435(57d) T-1442(56d) T-1482(54d) T-1483(54d) T-1484(54d) T-1485(54d) T-1486(53d) T-1487(53d) T-1488(53d) T-1489(53d) T-1490(53d) T-1491(53d) T-1492(53d) T-1493(53d) T-1494(53d) T-1495(53d) T-1496(53d) T-1498(53d) T-1499(53d) T-1500(53d) T-1501(53d) T-1502(53d) T-1506(53d) T-1529(53d) T-1530(53d) T-1531(53d) T-1532(53d) T-1533(53d) T-1534(53d) T-1535(53d) T-1536(53d) T-1537(53d) T-1557(53d) T-1558(53d) T-1559(53d) T-1570(53d) T-1635(42d) T-1673(40d) T-1691(40d) T-1695(14d) T-1696(40d) T-1722(31d) T-1723(31d) T-1795(36d) T-2013(14d) T-2014(14d) T-2209(14d) T-2210(14d) T-2211(14d) T-2212(14d) T-2213(14d)"
-    mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
-  - id: D8
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - id: D5
+    level: WARN
+    check: "D5: Task lifecycle — 45 anomaly(s): T-1137(73d-active) T-1166(72d-active) T-1291(66d-active) T-1294(66d-active) T-1296(66d-active) T-1415(62d-active) T-1420(62d-active) T-1423(62d-active) T-1426(62d-active) T-1427(62d-active) (+35 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - id: D13
+    level: WARN
+    check: "D13: Inception limbo — 6 task(s): A=1/B=5 T-1635(A:1hu) T-1898(B) T-2025(B) T-2028(B) T-2229(B) T-2250(B)"
+    mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
+  - id: D3
     level: PASS
-    check: "D8: Handover quality — no [TODO] in LATEST.md"
-  - id: D10
+    check: "D3: Commit velocity — normal (PASS today=0 avg=26 ratio=0.0x)"
+  - id: D7
     level: PASS
-    check: "D10: Decision-without-dialogue — none detected"
-  - id: D11
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 23_commits_24h)"
+  - id: D6
+    level: WARN
+    check: "D6: Completion velocity — sustained drop (drop recent_avg=1.3 vs earlier_avg=5.9)"
+    mitigation: "Check for blockers or process issues slowing work"
+  - id: D12
     level: PASS
-    check: "D11: Gap register staleness — all gaps fresh"
+    check: "D12: Bypass log — no log file"
+  - id: D9
+    level: PASS
+    check: "D9: Control drift — normal (PASS 10_audits_checked)"
+  - id: D14
+    level: PASS
+    check: "D14: Empty inception Recommendation — none (PASS no_empty_recommendations)"
+  - id: D15
+    level: PASS
+    check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 4
-  warn: 0
-  fail: 1
-  total: 5
+  pass: 7
+  warn: 3
+  fail: 0
+  total: 10

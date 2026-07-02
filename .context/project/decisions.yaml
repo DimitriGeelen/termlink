@@ -556,3 +556,10 @@ decisions:
     date: 2026-06-28
     task: T-2295
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-059
+    decision: "Client-side script (`journal-reaper.sh`) that trims via the existing `set-retention`+`sweep` primitives, plus a journal-merge in `recent-dm.sh`."
+    scope: project
+    date: 2026-07-02
+    task: T-2302
+    rationale: "Auto-captured from task file on completion"

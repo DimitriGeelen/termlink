@@ -1,8 +1,8 @@
-# Audit Results - 2026-06-27-2245
-timestamp: 2026-06-27T20:45:28Z
+# Audit Results - 2026-07-02-0906
+timestamp: 2026-07-02T07:06:36Z
 sections: "structure"
 summary:
-  pass: 27
+  pass: 28
   warn: 2
   fail: 0
 findings:
@@ -60,6 +60,8 @@ findings:
     check: "cron(task-finalization-canary): USER-field syntax installed at /etc/cron.d/termlink-task-finalization-canary"
   - level: PASS
     check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
+  - level: PASS
+    check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
   - level: PASS
     check: "Hook threshold: no hooks failing over threshold"
   - level: PASS

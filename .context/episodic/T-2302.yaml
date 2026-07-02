@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2302: V6-S5 journal-authoritative + firehose suppression for dm
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T07:18:48Z
+# ============================================================================
+
+task_id: T-2302
+task_name: "V6-S5 journal-authoritative + firehose suppression for dm"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-01T21:53:14Z
+completed: 2026-07-02T07:18:19Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-07-01T23:56:04+02:00
+last_commit: 2026-07-02T09:18:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6-S5 scoped (build-ready) — journal-authoritative + firehose suppression for dm, option-b client-side reaper (arc-tag + real ACs + 3 build-time subtleties). V6-S5 journal-authoritative reaper + firehose suppression — set-retention+sweep trim, two-layer message-loss guard, recent-dm journal-merge (reaper 5/5 + mirror 8/8 + A-G + orch 5/5 + transport 7/7 + sidecar 14/14)
+
+# Key outcomes
+outcomes:
+  - 'A journal reaper (`scripts/journal-reaper.sh`, script-first — no Rust rebuild, per the S1–S4 pattern) trims already-journaled `dm:` turn/receipt envelopes from the firehose using the primitive confirmed in build-subtlety #1 (retention+sweep / redaction). Idempotent (safe to re-run); honors `TERMLINK_JOURNAL_PATH` + a `--hub` arg like the sibling scripts'
+  - 'Message-loss safety: the reaper trims a `dm:` offset ONLY when its `(topic,offset)` row exists in `journal.sqlite`, and leaves a store-and-forward window of recent/un-journaled turns on the firehose. A guard makes trimming-ahead-of-journal structurally impossible (not just convention)'
+  - 'The durable read path is re-pointed to the journal: `/recent-dm` (`scripts/recent-dm.sh`) and/or `agent journal` read `dm:` history from `journal.sqlite`, so history survives a firehose trim — the user-visible `/recent-dm` output is unchanged after reaping'
+  - 'Non-`dm:` topics are untouched: `agent-presence` heartbeats, `agent-chat-arc` broadcasts, and other topics are never trimmed by the reaper (asserted, not assumed)'
+  - 'Tests prove it hub-independently on loopback (`scripts/test-journal-reaper.sh`): post N `dm:` turns + M `agent-presence` heartbeats to `127.0.0.1:9100`; journal-mirror then reap; assert the `dm:` turns are ABSENT from `channel subscribe <dm-topic>` but PRESENT in `agent journal <topic>`; assert heartbeats untouched; assert an un-journaled turn is NOT trimmed (safety). S1 journal-mirror + agent-send A–G/S2/S3/S4 suites all still pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-02 — option (b) client-side reaper over option (a) hub-side suppression'
+    chose: 'Client-side script (`journal-reaper.sh`) that trims via the existing `set-retention`+`sweep` primitives, plus a journal-merge in `recent-dm.sh`.'
+    rationale: 'Smaller blast radius (no Rust rebuild, no hot-post-path change), reversible (stop running the reaper → topics regrow), and matches the S1–S4 script-first precedent.'
+    alternatives_rejected: ['Option (a) hub-side suppression (routing `dm:` posts to a journal table in `channel.rs`) — the cleaner end-state but touches the hot path and is a larger, harder-to-revert change. Deferred (or behind a flag) per the design.']
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/journal-reaper.sh'
+  - 'scripts/recent-dm.sh'
+  - 'scripts/test-journal-reaper.sh'
+  - '.tasks/active/T-2302-v6-s5-journal-authoritative--firehose-su.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-01T23:56:04"
+    action: "T-2302: V6-S5 scoped (build-ready) — journal-authoritative + firehose suppression for dm, option-b client-side reaper (arc-tag + real ACs + 3 build-time subtleties)"
+  - time: "2026-07-02T09:18:06"
+    action: "T-2302: V6-S5 journal-authoritative reaper + firehose suppression — set-retention+sweep trim, two-layer message-loss guard, recent-dm journal-merge (reaper 5/5 + mirror 8/8 + A-G + orch 5/5 + transport 7/7 + sidecar 14/14)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 565 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 565
+  commits: 2
+  files_changed: 4
+  lines_added: 679
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2302-v6-s5-journal-authoritative--firehose-su.md
+generated_by: context-agent-hybrid
