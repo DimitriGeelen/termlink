@@ -1,0 +1,100 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2310: arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T18:33:17Z
+# ============================================================================
+
+task_id: T-2310
+task_name: "arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T18:26:30Z
+completed: 2026-07-02T18:33:13Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T20:33:02+02:00
+last_commit: 2026-07-02T20:33:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 demo evidence — reproducible WS push (91-99ms sub-second) + degrade-to-poll; scripts/demo-ws-push.sh + docs report; stage arc demo_evidence
+
+# Key outcomes
+outcomes:
+  - 'Reproducible demo script `scripts/demo-ws-push.sh` exists, is executable, and is self-contained: starts an isolated hub under a temp `TERMLINK_RUNTIME_DIR`, attaches a `channel subscribe inbox.queued --push` consumer, posts a DM to an `inbox:*` topic, and tears the hub down on exit (no touch of the shared :9100 hub).'
+  - 'Running the demo captures a WS push frame carrying the durable `message_offset` for the posted DM, and the measured post→push latency is sub-second (< 1000 ms) — the arc headline mechanic. **Evidence:** 91/99/93 ms across 3 runs; frame `{"...","message_offset":0,...}`.'
+  - 'The demo also exercises degrade-to-poll: after the WS path ends/drops, the consumer falls back to the existing poll loop (captured in the artifact as the observed transition or the verified contract). **Evidence:** `[push] WS unavailable (…) — degrading to poll` observed on hub stop.'
+  - 'Demo evidence artifact `docs/reports/T-2310-arc-004-ws-push-demo.md` records the exact commands, the captured push frame, the measured latency number, and the degrade-to-poll behaviour.'
+  - 'arc-004 registry `demo_evidence` field references the artifact (no longer `null`).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/push-transport.yaml'
+  - '.context/audits/2026-07-02.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/T-2310-arc-004-ws-push-demo.md'
+  - 'scripts/demo-ws-push.sh'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2310-arc-004-demo-evidence--reproducible-ws-p.md'
+  - '.tasks/completed/T-2307-v1-ws-s3-client-ws-subscribe-with-per-to.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T20:33:02"
+    action: "T-2310: arc-004 demo evidence — reproducible WS push (91-99ms sub-second) + degrade-to-poll; scripts/demo-ws-push.sh + docs report; stage arc demo_evidence"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:push-transport"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 24
+  lines_added: 684
+  lines_removed: 163
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2310-arc-004-demo-evidence--reproducible-ws-p.md
+generated_by: context-agent-hybrid

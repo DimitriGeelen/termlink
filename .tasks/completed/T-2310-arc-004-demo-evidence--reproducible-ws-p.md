@@ -4,10 +4,10 @@ name: "arc-004 demo evidence — reproducible WS push sub-second + degrade-to-po
 description: >
   arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: ["arc:push-transport"]
 components: []
 related_tasks: ["T-2303", "T-2305", "T-2306", "T-2307", "T-2308", "T-2309"]
@@ -17,8 +17,8 @@ arc_id: push-transport
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T18:26:30Z
-last_update: 2026-07-02T18:26:30Z
-date_finished: null
+last_update: 2026-07-02T18:33:13Z
+date_finished: 2026-07-02T18:33:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -205,3 +205,6 @@ ev=$(grep '^demo_evidence:' .context/arcs/push-transport.yaml); echo "$ev" | gre
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2310-arc-004-demo-evidence--reproducible-ws-p.md
 - **Context:** Initial task creation
+
+### 2026-07-02T18:33:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
