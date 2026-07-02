@@ -1,19 +1,22 @@
 ---
-id: T-2318
-name: "arc-004 WP1/WP2 live end-to-end push-waker proof (real spawn+inject, no stub)"
+id: T-2319
+name: "Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)"
 description: >
-  arc-004 WP1/WP2 live end-to-end push-waker proof (real spawn+inject, no stub)
+  Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)
 
 status: started-work
-workflow_type: test
+workflow_type: build
 owner: agent
 horizon: now
-tags: ["arc:push-transport", "e2e", "verification"]
+tags: []
 components: []
-related_tasks: [T-2316, T-2317, T-2315]
-arc_id: push-transport
-created: 2026-07-02T22:26:34Z
-last_update: 2026-07-02T22:36:55Z
+related_tasks: []
+# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
+#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
+#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+created: 2026-07-02T22:34:38Z
+last_update: 2026-07-02T22:34:38Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -27,38 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2318: arc-004 WP1/WP2 live end-to-end push-waker proof (real spawn+inject, no stub)
+# T-2319: Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)
 
 ## Context
 
-The T-2316 (WP1) and T-2317 (WP2) push-waker demos prove the *logic* — filter,
-dedup, blip-resume — but they invoke `be-reachable-pushwaker.sh` **directly** and
-replace `termlink inject` with a **stub** that only logs the command. Two seams
-are therefore unproven end-to-end: (1) the `be-reachable.sh cmd_start` wiring that
-actually spawns the waker as a detached process and records `pushwaker_pid`; and
-(2) a **real** `termlink inject` landing in a **real** PTY-backed session on an
-inbox deposit. This task closes that gap with a live proof against an isolated
-hub + HOME: `be-reachable start` → waker spawned (pid recorded, alive) → real
-`termlink spawn` session → real `inbox:<id>` deposit → real inject observed in the
-session's own output → `be-reachable stop` reaps the waker. Verification, not new
-feature — strengthens the arc-close evidence for the human's sovereignty-gated
-`fw arc close push-transport`. See docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `scripts/demo-pushwaker-e2e.sh` exists, is executable, and passes `bash -n`
-- [x] Demo drives the **real** operator path: `be-reachable.sh start` spawns the
-      waker; the state file records a non-null `pushwaker_pid` whose process is alive
-- [x] Demo uses a **real** `termlink spawn` PTY session and the **real** waker (NO
-      stub inject); a deposit to `inbox:<self>` produces a real inject observable in
-      the spawned session's own output (verified via `termlink output`, not a log stub)
-- [x] A deposit to a **different** inbox does NOT ring the spawned session (no false wake)
-- [x] `be-reachable.sh stop` terminates the recorded `pushwaker_pid` (process gone after stop)
-- [x] Demo is hermetic: isolated `TERMLINK_RUNTIME_DIR` + `HOME` + loopback hub port,
-      no writes to the real fleet/agent-presence; prints `RESULT: PASS` on success
-- [x] Evidence report `docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md` captures the
-      run transcript and states the honest scope (what this adds over T-2316/T-2317)
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,15 +107,6 @@ feature — strengthens the arc-close evidence for the human's sovereignty-gated
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# Syntax-check the new demo + its dependencies.
-bash -n scripts/demo-pushwaker-e2e.sh
-bash -n scripts/be-reachable-pushwaker.sh
-bash -n scripts/be-reachable.sh
-# Run the live E2E demo hermetically and require PASS (capture-then-grep per L-387).
-out=$(bash scripts/demo-pushwaker-e2e.sh 2>&1); echo "$out" | grep -q "RESULT: PASS"
-# Evidence report present.
-test -f docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -173,33 +147,6 @@ test -f docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-07-03 — building the harness surfaced the real seams (and a real leak)
-
-- **What changed (harness):** a faithful E2E needed three things the stub demos
-  never used. (1) `termlink spawn` alone gives `PTY: no`; a REAL injectable PTY
-  needs `spawn --shell --backend tmux`. (2) The injected keystrokes are NOT visible
-  via `tmux capture-pane` (that pane shows the termlink session-SERVER log) nor via
-  a `cat >> file` pane (block-buffered, never flushes a short line) — the faithful
-  read is `termlink output <session> --strip-ansi`, which reads the inner shell's
-  own terminal through the data plane. (3) `be-reachable start` spawns the waker
-  WITHOUT `--hub`, so it rides the local socket in `TERMLINK_RUNTIME_DIR` — the
-  isolated hub is reached simply by exporting that var.
-- **What changed (finding):** the E2E caught a **stop-path resource leak** the WP1/WP2
-  stub demos structurally could not. `be-reachable-pushwaker.sh` holds its
-  `channel subscribe inbox.queued --push` child via `done < <(… --push)` process
-  substitution with **no trap**. `cmd_stop` SIGTERMs the waker *script*, but the
-  subscribe child is orphaned — and with the T-2314 active reconnect it loops
-  against the hub forever. The recorded `pushwaker_pid` IS reaped (so this demo's
-  AC — "stop reaps the recorded pid" — still passes), but a real operator's
-  `/be-reachable stop` leaves a live orphan.
-- **Plan impact:** none to T-2318's scope — the demo asserts exactly the shipped
-  contract (real spawn → real inject → real filter → recorded-pid reaped) and PASSes.
-  The leak is a distinct bug, not a demo failure.
-- **Triggered:** filed **T-2319** (build) to add a child-reaping trap to the waker +
-  a regression assertion; this E2E demo is the reproduction harness for it (the
-  orphan is visible as a lingering `channel subscribe inbox.queued --push` after the
-  run's cleanup kills the isolated hub).
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -223,7 +170,7 @@ test -f docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md
 
 ## Updates
 
-### 2026-07-02T22:26:34Z — task-created [task-create-agent]
+### 2026-07-02T22:34:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2318-arc-004-wp1wp2-live-end-to-end-push-wake.md
+- **Output:** /opt/termlink/.tasks/active/T-2319-push-waker-leaks-its-channel-subscribe-c.md
 - **Context:** Initial task creation
