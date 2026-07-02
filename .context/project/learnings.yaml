@@ -2400,3 +2400,11 @@ learnings:
   date: 2026-07-02
   context: Added via context agent
   application: TBD
+
+- id: PL-235
+  learning: "To instrument/benchmark the arc-004 push path (`channel subscribe inbox.queued --push`) you MUST drive it through a registered session — a bare `--push` subscribe delivers NOTHING on its own. Three walls, discovered building T-2320: (1) plain `channel subscribe inbox.queued` returns `unknown topic` — the aggregator frame is not a real topic; (2) `--push` only carries aggregator `hub.event` frames and needs a hubs.toml profile matching the TCP addr AND a registered session as the aggregator sink (router::aggregator() routes to registered live sessions) — a normal-topic `--push` receives nothing; (3) `channel post inbox:<id>` errors (`unknown topic`) BEFORE the inbox.queued emit fires unless the inbox topic exists (channel.rs:752 guards the emit behind a successful append). Do NOT try to build a synthetic proxy — reuse the T-2318 hermetic harness (real `spawn --shell` PTY + real `be-reachable start` which registers the session + spawns the waker + real `termlink inject` observed via `termlink output`). That path is proven and measures the true full wake latency (~85-111ms median, upper bound)."
+  source: P-001
+  task: T-2320
+  date: 2026-07-03
+  context: Added via context agent
+  application: TBD
