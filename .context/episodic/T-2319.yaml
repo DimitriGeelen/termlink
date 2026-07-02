@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2319: Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T22:52:21Z
+# ============================================================================
+
+task_id: T-2319
+task_name: "Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T22:34:38Z
+completed: 2026-07-02T22:51:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T00:51:48+02:00
+last_commit: 2026-07-03T00:51:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix push-waker subscribe-child leak on stop — cmd_stop process-group kill (setsid) + defensive waker trap + reap regression
+
+# Key outcomes
+outcomes:
+  - '`be-reachable.sh cmd_stop` reaps the waker''s `channel subscribe … --push`'
+  - 'New regression `scripts/test-pushwaker-reap.sh`: starts the waker via the real'
+  - 'The T-2318 live E2E (`scripts/demo-pushwaker-e2e.sh`) still prints `RESULT: PASS`'
+  - '`bash -n` clean on the modified waker + new regression script'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix push-waker subscribe-child leak on stop — cmd_stop process-group kill (setsid) + defensive waker trap + reap regression'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/be-reachable-pushwaker.sh'
+  - 'scripts/be-reachable.sh'
+  - 'scripts/test-pushwaker-reap.sh'
+  - '.tasks/active/T-2319-push-waker-leaks-its-channel-subscribe-c.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T00:51:48"
+    action: "T-2319: fix push-waker subscribe-child leak on stop — cmd_stop process-group kill (setsid) + defensive waker trap + reap regression"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:push-transport", "bug", "resource-leak"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 1
+  files_changed: 4
+  lines_added: 222
+  lines_removed: 45
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2319-push-waker-leaks-its-channel-subscribe-c.md
+generated_by: context-agent-hybrid
