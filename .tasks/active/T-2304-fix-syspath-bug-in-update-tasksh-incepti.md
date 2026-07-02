@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T14:21:20Z
-last_update: 2026-07-02T14:21:20Z
+last_update: 2026-07-02T14:24:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -115,19 +115,53 @@ grep -q 'os.environ.get("FRAMEWORK_ROOT")' .agentic-framework/agents/task-create
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `fw inception decide T-2303 go --i-am-human` recorded the GO decision
+("Inception decision: recorded ✓", ACs 3/3, Human 1/1, disposition passed) but then
+crashed with `ModuleNotFoundError: No module named 'lib.inception_decisions'` +
+apport noise (`FileNotFoundError: '/opt/termlink/-'`), leaving T-2303 stuck at
+`status: started-work` in `active/` (finalization to `work-completed`/archived aborted).
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `update-task.sh` `check_inception_scope_trace` runs its Python via a
+`python3 - <<'PYEOF'` stdin heredoc, and computed the framework root for `sys.path`
+with `os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))`.
+For a stdin script `__file__ == '<stdin>'`, so `abspath('<stdin>')` →
+`/opt/termlink/<stdin>` and three `dirname`s climb to `/` — `.agentic-framework/`
+never lands on `sys.path`, so `from lib.inception_decisions import …` (line 10 of the
+heredoc) fails. The apport `'/opt/termlink/-'` noise is the excepthook stat-ing
+argv[0]=`-`.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the `__file__`-based sys.path idiom is correct for a
+real `.py` file (the sibling `check-inception-decisions.py:46` uses
+`Path(__file__).resolve().parent` and works) but silently wrong for a stdin heredoc.
+The gate only fires for inception tasks reaching finalization with the scope-trace
+check active, and its output was partly `|| true`-wrapped, so the breakage stayed
+latent until a real `fw inception decide` (T-2303) hit it. Sibling class: PL-227
+(Watchtower blueprints' fragile `sys.path.insert`).
+
+**Fix:** pass `FRAMEWORK_ROOT="$FRAMEWORK_ROOT"` as env on the heredoc invocation and
+`sys.path.insert(0, os.environ.get("FRAMEWORK_ROOT") or <old __file__ chain>)` —
+prefer the explicit env root, keep the `__file__` fallback for real-file runs.
+Verified: `FRAMEWORK_ROOT=.agentic-framework python3 -c '… import lib.inception_decisions'`
+→ `import-ok`.
+
+**Prevention:** the P-011 verification block on this task asserts the import resolves
+under the stdin-shape invocation AND that the `os.environ.get("FRAMEWORK_ROOT")` guard
+is present in source — so a regression re-breaks the gate loudly. Candidate learning:
+"never derive sys.path from `__file__` in a `python3 -` heredoc — `__file__` is
+`'<stdin>'`; pass the root via env/arg" (register on close).
+
+## Status (2026-07-02, budget-blocked before finalization)
+
+- **Fix APPLIED on-disk** to `.agentic-framework/agents/task-create/update-task.sh`
+  (the executed copy) + VERIFIED (`import-ok`, grep guard present). `.agentic-framework/`
+  is **gitignored** in this consumer repo, so the fix is NOT tracked here — it must be
+  **committed in the vendored framework repo and/or couriered to AEF upstream**
+  (`/opt/999-*`, per [[relay_to_aef_via_pickup]]).
+- **T-2303 GO is recorded** but finalization is STUCK (`started-work`, in `active/`).
+  Recover next session with `fw inception sweep` (now that the blocker is fixed) — that
+  completes T-2303 → `work-completed`/archived. (AC3 here.)
+- **T-2304 close** also pending next session (P-011 + `work-completed` need Bash, blocked
+  at ~97% budget this session).
 
 ## Evolution
 
