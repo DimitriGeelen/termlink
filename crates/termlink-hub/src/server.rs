@@ -839,7 +839,7 @@ async fn handle_ws_connection<S>(
     use futures_util::{SinkExt, StreamExt};
     use tokio_tungstenite::tungstenite::Message;
 
-    let mut ws = match tokio_tungstenite::accept_async(stream).await {
+    let ws = match tokio_tungstenite::accept_async(stream).await {
         Ok(ws) => ws,
         Err(e) => {
             tracing::debug!(error = %e, "Hub: WebSocket handshake failed");
@@ -850,54 +850,91 @@ async fn handle_ws_connection<S>(
         peer = ?peer_addr,
         "Hub: WebSocket connection upgraded (arc-004 push-transport)"
     );
+
+    // T-2306 (S2): split so the hub can PUSH server-initiated frames concurrently
+    // with serving the client's request frames. `sink` is the write half, `source`
+    // the read half; a single `tokio::select!` task multiplexes both — no second
+    // task, so `granted_scope` needs no lock.
+    let (mut sink, mut source) = ws.split();
     let mut granted_scope = initial_scope;
 
-    while let Some(msg) = ws.next().await {
-        match msg {
-            Ok(Message::Text(txt)) => {
-                if let Some(json) = process_request_message(
-                    txt.as_str(),
-                    &token_secret,
-                    &mut granted_scope,
-                    peer_pid,
-                    &peer_addr,
-                )
-                .await
-                {
-                    if let Err(e) = ws.send(Message::Text(json.into())).await {
-                        tracing::debug!(error = %e, "Hub: WS client disconnected");
-                        break;
-                    }
-                }
-            }
-            Ok(Message::Binary(bin)) => {
-                // Permissive: accept JSON-RPC in a binary frame too.
-                if let Ok(txt) = String::from_utf8(bin.to_vec()) {
-                    if let Some(json) = process_request_message(
-                        &txt,
-                        &token_secret,
-                        &mut granted_scope,
-                        peer_pid,
-                        &peer_addr,
-                    )
-                    .await
-                    {
-                        if ws.send(Message::Text(json.into())).await.is_err() {
-                            break;
+    // Subscribe to the in-process broadcast up front (before auth) so no event is
+    // missed between auth completing and the first push. Pre-auth events are drained
+    // and dropped (gated below on `granted_scope`). `None` when the aggregator is not
+    // initialized (a minimal test harness) → the push arm stays dormant forever.
+    let mut event_rx = router::aggregator().map(|a| a.subscribe());
+
+    loop {
+        tokio::select! {
+            // ---- client → hub: request frames (same dispatch as the line path) ----
+            msg = source.next() => {
+                let msg = match msg {
+                    Some(Ok(m)) => m,
+                    Some(Err(e)) => { tracing::debug!(error = %e, "Hub: WS read error"); break; }
+                    None => break, // client closed
+                };
+                match msg {
+                    Message::Text(txt) => {
+                        if let Some(json) = process_request_message(
+                            txt.as_str(), &token_secret, &mut granted_scope, peer_pid, &peer_addr,
+                        ).await {
+                            if sink.send(Message::Text(json.into())).await.is_err() { break; }
                         }
                     }
+                    Message::Binary(bin) => {
+                        // Permissive: accept JSON-RPC in a binary frame too.
+                        if let Ok(txt) = String::from_utf8(bin.to_vec()) {
+                            if let Some(json) = process_request_message(
+                                &txt, &token_secret, &mut granted_scope, peer_pid, &peer_addr,
+                            ).await {
+                                if sink.send(Message::Text(json.into())).await.is_err() { break; }
+                            }
+                        }
+                    }
+                    Message::Ping(p) => { let _ = sink.send(Message::Pong(p)).await; }
+                    Message::Close(_) => break,
+                    _ => {} // Pong / Frame — ignore
                 }
             }
-            Ok(Message::Ping(p)) => {
-                let _ = ws.send(Message::Pong(p)).await;
-            }
-            Ok(Message::Close(_)) => break,
-            Ok(_) => {} // Pong / Frame — ignore
-            Err(e) => {
-                tracing::debug!(error = %e, "Hub: WS read error");
-                break;
+
+            // ---- hub → client: pushed broadcast events (only once authenticated) ----
+            ev = recv_event(&mut event_rx) => {
+                match ev {
+                    Ok(event) => {
+                        // Gate on auth: an unauthenticated connection drains and drops.
+                        if granted_scope.is_some() {
+                            let push = serde_json::json!({
+                                "jsonrpc": "2.0",
+                                "method": "hub.event",
+                                "params": event,
+                            });
+                            if sink.send(Message::Text(push.to_string().into())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(skipped = n, "Hub: WS push loop lagged, dropping events");
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        // Aggregator gone — stop selecting on a dead channel, keep serving requests.
+                        event_rx = None;
+                    }
+                }
             }
         }
+    }
+}
+
+/// T-2306 (arc-004 push-transport S2): await the next broadcast event, or never
+/// resolve when there is no receiver — so the WS push `select!` arm stays dormant
+/// (instead of busy-looping) when the aggregator isn't initialized or has closed.
+async fn recv_event(
+    rx: &mut Option<tokio::sync::broadcast::Receiver<crate::aggregator::AggregatedEvent>>,
+) -> Result<crate::aggregator::AggregatedEvent, tokio::sync::broadcast::error::RecvError> {
+    match rx {
+        Some(r) => r.recv().await,
+        None => std::future::pending().await,
     }
 }
 
@@ -1675,6 +1712,137 @@ mod tests {
         assert!(
             resp["result"].is_object(),
             "authenticated WS call should get a result"
+        );
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    /// T-2306 (arc-004 push-transport S2): once a WS connection authenticates, the
+    /// hub PUSHES aggregator broadcast events to it as `hub.event` notification
+    /// frames with no client poll; an unauthenticated connection receives none.
+    #[tokio::test]
+    async fn ws_push_broadcast_gated_on_auth() {
+        use futures_util::StreamExt;
+        use tokio_tungstenite::tungstenite::Message;
+
+        // Pushes require the aggregator; run_accept_loop alone does not init it.
+        crate::router::init_aggregator();
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // Unique topic marker so a parallel test's injected event can't be
+        // mistaken for ours (the aggregator is a process-global singleton).
+        let marker = format!("s2-push-{}", TEST_COUNTER.fetch_add(1, Ordering::SeqCst));
+
+        // --- authed client is pushed the event ---
+        let tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws, _) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp)
+                .await
+                .unwrap();
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"a","params":{"token":token.raw}}),
+        )
+        .await;
+        assert_eq!(resp["result"]["authenticated"], true);
+
+        crate::router::aggregator()
+            .unwrap()
+            .inject(crate::aggregator::AggregatedEvent {
+                session_id: "sess-x".into(),
+                session_name: "test".into(),
+                seq: 7,
+                topic: marker.clone(),
+                payload: json!({"hello":"push"}),
+                timestamp: 123,
+            });
+
+        let mut got_push = false;
+        for _ in 0..30 {
+            let f = tokio::time::timeout(std::time::Duration::from_secs(2), ws.next())
+                .await
+                .expect("WS should yield a frame")
+                .unwrap()
+                .unwrap();
+            if let Message::Text(t) = f {
+                let v: serde_json::Value = serde_json::from_str(t.as_str()).unwrap();
+                if v["method"] == "hub.event" && v["params"]["topic"] == marker {
+                    assert_eq!(v["params"]["payload"]["hello"], "push");
+                    assert_eq!(v["params"]["seq"], 7);
+                    got_push = true;
+                    break;
+                }
+            }
+        }
+        assert!(
+            got_push,
+            "authenticated WS client should receive the pushed hub.event"
+        );
+
+        // --- unauthenticated client is NOT pushed events ---
+        let tcp2 = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws2, _) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp2)
+                .await
+                .unwrap();
+        let marker2 = format!("s2-noauth-{}", TEST_COUNTER.fetch_add(1, Ordering::SeqCst));
+        crate::router::aggregator()
+            .unwrap()
+            .inject(crate::aggregator::AggregatedEvent {
+                session_id: "sess-y".into(),
+                session_name: "test".into(),
+                seq: 1,
+                topic: marker2.clone(),
+                payload: json!({}),
+                timestamp: 1,
+            });
+        let saw_push = tokio::time::timeout(std::time::Duration::from_millis(600), async {
+            loop {
+                match ws2.next().await {
+                    Some(Ok(Message::Text(t))) => {
+                        let v: serde_json::Value = serde_json::from_str(t.as_str()).unwrap();
+                        if v["method"] == "hub.event" {
+                            return true;
+                        }
+                    }
+                    Some(Ok(_)) => continue,
+                    _ => return false,
+                }
+            }
+        })
+        .await;
+        assert!(
+            saw_push.is_err() || saw_push == Ok(false),
+            "unauthenticated WS client must NOT receive pushes"
         );
 
         tx.send(true).unwrap();
