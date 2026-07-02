@@ -19,6 +19,8 @@ demo_evidence: docs/reports/T-2310-arc-004-ws-push-demo.md   # T-2310: staged; h
 #   T-2315 wake-path integration:    docs/reports/T-2315-arc-004-wake-path-integration-inception.md (inception GO/Option A)
 #   T-2316 push-waker (WP1):         docs/reports/T-2316-arc-004-pushwaker-demo.md          (built; inbox deposit rings PTY 172ms via push — WS now LOAD-BEARING)
 #   T-2317 push-waker blip (WP2):    docs/reports/T-2317-arc-004-pushwaker-blip-demo.md     (built; waker resumes after hub blip, exactly-once, no double-wake)
+#   T-2318 live E2E (real spawn):    docs/reports/T-2318-arc-004-pushwaker-e2e-demo.md      (verified; real be-reachable start→spawn→inject→filter→stop, no stub — surfaced T-2319)
+#   T-2319 stop-reap leak fix:       .tasks/completed/T-2319-*.md                            (built; cmd_stop process-group kill reaps the subscribe child — no orphan on /be-reachable stop; PL-234)
 created: 2026-07-02T15:47:28Z
 closed_at: null
 decision: null

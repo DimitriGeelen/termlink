@@ -2393,3 +2393,10 @@ learnings:
   date: 2026-07-02
   context: Added via context agent
   application: TBD
+- id: PL-234
+  learning: "To reap a process-substitution child (e.g. `done < <(cmd)`) spawned under setsid, kill the PROCESS GROUP from the supervisor — a trap in the child script does NOT fire while bash is blocked in an un-timed `read` on the (idle) stream, so it cannot self-reap on SIGTERM. setsid makes the script its own group leader (pgid==pid); `kill -TERM -<pgid>` reaps script+child atomically. Guard with a pgid==pid check to avoid signalling an unrelated group when setsid is absent."
+  source: P-001
+  task: T-2319
+  date: 2026-07-02
+  context: Added via context agent
+  application: TBD
