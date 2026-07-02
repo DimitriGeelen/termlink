@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2296: V6: direct transport-first + hub fallback + per-conversation journaling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T07:38:45Z
+# ============================================================================
+
+task_id: T-2296
+task_name: "V6: direct transport-first + hub fallback + per-conversation journaling"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-27T17:06:56Z
+completed: 2026-07-02T07:38:23Z
+duration_days: 5
+updates_count: 3
+first_commit: 2026-06-28T11:49:34+02:00
+last_commit: 2026-07-02T09:38:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  V6 apex implementation design — 5 slices (S1 journal = smallest safe first), direct=post-to-peer-hub, 3-level ladder via stage= metadata. V6 apex capstone — all 5 slices S1-S5 shipped; tick 5 ACs w/ slice evidence + verification suite + capstone Evolution
+
+# Key outcomes
+outcomes:
+  - 'A 1:1 message goes DIRECT host-to-host when the peer is reachable, and falls back to the hub when it is not (try-direct/fall-back orchestration) — **S4 (T-2301)**: `agent-send.sh` default `auto`; reachable→DIRECT (post to peer hub), unreachable→loud local-hub store-and-forward FALLBACK. `test-agent-send-orchestration.sh` 5/5.'
+  - 'Direct delivery is confirmed via a sidecar journaled-receipt (3-level ladder: TCP-ack ignored as delivery / sidecar-journaled = delivered / read-receipt = consumed); no hub receipts-frontier on the direct path — **S3 (T-2300)**: `notify-sidecar.sh --auto-confirm` journals + posts a mechanism-A `stage=delivered` receipt; agent-send polls mechanism A (never the receipts-frontier on the direct path). `test-sidecar-auto-confirm.sh` 5/5.'
+  - 'Durable messages do NOT land in the hub firehose — they go to per-conversation journals (fixes the 70.5%-heartbeat obfuscation; T-2250 Tier-0 pattern) — **S5 (T-2302)**: `journal-reaper.sh` trims journaled `dm:` turns off the firehose (journal authoritative). Option-(b) land-then-reap; **live reaper activation is operator-gated** (same precedent as arc-002 R2 sweep) — the mechanism is shipped + tested (`test-journal-reaper.sh` 5/5), scheduling is the operator''s enable step (recipe documented, deliberately not auto-installed to avoid trimming production data unprompted).'
+  - 'The per-conversation journal is mineable (queryable history per conversation) — **S1 (T-2298)**: `agent-journal.sh <topic|cid>` queries `~/.termlink/journals/journal.sqlite` (not the firehose). `test-journal-mirror.sh` 8/8; 1939 real dm rows journaled live.'
+  - 'Cross-host auth is uniform — the direct path needs no T-2024 dependency — the direct path posts `channel.post` against the peer''s OWN hub with the same HMAC/TLS auth model as any hub post (no new auth primitive). Proven by S4 orchestration delivering direct with no T-2024 dependency.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/plans/T-2296-v6-direct-transport-first-design.md'
+  - '.tasks/active/T-2296-v6-direct-transport-first--hub-fallback-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-28T11:49:34"
+    action: "T-2296: V6 apex implementation design — 5 slices (S1 journal = smallest safe first), direct=post-to-peer-hub, 3-level ladder via stage= metadata"
+  - time: "2026-07-02T09:38:16"
+    action: "T-2296: V6 apex capstone — all 5 slices S1-S5 shipped; tick 5 ACs w/ slice evidence + verification suite + capstone Evolution"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6631 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:reliable-comms, arc-apex]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6631
+  commits: 2
+  files_changed: 2
+  lines_added: 331
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2296-v6-direct-transport-first--hub-fallback-.md
+generated_by: context-agent-hybrid
