@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2320: arc-004 push-wake latency benchmark — measure push-wake vs poll floor
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T23:32:54Z
+# ============================================================================
+
+task_id: T-2320
+task_name: "arc-004 push-wake latency benchmark — measure push-wake vs poll floor"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-07-02T23:21:30Z
+completed: 2026-07-02T23:32:37Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T01:32:29+02:00
+last_commit: 2026-07-03T01:32:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 push-wake latency benchmark — measured 85-111ms median wake (vs 15s floor), retires T-2303 §10 gap
+
+# Key outcomes
+outcomes:
+  - '`scripts/bench-pushwake-latency.sh` exists and is `bash -n` clean; runs'
+  - 'The benchmark performs **N ≥ 10** trials (default 12), each measuring the'
+  - 'Measured **median** wake latency is **sub-second (< 1000 ms)** — the arc''s'
+  - '`docs/reports/T-2320-arc-004-pushwake-latency-benchmark.md` exists with the'
+  - 'The report states the **honest measurement scope**: what is timed (full wake'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2320-arc-004-pushwake-latency-benchmark.md'
+  - 'scripts/bench-pushwake-latency.sh'
+  - '.tasks/active/T-2320-arc-004-push-wake-latency-benchmark--mea.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T01:32:29"
+    action: "T-2320: arc-004 push-wake latency benchmark — measured 85-111ms median wake (vs 15s floor), retires T-2303 §10 gap"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["push-transport", "benchmark", "verification"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 3
+  lines_added: 484
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2320-arc-004-push-wake-latency-benchmark--mea.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "arc-004 push-wake latency benchmark — measure push-wake vs poll floor"
 description: >
   arc-004 push-wake latency benchmark — measure push-wake vs poll floor
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: ["push-transport", "benchmark", "verification"]
 components: []
 related_tasks: [T-2303, T-2316, T-2318]
@@ -16,8 +16,8 @@ related_tasks: [T-2303, T-2316, T-2318]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T23:21:30Z
-last_update: 2026-07-02T23:21:30Z
-date_finished: null
+last_update: 2026-07-02T23:32:37Z
+date_finished: 2026-07-02T23:32:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -226,3 +226,6 @@ grep -q "p95" docs/reports/T-2320-arc-004-pushwake-latency-benchmark.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2320-arc-004-push-wake-latency-benchmark--mea.md
 - **Context:** Initial task creation
+
+### 2026-07-02T23:32:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
