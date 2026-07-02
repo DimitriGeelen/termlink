@@ -31,12 +31,17 @@ TERMLINK="${TERMLINK_BIN:-termlink}"
 STATE_DIR="${BE_REACHABLE_STATE_DIR:-${HOME}/.termlink}"
 STATE_FILE="${BE_REACHABLE_STATE:-${STATE_DIR}/be-reachable.state}"
 
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 LH_SCRIPT="${BE_REACHABLE_LH_SCRIPT:-}"
 if [ -z "$LH_SCRIPT" ]; then
     # Resolve listener-heartbeat.sh relative to this script's directory by default.
-    SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
     LH_SCRIPT="${SELF_DIR}/listener-heartbeat.sh"
 fi
+
+# T-2316 (arc-004 WP1): the push-waker that rings the PTY doorbell on an inbound
+# inbox deposit. Spawned alongside the heartbeat when a pty_session is bound.
+PW_SCRIPT="${BE_REACHABLE_PW_SCRIPT:-${SELF_DIR}/be-reachable-pushwaker.sh}"
 
 usage() {
     cat <<'EOF'
@@ -242,6 +247,25 @@ cmd_start() {
         exit 3
     fi
 
+    # T-2316 (arc-004 WP1): spawn the push-waker so an inbound inbox deposit rings
+    # this session's PTY doorbell the instant it lands (via the shipped WS push),
+    # instead of waiting for the receiver's poll cycle. Only meaningful when a
+    # pty_session is bound (nothing to ring otherwise). Non-fatal: a waker that
+    # fails to start does NOT block reachability — the durable poll path remains
+    # the floor. Its inbox id is the agent_id (the session's inbox namespace).
+    local pushwaker_pid=""
+    if [ -n "$pty_session" ] && [ -x "$PW_SCRIPT" ]; then
+        local pw_args=( --inbox-id "$agent_id" --pty-session "$pty_session" )
+        [ -n "$hub" ] && pw_args+=( --hub "$hub" )
+        if command -v setsid >/dev/null 2>&1; then
+            nohup setsid "$PW_SCRIPT" "${pw_args[@]}" >>"$log_file" 2>&1 &
+        else
+            nohup "$PW_SCRIPT" "${pw_args[@]}" >>"$log_file" 2>&1 &
+        fi
+        pushwaker_pid=$!
+        disown 2>/dev/null || true
+    fi
+
     # Write state file.
     local started_at
     started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -270,6 +294,7 @@ cmd_start() {
   "topic": "${topic}",
   "listen_topics": ${lt_json},
   "pty_session": "${pty_session}",
+  "pushwaker_pid": ${pushwaker_pid:-null},
   "hub": "${hub}"
 }
 EOF
@@ -279,6 +304,7 @@ EOF
 be-reachable: started.
   agent_id:      ${agent_id}
   pid:           ${pid}
+  push_waker:    $([ -n "$pushwaker_pid" ] && echo "pid ${pushwaker_pid} (rings PTY on inbox deposit, T-2316)" || echo "<none — no pty_session bound>")
   pty_session:   ${pty_session:-<none>}
   listen_topics: $(IFS=,; echo "${listen_topics[*]}")
   state:         ${STATE_FILE}
@@ -297,9 +323,22 @@ cmd_stop() {
         echo "be-reachable: not running (no state file)."
         exit 0
     fi
-    local pid agent_id
+    local pid agent_id pushwaker_pid
     pid="$(read_state_field pid)"
     agent_id="$(read_state_field agent_id)"
+    pushwaker_pid="$(read_state_field pushwaker_pid)"
+
+    # T-2316 (arc-004 WP1): tear down the push-waker alongside the heartbeat.
+    if pid_alive "$pushwaker_pid"; then
+        kill -TERM "$pushwaker_pid" 2>/dev/null || true
+        local j
+        for j in 1 2 3; do
+            sleep 1
+            pid_alive "$pushwaker_pid" || break
+        done
+        pid_alive "$pushwaker_pid" && kill -KILL "$pushwaker_pid" 2>/dev/null || true
+        echo "be-reachable: stopped push-waker (pid ${pushwaker_pid})."
+    fi
 
     if pid_alive "$pid"; then
         kill -TERM "$pid" 2>/dev/null || true
@@ -340,13 +379,14 @@ cmd_status() {
         exit 1
     fi
 
-    local pid agent_id started_at role interval pty_session
+    local pid agent_id started_at role interval pty_session pushwaker_pid
     pid="$(read_state_field pid)"
     agent_id="$(read_state_field agent_id)"
     started_at="$(read_state_field started_at)"
     role="$(read_state_field role)"
     interval="$(read_state_field interval)"
     pty_session="$(read_state_field pty_session)"
+    pushwaker_pid="$(read_state_field pushwaker_pid)"
 
     if pid_alive "$pid"; then
         if [ "$json" -eq 1 ]; then
@@ -366,6 +406,7 @@ be-reachable: running.
   role:        ${role:-?}
   interval:    ${interval:-?}
   pty_session: ${pty_session:-<none>}
+  push_waker:  $(if pid_alive "$pushwaker_pid"; then echo "running (pid ${pushwaker_pid})"; else echo "${pushwaker_pid:-<none>}"; fi)
   state:       ${STATE_FILE}
 EOF
         fi
