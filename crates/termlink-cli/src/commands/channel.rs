@@ -398,6 +398,7 @@ async fn run_ws_push(
     addr: &TransportAddr,
     topic: &str,
     json_output: bool,
+    reconnecting: bool,
 ) -> Result<WsPushOutcome> {
     use termlink_session::ws_consumer::stream_ws_events;
 
@@ -415,8 +416,16 @@ async fn run_ws_push(
     let ws_task =
         tokio::spawn(async move { stream_ws_events(&addr_owned, &token_raw, &topics, tx).await });
 
+    // T-2314 (arc-004 active reconnect): print a "back on push" notice symmetric to
+    // the caller's degrade notice, but only once and only when a reconnect actually
+    // resumes delivering — the first pushed event proves the WS is live again.
+    let mut announced = !reconnecting;
     // Render pushed events until the helper drops the sender (stream ended/failed).
     while let Some(params) = rx.recv().await {
+        if !announced {
+            eprintln!("[push] reconnected — back on push");
+            announced = true;
+        }
         if json_output {
             println!("{params}");
         } else {
@@ -435,6 +444,74 @@ async fn run_ws_push(
         Ok(Err(e)) => Err(anyhow!("{e}")),
         Err(join_err) => Err(anyhow!("ws consumer task failed: {join_err}")),
     }
+}
+
+// T-2314 (arc-004 active reconnect) backoff tuning.
+const WS_RECONNECT_BASE_MS: u64 = 250;
+const WS_RECONNECT_CAP_MS: u64 = 8_000;
+/// After this many *consecutive* fast failures the loop stops retrying the WS and
+/// settles on the steady poll floor — bounded, never a tight spin.
+const WS_RECONNECT_MAX_ATTEMPTS: u32 = 6;
+/// A WS session that lasted at least this long is deemed healthy and resets the
+/// attempt counter, so the cap fires only on rapid connect failures, not on a
+/// long-lived agent whose stable stream occasionally drops.
+const WS_HEALTHY_SESSION_MS: u128 = 5_000;
+
+/// Exponential reconnect backoff: `BASE × 2^(attempt-1)`, clamped to `CAP_MS`, plus
+/// up to +25% jitter selected by `jitter_frac` (0.0..=1.0) to de-synchronise a fleet
+/// of agents reconnecting to the same hub after a shared blip. Pure — unit-tested.
+fn ws_reconnect_backoff(attempt: u32, jitter_frac: f64) -> std::time::Duration {
+    // attempt is 1-based; shift by attempt-1, saturating so a large attempt just
+    // pins at the cap rather than overflowing the shift.
+    let shift = attempt.saturating_sub(1).min(20);
+    let base = WS_RECONNECT_BASE_MS
+        .saturating_mul(1u64 << shift)
+        .min(WS_RECONNECT_CAP_MS);
+    let jitter = (base as f64 * 0.25 * jitter_frac.clamp(0.0, 1.0)) as u64;
+    std::time::Duration::from_millis(base + jitter)
+}
+
+/// Cheap jitter fraction in [0.0, 1.0) from the current wall-clock nanoseconds —
+/// avoids pulling in an rng crate just for reconnect de-synchronisation.
+fn wallclock_jitter_frac() -> f64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    (nanos % 1000) as f64 / 1000.0
+}
+
+/// T-2314 (arc-004 RB2): one poll catch-up pass over `topic` from `cursor`, so any
+/// event posted while the WS was down is drained from the **durable** substrate and
+/// the cursor advanced past it — the next (live-only) WS session then can't miss or
+/// double-render those events. Renders each drained envelope in the same `[push]`
+/// line format the live path uses (or one JSON line each under `json_output`), and
+/// returns the advanced cursor. Best-effort: on RPC error the cursor is unchanged
+/// and the caller retries on the next cycle.
+async fn ws_poll_catchup(
+    addr: &TransportAddr,
+    topic: &str,
+    cursor: u64,
+    json_output: bool,
+) -> Result<u64> {
+    let params = json!({"topic": topic, "cursor": cursor, "limit": 500});
+    let resp = rpc_call_authed(addr, method::CHANNEL_SUBSCRIBE, params)
+        .await
+        .context("catch-up channel.subscribe failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("hub returned error for catch-up channel.subscribe: {e}"))?;
+    let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+    for m in &msgs {
+        if json_output {
+            println!("{m}");
+        } else {
+            let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+            let sender = m.get("sender_id").and_then(|v| v.as_str()).unwrap_or("?");
+            let payload = decode_payload_lossy(m);
+            println!("[push:catchup] {topic} offset={off} {sender}: {payload}");
+        }
+    }
+    Ok(result["next_cursor"].as_u64().unwrap_or(cursor))
 }
 
 pub(crate) async fn cmd_channel_create(
@@ -8489,13 +8566,48 @@ pub(crate) async fn cmd_channel_subscribe(
     // from `cursor` — some overlap with already-pushed events is acceptable on a
     // degrade (correctness over dedup); active reconnect-to-WS is a follow-on.
     if push {
-        match run_ws_push(&sock, topic, json_output).await {
-            Ok(WsPushOutcome::Ended) => {
-                eprintln!("[push] WS stream ended — degrading to poll");
+        // T-2314 (arc-004 active reconnect, Option B): alternate the fast WS path
+        // with a durable poll catch-up. On each drop we (1) drain the gap from the
+        // cursor so nothing is missed, (2) back off, (3) retry the WS. A healthy
+        // session resets the backoff; after MAX consecutive fast failures we settle
+        // on the steady poll loop below rather than spin. Unix hubs are supported
+        // (raw socket) and reconnect the same way. Correctness floor unchanged: the
+        // poll path is authoritative, the WS is only a faster transport.
+        let mut attempt: u32 = 0;
+        loop {
+            let started = std::time::Instant::now();
+            match run_ws_push(&sock, topic, json_output, attempt > 0).await {
+                Ok(WsPushOutcome::Ended) => {
+                    eprintln!("[push] WS stream ended — catching up then reconnecting");
+                }
+                Err(e) => {
+                    eprintln!("[push] WS unavailable ({e}) — catching up then reconnecting");
+                }
             }
-            Err(e) => {
-                eprintln!("[push] WS unavailable ({e}) — degrading to poll");
+            let healthy = started.elapsed().as_millis() >= WS_HEALTHY_SESSION_MS;
+            // RB2: drain the gap from the durable cursor before retrying the
+            // live-only WS, advancing the cursor so we neither miss nor re-render.
+            match ws_poll_catchup(&sock, topic, cursor, json_output).await {
+                Ok(next) => cursor = next,
+                Err(e) => eprintln!("[push] catch-up poll failed ({e}) — retrying"),
             }
+            // A healthy (long-lived) session resets the backoff; only consecutive
+            // fast failures accumulate toward the cap.
+            attempt = if healthy { 0 } else { attempt + 1 };
+            if attempt > WS_RECONNECT_MAX_ATTEMPTS {
+                eprintln!(
+                    "[push] WS reconnect cap ({WS_RECONNECT_MAX_ATTEMPTS}) reached — degrading to poll"
+                );
+                break;
+            }
+            let delay = ws_reconnect_backoff(attempt, wallclock_jitter_frac());
+            eprintln!(
+                "[push] reconnecting to WS in {} ms (attempt {}/{})",
+                delay.as_millis(),
+                attempt,
+                WS_RECONNECT_MAX_ATTEMPTS
+            );
+            tokio::time::sleep(delay).await;
         }
     }
     // T-2105: one-shot snapshot — request cv_index only on the first hub call.
@@ -13581,6 +13693,29 @@ mod tests {
     fn decode_payload_lossy_handles_missing_field() {
         let env = json!({"offset": 0, "msg_type": "chat"});
         assert_eq!(decode_payload_lossy(&env), "");
+    }
+
+    #[test]
+    fn ws_reconnect_backoff_grows_caps_and_jitters() {
+        // No jitter: exact exponential growth from BASE, capped at CAP_MS.
+        assert_eq!(ws_reconnect_backoff(1, 0.0).as_millis(), 250); // BASE
+        assert_eq!(ws_reconnect_backoff(2, 0.0).as_millis(), 500);
+        assert_eq!(ws_reconnect_backoff(3, 0.0).as_millis(), 1000);
+        assert_eq!(ws_reconnect_backoff(4, 0.0).as_millis(), 2000);
+        // Large attempt pins at the cap rather than overflowing the shift.
+        assert_eq!(ws_reconnect_backoff(30, 0.0).as_millis(), 8000); // CAP_MS
+        // attempt 0 (healthy-reset case) still yields a sane BASE, never a panic.
+        assert_eq!(ws_reconnect_backoff(0, 0.0).as_millis(), 250);
+
+        // Jitter adds up to +25% of the (capped) base, clamped to [0,1].
+        assert_eq!(ws_reconnect_backoff(1, 1.0).as_millis(), 250 + 62); // +25% of 250 = 62.5 -> 62
+        let capped_jittered = ws_reconnect_backoff(30, 1.0).as_millis();
+        assert!((8000..=10_000).contains(&capped_jittered)); // 8000 + up to 2000
+        // Out-of-range jitter_frac is clamped, not amplified.
+        assert_eq!(
+            ws_reconnect_backoff(1, 5.0).as_millis(),
+            ws_reconnect_backoff(1, 1.0).as_millis()
+        );
     }
 
     #[test]

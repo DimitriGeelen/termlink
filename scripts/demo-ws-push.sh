@@ -5,9 +5,12 @@
 #   1. a live consumer subscribed with `channel subscribe inbox.queued --push`
 #      receives a DM the INSTANT it is posted, via a hub->client WebSocket push
 #      (sub-second — replacing the 1s poll floor / 15s doorbell wake/read floor);
-#   2. when the WebSocket drops, the consumer cleanly DEGRADES TO POLL (the
-#      durable dm: topics / receipts / journal / offline queue stay authoritative
-#      underneath — WS is a faster transport, never a new source of truth).
+#   2. when the WebSocket drops, the consumer enters the T-2314 ACTIVE RECONNECT
+#      loop — catch-up polls the durable cursor (no missed events), backs off, and
+#      retries the WS — so after the hub returns, live push RESUMES (a DM posted
+#      after the blip is delivered again) instead of running on the 1s poll floor
+#      forever. The durable dm: topics / receipts / journal / offline queue stay
+#      authoritative underneath (WS is a faster transport, never a source of truth).
 #
 # Isolation contract: runs entirely under a temp TERMLINK_RUNTIME_DIR (hub
 # secret + cert) and a temp HOME (hubs.toml, known_hubs). It NEVER touches the
@@ -104,33 +107,87 @@ if [ -z "$PUSHLINE" ]; then
 fi
 LATENCY=$((T1 - T0))
 
-# 7. Trigger degrade-to-poll: stop the hub, observe the consumer's degrade notice.
+# 7. Blip: stop the hub. The consumer must NOT permanently degrade — it should
+#    enter the T-2314 reconnect loop (catch-up from the durable cursor, backoff,
+#    retry the WS). Observe the reconnect-loop notice (not a one-way degrade).
 kill "$HUB_PID" 2>/dev/null || true
 HUB_PID=""
-DEGRADE=""
+RECONNECTING=""
 for _ in $(seq 1 100); do   # up to ~10s
-  if grep -q "degrading to poll" "$ERR" 2>/dev/null; then
-    DEGRADE=$(grep "degrading to poll" "$ERR" | head -1)
+  if grep -qE "catching up then reconnecting|reconnecting to WS" "$ERR" 2>/dev/null; then
+    RECONNECTING=$(grep -E "catching up then reconnecting|reconnecting to WS" "$ERR" | head -1)
     break
   fi
   sleep 0.1
 done
 
-# 8. Report.
-echo "=== arc-004 WS push demo (T-2310) ==="
-echo "binary:         $BIN"
-echo "hub:            $HUBADDR   (isolated runtime_dir, torn down on exit)"
-echo "topic:          $TOPIC"
-echo "posted body:    $BODY"
-echo "post->push:     ${LATENCY} ms"
-echo "push frame:     $PUSHLINE"
-echo "degrade notice: ${DEGRADE:-<not observed within 10s>}"
+# 8. Restart the SAME hub (same runtime_dir → persisted secret + cert, same port).
+#    Clear stale sock/pid so the fresh process binds cleanly.
+rm -f "$RT/hub.sock" "$RT/hub.pid" 2>/dev/null || true
+"$BIN" hub start --tcp "$HUBADDR" >>"$HUBLOG" 2>&1 &
+HUB_PID=$!
+for _ in $(seq 1 100); do
+  [ -s "$RT/hub.secret" ] && [ -s "$RT/hub.cert.pem" ] && break
+  sleep 0.1
+done
+
+# 9. Post SECOND DMs after the blip. If the consumer had permanently degraded to
+#    poll, these would only ever arrive on the 1s floor; with active reconnect the
+#    resumed live WS delivers one and prints "reconnected — back on push". We re-post
+#    on a cadence because the restarted in-memory hub resets its topic offsets — a
+#    single DM posted in the sub-second window before the WS re-subscribes could be
+#    missed by both the live-only WS and a cursor that is now ahead of the reset
+#    offsets; re-posting guarantees one lands after the socket is live again.
+BODY2="after-blip-$$"
+RECONNECTED=""; B_DELIVERED=""
+for i in $(seq 1 250); do   # up to ~25s
+  # re-post roughly once a second while we wait
+  if [ $((i % 10)) -eq 1 ]; then
+    "$BIN" channel post "$TOPIC" --payload "$BODY2" --hub "$HUBADDR" >/dev/null 2>&1 || true
+  fi
+  if [ -z "$RECONNECTED" ] && grep -q "reconnected — back on push" "$ERR" 2>/dev/null; then
+    RECONNECTED="yes"
+  fi
+  # A second inbox.queued render (push or catch-up) after the reconnect proves
+  # the post-blip DM was actually delivered to the live consumer.
+  if [ "$(grep -c "inbox.queued" "$OUT" 2>/dev/null || echo 0)" -ge 2 ]; then
+    B_DELIVERED="yes"
+  fi
+  [ -n "$RECONNECTED" ] && [ -n "$B_DELIVERED" ] && break
+  sleep 0.1
+done
+
+CATCHUP=$(grep -c "push:catchup" "$OUT" 2>/dev/null || echo 0)
+
+# 10. Report.
+echo "=== arc-004 WS push + active-reconnect demo (T-2310 / T-2314) ==="
+echo "binary:            $BIN"
+echo "hub:               $HUBADDR   (isolated runtime_dir, torn down on exit)"
+echo "topic:             $TOPIC"
+echo "1st post->push:    ${LATENCY} ms  (frame: $PUSHLINE)"
+echo "blip notice:       ${RECONNECTING:-<not observed>}"
+echo "reconnect notice:  $([ -n "$RECONNECTED" ] && echo 'reconnected — back on push' || echo '<not observed within 25s>')"
+echo "post-blip delivery: $([ -n "$B_DELIVERED" ] && echo "DM \"$BODY2\" delivered after blip" || echo '<not delivered within 25s>')"
+echo "catch-up drains:   ${CATCHUP} (bounded — cursor advances, no runaway re-emit)"
 echo
-if [ "$LATENCY" -lt 1000 ]; then
-  echo "RESULT: PASS — push arrived sub-second (${LATENCY} ms < 1000 ms)"
-  [ -n "$DEGRADE" ] && echo "        degrade-to-poll transition observed on WS drop"
-  exit 0
-else
-  echo "RESULT: SLOW — push latency ${LATENCY} ms >= 1000 ms (env-dependent; see artifact)"
-  exit 5
+
+FAIL=0
+if [ "$LATENCY" -ge 1000 ]; then
+  echo "RESULT: SLOW — 1st push latency ${LATENCY} ms >= 1000 ms (env-dependent; see artifact)"
+  FAIL=1
 fi
+if [ -z "$RECONNECTING" ]; then
+  echo "FAIL: consumer did not enter the reconnect loop on WS drop (T-2314 RB1)"
+  FAIL=1
+fi
+if [ -z "$RECONNECTED" ] || [ -z "$B_DELIVERED" ]; then
+  echo "FAIL: consumer did not resume push after the hub blip (T-2314 RB1/RB2)"
+  echo "--- consumer stderr (tail) ---"; tail -20 "$ERR"
+  FAIL=1
+fi
+if [ "$FAIL" -eq 0 ]; then
+  echo "RESULT: PASS — sub-second push (${LATENCY} ms), reconnect loop engaged on drop,"
+  echo "        and live push RESUMED after the hub blip (no permanent degrade)."
+  exit 0
+fi
+exit 5

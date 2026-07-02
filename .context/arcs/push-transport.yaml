@@ -13,6 +13,9 @@ headline_mechanic: "A live agent receives a DM the instant it is posted via a hu
   \ and cleanly degrades back to polling if the socket drops \u2014 the durable dm:\
   \ topics, receipts, journal and offline queue stay authoritative underneath."
 demo_evidence: docs/reports/T-2310-arc-004-ws-push-demo.md   # T-2310: staged; human confirms at `fw arc close --demo <path>` (sovereignty-gated)
+# Follow-on wire evidence (past the GO(scoped) surface, both T-2311/T-2312 GO'd + built):
+#   T-2313 WS-over-Unix push:        docs/reports/T-2313-arc-004-ws-over-unix-inception.md (built; 31ms Unix push)
+#   T-2314 active reconnect-to-WS:   docs/reports/T-2314-arc-004-active-reconnect-demo.md  (built; resumes push after blip)
 created: 2026-07-02T15:47:28Z
 closed_at: null
 decision: null
