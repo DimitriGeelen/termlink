@@ -4,10 +4,10 @@ name: "V2b: hub-stamped observed source address"
 description: >
   Arc-003 V2 follow-up (sliced from T-2293). Hub stamps the OBSERVED TCP source address it saw onto agent-presence heartbeats / registrations, so the discovery registry can prefer a hub-attested host:port over the agent's self-report (defeats stale/spoofed self-reported hostnames). peer_addr is already available at server.rs:640/670 and threaded into process_request; the work is to thread it through route_request -> handle_channel_post and inject observed_addr into the stored envelope, then have fleet_presence/agent-resolve prefer it. Consumed by V6 (T-2296) direct transport, which needs the agent's real host. Self-report addr (the AC2 fallback) already ships in T-2293.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: [arc:reliable-comms]
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-06-27T17:52:01Z
+last_update: 2026-07-02T07:40:34Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,16 +34,49 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Arc-003 reliable-comms **V2b** (sliced from T-2293) — the LAST open arc task. The hub
+STAMPS the observed TCP source address it saw (`peer_addr`) onto channel.post envelopes
+it accepts over TCP, as a hub-attested `metadata.observed_addr`. The discovery read path
+(`fleet_presence::PresenceMatch`, `agent resolve`) then PREFERS this attested address
+over the agent's self-reported `metadata.addr` (T-2293), defeating stale/spoofed
+self-reports. Consumed by V6 direct transport (needs the peer's real host); V6 already
+ships on the self-report addr, so this is a **hardening upgrade, not a blocker**.
+
+**Code path (mapped, T-2297 Explore):** `peer_addr` is captured at `server.rs:640/670`,
+threaded into `handle_connection` (`:756`) but DROPPED at the `router::route` call sites
+(`:846`/`:891`). Work: thread `peer_addr: Option<&str>` through `router::route`
+(`router.rs:59`) → `handle_channel_post` / `handle_channel_post_with`
+(`channel.rs:503/511`), and stamp it into the envelope `metadata` (built `channel.rs:653`).
+**Metadata is NOT in the signed canonical bytes** (`channel.rs:579`) and `Envelope.metadata`
+is an existing `BTreeMap<String,String>` (`envelope.rs:20`) — so server-side injection needs
+NO schema/serde change and cannot break signature verification (**PL-122 safe**). Read side:
+add `observed_addr` to `PresenceMatch` (`fleet_presence.rs:57/144`) and prefer it at
+`agent.rs:867`.
+
+**Attestation invariant (load-bearing):** `observed_addr` MUST always be hub-attested or
+absent — never client-forgeable. The handler OVERWRITES any client-supplied `observed_addr`
+when `peer_addr` is `Some` (TCP), and STRIPS it when `None` (Unix socket / local, not
+attestable).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] A pure, unit-tested helper enforces the attestation invariant on envelope metadata: `observed_addr` is set to the hub-observed TCP `peer_addr` when present; any client-supplied `observed_addr` is OVERWRITTEN (TCP) or STRIPPED (Unix/`None`). Unit test covers all three cases (attested-overwrite, forged-value-overwritten, strip-when-none)
+- [ ] `peer_addr` is threaded from the accept site through `router::route` → `handle_channel_post(_with)`, the helper is applied before the envelope is stored, and the workspace compiles (`cargo build`)
+- [ ] Read side prefers the attested address: `PresenceMatch` carries `observed_addr` (parsed from `metadata.observed_addr`), and `agent resolve` resolves host as `observed_addr ?? self-reported addr ?? profile address` (verified by unit test or targeted read-path assertion)
+- [ ] Backward-compatible: envelopes with no `observed_addr` (Unix posts, old clients) behave exactly as before — no new envelope field, metadata stays out of the signed bytes, signature verification unaffected (asserted)
 
 ### Human
+- [ ] [RUBBER-STAMP] Live end-to-end after installing the rebuilt hub binary
+  **Steps:**
+  1. Rebuild + install: `cargo build --release -p termlink && install -m 755 target/release/termlink ~/.cargo/bin/termlink`
+  2. Restart the local hub so it runs the new binary (per CLAUDE.md §volatile-runtime_dir, confirm `TERMLINK_RUNTIME_DIR` is off `/tmp` first so the restart does not rotate the secret).
+  3. From another host (or a TCP loopback post), run: `termlink channel post agent-presence --hub <this-host-ip>:9100 --payload hb --json` then `termlink channel subscribe agent-presence --hub <this-host-ip>:9100 --limit 1 --json | jq '.metadata.observed_addr'`
+  4. Run `termlink agent resolve <agent_id> --json | jq '{observed_addr, self_reported_addr, hub}'`
+  **Expected:** step 3 shows a hub-stamped `observed_addr` (the caller's real IP:port, NOT what the client put in metadata); step 4 shows `hub` resolved from `observed_addr` when present.
+  **If not:** confirm the running hub is the rebuilt binary (`/proc/$(pgrep -f 'termlink hub')/exe` not `(deleted)`); a Unix-socket post correctly has NO `observed_addr` (only TCP posts are attested).
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -75,6 +108,10 @@ date_finished: null
 -->
 
 ## Verification
+
+# The pure attestation helper's unit test (proves overwrite/strip invariant) + read-side compile.
+cargo test -p termlink-hub observed_addr
+cargo check -p termlink-session -p termlink-cli
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,3 +211,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md
 - **Context:** Initial task creation
+
+### 2026-07-02T07:40:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
