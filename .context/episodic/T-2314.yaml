@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2314: arc-004 build: active reconnect-to-WS with backoff (T-2311 GO, Option B RB1+RB2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T20:46:32Z
+# ============================================================================
+
+task_id: T-2314
+task_name: "arc-004 build: active reconnect-to-WS with backoff (T-2311 GO, Option B RB1+RB2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T20:10:35Z
+completed: 2026-07-02T20:45:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T22:33:48+02:00
+last_commit: 2026-07-02T22:33:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 active reconnect-to-WS (Option B) — reconnect loop + backoff/cap + poll catch-up; TCP demo resumes push after blip (88ms), Unix 31ms no-regression
+
+# Key outcomes
+outcomes:
+  - '`ws_reconnect_backoff` is a pure fn (exponential base×2^(n-1), capped, jittered) with a unit test covering growth, cap, and jitter bounds'
+  - 'The `--push` branch wraps `run_ws_push` in a reconnect loop: on drop it runs one poll catch-up pass from the durable cursor, backs off, and retries the WS; it settles on the steady poll loop only after the failure cap'
+  - 'A healthy WS session (ran ≥ threshold) resets the backoff attempt counter so the cap fires only on consecutive fast failures, not on long stable sessions'
+  - 'The catch-up pass drains the gap from the durable cursor and advances it, so no event is missed after a blip and gap events are not re-drained on every subsequent reconnect cycle (RB2); brief WS↔catch-up overlap on the first drop is the documented acceptable degrade ("correctness over dedup")'
+  - '`scripts/demo-ws-push.sh` gains a scripted-drop + restart segment proving post→push RESUMES after a hub blip (reconnected notice + a post-restart DM delivered) and the catch-up gap-drain runs without runaway re-emission'
+  - '`cargo test -p termlink-cli` (backoff + existing channel tests) and `cargo test -p termlink-session ws_` pass; `cargo build --release -p termlink` exits 0'
+  - 'Unix-hub `--push` behaviour is unchanged (`scripts/demo-ws-push-unix.sh` still passes)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-02 — Option B (alternating reconnect + catch-up) over Option A (concurrent floor)'
+    chose: 'Reconnect loop that alternates WS ↔ one poll catch-up pass, per T-2311 GO.'
+    rationale: 'Bounded consumer-loop change; reuses `run_ws_push` + a small catch-up helper;'
+    alternatives_rejected: ['Option A (continuous concurrent poll floor + WS accelerator with']
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/push-transport.yaml'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'docs/reports/T-2314-arc-004-active-reconnect-demo.md'
+  - 'scripts/demo-ws-push.sh'
+  - '.tasks/active/T-2314-arc-004-build-active-reconnect-to-ws-wit.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T22:33:48"
+    action: "T-2314: arc-004 active reconnect-to-WS (Option B) — reconnect loop + backoff/cap + poll catch-up; TCP demo resumes push after blip (88ms), Unix 31ms no-regression"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 35 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [arc:push-transport]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 35
+  commits: 1
+  files_changed: 5
+  lines_added: 512
+  lines_removed: 27
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2314-arc-004-build-active-reconnect-to-ws-wit.md
+generated_by: context-agent-hybrid

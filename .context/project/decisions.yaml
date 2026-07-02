@@ -563,3 +563,10 @@ decisions:
     date: 2026-07-02
     task: T-2302
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-060
+    decision: "Reconnect loop that alternates WS ↔ one poll catch-up pass, per T-2311 GO."
+    scope: project
+    date: 2026-07-02
+    task: T-2314
+    rationale: "Auto-captured from task file on completion"
