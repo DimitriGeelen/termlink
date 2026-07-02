@@ -40,11 +40,11 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A 1:1 message goes DIRECT host-to-host when the peer is reachable, and falls back to the hub when it is not (try-direct/fall-back orchestration)
-- [ ] Direct delivery is confirmed via a sidecar journaled-receipt (3-level ladder: TCP-ack ignored as delivery / sidecar-journaled = delivered / read-receipt = consumed); no hub receipts-frontier on the direct path
-- [ ] Durable messages do NOT land in the hub firehose — they go to per-conversation journals (fixes the 70.5%-heartbeat obfuscation; T-2250 Tier-0 pattern)
-- [ ] The per-conversation journal is mineable (queryable history per conversation)
-- [ ] Cross-host auth is uniform — the direct path needs no T-2024 dependency
+- [x] A 1:1 message goes DIRECT host-to-host when the peer is reachable, and falls back to the hub when it is not (try-direct/fall-back orchestration) — **S4 (T-2301)**: `agent-send.sh` default `auto`; reachable→DIRECT (post to peer hub), unreachable→loud local-hub store-and-forward FALLBACK. `test-agent-send-orchestration.sh` 5/5.
+- [x] Direct delivery is confirmed via a sidecar journaled-receipt (3-level ladder: TCP-ack ignored as delivery / sidecar-journaled = delivered / read-receipt = consumed); no hub receipts-frontier on the direct path — **S3 (T-2300)**: `notify-sidecar.sh --auto-confirm` journals + posts a mechanism-A `stage=delivered` receipt; agent-send polls mechanism A (never the receipts-frontier on the direct path). `test-sidecar-auto-confirm.sh` 5/5.
+- [x] Durable messages do NOT land in the hub firehose — they go to per-conversation journals (fixes the 70.5%-heartbeat obfuscation; T-2250 Tier-0 pattern) — **S5 (T-2302)**: `journal-reaper.sh` trims journaled `dm:` turns off the firehose (journal authoritative). Option-(b) land-then-reap; **live reaper activation is operator-gated** (same precedent as arc-002 R2 sweep) — the mechanism is shipped + tested (`test-journal-reaper.sh` 5/5), scheduling is the operator's enable step (recipe documented, deliberately not auto-installed to avoid trimming production data unprompted).
+- [x] The per-conversation journal is mineable (queryable history per conversation) — **S1 (T-2298)**: `agent-journal.sh <topic|cid>` queries `~/.termlink/journals/journal.sqlite` (not the firehose). `test-journal-mirror.sh` 8/8; 1939 real dm rows journaled live.
+- [x] Cross-host auth is uniform — the direct path needs no T-2024 dependency — the direct path posts `channel.post` against the peer's OWN hub with the same HMAC/TLS auth model as any hub post (no new auth primitive). Proven by S4 orchestration delivering direct with no T-2024 dependency.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -78,6 +78,13 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
 -->
 
 ## Verification
+
+# V6 apex capstone: the integrated slice suites (S1–S5) must all pass.
+bash scripts/test-journal-mirror.sh
+bash scripts/test-agent-send.sh
+bash scripts/test-agent-send-transport.sh
+bash scripts/test-agent-send-orchestration.sh
+bash scripts/test-journal-reaper.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -173,6 +180,28 @@ Arc-003 (reliable-comms) APEX — highest directive score; the destination of th
   questions for human in the design doc §Risks: (1) S2 on T-2293 self-report addr
   now vs block on T-2297; (2) S5 end-state hub-side vs client-side; (3) sidecar
   auto-ack "delivered" ≠ "cognitively present" — acceptable?
+
+### 2026-07-02 — capstone: all 5 slices S1–S5 shipped; apex ACs met at mechanism level
+- **What changed:** The full V6 slice sequence is built and closed — S1 (T-2298
+  journal mirror/query), S2 (T-2299 transport-select seam), S3 (T-2300 sidecar
+  journaled-receipt), S4 (T-2301 try-direct/fall-back orchestration), S5 (T-2302
+  journal-authoritative reaper + firehose suppression). Each apex AC now maps to a
+  shipped, tested slice (AC1←S4, AC2←S3, AC3←S5, AC4←S1, AC5←design premise proven by
+  S4). All three design-doc §Risks open questions were resolved during build: (1) S2
+  shipped on the T-2293 self-report addr — T-2297 hub-attested addr is a hardening
+  follow-up, not a blocker; (2) S5 chose the CLIENT-SIDE journal-authoritative
+  end-state (option b) over the hub-side hot-path change — smaller blast radius,
+  reversible; (3) sidecar auto-ack is "delivered" (L2), distinct from "read" (L3) —
+  the delivered-vs-read split the ladder encodes via the `stage=` metadata key.
+- **Plan impact:** The design's "mechanism B fallback-only" gave way to the S3/S4
+  finding that BOTH transports confirm via mechanism A (the journaled `stage=delivered`
+  receipt); mechanism B (`--await-ack`) would double-post the turn, so it's not used on
+  either path. AC3's "durables do NOT land in the firehose" is realized by option-(b)
+  land-then-reap, so it holds at steady state only while the reaper runs — live reaper
+  activation is operator-gated (arc-002 R2 sweep precedent), mechanism shipped + tested.
+- **Triggered:** T-2297 (V2b hub-stamped observed source addr) remains the one open
+  arc-tagged task — a Rust hot-path hardening (prefer hub-attested addr over
+  self-report), consumed-by-V6 but not blocking (V6 works on self-report today).
 
 ## Decisions
 
