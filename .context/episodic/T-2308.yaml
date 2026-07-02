@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2308: WS-S4 verify delivery-confirm+journal through WS push path unchanged
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T17:00:12Z
+# ============================================================================
+
+task_id: T-2308
+task_name: "WS-S4 verify delivery-confirm+journal through WS push path unchanged"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-07-02T16:50:30Z
+completed: 2026-07-02T16:59:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T18:59:35+02:00
+last_commit: 2026-07-02T18:59:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  WS-S4 verify delivery-confirm+journal through WS push unchanged — inbox.queued doorbell carries durable offset over WS, envelope_at proves ackable (arc-004)
+
+# Key outcomes
+outcomes:
+  - 'A `channel.post` to an `inbox:<id>` topic returns a durable `offset`, and the same post causes an `inbox.queued` `AggregatedEvent` to be injected into the aggregator carrying `payload.message_offset == offset` and `payload.channel == "inbox:<id>"`. *Proven in `ws_delivery_offset_through_push`: the real forward-path `handle_channel_post_with` returns `offset`; the WS-observed `inbox.queued` frame carries `payload.channel == inbox:<target>` and `payload.message_offset == offset`.*'
+  - 'An authenticated WS client subscribed (via `hub.ws_subscribe`) to the `inbox.queued` topic receives a `hub.event` frame for that post whose `params.payload.message_offset` equals the durable offset — proving the confirm/read pointer travels over the WS push path intact (not truncated or re-sequenced). *`server::tests::ws_delivery_offset_through_push` — `assert_eq!(pushed_offset, durable_offset)`.*'
+  - 'The durable topic read at the pushed `message_offset` yields the originally posted message body — i.e. the pushed pointer resolves to the exact durable position the recipient would ack, proving receipts/journal remain reachable and authoritative through the existing (unchanged) path. *Same test: `Bus::envelope_at(inbox_topic, pushed_offset).payload == body`.*'
+  - 'No change to receipt/journal/ack code paths: the WS path adds no new receipt-write or journal-write. The diff touches only the push-observation test surface (`server.rs` test module) — no production receipt/journal code changed. All existing hub tests (incl. receipts/ack) still pass: `cargo test -p termlink-hub` → **377 passed; 0 failed**.'
+  - '`cargo build --release -p termlink-hub` (green, 18.14s) and `cargo test -p termlink-hub ws_` (5 passed) both pass; the arc''s degrade-to-poll invariant is preserved (the durable `inbox.queued` + `channel.subscribe`/`envelope_at`/`ack` path a non-WS client uses is untouched — the same durable read the test uses for AC3).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2308-ws-s4-verify-delivery-confirmjournal-thr.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T18:59:35"
+    action: "T-2308: WS-S4 verify delivery-confirm+journal through WS push unchanged — inbox.queued doorbell carries durable offset over WS, envelope_at proves ackable (arc-004)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 374
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2308-ws-s4-verify-delivery-confirmjournal-thr.md
+generated_by: context-agent-hybrid
