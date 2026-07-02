@@ -18,6 +18,7 @@ demo_evidence: docs/reports/T-2310-arc-004-ws-push-demo.md   # T-2310: staged; h
 #   T-2314 active reconnect-to-WS:   docs/reports/T-2314-arc-004-active-reconnect-demo.md  (built; resumes push after blip)
 #   T-2315 wake-path integration:    docs/reports/T-2315-arc-004-wake-path-integration-inception.md (inception GO/Option A)
 #   T-2316 push-waker (WP1):         docs/reports/T-2316-arc-004-pushwaker-demo.md          (built; inbox deposit rings PTY 172ms via push — WS now LOAD-BEARING)
+#   T-2317 push-waker blip (WP2):    docs/reports/T-2317-arc-004-pushwaker-blip-demo.md     (built; waker resumes after hub blip, exactly-once, no double-wake)
 created: 2026-07-02T15:47:28Z
 closed_at: null
 decision: null
