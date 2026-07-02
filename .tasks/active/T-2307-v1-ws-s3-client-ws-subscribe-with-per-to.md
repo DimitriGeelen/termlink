@@ -1,8 +1,8 @@
 ---
-id: T-2306
-name: "V1 WS-S2 hub broadcast→client push write loop over WebSocket"
+id: T-2307
+name: "V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback"
 description: >
-  V1 WS-S2 hub broadcast→client push write loop over WebSocket
+  V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback
 
 status: started-work
 workflow_type: build
@@ -12,8 +12,8 @@ tags: []
 components: []
 related_tasks: []
 arc_id: push-transport            # arc-004 — WS live-transport build arc (GO output of T-2303)
-created: 2026-07-02T16:00:40Z
-last_update: 2026-07-02T16:00:40Z
+created: 2026-07-02T16:08:40Z
+last_update: 2026-07-02T16:08:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -27,36 +27,41 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2306: V1 WS-S2 hub broadcast→client push write loop over WebSocket
+# T-2307: V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback
 
 ## Context
 
-Second build slice (S2) of arc-004 `push-transport`. S1 (T-2305) stood up the hub-side
-WebSocket upgrade + auth-reuse over a shared dispatch, but the WS path is still
-request/response only (half-duplex). **S2 adds the actual server→client PUSH**: once a
-WS connection is authenticated, the hub subscribes to the existing in-process
-`tokio::broadcast::Sender<AggregatedEvent>` (aggregator.rs) and streams each event to the
-client as a JSON-RPC notification frame — the client receives events with **no poll**.
-This is the mechanism that collapses the 15s doorbell-then-poll floor to sub-second push.
+Third build slice (S3) of arc-004 `push-transport`. S2 (T-2306) made an authenticated WS
+connection receive the **firehose** — *all* aggregator events. That is unsafe for
+production (a client would see other agents' events) and wasteful. **S3 adds the
+client-driven per-topic subscription filter**: a WS client calls `hub.ws_subscribe` with
+the topics it cares about (its `dm:*`, `agent-presence`, …) and the hub pushes only
+matching `hub.event` frames. This also flips the default to **opt-in** — an authed but
+un-subscribed connection receives nothing (no accidental firehose).
 
-**S2 scope (this task):** split the WS stream into read + write halves and run a
-`tokio::select!` loop in `handle_ws_connection` so request-frames and pushed events flow
-concurrently; drain the aggregator broadcast and forward events as `hub.event`
-notifications, gated on the connection being authenticated. **Out of scope:** per-topic
-subscription filtering + degrade-to-poll fallback (S3), receipts/journal through WS (S4).
-For S2 an authenticated WS connection receives *all* broadcast events; S3 adds the
-client-driven topic filter. Rides entirely on the existing durable substrate — this is a
-faster transport for the wake/read, not a new source of truth.
+**Degrade-to-poll** is a protocol property, not new code: the WS is a faster transport for
+the *same* aggregator events that remain readable via the existing poll path
+(`event.collect` / `channel.subscribe`). If the WS upgrade fails or the socket drops, the
+client falls back to polling and misses nothing — the durable substrate stays
+authoritative (arc invariant IW-5). This slice proves that contract holds (poll path
+unchanged) rather than adding a parallel source of truth.
+
+**S3 scope (this task, hub-side + protocol):** `hub.ws_subscribe` control (auth-gated,
+per-connection topic filter with exact + `prefix*` matching); push loop forwards only
+matching events; opt-in default; tests. **Out of scope / follow-on:** a dedicated CLI
+consumer with an automatic WS-connect→reconnect→poll-fallback loop is a separate consumer
+deliverable (S3b, file if/when a live consumer is wired) — bundling it here would violate
+one-task-one-deliverable. **Also out of scope:** receipts/journal through WS (S4).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `handle_ws_connection` splits the WebSocket into a read half and a write half and runs a `tokio::select!` loop, so the hub can send server-initiated frames concurrently with handling client request frames (no longer strictly request→response). `cargo build --release -p termlink-hub` succeeds.
-- [x] After a WS connection authenticates (`granted_scope` becomes `Some`), the hub subscribes to the aggregator `broadcast::Receiver<AggregatedEvent>` and pushes each event to the client as a JSON-RPC notification frame (`{"jsonrpc":"2.0","method":"hub.event","params":<AggregatedEvent>}`) — delivered without the client sending any request. `broadcast::error::Lagged` is handled (skip + continue), not fatal.
-- [x] Push is gated on auth: a WS connection that has NOT authenticated receives no `hub.event` pushes (events are drained but dropped until `granted_scope` is `Some`).
-- [x] Concurrency preserved: request/response still works over the same WS connection while the push loop runs (a client can call `hub.auth` / `session.discover` and get responses interleaved with pushes). All existing hub tests (line protocol + the S1 WS upgrade test) still pass.
-- [x] A unit test (`server::tests::ws_push_*`) proves push end-to-end: connect a WS client, authenticate, inject an `AggregatedEvent` into the aggregator, and assert the client receives the pushed `hub.event` frame carrying that event; also assert a pre-auth connection does not receive the pushed event. Passes in CI.
+- [ ] The hub handles a WS-only `hub.ws_subscribe` control message (`params.topics: [..]`) that sets a per-connection topic filter; it is auth-gated (requires an authenticated `observe`-capable connection — an unauthenticated call is refused, not silently accepted) and returns an ack listing the active subscription. `cargo build --release -p termlink-hub` succeeds.
+- [ ] After subscribing, the push loop forwards ONLY `hub.event` frames whose `topic` matches the filter; entries match exactly, or as a prefix when written `stem*`. A second `hub.ws_subscribe` replaces the filter.
+- [ ] Opt-in default: an authenticated WS connection that has NOT sent `hub.ws_subscribe` receives NO pushes (the S2 firehose is now gated behind an explicit subscribe). The S2 push test is updated to subscribe first, reflecting the tightened contract.
+- [ ] Degrade-to-poll contract: the events delivered over WS are the same aggregator events readable via the existing poll path — a client with no WS (or a dropped WS) still reads them by polling. Verified by all existing line-protocol / event-poll hub tests still passing (the substrate path is untouched).
+- [ ] A unit test (`server::tests::ws_subscribe_*`) proves filtering: connect + auth + `hub.ws_subscribe` to a specific topic, inject one matching and one non-matching `AggregatedEvent`, assert only the matching one is pushed; and assert an authed-but-unsubscribed connection receives neither. Passes in CI.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -91,7 +96,7 @@ faster transport for the wake/read, not a new source of truth.
 
 ## Verification
 cargo build --release -p termlink-hub 2>&1 | tail -3
-cargo test -p termlink-hub ws_ 2>&1 | tail -10
+cargo test -p termlink-hub ws_ 2>&1 | tail -12
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -164,26 +169,6 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -10
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-## Evolution
-
-### 2026-07-02 — S2 built: split + select! push, gated on auth, dormant-when-no-aggregator
-- **What changed:** `handle_ws_connection` now `.split()`s the WS into `sink`/`source`
-  and runs a single `tokio::select!` loop — one task multiplexes inbound requests and
-  outbound pushes, so `granted_scope` stays a plain local (no `Arc<Mutex>`). Events are
-  pushed as `hub.event` JSON-RPC *notifications* (params = the `AggregatedEvent`).
-- **Plan impact:** Two design calls beyond the filed plan. (1) **Subscribe before auth,
-  gate at send-time on `granted_scope.is_some()`** — this closes the miss-window between
-  auth completing and the first push (an event injected the instant after auth still
-  lands), and pre-auth events are simply drained+dropped. (2) A `recv_event` helper that
-  `std::future::pending()`s when the aggregator receiver is `None`, so the push `select!`
-  arm goes *dormant* instead of busy-looping when the aggregator isn't initialized (the
-  minimal `run_accept_loop` test harness) or has closed — the loop keeps serving requests.
-- **Triggered:** For S2 an authed WS client receives *all* broadcast events. **S3 must add
-  the client-driven per-topic subscribe filter** (so a client only gets its `dm:*` /
-  `agent-presence`) **plus the degrade-to-poll fallback** when the socket drops. The
-  `hub.event` notification envelope + the split/select structure are the seam S3 builds on.
-  No scope cuts; arc plan S2→S3→S4 unchanged.
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -207,7 +192,7 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -10
 
 ## Updates
 
-### 2026-07-02T16:00:40Z — task-created [task-create-agent]
+### 2026-07-02T16:08:40Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2306-v1-ws-s2-hub-broadcastclient-push-write-.md
+- **Output:** /opt/termlink/.tasks/active/T-2307-v1-ws-s3-client-ws-subscribe-with-per-to.md
 - **Context:** Initial task creation
