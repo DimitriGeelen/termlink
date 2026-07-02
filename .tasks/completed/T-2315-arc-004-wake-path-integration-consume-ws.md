@@ -4,17 +4,17 @@ name: "arc-004 wake-path integration: consume WS push in the live doorbell/be-re
 description: >
   Inception: arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable path to replace the 15s poll floor
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [arc:push-transport]
 arc_id: push-transport
 components: []
 related_tasks: [T-2303, T-2309, T-2313, T-2314]
 created: 2026-07-02T20:51:50Z
-last_update: 2026-07-02T20:52:08Z
-date_finished: null
+last_update: 2026-07-02T21:10:46Z
+date_finished: 2026-07-02T21:10:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -114,15 +114,15 @@ a post-GO build task, WP1/WP2).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -188,7 +188,11 @@ GO (advisory): the WS push mechanism is shipped + proven (S1-S4, S3b, T-2313, T-
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: GO (advisory): the WS push mechanism is shipped + proven (S1-S4, S3b, T-2313, T-2314) but no live agent consumes it — the doorbell/be-reachable wake path still polls on the 15s floor, so the arc's headline value (instant DM delivery) is demonstrated but not delivered. Wiring a background 'channel subscribe inbox:<self> --push' consumer that rings the existing PTY doorbell on inbox.queued (degrading to the current poll if WS drops — T-2314 auto-recovers) is bounded, additive, reversible. Sensitive wake-path area (T-1800 doorbell+mail, T-2285 ack-gap, prior rejected flag-poll design) needs a human GO before build.
+
+**Date**: 2026-07-02T21:10:46Z
 
 ## Updates
 
@@ -197,3 +201,12 @@ GO (advisory): the WS push mechanism is shipped + proven (S1-S4, S3b, T-2313, T-
 
 ### 2026-07-02T20:52:08Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-02T21:10:46Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** GO (advisory): the WS push mechanism is shipped + proven (S1-S4, S3b, T-2313, T-2314) but no live agent consumes it — the doorbell/be-reachable wake path still polls on the 15s floor, so the arc's headline value (instant DM delivery) is demonstrated but not delivered. Wiring a background 'channel subscribe inbox:<self> --push' consumer that rings the existing PTY doorbell on inbox.queued (degrading to the current poll if WS drops — T-2314 auto-recovers) is bounded, additive, reversible. Sensitive wake-path area (T-1800 doorbell+mail, T-2285 ack-gap, prior rejected flag-poll design) needs a human GO before build.
+
+### 2026-07-02T21:10:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
