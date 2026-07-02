@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2316: arc-004 WP1: be-reachable push-waker rings PTY doorbell on inbox.queued (T-2315 GO, Option A)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T21:34:11Z
+# ============================================================================
+
+task_id: T-2316
+task_name: "arc-004 WP1: be-reachable push-waker rings PTY doorbell on inbox.queued (T-2315 GO, Option A)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T21:23:41Z
+completed: 2026-07-02T21:34:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-02T23:33:47+02:00
+last_commit: 2026-07-02T23:33:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 WP1 push-waker — inbox deposit rings PTY doorbell via WS push (172ms demo); be-reachable lifecycle wiring + filter/dedup unit test
+
+# Key outcomes
+outcomes:
+  - 'A push-waker (`scripts/be-reachable-pushwaker.sh`) holds `termlink channel subscribe inbox.queued --push`, parses each frame, and on a frame whose `addressee_session_id` equals the configured inbox id fires `termlink inject <pty_session> "<doorbell-text>" --enter`; frames for other addressees are ignored (no false wake). — demo: positive ring 172 ms, negative filtered (no false wake)'
+  - 'The waker dedupes per `(addressee, message_offset)` within a short TTL so a single deposit rings at most once; cross-rail double-wake (push + sender ring) is bounded by `/check-arc respond` idempotency and documented in the script header. — `pushwaker_dedup_ok` unit-tested (dup within ttl skips; after ttl rings)'
+  - '`be-reachable.sh start` spawns the waker detached (nohup setsid) when a `pty_session` is resolved, records its pid as `pushwaker_pid` in the state file, and does NOT spawn it when `pty_session` is empty (nothing to ring). — wired in cmd_start + state file'
+  - '`be-reachable.sh stop` terminates the `pushwaker_pid` (SIGTERM then KILL fallback) alongside the heartbeat pid; `status` surfaces the waker pid and its alive state. — wired in cmd_stop + cmd_status'
+  - 'On WS drop the waker relies on the `--push` built-in active reconnect (T-2314) and the sender/poll path remains the durability floor — no change to the durable inbox / receipts / journal (WS is trigger-only). — no hub/durability code touched (bash-only)'
+  - 'A pure filter/dedup unit test (`scripts/test-pushwaker-filter.sh`) covers: frame-matches-self → ring; frame-for-other → skip; duplicate offset → skip. — 8/8 checks PASS'
+  - 'A loopback demo (`scripts/demo-pushwaker.sh`, isolated hub + HOME) proves: a deposit to `inbox:<id>` rings the PTY sub-second via push, and a non-matching deposit does NOT ring; report line `RESULT: PASS`. — RESULT: PASS (172 ms)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/push-transport.yaml'
+  - 'docs/reports/T-2316-arc-004-pushwaker-demo.md'
+  - 'scripts/be-reachable-pushwaker.sh'
+  - 'scripts/be-reachable.sh'
+  - 'scripts/demo-pushwaker.sh'
+  - 'scripts/test-pushwaker-filter.sh'
+  - '.tasks/active/T-2316-arc-004-wp1-be-reachable-push-waker-ring.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T23:33:47"
+    action: "T-2316: arc-004 WP1 push-waker — inbox deposit rings PTY doorbell via WS push (172ms demo); be-reachable lifecycle wiring + filter/dedup unit test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:push-transport"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 7
+  lines_added: 670
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2316-arc-004-wp1-be-reachable-push-waker-ring.md
+generated_by: context-agent-hybrid
