@@ -2113,6 +2113,175 @@ mod tests {
         let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
     }
 
+    /// T-2308 (arc-004 push-transport S4): build a signed `channel.post` fixture
+    /// for the real forward path (`handle_channel_post_with`). Mirrors channel.rs's
+    /// private `post_params` so the S4 test can ride production code without
+    /// reaching into another module's test helpers.
+    fn s4_post_params(
+        key: &ed25519_dalek::SigningKey,
+        topic: &str,
+        msg_type: &str,
+        payload: &[u8],
+        ts: i64,
+    ) -> serde_json::Value {
+        use base64::Engine;
+        use ed25519_dalek::Signer;
+        use termlink_protocol::control::channel::canonical_sign_bytes;
+        use termlink_session::agent_identity::fingerprint_of;
+
+        let signed = canonical_sign_bytes(topic, msg_type, payload, None, ts);
+        let sig = key.sign(&signed);
+        let sender_id = fingerprint_of(&key.verifying_key());
+        let hexit = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+        json!({
+            "topic": topic,
+            "msg_type": msg_type,
+            "payload_b64": base64::engine::general_purpose::STANDARD.encode(payload),
+            "ts": ts,
+            "sender_id": sender_id,
+            "sender_pubkey_hex": hexit(key.verifying_key().as_bytes()),
+            "signature_hex": hexit(&sig.to_bytes()),
+        })
+    }
+
+    /// T-2308 (arc-004 push-transport S4): the durable delivery pointer travels the
+    /// WS push path INTACT and resolves to an ackable durable position — proving the
+    /// arc invariant that receipts/journal remain the unchanged, authoritative path
+    /// underneath the live transport.
+    ///
+    /// End-to-end through real production code:
+    ///  1. A signed `channel.post` to an `inbox:*` topic (`handle_channel_post_with`,
+    ///     the T-1637 forward path) returns a durable `offset` AND injects an
+    ///     `inbox.queued` event carrying `message_offset`/`channel` into the aggregator.
+    ///  2. An authed WS client subscribed to the `inbox.queued` topic receives that
+    ///     offset over the push stream — asserting the pointer is not truncated or
+    ///     re-sequenced by the WS transport.
+    ///  3. Reading the durable topic at the pushed offset (`Bus::envelope_at`) yields
+    ///     the originally posted body — the exact position the recipient would ack.
+    /// No receipt/journal code runs on the WS path itself.
+    #[tokio::test]
+    async fn ws_delivery_offset_through_push() {
+        use futures_util::StreamExt;
+        use tokio_tungstenite::tungstenite::Message;
+
+        // Pushes require the process-global aggregator; the forward-path post
+        // injects into that same singleton the WS push loop subscribes to.
+        crate::router::init_aggregator();
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // Durable bus the forward-path post writes to. A unique inbox target keeps
+        // this test's doorbell distinct from any parallel test's injected events.
+        let bus = termlink_bus::Bus::open(&dir.join("bus")).unwrap();
+        let target = format!("s4-{}", TEST_COUNTER.fetch_add(1, Ordering::SeqCst));
+        let inbox_topic = format!("inbox:{target}");
+        bus.create_topic(&inbox_topic, termlink_bus::Retention::Forever)
+            .unwrap();
+
+        let queued_topic = termlink_protocol::events::inbox_topic::QUEUED; // "inbox.queued"
+
+        // --- authed WS client subscribed to the durable-delivery doorbell topic ---
+        let tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws, _) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp)
+                .await
+                .unwrap();
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"a","params":{"token":token.raw}}),
+        )
+        .await;
+        assert_eq!(resp["result"]["authenticated"], true);
+        let sub = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.ws_subscribe","id":"s","params":{"topics":[queued_topic]}}),
+        )
+        .await;
+        assert_eq!(sub["result"]["count"], 1);
+
+        // --- real signed forward-path post: durable offset + inbox.queued inject ---
+        let key = ed25519_dalek::SigningKey::from_bytes(&[42u8; 32]);
+        let body = b"s4-delivery-body";
+        let ts = 1_700_000_000i64;
+        let params = s4_post_params(&key, &inbox_topic, "note", body, ts);
+        let post_resp = crate::channel::handle_channel_post_with(&bus, json!("p"), &params).await;
+        let post_val = match post_resp {
+            termlink_protocol::jsonrpc::RpcResponse::Success(s) => s.result,
+            termlink_protocol::jsonrpc::RpcResponse::Error(e) => {
+                panic!("forward-path post failed: {:?}", e.error)
+            }
+        };
+        let durable_offset = post_val["offset"]
+            .as_u64()
+            .expect("channel.post returns a durable offset");
+
+        // AC2: the offset travels the WS push intact, on inbox.queued, for our channel.
+        let mut pushed_offset = None;
+        for _ in 0..40 {
+            let f = tokio::time::timeout(std::time::Duration::from_secs(2), ws.next())
+                .await
+                .expect("WS should yield a frame")
+                .unwrap()
+                .unwrap();
+            if let Message::Text(t) = f {
+                let v: serde_json::Value = serde_json::from_str(t.as_str()).unwrap();
+                if v["method"] == "hub.event"
+                    && v["params"]["topic"] == queued_topic
+                    && v["params"]["payload"]["channel"] == inbox_topic
+                {
+                    pushed_offset = v["params"]["payload"]["message_offset"].as_u64();
+                    break;
+                }
+            }
+        }
+        let pushed_offset =
+            pushed_offset.expect("inbox.queued doorbell for our channel must be pushed over WS");
+        assert_eq!(
+            pushed_offset, durable_offset,
+            "WS-pushed message_offset must equal the durable post offset (pointer intact)"
+        );
+
+        // AC3: the pushed pointer resolves to the exact durable body via the
+        // unchanged read path (Bus::envelope_at) — the position a recipient acks.
+        let env = bus
+            .envelope_at(&inbox_topic, pushed_offset)
+            .expect("durable read at pushed offset must succeed")
+            .expect("a durable record must exist at the pushed offset");
+        assert_eq!(
+            env.payload,
+            body.to_vec(),
+            "durable record at the pushed offset must be the originally posted body"
+        );
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
     #[tokio::test]
     async fn tcp_rejected_without_auth() {
         let dir = test_dir();
