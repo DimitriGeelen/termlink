@@ -1,5 +1,5 @@
-# Audit Results - 2026-07-02-2013
-timestamp: 2026-07-02T18:13:24Z
+# Audit Results - 2026-07-02-2033
+timestamp: 2026-07-02T18:33:55Z
 sections: "structure"
 summary:
   pass: 28
@@ -23,7 +23,7 @@ findings:
   - level: PASS
     check: "All 4 arc anchor_task references resolve to existing tasks"
   - level: PASS
-    check: "All 1 in-progress arc(s) had task commits within 30 days"
+    check: "All 2 in-progress arc(s) had task commits within 30 days"
   - level: PASS
     check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
   - level: PASS
