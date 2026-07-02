@@ -2386,3 +2386,10 @@ learnings:
   date: 2026-06-25
   context: Added via context agent
   application: TBD
+- id: PL-233
+  learning: "Never derive sys.path from __file__ inside a 'python3 -' stdin heredoc — __file__ is the literal '<stdin>', so abspath(__file__) climbs the dirname chain to '/' and package imports (e.g. lib.inception_decisions) fail with ModuleNotFoundError. Pass the framework root via an explicit env var (FRAMEWORK_ROOT) or argv and sys.path.insert that; fall back to the __file__ chain only when run as a real file."
+  source: P-001
+  task: T-2304
+  date: 2026-07-02
+  context: Added via context agent
+  application: TBD
