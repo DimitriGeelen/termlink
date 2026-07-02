@@ -1,5 +1,5 @@
-# Audit Results - 2026-07-02-1745
-timestamp: 2026-07-02T15:45:21Z
+# Audit Results - 2026-07-02-2013
+timestamp: 2026-07-02T18:13:24Z
 sections: "structure"
 summary:
   pass: 28
@@ -19,7 +19,7 @@ findings:
   - level: PASS
     check: "No duplicate task IDs across active/ and completed/"
   - level: PASS
-    check: "All 12 project YAML files parse correctly"
+    check: "All 13 project YAML files parse correctly"
   - level: PASS
     check: "All 4 arc anchor_task references resolve to existing tasks"
   - level: PASS
@@ -36,7 +36,7 @@ findings:
     check: "Fabric: 33/143 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
-    check: "Fabric drift: 1 source file(s) have no fabric card"
+    check: "Fabric drift: 2 source file(s) have no fabric card"
     mitigation: "Run: fw fabric scan"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"

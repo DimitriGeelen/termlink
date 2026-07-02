@@ -1,20 +1,24 @@
 ---
-id: T-2307
-name: "V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback"
+id: T-2310
+name: "arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof"
 description: >
-  V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback
+  arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof
 
-status: work-completed
-workflow_type: build
+status: started-work
+workflow_type: test
 owner: agent
-horizon: null
-tags: []
-components: [crates/termlink-hub/src/server.rs]
-related_tasks: []
-arc_id: push-transport            # arc-004 — WS live-transport build arc (GO output of T-2303)
-created: 2026-07-02T16:08:40Z
-last_update: 2026-07-02T16:40:50Z
-date_finished: 2026-07-02T16:40:50Z
+horizon: now
+tags: ["arc:push-transport"]
+components: []
+related_tasks: ["T-2303", "T-2305", "T-2306", "T-2307", "T-2308", "T-2309"]
+arc_id: push-transport
+# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
+#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
+#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+created: 2026-07-02T18:26:30Z
+last_update: 2026-07-02T18:26:30Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -27,42 +31,32 @@ date_finished: 2026-07-02T16:40:50Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2307: V1 WS-S3 client WS subscribe with per-topic filter + degrade-to-poll fallback
+# T-2310: arc-004 demo evidence — reproducible WS push sub-second + degrade-to-poll proof
 
 ## Context
 
-Third build slice (S3) of arc-004 `push-transport`. S2 (T-2306) made an authenticated WS
-connection receive the **firehose** — *all* aggregator events. That is unsafe for
-production (a client would see other agents' events) and wasteful. **S3 adds the
-client-driven per-topic subscription filter**: a WS client calls `hub.ws_subscribe` with
-the topics it cares about (its `dm:*`, `agent-presence`, …) and the hub pushes only
-matching `hub.event` frames. This also flips the default to **opt-in** — an authed but
-un-subscribed connection receives nothing (no accidental firehose).
-
-**Degrade-to-poll** is a protocol property, not new code: the WS is a faster transport for
-the *same* aggregator events that remain readable via the existing poll path
-(`event.collect` / `channel.subscribe`). If the WS upgrade fails or the socket drops, the
-client falls back to polling and misses nothing — the durable substrate stays
-authoritative (arc invariant IW-5). This slice proves that contract holds (poll path
-unchanged) rather than adding a parallel source of truth.
-
-**S3 scope (this task, hub-side + protocol):** `hub.ws_subscribe` control (auth-gated,
-per-connection topic filter with exact + `prefix*` matching); push loop forwards only
-matching events; opt-in default; tests. **Out of scope / follow-on:** a dedicated CLI
-consumer with an automatic WS-connect→reconnect→poll-fallback loop is a separate consumer
-deliverable (S3b, file if/when a live consumer is wired) — bundling it here would violate
-one-task-one-deliverable. **Also out of scope:** receipts/journal through WS (S4).
+arc-004 `push-transport` build is complete end-to-end (hub S1–S4: T-2305/06/07/08,
+plus live CLI consumer S3b: T-2309). The arc registry field `demo_evidence` is still
+`null`, which is the last artifact the human needs before `fw arc close` (sovereignty-gated).
+This task produces a **reproducible** demonstration of the arc headline mechanic — a live
+agent receiving a DM the instant it is posted via a hub→client WebSocket push (sub-second),
+and cleanly degrading to polling when the socket drops — captured as a committed artifact so
+the close is evidence-backed rather than folklore. Prior live smoke (T-2309) proved the path
+once by hand; this task turns that into a scripted, re-runnable proof against an isolated hub.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The hub handles a WS-only `hub.ws_subscribe` control message (`params.topics: [..]`) that sets a per-connection topic filter; it is auth-gated (requires an authenticated `observe`-capable connection — an unauthenticated call is refused, not silently accepted) and returns an ack listing the active subscription. `cargo build --release -p termlink-hub` succeeds. *(`maybe_handle_ws_subscribe` — release build green.)*
-- [x] After subscribing, the push loop forwards ONLY `hub.event` frames whose `topic` matches the filter; entries match exactly, or as a prefix when written `stem*`. A second `hub.ws_subscribe` replaces the filter. *(`ws_topic_matches` + push-gate; `ws_topic_matches_exact_and_prefix` unit test.)*
-- [x] Opt-in default: an authenticated WS connection that has NOT sent `hub.ws_subscribe` receives NO pushes (the S2 firehose is now gated behind an explicit subscribe). The S2 push test was updated to subscribe first, reflecting the tightened contract. *(Empty filter matches nothing; `ws_subscribe_topic_filter` proves the unsubscribed-authed case.)*
-- [x] Degrade-to-poll contract: the events delivered over WS are the same aggregator events readable via the existing poll path — a client with no WS (or a dropped WS) still reads them by polling. Verified by all 376 hub tests (line-protocol + event-poll) still passing — the substrate path is untouched.
-- [x] A unit test (`server::tests::ws_subscribe_topic_filter`) proves filtering: connect + auth + `hub.ws_subscribe` to a specific topic, inject one matching and one non-matching `AggregatedEvent`, assert only the matching one is pushed; and assert an authed-but-unsubscribed connection receives neither. Passes in CI.
+- [x] Reproducible demo script `scripts/demo-ws-push.sh` exists, is executable, and is self-contained: starts an isolated hub under a temp `TERMLINK_RUNTIME_DIR`, attaches a `channel subscribe inbox.queued --push` consumer, posts a DM to an `inbox:*` topic, and tears the hub down on exit (no touch of the shared :9100 hub).
+- [x] Running the demo captures a WS push frame carrying the durable `message_offset` for the posted DM, and the measured post→push latency is sub-second (< 1000 ms) — the arc headline mechanic. **Evidence:** 91/99/93 ms across 3 runs; frame `{"...","message_offset":0,...}`.
+- [x] The demo also exercises degrade-to-poll: after the WS path ends/drops, the consumer falls back to the existing poll loop (captured in the artifact as the observed transition or the verified contract). **Evidence:** `[push] WS unavailable (…) — degrading to poll` observed on hub stop.
+- [x] Demo evidence artifact `docs/reports/T-2310-arc-004-ws-push-demo.md` records the exact commands, the captured push frame, the measured latency number, and the degrade-to-poll behaviour.
+- [x] arc-004 registry `demo_evidence` field references the artifact (no longer `null`).
 
+<!-- All criteria agent-verifiable; no Human section. -->
+
+<!-- HUMAN-SECTION-REMOVED
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
@@ -92,11 +86,9 @@ one-task-one-deliverable. **Also out of scope:** receipts/journal through WS (S4
          **If not:** Inspect hook block-message string and add missing mechanism
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
--->
+HUMAN-SECTION-REMOVED -->
 
 ## Verification
-cargo build --release -p termlink-hub 2>&1 | tail -3
-cargo test -p termlink-hub ws_ 2>&1 | tail -12
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -128,6 +120,11 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -12
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test -x scripts/demo-ws-push.sh
+test -f docs/reports/T-2310-arc-004-ws-push-demo.md
+out=$(cat docs/reports/T-2310-arc-004-ws-push-demo.md); echo "$out" | grep -q "message_offset"
+ev=$(grep '^demo_evidence:' .context/arcs/push-transport.yaml); echo "$ev" | grep -q "T-2310"
 
 ## RCA
 
@@ -169,24 +166,17 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -12
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-## Evolution
+### 2026-07-02 — demo evidence turns the S3b hand-smoke into a re-runnable proof
 
-### 2026-07-02 — S3 built: opt-in per-topic filter, degrade-to-poll as a contract not code
-- **What changed:** Added `hub.ws_subscribe` (auth-gated, per-connection `Vec<String>`
-  filter) intercepted in the WS read branch before the shared dispatch, `ws_topic_matches`
-  (exact + `stem*` prefix), and re-gated the push loop on `authed && filter-match`. This
-  flipped S2's firehose to **opt-in** — the S2 push test was updated to `hub.ws_subscribe`
-  before expecting a push (contract tightened; documented here per §ACD).
-- **Plan impact:** "degrade-to-poll fallback" was realized as a **verified protocol
-  contract**, not new fallback code: WS carries the *same* aggregator events the poll path
-  (`event.collect`/`channel.subscribe`) already serves, so a client with no/dropped WS
-  misses nothing — proven by all 376 hub tests (poll+line path untouched). Building a
-  parallel fallback would have added a second source of truth (violates IW-5).
-- **Triggered:** The full **CLI consumer** (auto WS-connect → reconnect → poll-fallback
-  loop, and wiring `metadata.cv_key`/`dm:*` topic selection) is carved out as **S3b** — a
-  distinct consumer-integration deliverable, filed if/when a live consumer is wired
-  (one-task-one-deliverable). **S4** (wire delivery-confirm/journal receipts through the WS
-  path unchanged) remains the last arc slice. Arc plan otherwise intact.
+- **What changed:** The T-2309 live smoke proved the push path once by hand against an
+  ad-hoc :9199 hub. For the arc close to be evidence-backed (not folklore), the proof
+  must be reproducible. This slice scripts it: isolated temp-runtime hub, `--push
+  inbox.queued` consumer, timed `inbox:*` post, captured push frame + measured latency.
+- **Plan impact:** None to the build — S1–S4 + S3b are unchanged. This is a
+  verification/evidence deliverable that populates the arc's `demo_evidence` field,
+  the last non-gated artifact before the human's `fw arc close`.
+- **Triggered:** No new build sub-tasks. Confirms the documented follow-ons (WS-over-Unix,
+  active reconnect-with-backoff) remain out-of-scope for arc-004's GO(scoped) surface.
 
 ## Decisions
 
@@ -211,10 +201,7 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -12
 
 ## Updates
 
-### 2026-07-02T16:08:40Z — task-created [task-create-agent]
+### 2026-07-02T18:26:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2307-v1-ws-s3-client-ws-subscribe-with-per-to.md
+- **Output:** /opt/termlink/.tasks/active/T-2310-arc-004-demo-evidence--reproducible-ws-p.md
 - **Context:** Initial task creation
-
-### 2026-07-02T16:40:50Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

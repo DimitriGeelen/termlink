@@ -1903,3 +1903,31 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2291: close arc-003
   command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2304: register PL-233 — never derive sys.path from __file__ in a python3 - stdin heredoc
 
 Co-Authored-'
+- timestamp: '2026-07-02T16:08:55Z'
+  task: 'T-2307'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2306'
+  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize WS-S2 (work-completed) — episodic + archive
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
+- timestamp: '2026-07-02T16:11:09Z'
+  task: 'T-2307'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2306'
+  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize WS-S2 (work-completed) — episodic + archive; T-2307 scope S3
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anth'
+- timestamp: '2026-07-02T16:18:04Z'
+  task: 'T-2307'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-1452'
+  command: 'git add .context/audits/ .context/project/ .tasks/active/T-1452-*.md .termlink-task VERSION && FW_SWITCH_FOCUS=1 git commit -m "T-1452: handover byproducts (audit, metrics, VERSION stamp) for S-2026-0'
+- timestamp: '2026-07-02T16:44:45Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2307'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2307: finalize WS-S3 (work-completed) — episodic + archive (arc-004)" 2>&1 | tail -8'
