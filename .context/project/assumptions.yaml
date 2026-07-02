@@ -361,3 +361,30 @@ assumptions:
   linked_task: T-1906
   created: '2026-06-01'
   resolved_date: null
+- id: A-036
+  statement: Live agent sessions (PTY processes behind the hub) cannot host an inbound
+    HTTP endpoint, so webhooks fit external consumers not agent-to-agent
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2303
+  created: '2026-07-02'
+  resolved_date: null
+- id: A-037
+  statement: The current doorbell-then-poll model's real pain is latency + poll cost
+    (PL-089), not delivery correctness (arc-003 confirms delivery)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2303
+  created: '2026-07-02'
+  resolved_date: null
+- id: A-038
+  statement: A WebSocket server surface on the hub can reuse the existing TLS cert
+    (TOFU pin) + HMAC secret identity model (T-1427) without a new auth scheme
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2303
+  created: '2026-07-02'
+  resolved_date: null
