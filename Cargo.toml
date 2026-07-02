@@ -57,6 +57,13 @@ rustls = "0.23"
 rustls-pemfile = "2"
 rcgen = "0.13"
 
+# WebSocket transport (arc-004 push-transport, T-2305). TLS is already terminated
+# by tokio-rustls before the WS layer runs over the decrypted stream, so we take
+# tokio-tungstenite WITHOUT its own TLS features — just the RFC6455 handshake +
+# frame codec over a generic AsyncRead+AsyncWrite. Avoids a second rustls pin.
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+futures-util = "0.3"
+
 # Regex
 regex = "1"
 

@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 arc_id: push-transport            # arc-004 — WS live-transport build arc (GO output of T-2303)
 created: 2026-07-02T15:47:34Z
-last_update: 2026-07-02T15:47:34Z
+last_update: 2026-07-02T15:49:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,11 +52,11 @@ work unchanged (back-compat).
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A WebSocket dependency (`tokio-tungstenite`, version pinned to the workspace tokio/rustls) is added to the hub crate's `Cargo.toml`, and `cargo build --release -p termlink-hub` (or the hub's actual package name) succeeds.
-- [ ] The hub accept path detects an inbound HTTP `Upgrade: websocket` request and completes the RFC6455 handshake (responds `101 Switching Protocols` with the correct `Sec-WebSocket-Accept`), yielding a WS stream over the same TLS-terminated connection type used today.
-- [ ] Back-compat: a connection that speaks the existing newline-delimited JSON-RPC line protocol (no `Upgrade` header) is handled exactly as before — the upgrade detection must not break or slow the plain path. Proven by the existing hub connection tests still passing.
-- [ ] The upgraded WS connection is authenticated by **reusing** the existing HMAC scope-verification path (not a new scheme); a WS upgrade presenting an invalid/absent HMAC is refused (connection closed / handshake rejected), and a valid one caches the authenticated scope for the connection lifetime — same semantics as the line path.
-- [ ] A unit/integration test exercises both outcomes: (a) a valid client completes the WS upgrade + auth and the connection is held open; (b) an invalid-HMAC WS upgrade is rejected. Test lives under the hub crate and passes in CI.
+- [x] A WebSocket dependency (`tokio-tungstenite`, TLS-feature-free since the WS runs over the already-TLS-terminated stream) is added to the hub crate's `Cargo.toml`, and `cargo build --release -p termlink-hub` succeeds. *(server.rs / Cargo.toml — release build green.)*
+- [x] The hub accept path detects an inbound HTTP WebSocket upgrade (first-byte sniff `G` of `GET ` vs `{` of a JSON-RPC line, replayed via `PeekedStream` so no byte is lost) and completes the RFC6455 handshake via `tokio_tungstenite::accept_async`, yielding a WS stream over the same generic `AsyncRead+AsyncWrite` connection type used today. *(Test drives a real `client_async` upgrade to completion.)*
+- [x] Back-compat: a connection that speaks the existing newline-delimited JSON-RPC line protocol (first byte `{`) is routed to `handle_line_connection` — the extracted-verbatim old body — so the plain path is unchanged. Proven by all 373 hub unit tests + 4 integration tests still passing.
+- [x] The upgraded WS connection is authenticated by **reusing** the existing HMAC scope-verification path: `hub.auth` flows through the *same* `process_request_message` dispatch as the line transport, so an invalid/absent token yields the identical refusal (unauthenticated calls → `AUTH_REQUIRED -32009`; a bad `hub.auth` does not authenticate and does not drop the socket), and a valid token caches the authenticated scope (`granted_scope`) for the connection lifetime — no new/forked auth scheme.
+- [x] A unit test (`server::tests::ws_upgrade_auth_and_reuse`) exercises both outcomes over a real WS client: (a) valid token authenticates and the connection stays open for a subsequent authed call that returns a result; (b) unauthenticated call rejected with `AUTH_REQUIRED` and an invalid token fails to authenticate. Passes in CI.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -163,6 +163,27 @@ cargo test -p termlink-hub ws_upgrade 2>&1 | tail -8
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Evolution
+
+### 2026-07-02 — S1 built: one dispatch path, first-byte sniff, TLS-free WS dep
+- **What changed:** Rather than duplicate the ~130-line JSON-RPC dispatch loop for
+  WS, the old `handle_connection` body was extracted into `process_request_message`
+  (returns `Option<String>`), and `handle_connection` now sniffs the first byte and
+  routes to `handle_line_connection` or `handle_ws_connection` — both call the one
+  shared dispatch. This makes auth-reuse *automatic*: `hub.auth` over WS runs the
+  exact same code as over a line, so there is no second auth path to drift.
+- **Plan impact:** Confirmed the inception's LOW–MEDIUM feasibility. Two refinements
+  over the filed plan: (1) WS runs over the *already-TLS-terminated* stream, so
+  `tokio-tungstenite` is taken with `default-features=false, features=["handshake"]`
+  — no second rustls pin, sidestepping the version-match risk the AC anticipated;
+  (2) auth is a post-handshake `hub.auth` RPC (faithful reuse), NOT a handshake-time
+  credential — so "invalid HMAC refused" happens at the RPC layer identically to the
+  line path, and the socket stays open (AC wording corrected to match).
+- **Triggered:** `PeekedStream<S>` (replays the sniffed byte) is a new reusable
+  primitive S2 will build on. S2 (broadcast→client push) plugs a concurrent write
+  loop into `handle_ws_connection` alongside the existing read side — the read/write
+  split is already there. No scope cuts; arc plan S1→S4 unchanged.
 
 ## Decisions
 

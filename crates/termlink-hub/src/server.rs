@@ -1,6 +1,10 @@
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{
+    AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf,
+};
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
@@ -762,17 +766,160 @@ async fn handle_connection<S>(
 ) where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    // T-2305 (arc-004 push-transport): sniff the first byte to distinguish a
+    // WebSocket upgrade — an HTTP request line begins with 'G' of "GET " — from
+    // the legacy newline-delimited JSON-RPC line protocol, whose first byte is
+    // '{' (a JSON object). The sniffed byte must not be lost, so we replay it to
+    // whichever handler runs via PeekedStream. Both handlers share one dispatch
+    // path (`process_request_message`), so auth/rate-limit/audit stay identical.
+    let mut stream = stream;
+    let mut first = [0u8; 1];
+    let n = match stream.read(&mut first).await {
+        Ok(0) => return, // client closed before sending anything
+        Ok(n) => n,
+        Err(e) => {
+            tracing::debug!(error = %e, "Hub: read error before dispatch");
+            return;
+        }
+    };
+    let is_ws = first[..n].first() == Some(&b'G');
+    let stream = PeekedStream::new(first[..n].to_vec(), stream);
+
+    if is_ws {
+        handle_ws_connection(stream, initial_scope, token_secret, peer_pid, peer_addr).await;
+    } else {
+        handle_line_connection(stream, initial_scope, token_secret, peer_pid, peer_addr).await;
+    }
+}
+
+/// T-2305: the legacy newline-delimited JSON-RPC transport (extracted verbatim
+/// from the old `handle_connection` body — behaviour unchanged for line clients).
+async fn handle_line_connection<S>(
+    stream: S,
+    initial_scope: Option<PermissionScope>,
+    token_secret: Option<String>,
+    peer_pid: Option<u32>,
+    peer_addr: Option<String>,
+) where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let (reader, mut writer) = tokio::io::split(stream);
     let mut lines = BufReader::new(reader).lines();
     let mut granted_scope = initial_scope;
 
     while let Ok(Some(line)) = lines.next_line().await {
-        let line = line.trim().to_string();
-        if line.is_empty() {
-            continue;
+        if let Some(mut json) =
+            process_request_message(&line, &token_secret, &mut granted_scope, peer_pid, &peer_addr)
+                .await
+        {
+            json.push('\n');
+            if let Err(e) = writer.write_all(json.as_bytes()).await {
+                tracing::debug!(error = %e, "Hub: client disconnected");
+                break;
+            }
         }
+    }
+}
 
-        let response = match serde_json::from_str::<Request>(&line) {
+/// T-2305 (arc-004 push-transport S1): the WebSocket transport. Completes the
+/// RFC6455 handshake over the already-TLS-terminated stream, then carries the
+/// same JSON-RPC dispatch as the line transport — one request per text frame,
+/// one response per text frame. `hub.auth` flows through the shared dispatch so
+/// HMAC scope-caching (invalid → authed calls rejected) is reused verbatim.
+/// S2 will add the server→client broadcast push loop alongside this read side.
+async fn handle_ws_connection<S>(
+    stream: S,
+    initial_scope: Option<PermissionScope>,
+    token_secret: Option<String>,
+    peer_pid: Option<u32>,
+    peer_addr: Option<String>,
+) where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let mut ws = match tokio_tungstenite::accept_async(stream).await {
+        Ok(ws) => ws,
+        Err(e) => {
+            tracing::debug!(error = %e, "Hub: WebSocket handshake failed");
+            return;
+        }
+    };
+    tracing::debug!(
+        peer = ?peer_addr,
+        "Hub: WebSocket connection upgraded (arc-004 push-transport)"
+    );
+    let mut granted_scope = initial_scope;
+
+    while let Some(msg) = ws.next().await {
+        match msg {
+            Ok(Message::Text(txt)) => {
+                if let Some(json) = process_request_message(
+                    txt.as_str(),
+                    &token_secret,
+                    &mut granted_scope,
+                    peer_pid,
+                    &peer_addr,
+                )
+                .await
+                {
+                    if let Err(e) = ws.send(Message::Text(json.into())).await {
+                        tracing::debug!(error = %e, "Hub: WS client disconnected");
+                        break;
+                    }
+                }
+            }
+            Ok(Message::Binary(bin)) => {
+                // Permissive: accept JSON-RPC in a binary frame too.
+                if let Ok(txt) = String::from_utf8(bin.to_vec()) {
+                    if let Some(json) = process_request_message(
+                        &txt,
+                        &token_secret,
+                        &mut granted_scope,
+                        peer_pid,
+                        &peer_addr,
+                    )
+                    .await
+                    {
+                        if ws.send(Message::Text(json.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+            Ok(Message::Ping(p)) => {
+                let _ = ws.send(Message::Pong(p)).await;
+            }
+            Ok(Message::Close(_)) => break,
+            Ok(_) => {} // Pong / Frame — ignore
+            Err(e) => {
+                tracing::debug!(error = %e, "Hub: WS read error");
+                break;
+            }
+        }
+    }
+}
+
+/// T-2305: process one JSON-RPC request message (one line for the legacy
+/// transport, or the text of one WS frame for arc-004 push-transport) and return
+/// the serialized response WITHOUT a trailing newline, or `None` for a
+/// notification / empty input. Both transports call this, so auth (`hub.auth` →
+/// `granted_scope`), rate-limiting, audit, and permission checks are identical —
+/// there is no second dispatch path to drift out of sync.
+async fn process_request_message(
+    line: &str,
+    token_secret: &Option<String>,
+    granted_scope: &mut Option<PermissionScope>,
+    peer_pid: Option<u32>,
+    peer_addr: &Option<String>,
+) -> Option<String> {
+    let line = line.trim();
+    if line.is_empty() {
+        return None;
+    }
+
+    let response = match serde_json::from_str::<Request>(line) {
             Ok(req) => {
                 // T-1304: Record every parseable RPC dispatch (auth attempts,
                 // notifications, and authenticated calls). Auth rejections still
@@ -840,12 +987,12 @@ async fn handle_connection<S>(
                 if req.method == control::method::HUB_AUTH {
                     // hub.auth is always allowed (it's the authentication mechanism)
                     let id = req.id.clone().unwrap_or(serde_json::Value::Null);
-                    handle_hub_auth_token(&req, &token_secret, &mut granted_scope, id)
+                    handle_hub_auth_token(&req, token_secret, granted_scope, id)
                 } else if req.is_notification() {
                     // Notifications don't get responses
                     router::route(&req, peer_addr_ref).await
                 } else {
-                    match granted_scope {
+                    match *granted_scope {
                         None => {
                             // Unauthenticated — only hub.auth is allowed
                             let id = req.id.clone().unwrap_or(serde_json::Value::Null);
@@ -901,25 +1048,79 @@ async fn handle_connection<S>(
             }
         };
 
-        if let Some(resp) = response {
-            let mut json = serde_json::to_string(&resp).unwrap_or_else(|e| {
-                tracing::error!(error = %e, "Hub: failed to serialize response");
-                let err: RpcResponse = ErrorResponse::internal_error(
-                    serde_json::Value::Null,
-                    "serialization error",
-                )
-                .into();
-                serde_json::to_string(&err).unwrap_or_else(|_| {
-                    r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"serialization error"},"id":null}"#.to_string()
-                })
-            });
-            json.push('\n');
+    response.map(|resp| {
+        serde_json::to_string(&resp).unwrap_or_else(|e| {
+            tracing::error!(error = %e, "Hub: failed to serialize response");
+            let err: RpcResponse =
+                ErrorResponse::internal_error(serde_json::Value::Null, "serialization error")
+                    .into();
+            serde_json::to_string(&err).unwrap_or_else(|_| {
+                r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"serialization error"},"id":null}"#.to_string()
+            })
+        })
+    })
+}
 
-            if let Err(e) = writer.write_all(json.as_bytes()).await {
-                tracing::debug!(error = %e, "Hub: client disconnected");
-                break;
-            }
+/// T-2305 (arc-004 push-transport): replays a small already-read prefix (the
+/// sniffed first byte) before delegating reads to the inner stream, so the
+/// WS-vs-line first-byte sniff doesn't consume the byte the WS handshake or the
+/// line parser still needs. Writes pass straight through. Generic over the same
+/// `AsyncRead + AsyncWrite` bound as `handle_connection`, so it wraps a
+/// `TlsStream`, a raw `TcpStream`, or a Unix stream uniformly.
+struct PeekedStream<S> {
+    prefix: Vec<u8>,
+    pos: usize,
+    inner: S,
+}
+
+impl<S> PeekedStream<S> {
+    fn new(prefix: Vec<u8>, inner: S) -> Self {
+        Self {
+            prefix,
+            pos: 0,
+            inner,
         }
+    }
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for PeekedStream<S> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        if self.pos < self.prefix.len() {
+            let remaining = &self.prefix[self.pos..];
+            let n = remaining.len().min(buf.remaining());
+            buf.put_slice(&remaining[..n]);
+            self.pos += n;
+            return Poll::Ready(Ok(()));
+        }
+        Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for PeekedStream<S> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(cx)
     }
 }
 
@@ -1363,6 +1564,119 @@ mod tests {
         assert!(resp["result"].is_object(), "Authenticated TCP should get valid response");
 
         // Cleanup
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    /// T-2305: round-trip one JSON-RPC request over a client WebSocket stream and
+    /// return the parsed response (skips any non-text control frames).
+    async fn ws_roundtrip<S>(
+        ws: &mut tokio_tungstenite::WebSocketStream<S>,
+        req: serde_json::Value,
+    ) -> serde_json::Value
+    where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    {
+        use futures_util::{SinkExt, StreamExt};
+        use tokio_tungstenite::tungstenite::Message;
+        ws.send(Message::Text(req.to_string().into())).await.unwrap();
+        loop {
+            match ws.next().await.unwrap().unwrap() {
+                Message::Text(t) => return serde_json::from_str(t.as_str()).unwrap(),
+                _ => continue,
+            }
+        }
+    }
+
+    /// T-2305 (arc-004 push-transport S1): a client that opens a WebSocket to the
+    /// hub completes the RFC6455 upgrade, and JSON-RPC over WS reuses the exact
+    /// same HMAC auth path as the line transport — unauthenticated calls are
+    /// rejected, an invalid token does not authenticate, a valid token upgrades
+    /// the connection scope, and the upgraded connection stays open for the next
+    /// authed call.
+    #[tokio::test]
+    async fn ws_upgrade_auth_and_reuse() {
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // AC2: the WS upgrade handshake completes on the hub's normal accept path.
+        let tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws, _http_resp) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp)
+                .await
+                .expect("WebSocket upgrade handshake should succeed");
+
+        // AC4: an unauthenticated call over WS is rejected (auth reuse, not a
+        // new scheme) — same AUTH_REQUIRED (-32009) as the line path.
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"session.discover","id":"ws-noauth","params":{}}),
+        )
+        .await;
+        assert_eq!(
+            resp["error"]["code"], -32009,
+            "WS without auth should get AUTH_REQUIRED"
+        );
+
+        // An invalid token must NOT authenticate, and must not drop the socket.
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"ws-bad","params":{"token":"not-a-valid-token"}}),
+        )
+        .await;
+        assert_ne!(
+            resp["result"]["authenticated"],
+            serde_json::Value::Bool(true),
+            "invalid token must not authenticate over WS"
+        );
+
+        // AC4a: a valid token authenticates over the SAME still-open WS connection.
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"ws-auth","params":{"token":token.raw}}),
+        )
+        .await;
+        assert_eq!(resp["result"]["authenticated"], true);
+        assert_eq!(resp["result"]["scope"], "execute");
+
+        // Connection held open: an authed call on the same WS returns a result.
+        let resp = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"session.discover","id":"ws-authed","params":{}}),
+        )
+        .await;
+        assert_eq!(resp["id"], "ws-authed");
+        assert!(
+            resp["result"].is_object(),
+            "authenticated WS call should get a result"
+        );
+
         tx.send(true).unwrap();
         let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
     }
