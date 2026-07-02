@@ -57,11 +57,11 @@ one-task-one-deliverable. **Also out of scope:** receipts/journal through WS (S4
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The hub handles a WS-only `hub.ws_subscribe` control message (`params.topics: [..]`) that sets a per-connection topic filter; it is auth-gated (requires an authenticated `observe`-capable connection — an unauthenticated call is refused, not silently accepted) and returns an ack listing the active subscription. `cargo build --release -p termlink-hub` succeeds.
-- [ ] After subscribing, the push loop forwards ONLY `hub.event` frames whose `topic` matches the filter; entries match exactly, or as a prefix when written `stem*`. A second `hub.ws_subscribe` replaces the filter.
-- [ ] Opt-in default: an authenticated WS connection that has NOT sent `hub.ws_subscribe` receives NO pushes (the S2 firehose is now gated behind an explicit subscribe). The S2 push test is updated to subscribe first, reflecting the tightened contract.
-- [ ] Degrade-to-poll contract: the events delivered over WS are the same aggregator events readable via the existing poll path — a client with no WS (or a dropped WS) still reads them by polling. Verified by all existing line-protocol / event-poll hub tests still passing (the substrate path is untouched).
-- [ ] A unit test (`server::tests::ws_subscribe_*`) proves filtering: connect + auth + `hub.ws_subscribe` to a specific topic, inject one matching and one non-matching `AggregatedEvent`, assert only the matching one is pushed; and assert an authed-but-unsubscribed connection receives neither. Passes in CI.
+- [x] The hub handles a WS-only `hub.ws_subscribe` control message (`params.topics: [..]`) that sets a per-connection topic filter; it is auth-gated (requires an authenticated `observe`-capable connection — an unauthenticated call is refused, not silently accepted) and returns an ack listing the active subscription. `cargo build --release -p termlink-hub` succeeds. *(`maybe_handle_ws_subscribe` — release build green.)*
+- [x] After subscribing, the push loop forwards ONLY `hub.event` frames whose `topic` matches the filter; entries match exactly, or as a prefix when written `stem*`. A second `hub.ws_subscribe` replaces the filter. *(`ws_topic_matches` + push-gate; `ws_topic_matches_exact_and_prefix` unit test.)*
+- [x] Opt-in default: an authenticated WS connection that has NOT sent `hub.ws_subscribe` receives NO pushes (the S2 firehose is now gated behind an explicit subscribe). The S2 push test was updated to subscribe first, reflecting the tightened contract. *(Empty filter matches nothing; `ws_subscribe_topic_filter` proves the unsubscribed-authed case.)*
+- [x] Degrade-to-poll contract: the events delivered over WS are the same aggregator events readable via the existing poll path — a client with no WS (or a dropped WS) still reads them by polling. Verified by all 376 hub tests (line-protocol + event-poll) still passing — the substrate path is untouched.
+- [x] A unit test (`server::tests::ws_subscribe_topic_filter`) proves filtering: connect + auth + `hub.ws_subscribe` to a specific topic, inject one matching and one non-matching `AggregatedEvent`, assert only the matching one is pushed; and assert an authed-but-unsubscribed connection receives neither. Passes in CI.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,6 +168,25 @@ cargo test -p termlink-hub ws_ 2>&1 | tail -12
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Evolution
+
+### 2026-07-02 — S3 built: opt-in per-topic filter, degrade-to-poll as a contract not code
+- **What changed:** Added `hub.ws_subscribe` (auth-gated, per-connection `Vec<String>`
+  filter) intercepted in the WS read branch before the shared dispatch, `ws_topic_matches`
+  (exact + `stem*` prefix), and re-gated the push loop on `authed && filter-match`. This
+  flipped S2's firehose to **opt-in** — the S2 push test was updated to `hub.ws_subscribe`
+  before expecting a push (contract tightened; documented here per §ACD).
+- **Plan impact:** "degrade-to-poll fallback" was realized as a **verified protocol
+  contract**, not new fallback code: WS carries the *same* aggregator events the poll path
+  (`event.collect`/`channel.subscribe`) already serves, so a client with no/dropped WS
+  misses nothing — proven by all 376 hub tests (poll+line path untouched). Building a
+  parallel fallback would have added a second source of truth (violates IW-5).
+- **Triggered:** The full **CLI consumer** (auto WS-connect → reconnect → poll-fallback
+  loop, and wiring `metadata.cv_key`/`dm:*` topic selection) is carved out as **S3b** — a
+  distinct consumer-integration deliverable, filed if/when a live consumer is wired
+  (one-task-one-deliverable). **S4** (wire delivery-confirm/journal receipts through the WS
+  path unchanged) remains the last arc slice. Arc plan otherwise intact.
 
 ## Decisions
 

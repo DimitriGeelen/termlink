@@ -858,10 +858,15 @@ async fn handle_ws_connection<S>(
     let (mut sink, mut source) = ws.split();
     let mut granted_scope = initial_scope;
 
+    // T-2307 (S3): per-connection topic filter set via `hub.ws_subscribe`. Empty =
+    // not subscribed → no pushes (opt-in default; the S2 firehose is now gated).
+    let mut topic_filter: Vec<String> = Vec::new();
+
     // Subscribe to the in-process broadcast up front (before auth) so no event is
-    // missed between auth completing and the first push. Pre-auth events are drained
-    // and dropped (gated below on `granted_scope`). `None` when the aggregator is not
-    // initialized (a minimal test harness) → the push arm stays dormant forever.
+    // missed between subscribe completing and the first push. Events are drained and
+    // dropped until the connection has both authed AND subscribed (gated below).
+    // `None` when the aggregator is not initialized (a minimal test harness) → the
+    // push arm stays dormant forever.
     let mut event_rx = router::aggregator().map(|a| a.subscribe());
 
     loop {
@@ -875,7 +880,14 @@ async fn handle_ws_connection<S>(
                 };
                 match msg {
                     Message::Text(txt) => {
-                        if let Some(json) = process_request_message(
+                        // T-2307: intercept the WS-only `hub.ws_subscribe` control to set
+                        // the per-connection topic filter; everything else goes to the
+                        // shared dispatch (identical to the line path).
+                        if let Some(reply) = maybe_handle_ws_subscribe(
+                            txt.as_str(), &granted_scope, &mut topic_filter,
+                        ) {
+                            if sink.send(Message::Text(reply.into())).await.is_err() { break; }
+                        } else if let Some(json) = process_request_message(
                             txt.as_str(), &token_secret, &mut granted_scope, peer_pid, &peer_addr,
                         ).await {
                             if sink.send(Message::Text(json.into())).await.is_err() { break; }
@@ -884,7 +896,11 @@ async fn handle_ws_connection<S>(
                     Message::Binary(bin) => {
                         // Permissive: accept JSON-RPC in a binary frame too.
                         if let Ok(txt) = String::from_utf8(bin.to_vec()) {
-                            if let Some(json) = process_request_message(
+                            if let Some(reply) = maybe_handle_ws_subscribe(
+                                &txt, &granted_scope, &mut topic_filter,
+                            ) {
+                                if sink.send(Message::Text(reply.into())).await.is_err() { break; }
+                            } else if let Some(json) = process_request_message(
                                 &txt, &token_secret, &mut granted_scope, peer_pid, &peer_addr,
                             ).await {
                                 if sink.send(Message::Text(json.into())).await.is_err() { break; }
@@ -901,8 +917,10 @@ async fn handle_ws_connection<S>(
             ev = recv_event(&mut event_rx) => {
                 match ev {
                     Ok(event) => {
-                        // Gate on auth: an unauthenticated connection drains and drops.
-                        if granted_scope.is_some() {
+                        // T-2307: forward only if authenticated AND the event's topic
+                        // matches this connection's subscription filter (empty filter =
+                        // not subscribed = no push). Otherwise drain and drop.
+                        if granted_scope.is_some() && ws_topic_matches(&topic_filter, &event.topic) {
                             let push = serde_json::json!({
                                 "jsonrpc": "2.0",
                                 "method": "hub.event",
@@ -935,6 +953,81 @@ async fn recv_event(
     match rx {
         Some(r) => r.recv().await,
         None => std::future::pending().await,
+    }
+}
+
+/// T-2307 (arc-004 push-transport S3): does `topic` match any entry of this
+/// connection's subscription filter? An entry matches exactly, or as a prefix
+/// when written `stem*` (e.g. `dm:*` matches every `dm:` topic). An empty filter
+/// matches nothing — the opt-in default (no `hub.ws_subscribe` → no pushes).
+fn ws_topic_matches(filter: &[String], topic: &str) -> bool {
+    filter.iter().any(|pat| match pat.strip_suffix('*') {
+        Some(stem) => topic.starts_with(stem),
+        None => topic == pat,
+    })
+}
+
+/// T-2307 (arc-004 push-transport S3): if `text` is a WS-only `hub.ws_subscribe`
+/// control message, apply it to the per-connection `topic_filter` and return the
+/// serialized ack/error to send back; otherwise return `None` so the caller falls
+/// through to the shared JSON-RPC dispatch. Auth-gated: an unauthenticated or
+/// under-scoped connection is refused (never silently subscribed).
+fn maybe_handle_ws_subscribe(
+    text: &str,
+    granted_scope: &Option<PermissionScope>,
+    topic_filter: &mut Vec<String>,
+) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(text).ok()?;
+    if v.get("method").and_then(|m| m.as_str()) != Some("hub.ws_subscribe") {
+        return None;
+    }
+    let id = v.get("id").cloned().unwrap_or(serde_json::Value::Null);
+
+    // Require an authenticated connection with at least Observe scope.
+    match *granted_scope {
+        None => Some(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": {
+                    "code": control::error_code::AUTH_REQUIRED,
+                    "message": "hub.ws_subscribe requires authentication. Call 'hub.auth' first."
+                }
+            })
+            .to_string(),
+        ),
+        Some(scope) if !scope.satisfies(PermissionScope::Observe) => Some(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": {
+                    "code": control::error_code::AUTH_DENIED,
+                    "message": "hub.ws_subscribe requires 'observe' scope."
+                }
+            })
+            .to_string(),
+        ),
+        Some(_) => {
+            let topics: Vec<String> = v
+                .get("params")
+                .and_then(|p| p.get("topics"))
+                .and_then(|t| t.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            *topic_filter = topics.clone(); // a second call replaces the filter
+            Some(
+                serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": { "subscribed": topics, "count": topic_filter.len() }
+                })
+                .to_string(),
+            )
+        }
     }
 }
 
@@ -1773,6 +1866,14 @@ mod tests {
         .await;
         assert_eq!(resp["result"]["authenticated"], true);
 
+        // T-2307: push is opt-in — subscribe to the marker topic first.
+        let sub = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.ws_subscribe","id":"sub","params":{"topics":[marker.clone()]}}),
+        )
+        .await;
+        assert_eq!(sub["result"]["count"], 1);
+
         crate::router::aggregator()
             .unwrap()
             .inject(crate::aggregator::AggregatedEvent {
@@ -1843,6 +1944,169 @@ mod tests {
         assert!(
             saw_push.is_err() || saw_push == Ok(false),
             "unauthenticated WS client must NOT receive pushes"
+        );
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    /// T-2307: pure filter semantics — exact match, `stem*` prefix, empty = none.
+    #[test]
+    fn ws_topic_matches_exact_and_prefix() {
+        assert!(ws_topic_matches(&["dm:a".to_string()], "dm:a"));
+        assert!(!ws_topic_matches(&["dm:a".to_string()], "dm:b"));
+        assert!(ws_topic_matches(&["dm:*".to_string()], "dm:anything"));
+        assert!(!ws_topic_matches(&["dm:*".to_string()], "other-topic"));
+        assert!(
+            !ws_topic_matches(&[], "dm:a"),
+            "empty filter must match nothing (opt-in default)"
+        );
+    }
+
+    /// T-2307 (arc-004 push-transport S3): a subscribed WS client is pushed ONLY
+    /// events matching its topic filter; a non-matching event is dropped, and an
+    /// authenticated-but-unsubscribed connection is pushed nothing.
+    #[tokio::test]
+    async fn ws_subscribe_topic_filter() {
+        use futures_util::StreamExt;
+        use tokio_tungstenite::tungstenite::Message;
+
+        crate::router::init_aggregator();
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let secret = auth::generate_secret();
+        let secret_hex: String = secret.iter().map(|b| format!("{b:02x}")).collect();
+
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let secret_clone = secret_hex.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, Some(secret_clone), rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let want = format!("dm:want-{}", n);
+        let other = format!("dm:other-{}", n);
+        let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+
+        // --- subscribed client: only the matching topic is pushed ---
+        let tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws, _) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp)
+                .await
+                .unwrap();
+        let a = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"a","params":{"token":token.raw}}),
+        )
+        .await;
+        assert_eq!(a["result"]["authenticated"], true);
+        let sub = ws_roundtrip(
+            &mut ws,
+            json!({"jsonrpc":"2.0","method":"hub.ws_subscribe","id":"s","params":{"topics":[want.clone()]}}),
+        )
+        .await;
+        assert_eq!(sub["result"]["count"], 1);
+
+        let agg = crate::router::aggregator().unwrap();
+        // non-matching first (must be filtered out), then matching.
+        agg.inject(crate::aggregator::AggregatedEvent {
+            session_id: "s".into(),
+            session_name: "t".into(),
+            seq: 1,
+            topic: other.clone(),
+            payload: json!({}),
+            timestamp: 1,
+        });
+        agg.inject(crate::aggregator::AggregatedEvent {
+            session_id: "s".into(),
+            session_name: "t".into(),
+            seq: 2,
+            topic: want.clone(),
+            payload: json!({"ok": true}),
+            timestamp: 2,
+        });
+
+        let mut seen: Vec<String> = Vec::new();
+        for _ in 0..30 {
+            let f = tokio::time::timeout(std::time::Duration::from_secs(2), ws.next())
+                .await
+                .expect("WS should yield a frame")
+                .unwrap()
+                .unwrap();
+            if let Message::Text(t) = f {
+                let v: serde_json::Value = serde_json::from_str(t.as_str()).unwrap();
+                if v["method"] == "hub.event" {
+                    let topic = v["params"]["topic"].as_str().unwrap().to_string();
+                    seen.push(topic.clone());
+                    if topic == want {
+                        break;
+                    }
+                }
+            }
+        }
+        assert!(seen.contains(&want), "matching topic should be pushed");
+        assert!(
+            !seen.contains(&other),
+            "non-matching topic must be filtered out, saw: {seen:?}"
+        );
+
+        // --- authed but unsubscribed client: nothing is pushed ---
+        let tcp2 = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws2, _) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp2)
+                .await
+                .unwrap();
+        let token2 = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+        let a2 = ws_roundtrip(
+            &mut ws2,
+            json!({"jsonrpc":"2.0","method":"hub.auth","id":"a2","params":{"token":token2.raw}}),
+        )
+        .await;
+        assert_eq!(a2["result"]["authenticated"], true);
+        agg.inject(crate::aggregator::AggregatedEvent {
+            session_id: "s".into(),
+            session_name: "t".into(),
+            seq: 3,
+            topic: want.clone(),
+            payload: json!({}),
+            timestamp: 3,
+        });
+        let saw = tokio::time::timeout(std::time::Duration::from_millis(600), async {
+            loop {
+                match ws2.next().await {
+                    Some(Ok(Message::Text(t))) => {
+                        let v: serde_json::Value = serde_json::from_str(t.as_str()).unwrap();
+                        if v["method"] == "hub.event" {
+                            return true;
+                        }
+                    }
+                    Some(Ok(_)) => continue,
+                    _ => return false,
+                }
+            }
+        })
+        .await;
+        assert!(
+            saw.is_err() || saw == Ok(false),
+            "authed-but-unsubscribed client must receive no pushes"
         );
 
         tx.send(true).unwrap();
