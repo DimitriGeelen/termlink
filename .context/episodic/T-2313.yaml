@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2313: arc-004 build: WS-over-Unix push — client connect_ws_unix + route Unix --push (T-2312 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-02T19:48:30Z
+# ============================================================================
+
+task_id: T-2313
+task_name: "arc-004 build: WS-over-Unix push — client connect_ws_unix + route Unix --push (T-2312 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-02T19:15:30Z
+completed: 2026-07-02T19:37:51Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-02T21:36:27+02:00
+last_commit: 2026-07-02T21:36:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 WS-over-Unix push — client raw client_async over UDS + skip-auth (ws_auth_required); Unix --push live smoke 42ms; TCP no-regression
+
+# Key outcomes
+outcomes:
+  - '`termlink-session` gains a Unix WS connector (Unix arm in `stream_ws_events`) that opens the Unix socket and completes a `tokio_tungstenite::client_async` handshake over the **raw** stream (no TLS), sharing the generic `run_ws_session` loop with the TCP path. **Evidence:** `ws_consumer.rs` Unix match arm + `run_ws_session<S>`.'
+  - 'The Unix WS path **skips the `hub.auth` token mint** (Unix is peer-cred-trusted; `run_ws_push` mints a token only for TCP) and sends `hub.ws_subscribe` directly; the pure `ws_auth_required` predicate gates auth and is unit-tested (TCP→true, Unix→false). **Evidence:** `ws_consumer::tests::ws_auth_required_by_transport` passes.'
+  - '`channel subscribe <topic> --push` against a **Unix** hub no longer degrades immediately — it uses the Unix WS path (`WsPushOutcome::Unsupported` and `WsConsumerError::UnsupportedTransport` removed). **Evidence:** live smoke below.'
+  - '`cargo build --release -p termlink && cargo test -p termlink-session ws_` pass (existing WS consumer tests green; new `ws_auth_required_by_transport` included). **Evidence:** build exit 0; 10 session ws tests pass.'
+  - 'Live smoke: an isolated **Unix-socket** hub + a `--push inbox.queued` consumer over that Unix socket receives an `inbox.queued` push carrying the durable `message_offset` when a DM is posted to an `inbox:*` topic. **Evidence:** `scripts/demo-ws-push-unix.sh` → 42 ms post→push, frame `{"...","message_offset":0,...}`; TCP path re-verified 96 ms (no regression).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-session/src/ws_consumer.rs'
+  - '.fabric/components/scripts-demo-ws-push-unix.yaml'
+  - 'scripts/demo-ws-push-unix.sh'
+  - '.tasks/active/T-2313-arc-004-build-ws-over-unix-push--client-.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-02T21:36:27"
+    action: "T-2313: arc-004 WS-over-Unix push — client raw client_async over UDS + skip-auth (ws_auth_required); Unix --push live smoke 42ms; TCP no-regression"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 22 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:push-transport"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22
+  commits: 1
+  files_changed: 17
+  lines_added: 524
+  lines_removed: 125
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2313-arc-004-build-ws-over-unix-push--client-.md
+generated_by: context-agent-hybrid
