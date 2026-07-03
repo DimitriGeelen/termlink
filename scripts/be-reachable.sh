@@ -311,6 +311,7 @@ cmd_start() {
   "listen_topics": ${lt_json},
   "pty_session": "${pty_session}",
   "pushwaker_pid": ${pushwaker_pid:-null},
+  "self_fp": "${self_fp}",
   "hub": "${hub}"
 }
 EOF
@@ -320,7 +321,7 @@ EOF
 be-reachable: started.
   agent_id:      ${agent_id}
   pid:           ${pid}
-  push_waker:    $([ -n "$pushwaker_pid" ] && echo "pid ${pushwaker_pid} (rings PTY on inbox deposit, T-2316)" || echo "<none — no pty_session bound>")
+  push_waker:    $([ -n "$pushwaker_pid" ] && echo "pid ${pushwaker_pid} (rings PTY on inbox deposit [T-2316]$([ -n "$self_fp" ] && echo " + dm.queued for ${self_fp} [T-2324]"))" || echo "<none — no pty_session bound>")
   pty_session:   ${pty_session:-<none>}
   listen_topics: $(IFS=,; echo "${listen_topics[*]}")
   state:         ${STATE_FILE}
