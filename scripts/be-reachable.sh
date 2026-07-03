@@ -43,6 +43,30 @@ fi
 # inbox deposit. Spawned alongside the heartbeat when a pty_session is bound.
 PW_SCRIPT="${BE_REACHABLE_PW_SCRIPT:-${SELF_DIR}/be-reachable-pushwaker.sh}"
 
+# T-2328 (PL-237): push-wake (inbox + dm rails) only activates when a pty_session
+# is bound — there must be a PTY to ring. A headless session (not tmux/screen, no
+# --pty-session) has no pty_session, so cmd_start skips the waker and reachability
+# silently falls back to the ~15s doorbell/poll FLOOR instead of the sub-second WS
+# push path. Make that dormancy LOUD. Pure helper: emits the WARN to STDERR when
+# push-wake will be dormant (empty pty_session), nothing on the happy path. Keyed
+# on pty_session (the true cause); a missing/non-exec PW_SCRIPT is a different
+# problem surfaced by the spawn guard itself. Unit-tested via
+# scripts/test-be-reachable-dormancy.sh (sources with BE_REACHABLE_LIB=1).
+pushwake_dormancy_warn() {
+    local pty_session="$1"
+    [ -n "$pty_session" ] && return 0
+    cat >&2 <<'WARN'
+be-reachable: WARN push-wake DORMANT — no pty_session bound (poll-floor only).
+  Inbound DMs still arrive, but on the ~15s doorbell/poll FLOOR, not the
+  sub-second WS push path (arc-004). Cause: not inside tmux/screen and no
+  --pty-session given, so there is no PTY to ring.
+  Enable push-wake by EITHER:
+    - running this session inside tmux or screen, OR
+    - passing --pty-session <name> to be-reachable start.
+WARN
+    return 0
+}
+
 usage() {
     cat <<'EOF'
 Usage: be-reachable.sh <subcommand> [options]
@@ -282,6 +306,11 @@ cmd_start() {
         disown 2>/dev/null || true
     fi
 
+    # T-2328 (PL-237): if no pty_session bound, push-wake is DORMANT — say so
+    # loudly so the operator knows they are on the poll floor, not the WS push
+    # path. Reachability itself is unaffected (durable poll remains the floor).
+    pushwake_dormancy_warn "$pty_session"
+
     # Write state file.
     local started_at
     started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -321,7 +350,7 @@ EOF
 be-reachable: started.
   agent_id:      ${agent_id}
   pid:           ${pid}
-  push_waker:    $([ -n "$pushwaker_pid" ] && echo "pid ${pushwaker_pid} (rings PTY on inbox deposit [T-2316]$([ -n "$self_fp" ] && echo " + dm.queued for ${self_fp} [T-2324]"))" || echo "<none — no pty_session bound>")
+  push_waker:    $([ -n "$pushwaker_pid" ] && echo "pid ${pushwaker_pid} (rings PTY on inbox deposit [T-2316]$([ -n "$self_fp" ] && echo " + dm.queued for ${self_fp} [T-2324]"))" || echo "<none — push-wake DORMANT, poll-floor only; see WARN above [T-2328]>")
   pty_session:   ${pty_session:-<none>}
   listen_topics: $(IFS=,; echo "${listen_topics[*]}")
   state:         ${STATE_FILE}
@@ -461,15 +490,20 @@ EOF
 
 # ---- dispatch ------------------------------------------------------------
 
-if [ $# -eq 0 ]; then
-    usage
-    exit 0
-fi
+# Sourcing with BE_REACHABLE_LIB=1 exposes the pure helpers (e.g.
+# pushwake_dormancy_warn) without running the dispatcher — used by
+# scripts/test-be-reachable-dormancy.sh (T-2328).
+if [ "${BE_REACHABLE_LIB:-0}" != "1" ]; then
+    if [ $# -eq 0 ]; then
+        usage
+        exit 0
+    fi
 
-case "$1" in
-    start)     shift; cmd_start "$@" ;;
-    stop)     shift; cmd_stop "$@" ;;
-    status)   shift; cmd_status "$@" ;;
-    -h|--help) usage; exit 0 ;;
-    *)        die_usage "unknown subcommand: $1" ;;
-esac
+    case "$1" in
+        start)     shift; cmd_start "$@" ;;
+        stop)     shift; cmd_stop "$@" ;;
+        status)   shift; cmd_status "$@" ;;
+        -h|--help) usage; exit 0 ;;
+        *)        die_usage "unknown subcommand: $1" ;;
+    esac
+fi

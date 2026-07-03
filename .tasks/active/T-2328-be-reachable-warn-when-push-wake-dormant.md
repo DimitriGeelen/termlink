@@ -1,0 +1,173 @@
+---
+id: T-2328
+name: "be-reachable WARN when push-wake dormant (no bound pty_session)"
+description: >
+  PL-237: push-wake (inbox+dm rails) silently falls back to poll floor when no pty_session binds (headless session, no tmux/screen, no --pty-session). Emit a WARN on be-reachable start so the dormancy is observable, not silent.
+
+status: started-work
+workflow_type: build
+owner: agent
+horizon: now
+tags: []
+components: []
+related_tasks: []
+# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
+#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
+#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
+#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+created: 2026-07-03T08:55:18Z
+last_update: 2026-07-03T08:55:18Z
+date_finished: null
+# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
+# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+# ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
+# bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
+#                                 # Sovereignty boundary — only set after human or agent confirmation.
+#                                 # Shape: {D1: <int 0-5>, D2: <int 0-5>, D3: <int 0-5>, D4: <int 0-5>, [<free-driver-id>: <int>]...}
+# bvp_scores_proposed:            # estimator-proposed scores (T-1922 worker). Persists when ≥2 delta
+#                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
+# cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
+#                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+---
+
+# T-2328: be-reachable WARN when push-wake dormant (no bound pty_session)
+
+## Context
+
+PL-237 (arc-004): push-wake (both the T-2316 inbox rail and the T-2324 dm rail)
+only activates when a `pty_session` is bound. `default_pty_session()` resolves
+one only inside tmux (`$TMUX`) or screen (`$STY`); a plain headless claude-code
+session with no `--pty-session` gets an empty `pty_session`, so `cmd_start`
+silently skips spawning the push-waker (`scripts/be-reachable.sh:272`, the
+`if [ -n "$pty_session" ] …` guard has no `else`). The operator is never told
+push-wake is off — reachability still works, but on the ~15s doorbell / poll
+FLOOR, not the sub-second push path. Make that dormancy loud on start.
+
+## Acceptance Criteria
+
+### Agent
+- [x] `cmd_start` emits a `WARN` line to **stderr** when no `pty_session` is
+  bound (the headless case), stating push-wake is DORMANT / poll-floor only and
+  naming the two enablers (run inside tmux/screen, or pass `--pty-session NAME`).
+- [x] When a `pty_session` IS bound (tmux/screen or explicit `--pty-session`),
+  NO dormancy WARN is emitted — no false alarm on the happy path.
+- [x] The WARN goes to stderr (not stdout) so it does not corrupt the state
+  file or any downstream parse of the success summary; `bash -n
+  scripts/be-reachable.sh` is clean.
+
+## Verification
+
+# Shell commands that MUST pass before work-completed. One per line.
+bash -n scripts/be-reachable.sh
+bash scripts/test-be-reachable-dormancy.sh
+# Lines starting with # are comments (skipped). Empty lines ignored.
+# The completion gate runs each command — if any exits non-zero, completion is blocked.
+#
+# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
+# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
+# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
+# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+#
+# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
+# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
+# while the upstream is still writing — verification then "fails" even though
+# the pattern was present. Safe pattern: capture first, grep the capture:
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
+# Or:
+#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
+# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
+#
+# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
+# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
+# the capture step closed off — the middle stage is what `grep -q` slams its
+# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
+# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
+#
+# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
+# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
+# Verification block. Otherwise the canonical hash diverges and `fw doctor`
+# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
+# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
+# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+## RCA
+
+<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+     Non-bug-class tasks may leave this section empty or remove it.
+
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+
+     The completion gate (T-1550, G-019) blocks --status work-completed when
+     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+-->
+
+## Evolution
+
+<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
+     understanding evolved during build — what was learned that wasn't known at
+     filing, what in the original plan no longer fits, what triggered pivots
+     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
+     before --status work-completed.
+
+     Origin: T-1717 grill Q4 — "the understanding of what we need and want
+     evolves with the process of materialisation." Structural counter to §ACD:
+     spec-vs-build divergence is logged as soon as it happens, not lost as
+     folklore.
+
+     Format (one entry per slice boundary or significant insight):
+       ### YYYY-MM-DD — [topic]
+       - **What changed:** [what we learned that we didn't know at filing]
+       - **Plan impact:** [what in the plan no longer fits]
+       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+
+     The completion gate (T-1718) blocks --status work-completed when this
+     section exists but is empty/template-only. Use --skip-evolution to bypass
+     (logged Tier-2). Non-arc tasks may leave this empty.
+-->
+
+## Decisions
+
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
+
+## Decision
+
+<!-- Filled at completion of inception tasks via:
+     fw inception decide T-XXX go|no-go|defer --rationale "..."
+
+     For non-inception tasks this section is ignored. Kept in template
+     so `fw inception decide` (lib/inception.sh) finds the anchor heading
+     without auto-creating; T-1832 added auto-create as fallback for
+     legacy tasks lacking this section. -->
+
+## Updates
+
+### 2026-07-03T08:55:18Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-2328-be-reachable-warn-when-push-wake-dormant.md
+- **Context:** Initial task creation
+
+### 2026-07-03 — implemented
+- Added pure helper `pushwake_dormancy_warn(pty_session)` to
+  `scripts/be-reachable.sh`: emits a stderr WARN ("push-wake DORMANT — no
+  pty_session bound (poll-floor only)" + the two enablers) when pty_session is
+  empty, silent otherwise, always returns 0 (non-fatal — never blocks start).
+- Wired it into `cmd_start` right after the pushwaker spawn block; enriched the
+  success-summary `push_waker` line from `<none — no pty_session bound>` to
+  `<none — push-wake DORMANT, poll-floor only; see WARN above [T-2328]>`.
+- Added a `BE_REACHABLE_LIB=1` source-guard on the dispatch tail (mirrors the
+  pushwaker's convention) so the helper is unit-testable without spawning a
+  heartbeat/waker or touching a hub.
+- New `scripts/test-be-reachable-dormancy.sh` (4 assertions: dormant→WARN,
+  stderr-only, bound→silent, always-returns-0) — RESULT: PASS. `bash -n` clean.
