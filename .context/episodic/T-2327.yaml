@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2327: pushwaker trap reaps only direct children — subscribe grandchild can orphan
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T08:50:05Z
+# ============================================================================
+
+task_id: T-2327
+task_name: "pushwaker trap reaps only direct children — subscribe grandchild can orphan"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-07-03T08:40:00Z
+completed: 2026-07-03T08:50:01Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-07-03T10:35:23+02:00
+last_commit: 2026-07-03T10:49:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture code-review MINOR — pushwaker trap reaps only direct children (subscribe grandchild can orphan on non-pgroup stop). reap full pushwaker subtree on trap path (fix orphaned subscribe grandchild)
+
+# Key outcomes
+outcomes:
+  - '`_pw_reap_children` reaps the full subtree, not just direct children —'
+  - '`be-reachable.sh cmd_stop` (pgroup kill) still fully reaps (no regression);'
+  - '`bash -n scripts/be-reachable-pushwaker.sh` clean; `bash'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'reap full pushwaker subtree on trap path (fix orphaned subscribe grandchild)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/be-reachable-pushwaker.sh'
+  - '.tasks/active/T-2327-pushwaker-trap-reaps-only-direct-children.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T10:35:23"
+    action: "T-2327: capture code-review MINOR — pushwaker trap reaps only direct children (subscribe grandchild can orphan on non-pgroup stop)"
+  - time: "2026-07-03T10:49:54"
+    action: "T-2327: reap full pushwaker subtree on trap path (fix orphaned subscribe grandchild)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 2
+  files_changed: 2
+  lines_added: 109
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2327-pushwaker-trap-reaps-only-direct-children.md
+generated_by: context-agent-hybrid

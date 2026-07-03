@@ -3,16 +3,16 @@ id: T-2327
 name: "pushwaker trap reaps only direct children — subscribe grandchild can orphan"
 description: >
   pushwaker trap reaps only direct children — subscribe grandchild can orphan on non-pgroup stop
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T08:40:00Z
-last_update: 2026-07-03T08:47:40Z
-date_finished: null
+last_update: 2026-07-03T08:50:01Z
+date_finished: 2026-07-03T08:50:01Z
 ---
 
 # T-2327: pushwaker trap reaps only direct children — subscribe grandchild can orphan
@@ -83,3 +83,6 @@ bash scripts/test-pushwaker-filter.sh
 ### 2026-07-03T08:47:40Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-07-03T08:50:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
