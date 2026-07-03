@@ -2415,3 +2415,11 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: "RESOLVED (T-2324): added `--resolve` to `agent identity` / `identity show` — it routes through channel::load_identity_or_create (same precedence the signing path uses: FILE > AGENT_ID > DIR > shared host default) instead of the fixed base-dir key. Default off preserves base-dir semantics for `identity init`/`rotate` lockstep. Smoke-proof: TERMLINK_AGENT_ID=X `agent identity --json` returns the shared host fp, but `--resolve --json` returns the distinct per-agent fp (stable across calls, 16-hex — the format S1's hub emit compares against). be-reachable.sh now resolves self-fp via `agent identity --resolve --json | jq -r .fingerprint` and passes --self-fp to the push-waker, activating the dm rail."
+
+- id: PL-237
+  learning: "arc-004 push-wake (both the T-2316 inbox rail AND the T-2324 dm rail) only activates when `/be-reachable` has a BOUND pty_session — the pushwaker spawn is gated on `[ -n \"$pty_session\" ]`. `default_pty_session()` resolves non-empty ONLY inside tmux ($TMUX) or screen ($STY); a plain claude-code session with neither, and no explicit `--pty-session`, gets NO pushwaker at all → the entire push-wake feature is DORMANT and delivery falls back to the poll floor (the 15s doorbell / poll cadence). Not a regression — pre-existing T-2316 design (the waker must ring a PTY that exists to inject into). Discovered during T-2325 real-path validation: `be-reachable start` (no tmux) wrote `pty_session: '', pushwaker_pid: null`; only `start --pty-session <scratch>` activated both rails."
+  source: P-001
+  task: T-2325
+  date: 2026-07-03
+  context: Added via context agent
+  application: "When relying on push-transport (sub-second dm/inbox wake) for a claude-code session, ensure a PTY is bound: run inside tmux/screen, OR pass `/be-reachable --pty-session <name>` explicitly. Without it, reachability still works (heartbeat + poll) but the sub-second push-wake is off. T-2326 made this observable: `be-reachable.state` now carries `self_fp` (populated only when the dm rail is live) and the start summary shows the dm.queued wake. Candidate future work: have be-reachable WARN when starting without a pty_session so the dormancy isn't silent."
