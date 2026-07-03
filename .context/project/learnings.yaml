@@ -2414,4 +2414,4 @@ learnings:
   task: T-2324
   date: 2026-07-03
   context: Added via context agent
-  application: TBD
+  application: "RESOLVED (T-2324): added `--resolve` to `agent identity` / `identity show` — it routes through channel::load_identity_or_create (same precedence the signing path uses: FILE > AGENT_ID > DIR > shared host default) instead of the fixed base-dir key. Default off preserves base-dir semantics for `identity init`/`rotate` lockstep. Smoke-proof: TERMLINK_AGENT_ID=X `agent identity --json` returns the shared host fp, but `--resolve --json` returns the distinct per-agent fp (stable across calls, 16-hex — the format S1's hub emit compares against). be-reachable.sh now resolves self-fp via `agent identity --resolve --json | jq -r .fingerprint` and passes --self-fp to the push-waker, activating the dm rail."

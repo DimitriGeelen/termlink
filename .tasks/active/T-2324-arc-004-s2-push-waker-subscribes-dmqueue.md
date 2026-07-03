@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T06:43:22Z
-last_update: 2026-07-03T06:43:22Z
+last_update: 2026-07-03T06:55:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,19 +48,28 @@ through when spawning the waker. Design:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The push-waker recognises `dm.queued` push frames (in addition to
+- [x] The push-waker recognises `dm.queued` push frames (in addition to
   `inbox.queued`) and rings the PTY doorbell when the frame's
   `addressee_session_id` equals the waker's configured self-fp — via a new
   `--self-fp <fp>` parameter (empty/absent ⇒ dm rail disabled, back-compat).
-- [ ] The dm-rail decision reuses the existing dedup + doorbell-fire path (one
+  *(pushwaker_rail_loop dm.queued + run_waker gates the dm rail on non-empty
+  self_fp; --self-fp arg parsed — be-reachable-pushwaker.sh:96-192.)*
+- [x] The dm-rail decision reuses the existing dedup + doorbell-fire path (one
   ring per (addressee, offset) within TTL; idempotent `/check-arc respond`). A
   `dm.queued` frame NOT addressed to self is skipped; an `inbox.queued` frame is
   unaffected (no regression to the S1/T-2316 inbox path).
-- [ ] `be-reachable.sh` resolves the session self-fp and passes `--self-fp` when
+  *(Both rails call the SAME pure helpers pushwaker_extract_payload/decide/
+  dedup_ok with a per-rail dedup map; inbox rail unchanged. Reap + filter tests
+  green.)*
+- [x] `be-reachable.sh` resolves the session self-fp and passes `--self-fp` when
   spawning the waker (so the dm rail is active for a normally-started session).
-- [ ] Pure-helper unit tests cover the dm.queued decision: rings on self-addressed,
+  *(be-reachable.sh resolves via `termlink agent identity --resolve --json | jq
+  -r .fingerprint`, best-effort; passes --self-fp when non-empty — lines 256-283.
+  --resolve honours the per-agent resolver, closing PL-236 which blocked S2.)*
+- [x] Pure-helper unit tests cover the dm.queued decision: rings on self-addressed,
   skips other-addressed, skips when self-fp unset. Existing pushwaker filter
   tests still pass (`bash -n` clean; the pushwaker test script green).
+  *(3 dm-rail cases added to scripts/test-pushwaker-filter.sh; 11/11 PASS.)*
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -125,6 +134,11 @@ through when spawning the waker. Design:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n scripts/be-reachable.sh
+bash -n scripts/be-reachable-pushwaker.sh
+bash scripts/test-pushwaker-filter.sh
+cargo check -p termlink
 
 ## RCA
 

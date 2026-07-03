@@ -42,7 +42,36 @@ pub(crate) fn cmd_identity_init(force: bool, json_output: bool) -> Result<()> {
     }
 }
 
-pub(crate) fn cmd_identity_show(json_output: bool) -> Result<()> {
+pub(crate) fn cmd_identity_show(json_output: bool, resolve: bool) -> Result<()> {
+    if resolve {
+        // T-2324 / PL-236: honor the per-agent identity resolver
+        // (TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR >
+        // shared host default) so a per-agent session reports ITS OWN
+        // fingerprint, not the shared host key. This is the exact precedence the
+        // signing path uses (channel::load_identity_or_create) and that
+        // registration.rs::resolve_identity_key_path stamps into
+        // SessionMetadata.identity_fingerprint — so the wire sender_id, the
+        // registration fingerprint, and this readout all agree. Without
+        // --resolve the base-dir semantics are preserved (in lockstep with
+        // `identity init`/`rotate`, which operate on the base-dir key).
+        let ident = super::channel::load_identity_or_create()?;
+        if json_output {
+            println!(
+                "{}",
+                json!({
+                    "ok": true,
+                    "action": "resolved",
+                    "fingerprint": ident.fingerprint(),
+                    "public_key_hex": ident.public_key_hex(),
+                })
+            );
+        } else {
+            println!("Identity resolved (per-agent resolver)");
+            println!("  Fingerprint: {}", ident.fingerprint());
+            println!("  Public key:  {}", ident.public_key_hex());
+        }
+        return Ok(());
+    }
     let base = identity_base_dir()?;
     let path = identity_path(&base);
     if !path.exists() {

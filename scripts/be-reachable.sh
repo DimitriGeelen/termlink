@@ -253,10 +253,26 @@ cmd_start() {
     # pty_session is bound (nothing to ring otherwise). Non-fatal: a waker that
     # fails to start does NOT block reachability — the durable poll path remains
     # the floor. Its inbox id is the agent_id (the session's inbox namespace).
+    # T-2324 (arc-004 S2): resolve THIS session's per-agent identity fingerprint
+    # so the push-waker can also ring on `dm.queued` frames addressed to it — a
+    # direct dm:<a>:<b> post by a NON-live-sender (raw post, cron, remote peer,
+    # MCP) whose addressee is the self-fp, not the inbox id. We ask the CLI with
+    # --resolve so the SAME precedence the signing path uses (FILE > AGENT_ID >
+    # DIR > shared host default) is honored; plain `agent identity` reports the
+    # shared host key for a per-agent session (PL-236). TERMLINK_AGENT_ID is
+    # already exported above, so the resolver picks the per-agent key. Best-effort:
+    # on any failure self_fp stays empty and the waker runs inbox-rail only
+    # (back-compat, no dm rail).
+    local self_fp=""
+    if command -v jq >/dev/null 2>&1; then
+        self_fp="$("$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty' 2>/dev/null)" || self_fp=""
+    fi
+
     local pushwaker_pid=""
     if [ -n "$pty_session" ] && [ -x "$PW_SCRIPT" ]; then
         local pw_args=( --inbox-id "$agent_id" --pty-session "$pty_session" )
         [ -n "$hub" ] && pw_args+=( --hub "$hub" )
+        [ -n "$self_fp" ] && pw_args+=( --self-fp "$self_fp" )
         if command -v setsid >/dev/null 2>&1; then
             nohup setsid "$PW_SCRIPT" "${pw_args[@]}" >>"$log_file" 2>&1 &
         else

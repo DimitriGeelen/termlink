@@ -1791,6 +1791,14 @@ pub(crate) enum IdentityAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Resolve the per-agent identity (TERMLINK_IDENTITY_FILE >
+        /// TERMLINK_AGENT_ID > TERMLINK_IDENTITY_DIR > shared host default)
+        /// instead of the fixed base-dir key. Fixes PL-236 for per-agent
+        /// sessions (T-2324). Default off keeps base-dir semantics in lockstep
+        /// with `identity init`/`rotate`.
+        #[arg(long)]
+        resolve: bool,
     },
     /// Rotate the current keypair (alias for `init --force` — explicit for operator intent)
     Rotate {
@@ -6095,6 +6103,14 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// Resolve THIS session's per-agent identity via the same precedence
+        /// the signing path uses (TERMLINK_IDENTITY_FILE > TERMLINK_AGENT_ID >
+        /// TERMLINK_IDENTITY_DIR > shared host default), so a per-agent session
+        /// reports its own fingerprint rather than the shared host key (PL-236,
+        /// T-2324). Without it, falls back to the base-dir key for back-compat.
+        #[arg(long)]
+        resolve: bool,
     },
 
     /// Categorized verb index for the agent.* namespace (T-1556).
