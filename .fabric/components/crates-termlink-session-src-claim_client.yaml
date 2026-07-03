@@ -4,17 +4,14 @@ type: source
 subsystem: session
 location: crates/termlink-session/src/claim_client.rs
 tags: []
-
-purpose: "Substrate primitive #1 CLAIM client wrapper (T-2019/T-2032). RPC client façade for channel.claim / channel.renew / channel.release / channel.claim_transfer used by CLI handlers + AEF integrations."
-
+purpose: 'Substrate primitive #1 CLAIM client wrapper (T-2019/T-2032). RPC client façade for channel.claim / channel.renew
+  / channel.release / channel.claim_transfer used by CLI handlers + AEF integrations.'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
+last_enriched: '2026-07-03'

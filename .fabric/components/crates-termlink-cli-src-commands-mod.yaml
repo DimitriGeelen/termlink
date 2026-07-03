@@ -69,6 +69,12 @@ depends_on:
   type: calls
 - target: crates/termlink-cli/src/commands/mirror_grid_composer.rs
   type: calls
+- target: crates/termlink-cli/src/commands/help.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/agent_find_idle.rs
+  type: calls
+- target: crates/termlink-cli/src/commands/substrate.rs
+  type: calls
 depended_by:
 - target: crates/termlink-cli/src/main.rs
   type: uses
@@ -78,4 +84,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-21
 created_by: T-223
-last_enriched: '2026-04-24'
+last_enriched: '2026-07-03'

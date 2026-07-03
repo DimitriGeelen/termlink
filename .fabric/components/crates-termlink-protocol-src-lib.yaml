@@ -101,4 +101,10 @@ depended_by:
   type: called_by
 - target: crates/termlink-session/tests/bus_client_integration.rs
   type: called_by
-last_enriched: '2026-05-03'
+- target: crates/termlink-cli/src/commands/agent_find_idle.rs
+  type: called_by
+- target: crates/termlink-cli/src/commands/substrate.rs
+  type: called_by
+- target: crates/termlink-session/src/claim_client.rs
+  type: called_by
+last_enriched: '2026-07-03'

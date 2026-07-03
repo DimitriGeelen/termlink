@@ -4,17 +4,16 @@ type: source
 subsystem: cli
 location: crates/termlink-cli/src/commands/agent_find_idle.rs
 tags: []
-
-purpose: "Substrate primitive #2 DISPATCH CLI handler (T-2020/T-2045). Implements `termlink agent find-idle` — local-hub-only LIVE-listeners-MINUS-active-claims read; powers the orchestrator find-then-claim pattern."
-
+purpose: 'Substrate primitive #2 DISPATCH CLI handler (T-2020/T-2045). Implements `termlink agent find-idle` — local-hub-only
+  LIVE-listeners-MINUS-active-claims read; powers the orchestrator find-then-claim pattern.'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-cli/src/commands/mod.rs
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
+last_enriched: '2026-07-03'

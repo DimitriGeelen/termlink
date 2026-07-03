@@ -4,17 +4,13 @@ type: source
 subsystem: hub
 location: crates/termlink-hub/src/cv_index.rs
 tags: []
-
-purpose: "Substrate primitive #9 BROADCAST-WITH-REPLAY in-memory index (T-2027/T-2103). Per-topic HashMap of cv_key → offset, populated on every post carrying metadata.cv_key; powers channel.subscribe --include-current-value + channel.cv_keys O(K) late-joiner reads instead of O(N) log walks."
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'Substrate primitive #9 BROADCAST-WITH-REPLAY in-memory index (T-2027/T-2103). Per-topic HashMap of cv_key → offset,
+  populated on every post carrying metadata.cv_key; powers channel.subscribe --include-current-value + channel.cv_keys O(K)
+  late-joiner reads instead of O(N) log walks.'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
+last_enriched: '2026-07-03'

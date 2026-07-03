@@ -53,6 +53,12 @@ depends_on:
   type: calls
 - target: crates/termlink-hub/src/topic_lint.rs
   type: calls
+- target: crates/termlink-hub/src/cv_index.rs
+  type: calls
+- target: crates/termlink-hub/src/dedupe.rs
+  type: calls
+- target: crates/termlink-hub/src/governor.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -60,4 +66,4 @@ depended_by:
   type: exports-via_by
 - target: crates/termlink-hub/src/supervisor.rs
   type: exports-via_by
-last_enriched: '2026-05-03'
+last_enriched: '2026-07-03'

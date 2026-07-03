@@ -4,17 +4,13 @@ type: source
 subsystem: hub
 location: crates/termlink-hub/src/governor.rs
 tags: []
-
-purpose: "Substrate primitive #10 BACKPRESSURE counters + caps (T-2048). Connection-cap (TERMLINK_MAX_CONNECTIONS), per-sender rate-limit (TERMLINK_RATE_LIMIT_PER_SEC), cv_index overflow telemetry — surfaced via hub.governor_status RPC for /governor + fleet observability."
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'Substrate primitive #10 BACKPRESSURE counters + caps (T-2048). Connection-cap (TERMLINK_MAX_CONNECTIONS), per-sender
+  rate-limit (TERMLINK_RATE_LIMIT_PER_SEC), cv_index overflow telemetry — surfaced via hub.governor_status RPC for /governor
+  + fleet observability.'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-hub/src/lib.rs
+  type: called_by
 last_verified: 2026-06-11
 created_by: unknown
+last_enriched: '2026-07-03'
