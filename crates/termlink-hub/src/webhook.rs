@@ -176,6 +176,16 @@ pub fn webhooks() -> Option<&'static WebhookRuntime> {
     WEBHOOKS.get().and_then(|o| o.as_ref())
 }
 
+/// Number of configured webhook targets (0 when the subsystem is disabled).
+/// Surfaced via `hub.governor_status` (T-2335) so operators can confirm the
+/// hub actually loaded the targets they configured in `TERMLINK_WEBHOOK_CONFIG`
+/// — a `webhook_enabled=true` with `webhook_target_count=0` is impossible by
+/// construction ([`WebhookConfig::is_enabled`] requires ≥1 target), so the pair
+/// disambiguates "config path unset" from "config loaded but empty".
+pub fn target_count() -> usize {
+    webhooks().map(|rt| rt.cfg.targets.len()).unwrap_or(0)
+}
+
 /// Fan a hub event out to every configured target subscribed to `topic`.
 ///
 /// Fire-and-forget: each matching target's first [`dispatch`] runs inline in its

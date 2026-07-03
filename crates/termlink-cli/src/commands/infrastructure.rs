@@ -828,6 +828,27 @@ pub(crate) fn render_governor_section(v: &serde_json::Value) -> String {
         g("cv_index_overflow_total"),
         g("cv_index_cap_per_topic"),
     );
+    // T-2335: webhook fan-out (arc-004) telemetry. Rendered as n/a on pre-slice
+    // hubs (fields absent) — same graceful-degradation convention as cv_index.
+    // `enabled=false` ⇒ the opt-in subsystem is inert. dead_letters>0 or a
+    // growing retry_depth points at an unreachable/failing external endpoint.
+    let b = |k: &str| -> String {
+        v.get(k)
+            .and_then(|x| x.as_bool())
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    };
+    let _ = writeln!(
+        out,
+        "  webhook: enabled={} targets={} (retry_depth={}, enqueued_total={}, retry_success_total={}, dropped_full_total={}, dead_letter_total={})",
+        b("webhook_enabled"),
+        g("webhook_target_count"),
+        g("webhook_retry_depth"),
+        g("webhook_enqueued_total"),
+        g("webhook_retry_success_total"),
+        g("webhook_dropped_full_total"),
+        g("webhook_dead_letter_total"),
+    );
     out
 }
 
@@ -1631,6 +1652,14 @@ mod tests {
             "cv_index_topics_active": 2,
             "cv_index_overflow_total": 0,
             "cv_index_cap_per_topic": 1000,
+            // T-2335: webhook fan-out telemetry.
+            "webhook_enabled": true,
+            "webhook_target_count": 2,
+            "webhook_retry_depth": 1,
+            "webhook_enqueued_total": 7,
+            "webhook_retry_success_total": 6,
+            "webhook_dropped_full_total": 0,
+            "webhook_dead_letter_total": 1,
         });
         let s = render_governor_section(&v);
         assert!(s.starts_with("Governor:\n"));
@@ -1639,6 +1668,8 @@ mod tests {
         assert!(s.contains("Rate buckets: 5 active (rate_hits_total=0, evicted_total=42, max_rate_per_sec=1000)"));
         assert!(s.contains("Dedupe: 12 entries (hits_total=4, ttl_ms=300000)"));
         assert!(s.contains("cv_index: 5 entries across 2 topic(s) (overflow_total=0, cap_per_topic=1000)"));
+        // T-2335: webhook line.
+        assert!(s.contains("webhook: enabled=true targets=2 (retry_depth=1, enqueued_total=7, retry_success_total=6, dropped_full_total=0, dead_letter_total=1)"));
     }
 
     // T-2060: missing fields render as "n/a" rather than panic — the
@@ -1658,6 +1689,8 @@ mod tests {
         assert!(s.contains("Rate buckets: n/a active"));
         assert!(s.contains("Dedupe: n/a entries (hits_total=n/a, ttl_ms=n/a)"));
         assert!(s.contains("cv_index: n/a entries across n/a topic(s) (overflow_total=n/a, cap_per_topic=n/a)"));
+        // T-2335: webhook line degrades to n/a on a pre-slice hub too.
+        assert!(s.contains("webhook: enabled=n/a targets=n/a (retry_depth=n/a, enqueued_total=n/a, retry_success_total=n/a, dropped_full_total=n/a, dead_letter_total=n/a)"));
     }
 
     fn tmpdir(label: &str) -> std::path::PathBuf {

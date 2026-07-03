@@ -836,7 +836,14 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 ///   "cv_index_entries_active": u64,
 ///   "cv_index_topics_active": u64,
 ///   "cv_index_overflow_total": u64,
-///   "cv_index_cap_per_topic": u64
+///   "cv_index_cap_per_topic": u64,
+///   "webhook_enabled": bool,
+///   "webhook_target_count": u64,
+///   "webhook_retry_depth": u64,
+///   "webhook_enqueued_total": u64,
+///   "webhook_retry_success_total": u64,
+///   "webhook_dropped_full_total": u64,
+///   "webhook_dead_letter_total": u64
 /// }
 /// ```
 ///
@@ -855,7 +862,13 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 /// `rate_buckets_evicted_total` so operators can confirm the T-2137
 /// rate-bucket eviction loop is firing (non-zero = active eviction;
 /// stuck at zero with growing `rate_buckets_active` = unwired loop or
-/// pre-T-2137 binary).
+/// pre-T-2137 binary). T-2335 adds the seven `webhook_*` fields so
+/// operators can observe the arc-004 outbound webhook fan-out subsystem:
+/// `webhook_enabled` false = the opt-in subsystem is inert (no
+/// `TERMLINK_WEBHOOK_CONFIG`); a non-zero `webhook_dead_letter_total`
+/// means some external endpoint failed past `WEBHOOK_MAX_ATTEMPTS`; a
+/// growing `webhook_retry_depth` means a target is currently unreachable
+/// and posts are backing up in the in-memory retry queue.
 fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
@@ -877,6 +890,19 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "cv_index_topics_active": crate::cv_index::topics_active(),
             "cv_index_overflow_total": crate::cv_index::overflow_total(),
             "cv_index_cap_per_topic": crate::cv_index::cap_per_topic() as u64,
+            // T-2335: webhook fan-out (arc-004) observability. `webhook_enabled`
+            // false ⇒ TERMLINK_WEBHOOK_CONFIG unset/empty (subsystem inert,
+            // Directive-4 no-hard-dependency). Non-zero `webhook_dead_letter_total`
+            // is the smoking gun that some external endpoint has been failing past
+            // WEBHOOK_MAX_ATTEMPTS; a growing `webhook_retry_depth` means a target
+            // is currently unreachable and posts are backing up in the retry queue.
+            "webhook_enabled": crate::webhook::webhooks().is_some(),
+            "webhook_target_count": crate::webhook::target_count() as u64,
+            "webhook_retry_depth": crate::webhook::retry_queue().depth() as u64,
+            "webhook_enqueued_total": crate::webhook::retry_queue().enqueued_total(),
+            "webhook_retry_success_total": crate::webhook::retry_queue().retry_success_total(),
+            "webhook_dropped_full_total": crate::webhook::retry_queue().dropped_full_total(),
+            "webhook_dead_letter_total": crate::webhook::retry_queue().dead_letter_total(),
         }),
     )
     .into()
@@ -3607,5 +3633,28 @@ mod tests {
             r.result["cv_index_cap_per_topic"].as_u64().unwrap() >= 1,
             "cv_index_cap_per_topic must be >= 1 (CvIndex::new clamps to min 1)"
         );
+        // T-2335 webhook fan-out (arc-004) fields (7). `webhook_enabled` is a
+        // bool; the rest are u64 counters. In a fresh test process the
+        // subsystem is disabled (no TERMLINK_WEBHOOK_CONFIG) so enabled=false
+        // and every counter is 0 — but the fields must always be PRESENT so a
+        // wrapper can read them without a pre-slice-vs-post-slice probe.
+        assert_eq!(
+            r.result.get("webhook_enabled").and_then(|v| v.as_bool()),
+            Some(false),
+            "expected T-2335 webhook_enabled=false in a config-less test process"
+        );
+        for field in [
+            "webhook_target_count",
+            "webhook_retry_depth",
+            "webhook_enqueued_total",
+            "webhook_retry_success_total",
+            "webhook_dropped_full_total",
+            "webhook_dead_letter_total",
+        ] {
+            assert!(
+                r.result.get(field).and_then(|v| v.as_u64()).is_some(),
+                "expected T-2335 field {field} to be a present u64 in hub.governor_status response"
+            );
+        }
     }
 }
