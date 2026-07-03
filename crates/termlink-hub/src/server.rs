@@ -270,6 +270,9 @@ pub async fn run_with_tcp(
     // runtime. Reads TERMLINK_WEBHOOK_CONFIG (JSON path); absent/invalid ⇒
     // disabled with no panic (opt-in, no hard dependency).
     crate::webhook::init();
+    // T-2334 (Slice 3): background retry-drain loop for failed webhook deliveries
+    // (exponential backoff + dead-letter). Idles cheaply when webhooks disabled.
+    crate::webhook::spawn_retry_loop();
 
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
@@ -365,6 +368,8 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     crate::dedupe::init();
     // T-2333: Webhook fan-out runtime (idempotent; opt-in via TERMLINK_WEBHOOK_CONFIG).
     crate::webhook::init();
+    // T-2334: Webhook retry-drain loop (idempotent-safe; idles when disabled).
+    crate::webhook::spawn_retry_loop();
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;

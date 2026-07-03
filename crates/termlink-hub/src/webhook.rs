@@ -22,8 +22,10 @@
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::sync::OnceLock;
-use std::time::Duration;
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -176,10 +178,12 @@ pub fn webhooks() -> Option<&'static WebhookRuntime> {
 
 /// Fan a hub event out to every configured target subscribed to `topic`.
 ///
-/// Fire-and-forget: each matching target's [`dispatch`] runs in its own spawned
-/// task, so a slow or unreachable endpoint never blocks the `channel.post`
-/// response. No-op (returns immediately) when the subsystem is disabled or no
-/// target matches the topic. Dispatch outcomes are logged via `tracing`.
+/// Fire-and-forget: each matching target's first [`dispatch`] runs inline in its
+/// own spawned task, so a slow or unreachable endpoint never blocks the
+/// `channel.post` response. No-op (returns immediately) when the subsystem is
+/// disabled or no target matches the topic. A *retryable* failure (5xx / transport
+/// error) is enqueued into the retry queue (Slice 3, T-2334); a *permanent* failure
+/// (4xx / config error) is dropped and logged, never retried.
 pub fn fan_out(topic: &str, body: Vec<u8>) {
     let Some(rt) = webhooks() else { return };
     let targets = rt.cfg.targets_for(topic);
@@ -192,19 +196,329 @@ pub fn fan_out(topic: &str, body: Vec<u8>) {
         let target = target.clone();
         let body = body.clone();
         let topic = topic.to_string();
-        tokio::spawn(async move {
-            match dispatch(&client, &cfg, &target, &body).await {
-                Ok(status) => tracing::debug!(
-                    topic = %topic, url = %target.url, status,
-                    "webhook dispatched"
-                ),
-                Err(e) => tracing::warn!(
-                    topic = %topic, url = %target.url, error = %e,
-                    "webhook dispatch failed"
-                ),
+        // prior_attempts = 0: this is the first (inline) attempt.
+        tokio::spawn(dispatch_once_and_handle(client, cfg, target, topic, body, 0));
+    }
+}
+
+// ── Slice 3 (T-2334): retry / backoff / dead-letter ────────────────────────
+//
+// An in-memory bounded retry queue with per-entry exponential backoff + jitter.
+// Reuses the *shape* of the T-2051 offline-queue flush loop (an `attempts`
+// counter + a jittered periodic drain + poison→dead-letter after N attempts)
+// WITHOUT its SQLite store, keeping a `Mutex<Connection>` off the hot
+// `channel.post` path. Deliberate tradeoff (PL-111): in-flight retries do NOT
+// survive a hub restart — acceptable for best-effort/opt-in outbound webhooks.
+
+/// Max delivery attempts before an entry is dead-lettered (T-2051 POISON_THRESHOLD
+/// analog). Attempt 1 is the inline `fan_out` try; attempts 2..=MAX are retries.
+const WEBHOOK_MAX_ATTEMPTS: u32 = 5;
+/// Default retry-queue capacity (env `TERMLINK_WEBHOOK_RETRY_CAP` overrides).
+const DEFAULT_RETRY_CAP: usize = 1000;
+/// How many dead-letter records to retain for observability (bounded ring).
+const DEAD_LETTER_RING_CAP: usize = 100;
+/// Exponential-backoff base (attempt 1 waits ~this long before retry).
+const BACKOFF_BASE_MS: u64 = 1000;
+/// Exponential-backoff ceiling — a single retry never waits longer than this.
+const BACKOFF_CAP_MS: u64 = 60_000;
+
+/// Classification of a single dispatch result, deciding retry policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchOutcome {
+    /// 2xx — delivered.
+    Success,
+    /// 4xx or a config-level error (bad URL / non-allowlisted host). Retrying
+    /// cannot fix it, so the entry is dropped, not retried.
+    PermanentDrop,
+    /// 5xx (or 1xx/3xx) or a transport error — worth retrying with backoff.
+    Retryable,
+}
+
+/// Pure classification of a [`dispatch`] result into a [`DispatchOutcome`].
+/// 2xx ⇒ Success; 4xx ⇒ PermanentDrop; anything else Ok ⇒ Retryable;
+/// config errors (`InvalidUrl`/`HostNotAllowed`) ⇒ PermanentDrop; transport
+/// errors (`Http`) ⇒ Retryable.
+pub fn classify_outcome(result: &Result<u16, WebhookError>) -> DispatchOutcome {
+    match result {
+        Ok(s) if (200..300).contains(s) => DispatchOutcome::Success,
+        Ok(s) if (400..500).contains(s) => DispatchOutcome::PermanentDrop,
+        Ok(_) => DispatchOutcome::Retryable,
+        Err(WebhookError::InvalidUrl(_)) | Err(WebhookError::HostNotAllowed(_)) => {
+            DispatchOutcome::PermanentDrop
+        }
+        Err(WebhookError::Http(_)) => DispatchOutcome::Retryable,
+    }
+}
+
+/// Deterministic exponential-backoff base for `attempts` (no jitter): monotonic
+/// non-decreasing, capped at [`BACKOFF_CAP_MS`]. `attempts` is clamped before the
+/// shift so a large value can never overflow the `1 << n`.
+pub fn backoff_base_ms(attempts: u32) -> u64 {
+    let shift = attempts.min(20);
+    BACKOFF_BASE_MS.saturating_mul(1u64 << shift).min(BACKOFF_CAP_MS)
+}
+
+/// Apply ±25% jitter to a backoff `base`, decorrelating retries across targets
+/// (T-2055 thundering-herd guard) using a cheap wall-clock-nanos entropy source —
+/// no `rand` crate dependency. Result stays within `[base - base/4, base + base/4]`.
+pub fn jitter_ms(base: u64) -> u64 {
+    if base == 0 {
+        return 0;
+    }
+    let span = base / 2; // full jitter window = 50% of base, centred on base
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(0);
+    let delta = nanos % (span + 1); // [0, span]
+    base.saturating_sub(base / 4).saturating_add(delta)
+}
+
+/// Full backoff delay for `attempts`: jittered exponential base.
+pub fn backoff_delay_ms(attempts: u32) -> u64 {
+    jitter_ms(backoff_base_ms(attempts))
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// One queued retry: a target + payload + how many attempts have been made + the
+/// absolute wall-clock time at which the next attempt is due.
+#[derive(Debug, Clone)]
+struct RetryEntry {
+    target: WebhookTarget,
+    topic: String,
+    body: Vec<u8>,
+    attempts: u32,
+    next_attempt_ms: u64,
+}
+
+/// A terminally-failed delivery retained for observability (Slice 4 surface).
+#[derive(Debug, Clone)]
+pub struct DeadLetter {
+    pub url: String,
+    pub topic: String,
+    pub attempts: u32,
+    pub reason: String,
+    pub ts_ms: u64,
+}
+
+/// In-memory bounded retry queue with counters. Process-global via
+/// [`retry_queue`]. All state is behind mutexes; the hot path only touches it on
+/// a *failed* first attempt, so the common (success / no-webhook) path is untouched.
+pub struct RetryQueue {
+    inner: Mutex<VecDeque<RetryEntry>>,
+    dead_letters: Mutex<VecDeque<DeadLetter>>,
+    cap: usize,
+    enqueued_total: AtomicU64,
+    retry_success_total: AtomicU64,
+    dropped_full_total: AtomicU64,
+    dead_letter_total: AtomicU64,
+}
+
+impl RetryQueue {
+    fn new(cap: usize) -> Self {
+        RetryQueue {
+            inner: Mutex::new(VecDeque::new()),
+            dead_letters: Mutex::new(VecDeque::new()),
+            cap,
+            enqueued_total: AtomicU64::new(0),
+            retry_success_total: AtomicU64::new(0),
+            dropped_full_total: AtomicU64::new(0),
+            dead_letter_total: AtomicU64::new(0),
+        }
+    }
+
+    /// Enqueue a retry entry. Returns `Err(())` (and bumps `dropped_full_total`)
+    /// when the queue is at capacity — a loud, counted drop, never a silent one.
+    fn enqueue(&self, entry: RetryEntry) -> Result<(), ()> {
+        let mut q = self.inner.lock().unwrap();
+        if q.len() >= self.cap {
+            self.dropped_full_total.fetch_add(1, Ordering::Relaxed);
+            return Err(());
+        }
+        q.push_back(entry);
+        self.enqueued_total.fetch_add(1, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Remove and return every entry whose `next_attempt_ms <= now_ms`, leaving
+    /// not-yet-due entries in place (order preserved).
+    fn drain_due(&self, now_ms: u64) -> Vec<RetryEntry> {
+        let mut q = self.inner.lock().unwrap();
+        let mut due = Vec::new();
+        let mut kept = VecDeque::with_capacity(q.len());
+        while let Some(e) = q.pop_front() {
+            if e.next_attempt_ms <= now_ms {
+                due.push(e);
+            } else {
+                kept.push_back(e);
             }
+        }
+        *q = kept;
+        due
+    }
+
+    fn record_retry_success(&self) {
+        self.retry_success_total.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Terminally fail an entry: retain a bounded dead-letter record + bump the
+    /// counter. Drops the oldest record when the ring is full.
+    fn dead_letter(&self, entry: &RetryEntry, reason: &str) {
+        self.dead_letter_total.fetch_add(1, Ordering::Relaxed);
+        let mut dl = self.dead_letters.lock().unwrap();
+        if dl.len() >= DEAD_LETTER_RING_CAP {
+            dl.pop_front();
+        }
+        dl.push_back(DeadLetter {
+            url: entry.target.url.clone(),
+            topic: entry.topic.clone(),
+            attempts: entry.attempts,
+            reason: reason.to_string(),
+            ts_ms: now_ms(),
         });
     }
+
+    /// Current number of entries awaiting retry.
+    pub fn depth(&self) -> usize {
+        self.inner.lock().unwrap().len()
+    }
+    pub fn enqueued_total(&self) -> u64 {
+        self.enqueued_total.load(Ordering::Relaxed)
+    }
+    pub fn retry_success_total(&self) -> u64 {
+        self.retry_success_total.load(Ordering::Relaxed)
+    }
+    pub fn dropped_full_total(&self) -> u64 {
+        self.dropped_full_total.load(Ordering::Relaxed)
+    }
+    pub fn dead_letter_total(&self) -> u64 {
+        self.dead_letter_total.load(Ordering::Relaxed)
+    }
+    /// Snapshot of retained dead-letter records (most-recent last).
+    pub fn dead_letters(&self) -> Vec<DeadLetter> {
+        self.dead_letters.lock().unwrap().iter().cloned().collect()
+    }
+}
+
+static RETRY_QUEUE: OnceLock<RetryQueue> = OnceLock::new();
+
+fn parse_retry_cap() -> usize {
+    std::env::var("TERMLINK_WEBHOOK_RETRY_CAP")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(DEFAULT_RETRY_CAP)
+}
+
+/// Access the process-global retry queue (lazy-init with the env-configured cap).
+pub fn retry_queue() -> &'static RetryQueue {
+    RETRY_QUEUE.get_or_init(|| RetryQueue::new(parse_retry_cap()))
+}
+
+/// Schedule a retry for a target that just failed with a [`DispatchOutcome::Retryable`]
+/// result after `attempts` total attempts. Dead-letters instead when `attempts`
+/// has reached [`WEBHOOK_MAX_ATTEMPTS`], or when the queue is full.
+fn schedule_retry(target: WebhookTarget, topic: String, body: Vec<u8>, attempts: u32) {
+    let q = retry_queue();
+    if attempts >= WEBHOOK_MAX_ATTEMPTS {
+        let entry = RetryEntry {
+            target,
+            topic,
+            body,
+            attempts,
+            next_attempt_ms: 0,
+        };
+        q.dead_letter(&entry, "max attempts exhausted");
+        tracing::warn!(
+            url = %entry.target.url, topic = %entry.topic, attempts,
+            "webhook dead-lettered — max attempts exhausted"
+        );
+        return;
+    }
+    let next_attempt_ms = now_ms() + backoff_delay_ms(attempts);
+    let entry = RetryEntry {
+        target,
+        topic,
+        body,
+        attempts,
+        next_attempt_ms,
+    };
+    if q.enqueue(entry.clone()).is_err() {
+        tracing::warn!(
+            url = %entry.target.url, topic = %entry.topic,
+            "webhook retry dropped — retry queue full (TERMLINK_WEBHOOK_RETRY_CAP)"
+        );
+    }
+}
+
+/// Dispatch once and route the outcome: record success, drop a permanent failure,
+/// or schedule a retry (bumping the attempt count). Shared by the inline
+/// [`fan_out`] first attempt (`prior_attempts = 0`) and the drain-loop retries.
+async fn dispatch_once_and_handle(
+    client: reqwest::Client,
+    cfg: WebhookConfig,
+    target: WebhookTarget,
+    topic: String,
+    body: Vec<u8>,
+    prior_attempts: u32,
+) {
+    let result = dispatch(&client, &cfg, &target, &body).await;
+    match classify_outcome(&result) {
+        DispatchOutcome::Success => {
+            if prior_attempts > 0 {
+                retry_queue().record_retry_success();
+            }
+            tracing::debug!(topic = %topic, url = %target.url, "webhook delivered");
+        }
+        DispatchOutcome::PermanentDrop => {
+            tracing::warn!(
+                topic = %topic, url = %target.url, ?result,
+                "webhook permanently failed (4xx / config) — dropped, no retry"
+            );
+        }
+        DispatchOutcome::Retryable => {
+            schedule_retry(target, topic, body, prior_attempts + 1);
+        }
+    }
+}
+
+/// Spawn the background retry-drain loop (mirror of
+/// [`crate::governor::spawn_rate_evict_loop`]). Every tick it drains due entries
+/// and re-dispatches each in its own task. Idles cheaply when the subsystem is
+/// disabled. Interval tunable via `TERMLINK_WEBHOOK_RETRY_INTERVAL_MS`
+/// (clamped 250..=60000, default 2000). Must be called from within a Tokio runtime.
+pub fn spawn_retry_loop() {
+    let interval_ms = std::env::var("TERMLINK_WEBHOOK_RETRY_INTERVAL_MS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(2000)
+        .clamp(250, 60_000);
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(Duration::from_millis(interval_ms));
+        loop {
+            ticker.tick().await;
+            let Some(rt) = webhooks() else { continue };
+            let due = retry_queue().drain_due(now_ms());
+            for entry in due {
+                let client = rt.client.clone();
+                let cfg = rt.cfg.clone();
+                tokio::spawn(dispatch_once_and_handle(
+                    client,
+                    cfg,
+                    entry.target,
+                    entry.topic,
+                    entry.body,
+                    entry.attempts,
+                ));
+            }
+        }
+    });
 }
 
 /// Failure modes for a single dispatch attempt.
@@ -415,6 +729,125 @@ mod tests {
         // a (exact) + b (wildcard); NOT c (other topic) or d (empty).
         assert_eq!(hit, vec!["https://h/a", "https://h/b"]);
         assert!(cfg.targets_for("nothing-matches").iter().all(|t| t.url == "https://h/b"));
+    }
+
+    // ── Slice 3 (T-2334): retry / backoff / dead-letter ────────────────
+
+    #[test]
+    fn classify_outcome_maps_status_and_errors() {
+        assert_eq!(classify_outcome(&Ok(200)), DispatchOutcome::Success);
+        assert_eq!(classify_outcome(&Ok(204)), DispatchOutcome::Success);
+        // 4xx is permanent — retrying won't fix a bad/unauthorized request.
+        assert_eq!(classify_outcome(&Ok(400)), DispatchOutcome::PermanentDrop);
+        assert_eq!(classify_outcome(&Ok(404)), DispatchOutcome::PermanentDrop);
+        // 5xx is retryable.
+        assert_eq!(classify_outcome(&Ok(500)), DispatchOutcome::Retryable);
+        assert_eq!(classify_outcome(&Ok(503)), DispatchOutcome::Retryable);
+        // Config errors are permanent; transport errors are retryable.
+        assert_eq!(
+            classify_outcome(&Err(WebhookError::HostNotAllowed("x".into()))),
+            DispatchOutcome::PermanentDrop
+        );
+        assert_eq!(
+            classify_outcome(&Err(WebhookError::InvalidUrl("x".into()))),
+            DispatchOutcome::PermanentDrop
+        );
+        assert_eq!(
+            classify_outcome(&Err(WebhookError::Http("timeout".into()))),
+            DispatchOutcome::Retryable
+        );
+    }
+
+    #[test]
+    fn backoff_base_is_monotonic_and_capped() {
+        assert_eq!(backoff_base_ms(0), 1000);
+        assert_eq!(backoff_base_ms(1), 2000);
+        assert_eq!(backoff_base_ms(2), 4000);
+        assert_eq!(backoff_base_ms(3), 8000);
+        // Monotonic non-decreasing all the way to (and stuck at) the cap.
+        let mut prev = 0;
+        for n in 0..40u32 {
+            let cur = backoff_base_ms(n);
+            assert!(cur >= prev, "backoff must be non-decreasing at n={n}");
+            assert!(cur <= BACKOFF_CAP_MS, "backoff must never exceed the cap");
+            prev = cur;
+        }
+        // Large attempt counts saturate at the cap (no shift overflow / panic).
+        assert_eq!(backoff_base_ms(1000), BACKOFF_CAP_MS);
+    }
+
+    #[test]
+    fn jitter_stays_within_25_percent_bounds() {
+        let base = 8000u64;
+        for _ in 0..1000 {
+            let j = jitter_ms(base);
+            // delta ∈ [0, base/2]; result = (base - base/4) + delta ⇒ [base-25%, base+25%].
+            assert!(
+                j >= base - base / 4 && j <= base + base / 4,
+                "jitter {j} out of bounds for base {base}"
+            );
+        }
+        assert_eq!(jitter_ms(0), 0);
+    }
+
+    fn retry_entry(url: &str, attempts: u32, next_ms: u64) -> RetryEntry {
+        RetryEntry {
+            target: target(url, &["*"]),
+            topic: "t".to_string(),
+            body: b"{}".to_vec(),
+            attempts,
+            next_attempt_ms: next_ms,
+        }
+    }
+
+    #[test]
+    fn retry_queue_enqueue_rejects_when_full() {
+        let q = RetryQueue::new(2);
+        assert!(q.enqueue(retry_entry("https://h/a", 1, 0)).is_ok());
+        assert!(q.enqueue(retry_entry("https://h/b", 1, 0)).is_ok());
+        // Third enqueue over cap=2 is a loud, counted drop.
+        assert!(q.enqueue(retry_entry("https://h/c", 1, 0)).is_err());
+        assert_eq!(q.depth(), 2);
+        assert_eq!(q.enqueued_total(), 2);
+        assert_eq!(q.dropped_full_total(), 1);
+    }
+
+    #[test]
+    fn retry_queue_drain_due_selects_only_ready_entries() {
+        let q = RetryQueue::new(10);
+        q.enqueue(retry_entry("https://h/now", 1, 100)).unwrap();
+        q.enqueue(retry_entry("https://h/later", 1, 5000)).unwrap();
+        // now_ms = 1000: the first entry is due, the second is not.
+        let due = q.drain_due(1000);
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].target.url, "https://h/now");
+        // The not-yet-due entry remains queued.
+        assert_eq!(q.depth(), 1);
+    }
+
+    #[test]
+    fn dead_letter_records_and_counts() {
+        let q = RetryQueue::new(10);
+        let e = retry_entry("https://h/dead", WEBHOOK_MAX_ATTEMPTS, 0);
+        q.dead_letter(&e, "max attempts exhausted");
+        assert_eq!(q.dead_letter_total(), 1);
+        let dl = q.dead_letters();
+        assert_eq!(dl.len(), 1);
+        assert_eq!(dl[0].url, "https://h/dead");
+        assert_eq!(dl[0].attempts, WEBHOOK_MAX_ATTEMPTS);
+        assert_eq!(dl[0].reason, "max attempts exhausted");
+    }
+
+    #[test]
+    fn dead_letter_ring_is_bounded() {
+        let q = RetryQueue::new(10);
+        for i in 0..(DEAD_LETTER_RING_CAP + 20) {
+            let e = retry_entry(&format!("https://h/{i}"), WEBHOOK_MAX_ATTEMPTS, 0);
+            q.dead_letter(&e, "x");
+        }
+        // Ring is capped; total counter still reflects every dead-letter.
+        assert_eq!(q.dead_letters().len(), DEAD_LETTER_RING_CAP);
+        assert_eq!(q.dead_letter_total() as usize, DEAD_LETTER_RING_CAP + 20);
     }
 
     #[test]
