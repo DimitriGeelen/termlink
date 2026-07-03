@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2336: Webhook fan-out S5 — CLI config verbs (webhook add/list/test)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T16:15:12Z
+# ============================================================================
+
+task_id: T-2336
+task_name: "Webhook fan-out S5 — CLI config verbs (webhook add/list/test)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T14:09:29Z
+completed: 2026-07-03T16:13:55Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T16:09:50+02:00
+last_commit: 2026-07-03T18:13:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture — webhook S5 CLI config verbs (add/list/test), decomposed from S4. webhook fan-out S5 — CLI config verbs (add/list/test)
+
+# Key outcomes
+outcomes:
+  - '`termlink webhook add --url <U> [--signing-key K] [--topic T ...] [--allowed-host H ...] [--config PATH]` merges a target into the config JSON: reads existing config (or starts empty), appends the target, auto-adds the URL''s host to `allowed_hosts` when absent, writes back atomically (temp+rename). Refuses (non-zero exit + clear message) when the URL has no parseable host or is not http/https. — smoke: added 2 targets, host auto-added once (no dup), key auto-generated; invalid-url rejected by unit test.'
+  - '`termlink webhook list [--config PATH] [--json]` renders configured targets (url, topics, host) + allowed_hosts with the `signing_key` REDACTED in human output; empty/missing config prints an explicit "webhook fan-out disabled (0 targets)" line (not a silent blank). `--json` emits the parsed config verbatim. — smoke: text shows `signing_key=<redacted, 64 chars>`, `--json` shows key verbatim.'
+  - '`termlink webhook test --url <U> [--signing-key K] [--allowed-host H ...] [--topic T] [--config PATH] [--json]` dispatches a signed sample payload to the target by reusing `webhook::dispatch` (so the SSRF host-allowlist guard + HMAC signing run identically to production) and reports the HTTP status code or the classified error; SSRF refusal (host not in allowlist) is surfaced loudly, not swallowed. — smoke: local sink received `X-Termlink-Signature: sha256=…` + HTTP 204; non-allowlisted host refused loudly (exit 1) with `--allowed-host` hint.'
+  - 'Config path resolves from `--config` when given, else `TERMLINK_WEBHOOK_CONFIG` env; when neither is set, `add`/`test` fail with an actionable message naming both mechanisms (no silent default path). — `resolve_config_path` unit-tested; bail message names both.'
+  - 'Pure config-mutation logic (merge target, ensure-host-in-allowlist, redact signing key) is extracted into unit-tested helper fn(s) in `commands/webhook.rs` — tests cover: add-to-empty, add-with-host-already-present (no dup), invalid-url-rejected, redaction. — 8 unit tests pass.'
+  - '`cargo build -p termlink-hub -p termlink` compiles clean; new `webhook.rs` unit tests pass; `webhook` subcommand appears in `termlink --help` and `termlink webhook --help` lists add/list/test. — build clean; 8 CLI tests + full 397+4 hub suite pass (PL-238); help verified.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-03 — `webhook test` mirrors production deny-by-default (does NOT auto-permit the URL host)'
+    chose: '`test` runs the URL against the config''s allowlist + explicit `--allowed-host` extras only; it does NOT auto-add the URL''s own host. A host absent from the allowlist refuses loudly with an actionable `--allowed-host` hint.'
+    rationale: 'The whole point of `test` is to verify a target behaves as it WOULD in production. Auto-permitting the tested host would silently bypass the SSRF guard the feature exists to enforce — the operator would get a green "✓ dispatched" for a target the hub would actually refuse. Deny-by-default consistency > convenience.'
+    alternatives_rejected: ['Auto-adding the URL host to the effective allowlist (first implementation). Made the SSRF-refusal path unreachable via `test`, defeating AC-3''s "surfaced loudly" clause.']
+  - decision: '2026-07-03 — Signing-key generation via `/dev/urandom`, not a new `rand` dependency'
+    chose: 'Read 32 bytes from `/dev/urandom` directly for auto-generated signing keys.'
+    rationale: 'The CLI crate has no direct `rand`/`getrandom` dependency; `/dev/urandom` is cryptographically adequate on Linux (the deploy target) and dependency-free. Avoids widening the CLI dependency graph for one helper.'
+    alternatives_rejected: ['Adding `rand`/`getrandom` as a direct dep (unnecessary surface); time-based pseudo-secret (not unpredictable — unsafe for an HMAC key).']
+  - decision: '2026-07-03 — Expose `url_host` + `build_test_client` from the hub crate rather than re-implement in CLI'
+    chose: 'Made `webhook::url_host` public and added `webhook::build_test_client()` in the hub crate; the CLI reuses both plus the existing `dispatch`/`sign_payload`.'
+    rationale: 'Single source of truth. Host extraction and the aws-lc-rs crypto-provider install (PL-238) must match the hub''s dispatch path exactly, or the CLI''s `test` could pass while production refuses (or vice-versa). Re-implementing the reqwest::Url parse + provider-pin dance in the CLI would invite drift and re-introduce the PL-238 "No provider set" trap.'
+    alternatives_rejected: ['Adding `reqwest` as a direct CLI dependency to parse URLs client-side (drift risk + the crypto-provider pin would have to be duplicated).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/commands/webhook.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'crates/termlink-hub/src/webhook.rs'
+  - '.fabric/components/crates-termlink-cli-src-commands-webhook.yaml'
+  - '.tasks/active/T-2336-webhook-fan-out-s5--cli-config-verbs-web.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T16:09:50"
+    action: "T-2336: capture — webhook S5 CLI config verbs (add/list/test), decomposed from S4"
+  - time: "2026-07-03T18:13:44"
+    action: "T-2336: webhook fan-out S5 — CLI config verbs (add/list/test)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 124 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 124
+  commits: 2
+  files_changed: 7
+  lines_added: 764
+  lines_removed: 46
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2336-webhook-fan-out-s5--cli-config-verbs-web.md
+generated_by: context-agent-hybrid

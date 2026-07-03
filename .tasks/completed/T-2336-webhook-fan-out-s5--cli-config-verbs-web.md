@@ -4,20 +4,20 @@ name: "Webhook fan-out S5 — CLI config verbs (webhook add/list/test)"
 description: >
   Follow-up to T-2335 (decomposed from the original S4 capture). CLI config authoring for the arc-004 webhook fan-out feature: 'termlink webhook add' (append/merge a target into the TERMLINK_WEBHOOK_CONFIG JSON file), 'termlink webhook list' (render configured targets + allowed_hosts), 'termlink webhook test <url>' (dispatch a signed sample payload to a target and report HTTP status, reusing webhook::dispatch/sign_payload). Config surface today is TERMLINK_WEBHOOK_CONFIG JSON only. Telemetry already shipped (T-2335 governor_status fields). See crates/termlink-hub/src/webhook.rs + docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/webhook.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T14:09:29Z
-last_update: 2026-07-03T16:01:48Z
-date_finished: null
+last_update: 2026-07-03T16:13:55Z
+date_finished: 2026-07-03T16:13:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -171,3 +171,20 @@ grep -q 'pub(crate) enum WebhookAction' crates/termlink-cli/src/cli.rs
 ### 2026-07-03T16:01:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a7c1e2d0
+- **Timestamp:** 2026-07-03T16:15:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — Pure config-mutation logic (merge target, ensure-host-in-allowlist, redact signing key) is extracted into unit-tested helper fn(s) in `commands/webhook.rs` — tests cover: add-to-empty, add-with-host-a
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=commands/webhook.rs in: Pure config-mutation logic (merge target, ensure-host-in-allowlist, redact signing key) is extracted into unit-tested helper fn(s) in `commands/webhoo`
+
+### 2026-07-03T16:13:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
