@@ -2423,3 +2423,10 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: "When relying on push-transport (sub-second dm/inbox wake) for a claude-code session, ensure a PTY is bound: run inside tmux/screen, OR pass `/be-reachable --pty-session <name>` explicitly. Without it, reachability still works (heartbeat + poll) but the sub-second push-wake is off. T-2326 made this observable: `be-reachable.state` now carries `self_fp` (populated only when the dm rail is live) and the start summary shows the dm.queued wake. Candidate future work: have be-reachable WARN when starting without a pty_session so the dormancy isn't silent."
+- id: PL-238
+  learning: "Adding reqwest (or any rustls-consuming HTTP client) to a crate that already uses rustls with the aws-lc-rs backend causes a crypto-provider collision: reqwest's default 'rustls-tls' feature pulls in the 'ring' provider, so BOTH aws-lc-rs and ring get compiled into the shared rustls dep and rustls 0.23 refuses to auto-pick a process-default ('make sure exactly one of aws-lc-rs and ring is enabled') — panicking any TLS config built without an explicit provider. Fix: use reqwest's '-no-provider' feature variant (e.g. rustls-tls-webpki-roots-no-provider) so only aws-lc-rs is compiled, AND call rustls::crypto::aws_lc_rs::default_provider().install_default() once before building the reqwest client (reqwest with -no-provider needs the process-default installed or it panics 'No provider set'). Latent-regression trap: a filtered 'cargo test -p X <filter>' can PASS when the full suite installs a provider first — always run the full crate suite, not just the new-feature filter."
+  source: P-001
+  task: T-2333
+  date: 2026-07-03
+  context: Added via context agent
+  application: TBD
